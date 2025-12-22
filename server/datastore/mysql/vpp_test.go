@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -41,6 +42,7 @@ func TestVPP(t *testing.T) {
 		{"TestGetUnverifiedVPPInstallsForHost", testGetUnverifiedVPPInstallsForHost},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameVPP},
 		{"AndroidVPPAppStatus", testAndroidVPPAppStatus},
+		{"AndroidAppConfigs", testAndroidAppConfigs},
 	}
 
 	for _, c := range cases {
@@ -777,7 +779,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
-	})
+	}, map[string]uint{})
 	require.NoError(t, err)
 
 	// create policies using two of the apps
@@ -818,7 +820,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID},
 		{VPPAppID: app3.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	policy1, err = ds.Policy(ctx, policy1.ID)
@@ -839,7 +841,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	policy1, err = ds.Policy(ctx, policy1.ID)
@@ -859,7 +861,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.Error(t, err)
 	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
 
@@ -868,14 +870,14 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Remove app1 now works
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	policy1, err = ds.Policy(ctx, policy1.ID)
@@ -887,7 +889,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, app2Meta.VPPAppsTeamsID, *policy2.VPPAppsTeamsID)
 
 	// Remove all apps
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{})
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
@@ -1806,7 +1808,7 @@ func testVPPTokenTeamAssignment(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team1.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
@@ -1913,7 +1915,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		app1.VPPAppTeam,
 		app2.VPPAppTeam,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
@@ -1972,7 +1974,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		app1.VPPAppTeam,
 		app2.VPPAppTeam,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
@@ -2401,6 +2403,12 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, res)
 
+	// set an unknown host install or an unknown app ID as pending due to config change has no effect
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, "no-such-host", vpp1.AdamID, 123)
+	require.NoError(t, err)
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host1.Host.UUID, "no-such-app-id", 123)
+	require.NoError(t, err)
+
 	// list hosts filtering by vpp1 installed status
 	hosts, err := ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
 	require.NoError(t, err)
@@ -2423,4 +2431,112 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host3.Host.ID, hosts[0].ID)
+
+	// set vpp1 as pending due to config change on host1
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host1.Host.UUID, vpp1.AdamID, 123)
+	require.NoError(t, err)
+
+	// now nothing is returned for Installed for vpp1
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// and host1 is returned for pending for vpp1
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending), ListOptions: fleet.ListOptions{OrderKey: "id"}})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	require.Equal(t, host1.Host.ID, hosts[0].ID)
+	require.Equal(t, host3.Host.ID, hosts[1].ID)
+
+	// set vpp2 as pending due to config change on host2
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host2.Host.UUID, vpp2.AdamID, 123)
+	require.NoError(t, err)
+
+	// has no effect because the install was failed, it stays failed
+	// list hosts filtering by vpp2 failed status
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallFailed)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, host2.Host.ID, hosts[0].ID)
+}
+
+func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "androids"})
+	require.NoError(t, err)
+
+	// Insert some VPP apps for no team
+	app1 := &fleet.VPPApp{Name: "android_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+	app2 := &fleet.VPPApp{Name: "android_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+	app3 := &fleet.VPPApp{Name: "android_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+	app4 := &fleet.VPPApp{Name: "android_app_4", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b4"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
+	config1 := json.RawMessage(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1":1}}`)
+	expectedConfig1 := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1": 1}}`)
+
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID, SelfService: true, DisplayName: ptr.String("name 1")},
+		{VPPAppID: app2.VPPAppID, SelfService: true, DisplayName: ptr.String("name 2"), Configuration: json.RawMessage(nil)},
+		{VPPAppID: app3.VPPAppID, SelfService: true, DisplayName: ptr.String("name 3"), Configuration: json.RawMessage(`{}`)},
+		{VPPAppID: app4.VPPAppID, SelfService: true, DisplayName: ptr.String("name 4"), Configuration: config1},
+	}, map[string]uint{"1_android": 1, "2_android": 2, "3_android": 3, "4_android": 4})
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 4)
+
+	for _, a := range assigned {
+		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
+		require.True(t, err == nil || fleet.IsNotFound(err))
+		if config != nil {
+			a.Configuration = config.Configuration
+			assigned[a.VPPAppID] = a
+		}
+	}
+
+	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(nil), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
+	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
+
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID}, // stays nil
+		{VPPAppID: app2.VPPAppID, Configuration: json.RawMessage(`{"managedConfiguration": 1}`)}, // updates
+		{VPPAppID: app3.VPPAppID, Configuration: json.RawMessage(nil)},
+		{VPPAppID: app4.VPPAppID, Configuration: config1},
+	}, map[string]uint{"1": 1, "2": 2, "3": 3, "4": 4})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 4)
+
+	for _, a := range assigned {
+		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
+		require.True(t, err == nil || fleet.IsNotFound(err))
+		if config != nil {
+			a.Configuration = config.Configuration
+			assigned[a.VPPAppID] = a
+		}
+	}
+
+	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(`{"managedConfiguration": 1}`), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
+	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
+
+	// Delete all
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{}, nil)
+	require.NoError(t, err)
 }

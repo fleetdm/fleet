@@ -84,6 +84,7 @@ func TestHosts(t *testing.T) {
 		{"Delete", testHostsDelete},
 		{"HostListOptionsTeamFilter", testHostListOptionsTeamFilter},
 		{"HostListOptionsAndroidOSSettings", testHostListAndroidHostsOSSettings},
+		{"HostListOptionsAndroidCertificateTemplatesOSSettings", testHostListAndroidCertificateTemplatesOSSettings},
 		{"ListFilterAdditional", testHostsListFilterAdditional},
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
@@ -186,6 +187,7 @@ func TestHosts(t *testing.T) {
 		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
+		{"TestMaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1048,6 +1050,112 @@ func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
 			listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsStatus(*checkStatus)}, expected)
 		}
 	}
+}
+
+// testHostListAndroidCertificateTemplatesOSSettings tests that certificate templates with
+// delivering and delivered statuses are properly included when filtering by os_settings=pending
+func testHostListAndroidCertificateTemplatesOSSettings(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	// Create an Android host
+	androidHost := createAndroidHost("enterprise-id-cert-test")
+	newHost, err := ds.NewAndroidHost(t.Context(), androidHost)
+	require.NoError(t, err)
+	require.NotNil(t, newHost)
+
+	// Create a certificate authority
+	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// Create a certificate template
+	certTemplate, err := ds.CreateCertificateTemplate(t.Context(), &fleet.CertificateTemplate{
+		Name:                   "test-cert",
+		TeamID:                 0,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=test",
+	})
+	require.NoError(t, err)
+
+	userFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Confirm initial state - no hosts should match any OS settings filter
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 0)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsFailed}, 0)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerified}, 0)
+
+	// Test each certificate template status
+	certStatuses := []struct {
+		status         fleet.CertificateTemplateStatus
+		expectedFilter fleet.OSSettingsStatus
+	}{
+		{fleet.CertificateTemplatePending, fleet.OSSettingsPending},
+		{fleet.CertificateTemplateDelivering, fleet.OSSettingsPending},
+		{fleet.CertificateTemplateDelivered, fleet.OSSettingsPending},
+		{fleet.CertificateTemplateFailed, fleet.OSSettingsFailed},
+		{fleet.CertificateTemplateVerified, fleet.OSSettingsVerified},
+	}
+
+	for _, tc := range certStatuses {
+		t.Run(string(tc.status), func(t *testing.T) {
+			// Upsert the certificate template status
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(t.Context(),
+					`INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type)
+					VALUES (?, ?, ?, 'install')
+					ON DUPLICATE KEY UPDATE status = ?`,
+					newHost.Host.UUID, certTemplate.ID, tc.status, tc.status)
+				return err
+			})
+
+			// Verify the host appears with the expected filter
+			listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: tc.expectedFilter}, 1)
+
+			// Verify the host does NOT appear with other filters
+			otherFilters := []fleet.OSSettingsStatus{fleet.OSSettingsPending, fleet.OSSettingsFailed, fleet.OSSettingsVerified, fleet.OSSettingsVerifying}
+			for _, other := range otherFilters {
+				if other != tc.expectedFilter {
+					listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: other}, 0)
+				}
+			}
+		})
+	}
+
+	// Test that certificate templates and profiles are combined correctly
+	// When a host has both a profile and a certificate template, the worst status should win
+	t.Run("combined_profile_and_cert_template", func(t *testing.T) {
+		// Set certificate template to verified
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ?`,
+				fleet.CertificateTemplateVerified, newHost.Host.UUID)
+			return err
+		})
+		// Add a pending profile
+		upsertAndroidHostProfileStatus(t, ds, newHost.Host.UUID, "test-profile-uuid", &fleet.MDMDeliveryPending)
+
+		// Host should appear as pending (worst status wins: pending > verified)
+		listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 1)
+		listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerified}, 0)
+
+		// Now set profile to verified
+		upsertAndroidHostProfileStatus(t, ds, newHost.Host.UUID, "test-profile-uuid", &fleet.MDMDeliveryVerified)
+		// And set cert template to delivering (which maps to pending)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ?`,
+				fleet.CertificateTemplateDelivering, newHost.Host.UUID)
+			return err
+		})
+
+		// Host should appear as pending (due to delivering cert template)
+		listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 1)
+		listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerified}, 0)
+	})
 }
 
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
@@ -4225,7 +4333,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	}
 
 	// set up data
-	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
 	require.NoError(t, err)
 
 	// verifying status
@@ -4397,7 +4505,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 	// no team Apple config profile //
 	/////////////////////////////
 
-	noTeamProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("test-profile", "com.fleetdm.fleet.mdm.test", 0), nil)
+	noTeamProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("test-profile", "com.fleetdm.fleet.mdm.test", 0), nil)
 	require.NoError(t, err)
 
 	verified := fleet.OSSettingsVerified
@@ -8390,6 +8498,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type)
+		VALUES (?, 1, 'foo', 'pending', 'install')
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid, token, declaration_identifier, declaration_name)
           VALUES (?, uuid(), UNHEX(REPLACE(UUID(), '-', '')), 'test-identifier', 'test-name')
 	`, host.UUID)
@@ -11969,4 +12083,107 @@ func testSetOrUpdateHostDiskTpmPIN(t *testing.T, ds *Datastore) {
 		)
 		require.NotEqual(t, expected, tpmPINSet)
 	}
+}
+
+func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		UUID: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	cleanup := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_idp_accounts`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM scim_users`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_scim_user`)
+			return err
+		})
+	}
+	createIdPRecords := func() {
+		// Create MDM IDP account record, host MDM IDP account mapping, and SCIM user record
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`, "mdm_account_uuid", "testuser", "Test User", "testuser@example.com")
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`, host.UUID, "mdm_account_uuid")
+			return err
+		})
+	}
+	createScimUserRecord := func(email ...string) {
+		userEmail := "testuser@example.com"
+		if len(email) > 0 {
+			userEmail = email[0]
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO scim_users (user_name) VALUES (?)`, userEmail)
+			return err
+		})
+	}
+	t.Run("happy path", func(t *testing.T) {
+		defer cleanup()
+		// Create MDM IDP account record, host MDM IDP account mapping, and SCIM user record
+		createIdPRecords()
+		createScimUserRecord()
+
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
+		require.NoError(t, err)
+
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		require.NoError(t, err)
+		require.NotZero(t, scimUserID)
+	})
+	t.Run("no mdm idp account record", func(t *testing.T) {
+		defer cleanup()
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
+		require.NoError(t, err)
+
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+	})
+	t.Run("no scim user record", func(t *testing.T) {
+		defer cleanup()
+		// Create MDM IDP account record and host MDM IDP account mapping
+		createIdPRecords()
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
+		require.NoError(t, err)
+
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+	})
+	t.Run("duplicate scim user records", func(t *testing.T) {
+		defer cleanup()
+		// Create MDM IDP account record, host MDM IDP account mapping, and SCIM user record
+		createIdPRecords()
+		createScimUserRecord()
+
+		var scimUserID uint
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &scimUserID, `SELECT id FROM scim_users WHERE user_name = ?`, "testuser@example.com")
+		require.NoError(t, err)
+		require.NotZero(t, scimUserID)
+
+		// Create host_scim_user mapping to simulate duplicate records.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?,?)`, host.ID, scimUserID)
+			return err
+		})
+
+		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
+		require.NoError(t, err)
+	})
 }

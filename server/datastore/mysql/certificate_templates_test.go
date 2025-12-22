@@ -27,7 +27,6 @@ func TestCertificates(t *testing.T) {
 		{"BatchUpsertCertificates", testBatchUpsertCertificates},
 		{"BatchDeleteCertificateTemplates", testBatchDeleteCertificateTemplates},
 		{"GetHostCertificateTemplates", testGetHostCertificateTemplates},
-		{"GetMDMProfileSummaryFromHostCertificateTemplates", testGetMDMProfileSummaryFromHostCertificateTemplates},
 		{"GetCertificateTemplateForHost", testGetCertificateTemplateForHost},
 	}
 
@@ -147,6 +146,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 	var teamID, caID uint
 	var err error
 	var certificateTemplateID uint
+	var hostUUID string
 	testCases := []struct {
 		name     string
 		before   func(ds *Datastore)
@@ -201,9 +201,6 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				require.Nil(t, template.Status)
-				require.Nil(t, template.FleetChallenge)
-				require.Nil(t, template.SCEPChallenge)
 			},
 		},
 		{
@@ -232,6 +229,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				}
 				_, err = ds.NewHost(context.Background(), host)
 				require.NoError(t, err)
+				hostUUID = host.UUID
 
 				// Insert initial certificates
 				certificateTemplate := fleet.CertificateTemplate{
@@ -257,17 +255,23 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 					host.UUID,
 					certificateTemplateID,
 					"fleet-challenge",
-					fleet.MDMDeliveryPending,
+					fleet.CertificateTemplateDelivered,
 				)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
+				// GetCertificateTemplateById should return template data without host-specific fields
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				require.Equal(t, fleet.MDMDeliveryPending, *template.Status)
-				require.Equal(t, "fleet-challenge", *template.FleetChallenge)
-				require.Equal(t, "test-challenge", *template.SCEPChallenge)
+
+				// GetCertificateTemplateByIdForHost should return host-specific data
+				templateForHost, err := ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, hostUUID)
+				require.NoError(t, err)
+				require.Equal(t, certificateTemplateID, templateForHost.ID)
+				require.Equal(t, fleet.CertificateTemplateDelivered, templateForHost.Status)
+				require.Equal(t, "fleet-challenge", *templateForHost.FleetChallenge)
+				require.Equal(t, "test-challenge", *templateForHost.SCEPChallenge)
 			},
 		},
 		{
@@ -296,6 +300,7 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				}
 				_, err = ds.NewHost(context.Background(), host)
 				require.NoError(t, err)
+				hostUUID = host.UUID
 
 				// Insert initial certificates
 				certificateTemplate := fleet.CertificateTemplate{
@@ -321,17 +326,23 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 					host.UUID,
 					certificateTemplateID,
 					"challenge",
-					fleet.MDMDeliveryVerifying,
+					fleet.CertificateTemplateVerified,
 				)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, ds *Datastore) {
+				// GetCertificateTemplateById should return template data without host-specific fields
 				template, err := ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 				require.NoError(t, err)
 				require.Equal(t, certificateTemplateID, template.ID)
-				require.Equal(t, fleet.MDMDeliveryVerifying, *template.Status)
-				require.Nil(t, template.FleetChallenge)
-				require.Nil(t, template.SCEPChallenge)
+
+				// GetCertificateTemplateByIdForHost should return host-specific data (challenges nil for verified status)
+				templateForHost, err := ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, hostUUID)
+				require.NoError(t, err)
+				require.Equal(t, certificateTemplateID, templateForHost.ID)
+				require.Equal(t, fleet.CertificateTemplateVerified, templateForHost.Status)
+				require.Nil(t, templateForHost.FleetChallenge)
+				require.Nil(t, templateForHost.SCEPChallenge)
 			},
 		},
 	}
@@ -618,7 +629,7 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 
 	var teamID, caID uint
 	var certificates []*fleet.CertificateTemplate
-	var err error
+
 	testCases := []struct {
 		name     string
 		before   func(ds *Datastore)
@@ -629,8 +640,10 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 			func(ds *Datastore) {},
 			func(t *testing.T, ds *Datastore) {
 				// Test with empty slice
-				err = ds.BatchUpsertCertificateTemplates(ctx, []*fleet.CertificateTemplate{})
+				teamsModified, err := ds.BatchUpsertCertificateTemplates(ctx, []*fleet.CertificateTemplate{})
 				require.NoError(t, err)
+
+				require.Empty(t, teamsModified)
 			},
 		},
 		{
@@ -667,13 +680,16 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 					},
 				}
 
-				err = ds.BatchUpsertCertificateTemplates(ctx, certificates)
+				teamsModified, err := ds.BatchUpsertCertificateTemplates(ctx, certificates)
 				require.NoError(t, err)
 
 				var count int
 				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 2, count)
+
+				require.Len(t, teamsModified, 1)
+				require.Equal(t, teamsModified[0], teamID)
 			},
 		},
 		{
@@ -713,17 +729,19 @@ func testBatchUpsertCertificates(t *testing.T, ds *Datastore) {
 			},
 			func(t *testing.T, ds *Datastore) {
 				var count int
-				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
+				err := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
 
 				certificates[0].SubjectName = "Updated Subject"
-				err = ds.BatchUpsertCertificateTemplates(ctx, certificates)
+				teamsModified, err := ds.BatchUpsertCertificateTemplates(ctx, certificates)
 				require.NoError(t, err)
 
 				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
+
+				require.Len(t, teamsModified, 0)
 
 				var subjectName string
 				err = ds.writer(ctx).GetContext(ctx, &subjectName, "SELECT subject_name FROM certificate_templates WHERE name = ?", "Cert1")
@@ -749,7 +767,7 @@ func testBatchDeleteCertificateTemplates(t *testing.T, ds *Datastore) {
 
 	var teamID, caID uint
 	var certificateTemplateIDs []uint
-	var err error
+
 	testCases := []struct {
 		name     string
 		before   func(ds *Datastore)
@@ -760,8 +778,10 @@ func testBatchDeleteCertificateTemplates(t *testing.T, ds *Datastore) {
 			func(ds *Datastore) {},
 			func(t *testing.T, ds *Datastore) {
 				// Test with empty slice
-				err = ds.BatchDeleteCertificateTemplates(ctx, []uint{})
+				generateActivity, err := ds.BatchDeleteCertificateTemplates(ctx, []uint{})
 				require.NoError(t, err)
+
+				require.False(t, generateActivity)
 			},
 		},
 		{
@@ -821,12 +841,14 @@ func testBatchDeleteCertificateTemplates(t *testing.T, ds *Datastore) {
 			},
 			func(t *testing.T, ds *Datastore) {
 				var count int
-				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
+				err := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
 				require.Equal(t, 2, count)
 
-				err = ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
+				generateActivity, err := ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
 				require.NoError(t, err)
+
+				require.True(t, generateActivity)
 
 				err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM certificate_templates")
 				require.NoError(t, err)
@@ -889,14 +911,14 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 
 	// Set the installation status on the certificate templates
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type) VALUES (?, ?, ?, ?, ?)",
+		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified, fleet.MDMOperationTypeInstall,
 	)
 
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail) VALUES (?, ?, ?, ?, ?)",
-		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo",
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail, operation_type) VALUES (?, ?, ?, ?, ?, ?)",
+		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo", fleet.MDMOperationTypeInstall,
 	)
 	require.NoError(t, err)
 
@@ -931,160 +953,13 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 				sort.Slice(templates, func(i, j int) bool { return templates[i].Name < templates[j].Name })
 
 				require.Equal(t, ct1.Name, templates[0].Name)
-				require.Equal(t, fleet.MDMDeliveryVerified, templates[0].Status)
+				require.Equal(t, fleet.CertificateTemplateVerified, templates[0].Status)
+				require.Equal(t, fleet.MDMOperationTypeInstall, templates[0].OperationType)
 
 				require.Equal(t, ct2.Name, templates[1].Name)
-				require.Equal(t, fleet.MDMDeliveryFailed, templates[1].Status)
+				require.Equal(t, fleet.CertificateTemplateFailed, templates[1].Status)
 				require.Equal(t, "some error yooo", *templates[1].Detail)
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.do(t, ds)
-		})
-	}
-}
-
-func testGetMDMProfileSummaryFromHostCertificateTemplates(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds)
-
-	ctx := context.Background()
-
-	// Doing this with no data in the table should be ok
-	result, err := ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, nil)
-	require.NoError(t, err)
-	require.Equal(t, uint(0), result.Pending)
-	require.Equal(t, uint(0), result.Failed)
-	require.Equal(t, uint(0), result.Verified)
-	require.Equal(t, uint(0), result.Verifying)
-
-	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
-	h2 := test.NewHost(t, ds, "host_2", "127.0.0.2", "2", "2", time.Now())
-
-	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
-	require.NoError(t, err)
-
-	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
-	require.NoError(t, err)
-
-	h1.TeamID = &team1.ID
-	err = ds.UpdateHost(ctx, h2)
-	require.NoError(t, err)
-
-	h2.TeamID = &team2.ID
-	err = ds.UpdateHost(ctx, h2)
-	require.NoError(t, err)
-
-	// Create a test certificate authority
-	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("Test SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
-	})
-	require.NoError(t, err)
-
-	// Create some certificate templates
-	ct1, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
-		Name:                   "AAA",
-		TeamID:                 team1.ID,
-		CertificateAuthorityID: ca.ID,
-		SubjectName:            "CN=Test Subject 1",
-	})
-	require.NoError(t, err)
-
-	ct2, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
-		Name:                   "BBB",
-		TeamID:                 team2.ID,
-		CertificateAuthorityID: ca.ID,
-		SubjectName:            "CN=Test Subject 2",
-	})
-	require.NoError(t, err)
-
-	// Set the installation status on the certificate templates
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-		h1.UUID, ct1.ID, "test-challenge", fleet.OSSettingsPending,
-	)
-	require.NoError(t, err)
-
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-		h2.UUID, ct1.ID, "test-challenge", fleet.OSSettingsVerified,
-	)
-	require.NoError(t, err)
-
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, detail) VALUES (?, ?, ?, ?, ?)",
-		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo",
-	)
-	require.NoError(t, err)
-
-	testCases := []struct {
-		name string
-		do   func(*testing.T, *Datastore)
-	}{
-		{
-			"no teamID provided",
-			func(t *testing.T, ds *Datastore) {
-				result, err := ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, nil)
-
-				require.NoError(t, err)
-				require.NotNil(t, result)
-				require.Equal(t, uint(1), result.Pending)
-				require.Equal(t, uint(1), result.Verified)
-				require.Equal(t, uint(1), result.Failed)
-			},
-		},
-		{
-			"teamID provided",
-			func(t *testing.T, ds *Datastore) {
-				result, err := ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, &team1.ID)
-
-				require.NoError(t, err)
-				require.NotNil(t, result)
-
-				require.Equal(t, uint(0), result.Failed)
-				require.Equal(t, uint(1), result.Verified)
-				require.Equal(t, uint(1), result.Pending)
-			},
-		},
-		{
-			"multiple hosts with same status",
-			func(t *testing.T, ds *Datastore) {
-				h3 := test.NewHost(t, ds, "host_3", "127.0.0.3", "3", "3", time.Now())
-				h4 := test.NewHost(t, ds, "host_4", "127.0.0.4", "4", "4", time.Now())
-
-				h3.TeamID = &team1.ID
-				err := ds.UpdateHost(ctx, h3)
-				require.NoError(t, err)
-
-				h4.TeamID = &team1.ID
-				err = ds.UpdateHost(ctx, h4)
-				require.NoError(t, err)
-
-				_, err = ds.writer(ctx).ExecContext(ctx,
-					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-					h3.UUID, ct1.ID, "test-challenge-3", fleet.OSSettingsPending,
-				)
-				require.NoError(t, err)
-
-				_, err = ds.writer(ctx).ExecContext(ctx,
-					"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status) VALUES (?, ?, ?, ?)",
-					h4.UUID, ct1.ID, "test-challenge-4", fleet.OSSettingsPending,
-				)
-				require.NoError(t, err)
-
-				result, err := ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, &team1.ID)
-
-				require.NoError(t, err)
-				require.NotNil(t, result)
-
-				require.Equal(t, uint(0), result.Failed)
-				require.Equal(t, uint(1), result.Verified)
-				require.Equal(t, uint(3), result.Pending)
+				require.Equal(t, fleet.MDMOperationTypeInstall, templates[1].OperationType)
 			},
 		},
 	}
@@ -1150,8 +1025,9 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 		{
 			HostUUID:              h1.UUID,
 			CertificateTemplateID: ct1.ID,
-			FleetChallenge:        "challenge-123",
-			Status:                fleet.MDMDeliveryPending,
+			FleetChallenge:        ptr.String("challenge-123"),
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
 		},
 	})
 	require.NoError(t, err)
@@ -1172,7 +1048,7 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 				require.NotNil(t, result.FleetChallenge)
 				require.Equal(t, "challenge-123", *result.FleetChallenge)
 				require.NotNil(t, result.Status)
-				require.Equal(t, fleet.MDMDeliveryPending, *result.Status)
+				require.Equal(t, fleet.CertificateTemplateDelivered, *result.Status)
 				require.Equal(t, fleet.CAConfigAssetType(fleet.CATypeCustomSCEPProxy), result.CAType)
 				require.Equal(t, "Test SCEP CA", result.CAName)
 			},

@@ -1,9 +1,12 @@
 package com.fleetdm.agent
 
+import com.fleetdm.agent.scep.ScepCertificateException
 import com.fleetdm.agent.scep.ScepClient
 import com.fleetdm.agent.scep.ScepConfig
+import com.fleetdm.agent.scep.ScepCsrException
 import com.fleetdm.agent.scep.ScepEnrollmentException
-import com.fleetdm.agent.scep.ScepException
+import com.fleetdm.agent.scep.ScepKeyGenerationException
+import com.fleetdm.agent.scep.ScepNetworkException
 import com.fleetdm.agent.scep.ScepResult
 import org.json.JSONObject
 import java.security.PrivateKey
@@ -34,47 +37,42 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
     /**
      * Main enrollment flow: parse config, enroll via SCEP, install certificate.
      */
-    suspend fun handleEnrollment(config: GetCertificateTemplateResponse): EnrollmentResult {
-        return try {
-            // Step 2: Perform SCEP enrollment
-            val result = performEnrollment(config) ?: return EnrollmentResult.Failure(
-                reason = "SCEP enrollment failed or returned null",
-                exception = null,
-            )
+    suspend fun handleEnrollment(config: GetCertificateTemplateResponse): EnrollmentResult = try {
+        // Perform SCEP enrollment
+        val result = scepClient.enroll(config)
 
-            // Step 3: Install certificate
-            val installed = certificateInstaller.installCertificate(
-                config.name,
-                result.privateKey,
-                result.certificateChain.toTypedArray(),
-            )
+        // Install certificate
+        val installed = certificateInstaller.installCertificate(
+            config.name,
+            result.privateKey,
+            result.certificateChain.toTypedArray(),
+        )
 
-            if (installed) {
-                EnrollmentResult.Success(config.name)
-            } else {
-                EnrollmentResult.Failure("Certificate installation failed")
-            }
-        } catch (e: IllegalArgumentException) {
-            EnrollmentResult.Failure("Invalid configuration: ${e.message}", e)
-        } catch (e: Exception) {
-            EnrollmentResult.Failure("Unexpected error: ${e.message}", e)
+        if (installed) {
+            EnrollmentResult.Success(config.name)
+        } else {
+            EnrollmentResult.Failure("Certificate installation failed")
         }
-    }
-
-    /**
-     * Performs SCEP enrollment, returning result or null on failure.
-     */
-    @Suppress("SwallowedException")
-    suspend fun performEnrollment(config: GetCertificateTemplateResponse): ScepResult? = try {
-        scepClient.enroll(config)
     } catch (e: ScepEnrollmentException) {
-        // Enrollment failure is expected in some scenarios (pending approval, invalid challenge)
-        null
-    } catch (e: ScepException) {
-        // SCEP protocol errors are expected in some scenarios
-        null
+        // SCEP server rejected enrollment (e.g., PENDING status, invalid challenge)
+        EnrollmentResult.Failure("SCEP enrollment failed: ${e.message}", e)
+    } catch (e: ScepNetworkException) {
+        // Network communication failure - likely transient, can retry
+        EnrollmentResult.Failure("Network error during SCEP enrollment: ${e.message}", e)
+    } catch (e: ScepCertificateException) {
+        // Certificate validation or processing failed
+        EnrollmentResult.Failure("Certificate validation failed: ${e.message}", e)
+    } catch (e: ScepKeyGenerationException) {
+        // Key generation failed - device cryptography issue
+        EnrollmentResult.Failure("Failed to generate key pair: ${e.message}", e)
+    } catch (e: ScepCsrException) {
+        // CSR creation failed - likely configuration issue
+        EnrollmentResult.Failure("Failed to create CSR: ${e.message}", e)
+    } catch (e: IllegalArgumentException) {
+        // Configuration validation failed
+        EnrollmentResult.Failure("Invalid configuration: ${e.message}", e)
     } catch (e: Exception) {
-        // Unexpected errors are logged by the SCEP client
-        null
+        // Unexpected errors
+        EnrollmentResult.Failure("Unexpected error during enrollment: ${e.message}", e)
     }
 }

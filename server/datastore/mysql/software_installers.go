@@ -232,13 +232,9 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			return 0, 0, ctxerr.Wrap(ctx, err, "check VPP app exists for title identifier")
 		}
 		if exists {
-			teamName := fleet.TeamNameNoTeam
-			if payload.TeamID != nil && *payload.TeamID > 0 {
-				tm, err := ds.TeamLite(ctx, *payload.TeamID)
-				if err != nil {
-					return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
-				}
-				teamName = tm.Name
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 			}
 
 			return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
@@ -364,7 +360,11 @@ INSERT INTO software_installers (
 		if err != nil {
 			if IsDuplicate(err) {
 				// already exists for this team/no team
-				err = alreadyExists("SoftwareInstaller", payload.Title)
+				teamName, err := ds.getTeamName(ctx, payload.TeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err)
+				}
+				return alreadyExists("SoftwareInstaller", payload.Title).WithTeamName(teamName)
 			}
 			return err
 		}
@@ -419,6 +419,18 @@ INSERT INTO software_installers (
 	}
 
 	return installerID, titleID, nil
+}
+
+func (ds *Datastore) getTeamName(ctx context.Context, teamID *uint) (string, error) {
+	teamName := fleet.TeamNameNoTeam
+	if teamID != nil && *teamID > 0 {
+		tm, err := ds.TeamLite(ctx, *teamID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+	return teamName, nil
 }
 
 func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, categoryIDs []uint, swType softwareType) error {
@@ -1006,7 +1018,7 @@ WHERE
 
 var (
 	errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
-	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed when new Macs boot. Please remove software in Controls > Setup experience and try again."}
+	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
@@ -1935,11 +1947,11 @@ WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
 	const getSoftwareTitle = `
-SELECT 
-	id 
-FROM 
-	software_titles 
-WHERE 
+SELECT
+	id
+FROM
+	software_titles
+WHERE
 	unique_identifier = ? AND source = ? AND extension_for = ''
 `
 
@@ -2155,7 +2167,7 @@ INSERT INTO software_installers (
 	install_during_setup,
 	fleet_maintained_app_id
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
 )
 ON DUPLICATE KEY UPDATE
@@ -3101,17 +3113,18 @@ func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx s
 FROM
 		hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
+		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id = ?
 WHERE
 		EXISTS (%s)
-		AND platform = 'android'
+		AND h.platform = 'android'
 `, filter)
 
 	var queryResults []struct {
 		UUID            string  `db:"uuid"`
 		AppliedPolicyID *string `db:"applied_policy_id"`
 	}
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host uuids included in software scope")
+	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
 	res := make(map[string]string, len(queryResults))

@@ -14,7 +14,7 @@ const baseClass = "delete-software-modal";
 const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
   "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.";
 const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
-  "Couldn't delete. This software is installed when new Macs boot. Please remove software in Controls > Setup experience and try again.";
+  "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again.";
 
 interface IDeleteSoftwareModalProps {
   softwareId: number;

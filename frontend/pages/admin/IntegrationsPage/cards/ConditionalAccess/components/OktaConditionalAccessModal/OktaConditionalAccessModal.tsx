@@ -7,7 +7,6 @@ import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import conditionalAccessAPI from "services/entities/conditional_access";
 import { IConfig } from "interfaces/config";
-import endpoints from "utilities/endpoints";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -145,6 +144,26 @@ const OktaConditionalAccessModal = ({
       },
     }
   );
+
+  const [isDownloadingCert, setIsDownloadingCert] = useState(false);
+
+  const onDownloadSigningCert = useCallback(async () => {
+    setIsDownloadingCert(true);
+    try {
+      const blob = await conditionalAccessAPI.getIdpSigningCert();
+      const url = URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = url;
+      downloadLink.download = "fleet-idp-signing-cert.pem";
+      downloadLink.click();
+      downloadLink.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      renderFlash("error", "Failed to download signing certificate.");
+    } finally {
+      setIsDownloadingCert(false);
+    }
+  }, [renderFlash]);
 
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -288,15 +307,14 @@ const OktaConditionalAccessModal = ({
               Identity provider (IdP) signature certificate
             </TooltipWrapper>
             <br />
-            <a
-              href={endpoints.CONDITIONAL_ACCESS_IDP_SIGNING_CERT}
-              download="fleet-idp-signing-certificate.pem"
-              className="button button--inverse"
+            <Button
+              variant="inverse"
+              onClick={onDownloadSigningCert}
+              isLoading={isDownloadingCert}
+              disabled={isDownloadingCert}
             >
-              <div className="children-wrapper">
-                Download certificate <Icon name="download" />
-              </div>
-            </a>
+              Download certificate <Icon name="download" />
+            </Button>
           </div>
 
           {/* User Scope Profile */}

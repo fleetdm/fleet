@@ -23,6 +23,9 @@ on:
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+permissions:
+  contents: read
+
 jobs:
   test-fma-pr-only:
     env:

@@ -1,0 +1,8 @@
+{
+  "name": "Steam",
+  "unique_identifier": "com.valvesoftware.steam",
+  "token": "steam",
+  "installer_format": "dmg",
+  "slug": "steam/darwin",
+  "default_categories": ["Productivity"]
+}

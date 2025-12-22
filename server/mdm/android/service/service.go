@@ -870,15 +870,7 @@ func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName,
 
 // Adds the specified apps to the host-specific Android policy of the provided hosts, and
 // returns a map of host UUID to the policy request object of their updated policy on success.
-func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) (map[string]*android.MDMAndroidPolicyRequest, error) {
-	var appPolicies []*androidmanagement.ApplicationPolicy
-	for _, a := range applicationIDs {
-		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-			PackageName: a,
-			InstallType: installType,
-		})
-	}
-
+func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var errs []error
 	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
@@ -1126,14 +1118,10 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 // BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
 // (including certificate templates) and sends it to the Android Management API.
 //
-// This function uses an "insert first" approach to avoid race conditions:
-// 1. Fetches all certificate templates for the given hosts
-// 2. For hosts with new certificates: inserts them first, then calls the API
-// 3. If the API call fails, performs a compensating delete of the inserted records
-// 4. For hosts without new certificates: calls the API directly (unless skipHostsWithoutNewCerts is true)
-//
-// This ensures that once a certificate template record exists in the database,
-// any concurrent process will see it as Pending.
+// This function uses a state machine approach with the following states:
+// - pending: Record exists, waiting for cron to process
+// - delivering: Cron is actively sending to AMAPI
+// - delivered: AMAPI confirmed receipt
 func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -1167,41 +1155,8 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		return secrets, nil
 	}
 
-	// Get all certificate templates for the hosts
-	allTemplates, err := svc.fleetDS.ListCertificateTemplatesForHosts(ctx, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list certificate templates for hosts")
-	}
-
-	// Group templates by host UUID and track new ones that need challenges
-	templatesByHost := make(map[string][]fleet.CertificateTemplateForHost)
-	newCertsByHost := make(map[string][]fleet.HostCertificateTemplate)
-
-	for i := range allTemplates {
-		template := &allTemplates[i]
-
-		// If no existing record (FleetChallenge is nil), generate a new challenge
-		if template.FleetChallenge == nil {
-			challenge, err := svc.fleetDS.NewChallenge(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "generate fleet challenge")
-			}
-			// Update the template with the challenge for building the config
-			allTemplates[i].FleetChallenge = &challenge
-
-			newCertsByHost[template.HostUUID] = append(newCertsByHost[template.HostUUID], fleet.HostCertificateTemplate{
-				HostUUID:              template.HostUUID,
-				CertificateTemplateID: template.CertificateTemplateID,
-				FleetChallenge:        challenge,
-				Status:                fleet.MDMDeliveryPending,
-			})
-		}
-
-		templatesByHost[template.HostUUID] = append(templatesByHost[template.HostUUID], allTemplates[i])
-	}
-
 	// Helper to build config for a single host
-	buildHostConfig := func(hostUUID string) (*android.AgentManagedConfiguration, error) {
+	buildHostConfig := func(hostUUID string, templateIDs []uint) (*android.AgentManagedConfiguration, error) {
 		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
@@ -1217,9 +1172,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 
 		// Build certificate template IDs list
 		var certificateTemplateIDs []android.AgentCertificateTemplate
-		for _, tmpl := range templatesByHost[hostUUID] {
+		for _, templateID := range templateIDs {
 			certificateTemplateIDs = append(certificateTemplateIDs, android.AgentCertificateTemplate{
-				ID: tmpl.CertificateTemplateID,
+				ID: templateID,
 			})
 		}
 
@@ -1231,79 +1186,97 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		}, nil
 	}
 
-	// Step 1: Insert all new certificate templates for all hosts at once
-	// This ensures they're visible to any concurrent process immediately
-	var allNewCerts []fleet.HostCertificateTemplate
-	for _, certs := range newCertsByHost {
-		allNewCerts = append(allNewCerts, certs...)
-	}
-
-	if len(allNewCerts) > 0 {
-		if err := svc.fleetDS.BulkInsertHostCertificateTemplates(ctx, allNewCerts); err != nil {
-			// This could fail if another process already inserted the same records (very rare race condition)
-			// In which case, we'll let the other process handle these hosts
-			return ctxerr.Wrap(ctx, err, "bulk insert host certificate templates")
-		}
-	}
-
-	// Step 2: For each host with new certs, send updated Agent config. On failure, delete that host's certs so we can retry later.
-	for hostUUID, newCerts := range newCertsByHost {
-		config, err := buildHostConfig(hostUUID)
+	for _, hostUUID := range hostUUIDs {
+		// Step 1: Transition pending → delivering (atomically)
+		// This prevents concurrent cron runs from processing the same templates
+		templateIDs, err := svc.fleetDS.TransitionCertificateTemplatesToDelivering(ctx, hostUUID)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
-			if delErr := svc.fleetDS.DeleteHostCertificateTemplates(ctx, newCerts); delErr != nil {
-				level.Error(svc.logger).Log("msg", "failed to delete host certificate templates after config build failure", "host_uuid", hostUUID, "err", delErr)
+			level.Error(svc.logger).Log("msg", "failed to transition to delivering", "host_uuid", hostUUID, "err", err)
+			return ctxerr.Wrapf(ctx, err, "transition certificate templates to delivering for host %s", hostUUID)
+		}
+
+		if len(templateIDs) == 0 {
+			// No pending templates for this host (another process got them, or none exist)
+			if skipHostsWithoutNewCerts {
+				continue
+			}
+			// Send config without new certificates (needed for new host enrollment)
+			config, err := buildHostConfig(hostUUID, nil)
+			if err != nil {
+				level.Error(svc.logger).Log("msg", "failed to build host config without certs", "host_uuid", hostUUID, "err", err)
+				return ctxerr.Wrapf(ctx, err, "build host config without certs for host %s", hostUUID)
+			}
+			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
+			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
+				level.Error(svc.logger).Log("msg", "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
+				// Not a critical failure. We will retry installing Fleet Agent when certificates are added to the host's team
 			}
 			continue
 		}
 
+		// Step 2: Build and send config to AMAPI
+		config, err := buildHostConfig(hostUUID, templateIDs)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
+			return ctxerr.Wrapf(ctx, err, "build host config for %s", hostUUID)
+		}
+
 		hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
-			// On failure, perform compensating delete for this host only
-			level.Error(svc.logger).Log("msg", "failed to send fleet agent config to API", "host_uuid", hostUUID, "err", err)
-			if delErr := svc.fleetDS.DeleteHostCertificateTemplates(ctx, newCerts); delErr != nil {
-				level.Error(svc.logger).Log("msg", "failed to delete host certificate templates after API failure", "host_uuid", hostUUID, "err", delErr)
+			// AMAPI call failed, revert to pending for retry later
+			level.Error(svc.logger).Log("msg", "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
+			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, templateIDs); revertErr != nil {
+				level.Error(svc.logger).Log("msg", "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
+				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
 			}
+			continue
 		}
-	}
 
-	// Step 3: Process hosts without new certificates (unless skipHostsWithoutNewCerts is true)
-	if !skipHostsWithoutNewCerts {
-		for _, hostUUID := range hostUUIDs {
-			if _, hasNewCerts := newCertsByHost[hostUUID]; hasNewCerts {
-				continue // Already processed above
-			}
-
-			config, err := buildHostConfig(hostUUID)
+		// Step 3: AMAPI succeeded - generate challenges for each template
+		// Note: Android app may try to fetch the certificate, but status is still delivering and no challenge is generated yet.
+		// The app will retry until status turns to delivered.
+		challenges := make(map[uint]string)
+		for _, templateID := range templateIDs {
+			challenge, err := svc.fleetDS.NewChallenge(ctx)
 			if err != nil {
-				level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
-				continue
+				level.Error(svc.logger).Log("msg", "failed to generate challenge", "host_uuid", hostUUID, "template_id", templateID, "err", err)
+				return ctxerr.Wrapf(ctx, err, "generate challenge for %s", hostUUID)
 			}
+			challenges[templateID] = challenge
+		}
 
-			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
-			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
-				level.Error(svc.logger).Log("msg", "failed to send fleet agent config to API", "host_uuid", hostUUID, "err", err)
-			}
+		// Step 4: Transition delivering → delivered with challenges
+		if err := svc.fleetDS.TransitionCertificateTemplatesToDelivered(ctx, hostUUID, challenges); err != nil {
+			level.Error(svc.logger).Log("msg", "failed to transition to delivered", "host_uuid", hostUUID, "err", err)
+			return ctxerr.Wrap(ctx, err, "transition certificate templates to delivered")
 		}
 	}
 
 	return nil
 }
 
-func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, applicationIDs []string, hostUUIDs map[string]string, installType string) error {
-	var appPolicies []*androidmanagement.ApplicationPolicy
-	for _, a := range applicationIDs {
-		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{PackageName: a, InstallType: "AVAILABLE"})
-	}
-	for _, policyID := range hostUUIDs {
-
-		policy := &androidmanagement.Policy{Applications: appPolicies}
+// SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
+// Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
+// not additive/PATCH semantics.
+func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+	var errs []error
+	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
-
-		_, err := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
+		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "setting apps list for android policy")
+			return ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+		}
+
+		var apiErr error
+		policy := &androidmanagement.Policy{Applications: appPolicies}
+		policy, apiErr = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
+		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
+			return ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+		}
+
+		if apiErr != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }

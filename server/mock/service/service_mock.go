@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"iter"
 	"net/url"
 	"sync"
 	"time"
@@ -162,7 +163,7 @@ type ListHostsInLabelFunc func(ctx context.Context, lid uint, opt fleet.HostList
 
 type ListLabelsForHostFunc func(ctx context.Context, hostID uint) ([]*fleet.Label, error)
 
-type BatchValidateLabelsFunc func(ctx context.Context, labelNames []string) (map[string]fleet.LabelIdent, error)
+type BatchValidateLabelsFunc func(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.LabelIdent, error)
 
 type ApplyQuerySpecsFunc func(ctx context.Context, specs []*fleet.QuerySpec) error
 
@@ -209,6 +210,8 @@ type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *f
 type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
 
 type AuthenticateIDeviceByURLFunc func(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error)
+
+type StreamHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hostIterator iter.Seq2[*fleet.Host, error], err error)
 
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
@@ -390,13 +393,13 @@ type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, execu
 
 type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
-type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponseFull, error)
+type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error)
 
 type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
-type GetDeviceCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateDeviceResponseFull, error)
+type GetDeviceCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseForHost, error)
 
-type GetCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error)
+type GetCertificateTemplateFunc func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error)
 
 type DeleteCertificateTemplateFunc func(ctx context.Context, id uint) error
 
@@ -690,9 +693,9 @@ type GetMDMWindowsTOSContentFunc func(ctx context.Context, redirectUri string, r
 
 type RunMDMCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
+type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error)
 
-type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error)
+type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error)
 
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
@@ -1156,6 +1159,9 @@ type Service struct {
 
 	AuthenticateIDeviceByURLFunc        AuthenticateIDeviceByURLFunc
 	AuthenticateIDeviceByURLFuncInvoked bool
+
+	StreamHostsFunc        StreamHostsFunc
+	StreamHostsFuncInvoked bool
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
@@ -2651,11 +2657,11 @@ func (s *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*fleet.
 	return s.ListLabelsForHostFunc(ctx, hostID)
 }
 
-func (s *Service) BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]fleet.LabelIdent, error) {
+func (s *Service) BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.LabelIdent, error) {
 	s.mu.Lock()
 	s.BatchValidateLabelsFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchValidateLabelsFunc(ctx, labelNames)
+	return s.BatchValidateLabelsFunc(ctx, teamID, labelNames)
 }
 
 func (s *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {
@@ -2817,6 +2823,13 @@ func (s *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) 
 	s.AuthenticateIDeviceByURLFuncInvoked = true
 	s.mu.Unlock()
 	return s.AuthenticateIDeviceByURLFunc(ctx, urlUUID)
+}
+
+func (s *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) (hostIterator iter.Seq2[*fleet.Host, error], err error) {
+	s.mu.Lock()
+	s.StreamHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.StreamHostsFunc(ctx, opt)
 }
 
 func (s *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error) {
@@ -3449,7 +3462,7 @@ func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRole
 	return s.ApplyUserRolesSpecsFunc(ctx, specs)
 }
 
-func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponseFull, error) {
+func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error) {
 	s.mu.Lock()
 	s.CreateCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
@@ -3463,14 +3476,14 @@ func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opt
 	return s.ListCertificateTemplatesFunc(ctx, teamID, opts)
 }
 
-func (s *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateDeviceResponseFull, error) {
+func (s *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseForHost, error) {
 	s.mu.Lock()
 	s.GetDeviceCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceCertificateTemplateFunc(ctx, id)
 }
 
-func (s *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseFull, error) {
+func (s *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
 	s.mu.Lock()
 	s.GetCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
@@ -4499,14 +4512,14 @@ func (s *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, device
 	return s.RunMDMCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
-func (s *Service) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (s *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMCommandResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMCommandResultsFunc(ctx, commandUUID)
+	return s.GetMDMCommandResultsFunc(ctx, commandUUID, hostIdentifier)
 }
 
-func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
 	s.mu.Lock()
 	s.ListMDMCommandsFuncInvoked = true
 	s.mu.Unlock()

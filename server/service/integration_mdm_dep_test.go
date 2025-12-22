@@ -2458,7 +2458,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 	// this helper function sets the minimum OS version for the team or no team
 	setMinOSVersion := func(minVersion string, deadline string, teamID *uint) {
-		raw := json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_updates": { "minimum_version": "%s", "deadline": "%s" } } }`, minVersion, deadline))
+		raw := json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_updates": { "minimum_version": "%s", "deadline": "%s", "update_new_hosts": true } } }`, minVersion, deadline))
 		if teamID == nil {
 			acResp := appConfigResponse{}
 			s.DoJSON("PATCH", "/api/latest/fleet/config", raw, http.StatusOK, &acResp)

@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -84,7 +85,6 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
-	GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -1082,19 +1082,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	mdmT := reflect.TypeOf(fleet.TeamMDM{})
 
 	if len(certSummaries) > 0 {
-		androidSettingsType := reflect.TypeOf(fleet.AndroidSettings{})
-		certType := reflect.TypeOf(fleet.CertificateTemplateResponseFull{})
-		fullCerts := make([]map[string]interface{}, 0, len(certSummaries))
+		androidSettingsType := reflect.TypeFor[fleet.AndroidSettings]()
+		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
+		fullCerts := make([]map[string]any, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {
-			certFull, err := cmd.Client.GetCertificateTemplate(certSummary.ID, nil)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting certificate template details for ID %d: %s\n", certSummary.ID, err)
-				return nil, err
-			}
 			fullCerts = append(fullCerts, map[string]interface{}{
-				jsonFieldName(certType, "Name"):                     certFull.Name,
-				jsonFieldName(certType, "CertificateAuthorityName"): certFull.CertificateAuthorityName,
-				jsonFieldName(certType, "SubjectName"):              certFull.SubjectName,
+				jsonFieldName(certType, "Name"):                     certSummary.Name,
+				jsonFieldName(certType, "CertificateAuthorityName"): certSummary.CertificateAuthorityName,
+				jsonFieldName(certType, "SubjectName"):              certSummary.SubjectName,
 			})
 		}
 		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
@@ -1602,7 +1597,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
 				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
 				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["icon"] = map[string]interface{}{
+				softwareSpec["icon"] = map[string]any{
 					"path": path,
 				}
 				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
@@ -1613,6 +1608,25 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				// TODO write files immediately rather than queueing them up
 				cmd.FilesToWrite[fileName] = icon
+			}
+
+			config := softwareTitle.AppStoreApp.Configuration
+			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
+				fileName := fmt.Sprintf("lib/%s/configs/%s", teamFilename, filenamePrefix+"-config.json")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["configuration"] = map[string]any{
+					"path": path,
+				}
+
+				// format config because it is received with incorrect indentation
+				var buf bytes.Buffer
+				err := json.Indent(&buf, softwareTitle.AppStoreApp.Configuration, "", "  ")
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app config %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				cmd.FilesToWrite[fileName] = buf.Bytes()
 			}
 		}
 

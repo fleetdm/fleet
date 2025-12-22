@@ -186,9 +186,9 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 Product Designers (PD) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
 
-If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81). The PD also moved the request to the "🗣️ Ready for feedback" column on the [💝 Customer requests](https://github.com/orgs/fleetdm/projects/82) board.
+If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81).
 
-If the story includes [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration) changes, the PD adds the dogfood issue to the `:help-customers` board, removes it from `:helpd-dogfooding`, and notifies the [SVP of Customer Success](https://fleetdm.com/handbook/customer-success). Up to Customer Success to decide if any changes to the server config in cloud environment is needed.
+If the story includes updates to [which endpoints to expose to the public internet](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet) or updates to [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration), the PD notifies the [SVP of Customer Success](https://fleetdm.com/handbook/customer-success). Up to Customer Success to decide if any changes to the server config in cloud environments is needed.
 
 ### Notify stakeholders when a user story is pushed to the next sprint
 

@@ -1,0 +1,3 @@
+- Added support for resending Windows MDM profiles.
+- Added support for renewal of custom SCEP profiles for Windows.
+- Added support for ingesting Windows certificates via osquery.

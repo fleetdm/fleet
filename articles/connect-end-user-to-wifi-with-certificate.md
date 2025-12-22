@@ -71,9 +71,9 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
         <array>
             <dict>
                 <key>Password</key>
-                <string>$FLEET_VAR_DIGICERT_PASSWORD_CA_NAME</string>
+                <string>$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME></string>
                 <key>PayloadContent</key>
-                <data>$FLEET_VAR_DIGICERT_DATA_CA_NAME</data>
+                <data>$FLEET_VAR_DIGICERT_DATA_<CA_NAME></data>
                 <key>PayloadDisplayName</key>
                 <string>CertificatePKCS12</string>
                 <key>PayloadIdentifier</key>
@@ -248,7 +248,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
           <key>PayloadContent</key>
           <dict>
              <key>Challenge</key>
-             <string>$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_CA_NAME</string>
+             <string>$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME></string>
              <key>Key Type</key>
              <string>RSA</string>
              <key>Key Usage</key>
@@ -271,7 +271,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         </array>
                     </array>
              <key>URL</key>
-             <string>$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_CA_NAME</string>
+             <string>$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME></string>
           </dict>
           <key>PayloadDisplayName</key>
           <string>WIFI SCEP</string>
@@ -431,7 +431,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
           <key>PayloadContent</key>
           <dict>
              <key>Challenge</key>
-             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA_NAME</string>
+             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME></string>
              <key>Key Type</key>
              <string>RSA</string>
              <key>Key Usage</key>
@@ -454,7 +454,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         </array>
                     </array>
              <key>URL</key>
-             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA_NAME</string>
+             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME></string>
           </dict>
           <key>PayloadDisplayName</key>
           <string>WIFI SCEP</string>
@@ -486,12 +486,12 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 <details>
 <summary>Windows configuration profile</summary>
 
-To get the CAThumbprint of your SCEP server, see the [advanced section](#how-to-get-the-cathumbprint-for-windows-scep-profiles) below.
+All options in the example profile are required. To get the [CAThumbprint of your SCEP server] follow [these steps](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
 
-Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp), can be configured with the SCEP profile.
+You can add any other options listed under Device/SCEP in the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp).
 
 ```xml
-<Add>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
@@ -500,8 +500,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
             <Format xmlns="syncml:metinf">node</Format>
         </Meta>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyUsage</LocURI>
@@ -511,8 +511,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         </Meta>
         <Data>160</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyLength</LocURI>
@@ -522,8 +522,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         </Meta>
         <Data>1024</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/HashAlgorithm</LocURI>
@@ -533,8 +533,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         </Meta>
         <Data>SHA-1</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/SubjectName</LocURI>
@@ -542,10 +542,10 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>CN=$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data>
+        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL WIFI,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/EKUMapping</LocURI>
@@ -555,8 +555,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         </Meta>
         <Data>1.3.6.1.5.5.7.3.2</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
@@ -564,10 +564,10 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA_NAME</Data>
+        <Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME></Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI>
@@ -575,10 +575,10 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA_NAME</Data>
+        <Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME></Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint</LocURI>
@@ -586,9 +586,9 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>2133EC6A3CFB8418837BB395188D1A62CA2B96A6</Data>
+        <Data><CA_THUMBPRINT></Data>
     </Item>
-</Add>
+</Replace>
 <Exec>
     <Item>
         <Target>
@@ -738,7 +738,7 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 ## Renewal
 
-Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). Currently, Fleet does not support automatic renewal for Windows and Linux hosts.
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) and Windows hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). Currently, Fleet does not support automatic renewal for Linux hosts.
 
 Automatic renewal is only supported if the validity period is set to 2 days or longer.
 
@@ -807,11 +807,13 @@ Custom SCEP proxy:
 
 ### How to get the CAThumbprint for Windows SCEP profiles
 
+An example CAThumprint looks like this: `2133EC6A3CFB8418837BB395188D1A62CA2B96A6`
+
 Steps to get CAThumbrint from your SCEP server:
 
-1. Use GetCACert operation to download certificate. For example, open in browser: https://scep-server-url/scep?operation=GetCACert
-2. Run the following command to get the SHA1 Thumbprint
-    1. **Terminal (MacOS)** -> `openssl x509 -inform DER -in /path/to/downloaded-cert.cer -noout -fingerprint -sha1 | sed 's/sha1 Fingerprint=//; s/://g`
+1. In your browser, open the following URL to download a certificate: https://<your-scep-server-url>/scep?operation=GetCACert
+2. Run the following command to get the SHA1 Thumbprint:
+    1. **Terminal (macOS)** -> `openssl x509 -inform DER -in /path/to/downloaded-cert.cer -noout -fingerprint -sha1 | sed 's/sha1 Fingerprint=//; s/://g`
     2. **PowerShell (Windows)** -> `$cert = Get-PfxCertificate -FilePath "Z:\scep (1).cer";$cert.Thumbprint`
 3. It will return the SHA1 Thumbprint without colons and text. Copy this.
 4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.

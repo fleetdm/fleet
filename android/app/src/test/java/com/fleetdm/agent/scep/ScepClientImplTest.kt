@@ -69,7 +69,7 @@ class ScepClientImplTest {
     ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
         id = 1,
         name = "test-cert",
-        certificateAuthorityId = "ca-123",
+        certificateAuthorityId = 123,
         certificateAuthorityName = "Test CA",
         createdAt = "2024-01-01T00:00:00Z",
         subjectName = subjectName,

@@ -1,0 +1,8 @@
+{
+  "name": "FileMaker Pro",
+  "unique_identifier": "com.filemaker.client.pro12",
+  "token": "filemaker-pro",
+  "installer_format": "dmg",
+  "slug": "filemaker-pro/darwin",
+  "default_categories": ["Developer tools"]
+}

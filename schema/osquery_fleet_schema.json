@@ -28961,7 +28961,7 @@
       },
       {
         "name": "count",
-        "description": "Number of times the application has been executed.",
+        "description": "Number of times the application has been executed. \n_Note that `count` is a reserved word and should be wrapped in quotes when referencing this column in a query._",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -31681,7 +31681,7 @@
       },
       {
         "name": "count",
-        "description": "Number of YARA matches",
+        "description": "Number of YARA matches. \n_Note that `count` is a reserved word and should be wrapped in quotes when referencing this column in a query._",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -31751,7 +31751,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -31807,7 +31807,7 @@
       },
       {
         "name": "count",
-        "description": "Number of YARA matches",
+        "description": "Number of YARA matches. \n_Note that `count` is a reserved word and should be wrapped in quotes when referencing this column in a query._",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -31859,7 +31859,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       }
     ],

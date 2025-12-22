@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
@@ -55,11 +56,11 @@ object ApiClient {
         }
     }
 
-    val apiKeyFlow: Flow<String?>
+    val apiKeyDebugFlow: Flow<String?>
         get() = dataStore.data.map { preferences ->
             preferences[API_KEY]?.let { encrypted ->
                 try {
-                    KeystoreManager.decrypt(encrypted)
+                    "****" + KeystoreManager.decrypt(encrypted).takeLast(4)
                 } catch (e: Exception) {
                     Log.e("ApiClient", "Failed to decrypt API key", e)
                     null
@@ -146,6 +147,8 @@ object ApiClient {
                     ?: "HTTP $responseCode"
             }
 
+            Log.d("ApiClient", "server response from $method $endpoint ($responseCode): $response")
+
             if (responseCode in 200..299) {
                 val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
                 Result.success(parsed)
@@ -220,14 +223,14 @@ object ApiClient {
         val credentials = getEnrollmentCredentials() ?: return Result.failure(Exception("enroll credentials not set"))
 
         return makeRequest(
-            endpoint = "/api/fleetd/orbit/certificates/$certificateId",
-            method = "POST",
+            endpoint = "/api/fleetd/certificates/$certificateId",
+            method = "GET",
             body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
             bodySerializer = GetCertificateTemplateRequest.serializer(),
-            responseSerializer = GetCertificateTemplateResponse.serializer(),
-            authorized = false,
+            responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
         ).fold(
-            onSuccess = { res ->
+            onSuccess = { wrapper ->
+                val res = wrapper.certificate
                 Log.i("ApiClient", "successfully retrieved certificate template ${res.id}: ${res.name}")
                 Result.success(
                     res.apply {
@@ -437,7 +440,14 @@ private data class UpdateCertificateStatusResponse(
 )
 
 @Serializable
+data class GetCertificateTemplateResponseWrapper(
+    @SerialName("certificate")
+    val certificate: GetCertificateTemplateResponse,
+)
+
+@Serializable
 data class GetCertificateTemplateResponse(
+    // CertificateTemplateResponseSummary
     @SerialName("id")
     val id: Int,
 
@@ -445,7 +455,7 @@ data class GetCertificateTemplateResponse(
     val name: String,
 
     @SerialName("certificate_authority_id")
-    val certificateAuthorityId: String,
+    val certificateAuthorityId: Int,
 
     @SerialName("certificate_authority_name")
     val certificateAuthorityName: String,
@@ -453,6 +463,7 @@ data class GetCertificateTemplateResponse(
     @SerialName("created_at")
     val createdAt: String,
 
+    // CertificateTemplateResponseFull
     @SerialName("subject_name")
     val subjectName: String,
 
@@ -463,20 +474,21 @@ data class GetCertificateTemplateResponse(
     val status: String,
 
     @SerialName("scep_challenge")
-    val scepChallenge: String,
+    val scepChallenge: String? = "",
 
     @SerialName("fleet_challenge")
-    val fleetChallenge: String?,
+    val fleetChallenge: String? = "",
 
-    @SerialName("key_length")
+    @Transient
     val keyLength: Int = 2048,
 
-    @SerialName("signature_algorithm")
+    @Transient
     val signatureAlgorithm: String = "SHA256withRSA",
 
-    var url: String?,
+    @Transient
+    var url: String? = null,
 ) {
     fun setUrl(serverUrl: String, hostUUID: String) {
-        url = "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,$fleetChallenge"
+        url = "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"
     }
 }

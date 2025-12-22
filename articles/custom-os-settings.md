@@ -100,6 +100,8 @@ To verify that the OS setting is applied, run the following osquery query:
 SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\employee\Attributes\Subteam';
 ```
 
+> If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
+
 ### Broken profiles
 
 If one or more labels included in the profile's scope are deleted, the profile will not apply to new hosts that enroll.

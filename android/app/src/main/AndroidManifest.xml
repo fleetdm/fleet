@@ -6,6 +6,10 @@
     <!-- Source: https://developers.google.com/android/management/sdk-integration#add_queries -->
     <queries>
         <package android:name="com.google.android.apps.work.clouddpc" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
     </queries>
 
     <!-- REQUIRED for downloading certificates from remote server -->

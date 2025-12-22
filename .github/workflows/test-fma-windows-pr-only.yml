@@ -23,6 +23,9 @@ on:
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+permissions:
+  contents: read
+
 jobs:
   test-fma-pr-only:
     env:
@@ -85,6 +88,7 @@ jobs:
           if ("${{ steps.check-changes.outputs.has_changes }}" -ne "true") {
             "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             exit 0
           }
 
@@ -95,6 +99,7 @@ jobs:
           if ($null -eq $windowsSlugs -or $windowsSlugs.Count -eq 0) {
             "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "No windows apps changed, skipping Windows workflow"
           } else {
             "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -108,6 +113,14 @@ jobs:
               Write-Host "Google Chrome detected in changed apps"
             } else {
               "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            }
+
+            # Check if 7-zip/windows is in the changed apps
+            if ("7-zip/windows" -in $windowsSlugs) {
+              "has_7zip=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+              Write-Host "7-zip detected in changed apps"
+            } else {
+              "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             }
           }
         shell: pwsh
@@ -145,6 +158,70 @@ jobs:
             }
           } else {
             Write-Host "Chrome uninstall path not found in registry"
+          }
+        shell: pwsh
+
+      - name: Remove pre-installed 7-zip
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_7zip == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing '7-Zip':"
+          Get-Package | Where-Object { $_.Name -like "*7-Zip*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # Check registry for 7-Zip uninstaller
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $uninstallEntry = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "*7-Zip*" -and $_.Publisher -like "*Igor Pavlov*" }
+            if ($uninstallEntry) {
+              $found = $true
+              Write-Host "Found 7-Zip uninstall entry: $($uninstallEntry.DisplayName)"
+              
+              # Try to get uninstall string
+              $uninstallString = if ($uninstallEntry.QuietUninstallString) {
+                $uninstallEntry.QuietUninstallString
+              } elseif ($uninstallEntry.UninstallString) {
+                $uninstallEntry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Found 7-Zip uninstall path: $uninstallString"
+                try {
+                  # Check if it's an MSI uninstall (contains /X or /I)
+                  if ($uninstallString -match "/X\{([A-F0-9\-]+)\}") {
+                    $guid = $matches[1]
+                    Write-Host "Uninstalling 7-Zip MSI with GUID: $guid"
+                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
+                    Write-Host "Successfully removed 7-Zip via MSI uninstaller"
+                  } elseif ($uninstallString -match '"([^"]+)"') {
+                    # Extract executable path
+                    $exePath = $matches[1]
+                    Write-Host "Uninstalling 7-Zip via executable: $exePath"
+                    # 7-Zip typically uses /S for silent uninstall
+                    Start-Process -FilePath $exePath -ArgumentList "/S" -Wait -NoNewWindow
+                    Write-Host "Successfully removed 7-Zip via executable uninstaller"
+                  } else {
+                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                  }
+                } catch {
+                  Write-Host "Failed to remove 7-Zip: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "7-Zip uninstall string not found in registry entry"
+              }
+              break
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "7-Zip uninstall path not found in registry"
           }
         shell: pwsh
 

@@ -1,0 +1,10 @@
+{
+  "name": "7-zip",
+  "slug": "7-zip/windows",
+  "package_identifier": "7zip.7zip",
+  "unique_identifier": "7-Zip 25.01 (x64)",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

@@ -5,6 +5,7 @@ import { uniqueId } from "lodash";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   LinuxDiskEncryptionStatus,
   ProfileOperationType,
   ProfilePlatform,
@@ -28,6 +29,7 @@ interface IOSSettingStatusCellProps {
   operationType: ProfileOperationType | null;
   profileName: string;
   hostPlatform?: ProfilePlatform;
+  profileUUID?: string;
 }
 
 const OSSettingStatusCell = ({
@@ -35,12 +37,50 @@ const OSSettingStatusCell = ({
   operationType,
   profileName = "",
   hostPlatform,
+  profileUUID,
 }: IOSSettingStatusCellProps) => {
   let displayOption: ProfileDisplayOption = null;
-
   if (hostPlatform === "linux") {
     displayOption =
       LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG[status as LinuxDiskEncryptionStatus];
+  }
+
+  // Android host certificate templates.
+  else if (
+    hostPlatform === "android" &&
+    profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID
+  ) {
+    switch (status) {
+      case "pending":
+        displayOption = {
+          statusText:
+            operationType === "install"
+              ? "Enforcing (pending)"
+              : "Removing enforcement (pending)",
+          iconName: "pending-outline",
+          tooltip: () =>
+            operationType === "install"
+              ? "The host is running the command to apply settings or will run it when the host comes online."
+              : "The host is running the command to remove settings or will run it when the host comes online.",
+        };
+        break;
+      case "verified":
+        displayOption = {
+          statusText: "Verified",
+          iconName: "success",
+          tooltip: () => "The host applied the setting. Fleet verified",
+        };
+        break;
+      case "failed":
+        displayOption = {
+          statusText: "Failed",
+          iconName: "error",
+          tooltip: null,
+        };
+        break;
+      default:
+        displayOption = null;
+    }
   }
 
   // windows hosts do not have an operation type at the moment and their display options are

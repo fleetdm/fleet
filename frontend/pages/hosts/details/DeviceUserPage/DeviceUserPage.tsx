@@ -33,6 +33,7 @@ import {
   isMacOS,
   isAppleDevice,
   isLinuxLike,
+  isWindows,
 } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
@@ -822,7 +823,9 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={host.platform === "darwin"}
+            canResendProfiles={
+              isMacOS(host.platform) || isWindows(host.platform)
+            }
             platform={host.platform}
             hostMDMData={host.mdm}
             resendRequest={resendProfile}

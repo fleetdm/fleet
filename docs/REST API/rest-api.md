@@ -587,10 +587,12 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 ## Certificates
 
 - [Connect certificate authority (CA)](#connect-certificate-authority-ca)
+- [Add certificate template](#add-certificate-template)
 - [Update certificate authority (CA)](#update-certificate-authority-ca)
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
+- [Delete certificate template](#delete-certificate-template)
 - [Request certificate](#request-certificate)
 
 ### Connect certificate authority (CA)
@@ -713,6 +715,49 @@ Object with the following structure:
   "id": 1,
   "name": "WIFI_CERTIFICATE",
   "type": "digicert"
+}
+```
+
+### Add certificate template
+
+Add a certificate template to deploy a certificate to all hosts on the team. Fleet currently supports adding certificates for Android that are issued from a custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority.
+
+`POST /api/v1/fleet/certificates`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                 |
+| -------- | ------- | ---- | ------------------------------------------- |
+| name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
+| team_id      | string  | query | _Available in Fleet Premium_. The ID of the team to add profiles to. |
+| certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
+| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
+
+#### Example
+
+`POST /api/v1/fleet/certificates`
+
+##### Request body
+
+```json
+{
+  "name": "wifi-certificate",
+  "team_id": 1,
+  "certificate_authority_id": 1,
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authority_id": 1,
+  "id": 1,
+  "name": "wifi-certificate",
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
 
@@ -867,6 +912,26 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 #### Example
 
 `DELETE /api/v1/fleet/certificate_authorities/1`
+
+##### Default response
+
+`Status: 204`
+
+### Delete certificate template
+
+Deletes the certificate template added to Fleet. When a certificate template is deleted from Fleet, the certificate will be uninstalled from the hosts.
+
+`DELETE /api/v1/fleet/certificates/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer  | path    | **Required.** The certificate ID in Fleet. You can see your certificate IDs using the [List certificate templates endpoint](#list-certificate-templates). |
+
+#### Example
+
+`DELETE /api/v1/fleet/certificates/1`
 
 ##### Default response
 
@@ -2663,7 +2728,7 @@ the `software` table.
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
-| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet. |

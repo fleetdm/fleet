@@ -278,7 +278,7 @@ endif
 	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
 	@echo "Arguments to send to \"go test\"."
 run-go-tests:
-	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
+	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
 .help-short--debug-go-tests:
 	@echo "Debug Go tests in specific packages (with Delve)"
@@ -292,7 +292,7 @@ run-go-tests:
 	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
 	@echo "Arguments to send to \"go test\"."
 debug-go-tests:
-	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
+	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Set up packages for CI testing.
 DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...

@@ -136,7 +136,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 
 	// next, we need to read the command results before we know what hosts (and
 	// therefore what teams) we're dealing with.
-	results, err := svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
+	results, err := svc.ds.GetMDMAppleCommandResults(ctx, commandUUID, "")
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +436,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	cp.Mobileconfig = data
 	cp.SecretsUpdatedAt = secretsUpdatedAt
 
-	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	labelMap, err := svc.validateProfileLabels(ctx, &teamID, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
@@ -528,7 +528,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, fleet.MDMPlatformApple, groupedCAs,
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
 		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
@@ -2099,7 +2099,7 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 	}
 
 	if !needsUpdate {
-		level.Debug(svc.logger).Log("msg", "device is above minimum, skipping os version check", "serial", m.Serial)
+		level.Debug(svc.logger).Log("msg", "device is above minimum or update new host not checked, skipping os version check", "serial", m.Serial)
 		return nil, nil
 	}
 
@@ -2124,23 +2124,51 @@ func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.M
 	// some cross-check against the machine info to ensure that the platform of the host aligns with
 	// what we expect from the machine info. But that would involve work to derive the platform from
 	// the machine info (presumably from the product name, but that's not a 1:1 mapping).
-	settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
+	platform, settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			level.Info(svc.logger).Log("msg", "checking os updates settings, settings not found", "serial", m.Serial)
+			level.Info(svc.logger).Log(
+				"msg", "checking os updates settings, settings not found",
+				"serial", m.Serial,
+			)
 			return false, nil
 		}
 		return false, err
 	}
-	// TODO: confirm what this check should do
-	if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
-		level.Info(svc.logger).Log("msg", "checking os updates settings, minimum version not set", "serial", m.Serial, "current_version", m.OSVersion, "minimum_version", settings.MinimumVersion.Value)
-		return false, nil
+
+	minVersion := settings.MinimumVersion.Value
+	hasMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
+
+	// For macOS hosts, whether to update new hosts during DEP enrollment is determined solely by UpdateNewHosts
+	if platform == "darwin" {
+		updateNewHosts := settings.UpdateNewHosts.Set && settings.UpdateNewHosts.Valid && settings.UpdateNewHosts.Value
+
+		level.Info(svc.logger).Log(
+			"msg", "checking os updates settings for macos, update will be forced if UpdateNewHosts is set",
+			"update_new_hosts", updateNewHosts,
+			"serial", m.Serial,
+		)
+		return updateNewHosts, nil
 	}
 
-	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, settings.MinimumVersion.Value)
+	// TODO: confirm what this check should do
+	if !hasMinVersion {
+		level.Info(svc.logger).Log(
+			"msg", "checking os updates settings, minimum version not set",
+			"serial", m.Serial,
+			"current_version", m.OSVersion,
+			"minimum_version", minVersion,
+		)
+	}
+
+	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, minVersion)
 	if err != nil {
-		level.Info(svc.logger).Log("msg", "checking os updates settings, cannot compare versions", "serial", m.Serial, "current_version", m.OSVersion, "minimum_version", settings.MinimumVersion.Value)
+		level.Info(svc.logger).Log(
+			"msg", "checking os updates settings, cannot compare versions",
+			"serial", m.Serial,
+			"current_version", m.OSVersion,
+			"minimum_version", minVersion,
+		)
 		return false, nil
 	}
 

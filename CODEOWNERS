@@ -75,6 +75,7 @@ go.mod @fleetdm/go
 /schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
+/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @BCTBB # « Infra: active notification of changes to IP Allowlists
 
 ################################################################################################
 #  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐
