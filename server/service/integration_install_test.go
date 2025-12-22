@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	software_mock "github.com/fleetdm/fleet/v4/server/mock/software"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
@@ -81,8 +82,6 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 		require.NoError(t, err)
 		return f
 	}
-
-	// TODO(JK): reference, remove this comment later
 
 	filename := "ruby.deb"
 	var expectBytes []byte
@@ -216,4 +215,48 @@ func getLatestSoftwareInstallExecID(t *testing.T, ds *mysql.Datastore, hostID ui
 			"SELECT execution_id FROM host_software_installs WHERE host_id = ? ORDER BY id desc", hostID)
 	})
 	return installUUID
+}
+
+func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
+	// Test that the signed URL is used if cloudfrontsigner is configured
+	t := s.T()
+	teamID := ptr.Uint(0)
+
+	signURL := `https://example.cloudfront.net/software-installers/storage_id?Expires=1766462733&Signature=some_signature&Key-Pair-Id=ABC123XYZ`
+
+	// Set up mocks
+	var myInstallerID string
+	s.softwareInstallStore.ExistsFunc = func(ctx context.Context, installerID string) (bool, error) {
+		return installerID == myInstallerID, nil
+	}
+	s.softwareInstallStore.PutFunc = func(ctx context.Context, installerID string, content io.ReadSeeker) error {
+		myInstallerID = installerID
+		return nil
+	}
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+		return signURL, nil
+	}
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	var titleResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &titleResp, "team_id", "0")
+	require.Len(t, titleResp.SoftwareTitles, 1)
+	require.Equal(t, "ipa_test", titleResp.SoftwareTitles[0].Name)
+	titleID := titleResp.SoftwareTitles[0].ID
+
+	readManifest := func(res *http.Response) []byte {
+		buf, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		return buf
+	}
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
+		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+
+	manifest := readManifest(res)
+	require.NotNil(t, manifest)
+	require.Contains(t, string(manifest), signURL)
 }

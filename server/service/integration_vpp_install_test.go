@@ -1720,9 +1720,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
 }
 
-func (s *integrationMDMTestSuite) TestInHouseAppSignedURL() {
-	// Test that the signed URL is used if cloudfrontsigner is configured
-	// and the Fleet download URL is used if not
+func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
+	// Test that the Fleet URL is used if cloudfrontsigner is nil
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 	teamID := ptr.Uint(0)
@@ -1737,16 +1736,18 @@ func (s *integrationMDMTestSuite) TestInHouseAppSignedURL() {
 	require.Equal(t, "ipa_test", titleResp.SoftwareTitles[0].Name)
 	titleID := titleResp.SoftwareTitles[0].ID
 
+	readManifest := func(res *http.Response) []byte {
+		buf, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		return buf
+	}
 	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
 		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
 
-	buf, err := io.ReadAll(res.Body)
-	require.NoError(t, err)
-	res.Body.Close()
-	manifestResp := &getInHouseAppManifestResponse{Manifest: buf}
-
-	require.NotNil(t, manifestResp.Manifest)
-	fmt.Println(string(manifestResp.Manifest))
+	manifest := readManifest(res)
+	require.NotNil(t, manifest)
+	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app?team_id=%d", titleID, *teamID))
 }
 
 func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {

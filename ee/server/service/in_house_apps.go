@@ -178,9 +178,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 
 	downloadURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
-	// TODO(JK): cloudfront signing
 	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
-		fmt.Println("ummm, shouldn't be here")
 		// TODO(JK): Change time to 5 minutes instead of 6 hours, maybe by adding an expiresIn parameter to .Sign()
 		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID)
 		if err != nil {
