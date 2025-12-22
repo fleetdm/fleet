@@ -27,7 +27,7 @@ func Up_20251219201524(tx *sql.Tx) error {
 		return err
 	}
 	_, err = tx.Exec(`
-				ALTER TABLE hosts ADD COLUMN timezone VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+				ALTER TABLE hosts ADD COLUMN timezone VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 	`)
 	if err != nil {
 		return err
