@@ -28,6 +28,7 @@ func TestCertificates(t *testing.T) {
 		{"BatchDeleteCertificateTemplates", testBatchDeleteCertificateTemplates},
 		{"GetHostCertificateTemplates", testGetHostCertificateTemplates},
 		{"GetCertificateTemplateForHost", testGetCertificateTemplateForHost},
+		{"GetHostCertificateTemplateRecord", testGetHostCertificateTemplateRecord},
 	}
 
 	for _, c := range cases {
@@ -1100,4 +1101,117 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 			tc.do(t, ds)
 		})
 	}
+}
+
+func testGetHostCertificateTemplateRecord(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
+
+	ctx := context.Background()
+
+	// Create team
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+
+	// Create host
+	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	h1.TeamID = &team1.ID
+	err = ds.UpdateHost(ctx, h1)
+	require.NoError(t, err)
+
+	// Create certificate authority
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// Create certificate template
+	ct1, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "Template1",
+		TeamID:                 team1.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Subject 1",
+	})
+	require.NoError(t, err)
+
+	// Create host_certificate_template record
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              h1.UUID,
+			CertificateTemplateID: ct1.ID,
+			FleetChallenge:        ptr.String("challenge-123"),
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+			Name:                  "Template1",
+		},
+	})
+	require.NoError(t, err)
+
+	t.Run("Returns record when it exists", func(t *testing.T) {
+		result, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct1.ID)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		require.Equal(t, h1.UUID, result.HostUUID)
+		require.Equal(t, ct1.ID, result.CertificateTemplateID)
+		require.NotNil(t, result.FleetChallenge)
+		require.Equal(t, "challenge-123", *result.FleetChallenge)
+		require.Equal(t, fleet.CertificateTemplateDelivered, result.Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, result.OperationType)
+	})
+
+	t.Run("Returns NotFound for non-existent host", func(t *testing.T) {
+		_, err := ds.GetHostCertificateTemplateRecord(ctx, "non-existent-uuid", ct1.ID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("Returns NotFound for non-existent template", func(t *testing.T) {
+		_, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, 99999)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("Returns record even after parent certificate_template is deleted", func(t *testing.T) {
+		// Create a new template and record
+		ct2, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Template2",
+			TeamID:                 team1.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test Subject 2",
+		})
+		require.NoError(t, err)
+
+		err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+			{
+				HostUUID:              h1.UUID,
+				CertificateTemplateID: ct2.ID,
+				FleetChallenge:        ptr.String("challenge-456"),
+				Status:                fleet.CertificateTemplateDelivered,
+				OperationType:         fleet.MDMOperationTypeInstall,
+				Name:                  "Template2",
+			},
+		})
+		require.NoError(t, err)
+
+		// Verify record exists
+		result, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct2.ID)
+		require.NoError(t, err)
+		require.Equal(t, "challenge-456", *result.FleetChallenge)
+
+		// Delete the parent certificate_template
+		err = ds.DeleteCertificateTemplate(ctx, ct2.ID)
+		require.NoError(t, err)
+
+		// Record should still be accessible
+		result, err = ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct2.ID)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, h1.UUID, result.HostUUID)
+		require.Equal(t, ct2.ID, result.CertificateTemplateID)
+		require.Equal(t, "challenge-456", *result.FleetChallenge)
+		require.Equal(t, fleet.CertificateTemplateDelivered, result.Status)
+	})
 }

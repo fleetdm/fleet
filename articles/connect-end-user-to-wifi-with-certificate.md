@@ -46,10 +46,10 @@ The following steps show how to connect end users to Wi-Fi or VPN with DigiCert 
 ### Step 4: Add PKCS12 configuration profile to Fleet
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with a PKCS12 payload. 
-  - For `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`. 
-  - For `Data`, use `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`.
+  - For `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_{CA_NAME}`. 
+  - For `Data`, use `$FLEET_VAR_DIGICERT_DATA_{CA_NAME}`.
 
-2. Replace the `<CA_NAME>` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
+2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
 3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
@@ -71,9 +71,9 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
         <array>
             <dict>
                 <key>Password</key>
-                <string>$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME></string>
+                <string>$FLEET_VAR_DIGICERT_PASSWORD_{CA_NAME}</string>
                 <key>PayloadContent</key>
-                <data>$FLEET_VAR_DIGICERT_DATA_<CA_NAME></data>
+                <data>$FLEET_VAR_DIGICERT_DATA_{CA_NAME}</data>
                 <key>PayloadDisplayName</key>
                 <string>CertificatePKCS12</string>
                 <key>PayloadIdentifier</key>
@@ -224,10 +224,10 @@ We're currently working with Smallstep to develop a specific Smallstep-Fleet con
 ### Step 3: Add SCEP configuration profile to Fleet
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. 
-  - For `Challenge`, use`$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>`. 
-  - For `URL`, use `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+  - For `Challenge`, use`$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_{CA_NAME}`. 
+  - For `URL`, use `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. Replace the `<CA_NAME>` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
+2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
 3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
@@ -248,7 +248,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
           <key>PayloadContent</key>
           <dict>
              <key>Challenge</key>
-             <string>$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME></string>
+             <string>$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_{CA_NAME}</string>
              <key>Key Type</key>
              <string>RSA</string>
              <key>Key Usage</key>
@@ -271,7 +271,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         </array>
                     </array>
              <key>URL</key>
-             <string>$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME></string>
+             <string>$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_{CA_NAME}</string>
           </dict>
           <key>PayloadDisplayName</key>
           <string>WIFI SCEP</string>
@@ -405,9 +405,9 @@ The following steps show how to connect end users to Wi-Fi or VPN with a [custom
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. Replace the `<CA_NAME>` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
+2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
 3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
@@ -431,7 +431,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
           <key>PayloadContent</key>
           <dict>
              <key>Challenge</key>
-             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME></string>
+             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}</string>
              <key>Key Type</key>
              <string>RSA</string>
              <key>Key Usage</key>
@@ -454,7 +454,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         </array>
                     </array>
              <key>URL</key>
-             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME></string>
+             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}</string>
           </dict>
           <key>PayloadDisplayName</key>
           <string>WIFI SCEP</string>
@@ -564,7 +564,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME></Data>
+        <Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}</Data>
     </Item>
 </Replace>
 <Replace>
@@ -575,7 +575,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME></Data>
+        <Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}</Data>
     </Item>
 </Replace>
 <Replace>
@@ -754,13 +754,12 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 
 ### User scoped certificates
 
-You can also upload a certificate to be installed in the login keychain of the managed user on a
-macOS host using a user-scoped configuration profile.
+You can deploy a user scoped certificate on macOS and Windows hosts using a user scoped configuration profile.
 
 1. **Add your CA as before**
   Use the above steps to integrate your CA with Fleet.
 1. **Create a certificate payload**
-  Use your preferred tool (e.g., Apple Configurator or a `.mobileconfig` generator) to create a configuration profile that includes your certificate.
+  Use your preferred tool (e.g., Apple Configurator or a `.mobileconfig` generator) to create a configuration profile that includes your certificate. For Windows, use the [example profile](#example-configuration-profiles) and replace `./Device` with `./User` in all `<LocURI>` elements.
 2. **Ensure the payload is scoped to the user**
   In the payload, set the `PayloadScope` to `User`. This tells macOS to install the certificate in the user’s login keychain instead of the system keychain.
 3. **Upload the configuration profile to Fleet**

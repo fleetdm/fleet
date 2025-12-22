@@ -1353,6 +1353,13 @@
       "description": "SourceTree is a graphical client for Git version control."
     },
     {
+      "name": "Sourcetree",
+      "slug": "sourcetree/windows",
+      "platform": "windows",
+      "unique_identifier": "Sourcetree Enterprise",
+      "description": "SourceTree is a graphical client for Git version control."
+    },
+    {
       "name": "Splashtop Business",
       "slug": "splashtop-business/darwin",
       "platform": "darwin",
