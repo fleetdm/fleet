@@ -39,51 +39,20 @@ const WindowsAutomaticEnrollmentPage = () => {
         <PageDescription
           content={
             <>
-              The end user will see Microsoft&apos;s default initial setup. You
-              can further simplify the initial device setup with Autopilot,
-              which is similar to Apple&apos;s Automated Device Enrollment
-              (DEP).{" "}
+              To connect Fleet to Microsoft Entra, follow the instructions in
+              the {" "}
               <CustomLink
                 newTab
-                text="Learn more"
-                url="https://fleetdm.com/learn-more-about/setup-windows-mdm"
+                text="guide"
+                url="https://fleetdm.com/learn-more-about/connect-microsoft-entra"
               />
             </>
           }
         />
-        <p>
-          Some Intune/Entra deployments enable automatic enrollment into Intune.
-          Check to ensure <b>Automatic Enrollment</b> is not enabled, or your
-          devices will not appear in Fleet.{" "}
-        </p>
-        <p>
-          In your Intune settings, select <b>Devices</b>, and under{" "}
-          <b>Device onbarding</b>, open the <b>Enrollment</b> submenu. Select{" "}
-          <b>Automatic Enrollment</b> and ensure both <b>MDM user scope</b> and{" "}
-          <b>Windows Information Protection (WIP) user scope</b> are set to{" "}
-          <b>None</b>.
-        </p>
         {/* Ideally we'd use the native browser list styles and css to display
         the list numbers but this does not allow us to style the list items as we'd
         like so we write the numbers in the JSX instead. */}
         <ol className={`${baseClass}__setup-list`}>
-          <li>
-            <span>1.</span>
-            <CustomLink
-              newTab
-              text="Sign in to Azure portal"
-              url="https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool"
-            />
-          </li>
-          <li>
-            <span>2.</span>
-            <p>
-              At the top of the page, search “Domain names“ and select{" "}
-              <b>Domain names</b>. Then select <b>+ Add custom domain</b>, type
-              your Fleet URL (e.g. fleet.acme.com), and select <b>Add domain</b>
-              .
-            </p>
-          </li>
           <li>
             <span>3.</span>
             <div>

@@ -81,7 +81,14 @@ In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Micr
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
-> TODO: Bring in instructions here
+The end user will see Microsoft's default initial setup. You can further simplify the initial device setup with Autopilot, which is similar to Apple's Automated Device Enrollment (DEP).
+
+Some Intune/Entra deployments enable automatic enrollment into Intune. Check to ensure **Automatic Enrollment** is not enabled, or your devices will not appear in Fleet.
+
+In your Intune settings, select **Devices**, and under **Device onbarding**, open the **Enrollment** submenu. Select **Automatic Enrollment** and ensure both **MDM user scope** and **Windows Information Protection (WIP) user scope** are set to **None**.
+
+1. [Sign in to Azure portal](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool)
+2. At the top of the page, search "Domain names" and select **Domain names**. Then select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**
 
 ### Step 3: Test automatic enrollment
 
