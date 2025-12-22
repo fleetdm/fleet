@@ -582,10 +582,11 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 			endp = mw(endp)
 		}
 	}
-	// Apply authentication middleware
-	if e.AuthMiddleware != nil {
-		endp = e.AuthMiddleware(endp)
+	if e.AuthMiddleware == nil {
+		// This panic catches potential security issues during development.
+		panic("AuthMiddleware must be set on CommonEndpointer")
 	}
+	endp = e.AuthMiddleware(endp)
 
 	// Apply "before auth" middleware (in reverse order so that the first wraps
 	// the second wraps the third etc.)
