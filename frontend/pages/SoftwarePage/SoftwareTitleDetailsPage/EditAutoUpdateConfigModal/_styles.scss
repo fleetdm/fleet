@@ -17,6 +17,12 @@
       width: 100%;
       z-index: 1000;
     }
+
+    &__auto-update-config {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-large;
+    }
   
     &__content-wrapper {
       display: flex;
@@ -43,6 +49,10 @@
       display: flex;
       flex-direction: column;
       gap: $pad-medium;
+    }
+
+    .form-field {
+      gap: 0;
     }
   
     &__form-frame {

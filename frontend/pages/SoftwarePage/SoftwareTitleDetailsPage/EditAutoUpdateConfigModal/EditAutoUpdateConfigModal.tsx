@@ -15,8 +15,8 @@ import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getErrorMessage } from "./helpers";
 
-const baseClass = "edit-configuration-modal";
-const formClass = "edit-configuration-form";
+const baseClass = "edit-auto-update-config-modal";
+const formClass = "edit-auto-update-config-form";
 
 // Used to surface error.message in UI of unknown error type
 type ErrorWithMessage = {
@@ -103,21 +103,59 @@ const EditAutoUpdateConfigModal = ({
   const renderForm = () => (
     <div className={`${baseClass}__form-frame`}>
       <Card paddingSize="medium" borderRadiusSize="medium">
-        <div className={`form-field`}>
-          <div className="form-field__label">Auto updates</div>
-          <p>
-            Automatically update <strong>{softwareTitle.name}</strong> on all
-            targeted hosts when a new version is available.
-          </p>
-          <div className={`${formClass}__self-service`}>
-            <Checkbox
-              value={formData.enabled}
-              className={`${formClass}__self-service-checkbox`}
-              onChange={(newVal: boolean) => onToggleEnabled(newVal)}
-            >
-              Enable auto updates
-            </Checkbox>
+        <div className={`${formClass}__auto-update-config`}>
+          <div className={`form-field`}>
+            <div className="form-field__label">Auto updates</div>
+            <p>
+              Automatically update <strong>{softwareTitle.name}</strong> on all
+              targeted hosts when a new version is available.
+            </p>
+            <div>
+              <Checkbox
+                value={formData.enabled}
+                onChange={(newVal: boolean) => onToggleEnabled(newVal)}
+              >
+                Enable auto updates
+              </Checkbox>
+            </div>
           </div>
+          {formData.enabled && (
+            <div>
+              <div className="form-field">
+                <div className="form-field__label">
+                  Update window (host&rsquo;s local time)
+                </div>
+                <p>
+                  Times are formatted as HH:MM in 24 hour time (e.g.,
+                  &quot;13:37&quot;).
+                </p>
+              </div>
+              <div className="form-field">
+                <input
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      startTime: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="form-field">
+                <input
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      endTime: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     </div>
