@@ -9,6 +9,8 @@ import Card from "components/Card";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
 import CustomLink from "components/CustomLink";
@@ -100,6 +102,15 @@ const EditAutoUpdateConfigModal = ({
     setCanSaveForm(!error);
   };
 
+  const onChangeTimeField = (update: { name: string; value: string }) => {
+    const value = update.value.substring(0, 5).replace(/[^0-9:]/g, ""); // limit to 5 characters and allow only numbers and colon
+    const newFormData = { ...formData, [update.name]: value };
+    setFormData(newFormData);
+    const error = validateForm(newFormData);
+    setFormError(error);
+    setCanSaveForm(!error);
+  };
+
   const renderForm = () => (
     <div className={`${baseClass}__form-frame`}>
       <Card paddingSize="medium" borderRadiusSize="medium">
@@ -130,29 +141,23 @@ const EditAutoUpdateConfigModal = ({
                   &quot;13:37&quot;).
                 </p>
               </div>
-              <div className="form-field">
-                <input
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      startTime: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div className="form-field">
-                <input
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      endTime: e.target.value,
-                    })
-                  }
-                />
+              <div className={`${formClass}__auto-update-schedule-form`}>
+                <span className="date-time-inputs">
+                  <InputField
+                    value={formData.startTime}
+                    onChange={onChangeTimeField}
+                    label="Earliest start time"
+                    name="startTime"
+                    parseTarget
+                  />
+                  <InputField
+                    value={formData.endTime}
+                    onChange={onChangeTimeField}
+                    label="Latest start time"
+                    name="endTime"
+                    parseTarget
+                  />
+                </span>
               </div>
             </div>
           )}
