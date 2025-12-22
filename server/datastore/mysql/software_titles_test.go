@@ -2600,33 +2600,6 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 
 	ctx := context.Background()
 
-	// host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-	// user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-
-	// software1 := []fleet.Software{
-	// 	{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionFor: "chrome"},
-	// 	{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "chrome"},
-	// 	{Name: "foo", Version: "0.0.3", Source: "deb_packages"},
-	// 	{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
-	// }
-
-	// _, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
-	// require.NoError(t, err)
-
-	// // create a software installer with an install request on host1
-	// installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-	// 	Title:           "installer2",
-	// 	Source:          "apps",
-	// 	InstallScript:   "echo",
-	// 	Filename:        "installer2.pkg",
-	// 	UserID:          user1.ID,
-	// 	ValidatedLabels: &fleet.LabelIdentsWithScope{},
-	// })
-	// require.NoError(t, err)
-
-	// _, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, fleet.HostSoftwareInstallOptions{})
-	// require.NoError(t, err)
-
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create a VPP app not installed anywhere
@@ -2695,6 +2668,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, title.AutoUpdateEndTime)
 	require.Equal(t, endTime, title.AutoUpdateEndTime)
 
+	titleResult, err := ds.SoftwareTitleByID(ctx, title.ID, ptr.Uint(0), fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	require.True(t, titleResult.AutoUpdateEnabled)
+	require.NotNil(t, titleResult.AutoUpdateStartTime)
+	require.Equal(t, startTime, titleResult.AutoUpdateStartTime)
+	require.NotNil(t, titleResult.AutoUpdateEndTime)
+	require.Equal(t, endTime, titleResult.AutoUpdateEndTime)
+
 	// Disable auto-update.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, 0, fleet.AutoUpdateConfig{
 		AutoUpdateEnabled:   false,
@@ -2715,4 +2696,12 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, startTime, title.AutoUpdateStartTime)
 	require.NotNil(t, title.AutoUpdateEndTime)
 	require.Equal(t, endTime, title.AutoUpdateEndTime)
+
+	titleResult, err = ds.SoftwareTitleByID(ctx, title.ID, ptr.Uint(0), fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	require.False(t, titleResult.AutoUpdateEnabled)
+	require.NotNil(t, titleResult.AutoUpdateStartTime)
+	require.Equal(t, startTime, titleResult.AutoUpdateStartTime)
+	require.NotNil(t, titleResult.AutoUpdateEndTime)
+	require.Equal(t, endTime, titleResult.AutoUpdateEndTime)
 }

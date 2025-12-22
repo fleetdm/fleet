@@ -30,9 +30,9 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 	)
 
 	if teamID != nil {
-		autoUpdatesSelect = `COALESCE(sus.enabled, FALSE) as auto_update_enabled, COALESCE(sus.start_time, '') as auto_update_start_time, COALESCE(sus.end_time, '') as auto_update_end_time,`
+		autoUpdatesSelect = `COALESCE(sus.enabled, FALSE) as auto_update_enabled, COALESCE(sus.start_time, '') as auto_update_start_time, COALESCE(sus.end_time, '') as auto_update_end_time, `
 		autoUpdatesJoin = fmt.Sprintf("LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %d", *teamID)
-		autoUpdatesGroupBy = "auto_update_enabled, auto_update_start_time, auto_update_end_time"
+		autoUpdatesGroupBy = "auto_update_enabled, auto_update_start_time, auto_update_end_time, "
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
@@ -78,7 +78,7 @@ GROUP BY
 	st.extension_for,
 	st.bundle_identifier,
 	hosts_count,
-	%s,
+	%s
 	vap.icon_url
 	`, autoUpdatesSelect, autoUpdatesJoin, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
 	)
