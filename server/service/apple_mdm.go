@@ -4657,7 +4657,7 @@ func ReconcileAppleProfiles(
 			}
 			if userEnrollmentID == "" {
 				var errorDetail string
-				if p.HostPlatform == "ios" || p.HostPlatform == "ipados" {
+				if fleet.IsAppleMobilePlatform(p.HostPlatform) {
 					errorDetail = "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts."
 				} else {
 					errorDetail = "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll."
