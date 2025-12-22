@@ -44,12 +44,12 @@
   // TooltipTruncatedText component.
   &__info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: $gap-data-sets $pad-xxlarge;
 
-    // at the larger screen widths we want to have 5 columns.
+    // at the larger screen widths we want to have 6 columns.
     @media (min-width: $break-xxl) {
-      grid-template-columns: repeat(5, minmax(150px, max-content));
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
     }
   }
 
