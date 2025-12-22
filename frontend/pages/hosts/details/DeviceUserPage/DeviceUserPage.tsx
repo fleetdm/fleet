@@ -62,7 +62,7 @@ import {
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
 import HostSummaryCard from "../cards/HostSummary";
-import AboutCard from "../cards/Vitals";
+import VitalsCard from "../cards/Vitals";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
@@ -744,7 +744,7 @@ const DeviceUserPage = ({
                   hostSettings={host?.mdm.profiles ?? []}
                   osSettings={host?.mdm.os_settings}
                 />
-                <AboutCard
+                <VitalsCard
                   className={defaultCardClass}
                   vitalsData={vitalsData}
                   munki={deviceMacAdminsData?.munki}
