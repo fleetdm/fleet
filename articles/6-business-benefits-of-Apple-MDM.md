@@ -48,7 +48,7 @@ Without MDM, organizations may resort to manually configuring each device before
 
 An MDM platform for Apple devices addresses these organizational challenges through six key benefits.
 
-### **1\. Zero-touch deployment eliminates manual setup**
+### 1\. Zero-touch deployment eliminates manual setup
 
 Zero-touch deployment through [ADE](https://support.apple.com/en-us/102300) transforms device onboarding from a manual bottleneck into an easy, self-guided process. Devices purchased from Apple or through an authorized Apple reseller are linked to an organization's MDM server in ABM. When employees power on new devices, they are walked through an automatic enrollment workflow controlled from your MDM server and receive configuration profiles and provisioned software without IT tickets or admin interaction.
 
