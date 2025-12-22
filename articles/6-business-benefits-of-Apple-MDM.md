@@ -56,7 +56,7 @@ Manual device setup typically requires significant IT labor per device, while au
 
 The initial ABM setup requires coordination with your reseller and integration with your MDM platform, but once that is done, every future deployment uses the same streamlined process.
 
-### **2\. Security policies enforce encryption and remote wipe**
+### 2\. Security policies enforce encryption and remote wipe
 
 MDM provides technical enforcement of security controls that business policy documents alone cannot guarantee. E.g., Organizations can enforce full disk encryption on all managed devices using FileVault for Mac, while iPhone and iPad use hardware encryption that's always enabled when a passcode is set. Strong passcode requirements with automatic lockout protect against unauthorized access, certificate deployment enables secure network access, and firewall rules block unnecessary traffic.
 
