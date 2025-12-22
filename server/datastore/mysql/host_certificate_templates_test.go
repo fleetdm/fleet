@@ -829,7 +829,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, certTemplates.DeliveringTemplateIDs, 2)
 	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, certTemplates.DeliveringTemplateIDs)
-	require.Empty(t, certTemplates.OtherTemplateIDs) // No existing verified/delivered templates yet
+	require.Len(t, certTemplates.Templates, 2)
 
 	// Verify host is no longer in pending list
 	hostUUIDs, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
@@ -841,7 +841,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, certTemplates.DeliveringTemplateIDs, 2) // Already delivering from previous call
 	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, certTemplates.DeliveringTemplateIDs)
-	require.Empty(t, certTemplates.OtherTemplateIDs) // No delivered/verified/failed yet
+	require.Len(t, certTemplates.Templates, 2)
 
 	// Verify database shows delivering status
 	records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})

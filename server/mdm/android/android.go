@@ -60,7 +60,9 @@ type AgentManagedConfiguration struct {
 }
 
 type AgentCertificateTemplate struct {
-	ID uint `json:"id"`
+	ID        uint   `json:"id"`
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
 }
 
 // MDMAndroidPolicyRequest represents a request made to the Android Management

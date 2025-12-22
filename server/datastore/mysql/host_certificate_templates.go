@@ -333,19 +333,34 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 			return nil
 		}
 
-		// Separate templates by status
+		// Separate templates by status and build the Templates list
 		var pendingIDs []uint // primary key IDs for UPDATE (only pending ones need transitioning)
 		for _, r := range rows {
 			switch r.Status {
 			case fleet.CertificateTemplatePending:
 				pendingIDs = append(pendingIDs, r.ID)
 				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
+				// Status will be delivering after transition
+				result.Templates = append(result.Templates, fleet.HostCertificateTemplateForDelivery{
+					CertificateTemplateID: r.CertificateTemplateID,
+					Status:                fleet.CertificateTemplateDelivering,
+					OperationType:         fleet.MDMOperationTypeInstall,
+				})
 			case fleet.CertificateTemplateDelivering:
 				// Already delivering (from a previous failed run), include in delivering list; should be very rare
 				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
+				result.Templates = append(result.Templates, fleet.HostCertificateTemplateForDelivery{
+					CertificateTemplateID: r.CertificateTemplateID,
+					Status:                r.Status,
+					OperationType:         fleet.MDMOperationTypeInstall,
+				})
 			default:
 				// delivered, verified, failed
-				result.OtherTemplateIDs = append(result.OtherTemplateIDs, r.CertificateTemplateID)
+				result.Templates = append(result.Templates, fleet.HostCertificateTemplateForDelivery{
+					CertificateTemplateID: r.CertificateTemplateID,
+					Status:                r.Status,
+					OperationType:         fleet.MDMOperationTypeInstall,
+				})
 			}
 		}
 
