@@ -105,10 +105,9 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
-		// Register host as error/telemetry attribute provider for ctxerr enrichment
+		// Register host as error context provider for ctxerr enrichment
 		hostProvider := &hostctx.HostAttributeProvider{Host: host}
-		ctx = ctxerr.AddErrorAttributeProvider(ctx, hostProvider)
-		ctx = ctxerr.AddTelemetryProvider(ctx, hostProvider)
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
 
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
@@ -157,10 +156,9 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
-		// Register host as error/telemetry attribute provider for ctxerr enrichment
+		// Register host as error context provider for ctxerr enrichment
 		hostProvider := &hostctx.HostAttributeProvider{Host: host}
-		ctx = ctxerr.AddErrorAttributeProvider(ctx, hostProvider)
-		ctx = ctxerr.AddTelemetryProvider(ctx, hostProvider)
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
 
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
@@ -204,10 +202,9 @@ func authenticatedOrbitHost(
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
-		// Register host as error/telemetry attribute provider for ctxerr enrichment
+		// Register host as error context provider for ctxerr enrichment
 		hostProvider := &hostctx.HostAttributeProvider{Host: host}
-		ctx = ctxerr.AddErrorAttributeProvider(ctx, hostProvider)
-		ctx = ctxerr.AddTelemetryProvider(ctx, hostProvider)
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
 
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {

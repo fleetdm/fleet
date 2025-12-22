@@ -104,8 +104,8 @@ func (v Viewer) CanPerformPasswordReset() bool {
 	return false
 }
 
-// GetErrorAttributes implements ctxerr.ErrorAttributeProvider
-func (v *Viewer) GetErrorAttributes() map[string]any {
+// GetDiagnosticContext implements ctxerr.ErrorContextProvider
+func (v *Viewer) GetDiagnosticContext() map[string]any {
 	vdata := map[string]any{
 		"is_logged_in": v.IsLoggedIn(),
 	}
@@ -117,8 +117,8 @@ func (v *Viewer) GetErrorAttributes() map[string]any {
 	}
 }
 
-// GetTelemetryAttributes implements ctxerr.TelemetryAttributeProvider
-func (v *Viewer) GetTelemetryAttributes() map[string]any {
+// GetTelemetryContext implements ctxerr.ErrorContextProvider
+func (v *Viewer) GetTelemetryContext() map[string]any {
 	if v.User == nil {
 		return nil
 	}

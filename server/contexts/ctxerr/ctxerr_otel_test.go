@@ -31,8 +31,8 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 				}
 				v := viewer.Viewer{User: testUser}
 				ctx = viewer.NewContext(ctx, v)
-				// Register the viewer as a telemetry provider
-				ctx = AddTelemetryProvider(ctx, &v)
+				// Register the viewer as an error context provider
+				ctx = AddErrorContextProvider(ctx, &v)
 				return ctx
 			},
 			errorMessage: "test error with user context",
@@ -48,8 +48,8 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 					Hostname: "test-host.example.com",
 				}
 				ctx = host.NewContext(ctx, testHost)
-				// Register the host as a telemetry provider
-				ctx = AddTelemetryProvider(ctx, &host.HostAttributeProvider{Host: testHost})
+				// Register the host as an error context provider
+				ctx = AddErrorContextProvider(ctx, &host.HostAttributeProvider{Host: testHost})
 				return ctx
 			},
 			errorMessage: "test error with host context",

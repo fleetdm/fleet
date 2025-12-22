@@ -23,14 +23,14 @@ func FromContext(ctx context.Context) (*fleet.Host, bool) {
 	return host, ok
 }
 
-// HostAttributeProvider wraps a fleet.Host to provide error attributes.
-// It implements ctxerr.ErrorAttributeProvider and ctxerr.TelemetryAttributeProvider.
+// HostAttributeProvider wraps a fleet.Host to provide error context.
+// It implements ctxerr.ErrorContextProvider.
 type HostAttributeProvider struct {
 	Host *fleet.Host
 }
 
-// GetErrorAttributes implements ctxerr.ErrorAttributeProvider
-func (p *HostAttributeProvider) GetErrorAttributes() map[string]any {
+// GetDiagnosticContext implements ctxerr.ErrorContextProvider
+func (p *HostAttributeProvider) GetDiagnosticContext() map[string]any {
 	if p.Host == nil {
 		return nil
 	}
@@ -42,8 +42,8 @@ func (p *HostAttributeProvider) GetErrorAttributes() map[string]any {
 	}
 }
 
-// GetTelemetryAttributes implements ctxerr.TelemetryAttributeProvider
-func (p *HostAttributeProvider) GetTelemetryAttributes() map[string]any {
+// GetTelemetryContext implements ctxerr.ErrorContextProvider
+func (p *HostAttributeProvider) GetTelemetryContext() map[string]any {
 	if p.Host == nil {
 		return nil
 	}
