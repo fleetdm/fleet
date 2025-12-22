@@ -23206,7 +23206,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	// Update the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
 		TeamID:              &teamID,
-		AutoUpdateEnabled:  ptr.Bool(true),
+		AutoUpdateEnabled:   ptr.Bool(true),
 		AutoUpdateStartTime: ptr.String("02:00"),
 		AutoUpdateEndTime:   ptr.String("04:00"),
 	}, http.StatusOK, &titlesResp)
