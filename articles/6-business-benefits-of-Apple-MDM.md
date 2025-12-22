@@ -81,7 +81,7 @@ MDM can automate the application lifecycle from deployment through removal. Appl
 
 This enforcement also becomes critical when compliance frameworks make specific demands about timelines that cannot be met through voluntary user action alone. PCI DSS 4.0 requires organizations to patch critical vulnerabilities within 30 days, and FedRAMP requires the same 30-day maximum for high-severity issues. MDM provides the technical enforcement mechanism and generates audit trails proving organizations are up-to-date.
 
-### **4\. Compliance frameworks require documented controls** 
+### 4\. Compliance frameworks require documented controls
 
 Compliance frameworks require documented device management controls with technical enforcement. You can write a security or business policy explaining that all devices must use encryption, but auditors want hard proof that devices are encrypted. The gap between intent and reality is where compliance failures occur.
 
