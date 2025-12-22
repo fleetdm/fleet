@@ -96,7 +96,7 @@ import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
-import VitalsCard from "../cards/Vitals";
+import VitalsCard from "../cards/About";
 import UserCard from "../cards/User";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";

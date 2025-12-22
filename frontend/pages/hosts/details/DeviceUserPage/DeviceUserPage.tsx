@@ -62,7 +62,7 @@ import {
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
 import HostSummaryCard from "../cards/HostSummary";
-import VitalsCard from "../cards/Vitals";
+import VitalsCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
