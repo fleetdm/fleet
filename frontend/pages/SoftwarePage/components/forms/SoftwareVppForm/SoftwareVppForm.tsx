@@ -247,6 +247,9 @@ const SoftwareVppForm = ({
   const renderContent = () => {
     // Edit VPP form
     if (softwareVppForEdit) {
+      const isAppleMobile =
+        softwareVppForEdit.platform === "ios" ||
+        softwareVppForEdit.platform === "ipados";
       return (
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
@@ -267,10 +270,7 @@ const SoftwareVppForm = ({
                 onSelectCategory={onSelectCategory}
                 isEditingSoftware
                 onClickPreviewEndUserExperience={() =>
-                  onClickPreviewEndUserExperience(
-                    softwareVppForEdit.platform === "ios" ||
-                      softwareVppForEdit.platform === "ipados"
-                  )
+                  onClickPreviewEndUserExperience(isAppleMobile)
                 }
               />
             </Card>
@@ -287,6 +287,11 @@ const SoftwareVppForm = ({
                 labels={labels || []}
                 dropdownHelpText={
                   generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+                }
+                subTitle={
+                  isAppleMobile
+                    ? "Changing this will also apply to targets for auto-updates."
+                    : ""
                 }
               />
             </Card>
