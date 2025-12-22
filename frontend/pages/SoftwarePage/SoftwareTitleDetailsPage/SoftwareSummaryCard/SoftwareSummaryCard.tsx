@@ -19,6 +19,7 @@ import TitleVersionsTable from "./TitleVersionsTable";
 import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
+import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
 
 interface ISoftwareSummaryCard {
   softwareTitle: ISoftwareTitleDetails;
@@ -216,6 +217,14 @@ const SoftwareSummaryCard = ({
           teamId={teamId}
           refetchSoftwareTitle={refetchSoftwareTitle}
           onExit={() => setShowEditConfigurationModal(false)}
+        />
+      )}
+      {showEditAutoUpdateConfigModal && softwareInstaller && teamId && (
+        <EditAutoUpdateConfigModal
+          softwareTitle={softwareTitle}
+          teamId={teamId}
+          refetchSoftwareTitle={refetchSoftwareTitle}
+          onExit={() => setShowEditAutoUpdateConfigModal(false)}
         />
       )}
     </>

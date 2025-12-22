@@ -25,6 +25,7 @@ import {
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareAutoUpdateConfigFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditAutoUpdateConfigModal/EditAutoUpdateConfigModal";
 import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
@@ -181,6 +182,9 @@ export interface IEditAppStoreAppPostBody {
   categories?: SoftwareCategory[];
   display_name?: string;
   configuration?: string;
+  auto_update_enabled?: boolean;
+  auto_update_start_time?: string;
+  auto_update_end_time?: string;
 }
 
 const ORDER_KEY = "name";
@@ -310,6 +314,15 @@ const handleConfigurationAppStoreAppForm = (
   body: IEditAppStoreAppPostBody
 ) => {
   body.configuration = formData.configuration || "{}";
+};
+
+const handleAutoUpdateConfigAppStoreAppForm = (
+  formData: ISoftwareAutoUpdateConfigFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.auto_update_enabled = formData.enabled;
+  body.auto_update_start_time = formData.startTime;
+  body.auto_update_end_time = formData.endTime;
 };
 
 const handleEditAppStoreAppForm = (
@@ -567,6 +580,7 @@ export default {
       | ISoftwareAndroidFormData
       | ISoftwareDisplayNameFormData
       | ISoftwareConfigurationFormData
+      | ISoftwareAutoUpdateConfigFormData
   ) => {
     const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
 
@@ -582,6 +596,12 @@ export default {
       // Handles Edit configuration form only
       handleConfigurationAppStoreAppForm(
         formData as ISoftwareConfigurationFormData,
+        body
+      );
+    } else if ("auto_update_enabled" in formData) {
+      // Handles Edit auto update configuration form only
+      handleAutoUpdateConfigAppStoreAppForm(
+        formData as ISoftwareAutoUpdateConfigFormData,
         body
       );
     } else {
