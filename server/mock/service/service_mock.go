@@ -457,6 +457,8 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint) (*fl
 
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error
+
 type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error)
 
 type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
@@ -604,8 +606,6 @@ type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error)
 
 type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
-
-type EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc func(ctx context.Context, hostID uint) error
 
 type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
 
@@ -870,6 +870,8 @@ type RequestCertificateFunc func(ctx context.Context, p fleet.RequestCertificate
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
 
 type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
+
+type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -1529,6 +1531,9 @@ type Service struct {
 	InstallSoftwareTitleFunc        InstallSoftwareTitleFunc
 	InstallSoftwareTitleFuncInvoked bool
 
+	UpdateSoftwareTitleAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
+	UpdateSoftwareTitleAutoUpdateConfigFuncInvoked bool
+
 	GetVPPTokenIfCanInstallVPPAppsFunc        GetVPPTokenIfCanInstallVPPAppsFunc
 	GetVPPTokenIfCanInstallVPPAppsFuncInvoked bool
 
@@ -1750,9 +1755,6 @@ type Service struct {
 
 	EnqueueMDMAppleCommandFunc        EnqueueMDMAppleCommandFunc
 	EnqueueMDMAppleCommandFuncInvoked bool
-
-	EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc        EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc
-	EnqueueMDMAppleCommandRemoveEnrollmentProfileFuncInvoked bool
 
 	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
 	BatchSetMDMAppleProfilesFuncInvoked bool
@@ -2149,6 +2151,9 @@ type Service struct {
 
 	GetGroupedCertificateAuthoritiesFunc        GetGroupedCertificateAuthoritiesFunc
 	GetGroupedCertificateAuthoritiesFuncInvoked bool
+
+	UnenrollMDMFunc        UnenrollMDMFunc
+	UnenrollMDMFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3686,6 +3691,13 @@ func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwar
 	return s.InstallSoftwareTitleFunc(ctx, hostID, softwareTitleID)
 }
 
+func (s *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
+	s.mu.Lock()
+	s.UpdateSoftwareTitleAutoUpdateConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
+}
+
 func (s *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
 	s.mu.Lock()
 	s.GetVPPTokenIfCanInstallVPPAppsFuncInvoked = true
@@ -4202,13 +4214,6 @@ func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd strin
 	s.EnqueueMDMAppleCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
-}
-
-func (s *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error {
-	s.mu.Lock()
-	s.EnqueueMDMAppleCommandRemoveEnrollmentProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnqueueMDMAppleCommandRemoveEnrollmentProfileFunc(ctx, hostID)
 }
 
 func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error {
@@ -5133,4 +5138,11 @@ func (s *Service) GetGroupedCertificateAuthorities(ctx context.Context, includeS
 	s.GetGroupedCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetGroupedCertificateAuthoritiesFunc(ctx, includeSecrets)
+}
+
+func (s *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.UnenrollMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnenrollMDMFunc(ctx, hostID)
 }

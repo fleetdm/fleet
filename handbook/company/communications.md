@@ -728,7 +728,7 @@ From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of
 
 ### Coworking
 
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the Head of People. 
 
 
 ### Relocating

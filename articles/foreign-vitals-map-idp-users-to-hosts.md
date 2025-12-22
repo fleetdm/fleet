@@ -10,7 +10,7 @@ Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#micr
 
 Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#end-user-authentication) during these enrollment scenarios:
 - Automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts.
-- Manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts.
+- Manual enrollment for personal (BYOD) iOS, iPadOS, Android, and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
 
 You can also manually add/update a host's IdP username on the Host details page. Fleet will then automatically map the username to other IdP vitals.
 

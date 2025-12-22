@@ -246,12 +246,31 @@ WHERE
 	if len(winUUIDs) > 0 {
 		winParams = []any{winUUIDs}
 		winStmt = `
-SELECT
-	mwe.host_uuid,
-	wq.command_uuid,
-	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
-	COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
-	CASE
+	SELECT
+		mwe.host_uuid,
+		wq.command_uuid,
+		wc.created_at AS updated_at,
+		'101' AS status,
+		'pending' AS command_status,
+		wc.target_loc_uri AS request_type
+	FROM
+		windows_mdm_command_queue wq
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
+		JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
+
+	WHERE
+		mwe.host_uuid IN (?)
+
+		%[1]s
+
+	UNION
+
+	SELECT
+		mwe.host_uuid,
+		wcr.command_uuid,
+		COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
+		COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
+		CASE
         WHEN COALESCE(
             NULLIF(wcr.status_code, ''),
             '101'
@@ -261,7 +280,7 @@ SELECT
                 NULLIF(wcr.status_code, ''),
                 '101'
             ) AS UNSIGNED
-        ) BETWEEN 200 AND 399  THEN 'ran'
+        ) BETWEEN 200 AND 399 THEN 'ran'
         WHEN CAST(
             COALESCE(
                 NULLIF(wcr.status_code, ''),
@@ -269,17 +288,28 @@ SELECT
             ) AS UNSIGNED
         ) >= 400 THEN 'failed'
     END AS command_status,
-	wc.target_loc_uri AS request_type
-FROM
-	windows_mdm_command_queue wq
-	JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
-	JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
-	LEFT JOIN windows_mdm_command_results wcr ON wcr.command_uuid = wq.command_uuid
-		AND wcr.enrollment_id = wq.enrollment_id
-WHERE
-	mwe.host_uuid IN (?)`
+		wc.target_loc_uri AS request_type
+	FROM
+		windows_mdm_command_results wcr
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wcr.enrollment_id
+		JOIN windows_mdm_commands wc ON wc.command_uuid = wcr.command_uuid
+	WHERE
+		mwe.host_uuid IN (?)
 
-		winStmt, winParams = addRequestTypeFilter(winStmt, &listOpts.Filters, winParams)
+		%[1]s
+
+	`
+
+		var filterSQL string
+		if listOpts.Filters.RequestType != "" {
+			filterSQL = " AND wc.target_loc_uri = ?"
+			winParams = append(winParams, listOpts.Filters.RequestType, winUUIDs, listOpts.Filters.RequestType)
+		} else {
+			winParams = append(winParams, winUUIDs)
+		}
+
+		winStmt = fmt.Sprintf(winStmt, filterSQL)
+
 		winStmt, winParams, err = sqlx.In(winStmt, winParams...)
 		if err != nil {
 			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
@@ -308,6 +338,7 @@ WHERE
 	// TODO: Maybe move this to the service method? What about pagination metadata?
 	if listOpts.OrderKey == "" {
 		listOpts.OrderKey = "updated_at"
+		listOpts.OrderDirection = fleet.OrderDescending
 	}
 	// // FIXME: We probably ought to modify how listOptionsFromRequest in transport.go applies the
 	// // default order direction. Defaulting to ascending doesn't make sense for date fields like

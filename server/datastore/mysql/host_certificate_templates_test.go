@@ -22,18 +22,22 @@ func TestHostCertificateTemplates(t *testing.T) {
 	}{
 		{"ListAndroidHostUUIDsWithDeliverableCertificateTemplates", testListAndroidHostUUIDsWithDeliverableCertificateTemplates},
 		{"ListCertificateTemplatesForHosts", testListCertificateTemplatesForHosts},
+		{"GetCertificateTemplateForHostNoTeam", testGetCertificateTemplateForHostNoTeam},
 		{"BulkInsertAndDeleteHostCertificateTemplates", testBulkInsertAndDeleteHostCertificateTemplates},
+		{"DeleteHostCertificateTemplate", testDeleteHostCertificateTemplate},
 		{"UpsertHostCertificateTemplateStatus", testUpsertHostCertificateTemplateStatus},
 		{"CreatePendingCertificateTemplatesForExistingHosts", testCreatePendingCertificateTemplatesForExistingHosts},
 		{"CreatePendingCertificateTemplatesForNewHost", testCreatePendingCertificateTemplatesForNewHost},
 		{"ListAndroidHostUUIDsWithPendingCertificateTemplates", testListAndroidHostUUIDsWithPendingCertificateTemplates},
 		{"CertificateTemplateFullStateMachine", testCertificateTemplateFullStateMachine},
 		{"RevertStaleCertificateTemplates", testRevertStaleCertificateTemplates},
+		{"SetHostCertificateTemplatesToPendingRemove", testSetHostCertificateTemplatesToPendingRemove},
 	}
 
 	for _, c := range cases {
 		t.Helper()
 		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -74,6 +78,37 @@ func createCertTemplateTestSetup(t *testing.T, ctx context.Context, ds *Datastor
 
 	return certTemplateTestSetup{
 		team:     team,
+		ca:       ca,
+		template: template,
+	}
+}
+
+// noTeamCertTemplateTestSetup contains test fixtures for "no team" certificate template tests.
+type noTeamCertTemplateTestSetup struct {
+	ca       *fleet.CertificateAuthority
+	template *fleet.CertificateTemplateResponse
+}
+
+// createNoTeamCertTemplateTestSetup creates a certificate authority and certificate template
+// for "no team" (team_id = 0) for testing.
+func createNoTeamCertTemplateTestSetup(t *testing.T, ctx context.Context, ds *Datastore) noTeamCertTemplateTestSetup {
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(fmt.Sprintf("Test SCEP CA NoTeam %s", uuid.New().String()[:8])),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   fmt.Sprintf("Test Cert NoTeam %s", uuid.New().String()[:8]),
+		TeamID:                 0, // No team uses team_id = 0
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=TestNoTeam",
+	})
+	require.NoError(t, err)
+
+	return noTeamCertTemplateTestSetup{
 		ca:       ca,
 		template: template,
 	}
@@ -159,6 +194,26 @@ func testListAndroidHostUUIDsWithDeliverableCertificateTemplates(t *testing.T, d
 		require.NoError(t, err)
 		require.Len(t, results, 0)
 	})
+
+	t.Run("no team android host with no team certificate template is returned", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createNoTeamCertTemplateTestSetup(t, ctx, ds)
+
+		// Create an enrolled Android host with no team (TeamID = nil)
+		createEnrolledAndroidHost(t, ctx, ds, "no-team-host-uuid", nil)
+
+		results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
+		require.NoError(t, err)
+		require.Len(t, results, 1, "no team host should be returned for no team certificate template")
+		require.Equal(t, "no-team-host-uuid", results[0])
+
+		// Verify the template exists with team_id = 0
+		var templateTeamID uint
+		err = ds.writer(ctx).GetContext(ctx, &templateTeamID,
+			"SELECT team_id FROM certificate_templates WHERE id = ?", setup.template.ID)
+		require.NoError(t, err)
+		require.Equal(t, uint(0), templateTeamID, "certificate template should have team_id = 0")
+	})
 }
 
 func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
@@ -239,6 +294,76 @@ func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
 				require.Nil(t, res.Status)
 			}
 		}
+	})
+
+	t.Run("no team host returns no team certificate templates", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createNoTeamCertTemplateTestSetup(t, ctx, ds)
+
+		// Create a host with no team (TeamID = nil)
+		_, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     "no-team-host-uuid",
+			TeamID:   nil,
+			Platform: "android",
+		})
+		require.NoError(t, err)
+
+		results, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"no-team-host-uuid"})
+		require.NoError(t, err)
+		require.Len(t, results, 1, "no team host should get no team certificate templates")
+		require.Equal(t, "no-team-host-uuid", results[0].HostUUID)
+		require.Equal(t, setup.template.ID, results[0].CertificateTemplateID)
+	})
+}
+
+func testGetCertificateTemplateForHostNoTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("returns certificate template for host with team", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		// Create a host in the team
+		_, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     "team-host-uuid",
+			TeamID:   &setup.team.ID,
+			Platform: "android",
+		})
+		require.NoError(t, err)
+
+		result, err := ds.GetCertificateTemplateForHost(ctx, "team-host-uuid", setup.template.ID)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, "team-host-uuid", result.HostUUID)
+		require.Equal(t, setup.template.ID, result.CertificateTemplateID)
+	})
+
+	t.Run("returns certificate template for no team host", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createNoTeamCertTemplateTestSetup(t, ctx, ds)
+
+		// Create a host with no team (TeamID = nil)
+		_, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     "no-team-host-uuid",
+			TeamID:   nil,
+			Platform: "android",
+		})
+		require.NoError(t, err)
+
+		result, err := ds.GetCertificateTemplateForHost(ctx, "no-team-host-uuid", setup.template.ID)
+		require.NoError(t, err, "should find certificate template for no team host")
+		require.NotNil(t, result)
+		require.Equal(t, "no-team-host-uuid", result.HostUUID)
+		require.Equal(t, setup.template.ID, result.CertificateTemplateID)
+	})
+
+	t.Run("returns not found for non-existent host", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		_, err := ds.GetCertificateTemplateForHost(ctx, "non-existent-host", setup.template.ID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
 	})
 }
 
@@ -351,9 +476,65 @@ func testBulkInsertAndDeleteHostCertificateTemplates(t *testing.T, ds *Datastore
 	})
 }
 
+func testDeleteHostCertificateTemplate(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("no error when deleting non-existent record", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+
+		err := ds.DeleteHostCertificateTemplate(ctx, "non-existent-host", 999)
+		require.NoError(t, err)
+	})
+
+	t.Run("only deletes specified record", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		templateTwo, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert2",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test Subject 2",
+		})
+		require.NoError(t, err)
+
+		// Insert multiple host certificate template records
+		hostCerts := []fleet.HostCertificateTemplate{
+			{HostUUID: "host-1", CertificateTemplateID: setup.template.ID, FleetChallenge: ptr.String("challenge-1"), Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeRemove, Name: setup.template.Name},
+			{HostUUID: "host-1", CertificateTemplateID: templateTwo.ID, FleetChallenge: ptr.String("challenge-2"), Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeInstall, Name: templateTwo.Name},
+			{HostUUID: "host-2", CertificateTemplateID: setup.template.ID, FleetChallenge: ptr.String("challenge-3"), Status: fleet.CertificateTemplateVerified, OperationType: fleet.MDMOperationTypeRemove, Name: setup.template.Name},
+		}
+		err = ds.BulkInsertHostCertificateTemplates(ctx, hostCerts)
+		require.NoError(t, err)
+
+		// Delete only host-1's first certificate
+		err = ds.DeleteHostCertificateTemplate(ctx, "host-1", setup.template.ID)
+		require.NoError(t, err)
+
+		// Verify only 2 records remain
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_certificate_templates")
+		require.NoError(t, err)
+		require.Equal(t, 2, count)
+
+		// Verify the correct records remain
+		var remaining []struct {
+			HostUUID              string `db:"host_uuid"`
+			CertificateTemplateID uint   `db:"certificate_template_id"`
+		}
+		err = ds.writer(ctx).SelectContext(ctx, &remaining,
+			"SELECT host_uuid, certificate_template_id FROM host_certificate_templates ORDER BY host_uuid, certificate_template_id")
+		require.NoError(t, err)
+		require.Len(t, remaining, 2)
+		require.Equal(t, "host-1", remaining[0].HostUUID)
+		require.Equal(t, templateTwo.ID, remaining[0].CertificateTemplateID)
+		require.Equal(t, "host-2", remaining[1].HostUUID)
+		require.Equal(t, setup.template.ID, remaining[1].CertificateTemplateID)
+	})
+}
+
 func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	defer TruncateTables(t, ds)
 
 	setup := createCertTemplateTestSetup(t, ctx, ds, "")
 
@@ -612,7 +793,6 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 // status lifecycle: pending -> delivering -> delivered, including revert scenarios.
 func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	defer TruncateTables(t, ds)
 
 	setup := createCertTemplateTestSetup(t, ctx, ds, "")
 
@@ -842,5 +1022,112 @@ func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
 		affected, err := ds.RevertStaleCertificateTemplates(ctx, 6*time.Hour)
 		require.NoError(t, err)
 		require.Equal(t, int64(0), affected)
+	})
+}
+
+func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("deletes pending rows and updates others to pending remove", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		// Insert records with various statuses for the same template
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?)
+		`,
+			"host-pending", setup.template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, nil, setup.template.Name,
+			"host-delivered", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", setup.template.Name,
+			"host-verified", setup.template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, "challenge2", setup.template.Name,
+			"host-failed", setup.template.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall, "challenge3", setup.template.Name,
+		)
+		require.NoError(t, err)
+
+		err = ds.SetHostCertificateTemplatesToPendingRemove(ctx, setup.template.ID)
+		require.NoError(t, err)
+
+		// Verify the pending row was deleted
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count,
+			"SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?", "host-pending")
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+
+		// Verify remaining rows have status=pending and operation_type=remove
+		var remaining []struct {
+			HostUUID      string                 `db:"host_uuid"`
+			Status        string                 `db:"status"`
+			OperationType fleet.MDMOperationType `db:"operation_type"`
+		}
+		err = ds.writer(ctx).SelectContext(ctx, &remaining,
+			"SELECT host_uuid, status, operation_type FROM host_certificate_templates ORDER BY host_uuid")
+		require.NoError(t, err)
+		require.Len(t, remaining, 3)
+
+		for _, r := range remaining {
+			require.Equal(t, string(fleet.CertificateTemplatePending), r.Status)
+			require.Equal(t, fleet.MDMOperationTypeRemove, r.OperationType)
+		}
+	})
+
+	t.Run("only affects rows for the specified template", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		// Create a second template
+		templateTwo, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert2",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test2",
+		})
+		require.NoError(t, err)
+
+		// Insert records for both templates
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?)
+		`,
+			"host-1", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", setup.template.Name,
+			"host-1", templateTwo.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge2", templateTwo.Name,
+		)
+		require.NoError(t, err)
+
+		// Call the method for template one only
+		err = ds.SetHostCertificateTemplatesToPendingRemove(ctx, setup.template.ID)
+		require.NoError(t, err)
+
+		// Verify template one was updated
+		var row struct {
+			Status        string                 `db:"status"`
+			OperationType fleet.MDMOperationType `db:"operation_type"`
+		}
+		err = ds.writer(ctx).GetContext(ctx, &row,
+			"SELECT status, operation_type FROM host_certificate_templates WHERE certificate_template_id = ?",
+			setup.template.ID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.CertificateTemplatePending), row.Status)
+		require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType)
+
+		// Verify template two was NOT affected
+		err = ds.writer(ctx).GetContext(ctx, &row,
+			"SELECT status, operation_type FROM host_certificate_templates WHERE certificate_template_id = ?",
+			templateTwo.ID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.CertificateTemplateDelivered), row.Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, row.OperationType)
+	})
+
+	t.Run("handles no matching rows gracefully", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+
+		// Call with a non-existent template ID
+		err := ds.SetHostCertificateTemplatesToPendingRemove(ctx, 99999)
+		require.NoError(t, err)
 	})
 }
