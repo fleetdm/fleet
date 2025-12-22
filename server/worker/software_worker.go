@@ -476,12 +476,25 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", uuid)
 		}
 
+		teamID := ptr.ValOrZero(androidHost.TeamID)
+
+		// Update certificate templates for team transfer:
+		// 1. Mark old templates as pending removal
+		// 2. Create new pending templates for the new team
+		// This must happen before building the managed config, which includes certificate template IDs.
+		if err := v.Datastore.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, uuid); err != nil {
+			return ctxerr.Wrap(ctx, err, "set host certificate templates to pending remove for host")
+		}
+		if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, uuid, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
+		}
+
 		appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
 		}
 
-		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, ptr.ValOrZero(androidHost.TeamID))
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 		}

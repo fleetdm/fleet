@@ -32,6 +32,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"CertificateTemplateFullStateMachine", testCertificateTemplateFullStateMachine},
 		{"RevertStaleCertificateTemplates", testRevertStaleCertificateTemplates},
 		{"SetHostCertificateTemplatesToPendingRemove", testSetHostCertificateTemplatesToPendingRemove},
+		{"SetHostCertificateTemplatesToPendingRemoveForHost", testSetHostCertificateTemplatesToPendingRemoveForHost},
 	}
 
 	for _, c := range cases {
@@ -1129,5 +1130,66 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 		// Call with a non-existent template ID
 		err := ds.SetHostCertificateTemplatesToPendingRemove(ctx, 99999)
 		require.NoError(t, err)
+	})
+}
+
+func testSetHostCertificateTemplatesToPendingRemoveForHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("deletes pending installs and updates others to pending remove for specific host", func(t *testing.T) {
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		// Create a second template
+		templateTwo, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert2",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test2",
+		})
+		require.NoError(t, err)
+
+		// Insert records for host-1 (the target host) and host-2 (should not be affected)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?)
+		`,
+			"host-1", setup.template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, nil, setup.template.Name,
+			"host-1", templateTwo.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", templateTwo.Name,
+			"host-2", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge2", setup.template.Name,
+		)
+		require.NoError(t, err)
+
+		// Call the method for host-1 only
+		err = ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, "host-1")
+		require.NoError(t, err)
+
+		// Verify host-1's pending install was deleted
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count,
+			"SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			"host-1", setup.template.ID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "pending install should be deleted")
+
+		// Verify host-1's delivered template was updated to pending remove
+		var row struct {
+			Status        string                 `db:"status"`
+			OperationType fleet.MDMOperationType `db:"operation_type"`
+		}
+		err = ds.writer(ctx).GetContext(ctx, &row,
+			"SELECT status, operation_type FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			"host-1", templateTwo.ID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.CertificateTemplatePending), row.Status)
+		require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType)
+
+		// Verify host-2 was NOT affected
+		err = ds.writer(ctx).GetContext(ctx, &row,
+			"SELECT status, operation_type FROM host_certificate_templates WHERE host_uuid = ?", "host-2")
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.CertificateTemplateDelivered), row.Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, row.OperationType)
 	})
 }

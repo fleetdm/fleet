@@ -500,3 +500,34 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemove(
 		return nil
 	})
 }
+
+// SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
+// for a specific host for removal. Used during team transfer to mark old team's templates
+// for removal before creating new pending templates for the new team.
+func (ds *Datastore) SetHostCertificateTemplatesToPendingRemoveForHost(
+	ctx context.Context,
+	hostUUID string,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete rows with status=pending and operation_type=install (not yet delivered)
+		deleteStmt := fmt.Sprintf(`
+			DELETE FROM host_certificate_templates
+			WHERE host_uuid = ? AND status = '%s' AND operation_type = '%s'
+		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
+		if _, err := tx.ExecContext(ctx, deleteStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending install host certificate templates for host")
+		}
+
+		// Update all remaining rows to status=pending, operation_type=remove
+		updateStmt := fmt.Sprintf(`
+			UPDATE host_certificate_templates
+			SET status = '%s', operation_type = '%s'
+			WHERE host_uuid = ?
+		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove)
+		if _, err := tx.ExecContext(ctx, updateStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host certificate templates to pending remove for host")
+		}
+
+		return nil
+	})
+}
