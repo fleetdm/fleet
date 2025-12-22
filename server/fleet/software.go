@@ -254,14 +254,14 @@ type SoftwareTitleSummary struct {
 // Only applicable when viewing a title in the context of a team.
 type SoftwareAutoUpdateConfig struct {
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateEnabled bool `json:"auto_update_enabled,omitempty" db:"auto_update_enabled"`
+	AutoUpdateEnabled *bool `json:"auto_update_enabled,omitempty" db:"auto_update_enabled"`
 	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateStartTime string `json:"auto_update_start_time,omitempty" db:"auto_update_start_time"`
+	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty" db:"auto_update_start_time"`
 	// AutoUpdateStartTime is the end of the maintenance window for the software title.
 	// If the end time is less than the start time, the window wraps to the next day.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateEndTime string `json:"auto_update_end_time,omitempty" db:"auto_update_end_time"`
+	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty" db:"auto_update_end_time"`
 }
 
 type SoftwareAutoUpdateSchedule struct {

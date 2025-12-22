@@ -834,8 +834,11 @@ WHERE
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
 	// Validate start and end time.
 	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
-	for _, t := range []string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
-		duration, err := time.Parse("15:04", t)
+	for _, t := range []*string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
+		if t == nil {
+			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
+		}
+		duration, err := time.Parse("15:04", *t)
 		if err != nil {
 			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
 		}

@@ -2630,17 +2630,17 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify that it's the VPP app and that auto-update fields are not set.
-	require.False(t, titleResult.AutoUpdateEnabled)
-	require.Empty(t, titleResult.AutoUpdateStartTime)
-	require.Empty(t, titleResult.AutoUpdateEndTime)
+	require.False(t, *titleResult.AutoUpdateEnabled)
+	require.Empty(t, *titleResult.AutoUpdateStartTime)
+	require.Empty(t, *titleResult.AutoUpdateEndTime)
 
 	// Attempt to enable auto-update with invalid start time.
 	startTime := "26:00"
 	endTime := "12:00"
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   true,
-		AutoUpdateStartTime: startTime,
-		AutoUpdateEndTime:   endTime,
+		AutoUpdateEnabled:   ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid auto-update time format")
@@ -2649,9 +2649,9 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	startTime = "12:00"
 	endTime = "abc"
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   true,
-		AutoUpdateStartTime: startTime,
-		AutoUpdateEndTime:   endTime,
+		AutoUpdateEnabled:   ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid auto-update time format")
@@ -2660,25 +2660,25 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	startTime = "02:00"
 	endTime = "04:00"
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   true,
-		AutoUpdateStartTime: startTime,
-		AutoUpdateEndTime:   endTime,
+		AutoUpdateEnabled:   ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	require.True(t, titleResult.AutoUpdateEnabled)
+	require.True(t, *titleResult.AutoUpdateEnabled)
 	require.NotNil(t, titleResult.AutoUpdateStartTime)
-	require.Equal(t, startTime, titleResult.AutoUpdateStartTime)
+	require.Equal(t, startTime, *titleResult.AutoUpdateStartTime)
 	require.NotNil(t, titleResult.AutoUpdateEndTime)
-	require.Equal(t, endTime, titleResult.AutoUpdateEndTime)
+	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
 
 	// Add valid, disabled auto-update schedule for the other VPP app.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   false,
-		AutoUpdateStartTime: startTime,
-		AutoUpdateEndTime:   endTime,
+		AutoUpdateEnabled:   ptr.Bool(false),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.NoError(t, err)
 
@@ -2688,14 +2688,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Len(t, schedules, 2)
 	require.Equal(t, titleID, schedules[0].TitleID)
 	require.Equal(t, team1.ID, schedules[0].TeamID)
-	require.True(t, schedules[0].AutoUpdateEnabled)
-	require.Equal(t, startTime, schedules[0].AutoUpdateStartTime)
-	require.Equal(t, endTime, schedules[0].AutoUpdateEndTime)
+	require.True(t, *schedules[0].AutoUpdateEnabled)
+	require.Equal(t, startTime, *schedules[0].AutoUpdateStartTime)
+	require.Equal(t, endTime, *schedules[0].AutoUpdateEndTime)
 	require.Equal(t, title2ID, schedules[1].TitleID)
 	require.Equal(t, team1.ID, schedules[1].TeamID)
-	require.False(t, schedules[1].AutoUpdateEnabled)
-	require.Equal(t, startTime, schedules[1].AutoUpdateStartTime)
-	require.Equal(t, endTime, schedules[1].AutoUpdateEndTime)
+	require.False(t, *schedules[1].AutoUpdateEnabled)
+	require.Equal(t, startTime, *schedules[1].AutoUpdateStartTime)
+	require.Equal(t, endTime, *schedules[1].AutoUpdateEndTime)
 
 	// Filter by enabled only.
 	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, fleet.SoftwareAutoUpdateScheduleFilter{
@@ -2715,17 +2715,17 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 
 	// Disable auto-update.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   false,
-		AutoUpdateStartTime: startTime,
-		AutoUpdateEndTime:   endTime,
+		AutoUpdateEnabled:   ptr.Bool(false),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	require.False(t, titleResult.AutoUpdateEnabled)
+	require.False(t, *titleResult.AutoUpdateEnabled)
 	require.NotNil(t, titleResult.AutoUpdateStartTime)
-	require.Equal(t, startTime, titleResult.AutoUpdateStartTime)
+	require.Equal(t, startTime, *titleResult.AutoUpdateStartTime)
 	require.NotNil(t, titleResult.AutoUpdateEndTime)
-	require.Equal(t, endTime, titleResult.AutoUpdateEndTime)
+	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
 }
