@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
@@ -15,6 +15,8 @@ import TableCount from "components/TableContainer/TableCount";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import FmaStatusSelect from "./FmaFilterSelect";
+import { FmaStatusValue } from "./FmaFilterSelect/FmaFilterSelect";
 
 import { generateTableConfig } from "./FleetMaintainedAppsTableConfig";
 
@@ -95,6 +97,8 @@ const FleetMaintainedAppsTable = ({
   orderKey,
   currentPage,
 }: IFleetMaintainedAppsTableProps) => {
+  const [status, setStatus] = useState<FmaStatusValue>("all");
+
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -172,6 +176,21 @@ const FleetMaintainedAppsTable = ({
     return <TableCount name="items" count={combinedAppsByPlatform.length} />;
   };
 
+  const handleFmaStatusDropdownChange = (newStatus: FmaStatusValue) => {
+    setStatus(newStatus);
+    // hook into routing / query here if needed
+  };
+
+  const renderCustomControls = () => (
+    <div className={`${baseClass}__filter-dropdowns`}>
+      <FmaStatusSelect
+        value={status}
+        onChange={handleFmaStatusDropdownChange}
+        className={`${baseClass}__status-filter`}
+      />
+    </div>
+  );
+
   return (
     <TableContainer<IRowProps>
       className={baseClass}
@@ -193,6 +212,7 @@ const FleetMaintainedAppsTable = ({
       inputPlaceHolder="Search by name"
       onQueryChange={onQueryChange}
       renderCount={renderCount}
+      customControl={renderCustomControls}
     />
   );
 };
