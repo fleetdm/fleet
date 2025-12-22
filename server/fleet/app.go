@@ -1236,13 +1236,10 @@ const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 // SecureframeTransparencyURL is the URL used for the "About Fleet" link in Fleet Desktop when the Secureframe partnership config value is enabled
 const SecureframeTransparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
 
-// OrderDirection defines the sort direction for list queries.
 type OrderDirection int
 
 const (
-	// OrderAscending sorts in ascending order.
 	OrderAscending OrderDirection = iota
-	// OrderDescending sorts in descending order.
 	OrderDescending
 
 	// PerPageUnlimited is the value to pass to PerPage when we want

@@ -18,12 +18,6 @@ type ErrorContextProvider interface {
 
 type errorContextProvidersKey struct{}
 
-// WithErrorContextProviders returns a new context with the given providers.
-// Multiple calls to this function will replace the previous providers.
-func WithErrorContextProviders(ctx context.Context, providers ...ErrorContextProvider) context.Context {
-	return context.WithValue(ctx, errorContextProvidersKey{}, providers)
-}
-
 // AddErrorContextProvider returns a new context with the given provider added to
 // the existing providers. This is useful when you want to add a provider
 // without replacing existing ones.
