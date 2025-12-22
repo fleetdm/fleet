@@ -17601,13 +17601,13 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	require.Len(t, appResp.AppStoreApps, 6)
 
 	var (
-		allApps = appResp.AppStoreApps
-		app1MacOS *fleet.VPPApp
-		app1IOS *fleet.VPPApp
+		allApps    = appResp.AppStoreApps
+		app1MacOS  *fleet.VPPApp
+		app1IOS    *fleet.VPPApp
 		app1IPadOS *fleet.VPPApp
-		app2IOS *fleet.VPPApp
+		app2IOS    *fleet.VPPApp
 		app2IPadOS *fleet.VPPApp
-		app3IOS *fleet.VPPApp
+		app3IOS    *fleet.VPPApp
 	)
 	for _, app := range appResp.AppStoreApps {
 		switch {
@@ -17658,12 +17658,12 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 
 	// Check versions before refresh
 	for titleID, expectedVersion := range map[uint]string{
-		app1MacOS.TitleID: "1.0.0",
-		app1IOS.TitleID: "1.0.0",
+		app1MacOS.TitleID:  "1.0.0",
+		app1IOS.TitleID:    "1.0.0",
 		app1IPadOS.TitleID: "1.0.0",
-		app2IOS.TitleID: "2.0.0",
+		app2IOS.TitleID:    "2.0.0",
 		app2IPadOS.TitleID: "2.0.0",
-		app3IOS.TitleID: "3.0.0",
+		app3IOS.TitleID:    "3.0.0",
 	} {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
@@ -17680,12 +17680,12 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 
 	// Check versions after refresh
 	for titleID, expectedVersion := range map[uint]string{
-		app1MacOS.TitleID: "9.9.9",
-		app1IOS.TitleID: "9.9.9",
+		app1MacOS.TitleID:  "9.9.9",
+		app1IOS.TitleID:    "9.9.9",
 		app1IPadOS.TitleID: "9.9.9",
-		app2IOS.TitleID: "10.10.10",
+		app2IOS.TitleID:    "10.10.10",
 		app2IPadOS.TitleID: "10.10.10",
-		app3IOS.TitleID: "3.0.0",
+		app3IOS.TitleID:    "3.0.0",
 	} {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
@@ -17701,12 +17701,12 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 
 	// Check versions after refresh
 	for titleID, expectedVersion := range map[uint]string{
-		app1MacOS.TitleID: "9.9.9",
-		app1IOS.TitleID: "9.9.9",
+		app1MacOS.TitleID:  "9.9.9",
+		app1IOS.TitleID:    "9.9.9",
 		app1IPadOS.TitleID: "9.9.9",
-		app2IOS.TitleID: "10.10.10",
+		app2IOS.TitleID:    "10.10.10",
 		app2IPadOS.TitleID: "10.10.10",
-		app3IOS.TitleID: "11.11.11",
+		app3IOS.TitleID:    "11.11.11",
 	} {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
