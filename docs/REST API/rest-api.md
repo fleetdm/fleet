@@ -735,7 +735,7 @@ Add a certificate template to deploy a certificate to all hosts on the team. Fle
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
 | name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
-| team_id      | string  | query | _Available in Fleet Premium_. The ID of the team to add profiles to. |
+| team_id      | string  | body | _Available in Fleet Premium_. The ID of the team to add profiles to. |
 | certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
 | subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
 
