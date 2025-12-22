@@ -411,6 +411,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
+	// TODO(JK): test cloudfront signing
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {

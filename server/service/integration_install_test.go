@@ -82,6 +82,8 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 		return f
 	}
 
+	// TODO(JK): reference, remove this comment later
+
 	filename := "ruby.deb"
 	var expectBytes []byte
 	var expectLen int
