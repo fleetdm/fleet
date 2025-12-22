@@ -1108,6 +1108,13 @@
       "description": "Obsidian is a knowledge base that works on top of a local folder of plain text Markdown files."
     },
     {
+      "name": "Okta Verify",
+      "slug": "okta-verify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.okta.mobile",
+      "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
+    },
+    {
       "name": "OmniGraffle",
       "slug": "omnigraffle/darwin",
       "platform": "darwin",
