@@ -2594,10 +2594,6 @@ func testListSoftwareTitlesByPlatform(t *testing.T, ds *Datastore) {
 }
 
 func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
-	//
-	// All tests below are in hosts in "No team".
-	//
-
 	ctx := context.Background()
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
