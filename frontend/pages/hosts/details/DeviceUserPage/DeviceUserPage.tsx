@@ -55,14 +55,14 @@ import PATHS from "router/paths";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
-  HOST_ABOUT_DATA,
+  HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
 import HostSummaryCard from "../cards/HostSummary";
-import AboutCard from "../cards/About";
+import VitalsCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
@@ -366,7 +366,7 @@ const DeviceUserPage = ({
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
+  const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
   const {
     data: setupStepStatuses,
@@ -744,13 +744,13 @@ const DeviceUserPage = ({
                   hostSettings={host?.mdm.profiles ?? []}
                   osSettings={host?.mdm.os_settings}
                 />
-                <AboutCard
-                  className={defaultCardClass}
-                  aboutData={aboutData}
+                <VitalsCard
+                  className={fullWidthCardClass}
+                  vitalsData={vitalsData}
                   munki={deviceMacAdminsData?.munki}
                 />
                 <UserCard
-                  className={defaultCardClass}
+                  className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
                   disableFullNameTooltip

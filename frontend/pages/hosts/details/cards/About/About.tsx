@@ -1,17 +1,31 @@
 import React from "react";
 import classnames from "classnames";
 
+import { IAppleDeviceUpdates } from "interfaces/config";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import {
+  isAndroid,
+  isIPadOrIPhone,
+  isChrome,
+  platformSupportsDiskEncryption,
+  DiskEncryptionSupportedPlatform,
+} from "interfaces/platform";
 import {
   isBYODAccountDrivenUserEnrollment,
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
+import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
   BATTERY_TOOLTIP,
 } from "utilities/constants";
+import {
+  humanHostMemory,
+  wrapFleetHelper,
+  removeOSPrefix,
+  compareVersions,
+} from "utilities/helpers";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -19,19 +33,88 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import CardHeader from "components/CardHeader";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import Icon from "components/Icon/Icon";
 
-interface IAboutProps {
-  aboutData: { [key: string]: any };
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+
+interface IVitalsProps {
+  vitalsData: { [key: string]: any };
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
+  osVersionRequirement?: IAppleDeviceUpdates;
   className?: string;
 }
 
-const baseClass = "about-card";
+const baseClass = "vitals-card";
 
-const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
-  const isIosOrIpadosHost = isIPadOrIPhone(aboutData.platform);
-  const isAndroidHost = isAndroid(aboutData.platform);
+const DISK_ENCRYPTION_MESSAGES = {
+  darwin: {
+    enabled: (
+      <>
+        The disk is encrypted. The user must enter their
+        <br /> password when they start their computer.
+      </>
+    ),
+    disabled: (
+      <>
+        The disk might be encrypted, but FileVault is off. The
+        <br /> disk can be accessed without entering a password.
+      </>
+    ),
+  },
+  windows: {
+    enabled: (
+      <>
+        The disk is encrypted. If recently turned on,
+        <br /> encryption could take awhile.
+      </>
+    ),
+    disabled: "The disk is unencrypted.",
+  },
+  linux: {
+    enabled: "The disk is encrypted.",
+    unknown: "The disk may be encrypted.",
+  },
+};
+
+const getHostDiskEncryptionTooltipMessage = (
+  platform: DiskEncryptionSupportedPlatform, // TODO: improve this type
+  diskEncryptionEnabled = false
+) => {
+  if (platform === "chrome") {
+    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
+  }
+
+  if (
+    platform === "rhel" ||
+    platform === "ubuntu" ||
+    platform === "arch" ||
+    platform === "archarm" ||
+    platform === "manjaro" ||
+    platform === "manjaro-arm"
+  ) {
+    return DISK_ENCRYPTION_MESSAGES.linux[
+      diskEncryptionEnabled ? "enabled" : "unknown"
+    ];
+  }
+
+  // mac or windows
+  return DISK_ENCRYPTION_MESSAGES[platform][
+    diskEncryptionEnabled ? "enabled" : "disabled"
+  ];
+};
+
+const Vitals = ({
+  vitalsData,
+  munki,
+  mdm,
+  osVersionRequirement,
+  className,
+}: IVitalsProps) => {
+  const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
+  const isAndroidHost = isAndroid(vitalsData.platform);
+  const isChromeHost = isChrome(vitalsData.platform);
 
   // Generate the device ID data set based on MDM enrollment status. This is
   // either the Enrollment ID for personal (BYOD) devices or the Serial number
@@ -42,7 +125,7 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
     let deviceIdDataSet = (
       <DataSet
         title="Serial number"
-        value={<TooltipTruncatedText value={aboutData.hardware_serial} />}
+        value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
       />
     );
 
@@ -63,7 +146,7 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
               Enrollment ID
             </TooltipWrapper>
           }
-          value={<TooltipTruncatedText value={aboutData.uuid} />}
+          value={<TooltipTruncatedText value={vitalsData.uuid} />}
         />
       );
     }
@@ -79,7 +162,7 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
       return (
         <>
           {DeviceIdDataSet}
-          <DataSet title="Hardware model" value={aboutData.hardware_model} />
+          <DataSet title="Hardware model" value={vitalsData.hardware_model} />
         </>
       );
     }
@@ -90,7 +173,7 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
       return (
         <>
           {DeviceIdDataSet}
-          <DataSet title="Hardware model" value={aboutData.hardware_model} />
+          <DataSet title="Hardware model" value={vitalsData.hardware_model} />
         </>
       );
     }
@@ -99,11 +182,11 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
     // (either Serial number or Enrollment ID).
     return (
       <>
-        <DataSet title="Hardware model" value={aboutData.hardware_model} />
+        <DataSet title="Hardware model" value={vitalsData.hardware_model} />
         {DeviceIdDataSet}
         <DataSet
           title="Private IP address"
-          value={<TooltipTruncatedText value={aboutData.primary_ip} />}
+          value={<TooltipTruncatedText value={vitalsData.primary_ip} />}
         />
         <DataSet
           title={
@@ -111,7 +194,7 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
               Public IP address
             </TooltipWrapper>
           }
-          value={<TooltipTruncatedText value={aboutData.public_ip} />}
+          value={<TooltipTruncatedText value={vitalsData.public_ip} />}
         />
       </>
     );
@@ -158,7 +241,7 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
   };
 
   const renderGeolocation = () => {
-    const geolocation = aboutData.geolocation;
+    const geolocation = vitalsData.geolocation;
 
     if (!geolocation) {
       return null;
@@ -172,9 +255,9 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
 
   const renderBattery = () => {
     if (
-      aboutData.batteries === null ||
-      typeof aboutData.batteries !== "object" ||
-      aboutData.batteries?.[0]?.health === "Unknown"
+      vitalsData.batteries === null ||
+      typeof vitalsData.batteries !== "object" ||
+      vitalsData.batteries?.[0]?.health === "Unknown"
     ) {
       return null;
     }
@@ -183,9 +266,9 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
         title="Battery condition"
         value={
           <TooltipWrapper
-            tipContent={BATTERY_TOOLTIP[aboutData.batteries?.[0]?.health]}
+            tipContent={BATTERY_TOOLTIP[vitalsData.batteries?.[0]?.health]}
           >
-            {aboutData.batteries?.[0]?.health}
+            {vitalsData.batteries?.[0]?.health}
           </TooltipWrapper>
         }
       />
@@ -193,6 +276,191 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
   };
 
   // TODO(android): confirm visible fields using actual android device data
+
+  const {
+    platform,
+    os_version,
+    disk_encryption_enabled: diskEncryptionEnabled,
+  } = vitalsData;
+
+  const renderDiskSpaceSummary = () => {
+    // Hide disk space field if storage measurement is not supported (sentinel value -1)
+    if (
+      typeof vitalsData.gigs_disk_space_available === "number" &&
+      vitalsData.gigs_disk_space_available < 0
+    ) {
+      return null;
+    }
+
+    const title = isAndroidHost ? (
+      <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
+        Disk space
+      </TooltipWrapper>
+    ) : (
+      "Disk space"
+    );
+
+    return (
+      <DataSet
+        title={title}
+        value={
+          <DiskSpaceIndicator
+            gigsDiskSpaceAvailable={vitalsData.gigs_disk_space_available}
+            percentDiskSpaceAvailable={vitalsData.percent_disk_space_available}
+            gigsTotalDiskSpace={vitalsData.gigs_total_disk_space}
+            gigsAllDiskSpace={vitalsData.gigs_all_disk_space}
+            platform={platform}
+            tooltipPosition="bottom"
+          />
+        }
+      />
+    );
+  };
+
+  const renderDiskEncryptionSummary = () => {
+    if (!platformSupportsDiskEncryption(platform, os_version)) {
+      return <></>;
+    }
+    const tooltipMessage = getHostDiskEncryptionTooltipMessage(
+      platform,
+      diskEncryptionEnabled
+    );
+
+    let statusText;
+    switch (true) {
+      case isChromeHost:
+        statusText = "Always on";
+        break;
+      case diskEncryptionEnabled === true:
+        statusText = "On";
+        break;
+      case diskEncryptionEnabled === false:
+        statusText = "Off";
+        break;
+      case (diskEncryptionEnabled === null ||
+        diskEncryptionEnabled === undefined) &&
+        platformSupportsDiskEncryption(platform, os_version):
+        statusText = "Unknown";
+        break;
+      default:
+        // something unexpected happened on the way to this component, display whatever we got or
+        // "Unknown" to draw attention to the issue.
+        statusText = diskEncryptionEnabled || "Unknown";
+    }
+
+    return (
+      <DataSet
+        title="Disk encryption"
+        value={
+          <TooltipWrapper tipContent={tooltipMessage}>
+            {statusText}
+          </TooltipWrapper>
+        }
+      />
+    );
+  };
+
+  const renderAgentSummary = () => {
+    if (isIosOrIpadosHost || isAndroidHost) {
+      return null;
+    }
+
+    const {
+      orbit_version,
+      osquery_version,
+      fleet_desktop_version,
+    } = vitalsData;
+
+    if (isChromeHost) {
+      return <DataSet title="Agent" value={osquery_version} />;
+    }
+
+    if (orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
+      return (
+        <DataSet
+          title="Agent"
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  osquery: {osquery_version}
+                  <br />
+                  Orbit: {orbit_version}
+                  {fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
+                    <>
+                      <br />
+                      Fleet Desktop: {fleet_desktop_version}
+                    </>
+                  )}
+                </>
+              }
+            >
+              {orbit_version}
+            </TooltipWrapper>
+          }
+        />
+      );
+    }
+    return <DataSet title="Osquery" value={osquery_version} />;
+  };
+
+  const renderOperatingSystemSummary = () => {
+    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
+    if (!osVersionRequirement?.minimum_version) {
+      const version = vitalsData.os_version;
+      const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
+        // wrap a tooltip around the "rolling" suffix
+        <>
+          {version.slice(0, -8)}
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      ) : (
+        version
+      );
+      return (
+        <DataSet
+          title="Operating system"
+          value={versionForRender}
+          className={`${baseClass}__os-data-set`}
+        />
+      );
+    }
+
+    const osVersionWithoutPrefix = removeOSPrefix(vitalsData.os_version);
+    const osVersionRequirementMet =
+      compareVersions(
+        osVersionWithoutPrefix,
+        osVersionRequirement.minimum_version
+      ) >= 0;
+
+    return (
+      <DataSet
+        title="Operating system"
+        value={
+          <>
+            {!osVersionRequirementMet && (
+              <Icon name="error-outline" color="ui-fleet-black-75" />
+            )}
+            <TooltipWrapper
+              tipContent={
+                osVersionRequirementMet ? (
+                  "Meets minimum version requirement."
+                ) : (
+                  <>
+                    Does not meet minimum version requirement.
+                    <br />
+                    Deadline to update: {osVersionRequirement.deadline}
+                  </>
+                )
+              }
+            >
+              {vitalsData.os_version}
+            </TooltipWrapper>
+          </>
+        }
+      />
+    );
+  };
 
   const classNames = classnames(baseClass, className);
 
@@ -202,13 +470,13 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
     >
-      <CardHeader header="About" />
+      <CardHeader header="Vitals" />
       <div className={`${baseClass}__info-grid`}>
         <DataSet
           title="Added to Fleet"
           value={
             <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={aboutData.last_enrolled_at ?? "Unavailable"}
+              timeString={vitalsData.last_enrolled_at ?? "Unavailable"}
             />
           }
         />
@@ -217,19 +485,32 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
             title="Last restarted"
             value={
               <HumanTimeDiffWithFleetLaunchCutoff
-                timeString={aboutData.last_restarted_at}
+                timeString={vitalsData.last_restarted_at}
               />
             }
           />
         )}
+        {renderDiskEncryptionSummary()}
+        {!isChromeHost && renderDiskSpaceSummary()}
+        {renderAgentSummary()}
         {renderHardwareSerialAndIPs()}
+        {!isIosOrIpadosHost && (
+          <DataSet
+            title="Memory"
+            value={wrapFleetHelper(humanHostMemory, vitalsData.memory)}
+          />
+        )}
+        {renderBattery()}
+        {!isIosOrIpadosHost && (
+          <DataSet title="Processor type" value={vitalsData.cpu_type} />
+        )}
+        {renderOperatingSystemSummary()}
         {renderMunkiData()}
         {renderMdmData()}
         {renderGeolocation()}
-        {renderBattery()}
       </div>
     </Card>
   );
 };
 
-export default About;
+export default Vitals;
