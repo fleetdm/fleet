@@ -860,7 +860,7 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	stmt := `
 SELECT
 	team_id,
@@ -871,8 +871,19 @@ SELECT
 FROM software_update_schedules
 WHERE team_id = ?
 `
+
+	args := []any{teamID}
+
+	if len(optionalFilter) > 0 {
+		filter := optionalFilter[0]
+		if filter.Enabled != nil {
+			stmt += " AND enabled = ?"
+			args = append(args, *filter.Enabled)
+		}
+	}
+
 	var schedules []fleet.SoftwareAutoUpdateSchedule
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &schedules, stmt, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &schedules, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software update schedules")
 	}
 	return schedules, nil

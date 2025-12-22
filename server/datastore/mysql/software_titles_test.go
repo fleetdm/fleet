@@ -2602,10 +2602,15 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
-	// create a VPP app not installed anywhere
+	// create two VPP apps
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
+	}, teamID)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IPadOSPlatform}},
 	}, teamID)
 	require.NoError(t, err)
 
@@ -2613,8 +2618,9 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		TeamID: teamID,
 	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	require.Len(t, titles, 1)
+	require.Len(t, titles, 2)
 	titleID := titles[0].ID
+	title2ID := titles[1].ID
 
 	title, err := ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
@@ -2668,13 +2674,44 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, titleResult.AutoUpdateEndTime)
 	require.Equal(t, endTime, titleResult.AutoUpdateEndTime)
 
+	// Add valid, disabled auto-update schedule for the other VPP app.
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
+		AutoUpdateEnabled:   false,
+		AutoUpdateStartTime: startTime,
+		AutoUpdateEndTime:   endTime,
+	})
+	require.NoError(t, err)
+
+	// Verify that both schedules exist.
 	schedules, err := ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID)
+	require.NoError(t, err)
+	require.Len(t, schedules, 2)
+	require.Equal(t, titleID, schedules[0].TitleID)
+	require.Equal(t, team1.ID, schedules[0].TeamID)
+	require.True(t, schedules[0].AutoUpdateEnabled)
+	require.Equal(t, startTime, schedules[0].AutoUpdateStartTime)
+	require.Equal(t, endTime, schedules[0].AutoUpdateEndTime)
+	require.Equal(t, title2ID, schedules[1].TitleID)
+	require.Equal(t, team1.ID, schedules[1].TeamID)
+	require.False(t, schedules[1].AutoUpdateEnabled)
+	require.Equal(t, startTime, schedules[1].AutoUpdateStartTime)
+	require.Equal(t, endTime, schedules[1].AutoUpdateEndTime)
+
+	// Filter by enabled only.
+	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, fleet.SoftwareAutoUpdateScheduleFilter{
+		Enabled: ptr.Bool(true),
+	})
 	require.NoError(t, err)
 	require.Len(t, schedules, 1)
 	require.Equal(t, titleID, schedules[0].TitleID)
-	require.Equal(t, team1.ID, schedules[0].TeamID)
-	require.Equal(t, startTime, schedules[0].AutoUpdateStartTime)
-	require.Equal(t, endTime, schedules[0].AutoUpdateEndTime)
+
+	// Fiter by disabled only.
+	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, fleet.SoftwareAutoUpdateScheduleFilter{
+		Enabled: ptr.Bool(false),
+	})
+	require.NoError(t, err)
+	require.Len(t, schedules, 1)
+	require.Equal(t, title2ID, schedules[0].TitleID)
 
 	// Disable auto-update.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{

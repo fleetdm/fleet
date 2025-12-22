@@ -270,6 +270,10 @@ type SoftwareAutoUpdateSchedule struct {
 	SoftwareAutoUpdateConfig
 }
 
+type SoftwareAutoUpdateScheduleFilter struct {
+	Enabled *bool
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
