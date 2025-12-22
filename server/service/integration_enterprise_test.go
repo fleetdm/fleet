@@ -23177,3 +23177,46 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
 }
+
+func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestUpdateSoftwareAutoUpdateConfig Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	// create two VPP apps
+	vppApp, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
+	}, &teamID)
+	require.NoError(t, err)
+
+	// Get the software title.
+	var titlesResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp)
+	require.Nil(t, titlesResp.SoftwareTitle.AutoUpdateEnabled)
+	require.Nil(t, titlesResp.SoftwareTitle.AutoUpdateStartTime)
+	require.Nil(t, titlesResp.SoftwareTitle.AutoUpdateEndTime)
+
+	// Update the auto-update config
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
+		TeamID:              &teamID,
+		AutoUpdateEnabled:  ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String("02:00"),
+		AutoUpdateEndTime:   ptr.String("04:00"),
+	}, http.StatusOK, &titlesResp)
+
+	// Get the software title again.
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
+	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateEnabled)
+	require.True(t, *titlesResp.SoftwareTitle.AutoUpdateEnabled)
+	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateStartTime)
+	require.Equal(t, "02:00", *titlesResp.SoftwareTitle.AutoUpdateStartTime)
+	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateEndTime)
+	require.Equal(t, "04:00", *titlesResp.SoftwareTitle.AutoUpdateEndTime)
+}

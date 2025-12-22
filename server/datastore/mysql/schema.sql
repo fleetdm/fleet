@@ -1162,7 +1162,7 @@ CREATE TABLE `hosts` (
   `orbit_node_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `refetch_critical_queries_until` timestamp NULL DEFAULT NULL,
   `last_restarted_at` datetime(6) DEFAULT '0001-01-01 00:00:00.000000',
-  `timezone` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `timezone` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_osquery_host_id` (`osquery_host_id`),
   UNIQUE KEY `idx_host_unique_nodekey` (`node_key`),
@@ -2758,7 +2758,7 @@ CREATE TABLE `software_update_schedules` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_team_title` (`team_id`,`title_id`),
   KEY `title_id` (`title_id`),
-  CONSTRAINT `software_update_schedules_ibfk_1` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`)
+  CONSTRAINT `software_update_schedules_ibfk_1` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

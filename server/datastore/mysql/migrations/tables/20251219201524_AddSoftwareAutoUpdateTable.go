@@ -20,14 +20,14 @@ func Up_20251219201524(tx *sql.Tx) error {
 
 			PRIMARY KEY (id),
 			UNIQUE KEY idx_team_title (team_id, title_id),
-			FOREIGN KEY (title_id) REFERENCES software_titles (id)
+			FOREIGN KEY (title_id) REFERENCES software_titles (id) ON DELETE CASCADE
 		) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 	`)
 	if err != nil {
 		return err
 	}
 	_, err = tx.Exec(`
-		ALTER TABLE hosts ADD COLUMN timezone varchar(255)
+				ALTER TABLE hosts ADD COLUMN timezone VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 	`)
 	if err != nil {
 		return err
