@@ -36,7 +36,7 @@ Once devices are enrolled, a management service (i.e., the MDM server) can do th
 
 >For educational institutions, Apple School Manager (ASM) provides the same core features with additional capabilities for K-12 classroom and student management.
 
-## **Why organizations need Apple MDM**
+## Why organizations need Apple MDM
 
 Small device fleets can be managed manually, but, hands-on approaches break down quickly when an organization manages hundreds or thousands of devices. The shift to remote and hybrid work has made it nearly impossible for IT teams to physically access devices for configuration or troubleshooting. It has also become difficult for organizations to control access and security for users at a network perimeter. 
 
