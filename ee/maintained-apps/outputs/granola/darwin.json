@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.442.0",
+      "version": "6.459.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.granola.app';"
       },
-      "installer_url": "https://dr2v7l5emb758.cloudfront.net/6.442.0/Granola-6.442.0-mac-universal.dmg",
+      "installer_url": "https://dr2v7l5emb758.cloudfront.net/6.459.1/Granola-6.459.1-mac-universal.dmg",
       "install_script_ref": "1223720b",
       "uninstall_script_ref": "9f1ed248",
-      "sha256": "8a784222747c2b03d21deb752a7d1544cd700bec3c02093487127ee1674398c0",
+      "sha256": "ba7d87459dc947d73befff9daf6e9531e4d0a3efdde289e38be8a2eab99b8374",
       "default_categories": [
         "Productivity"
       ]
