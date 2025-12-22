@@ -24,9 +24,15 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		softwareInstallerGlobalOrTeamIDFilter string
 		vppAppsTeamsGlobalOrTeamIDFilter      string
 		inHouseAppsTeamsGlobalOrTeamIDFilter  string
+		autoUpdatesJoin                       string
+		autoUpdatesSelect                     string
+		autoUpdatesGroupBy                    string
 	)
 
 	if teamID != nil {
+		autoUpdatesSelect = `COALESCE(sus.enabled, FALSE) as auto_update_enabled, COALESCE(sus.start_time, '') as auto_update_start_time, COALESCE(sus.end_time, '') as auto_update_end_time,`
+		autoUpdatesJoin = fmt.Sprintf("LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %d", *teamID)
+		autoUpdatesGroupBy = "auto_update_enabled, auto_update_start_time, auto_update_end_time"
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
@@ -54,8 +60,10 @@ SELECT
 	COUNT(si.id) as software_installers_count,
 	COUNT(vat.adam_id) AS vpp_apps_count,
 	COUNT(iha.id) AS in_house_apps_count,
+	%s
 	vap.icon_url AS icon_url
 FROM software_titles st
+%s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
@@ -70,8 +78,9 @@ GROUP BY
 	st.extension_for,
 	st.bundle_identifier,
 	hosts_count,
+	%s,
 	vap.icon_url
-	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter,
+	`, autoUpdatesSelect, autoUpdatesJoin, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
 	)
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
