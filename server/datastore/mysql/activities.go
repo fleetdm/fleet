@@ -1661,7 +1661,7 @@ ORDER BY
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid
+	uuid, platform
 FROM
 	hosts
 WHERE
@@ -1695,7 +1695,7 @@ WHERE
 		<key>InstallAsManaged</key>
 		<true/>
         <key>ManagementFlags</key>
-        <integer>0</integer>
+        <integer>%d</integer>
         <key>ChangeManagementState</key>
         <string>Managed</string>
         <key>InstallAsManaged</key>
@@ -1742,8 +1742,11 @@ ORDER BY
 	}
 
 	// get the host uuid, requires for the nano tables
-	var hostUUID string
-	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+	var hostData struct {
+		UUID     string `db:"uuid"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
 	}
 
@@ -1757,8 +1760,12 @@ ORDER BY
 	}
 
 	// insert the nano command
+	managementFlags := 0
+	if hostData.Platform == "ios" || hostData.Platform == "ipados" {
+		managementFlags = 1 // Remove app when MDM profile is removed
+	}
 	namedArgs := map[string]any{
-		"raw_cmd_part1": rawCmdPart1,
+		"raw_cmd_part1": fmt.Sprintf(rawCmdPart1, managementFlags),
 		"raw_cmd_part2": rawCmdPart2,
 		"raw_cmd_part3": rawCmdPart3,
 		"subtype":       mdm.CommandSubtypeNone,
@@ -1778,7 +1785,7 @@ ORDER BY
 	}
 
 	// enqueue the nano command in the nano queue
-	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
+	stmt, args, err = sqlx.In(insNanoQueueStmt, hostData.UUID, hostID, execIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
 	}
@@ -1789,8 +1796,8 @@ ORDER BY
 	// best-effort APNs push notification to the host, not critical because we
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
-		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
+		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
 		}
 	}
 	return nil
@@ -1823,7 +1830,7 @@ ORDER BY
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid, team_id
+	uuid, team_id, platform
 FROM
 	hosts
 WHERE
@@ -1857,7 +1864,7 @@ WHERE
 		<key>InstallAsManaged</key>
 		<true/>
         <key>ManagementFlags</key>
-        <integer>0</integer>
+        <integer>%d</integer>
         <key>ChangeManagementState</key>
         <string>Managed</string>
         <key>InstallAsManaged</key>
@@ -1905,8 +1912,9 @@ ORDER BY
 
 	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID   string `db:"uuid"`
-		TeamID *uint  `db:"team_id"`
+		UUID     string `db:"uuid"`
+		TeamID   *uint  `db:"team_id"`
+		Platform string `db:"platform"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
@@ -1956,10 +1964,15 @@ WHERE
 
 	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
+	managementFlags := 0
+	if hostData.Platform == "ios" || hostData.Platform == "ipados" {
+		managementFlags = 1 // Remove app when MDM profile is removed
+	}
+
 	// insert the nano command
 	namedArgs := map[string]any{
 		"manifest_url":  manifestURL,
-		"raw_cmd_part1": rawCmdPart1,
+		"raw_cmd_part1": fmt.Sprintf(rawCmdPart1, managementFlags),
 		"raw_cmd_part2": rawCmdPart2,
 		"raw_cmd_part3": rawCmdPart3,
 		"subtype":       mdm.CommandSubtypeNone,
