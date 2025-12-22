@@ -23,9 +23,7 @@ import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 
-import {
-  DATE_FNS_FORMAT_STRINGS,
-} from "utilities/constants";
+import { DATE_FNS_FORMAT_STRINGS } from "utilities/constants";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
@@ -65,11 +63,7 @@ const HostSummary = ({
 }: IHostSummaryProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
-  const {
-    status,
-    platform,
-    os_version,
-  } = summaryData;
+  const { status, platform, os_version } = summaryData;
 
   const isAndroidHost = isAndroid(platform);
   const isIosOrIpadosHost = isIPadOrIPhone(platform);

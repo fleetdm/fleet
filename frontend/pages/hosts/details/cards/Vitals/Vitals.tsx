@@ -3,7 +3,13 @@ import classnames from "classnames";
 
 import { IAppleDeviceUpdates } from "interfaces/config";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
-import { isAndroid, isIPadOrIPhone, isChrome, platformSupportsDiskEncryption, DiskEncryptionSupportedPlatform } from "interfaces/platform";
+import {
+  isAndroid,
+  isIPadOrIPhone,
+  isChrome,
+  platformSupportsDiskEncryption,
+  DiskEncryptionSupportedPlatform,
+} from "interfaces/platform";
 import {
   isBYODAccountDrivenUserEnrollment,
   MDM_ENROLLMENT_STATUS_UI_MAP,
@@ -42,7 +48,70 @@ interface IVitalsProps {
 
 const baseClass = "vitals-card";
 
-const Vitals = ({ vitalsData, munki, mdm, osVersionRequirement, className }: IVitalsProps) => {
+const DISK_ENCRYPTION_MESSAGES = {
+  darwin: {
+    enabled: (
+      <>
+        The disk is encrypted. The user must enter their
+        <br /> password when they start their computer.
+      </>
+    ),
+    disabled: (
+      <>
+        The disk might be encrypted, but FileVault is off. The
+        <br /> disk can be accessed without entering a password.
+      </>
+    ),
+  },
+  windows: {
+    enabled: (
+      <>
+        The disk is encrypted. If recently turned on,
+        <br /> encryption could take awhile.
+      </>
+    ),
+    disabled: "The disk is unencrypted.",
+  },
+  linux: {
+    enabled: "The disk is encrypted.",
+    unknown: "The disk may be encrypted.",
+  },
+};
+
+const getHostDiskEncryptionTooltipMessage = (
+  platform: DiskEncryptionSupportedPlatform, // TODO: improve this type
+  diskEncryptionEnabled = false
+) => {
+  if (platform === "chrome") {
+    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
+  }
+
+  if (
+    platform === "rhel" ||
+    platform === "ubuntu" ||
+    platform === "arch" ||
+    platform === "archarm" ||
+    platform === "manjaro" ||
+    platform === "manjaro-arm"
+  ) {
+    return DISK_ENCRYPTION_MESSAGES.linux[
+      diskEncryptionEnabled ? "enabled" : "unknown"
+    ];
+  }
+
+  // mac or windows
+  return DISK_ENCRYPTION_MESSAGES[platform][
+    diskEncryptionEnabled ? "enabled" : "disabled"
+  ];
+};
+
+const Vitals = ({
+  vitalsData,
+  munki,
+  mdm,
+  osVersionRequirement,
+  className,
+}: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
   const isChromeHost = isChrome(vitalsData.platform);
@@ -295,7 +364,11 @@ const Vitals = ({ vitalsData, munki, mdm, osVersionRequirement, className }: IVi
       return null;
     }
 
-    const { orbit_version, osquery_version, fleet_desktop_version } = vitalsData;
+    const {
+      orbit_version,
+      osquery_version,
+      fleet_desktop_version,
+    } = vitalsData;
 
     if (isChromeHost) {
       return <DataSet title="Agent" value={osquery_version} />;
@@ -312,13 +385,12 @@ const Vitals = ({ vitalsData, munki, mdm, osVersionRequirement, className }: IVi
                   osquery: {osquery_version}
                   <br />
                   Orbit: {orbit_version}
-                  {fleet_desktop_version !==
-                    DEFAULT_EMPTY_CELL_VALUE && (
-                      <>
-                        <br />
-                        Fleet Desktop: {fleet_desktop_version}
-                      </>
-                    )}
+                  {fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
+                    <>
+                      <br />
+                      Fleet Desktop: {fleet_desktop_version}
+                    </>
+                  )}
                 </>
               }
             >
@@ -428,7 +500,9 @@ const Vitals = ({ vitalsData, munki, mdm, osVersionRequirement, className }: IVi
           />
         )}
         {renderBattery()}
-        {!isIosOrIpadosHost && <DataSet title="Processor type" value={vitalsData.cpu_type} />}
+        {!isIosOrIpadosHost && (
+          <DataSet title="Processor type" value={vitalsData.cpu_type} />
+        )}
         {renderOperatingSystemSummary()}
         {renderMunkiData()}
         {renderMdmData()}
@@ -439,60 +513,3 @@ const Vitals = ({ vitalsData, munki, mdm, osVersionRequirement, className }: IVi
 };
 
 export default Vitals;
-
-const getHostDiskEncryptionTooltipMessage = (
-  platform: DiskEncryptionSupportedPlatform, // TODO: improve this type
-  diskEncryptionEnabled = false
-) => {
-  if (platform === "chrome") {
-    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
-  }
-
-  if (
-    platform === "rhel" ||
-    platform === "ubuntu" ||
-    platform === "arch" ||
-    platform === "archarm" ||
-    platform === "manjaro" ||
-    platform === "manjaro-arm"
-  ) {
-    return DISK_ENCRYPTION_MESSAGES.linux[
-      diskEncryptionEnabled ? "enabled" : "unknown"
-    ];
-  }
-
-  // mac or windows
-  return DISK_ENCRYPTION_MESSAGES[platform][
-    diskEncryptionEnabled ? "enabled" : "disabled"
-  ];
-};
-
-const DISK_ENCRYPTION_MESSAGES = {
-  darwin: {
-    enabled: (
-      <>
-        The disk is encrypted. The user must enter their
-        <br /> password when they start their computer.
-      </>
-    ),
-    disabled: (
-      <>
-        The disk might be encrypted, but FileVault is off. The
-        <br /> disk can be accessed without entering a password.
-      </>
-    ),
-  },
-  windows: {
-    enabled: (
-      <>
-        The disk is encrypted. If recently turned on,
-        <br /> encryption could take awhile.
-      </>
-    ),
-    disabled: "The disk is unencrypted.",
-  },
-  linux: {
-    enabled: "The disk is encrypted.",
-    unknown: "The disk may be encrypted.",
-  },
-};
