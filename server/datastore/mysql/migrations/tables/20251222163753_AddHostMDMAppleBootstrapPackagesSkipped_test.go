@@ -9,12 +9,13 @@ import (
 func TestUp_20251222163753(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	db.Exec(`
+	_, err := db.Exec(`
           INSERT INTO nano_commands (command_uuid, request_type, command)
           VALUES ('cmd-1', 'foo', '<?xml')
 	`)
+	require.NoError(t, err)
 
-	_, err := db.Exec(`INSERT INTO host_mdm_apple_bootstrap_packages (host_uuid, command_uuid) VALUES ('host-1', 'cmd-1')`)
+	_, err = db.Exec(`INSERT INTO host_mdm_apple_bootstrap_packages (host_uuid, command_uuid) VALUES ('host-1', 'cmd-1')`)
 	require.NoError(t, err)
 
 	// Apply current migration.
