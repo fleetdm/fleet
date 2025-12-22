@@ -5282,14 +5282,15 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
     "display_text": "macOS hosts (x86_64)",
     "count": 0,
     "host_ids": null,
-    "author_id": 1
+    "author_id": 1,
+    "team_id": null
   }
 }
 ```
 
 ### Update label
 
-Updates the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
+Updates the specified label. Note: Label queries, platforms, and teams are immutable. To change these, you must delete the label and create a new label.
 
 `PATCH /api/v1/fleet/labels/:id`
 
@@ -5336,7 +5337,9 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
     "display_text": "My label",
     "count": 2,
     "host_ids": [42, 43],
-    "author_id": 1
+    "author_id": 1,
+    "team_id": null,
+    "team_name": null
   }
 }
 ```

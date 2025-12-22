@@ -2157,8 +2157,11 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_name | string | query | The name of the team to set labels to; omit to set global labels |
+| team_id | int | query | The ID of the team to set labels to; omit to set global labels |
 | specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
+| names_to_move | string[] | body | A list of names of labels that are both in `specs` in the current request and already exist on other teams. If the requesting user has permission to modify those labels, this endpoint will rename the specified labels so new labels on the correct team can be created. The request will fail with no changes if one or more of the specified labels cannot be moved. |
+
+The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance from having a label on one team (or global) to using that same label name on another team (or switching a team label to a global label). Once labels are created on the correct teams, the old labels are cleaned up when GitOps is run on the old team via explicit `DELETE` calls.
 
 #### Example
 
@@ -2181,7 +2184,8 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
       "label_membership_type": "manual",
       "hosts": ["snacbook-pro.local"]
     }
-  ]
+  ],
+  "names_to_move": ["local_machine"]
 }
 ```
 
@@ -2314,7 +2318,8 @@ None.
     "name": "local_machine",
     "description": "Includes only my local machine",
     "query": "",
-    "label_membership_type": "manual"
+    "label_membership_type": "manual",
+    "team_id": null
   }
 }
 ```
