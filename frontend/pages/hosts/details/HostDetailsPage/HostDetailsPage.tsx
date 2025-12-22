@@ -51,7 +51,7 @@ import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
-  HOST_ABOUT_DATA,
+  HOST_VITALS_DATA,
   HOST_OSQUERY_DATA,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
@@ -93,7 +93,7 @@ import SoftwareUninstallDetailsModal, {
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
-import AboutCard from "../cards/About";
+import VitalsCard from "../cards/Vitals";
 import UserCard from "../cards/User";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
@@ -667,7 +667,7 @@ const HostDetailsPage = ({
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
+  const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
@@ -1154,7 +1154,7 @@ Observer plus must be checked against host's team id  */
                currently supporting software installs. This check should be removed
                when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
               {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
-              isAndroidHost ? (
+                isAndroidHost ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
@@ -1287,16 +1287,16 @@ Observer plus must be checked against host's team id  */
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
                   hostSettings={host?.mdm.profiles ?? []}
                   osSettings={host?.mdm.os_settings}
+                  className={fullWidthCardClass}
+                />
+                <VitalsCard
+                  className={fullWidthCardClass}
+                  vitalsData={vitalsData}
+                  munki={macadmins?.munki}
+                  mdm={mdm}
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
-                  className={fullWidthCardClass}
-                />
-                <AboutCard
-                  className={defaultCardClass}
-                  aboutData={aboutData}
-                  munki={macadmins?.munki}
-                  mdm={mdm}
                 />
                 <UserCard
                   className={defaultCardClass}
@@ -1337,13 +1337,13 @@ Observer plus must be checked against host's team id  */
                       activeActivityTab === "past"
                         ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
                         : upcomingActivitiesIsFetching ||
-                          upcomingMDMCommandsIsFetching
+                        upcomingMDMCommandsIsFetching
                     }
                     isError={
                       activeActivityTab === "past"
                         ? pastActivitiesIsError || pastMDMCommandsIsError
                         : upcomingActivitiesIsError ||
-                          upcomingMDMCommandsIsError
+                        upcomingMDMCommandsIsError
                     }
                     canCancelActivities={
                       isGlobalAdmin ||

@@ -159,6 +159,8 @@ export const isAndroid = (
   platform: string | HostPlatform
 ): platform is "android" => platform === "android";
 
+export const isChrome = (platform: string | HostPlatform) => platform === "chrome";
+
 /** isMobilePlatform checks if the platform is an iPad or iPhone or Android. */
 export const isMobilePlatform = (platform: string | HostPlatform) =>
   isIPadOrIPhone(platform) || isAndroid(platform);

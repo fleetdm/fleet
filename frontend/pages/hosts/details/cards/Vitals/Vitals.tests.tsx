@@ -4,9 +4,9 @@ import { render, screen } from "@testing-library/react";
 import createMockHost from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
 
-import About from "./About";
+import Vitals from "./Vitals";
 
-describe("About Card component", () => {
+describe("Vitals Card component", () => {
   it("renders only the device Hardware model for Android hosts that were not enrolled in MDM personally", () => {
     const mockHost = createMockHost({
       platform: "android",
@@ -14,7 +14,7 @@ describe("About Card component", () => {
       hardware_serial: "",
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("Pixel 6")).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe("About Card component", () => {
       }),
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("Pixel 6")).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("About Card component", () => {
       }),
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Enrollment ID")).toBeInTheDocument();
     expect(screen.getAllByText("enrollment-id-12345")[0]).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("About Card component", () => {
       }),
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Enrollment ID")).toBeInTheDocument();
     expect(screen.getAllByText("enrollment-id-12345")[0]).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe("About Card component", () => {
       }),
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("iPhone 12")).toBeInTheDocument();
@@ -123,7 +123,7 @@ describe("About Card component", () => {
       }),
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("IPad Pro")).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe("About Card component", () => {
       }),
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Enrollment ID")).toBeInTheDocument();
     expect(screen.getAllByText("enrollment-id-12345")[0]).toBeInTheDocument();
@@ -171,7 +171,7 @@ describe("About Card component", () => {
       mdm: undefined,
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
@@ -197,7 +197,7 @@ describe("About Card component", () => {
       }),
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
@@ -223,7 +223,7 @@ describe("About Card component", () => {
       }),
     });
 
-    render(<About aboutData={mockHost} mdm={mockHost.mdm} />);
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
