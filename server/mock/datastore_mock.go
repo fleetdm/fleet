@@ -981,6 +981,8 @@ type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uin
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
 
+type RecordSkippedHostBootstrapPackageFunc func(ctx context.Context, hostUUID string) error
+
 type GetHostBootstrapPackageCommandFunc func(ctx context.Context, hostUUID string) (string, error)
 
 type CleanupUnusedBootstrapPackagesFunc func(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error
@@ -3144,6 +3146,9 @@ type DataStore struct {
 
 	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
 	RecordHostBootstrapPackageFuncInvoked bool
+
+	RecordSkippedHostBootstrapPackageFunc        RecordSkippedHostBootstrapPackageFunc
+	RecordSkippedHostBootstrapPackageFuncInvoked bool
 
 	GetHostBootstrapPackageCommandFunc        GetHostBootstrapPackageCommandFunc
 	GetHostBootstrapPackageCommandFuncInvoked bool
@@ -7588,6 +7593,13 @@ func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID 
 	s.RecordHostBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
 	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) RecordSkippedHostBootstrapPackage(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.RecordSkippedHostBootstrapPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordSkippedHostBootstrapPackageFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error) {

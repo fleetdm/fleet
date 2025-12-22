@@ -1445,6 +1445,9 @@ type Datastore interface {
 	// RecordHostBootstrapPackage records a command used to install a
 	// bootstrap package in a host.
 	RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error
+	// RecordSkippedHostBootstrapPackage records that a host skipped the
+	// installation of a bootstrap package.
+	RecordSkippedHostBootstrapPackage(ctx context.Context, hostUUID string) error
 	// GetHostBootstrapPackageCommand returns the MDM command uuid used to
 	// install a bootstrap package in a host.
 	GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error)
