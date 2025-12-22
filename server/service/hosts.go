@@ -401,9 +401,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 					host.Users = hu
 				}
 
-				// Populate device_status and pending_action for hosts with MDM info
-				// This is done for all hosts to match the behavior of the single-host endpoint
-				if len(hosts) > 0 {
+				if opt.PopulateDeviceStatus {
 					statusMap, err := svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
 					if err != nil {
 						yield(nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch"))

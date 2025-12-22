@@ -3839,6 +3839,26 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 	}
 
 	// Test scenarios
+	t.Run("no populating device status", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			// Return empty map - no MDM actions for any host
+			return make(map[uint]*fleet.HostLockWipeStatus), nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: false})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+		require.False(t, ds.GetHostsLockWipeStatusBatchFuncInvoked)
+
+		// All hosts have no MDM actions (empty statusMap), so device_status and pending_action should be nil
+		for _, h := range hosts {
+			require.NotNil(t, h.MDM) // MDM is a struct, not a pointer
+			require.Nil(t, h.MDM.DeviceStatus)
+			require.Nil(t, h.MDM.PendingAction)
+		}
+	})
+
 	t.Run("no MDM actions", func(t *testing.T) {
 		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
 			// Return empty map - no MDM actions for any host
@@ -3846,15 +3866,16 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
+		require.True(t, ds.GetHostsLockWipeStatusBatchFuncInvoked)
 
-		// All hosts have no MDM actions (empty statusMap), so device_status and pending_action should be nil
+		// All hosts have no MDM actions (empty statusMap), so device_status and pending_action should be mapped to default
 		for _, h := range hosts {
 			require.NotNil(t, h.MDM) // MDM is a struct, not a pointer
-			require.Nil(t, h.MDM.DeviceStatus)
-			require.Nil(t, h.MDM.PendingAction)
+			require.Equal(t, string(fleet.DeviceStatusUnlocked), *h.MDM.DeviceStatus)
+			require.Equal(t, string(fleet.PendingActionNone), *h.MDM.PendingAction)
 		}
 	})
 
@@ -3871,7 +3892,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -3897,7 +3918,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -3922,7 +3943,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -3947,7 +3968,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -3987,7 +4008,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -4006,7 +4027,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		require.Equal(t, string(fleet.PendingActionNone), *hosts[2].MDM.PendingAction)
 	})
 
-	t.Run("script-based lock (Windows/Linux)", func(t *testing.T) {
+	t.Run("script-based lock (Windows & Linux)", func(t *testing.T) {
 		var exitCode0 int64
 		var exitCode1 int64 = 1
 
@@ -4026,7 +4047,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -4050,7 +4071,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 			return statusMap, nil
 		}
 
-		hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{})
+		hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
 		require.NoError(t, err)
 
 		// Failed script should show unlocked
