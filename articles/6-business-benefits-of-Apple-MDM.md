@@ -124,6 +124,6 @@ Employees think about their work rather than fighting with the device that been 
 <meta name="articleTitle" value="6 Business Benefits of Apple MDM, Explained">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
-<meta name="category" value="GUIDES">
+<meta name="category" value="articles">
 <meta name="publishedOn" value="2025-11-21">
 <meta name="description" value="Learn how Apple MDM delivers automated deployment, enforced security, compliance readiness, and remote management for enterprise device fleets.">
