@@ -323,7 +323,8 @@ func Handle(ctx context.Context, err error) {
 			attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
 		}
 
-		// Add contextual information from telemetry providers
+		// Add contextual information from telemetry providers.
+		// OpenTelemetry requires typed attributes, so we convert the values to the appropriate type.
 		for k, v := range telemetryAttrs {
 			switch val := v.(type) {
 			case string:

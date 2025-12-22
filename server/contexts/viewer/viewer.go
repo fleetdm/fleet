@@ -4,6 +4,7 @@ package viewer
 
 import (
 	"context"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -122,8 +123,18 @@ func (v *Viewer) GetTelemetryAttributes() map[string]any {
 		return nil
 	}
 	return map[string]any{
-		// Not sending the email here as it may contain sensitive information (PII).
 		"user.id":    v.User.ID,
-		"user.email": v.User.Email,
+		"user.email": maskEmail(v.User.Email),
 	}
+}
+
+// maskEmail anonymizes an email address for telemetry by showing only
+// the first character of the local part and the full domain.
+// Example: "john.doe@example.com" -> "j***@example.com"
+func maskEmail(email string) string {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 || len(parts[0]) == 0 {
+		return "***"
+	}
+	return string(parts[0][0]) + "***@" + parts[1]
 }
