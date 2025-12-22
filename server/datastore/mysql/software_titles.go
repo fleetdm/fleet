@@ -831,7 +831,7 @@ WHERE
 	return titleExists, nil
 }
 
-func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.AutoUpdateConfig) error {
+func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
 	// Validate start and end time.
 	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
 	for _, t := range []string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
@@ -858,4 +858,22 @@ ON DUPLICATE KEY UPDATE
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}
 	return nil
+}
+
+func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+	stmt := `
+SELECT
+	team_id,
+	title_id,
+	enabled AS auto_update_enabled,
+	start_time AS auto_update_start_time,
+	end_time AS auto_update_end_time
+FROM software_update_schedules
+WHERE team_id = ?
+`
+	var schedules []fleet.SoftwareAutoUpdateSchedule
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &schedules, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software update schedules")
+	}
+	return schedules, nil
 }

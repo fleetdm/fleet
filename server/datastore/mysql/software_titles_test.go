@@ -2618,9 +2618,9 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, 1)
-	titleId := titles[0].ID
+	titleID := titles[0].ID
 
-	title, err := ds.SoftwareTitleByID(ctx, titleId, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	title, err := ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	// Get the software title.
@@ -2635,7 +2635,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Attempt to enable auto-update with invalid start time.
 	startTime := "26:00"
 	endTime := "12:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, 0, fleet.AutoUpdateConfig{
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   true,
 		AutoUpdateStartTime: startTime,
 		AutoUpdateEndTime:   endTime,
@@ -2646,7 +2646,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Attempt to enable auto-update with invalid end time.
 	startTime = "12:00"
 	endTime = "abc"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, 0, fleet.AutoUpdateConfig{
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   true,
 		AutoUpdateStartTime: startTime,
 		AutoUpdateEndTime:   endTime,
@@ -2657,14 +2657,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Enable auto-update.
 	startTime = "02:00"
 	endTime = "04:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.AutoUpdateConfig{
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   true,
 		AutoUpdateStartTime: startTime,
 		AutoUpdateEndTime:   endTime,
 	})
 	require.NoError(t, err)
 
-	titleResult, err = ds.SoftwareTitleByID(ctx, titleId, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.True(t, titleResult.AutoUpdateEnabled)
 	require.NotNil(t, titleResult.AutoUpdateStartTime)
@@ -2672,15 +2672,23 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, titleResult.AutoUpdateEndTime)
 	require.Equal(t, endTime, titleResult.AutoUpdateEndTime)
 
+	schedules, err := ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID)
+	require.NoError(t, err)
+	require.Len(t, schedules, 1)
+	require.Equal(t, titleID, schedules[0].TitleID)
+	require.Equal(t, team1.ID, schedules[0].TeamID)
+	require.Equal(t, startTime, schedules[0].AutoUpdateStartTime)
+	require.Equal(t, endTime, schedules[0].AutoUpdateEndTime)
+
 	// Disable auto-update.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleId, *teamID, fleet.AutoUpdateConfig{
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   false,
 		AutoUpdateStartTime: startTime,
 		AutoUpdateEndTime:   endTime,
 	})
 	require.NoError(t, err)
 
-	titleResult, err = ds.SoftwareTitleByID(ctx, titleId, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.False(t, titleResult.AutoUpdateEnabled)
 	require.NotNil(t, titleResult.AutoUpdateStartTime)
