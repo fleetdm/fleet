@@ -63,7 +63,7 @@ Supervision determines which MDM features are available on enrolled devices. Get
 
 Two supervision levels serve different organizational needs:
 
-* **Supervision** - Organizations can unlock advanced capabilities that address enterprise requirements, like:
+* **Supervised devices** - Organizations can unlock advanced capabilities that address enterprise requirements, like:
 
   - Deploying managed apps
   - Hiding specific Apple native applications from home screens
