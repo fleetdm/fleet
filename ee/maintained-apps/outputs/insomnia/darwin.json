@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "12.1.0",
+      "version": "12.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app';"
       },
-      "installer_url": "https://github.com/Kong/insomnia/releases/download/core%4012.1.0/Insomnia.Core-12.1.0.dmg",
+      "installer_url": "https://github.com/Kong/insomnia/releases/download/core%4012.2.0/Insomnia.Core-12.2.0.dmg",
       "install_script_ref": "b5685b20",
       "uninstall_script_ref": "6024f710",
-      "sha256": "ec37f8bffc79446c17ac5ddc33e33a0024d5067b7551938bf1cfc7c957904f43",
+      "sha256": "2124152214794d663f5e4eac5de2fcf7fb2bc69a6a052ef0768448370ba842a8",
       "default_categories": [
         "Developer tools"
       ]

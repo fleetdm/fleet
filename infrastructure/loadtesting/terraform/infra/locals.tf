@@ -12,13 +12,15 @@ locals {
   } : {}
 
   elastic_apm_environment_variables = var.enable_otel ? {} : {
-    ELASTIC_APM_SERVER_URL              = "https://loadtest.fleetdm.com:8200"
-    ELASTIC_APM_SERVICE_NAME            = "fleet"
-    ELASTIC_APM_ENVIRONMENT             = "${terraform.workspace}"
-    ELASTIC_APM_TRANSACTION_SAMPLE_RATE = "0.004"
-    ELASTIC_APM_SERVICE_VERSION         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
-    FLEET_LOGGING_TRACING_ENABLED       = "true"
-    FLEET_LOGGING_TRACING_TYPE          = "elasticapm"
+    ELASTIC_APM_SERVER_URL                              = "https://loadtest.fleetdm.com:8200"
+    ELASTIC_APM_SERVICE_NAME                            = "fleet"
+    ELASTIC_APM_ENVIRONMENT                             = "${terraform.workspace}"
+    ELASTIC_APM_TRANSACTION_SAMPLE_RATE                 = "0.004"
+    ELASTIC_APM_SERVICE_VERSION                         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
+    FLEET_LOGGING_TRACING_ENABLED                       = "true"
+    FLEET_LOGGING_TRACING_TYPE                          = "elasticapm"
+    FLEET_DEV_MDM_APPLE_DISABLE_PUSH                    = "1"
+    FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY = "1"
   }
 
   extra_environment_variables = merge(

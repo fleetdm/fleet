@@ -1068,9 +1068,9 @@ func TestMDMCommandAuthz(t *testing.T) {
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
 		case 1:
-			return &fleet.Host{UUID: "test-host-team-1", TeamID: ptr.Uint(1)}, nil
+			return &fleet.Host{UUID: "test-host-team-1", TeamID: ptr.Uint(1), Platform: "darwin"}, nil
 		default:
-			return &fleet.Host{UUID: "test-host-no-team"}, nil
+			return &fleet.Host{UUID: "test-host-no-team", Platform: "darwin"}, nil
 		}
 	}
 
@@ -1173,7 +1173,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			mdmEnabled.Store(true)
-			err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 42) // global host
+			err := svc.UnenrollMDM(ctx, 42) // global host
 			if !tt.shouldFailGlobal {
 				require.NoError(t, err)
 			} else {
@@ -1182,7 +1182,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 			}
 
 			mdmEnabled.Store(true)
-			err = svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 1) // host belongs to team 1
+			err = svc.UnenrollMDM(ctx, 1) // host belongs to team 1
 			if !tt.shouldFailTeam {
 				require.NoError(t, err)
 			} else {
@@ -1348,16 +1348,21 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
-func TestMDMUnenrollment(t *testing.T) {
+func TestAppleMDMUnenrollment(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
+	hostOne := &fleet.Host{ID: 1, UUID: "test-host-no-team-2", Platform: "ios"}
+	hostGlobal := &fleet.Host{ID: 42, UUID: "test-host-no-team", Platform: "darwin"}
+
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
-		case 1:
-			return &fleet.Host{UUID: "test-host-no-team-2"}, nil
+		case hostOne.ID:
+			return hostOne, nil
+		case hostGlobal.ID:
+			return hostGlobal, nil
 		default:
-			return &fleet.Host{UUID: "test-host-no-team"}, nil
+			return nil, errors.New("not found")
 		}
 	}
 
@@ -1385,12 +1390,12 @@ func TestMDMUnenrollment(t *testing.T) {
 	}
 
 	t.Run("Unenrolls macos device", func(t *testing.T) {
-		err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 42) // global host
+		err := svc.UnenrollMDM(ctx, hostGlobal.ID) // global host
 		require.NoError(t, err)
 	})
 
 	t.Run("Unenrolls personal ios device", func(t *testing.T) {
-		err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 1) // personal host
+		err := svc.UnenrollMDM(ctx, hostOne.ID) // personal host
 		require.NoError(t, err)
 	})
 }
@@ -4956,6 +4961,102 @@ func TestUnmarshalAppList(t *testing.T) {
 	software, err = unmarshalAppList(ctx, apps, "ios_apps")
 	require.NoError(t, err)
 	assert.ElementsMatch(t, expectedSoftware, software)
+}
+
+func TestNeedsOSUpdateForDEPEnrollment(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		platform              string
+		appleMachineInfo      fleet.MDMAppleMachineInfo
+		appleOSUpdateSettings fleet.AppleOSUpdateSettings
+		returnedErr           error
+
+		expectedResult bool
+		expectedErr    error
+	}{
+		{
+			name:           "when settings not found",
+			returnedErr:    newNotFoundError(),
+			expectedResult: false,
+		},
+		{
+			name:        "error getting settings",
+			returnedErr: errors.New("Whoops"),
+			expectedErr: errors.New("Whoops"),
+		},
+		{
+			name:     "if platform is macOS and update_new_hosts not set",
+			platform: string(fleet.MacOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.1",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
+				UpdateNewHosts: optjson.SetBool(false),
+				MinimumVersion: optjson.SetString("16.0.2"),
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "if platform is macOS and update_new_hosts is set",
+			platform: string(fleet.MacOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.1",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("16.0.2"),
+				UpdateNewHosts: optjson.SetBool(true),
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "if platform is not macOS and min_version is not set",
+			platform: string(fleet.IPadOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.1",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "if platform is not macOS and min_version is set and host's version is greater than min required",
+			platform: string(fleet.IPadOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.3",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("16.0.2"),
+				UpdateNewHosts: optjson.SetBool(false),
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "if platform is not macOS and min_version is set and host's version is less than min required",
+			platform: string(fleet.IPadOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.1",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("16.0.2"),
+				UpdateNewHosts: optjson.SetBool(false),
+			},
+			expectedResult: true,
+		},
+	}
+
+	ctx := context.Background()
+	ds := new(mock.Store)
+	for _, tt := range testCases {
+		ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, hostSerial string) (string, *fleet.AppleOSUpdateSettings, error) {
+			return tt.platform, &tt.appleOSUpdateSettings, tt.returnedErr
+		}
+
+		svc := &Service{ds: ds, logger: kitlog.NewNopLogger()}
+
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := svc.needsOSUpdateForDEPEnrollment(ctx, tt.appleMachineInfo)
+			require.Equal(t, tt.expectedResult, result)
+			require.Equal(t, tt.expectedErr, err)
+		})
+	}
 }
 
 func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {

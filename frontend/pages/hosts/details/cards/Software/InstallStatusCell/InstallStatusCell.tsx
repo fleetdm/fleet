@@ -458,6 +458,7 @@ const InstallStatusCell = ({
           commandUuid: (lastInstall as IAppLastInstall).command_uuid,
         }),
       });
+      return;
     }
     // TODO: Is this the best way to check for IPA installer?
     if (software.source === "ios_apps" || software.source === "ipados_apps") {

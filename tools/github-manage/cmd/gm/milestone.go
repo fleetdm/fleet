@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/tui"
+	"fleetdm/gm/pkg/util"
 )
 
 // milestoneCmd is the parent command for milestone-related operations.
@@ -58,7 +61,7 @@ var milestoneReportCmd = &cobra.Command{
 				for _, m := range miles {
 					t := m.Title
 					if milestoneStripEmojis {
-						t = stripEmojis(t)
+						t = util.StripEmojis(t)
 					}
 					fmt.Println(strings.Join([]string{t, m.State}, "\t"))
 				}
@@ -69,7 +72,7 @@ var milestoneReportCmd = &cobra.Command{
 				for _, m := range miles {
 					t := m.Title
 					if milestoneStripEmojis {
-						t = stripEmojis(t)
+						t = util.StripEmojis(t)
 					}
 					fmt.Printf("| %s | %s |\n", t, m.State)
 				}
@@ -139,7 +142,7 @@ var milestoneReportCmd = &cobra.Command{
 						filtered = append(filtered, p)
 						continue
 					}
-					name := strings.ToLower(stripEmojis(title))
+					name := strings.ToLower(util.StripEmojis(title))
 					exclude := false
 					for _, tok := range toks {
 						if tok != "" && strings.Contains(name, tok) {
@@ -160,7 +163,7 @@ var milestoneReportCmd = &cobra.Command{
 			if p.Title != "" {
 				title := p.Title
 				if milestoneStripEmojis {
-					title = stripEmojis(title)
+					title = util.StripEmojis(title)
 				}
 				headers = append(headers, title)
 			} else {
@@ -218,7 +221,7 @@ var milestoneReportCmd = &cobra.Command{
 				if strings.TrimSpace(ps.Status) == "" {
 					cell := "No Status"
 					if milestoneStripEmojis {
-						cell = stripEmojis(cell)
+						cell = util.StripEmojis(cell)
 					}
 					row = append(row, cell)
 					if agg[pid] == nil {
@@ -228,7 +231,7 @@ var milestoneReportCmd = &cobra.Command{
 				} else {
 					cell := ps.Status
 					if milestoneStripEmojis {
-						cell = stripEmojis(cell)
+						cell = util.StripEmojis(cell)
 					}
 					row = append(row, cell)
 					if agg[pid] == nil {
@@ -240,9 +243,9 @@ var milestoneReportCmd = &cobra.Command{
 			// Append truncated title column
 			title := mi.Title
 			if milestoneStripEmojis {
-				title = stripEmojis(title)
+				title = util.StripEmojis(title)
 			}
-			row = append(row, truncateTitle(title, 25))
+			row = append(row, util.TruncateTitle(title, 25))
 			if format == "tsv" {
 				fmt.Println(strings.Join(row, "\t"))
 			} else {
@@ -281,13 +284,13 @@ var milestoneReportCmd = &cobra.Command{
 			}
 			sort.Slice(rows, func(i, j int) bool {
 				if key == "name" {
-					pi := plainForSort(rows[i].Project)
-					pj := plainForSort(rows[j].Project)
+					pi := util.PlainForSort(rows[i].Project)
+					pj := util.PlainForSort(rows[j].Project)
 					if pi != pj {
 						return pi < pj
 					}
-					si := plainForSort(rows[i].Status)
-					sj := plainForSort(rows[j].Status)
+					si := util.PlainForSort(rows[i].Status)
+					sj := util.PlainForSort(rows[j].Status)
 					if si != sj {
 						return si < sj
 					}
@@ -299,13 +302,13 @@ var milestoneReportCmd = &cobra.Command{
 				if rows[i].Count != rows[j].Count {
 					return rows[i].Count < rows[j].Count
 				}
-				pi := plainForSort(rows[i].Project)
-				pj := plainForSort(rows[j].Project)
+				pi := util.PlainForSort(rows[i].Project)
+				pj := util.PlainForSort(rows[j].Project)
 				if pi != pj {
 					return pi < pj
 				}
-				si := plainForSort(rows[i].Status)
-				sj := plainForSort(rows[j].Status)
+				si := util.PlainForSort(rows[i].Status)
+				sj := util.PlainForSort(rows[j].Status)
 				if si != sj {
 					return si < sj
 				}
@@ -320,8 +323,8 @@ var milestoneReportCmd = &cobra.Command{
 					proj := r.Project
 					stat := r.Status
 					if milestoneStripEmojis {
-						proj = stripEmojis(proj)
-						stat = stripEmojis(stat)
+						proj = util.StripEmojis(proj)
+						stat = util.StripEmojis(stat)
 					}
 					fmt.Println(strings.Join([]string{proj, stat, fmt.Sprintf("%d", r.Count)}, "\t"))
 				}
@@ -334,8 +337,8 @@ var milestoneReportCmd = &cobra.Command{
 					proj := r.Project
 					stat := r.Status
 					if milestoneStripEmojis {
-						proj = stripEmojis(proj)
-						stat = stripEmojis(stat)
+						proj = util.StripEmojis(proj)
+						stat = util.StripEmojis(stat)
 					}
 					fmt.Printf("| %s | %s | %d |\n", proj, stat, r.Count)
 				}
@@ -345,53 +348,53 @@ var milestoneReportCmd = &cobra.Command{
 	},
 }
 
+// milestoneViewCmd shows the interactive issues UI populated by issues tied to a given milestone
+var milestoneViewCmd = &cobra.Command{
+	Use:   "view <milestone-id-or-title>",
+	Short: "Interactive view of issues in a milestone",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ident := strings.TrimSpace(args[0])
+		if ident == "" {
+			return fmt.Errorf("milestone identifier is required")
+		}
+
+		// Resolve to milestone title: accept numeric id or title directly
+		title := ident
+		if n, err := strconv.Atoi(ident); err == nil {
+			// Look up milestone by number across open+closed
+			miles, lerr := ghapi.ListRepoMilestones(true)
+			if lerr != nil {
+				return fmt.Errorf("failed to list milestones: %v", lerr)
+			}
+			found := ""
+			for _, m := range miles {
+				if m.Number == n {
+					found = m.Title
+					break
+				}
+			}
+			if found == "" {
+				return fmt.Errorf("milestone #%d not found", n)
+			}
+			title = found
+		}
+
+		// Run the TUI with milestone mode so we can enforce limit and warn when overflow
+		lim, _ := cmd.Flags().GetInt("limit")
+		tui.RunTUI(tui.MilestoneCommand, 0, lim, title)
+		return nil
+	},
+}
+
 func init() {
 	milestoneCmd.AddCommand(milestoneReportCmd)
+	milestoneCmd.AddCommand(milestoneViewCmd)
+	milestoneViewCmd.Flags().Int("limit", 300, "Maximum number of issues to fetch for the milestone (shows warning if more exist)")
 	milestoneReportCmd.Flags().StringVar(&milestoneFormat, "format", "tsv", "Output format: tsv (default) or md")
 	milestoneReportCmd.Flags().BoolVar(&milestoneStripEmojis, "strip-emojis", false, "Strip emojis from project titles and statuses")
 	milestoneReportCmd.Flags().StringVar(&milestoneSummarySort, "summary-sort", "count", "Summary sort: count (default) or name")
 	milestoneReportCmd.Flags().BoolVar(&milestoneIncludeClosed, "include-closed", false, "Include closed milestones when listing available milestones")
 	milestoneReportCmd.Flags().StringVar(&milestoneIgnoreProject, "ignore-project", "", "Comma-separated substrings to exclude matching project titles (case-insensitive). Example: 'qa,cust' excludes ':help-qa', ':help-customers', and 'Customer requests (open)'.")
 	milestoneReportCmd.Flags().StringVar(&milestoneFilterLabels, "filter-labels", "", "Comma-separated list of labels; only issues containing ALL of these labels are included (case-insensitive). Example: 'story,customer-numa'.")
-}
-
-// stripEmojis removes common emoji and pictographic characters from a string,
-// including variation selectors and zero-width joiners, leaving readable text.
-func stripEmojis(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		// Skip variation selector and zero-width joiners/spaces
-		if r == 0xFE0F || r == 0x200D || r == 0x200C || r == 0x200B {
-			continue
-		}
-		// Common emoji blocks and symbols/pictographs
-		if (r >= 0x1F300 && r <= 0x1FAFF) || // Misc symbols & pictographs to Supplemental symbols
-			(r >= 0x2600 && r <= 0x27BF) { // Misc symbols + Dingbats
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return strings.TrimSpace(b.String())
-}
-
-// plainForSort returns a simplified string without emojis, lowercased, for consistent sorting
-func plainForSort(s string) string {
-	return strings.ToLower(stripEmojis(s))
-}
-
-// truncateTitle truncates a string to maxRunes characters (by rune count) and appends
-// "..." if the original was longer. The ellipsis is not counted toward maxRunes.
-func truncateTitle(s string, maxRunes int) string {
-	if maxRunes <= 0 {
-		return ""
-	}
-	count := 0
-	for idx := range s {
-		if count == maxRunes {
-			// idx is byte index at rune boundary for the first runes
-			return s[:idx] + "..."
-		}
-		count++
-	}
-	return s
 }

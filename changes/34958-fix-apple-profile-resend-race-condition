@@ -1,1 +1,0 @@
-* Fixed a race condition when resending Apple Profiles that would not truly resend the latest profile

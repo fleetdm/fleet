@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -28,6 +29,9 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
 		WHERE certificate_templates.id = ?
 	`, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
 	}
 
@@ -269,13 +273,12 @@ func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID s
 
 	stmt := `
 SELECT
-	ct.name,
-	hct.status,
-	hct.detail,
-	hct.operation_type
-FROM host_certificate_templates hct
-	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
-WHERE hct.host_uuid = ?`
+	name,
+	status,
+	detail,
+	operation_type
+FROM host_certificate_templates
+WHERE host_uuid = ?`
 
 	var hTemplates []fleet.HostCertificateTemplate
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hTemplates, stmt, hostUUID); err != nil {
@@ -298,16 +301,19 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 			certificate_template_id,
 			fleet_challenge,
 			status,
-			operation_type
+			operation_type,
+			name
 		)
 		SELECT
 			hosts.uuid,
-			?,
+			ct.id,
 			NULL,
 			'%s',
-			'%s'
+			'%s',
+			ct.name
 		FROM hosts
 		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
+		INNER JOIN certificate_templates ct ON ct.id = ?
 		WHERE
 			(hosts.team_id = ? OR (? = 0 AND hosts.team_id IS NULL)) AND
 			hosts.platform = '%s' AND
@@ -334,13 +340,15 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 			host_uuid,
 			certificate_template_id,
 			status,
-			operation_type
+			operation_type,
+			name
 		)
 		SELECT
 			?,
 			id,
 			'%s',
-			'%s'
+			'%s',
+			name
 		FROM certificate_templates
 		WHERE team_id = ?
 		ON DUPLICATE KEY UPDATE host_uuid = host_uuid

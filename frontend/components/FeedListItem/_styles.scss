@@ -136,7 +136,7 @@
    * We switch from grid to flexbox since we don't need the solid lines anymore.
    * we also dont show to actions on hover
    */
-  &__solo-activity {
+  &__solo-item {
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius-large;
     padding: $pad-medium;

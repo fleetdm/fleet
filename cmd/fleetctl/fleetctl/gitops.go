@@ -423,7 +423,7 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
-							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)
+							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
 						} else {
 							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting team %s\n", team.Name)
 							if err := fleetClient.DeleteTeam(team.ID); err != nil {
