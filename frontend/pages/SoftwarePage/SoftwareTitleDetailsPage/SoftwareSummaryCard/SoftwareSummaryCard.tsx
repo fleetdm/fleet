@@ -51,6 +51,10 @@ const SoftwareSummaryCard = ({
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
+  const [
+    showEditAutoUpdateConfigModal,
+    setShowEditAutoUpdateConfigModal,
+  ] = useState(false);
 
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
   // software installed
@@ -109,9 +113,17 @@ const SoftwareSummaryCard = ({
 
   const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
 
+  const canEditAutoUpdateConfig =
+    softwareTitle.app_store_app &&
+    (softwareTitle.app_store_app.platform === "ios" ||
+      softwareTitle.app_store_app.platform === "ipados") &&
+    canManageSoftware;
+
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
+  const onClickEditAutoUpdateConfig = () =>
+    setShowEditAutoUpdateConfigModal(true);
 
   return (
     <>
@@ -139,6 +151,9 @@ const SoftwareSummaryCard = ({
           }
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
+          }
+          onClickEditAutoUpdateConfig={
+            canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
         />
         {showVersionsTable && (

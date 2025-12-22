@@ -36,7 +36,8 @@ const buildActionOptions = (
   gitOpsModeEnabled: boolean | undefined,
   repoURL: string | undefined,
   source: string | undefined,
-  androidSoftwareAvailableForInstall: boolean
+  androidSoftwareAvailableForInstall: boolean,
+  canConfigureAutoUpdate: boolean
 ): CustomOptionType[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
@@ -83,6 +84,13 @@ const buildActionOptions = (
     });
   }
 
+  if (canConfigureAutoUpdate) {
+    options.push({
+      label: "Schedule auto updates",
+      value: "edit_auto_update_configuration",
+    });
+  }
+
   return options;
 };
 
@@ -117,6 +125,7 @@ interface ISoftwareDetailsSummaryProps {
   /** Displays an edit CTA to edit the software's icon
    * Should only be defined for team view of an installable software */
   onClickEditConfiguration?: () => void;
+  onClickEditAutoUpdateConfig?: () => void;
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
@@ -137,6 +146,7 @@ const SoftwareDetailsSummary = ({
   onClickEditAppearance,
   onClickEditSoftware,
   onClickEditConfiguration,
+  onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
 }: ISoftwareDetailsSummaryProps) => {
@@ -158,6 +168,9 @@ const SoftwareDetailsSummary = ({
         break;
       case "edit_configuration":
         onClickEditConfiguration && onClickEditConfiguration();
+        break;
+      case "edit_auto_update_configuration":
+        onClickEditAutoUpdateConfig && onClickEditAutoUpdateConfig();
         break;
       default:
     }
@@ -197,7 +210,8 @@ const SoftwareDetailsSummary = ({
     gitOpsModeEnabled,
     repoURL,
     source,
-    !!onClickEditConfiguration
+    !!onClickEditConfiguration,
+    !!onClickEditAutoUpdateConfig
   );
 
   return (
