@@ -1,6 +1,5 @@
 # **6 business benefits of Apple MDM, explained** 
 
-![](https://flow-media-files.s3.us-west-1.amazonaws.com/article-template-variables/fleet/1764349420545-variation-1.png)
 
 The Apple [Mobile Device Management](https://support.apple.com/guide/deployment/intro-to-apple-platform-deployment-dep2c1b2a43a/web) (MDM) protocol provides remote management capabilities organizations need to configure and secure Apple devices like Macs, iPhones, iPads, Apple TV and even Apple Watch. Combined with Apple Business Manager or Apple School Manager (ABM / ASM) organizations can achieve scalable zero-touch enrollment, automated provisioning and comprehensive security enforcement resulting in fast, simplified device deployment across distributed workforces.
 
