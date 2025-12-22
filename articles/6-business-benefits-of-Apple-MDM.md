@@ -3,7 +3,7 @@
 
 The Apple [Mobile Device Management](https://support.apple.com/guide/deployment/intro-to-apple-platform-deployment-dep2c1b2a43a/web) (MDM) protocol provides remote management capabilities organizations need to configure and secure Apple devices like Macs, iPhones, iPads, Apple TV and even Apple Watch. Combined with Apple Business Manager or Apple School Manager (ABM / ASM) organizations can achieve scalable zero-touch enrollment, automated provisioning and comprehensive security enforcement resulting in fast, simplified device deployment across distributed workforces.
 
-## **What is Apple Mobile Device Management (MDM)?**
+## What is Apple Mobile Device Management (MDM)?
 
 The [MDM](https://fleetdm.com/device-management) protocol is built into Apple's operating systems. It allows organizations deploying institutionally-owned Apple devices to unlock management that is unavailable on personally-owned devices, allows for enrollment and management of employee-owned devices, often referred to as "Bring Your Own Device" (BYOD), and shared devices.
 
