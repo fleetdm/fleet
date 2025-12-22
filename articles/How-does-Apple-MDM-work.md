@@ -1,8 +1,8 @@
-# **How does Apple MDM work?**
+# How does Apple MDM work?
 
 IT administrators managing Apple device fleets face a persistent challenge: maintaining security and consistency across devices distributed throughout networks without constant manual intervention. Legacy device management required physical access or VPN connections, creating bottlenecks that couldn't scale as organizations adopted remote work and distributed teams. This guide covers how Apple's MDM protocol works and the enrollment methods that determine management capabilities.
 
-## **What is Apple MDM and why does it matter?**
+## What is Apple MDM and why does it matter?
 
 Apple's Mobile Device Management (MDM) lets IT teams remotely configure, secure, and monitor iOS, iPadOS, macOS, tvOS, and visionOS devices using encrypted HTTPS connections and certificate-based authentication for enrollment and security. When devices enroll in MDM, they establish a trusted relationship with management servers through digital certificates, enabling remote policy enforcement without requiring physical access to the hardware.
 
@@ -10,19 +10,19 @@ The protocol operates through Apple Push Notification service (APNs) as its comm
 
 MDM provides centralized control over device configurations, application deployment, security restrictions, and compliance enforcement at scale. Organizations use MDM to enforce encryption requirements, distribute certificates, configure network access, manage software updates, and remotely wipe lost or stolen devices. The framework supports both institutionally-owned devices requiring full organizational control and personally-owned devices with privacy-preserving management boundaries.
 
-## **How Apple MDM works**
+## How Apple MDM works
 
 Apple's MDM protocol combines APNs infrastructure, certificate-based authentication, and plist-formatted configuration payloads to enable remote device management. The architecture, frameworks, and certificate trust models determine how effectively organizations can implement MDM across their fleets.
 
-### **The client-server architecture and APNs**
+### The client-server architecture and APNs
 
 Apple MDM deployments require two core infrastructure pieces: APNs and an MDM server. Additional tools like Apple Business Manager [enable automation](https://fleetdm.com/guides/apple-mdm-setup) but remain optional depending on your deployment workflow. APNs maintains persistent communication with Apple devices across networks, enabling MDM servers to send remote commands and receive device responses.
 
-The communication flow starts when your MDM server sends push notifications through APNs using TCP port 443 or 2197\. APNs delivers these lightweight notifications to devices, which then initiate outbound HTTPS connections to the MDM server's check-in URL. Devices fetch pending commands, execute them locally, and return response payloads in plist format, which means devices always initiate connections rather than waiting for servers to reach them. This outbound-only architecture eliminates the firewall and NAT traversal problems that plagued earlier remote management approaches.
+The communication flow starts when your MDM server sends push notifications through APNs using TCP port 443 or 2197. APNs delivers these lightweight notifications to devices, which then initiate outbound HTTPS connections to the MDM server's check-in URL. Devices fetch pending commands, execute them locally, and return response payloads in plist format, which means devices always initiate connections rather than waiting for servers to reach them. This outbound-only architecture eliminates the firewall and NAT traversal problems that plagued earlier remote management approaches.
 
 You'll need to configure firewalls and web proxies to allow network traffic from Apple devices to Apple's infrastructure. The APNs certificate requires annual renewal using the same Managed Apple Account or Apple Account that created it. If certificates expire, devices can't receive management commands until you renew them with the original account credentials.
 
-### **Built-in MDM framework vs. third-party agents**
+### Built-in MDM framework vs. third-party agents
 
 Apple devices include native MDM framework capabilities built into iOS, iPadOS, macOS, tvOS, and visionOS at the operating system level. This built-in framework operates through APNs as its communication backbone, meaning administrators don't need to install separate management agents before enrolling devices.
 
@@ -35,7 +35,7 @@ The MDM framework handles core management functions without requiring third-part
 
 Configuration profiles provide remote device management capabilities that aren't available through standard applications. These XML-based profiles use Cryptographic Message Syntax (CMS) encryption as specified in RFC 5652, supporting both 3DES and AES128 algorithms for secure transmission. When MDM servers push profiles to devices, the devices verify integrity through cryptographic validation, apply the settings, and confirm successful installation back to MDM servers through APNs.
 
-### **Certificates and identity trust**
+### Certificates and identity trust
 
 Certificate architecture establishes the trust chain that enables MDM to function securely. The APNs certificate authenticates your MDM server to Apple's infrastructure for push notifications and requires annual renewal through a Managed Apple Account or Apple Account. Device identity certificates prove device authenticity during enrollment and server connections, with optional certificate pinning for enhanced validation against your MDM server's check-in URL.
 
@@ -43,11 +43,11 @@ Beyond core MDM authentication, you can distribute internal root certificates to
 
 On supervised iOS and iPadOS devices, certificate hygiene policies can prevent users from manually adding untrusted certificates to device trust stores. This maintains centralized control over which certificate authorities your devices trust while ensuring enterprise-issued certificates deploy consistently.
 
-## **Apple MDM enrollment methods explained**
+## Apple MDM enrollment methods explained
 
 Apple provides three primary enrollment approaches, each with distinct technical capabilities and management scope:
 
-### **Automated Device Enrollment (ADE) via Apple Business Manager**
+### Automated Device Enrollment (ADE) via Apple Business Manager
 
 Automated Device Enrollment provides the most comprehensive control for institutionally-owned devices. ADE requires devices to be purchased through Apple or authorized resellers and assigned through Apple Business Manager or Apple School Manager before the device reaches the end user. When users turn on an ADE-enrolled device for the first time, it automatically contacts Apple's servers during Setup Assistant, downloads the [MDM enrollment profile](https://fleetdm.com/guides/sysadmin-diaries-device-enrollment), and enrolls without requiring manual profile installation.
 
@@ -59,7 +59,7 @@ ADE enables several important capabilities, particularly for iOS, iPadOS, macOS,
 
 For remote deployments, ADE enables [zero-touch provisioning](https://fleetdm.com/guides/setup-experience#end-user-authentication) where devices ship directly to users and automatically configure themselves when powered on.
 
-### **Device Enrollment (Profile-based manual enrollment)**
+### Device Enrollment (Profile-based manual enrollment)
 
 Profile-Based Device Enrollment, available since iOS 4.3, involves manual installation of an MDM profile through email, web download, or Apple Configurator. This method doesn't require Apple Business Manager infrastructure, making it accessible for organizations not ready to implement ABM. Users initiate enrollment by downloading and installing the MDM profile, then approving the management relationship on their device.
 
@@ -73,11 +73,11 @@ The enrollment process requires user cooperation and technical understanding, ma
 
 Profile-based User Enrollment is no longer supported on iOS 18 and iPadOS 18; use Account-Driven User Enrollment instead.
 
-## **MDM capabilities and remote management**
+## MDM capabilities and remote management
 
 Once devices enroll in MDM, administrators gain remote control over configurations, security policies, and device lifecycle management:
 
-### **Remote security commands and lifecycle management**
+### Remote security commands and lifecycle management
 
 Organizations can execute specific [management commands](https://fleetdm.com/guides/mdm-commands) remotely without requiring physical device access:
 
@@ -89,7 +89,7 @@ Device lifecycle management extends beyond security responses. Administrators ca
 
 Configuration profile management lets teams install, update, or remove profiles remotely as security requirements evolve. Passcode management capabilities include enforcing minimum complexity requirements, setting maximum passcode age, and requiring passcode changes on supervised devices.
 
-### **Managing software updates and OS version enforcement**
+### Managing software updates and OS version enforcement
 
 You can set minimum OS version requirements that define which versions remain compliant in your environment. When devices fall below the threshold, MDM marks them as non-compliant for conditional access policies, triggering compliance workflows rather than automatic updates. You'll need to configure OS update deadlines separately to enable coordinated enforcement across your fleet.
 
@@ -97,7 +97,7 @@ For supervised devices, you can configure enforcement policies that require user
 
 Both macOS and iOS/iPadOS support update deferral policies and can enforce minimum OS version requirements through MDM configuration profiles. On macOS, volume owners and administrators can defer updates; on iOS/iPadOS, devices must follow MDM-enforced update policies regardless of user status.
 
-### **Application distribution (VPP) and Custom Apps**
+### Application distribution (VPP) and Custom Apps
 
 [Volume Purchase Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp) through Apple Business Manager provides the enterprise-standard mechanism for application deployment at scale. The platform offers two key capabilities that simplify app management:
 
@@ -106,7 +106,7 @@ Both macOS and iOS/iPadOS support update deferral policies and can enforce minim
 
 These automated workflows eliminate the manual app management and Apple ID dependencies that featured in legacy deployment approaches.
 
-## **Declarative Device Management**
+## Declarative Device Management
 
 Apple introduced Declarative Device Management (DDM) as the next evolution of the MDM protocol, fundamentally changing how devices receive and apply management policies. Legacy MDM operates on synchronous command-response patterns where servers send commands and wait for devices to execute and report back. DDM shifts to an event-driven model where your devices receive declarations describing desired states and autonomously maintain compliance, even when offline or disconnected from your MDM server.
 
@@ -117,33 +117,33 @@ This architectural change provides significant advantages:
 
 Declarative Device Management (DDM) represents Apple's modern approach to device management, enabling more efficient policy application across iOS, iPadOS, macOS, tvOS, and visionOS devices.
 
-## **Open-source Apple device management**
+## Open-source Apple device management
 
 Understanding how Apple's MDM protocol works helps you evaluate platforms that fit your infrastructure and security requirements. The certificate architecture, enrollment methods, and APNs communication patterns described above apply regardless of which MDM vendor you choose, but implementation quality and operational flexibility vary significantly between platforms.
 
 Fleet combines native Apple MDM with cross-platform endpoint visibility through osquery, giving you GitOps workflows, REST API access, and complete transparency into how device management works. Unlike proprietary MDM tools, Fleet's open-source codebase lets you inspect exactly how certificates are handled, how commands are processed, and how device data is collected. [Schedule a demo](https://fleetdm.com/try-fleet) to see how open-source device management handles Apple devices alongside your Windows, Linux, and ChromeOS fleet.
 
-## **Frequently asked questions**
+## Frequently asked questions
 
-### **Is Apple Business Manager the same as an MDM?**
+### Is Apple Business Manager the same as an MDM?
 
 No, Apple Business Manager (ABM) and MDM are complementary but distinct tools. ABM handles zero-touch enrollment configuration, device assignment, Managed Apple Account provisioning, and app licensing. MDM provides day-to-day device management through configuration profiles, security policies, and application distribution. ABM and MDM work together through server token integration but serve different purposes in your device management architecture.
 
-### **What can MDM see on a BYOD iPhone through User Enrollment?**
+### What can MDM see on a BYOD iPhone through User Enrollment?
 
 On devices enrolled through User Enrollment (profile-based or account-driven), MDM implements cryptographic separation between managed and personal partitions. This enrollment method is designed for BYOD scenarios and requires a Managed Apple Account through Apple Business Manager. MDM can't access personal apps, photos, messages, browsing history, or device location: management scope extends only to work-related apps and corporate data. Company-owned devices enrolled through Automated Device Enrollment don't implement these privacy barriers and enable full visibility.
 
-### **What happens when an MDM profile is removed?**
+### What happens when an MDM profile is removed?
 
 When users remove an MDM profile, the device immediately loses all management capabilities. Configuration profiles, VPN and Wi-Fi configurations disappear, restrictions lift, and managed apps may become inaccessible. The device stops checking in with your MDM server and no longer receives policy updates. However, on devices enrolled through Automated Device Enrollment (ADE), users can't remove the MDM profile without factory resetting the device, ensuring persistent management for company-owned hardware.
 
-### **Does Apple MDM support non-Apple devices?**
+### Does Apple MDM support non-Apple devices?
 
 Apple's MDM protocol works exclusively with iOS, iPadOS, macOS, tvOS, and visionOS devices. Android, Windows, Linux, and ChromeOS require different management protocols. Organizations managing mixed fleets need either multiple platform-specific solutions or a unified platform that handles multiple protocols. Fleet provides native Apple MDM alongside osquery-based management for Windows, Linux, and ChromeOS, giving you [unified device visibility](https://fleetdm.com/device-management) across your entire fleet.
 
-<meta name="articleTitle" value="How Does Apple MDM Work? 2025 Guide to Apple Device Management">
+<meta name="articleTitle" value="How does Apple MDM work? 2025 guide to Apple Device Management">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
-<meta name="category" value="GUIDES">
+<meta name="category" value="articles">
 <meta name="publishedOn" value="2025-12-19">
 <meta name="description" value="Learn how Apple MDM works: APNs communication, certificate trust models, enrollment methods (ADE, Profile-based, User Enrollment), and remote device management capabilities.">
