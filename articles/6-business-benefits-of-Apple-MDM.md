@@ -117,7 +117,7 @@ Role-based app assignment can take this further by ensuring employees have the t
 
 Employees think about their work rather than fighting with the device that been issued to them while IT works on strategy, configuration and systemic improvement instead of manual 1-off tasks.
 
-## **Getting started with Apple MDM**
+## Getting started with Apple MDM
 
 [Fleet](https://fleetdm.com/device-management) provides enterprise-grade MDM with API-first architecture, real-time device reporting, and cross-platform support for Mac, Windows, and Linux. It also integrates with Apple Business Manager for zero-touch deployment while maintaining complete data transparency. [Schedule a demo](https://fleetdm.com/contact) to see how open device management works without vendor lock-in.
 
