@@ -1029,7 +1029,7 @@ func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
 func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	t.Run("deletes pending rows and updates others to pending remove", func(t *testing.T) {
+	t.Run("deletes pending and failed rows and updates others to pending remove", func(t *testing.T) {
 		defer TruncateTables(t, ds)
 		setup := createCertTemplateTestSetup(t, ctx, ds, "")
 
@@ -1058,7 +1058,13 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 		require.NoError(t, err)
 		require.Equal(t, 0, count)
 
-		// Verify remaining rows have status=pending and operation_type=remove
+		// Verify the failed row was also deleted
+		err = ds.writer(ctx).GetContext(ctx, &count,
+			"SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?", "host-failed")
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+
+		// Verify remaining rows (delivered, verified) have status=pending and operation_type=remove
 		var remaining []struct {
 			HostUUID      string                 `db:"host_uuid"`
 			Status        string                 `db:"status"`
@@ -1067,7 +1073,7 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 		err = ds.writer(ctx).SelectContext(ctx, &remaining,
 			"SELECT host_uuid, status, operation_type FROM host_certificate_templates ORDER BY host_uuid")
 		require.NoError(t, err)
-		require.Len(t, remaining, 3)
+		require.Len(t, remaining, 2)
 
 		for _, r := range remaining {
 			require.Equal(t, string(fleet.CertificateTemplatePending), r.Status)
@@ -1136,10 +1142,10 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 func testSetHostCertificateTemplatesToPendingRemoveForHost(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	t.Run("deletes pending installs and updates others to pending remove for specific host", func(t *testing.T) {
+	t.Run("deletes pending and failed installs, updates other installs, leaves removes unchanged", func(t *testing.T) {
 		setup := createCertTemplateTestSetup(t, ctx, ds, "")
 
-		// Create a second template
+		// Create additional templates
 		templateTwo, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
 			Name:                   "Cert2",
 			TeamID:                 setup.team.ID,
@@ -1148,15 +1154,35 @@ func testSetHostCertificateTemplatesToPendingRemoveForHost(t *testing.T, ds *Dat
 		})
 		require.NoError(t, err)
 
+		templateThree, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert3",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test3",
+		})
+		require.NoError(t, err)
+
+		templateFour, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert4",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test4",
+		})
+		require.NoError(t, err)
+
 		// Insert records for host-1 (the target host) and host-2 (should not be affected)
 		_, err = ds.writer(ctx).ExecContext(ctx, `
 			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
 			(?, ?, ?, ?, ?, ?),
 			(?, ?, ?, ?, ?, ?),
 			(?, ?, ?, ?, ?, ?)
 		`,
 			"host-1", setup.template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, nil, setup.template.Name,
 			"host-1", templateTwo.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", templateTwo.Name,
+			"host-1", templateThree.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall, nil, templateThree.Name,
+			"host-1", templateFour.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeRemove, nil, templateFour.Name,
 			"host-2", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge2", setup.template.Name,
 		)
 		require.NoError(t, err)
@@ -1173,7 +1199,14 @@ func testSetHostCertificateTemplatesToPendingRemoveForHost(t *testing.T, ds *Dat
 		require.NoError(t, err)
 		require.Equal(t, 0, count, "pending install should be deleted")
 
-		// Verify host-1's delivered template was updated to pending remove
+		// Verify host-1's failed install was also deleted
+		err = ds.writer(ctx).GetContext(ctx, &count,
+			"SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			"host-1", templateThree.ID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "failed install should be deleted")
+
+		// Verify host-1's delivered install was updated to pending remove
 		var row struct {
 			Status        string                 `db:"status"`
 			OperationType fleet.MDMOperationType `db:"operation_type"`
@@ -1184,6 +1217,14 @@ func testSetHostCertificateTemplatesToPendingRemoveForHost(t *testing.T, ds *Dat
 		require.NoError(t, err)
 		require.Equal(t, string(fleet.CertificateTemplatePending), row.Status)
 		require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType)
+
+		// Verify host-1's delivering remove was NOT changed (removal in progress)
+		err = ds.writer(ctx).GetContext(ctx, &row,
+			"SELECT status, operation_type FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			"host-1", templateFour.ID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.CertificateTemplateDelivering), row.Status, "remove operation should not change status")
+		require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType, "remove operation should stay as remove")
 
 		// Verify host-2 was NOT affected
 		err = ds.writer(ctx).GetContext(ctx, &row,
