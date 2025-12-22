@@ -4665,7 +4665,6 @@ func ReconcileAppleProfiles(
 						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
 				}
 
-				fmt.Println("Skipping empty user enrollment", p.ProfileIdentifier, p.HostUUID)
 
 				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
