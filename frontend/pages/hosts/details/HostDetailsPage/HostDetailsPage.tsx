@@ -138,7 +138,7 @@ const baseClass = "host-details";
 
 const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
-const doubleHeightCardClass = `${baseClass}__card--double-height`;
+const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
 const BYOD_SW_INSTALL_LEARN_MORE_LINK =
@@ -1298,28 +1298,11 @@ Observer plus must be checked against host's team id  */
                     host.platform
                   )}
                 />
-                <UserCard
-                  className={defaultCardClass}
-                  endUsers={host.end_users ?? []}
-                  canWriteEndUser={
-                    isTeamMaintainerOrTeamAdmin ||
-                    isGlobalAdmin ||
-                    isGlobalMaintainer
-                  }
-                  onClickUpdateUser={(
-                    e:
-                      | React.MouseEvent<HTMLButtonElement>
-                      | React.KeyboardEvent<HTMLButtonElement>
-                  ) => {
-                    e.preventDefault();
-                    setShowUpdateEndUserModal(true);
-                  }}
-                />
                 {showActivityCard && (
                   <ActivityCard
                     className={
                       showAgentOptionsCard
-                        ? doubleHeightCardClass
+                        ? tripleHeightCardClass
                         : defaultCardClass
                     }
                     activeTab={activeActivityTab}
@@ -1377,6 +1360,23 @@ Observer plus must be checked against host's team id  */
                     onCancel={onCancelActivity}
                   />
                 )}
+                <UserCard
+                  className={defaultCardClass}
+                  endUsers={host.end_users ?? []}
+                  canWriteEndUser={
+                    isTeamMaintainerOrTeamAdmin ||
+                    isGlobalAdmin ||
+                    isGlobalMaintainer
+                  }
+                  onClickUpdateUser={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    setShowUpdateEndUserModal(true);
+                  }}
+                />
                 {showAgentOptionsCard && (
                   <AgentOptionsCard
                     className={defaultCardClass}

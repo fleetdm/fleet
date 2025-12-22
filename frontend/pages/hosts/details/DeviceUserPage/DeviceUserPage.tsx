@@ -745,12 +745,12 @@ const DeviceUserPage = ({
                   osSettings={host?.mdm.os_settings}
                 />
                 <VitalsCard
-                  className={defaultCardClass}
+                  className={fullWidthCardClass}
                   vitalsData={vitalsData}
                   munki={deviceMacAdminsData?.munki}
                 />
                 <UserCard
-                  className={defaultCardClass}
+                  className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
                   disableFullNameTooltip
