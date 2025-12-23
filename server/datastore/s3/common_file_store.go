@@ -20,8 +20,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const signedURLExpiresIn = 6 * time.Hour
-
 // commonFileStore implements the common Get, Put, Exists, Sign and Cleanup
 // operations typical for storage of files in the SoftwareInstallers S3 bucket
 // configuration. It is used by the SoftwareInstallerStore and the
