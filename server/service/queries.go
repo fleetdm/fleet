@@ -281,14 +281,17 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, p.LabelsIncludeAny); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	query := &fleet.Query{Saved: true, TeamID: p.TeamID}
+
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		query.AuthorID = ptr.Uint(vc.UserID())
+		query.AuthorName = vc.FullName()
+		query.AuthorEmail = vc.Email()
 	}
 
-	query := &fleet.Query{
-		Saved: true,
-
-		TeamID: p.TeamID,
+	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, p.LabelsIncludeAny, vc.User); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	if p.Name != nil {
@@ -330,13 +333,6 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
-
-	vc, ok := viewer.FromContext(ctx)
-	if ok {
-		query.AuthorID = ptr.Uint(vc.UserID())
-		query.AuthorName = vc.FullName()
-		query.AuthorEmail = vc.Email()
-	}
 
 	query, err := svc.ds.NewQuery(ctx, query)
 	if err != nil {
@@ -422,7 +418,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 
 	// We use query.TeamID because we do not allow changing the team
-	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, p.LabelsIncludeAny); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, p.LabelsIncludeAny, authz.UserFromContext(ctx)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 

@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -825,7 +826,7 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 		}
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 

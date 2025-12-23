@@ -1850,7 +1850,7 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 	// NOTE(lucas): To not break API error string returned above
 	// AND for code reusability we are a-ok with loading labels again in verifyLabelsToAssociate.
 	// This can definitely be optimized if need be.
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
