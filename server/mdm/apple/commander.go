@@ -466,6 +466,25 @@ func (svc *MDMAppleCommander) CertificateList(ctx context.Context, hostUUIDs []s
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
+func (svc *MDMAppleCommander) DeviceLocation(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>DeviceLocation</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>
+`, cmdUUID)
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
 // EnqueueCommand takes care of enqueuing the commands and sending push
 // notifications to the devices.
 //
