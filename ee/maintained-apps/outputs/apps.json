@@ -1395,6 +1395,13 @@
       "description": "Spotify is a music streaming app."
     },
     {
+      "name": "Spotify",
+      "slug": "spotify/windows",
+      "platform": "windows",
+      "unique_identifier": "Spotify",
+      "description": "Spotify is a music streaming app."
+    },
+    {
       "name": "Stats",
       "slug": "stats/darwin",
       "platform": "darwin",
