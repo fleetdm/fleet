@@ -690,7 +690,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 
 	// If built-in labels have been provided, ensure that they are not attempted to be modified
 	if len(builtInSpecs) > 0 {
-		labelMap, err := svc.ds.LabelsByName(ctx, builtInSpecNames)
+		labelMap, err := svc.ds.LabelsByName(ctx, builtInSpecNames, fleet.TeamFilter{}) // built-in labels are all global
 		if err != nil {
 			return err
 		}

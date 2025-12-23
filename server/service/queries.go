@@ -854,7 +854,12 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 	// Find labels by name
 	var queryLabels []fleet.LabelIdent
 	if len(spec.LabelsIncludeAny) > 0 {
-		labelsMap, err := svc.ds.LabelsByName(ctx, spec.LabelsIncludeAny)
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, fleet.ErrNoContext
+		}
+
+		labelsMap, err := svc.ds.LabelsByName(ctx, spec.LabelsIncludeAny, fleet.TeamFilter{User: vc.User, TeamID: teamID})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get labels by name")
 		}

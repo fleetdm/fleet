@@ -840,7 +840,7 @@ func testLabelsByName(t *testing.T, ds *Datastore) {
 	setupLabelSpecsTest(t, ds)
 
 	names := []string{"foo", "bar", "bing"}
-	labels, err := ds.LabelsByName(context.Background(), names)
+	labels, err := ds.LabelsByName(context.Background(), names, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labels, 3)
 	for _, name := range names {
@@ -2245,7 +2245,7 @@ func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Get the label ID
-	labels, err := ds.LabelsByName(ctx, []string{"platform_test_label"})
+	labels, err := ds.LabelsByName(ctx, []string{"platform_test_label"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	label := labels["platform_test_label"]
 	require.NotNil(t, label)

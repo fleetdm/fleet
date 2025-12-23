@@ -516,40 +516,49 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 // checkPolicySpecAuthorization verifies that the user is authorized to modify the
-// policies defined in the spec.
-func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) error {
+// policies defined in the spec, and returns a map from team names to team IDs if successful
+func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) (map[string]uint, error) {
 	checkGlobalPolicyAuth := false
+	var teamIDsByName map[string]uint
 	for _, policy := range policies {
 		if policy.Team != "" && policy.Team != "No team" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
 				// This is so that the proper HTTP status code is returned
 				svc.authz.SkipAuthorization(ctx)
-				return ctxerr.Wrap(ctx, err, "getting team by name")
+				return nil, ctxerr.Wrap(ctx, err, "getting team by name")
 			}
 			if err := svc.authz.Authorize(ctx, &fleet.Policy{
 				PolicyData: fleet.PolicyData{
 					TeamID: &team.ID,
 				},
 			}, fleet.ActionWrite); err != nil {
-				return err
+				return nil, err
 			}
+
+			teamIDsByName[policy.Team] = team.ID
 		} else {
 			checkGlobalPolicyAuth = true
 		}
 	}
 	if checkGlobalPolicyAuth {
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return teamIDsByName, nil
 }
 
 func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
 	// Check authorization first.
-	if err := svc.checkPolicySpecAuthorization(ctx, policies); err != nil {
+	teamIDsByName, err := svc.checkPolicySpecAuthorization(ctx, policies)
+	if err != nil {
 		return err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return errors.New("user must be authenticated to apply policies")
 	}
 
 	// After the authorization check, check the policy fields.
@@ -564,14 +573,19 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		labels := policy.LabelsIncludeAny
 		labels = append(labels, policy.LabelsExcludeAny...)
 		if len(labels) > 0 {
-			labelsMap, err := svc.ds.LabelsByName(ctx, labels)
+			var teamID *uint       // ensure labels specified exist and are global or on the same team as the policy
+			if policy.Team != "" { // if we get 0 as team ID, we'll pull only global labels, which is fine
+				teamID = ptr.Uint(teamIDsByName[policy.Team])
+			}
+
+			labelsMap, err := svc.ds.LabelsByName(ctx, labels, fleet.TeamFilter{User: vc.User, TeamID: teamID})
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting labels by name")
 			}
 			for _, label := range labels {
 				if _, ok := labelsMap[label]; !ok {
 					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-						Message: fmt.Sprintf("label %q does not exist", label),
+						Message: fmt.Sprintf("label %q does not exist, or cannot be applied to this policy", label),
 					})
 				}
 			}
@@ -586,10 +600,6 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		})
 	}
 
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return errors.New("user must be authenticated to apply policies")
-	}
 	if !license.IsPremium(ctx) {
 		for i := range policies {
 			policies[i].Critical = false
