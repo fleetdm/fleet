@@ -121,10 +121,10 @@ export const validateFormData = (
     isValid: true,
   };
   // If auto updates are not enabled, skip further validations.
-  if (!formData.enabled) {
-    return formValidation;
-  }
   Object.keys(FORM_VALIDATIONS).forEach((key) => {
+    if (!formData.enabled && key !== "targets") {
+      return;
+    }
     const objKey = key as keyof typeof FORM_VALIDATIONS;
     const failedValidation = FORM_VALIDATIONS[objKey].validations.find(
       (validation) => {
