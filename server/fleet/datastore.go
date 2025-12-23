@@ -236,10 +236,6 @@ type Datastore interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) ([]*Host, error)
 
-	// ListUniqueHostsInLabels returns a slice of all of the hosts in the given label IDs. A host will only appear once
-	// in the results even if it is in multiple of the provided labels.
-	ListUniqueHostsInLabels(ctx context.Context, filter TeamFilter, labels []uint) ([]*Host, error)
-
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
 	// LabelIDsByName retrieves the IDs associated with the given label names

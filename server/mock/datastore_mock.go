@@ -175,8 +175,6 @@ type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, 
 
 type ListHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type ListUniqueHostsInLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error)
-
 type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
 type LabelIDsByNameFunc func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error)
@@ -1933,9 +1931,6 @@ type DataStore struct {
 
 	ListHostsInLabelFunc        ListHostsInLabelFunc
 	ListHostsInLabelFuncInvoked bool
-
-	ListUniqueHostsInLabelsFunc        ListUniqueHostsInLabelsFunc
-	ListUniqueHostsInLabelsFuncInvoked bool
 
 	SearchLabelsFunc        SearchLabelsFunc
 	SearchLabelsFuncInvoked bool
@@ -4762,13 +4757,6 @@ func (s *DataStore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilte
 	s.ListHostsInLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostsInLabelFunc(ctx, filter, lid, opt)
-}
-
-func (s *DataStore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
-	s.mu.Lock()
-	s.ListUniqueHostsInLabelsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListUniqueHostsInLabelsFunc(ctx, filter, labels)
 }
 
 func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {

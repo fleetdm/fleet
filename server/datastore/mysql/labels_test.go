@@ -81,7 +81,6 @@ func TestLabels(t *testing.T) {
 		{"ListHostsInLabelAndTeamFilterDeferred", func(t *testing.T, ds *Datastore) { testLabelsListHostsInLabelAndTeamFilter(true, t, ds) }},
 		{"ListHostsInLabelAndTeamFilterNotDeferred", func(t *testing.T, ds *Datastore) { testLabelsListHostsInLabelAndTeamFilter(false, t, ds) }},
 		{"BuiltIn", testLabelsBuiltIn},
-		{"ListUniqueHostsInLabels", testLabelsListUniqueHostsInLabels},
 		{"ChangeDetails", testLabelsChangeDetails},
 		{"GetSpec", testLabelsGetSpec},
 		{"ApplySpecsRoundtrip", testLabelsApplySpecsRoundtrip},
@@ -589,119 +588,6 @@ func testLabelsBuiltIn(t *testing.T, db *Datastore) {
 	assert.Equal(t, 2, len(hits))
 	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[0].LabelType)
 	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[1].LabelType)
-}
-
-func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
-	hosts := make([]*fleet.Host, 4)
-	for i := range hosts {
-		h, err := db.NewHost(context.Background(), &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
-			NodeKey:         ptr.String(strconv.Itoa(i)),
-			UUID:            strconv.Itoa(i),
-			Hostname:        fmt.Sprintf("host_%d", i),
-		})
-		require.Nil(t, err)
-		hosts[i] = h
-	}
-
-	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-	require.NoError(t, db.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
-
-	l1 := fleet.LabelSpec{
-		ID:    1,
-		Name:  "label foo",
-		Query: "query1",
-	}
-	l2 := fleet.LabelSpec{
-		ID:    2,
-		Name:  "label bar",
-		Query: "query2",
-	}
-	require.NoError(t, db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2}))
-
-	for i := 0; i < 3; i++ {
-		err = db.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
-		assert.Nil(t, err)
-	}
-	// host 2 executes twice
-	for i := 2; i < len(hosts); i++ {
-		err = db.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now(), false)
-		assert.Nil(t, err)
-	}
-
-	filter := fleet.TeamFilter{User: test.UserAdmin}
-
-	uniqueHosts, err := db.ListUniqueHostsInLabels(context.Background(), filter, []uint{l1.ID, l2.ID})
-	assert.Nil(t, err)
-	assert.Equal(t, len(hosts), len(uniqueHosts))
-
-	labels, err := db.ListLabels(context.Background(), filter, fleet.ListOptions{}, true)
-	require.Nil(t, err)
-	require.Len(t, labels, 2)
-	for _, l := range labels {
-		assert.True(t, l.HostCount > 0)
-	}
-
-	// If an empty team filter is used, all hosts should be returned.
-	// We expect a user to be passed under normal circumstances,
-	labelsNoTeamFilter, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{}, true)
-	require.Nil(t, err)
-	require.Len(t, labelsNoTeamFilter, 2)
-	for _, l := range labelsNoTeamFilter {
-		assert.True(t, l.HostCount == 0)
-	}
-
-	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
-	filter = fleet.TeamFilter{User: userObs}
-
-	// observer not included
-	uniqueHosts, err = db.ListUniqueHostsInLabels(context.Background(), filter, []uint{l1.ID, l2.ID})
-	require.Nil(t, err)
-	assert.Len(t, uniqueHosts, 0)
-
-	labels, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{}, false)
-	require.Nil(t, err)
-	require.Len(t, labels, 2)
-	for _, l := range labels {
-		assert.Equal(t, 0, l.HostCount)
-	}
-
-	// observer included
-	filter.IncludeObserver = true
-	uniqueHosts, err = db.ListUniqueHostsInLabels(context.Background(), filter, []uint{l1.ID, l2.ID})
-	require.Nil(t, err)
-	assert.Len(t, uniqueHosts, len(hosts))
-
-	labels, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{}, true)
-	require.Nil(t, err)
-	require.Len(t, labels, 2)
-	for _, l := range labels {
-		assert.True(t, l.HostCount > 0)
-	}
-
-	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
-	filter = fleet.TeamFilter{User: userTeam1}
-
-	uniqueHosts, err = db.ListUniqueHostsInLabels(context.Background(), filter, []uint{l1.ID, l2.ID})
-	require.Nil(t, err)
-	require.Len(t, uniqueHosts, 1) // only host 0 associated with this team
-	assert.Equal(t, hosts[0].ID, uniqueHosts[0].ID)
-
-	labels, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{}, true)
-	require.Nil(t, err)
-	require.Len(t, labels, 2)
-	for _, l := range labels {
-		if l.ID == l1.ID {
-			assert.Equal(t, 1, l.HostCount)
-		} else {
-			assert.Equal(t, 0, l.HostCount)
-		}
-	}
 }
 
 func testLabelsChangeDetails(t *testing.T, db *Datastore) {

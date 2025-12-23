@@ -977,8 +977,8 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		return nil, ctxerr.Wrap(ctx, err, "building query to confirm label existence")
 	}
 
-	var label fleet.Label
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &label, labelCheckSql, labelCheckParams...); err != nil {
+	var foundID uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &foundID, labelCheckSql, labelCheckParams...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
 		}
@@ -1229,80 +1229,6 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
 	}
 
 	return count, nil
-}
-
-func (ds *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
-	// TODO make sure label isn't visible if team filter would filter it out
-
-	if len(labels) == 0 {
-		return []*fleet.Host{}, nil
-	}
-
-	sqlStatement := fmt.Sprintf(`
-      SELECT DISTINCT
-        h.id,
-        h.osquery_host_id,
-        h.created_at,
-        h.updated_at,
-        h.detail_updated_at,
-        h.node_key,
-        h.hostname,
-        h.uuid,
-        h.platform,
-        h.osquery_version,
-        h.os_version,
-        h.build,
-        h.platform_like,
-        h.code_name,
-        h.uptime,
-        h.memory,
-        h.cpu_type,
-        h.cpu_subtype,
-        h.cpu_brand,
-        h.cpu_physical_cores,
-        h.cpu_logical_cores,
-        h.hardware_vendor,
-        h.hardware_model,
-        h.hardware_version,
-        h.hardware_serial,
-        h.computer_name,
-        h.primary_ip_id,
-        h.distributed_interval,
-        h.logger_tls_period,
-        h.config_tls_refresh,
-        h.primary_ip,
-        h.primary_mac,
-        h.label_updated_at,
-        h.last_enrolled_at,
-        h.refetch_requested,
-        h.refetch_critical_queries_until,
-        h.team_id,
-        h.policy_updated_at,
-        h.public_ip,
-        COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-        COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-        (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
-      FROM label_membership lm
-      JOIN hosts h ON lm.host_id = h.id
-      LEFT JOIN host_disks hd ON hd.host_id = h.id
-      WHERE lm.label_id IN (?) AND %s
-`, ds.whereFilterHostsByTeams(filter, "h"),
-	)
-
-	query, args, err := sqlx.In(sqlStatement, labels)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query listing unique hosts in labels")
-	}
-
-	query = ds.reader(ctx).Rebind(query)
-	hosts := []*fleet.Host{}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing unique hosts in labels")
-	}
-
-	return hosts, nil
 }
 
 func (ds *Datastore) searchLabelsWithOmits(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
