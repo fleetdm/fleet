@@ -747,7 +747,7 @@ func AddLabelMocks(ds *mock.Store) {
 		return nil
 	}
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
-		return map[string]*fleet.Label{
+		validLabels := map[string]*fleet.Label{
 			"a": {
 				ID:   1,
 				Name: "a",
@@ -756,7 +756,15 @@ func AddLabelMocks(ds *mock.Store) {
 				ID:   2,
 				Name: "b",
 			},
-		}, nil
+		}
+
+		found := make(map[string]*fleet.Label)
+		for _, l := range names {
+			if label, ok := validLabels[l]; ok {
+				found[l] = label
+			}
+		}
+		return found, nil
 	}
 }
 
