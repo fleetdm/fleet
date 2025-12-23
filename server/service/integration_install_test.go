@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -106,7 +107,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 		myInstallerID = installerID
 		return nil
 	}
-	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "https://example.com/signed", nil
 	}
 
@@ -167,7 +168,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	require.Equal(t, filename, orbitSoftwareResp.SoftwareInstallerURL.Filename)
 
 	// Error in signing -- we simply don't return the URL
-	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "", errors.New("error signing")
 	}
 	orbitSoftwareResp = orbitGetSoftwareInstallResponse{}
@@ -188,8 +189,8 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	}
 	s3Store, err := s3.NewTestSoftwareInstallerStore(s3Config)
 	require.NoError(t, err)
-	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
-		return s3Store.Sign(ctx, fileID)
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
+		return s3Store.Sign(ctx, fileID, fleet.SoftwareInstallerSignedURLExpiry)
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
@@ -233,7 +234,7 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 		myInstallerID = installerID
 		return nil
 	}
-	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return signURL, nil
 	}
 
