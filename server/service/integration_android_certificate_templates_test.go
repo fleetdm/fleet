@@ -198,7 +198,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	certificateTemplateID := createResp.ID
 
 	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeCreatedCertificate{}.ActivityName(),
+		fleet.ActivityTypeAddedCertificate{}.ActivityName(),
 		fmt.Sprintf(
 			`{"team_id": %d, "team_name": %q, "name": %q}`,
 			teamID,
