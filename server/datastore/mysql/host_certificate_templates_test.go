@@ -33,6 +33,9 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"RevertStaleCertificateTemplates", testRevertStaleCertificateTemplates},
 		{"SetHostCertificateTemplatesToPendingRemove", testSetHostCertificateTemplatesToPendingRemove},
 		{"SetHostCertificateTemplatesToPendingRemoveForHost", testSetHostCertificateTemplatesToPendingRemoveForHost},
+		{"ListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer", testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer},
+		{"ListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval", testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval},
+		{"GetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval", testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval},
 	}
 
 	for _, c := range cases {
@@ -1233,4 +1236,175 @@ func testSetHostCertificateTemplatesToPendingRemoveForHost(t *testing.T, ds *Dat
 		require.Equal(t, string(fleet.CertificateTemplateDelivered), row.Status)
 		require.Equal(t, fleet.MDMOperationTypeInstall, row.OperationType)
 	})
+}
+
+// testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer verifies that
+// ListCertificateTemplatesForHosts returns removal entries for templates from a previous team
+// after the host has transferred to a new team.
+func testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Setup: Create two teams with certificate templates using existing helpers
+	setupA := createCertTemplateTestSetup(t, ctx, ds, "Team A for removal test")
+	setupB := createCertTemplateTestSetup(t, ctx, ds, "Team B for removal test")
+
+	// Create host initially in Team A
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setupA.team.ID)
+
+	// Insert verified certificate from Team A using BulkInsertHostCertificateTemplates
+	challenge := "challenge-a"
+	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setupA.template.ID,
+		Status:                fleet.CertificateTemplateVerified,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		FleetChallenge:        &challenge,
+		Name:                  setupA.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Simulate team transfer: move host to Team B using UpdateHost
+	host.TeamID = &setupB.team.ID
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// Mark Team A template for removal using the datastore method
+	err = ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// Insert pending install for Team B template
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setupB.template.ID,
+		Status:                fleet.CertificateTemplatePending,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		Name:                  setupB.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Act: List certificate templates for host
+	results, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
+	require.NoError(t, err)
+
+	require.Len(t, results, 2, "should include both install and removal templates")
+
+	templatesByID := make(map[uint]fleet.CertificateTemplateForHost)
+	for _, r := range results {
+		templatesByID[r.CertificateTemplateID] = r
+	}
+
+	// Team A template should be marked for removal
+	require.Contains(t, templatesByID, setupA.template.ID, "should include Team A template marked for removal")
+	require.NotNil(t, templatesByID[setupA.template.ID].OperationType)
+	require.Equal(t, fleet.MDMOperationTypeRemove, *templatesByID[setupA.template.ID].OperationType)
+	require.NotNil(t, templatesByID[setupA.template.ID].Status)
+	require.Equal(t, fleet.CertificateTemplatePending, *templatesByID[setupA.template.ID].Status)
+
+	// Team B template should be pending install
+	require.Contains(t, templatesByID, setupB.template.ID, "should include Team B template")
+	require.NotNil(t, templatesByID[setupB.template.ID].OperationType)
+	require.Equal(t, fleet.MDMOperationTypeInstall, *templatesByID[setupB.template.ID].OperationType)
+}
+
+// testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval verifies that
+// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts with pending removal templates.
+func testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setup := createCertTemplateTestSetup(t, ctx, ds, "")
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setup.team.ID)
+
+	// Insert a pending removal template using BulkInsertHostCertificateTemplates
+	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setup.template.ID,
+		Status:                fleet.CertificateTemplatePending,
+		OperationType:         fleet.MDMOperationTypeRemove,
+		Name:                  setup.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Act: List hosts with pending templates
+	results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 100)
+	require.NoError(t, err)
+
+	require.Len(t, results, 1, "should include host with pending removal")
+	require.Equal(t, host.UUID, results[0])
+}
+
+// testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval verifies that
+// GetAndTransitionCertificateTemplatesToDelivering handles both install and remove operations.
+func testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setup := createCertTemplateTestSetup(t, ctx, ds, "")
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setup.team.ID)
+
+	// Create second template for removal
+	templateForRemoval, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "Template for Removal",
+		TeamID:                 setup.team.ID,
+		CertificateAuthorityID: setup.ca.ID,
+		SubjectName:            "CN=Template for Removal",
+	})
+	require.NoError(t, err)
+
+	// Insert both pending install and pending removal using BulkInsertHostCertificateTemplates
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: setup.template.ID,
+			Status:                fleet.CertificateTemplatePending,
+			OperationType:         fleet.MDMOperationTypeInstall,
+			Name:                  setup.template.Name,
+		},
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: templateForRemoval.ID,
+			Status:                fleet.CertificateTemplatePending,
+			OperationType:         fleet.MDMOperationTypeRemove,
+			Name:                  templateForRemoval.Name,
+		},
+	})
+	require.NoError(t, err)
+
+	// Act: Transition to delivering
+	result, err := ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// Assert: Should include BOTH install and removal templates
+	// Currently only install is included
+	require.Len(t, result.Templates, 2, "should include both install and removal")
+	require.Len(t, result.DeliveringTemplateIDs, 2, "should transition both to delivering")
+
+	// Verify both templates are in delivering state in the database
+	var statuses []struct {
+		CertificateTemplateID uint   `db:"certificate_template_id"`
+		Status                string `db:"status"`
+		OperationType         string `db:"operation_type"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &statuses,
+		`SELECT certificate_template_id, status, operation_type
+		 FROM host_certificate_templates WHERE host_uuid = ?`, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	for _, s := range statuses {
+		require.Equal(t, string(fleet.CertificateTemplateDelivering), s.Status,
+			"template %d should be in delivering status", s.CertificateTemplateID)
+	}
+
+	// Verify the result contains templates with correct operation types
+	hasInstall := false
+	hasRemove := false
+	for _, tmpl := range result.Templates {
+		if tmpl.OperationType == fleet.MDMOperationTypeInstall {
+			hasInstall = true
+		}
+		if tmpl.OperationType == fleet.MDMOperationTypeRemove {
+			hasRemove = true
+		}
+	}
+	require.True(t, hasInstall, "should include install operation")
+	require.True(t, hasRemove, "should include remove operation")
 }
