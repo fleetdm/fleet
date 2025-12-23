@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func loadLabelsFromNames(ctx context.Context, ds fleet.Datastore, labelNames []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
@@ -35,6 +36,10 @@ func verifyLabelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeam
 		}
 		seen[s] = struct{}{}
 		uniqueLabelNames = append(uniqueLabelNames, s)
+	}
+
+	if entityTeamID == nil { // no-team/all-teams entities can only access global labels
+		entityTeamID = ptr.Uint(0)
 	}
 
 	labels, err := loadLabelsFromNames(ctx, ds, uniqueLabelNames, fleet.TeamFilter{User: user, TeamID: entityTeamID})
