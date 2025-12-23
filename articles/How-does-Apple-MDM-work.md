@@ -111,9 +111,9 @@ MDM servers use certificate-based authentication with TLS/HTTPS communication pr
 
 Servers queue pending commands until devices reconnect and check in. Policies deploy automatically once connectivity resumes. For ongoing enforcement, platform-specific enforcement mechanisms cache current policies locally and continue applying them even during network outages. Fleet provides [real-time device querying](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) and monitoring that helps IT teams identify connectivity issues quickly. [Schedule a demo](https://fleetdm.com/try-fleet) to see how unified device visibility simplifies troubleshooting across distributed fleets.
 
-<meta name="articleTitle" value="How Does Apple MDM Work? 2025 Guide to Apple Device Management">
+<meta name="articleTitle" value="MDM Server: Device Management Platform Guide">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2025-12-19">
-<meta name="description" value="Learn how Apple MDM works: APNs communication, certificate trust models, enrollment methods (ADE, Profile-based, User Enrollment), and remote device management capabilities.">
+<meta name="description" value="Complete guide to MDM servers - how they work, deployment models, and why organizations need centralized device management across platforms.">
