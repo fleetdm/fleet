@@ -10967,9 +10967,9 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | body | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
