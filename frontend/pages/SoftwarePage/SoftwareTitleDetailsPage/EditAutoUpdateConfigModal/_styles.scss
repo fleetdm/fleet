@@ -10,6 +10,10 @@
   .edit-auto-update-config-form {
 
     position: relative;
+
+    p {
+      margin-top: $pad-small;
+    }
   
     &__overlay {
       position: absolute;
@@ -22,6 +26,9 @@
       display: flex;
       flex-direction: column;
       gap: $pad-large;
+      .form-field {
+        gap: 0;
+      }
     }
   
     &__content-wrapper {
@@ -51,10 +58,16 @@
       gap: $pad-medium;
     }
 
-    .form-field {
-      gap: 0;
+    &__auto-update-schedule-form {
+      .date-time-inputs {
+        display: flex;
+        gap: 1rem;
+        .form-field {
+          gap: $pad-small;
+        }
+      }
     }
-  
+
     &__form-frame {
       display: flex;
       align-items: flex-start;

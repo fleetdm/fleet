@@ -1,20 +1,33 @@
 import React, { useContext, useState } from "react";
-import { ISoftwareTitleDetails } from "interfaces/software";
+import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
+import { ILabelSummary } from "interfaces/label";
+
+import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
 
 import softwareAPI from "services/entities/software";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import Card from "components/Card";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Checkbox from "components/forms/fields/Checkbox";
+import TargetLabelSelector from "components/TargetLabelSelector";
+
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateSelectedLabels,
+  getCustomTarget,
+  generateHelpText,
+  getTargetType,
+} from "pages/SoftwarePage/helpers";
+
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
-import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "edit-auto-update-config-modal";
@@ -34,6 +47,9 @@ export interface ISoftwareAutoUpdateConfigFormData {
   enabled: boolean;
   startTime: string;
   endTime: string;
+  targetType: string;
+  customTarget: string;
+  labelTargets: Record<string, boolean>;
 }
 
 interface EditAutoUpdateConfigModal {
@@ -57,7 +73,20 @@ const EditAutoUpdateConfigModal = ({
     enabled: softwareTitle.auto_update_enabled || false,
     startTime: softwareTitle.auto_update_start_time || "",
     endTime: softwareTitle.auto_update_end_time || "",
+    targetType: getTargetType(softwareTitle.app_store_app as IAppStoreApp),
+    customTarget: getCustomTarget(softwareTitle.app_store_app as IAppStoreApp),
+    labelTargets: generateSelectedLabels(
+      softwareTitle.app_store_app as IAppStoreApp
+    ),
   });
+
+  const { data: labels } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
 
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -111,6 +140,27 @@ const EditAutoUpdateConfigModal = ({
     setCanSaveForm(!error);
   };
 
+  const onSelectTargetType = (value: string) => {
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
+    // setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectCustomTargetOption = (value: string) => {
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
+    // setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
+    // setFormValidation(generateFormValidation(newData));
+  };
+
   const renderForm = () => (
     <div className={`${baseClass}__form-frame`}>
       <Card paddingSize="medium" borderRadiusSize="medium">
@@ -162,6 +212,23 @@ const EditAutoUpdateConfigModal = ({
             </div>
           )}
         </div>
+      </Card>
+      <Card paddingSize="medium" borderRadiusSize="medium">
+        <TargetLabelSelector
+          selectedTargetType={formData.targetType}
+          selectedCustomTarget={formData.customTarget}
+          selectedLabels={formData.labelTargets}
+          customTargetOptions={CUSTOM_TARGET_OPTIONS}
+          className={`${baseClass}__target`}
+          onSelectTargetType={onSelectTargetType}
+          onSelectCustomTarget={onSelectCustomTargetOption}
+          onSelectLabel={onSelectLabel}
+          labels={labels || []}
+          dropdownHelpText={
+            generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+          }
+          subTitle="Changes to targets will also apply to self-service."
+        />
       </Card>
     </div>
   );
