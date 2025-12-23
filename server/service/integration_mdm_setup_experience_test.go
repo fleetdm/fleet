@@ -2241,17 +2241,25 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	for _, enableReleaseManually := range []bool{false, true} {
 		for _, enrollmentProfileFromDEPUsingPost := range []bool{false, true} {
-			for _, device := range devices {
-				t.Run(fmt.Sprintf("%sSetupExperience;enableReleaseManually=%t;EnrollmentProfileFromDEPUsingPost=%t", device.DeviceFamily, enableReleaseManually, enrollmentProfileFromDEPUsingPost), func(t *testing.T) {
-					s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
-						ABMOrg:                            abmOrgName,
-						EnableReleaseManually:             enableReleaseManually,
-						TeamID:                            &team.ID,
-						CustomProfileIdent:                "N1",
-						EnrollmentProfileFromDEPUsingPost: enrollmentProfileFromDEPUsingPost,
-						VppAppsToInstall:                  vppAppIDsByDeviceFamily[device.DeviceFamily],
+			for _, mdmMigrationDeadline := range []bool{false, true} {
+				for _, device := range devices {
+					t.Run(fmt.Sprintf("%sSetupExperience;enableReleaseManually=%t;EnrollmentProfileFromDEPUsingPost=%t;WithMDMMigrationDeadline=%t", device.DeviceFamily, enableReleaseManually, enrollmentProfileFromDEPUsingPost, mdmMigrationDeadline), func(t *testing.T) {
+						if mdmMigrationDeadline {
+							deadline := time.Now().Add(24 * time.Hour)
+							device.MDMMigrationDeadline = &deadline
+						} else {
+							device.MDMMigrationDeadline = nil
+						}
+						s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
+							ABMOrg:                            abmOrgName,
+							EnableReleaseManually:             enableReleaseManually,
+							TeamID:                            &team.ID,
+							CustomProfileIdent:                "N1",
+							EnrollmentProfileFromDEPUsingPost: enrollmentProfileFromDEPUsingPost,
+							VppAppsToInstall:                  vppAppIDsByDeviceFamily[device.DeviceFamily],
+						})
 					})
-				})
+				}
 			}
 		}
 	}
