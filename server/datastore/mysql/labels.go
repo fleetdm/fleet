@@ -1487,14 +1487,14 @@ func (ds *Datastore) LabelsByName(ctx context.Context, names []string, filter fl
 		return map[string]*fleet.Label{}, nil
 	}
 
-	sqlStatement, args, err := applyLabelTeamFilter(`SELECT l.* FROM labels lWHERE name IN (?)`, filter, names)
+	sqlStatement, args, err := applyLabelTeamFilter(`SELECT l.* FROM labels l WHERE l.name IN (?)`, filter, names)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
 	}
 
 	var labels []*fleet.Label
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, sqlStatement, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get label ids by name")
+		return nil, ctxerr.Wrap(ctx, err, "get labels by name")
 	}
 
 	result := make(map[string]*fleet.Label, len(labels))
