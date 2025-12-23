@@ -128,7 +128,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 				"a":                           2,
 				"b":                           3,
 			}
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
 				for _, lbl := range labels {
@@ -272,7 +272,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 				"a":                           2,
 				"b":                           3,
 			}
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
 				for _, lbl := range labels {
@@ -283,7 +283,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 				}
 				return ret, nil
 			}
-			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 				return map[string]*fleet.Label{
 					"a": {
 						ID:   1,
@@ -414,7 +414,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 				"a":                           2,
 				"b":                           3,
 			}
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
 				for _, lbl := range labels {
@@ -549,7 +549,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			}
 
 			found := make(map[string]uint)
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 				for _, l := range labels {
 					if id, ok := c.expectedLabels[l]; ok {
 						found[l] = id
@@ -557,7 +557,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				}
 				return found, nil
 			}
-			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 				found2 := make(map[string]*fleet.Label)
 				for _, l := range names {
 					if id, ok := c.expectedLabels[l]; ok {

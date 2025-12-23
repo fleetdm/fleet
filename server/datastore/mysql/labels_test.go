@@ -831,7 +831,9 @@ func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 	setupLabelSpecsTest(t, ds)
 
-	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"})
+	// TODO test team labels
+
+	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"}, fleet.TeamFilter{})
 	require.Nil(t, err)
 	assert.Equal(t, map[string]uint{"foo": 1, "bar": 2, "bing": 3}, labels)
 }

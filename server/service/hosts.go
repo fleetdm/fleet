@@ -3096,7 +3096,7 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames)
+	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames, host.TeamID)
 	if err != nil {
 		return err
 	}
@@ -3141,7 +3141,7 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames)
+	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames, host.TeamID)
 	if err != nil {
 		return err
 	}
@@ -3156,7 +3156,7 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 	return nil
 }
 
-func (svc *Service) validateLabelNames(ctx context.Context, action string, labelNames []string) ([]uint, error) {
+func (svc *Service) validateLabelNames(ctx context.Context, action string, labelNames []string, teamID *uint) ([]uint, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
@@ -3174,8 +3174,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 		return nil, nil
 	}
 
-	// TODO filter labels based on who is asking for it
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{TeamID: teamID, User: authz.UserFromContext(ctx)})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
 	}

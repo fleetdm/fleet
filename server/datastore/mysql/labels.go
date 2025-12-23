@@ -1459,19 +1459,12 @@ func (ds *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, 
 	return matches, nil
 }
 
-func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string) (map[string]uint, error) {
+func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 	if len(names) == 0 {
 		return map[string]uint{}, nil
 	}
 
-	// TODO add auth
-
-	sqlStatement := `
-		SELECT id, name FROM labels
-		WHERE name IN (?)
-	`
-
-	sql, args, err := sqlx.In(sqlStatement, names)
+	sql, args, err := applyLabelTeamFilter(`SELECT l.id, l.name FROM labels l WHERE l.name IN (?)`, filter, names)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
 	}

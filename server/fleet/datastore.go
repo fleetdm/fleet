@@ -242,7 +242,7 @@ type Datastore interface {
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
 	// LabelIDsByName retrieves the IDs associated with the given label names
-	LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error)
+	LabelIDsByName(ctx context.Context, labels []string, filter TeamFilter) (map[string]uint, error)
 	// LabelsByName retrieves the labels associated with the given label names
 	LabelsByName(ctx context.Context, names []string, filter TeamFilter) (map[string]*Label, error)
 

@@ -888,7 +888,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		tmID = &teamID
 	}
 
-	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
+	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels, tmID)
 	if err != nil {
 		return nil, err
 	}
@@ -963,12 +963,12 @@ func validateDeclarationFleetVariables(contents string) error {
 	return nil
 }
 
-func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
+func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string, teamID *uint) (map[string]fleet.ConfigurationProfileLabel, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
 
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{User: authz.UserFromContext(ctx), TeamID: teamID})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
 	}
@@ -997,8 +997,8 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 	return profLabels, nil
 }
 
-func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
-	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames)
+func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string, teamID *uint) ([]fleet.ConfigurationProfileLabel, error) {
+	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
 	}

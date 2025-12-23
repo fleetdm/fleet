@@ -273,7 +273,7 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 		LabelMembershipType: labelMembershipType,
 	}
 
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{
 			name: {
 				Name:                name,
@@ -336,7 +336,7 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	labelMembershipType = fleet.LabelMembershipTypeDynamic
 
 	// not ok -- DB error
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return nil, assert.AnError
 	}
 	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
@@ -443,7 +443,7 @@ func TestBatchValidateLabels(t *testing.T) {
 		return fleet.LabelIdent{LabelID: id, LabelName: name}
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		res := make(map[string]uint)
 		if names == nil {
 			return res, nil
@@ -455,7 +455,7 @@ func TestBatchValidateLabels(t *testing.T) {
 		}
 		return res, nil
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		res := make(map[string]*fleet.Label)
 		if names == nil {
 			return res, nil

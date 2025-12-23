@@ -101,7 +101,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
@@ -173,7 +173,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
@@ -232,7 +232,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
