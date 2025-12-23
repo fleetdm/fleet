@@ -169,10 +169,10 @@ const EditAutoUpdateConfigModal = ({
         <div className={`${formClass}__auto-update-config`}>
           <div className={`form-field`}>
             <div className="form-field__label">Auto updates</div>
-            <p>
+            <div className="form-field__subtitle">
               Automatically update <strong>{softwareTitle.name}</strong> on all
               targeted hosts when a new version is available.
-            </p>
+            </div>
             <div>
               <Checkbox
                 value={formData.autoUpdateEnabled}
@@ -183,39 +183,47 @@ const EditAutoUpdateConfigModal = ({
             </div>
           </div>
           {formData.autoUpdateEnabled && (
-            <div>
-              <div className="form-field">
-                <div className="form-field__label">
-                  Update window (host&rsquo;s local time)
+            <>
+              <div>
+                <div className="form-field">
+                  <div className="form-field__label">
+                    Update window (host&rsquo;s local time)
+                  </div>
+                  <div className="form-field__subtitle">
+                    Times are formatted as HH:MM in 24 hour time (e.g.,
+                    &quot;13:37&quot;).
+                  </div>
                 </div>
-                <p>
-                  Times are formatted as HH:MM in 24 hour time (e.g.,
-                  &quot;13:37&quot;).
-                </p>
               </div>
-              <div className={`${formClass}__auto-update-schedule-form`}>
-                <span className="date-time-inputs">
-                  <InputField
-                    value={formData.autoUpdateStartTime}
-                    onChange={onChangeTimeField}
-                    onBlur={() => setFormValidation(validateFormData(formData))}
-                    label="Earliest start time"
-                    name="autoUpdateStartTime"
-                    parseTarget
-                    error={formValidation.autoUpdateStartTime?.message}
-                  />
-                  <InputField
-                    value={formData.autoUpdateEndTime}
-                    onChange={onChangeTimeField}
-                    onBlur={() => setFormValidation(validateFormData(formData))}
-                    label="Latest start time"
-                    name="autoUpdateEndTime"
-                    parseTarget
-                    error={formValidation.autoUpdateEndTime?.message}
-                  />
-                </span>
+              <div>
+                <div className={`${formClass}__auto-update-schedule-form`}>
+                  <span className="date-time-inputs">
+                    <InputField
+                      value={formData.autoUpdateStartTime}
+                      onChange={onChangeTimeField}
+                      onBlur={() =>
+                        setFormValidation(validateFormData(formData))
+                      }
+                      label="Earliest start time"
+                      name="autoUpdateStartTime"
+                      parseTarget
+                      error={formValidation.autoUpdateStartTime?.message}
+                    />
+                    <InputField
+                      value={formData.autoUpdateEndTime}
+                      onChange={onChangeTimeField}
+                      onBlur={() =>
+                        setFormValidation(validateFormData(formData))
+                      }
+                      label="Latest start time"
+                      name="autoUpdateEndTime"
+                      parseTarget
+                      error={formValidation.autoUpdateEndTime?.message}
+                    />
+                  </span>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </Card>
@@ -225,7 +233,7 @@ const EditAutoUpdateConfigModal = ({
           selectedCustomTarget={formData.customTarget}
           selectedLabels={formData.labelTargets}
           customTargetOptions={CUSTOM_TARGET_OPTIONS}
-          className={`${baseClass}__target`}
+          className={`${formClass}__target`}
           onSelectTargetType={onSelectTargetType}
           onSelectCustomTarget={onSelectCustomTargetOption}
           onSelectLabel={onSelectLabel}
