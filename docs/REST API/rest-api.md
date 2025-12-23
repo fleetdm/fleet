@@ -8379,9 +8379,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ### Reset policy automations
 
-Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
-
-Currently, this API endpoint only resets ticket and webhook automations.
+Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fleet/automations#webhooks-and-tickets) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
 
 `POST /api/v1/fleet/automations/reset`
 
