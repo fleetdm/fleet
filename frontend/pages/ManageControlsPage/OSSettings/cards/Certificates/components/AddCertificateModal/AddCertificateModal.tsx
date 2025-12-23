@@ -188,7 +188,7 @@ const AddCertModal = ({
               disabled={!formValidation.isValid || isUpdating}
               type="submit"
             >
-              Create
+              Add
             </Button>
           </TooltipWrapper>
           <Button variant="inverse" onClick={onExit}>
