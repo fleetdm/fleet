@@ -67,7 +67,7 @@ object CertificateOrchestrator {
     // Mutex to protect concurrent access to certificate storage
     private val certificateStorageMutex = Mutex()
 
-    fun installedCertsFlow(context: Context): Flow<CertStatusMap> = context.prefDataStore.data.map { preferences ->
+    fun installedCertsFlow(context: Context): Flow<CertificateStateMap> = context.prefDataStore.data.map { preferences ->
         try {
             val jsonStr = preferences[INSTALLED_CERTIFICATES_KEY]
             json.decodeFromString(jsonStr!!)
@@ -83,16 +83,16 @@ object CertificateOrchestrator {
      * @param context Android context
      * @return List of certificate templates, or null if none configured
      */
-    fun getCertificateTemplates(context: Context): List<AgentCertificateTemplate>? {
+    fun getHostCertificates(context: Context): List<HostCertificate>? {
         val restrictionsManager = context.getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
         val appRestrictions = restrictionsManager.applicationRestrictions
 
         val certRequestList = appRestrictions.getParcelableArray("certificate_templates", Bundle::class.java)?.toList()
         return certRequestList?.map { bundle ->
-            AgentCertificateTemplate(
+            HostCertificate(
                 id = bundle.getInt("id"),
                 status = bundle.getString("status", ""),
-                operation = bundle.getString("operation", AgentCertificateTemplate.OPERATION_INSTALL),
+                operation = bundle.getString("operation", HostCertificate.OPERATION_INSTALL),
             )
         }
     }
@@ -103,7 +103,7 @@ object CertificateOrchestrator {
      * @param context Android context
      * @return Map of certificate ID to alias, or empty map if none stored
      */
-    internal suspend fun getCertificateInstallInfos(context: Context): CertStatusMap {
+    internal suspend fun getCertificateStates(context: Context): CertificateStateMap {
         certificateStorageMutex.withLock {
             return try {
                 val prefs = context.prefDataStore.data.first()
@@ -114,7 +114,7 @@ object CertificateOrchestrator {
                     return emptyMap()
                 }
 
-                val map = json.decodeFromString<CertStatusMap>(jsonString)
+                val map = json.decodeFromString<CertificateStateMap>(jsonString)
                 Log.d(TAG, "Loaded ${map.size} installed certificate(s) from DataStore")
                 map
             } catch (e: Exception) {
@@ -124,34 +124,34 @@ object CertificateOrchestrator {
         }
     }
 
-    internal suspend fun getCertificateInstallInfo(context: Context, certificateId: Int): CertificateInstallInfo? {
-        val certs = getCertificateInstallInfos(context = context)
+    internal suspend fun getCertificateState(context: Context, certificateId: Int): CertificateState? {
+        val certs = getCertificateStates(context = context)
         return certs[certificateId]
     }
 
     internal suspend fun markCertificateInstalled(context: Context, certificateId: Int, alias: String) {
-        val existingInfo = getCertificateInstallInfo(context = context, certificateId = certificateId)
-            ?: CertificateInstallInfo(alias = alias, status = CertificateInstallStatus.INSTALLED, retries = 0)
+        val existingInfo = getCertificateState(context = context, certificateId = certificateId)
+            ?: CertificateState(alias = alias, status = CertificateStatus.INSTALLED, retries = 0)
 
-        val newInfo = existingInfo.copy(alias = alias, status = CertificateInstallStatus.INSTALLED, retries = 0)
-        storeCertificateInstallationInfo(context = context, certificateId = certificateId, certInstallInfo = newInfo)
+        val newInfo = existingInfo.copy(alias = alias, status = CertificateStatus.INSTALLED, retries = 0)
+        storeCertificateState(context = context, certificateId = certificateId, certInstallInfo = newInfo)
     }
 
-    internal suspend fun markCertificateFailure(context: Context, certificateId: Int, alias: String): CertificateInstallInfo {
-        val existingInfo = getCertificateInstallInfo(context = context, certificateId = certificateId)
-            ?: CertificateInstallInfo(alias = alias, status = CertificateInstallStatus.RETRY, retries = 0)
+    internal suspend fun markCertificateFailure(context: Context, certificateId: Int, alias: String): CertificateState {
+        val existingInfo = getCertificateState(context = context, certificateId = certificateId)
+            ?: CertificateState(alias = alias, status = CertificateStatus.RETRY, retries = 0)
 
-        if (existingInfo.status != CertificateInstallStatus.RETRY) {
+        if (existingInfo.status != CertificateStatus.RETRY) {
             return existingInfo
         }
 
         var newInfo = existingInfo.copy(retries = existingInfo.retries + 1)
 
         if (newInfo.retries >= MAX_CERT_INSTALL_RETRIES) {
-            newInfo = newInfo.copy(status = CertificateInstallStatus.FAILED)
+            newInfo = newInfo.copy(status = CertificateStatus.FAILED)
         }
 
-        storeCertificateInstallationInfo(context = context, certificateId = certificateId, newInfo)
+        storeCertificateState(context = context, certificateId = certificateId, newInfo)
 
         return newInfo
     }
@@ -164,7 +164,7 @@ object CertificateOrchestrator {
      * @param certificateId Certificate template ID
      * @param alias Certificate alias used during installation
      */
-    internal suspend fun storeCertificateInstallationInfo(context: Context, certificateId: Int, certInstallInfo: CertificateInstallInfo) {
+    internal suspend fun storeCertificateState(context: Context, certificateId: Int, certInstallInfo: CertificateState) {
         certificateStorageMutex.withLock {
             try {
                 context.prefDataStore.edit { preferences ->
@@ -172,7 +172,7 @@ object CertificateOrchestrator {
                     val existingJsonString = preferences[INSTALLED_CERTIFICATES_KEY]
                     val existingMap = if (existingJsonString != null) {
                         try {
-                            json.decodeFromString<CertStatusMap>(existingJsonString)
+                            json.decodeFromString<CertificateStateMap>(existingJsonString)
                         } catch (e: Exception) {
                             Log.w(TAG, "Failed to parse existing certificates JSON, starting fresh: ${e.message}")
                             emptyMap()
@@ -205,14 +205,14 @@ object CertificateOrchestrator {
      * @param context Android context
      * @param certificateId Certificate template ID to remove
      */
-    internal suspend fun removeCertificateInstallInfo(context: Context, certificateId: Int) {
+    internal suspend fun removeCertificateState(context: Context, certificateId: Int) {
         certificateStorageMutex.withLock {
             try {
                 context.prefDataStore.edit { preferences ->
                     val existingJsonString = preferences[INSTALLED_CERTIFICATES_KEY]
                     val existingMap = if (existingJsonString != null) {
                         try {
-                            json.decodeFromString<CertStatusMap>(existingJsonString)
+                            json.decodeFromString<CertificateStateMap>(existingJsonString)
                         } catch (e: Exception) {
                             Log.w(TAG, "Failed to parse existing certificates JSON: ${e.message}")
                             emptyMap()
@@ -247,7 +247,7 @@ object CertificateOrchestrator {
      * @return Certificate alias if previously installed, null otherwise
      */
     internal suspend fun getCertificateAlias(context: Context, certificateId: Int): String? {
-        val installedCerts = getCertificateInstallInfos(context)
+        val installedCerts = getCertificateStates(context)
         val status = installedCerts[certificateId]
         Log.d(TAG, "Certificate $certificateId alias lookup: ${status?.alias ?: "not found"}")
         return status?.alias
@@ -333,110 +333,139 @@ object CertificateOrchestrator {
     }
 
     /**
-     * Cleans up certificates based on managed configuration templates.
+     * Cleans up certificates based on host certificate assignments.
      *
-     * This function removes certificates that should be deleted:
-     * 1. Primary case: Templates with operation="remove" (explicitly marked for deletion)
-     * 2. Corner case: Certificates in DataStore that are not present in any template (orphaned)
+     * This function handles certificate removal in two cases:
+     * 1. Certificates with operation="remove": Process removal and mark as REMOVED
+     * 2. Orphaned certificates with status=REMOVED: Delete tracking entry (cleanup complete)
      *
-     * For each certificate to remove:
-     * - Removes the keypair from the device using DevicePolicyManager
-     * - Cleans up the DataStore tracking
-     * - Reports removal status to the server
+     * Removal flow:
+     * - operation="remove" + status=INSTALLED: remove keypair, notify server, mark REMOVED
+     * - operation="remove" + status=REMOVED: skip (already done)
+     * - operation="remove" + not in DataStore: notify server as verified, save as REMOVED
+     * - Orphaned + status=REMOVED: delete from DataStore
      *
      * @param context Android context for certificate operations
-     * @param templates List of certificate templates from managed configuration
+     * @param hostCertificates List of host certificates from managed configuration
      * @return Map of certificate ID to cleanup result
      */
-    suspend fun cleanupRemovedCertificates(context: Context, templates: List<AgentCertificateTemplate>): Map<Int, CleanupResult> {
-        Log.d(TAG, "Starting certificate cleanup. Templates: ${templates.map { "${it.id}:${it.operation}" }}")
+    suspend fun cleanupRemovedCertificates(context: Context, hostCertificates: List<HostCertificate>): Map<Int, CleanupResult> {
+        Log.d(TAG, "Starting certificate cleanup. Host certificates: ${hostCertificates.map { "${it.id}:${it.operation}" }}")
 
-        // Get all installed certificates from DataStore
-        val installedCerts = getCertificateInstallInfos(context)
-        Log.d(TAG, "Found ${installedCerts.size} certificate(s) in DataStore")
+        val certificateStates = getCertificateStates(context)
+        Log.d(TAG, "Found ${certificateStates.size} certificate(s) in DataStore")
 
-        // Primary case: Templates with operation="remove"
-        val templatesMarkedForRemoval = templates.filter { it.shouldRemove() }.map { it.id }
-        Log.d(TAG, "Templates marked for removal: $templatesMarkedForRemoval")
-
-        // Corner case: Certificates in DataStore but not in any template (orphaned)
-        val allTemplateIds = templates.map { it.id }.toSet()
-        val orphanedCertificates = installedCerts.keys.filter { it !in allTemplateIds }
-        Log.d(TAG, "Orphaned certificates (not in any template): $orphanedCertificates")
-
-        // Combine both lists (removing duplicates)
-        val certificatesToRemove = (templatesMarkedForRemoval + orphanedCertificates).distinct()
-
-        if (certificatesToRemove.isEmpty()) {
-            Log.d(TAG, "No certificates to remove")
-            return emptyMap()
-        }
-
-        Log.i(TAG, "Removing ${certificatesToRemove.size} certificate(s): $certificatesToRemove")
-
-        return removeCertificates(context, certificatesToRemove, installedCerts)
-    }
-
-    /**
-     * Internal helper to remove certificates from device and DataStore.
-     */
-    private suspend fun removeCertificates(
-        context: Context,
-        certificateIds: List<Int>,
-        installedCerts: CertStatusMap,
-    ): Map<Int, CleanupResult> {
         val results = mutableMapOf<Int, CleanupResult>()
 
-        for (certificateId in certificateIds) {
-            val certInfo = installedCerts[certificateId]
-            if (certInfo == null) {
-                Log.w(TAG, "Certificate ID $certificateId not found in DataStore, skipping")
-                continue
+        // Step 1: Process certificates with operation="remove"
+        val certificatesToRemove = hostCertificates.filter { it.shouldRemove() }
+        Log.d(TAG, "Certificates marked for removal: ${certificatesToRemove.map { it.id }}")
+
+        for (hostCert in certificatesToRemove) {
+            val certId = hostCert.id
+            val certState = certificateStates[certId]
+
+            when {
+                certState?.status == CertificateStatus.REMOVED -> {
+                    // Already removed, skip
+                    Log.d(TAG, "Certificate ID $certId already removed, skipping")
+                    results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
+                }
+                certState != null -> {
+                    // Certificate exists in DataStore, remove it
+                    val result = removeCertificateFromDevice(context, certId, certState.alias)
+                    results[certId] = result
+                }
+                else -> {
+                    // Not in DataStore (never installed or already cleaned up)
+                    // Notify server and save as REMOVED to prevent re-notification
+                    Log.d(TAG, "Certificate ID $certId not in DataStore, notifying server as verified")
+                    val alias = "cert-$certId"
+                    ApiClient.updateCertificateStatus(
+                        certificateId = certId,
+                        status = UpdateCertificateStatusStatus.VERIFIED,
+                        operationType = UpdateCertificateStatusOperation.REMOVE,
+                    ).onFailure { error ->
+                        Log.e(TAG, "Failed to report removal status for ID $certId: ${error.message}", error)
+                    }
+                    markCertificateRemoved(context, certId, alias)
+                    results[certId] = CleanupResult.Success(alias)
+                }
             }
+        }
 
-            val alias = certInfo.alias
-            Log.d(TAG, "Removing certificate ID $certificateId with alias '$alias' (status: ${certInfo.status})")
+        // Step 2: Clean up orphaned certificates with REMOVED status
+        val hostCertIds = hostCertificates.map { it.id }.toSet()
+        val orphanedCerts = certificateStates.filter { it.key !in hostCertIds }
+        Log.d(TAG, "Orphaned certificates: ${orphanedCerts.keys}")
 
-            // Attempt to remove the keypair
-            val removed = removeKeyPair(context, alias)
-
-            if (removed) {
-                // Report successful removal to server
-                ApiClient.updateCertificateStatus(
-                    certificateId = certificateId,
-                    status = UpdateCertificateStatusStatus.VERIFIED,
-                    operationType = UpdateCertificateStatusOperation.REMOVE,
-                ).onFailure { error ->
-                    Log.e(TAG, "Failed to report certificate removal status for ID $certificateId: ${error.message}", error)
-                }
-
-                // Clean up DataStore
-                removeCertificateInstallInfo(context, certificateId)
-
-                results[certificateId] = CleanupResult.Success(alias)
-                Log.i(TAG, "Successfully removed certificate ID $certificateId (alias: '$alias')")
+        for ((certId, certState) in orphanedCerts) {
+            if (certState.status == CertificateStatus.REMOVED) {
+                // Removal complete and host certificate gone, clean up tracking
+                Log.d(TAG, "Cleaning up tracking for removed certificate ID $certId")
+                removeCertificateState(context, certId)
+                results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
             } else {
-                // Report failure to server
-                val errorDetail = "Failed to remove certificate keypair from device"
-                ApiClient.updateCertificateStatus(
-                    certificateId = certificateId,
-                    status = UpdateCertificateStatusStatus.FAILED,
-                    operationType = UpdateCertificateStatusOperation.REMOVE,
-                    detail = errorDetail,
-                ).onFailure { error ->
-                    Log.e(TAG, "Failed to report certificate removal failure for ID $certificateId: ${error.message}", error)
-                }
-
-                results[certificateId] = CleanupResult.Failure(
-                    reason = errorDetail,
-                    exception = null,
-                    shouldRetry = false, // Permission or configuration issue, don't retry
-                )
-                Log.e(TAG, "Failed to remove certificate ID $certificateId (alias: '$alias')")
+                // Orphaned but not removed - this is unexpected, remove it
+                Log.w(TAG, "Orphaned certificate ID $certId with status ${certState.status}, removing")
+                val result = removeCertificateFromDevice(context, certId, certState.alias)
+                results[certId] = result
             }
         }
 
         return results
+    }
+
+    /**
+     * Removes a certificate from the device and updates tracking.
+     */
+    private suspend fun removeCertificateFromDevice(
+        context: Context,
+        certificateId: Int,
+        alias: String,
+    ): CleanupResult {
+        Log.d(TAG, "Removing certificate ID $certificateId with alias '$alias'")
+
+        val removed = removeKeyPair(context, alias)
+
+        return if (removed) {
+            ApiClient.updateCertificateStatus(
+                certificateId = certificateId,
+                status = UpdateCertificateStatusStatus.VERIFIED,
+                operationType = UpdateCertificateStatusOperation.REMOVE,
+            ).onFailure { error ->
+                Log.e(TAG, "Failed to report removal status for ID $certificateId: ${error.message}", error)
+            }
+
+            markCertificateRemoved(context, certificateId, alias)
+            Log.i(TAG, "Successfully removed certificate ID $certificateId (alias: '$alias')")
+            CleanupResult.Success(alias)
+        } else {
+            val errorDetail = "Failed to remove certificate keypair from device"
+            ApiClient.updateCertificateStatus(
+                certificateId = certificateId,
+                status = UpdateCertificateStatusStatus.FAILED,
+                operationType = UpdateCertificateStatusOperation.REMOVE,
+                detail = errorDetail,
+            ).onFailure { error ->
+                Log.e(TAG, "Failed to report removal failure for ID $certificateId: ${error.message}", error)
+            }
+
+            Log.e(TAG, "Failed to remove certificate ID $certificateId (alias: '$alias')")
+            CleanupResult.Failure(
+                reason = errorDetail,
+                exception = null,
+                shouldRetry = false,
+            )
+        }
+    }
+
+    /**
+     * Marks a certificate as removed in DataStore.
+     */
+    private suspend fun markCertificateRemoved(context: Context, certificateId: Int, alias: String) {
+        val info = CertificateState(alias = alias, status = CertificateStatus.REMOVED)
+        storeCertificateState(context, certificateId, info)
     }
 
     /**
@@ -467,8 +496,8 @@ object CertificateOrchestrator {
         // Skip enrollment if already marked as permanently failed (max retries exceeded).
         // Returns Success to prevent retry loops - the failure has already been reported
         // to the Fleet server via updateCertificateStatus().
-        val storedInfo = getCertificateInstallInfo(context = context, certificateId = certificateId)
-        if (storedInfo?.status == CertificateInstallStatus.FAILED) {
+        val storedInfo = getCertificateState(context = context, certificateId = certificateId)
+        if (storedInfo?.status == CertificateStatus.FAILED) {
             return CertificateEnrollmentHandler.EnrollmentResult.Success(storedInfo.alias)
         }
 
@@ -594,10 +623,10 @@ object CertificateOrchestrator {
     }
 }
 
-typealias CertStatusMap = Map<Int, CertificateInstallInfo>
+typealias CertificateStateMap = Map<Int, CertificateState>
 
 @Serializable
-enum class CertificateInstallStatus {
+enum class CertificateStatus {
     @SerialName("installed")
     INSTALLED,
 
@@ -606,18 +635,21 @@ enum class CertificateInstallStatus {
 
     @SerialName("retry")
     RETRY,
+
+    @SerialName("removed")
+    REMOVED,
 }
 
 @Serializable
-data class CertificateInstallInfo(
+data class CertificateState(
     @SerialName("alias")
     val alias: String,
     @SerialName("status")
-    val status: CertificateInstallStatus,
+    val status: CertificateStatus,
     @SerialName("retries")
     val retries: Int = 0,
 ) {
-    fun shouldRetry(): Boolean = status == CertificateInstallStatus.RETRY && retries < (MAX_CERT_INSTALL_RETRIES)
+    fun shouldRetry(): Boolean = status == CertificateStatus.RETRY && retries < (MAX_CERT_INSTALL_RETRIES)
 }
 
 /**
@@ -636,7 +668,7 @@ sealed class CleanupResult {
  * @property status Current status of the certificate template
  * @property operation Operation to perform: "install" or "remove"
  */
-data class AgentCertificateTemplate(val id: Int, val status: String, val operation: String) {
+data class HostCertificate(val id: Int, val status: String, val operation: String) {
     companion object {
         const val OPERATION_INSTALL = "install"
         const val OPERATION_REMOVE = "remove"

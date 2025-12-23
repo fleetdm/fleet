@@ -162,7 +162,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
 
     val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
     val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.let { "****" + it.takeLast(4) } }
-    val certTemplates = remember { CertificateOrchestrator.getCertificateTemplates(context) }
+    val hostCertificates = remember { CertificateOrchestrator.getHostCertificates(context) }
     val permissionsList = remember {
         val grantedPermissions = mutableListOf<String>()
         val packageInfo: PackageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
@@ -211,7 +211,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
                 KeyValue("host_uuid (MC)", enrollmentSpecificID)
                 KeyValue("server_url (MC)", fleetBaseUrl)
                 KeyValue("server_url (DS)", baseUrl)
-                KeyValue("certificate_templates", certTemplates?.map { "${it.id}:${it.operation}" }.toString())
+                KeyValue("host_certificates", hostCertificates?.map { "${it.id}:${it.operation}" }.toString())
                 DebugCertificateList(certificates = installedCerts)
                 PermissionList(
                     permissionsList = permissionsList,
@@ -222,7 +222,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
 }
 
 @Composable
-fun DebugCertificateList(certificates: CertStatusMap) {
+fun DebugCertificateList(certificates: CertificateStateMap) {
     Column {
         Text("certificate status:", fontWeight = FontWeight.Bold)
         certificates.forEach { (key, value) ->
@@ -302,7 +302,7 @@ fun LogoHeader(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) {
+fun CertificateList(modifier: Modifier = Modifier, certificates: CertificateStateMap) {
     Column(modifier = modifier.padding(all = 20.dp)) {
         Text(
             text = stringResource(R.string.certificate_list_title),
@@ -313,7 +313,7 @@ fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) 
             Text(text = stringResource(R.string.certificate_list_no_certificates))
         }
         certificates.forEach { (_, value) ->
-            if (value.status == CertificateInstallStatus.INSTALLED) {
+            if (value.status == CertificateStatus.INSTALLED) {
                 Text(text = value.alias)
             }
         }
@@ -352,8 +352,8 @@ fun FleetScreenPreview() {
             HorizontalDivider()
             CertificateList(
                 certificates = mapOf(
-                    1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
-                    2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
+                    1 to CertificateState(alias = "WIFI-1", status = CertificateStatus.INSTALLED),
+                    2 to CertificateState(alias = "VPN-3", status = CertificateStatus.FAILED),
                 ),
             )
             AppVersion(onClick = {})
@@ -367,8 +367,8 @@ fun DebugCertificateListPreview() {
     MyApplicationTheme {
         DebugCertificateList(
             certificates = mapOf(
-                1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
-                2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
+                1 to CertificateState(alias = "WIFI-1", status = CertificateStatus.INSTALLED),
+                2 to CertificateState(alias = "VPN-3", status = CertificateStatus.FAILED),
             ),
         )
     }

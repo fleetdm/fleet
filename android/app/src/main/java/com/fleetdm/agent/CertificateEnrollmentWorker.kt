@@ -9,7 +9,7 @@ import androidx.work.WorkerParameters
  * WorkManager worker that handles certificate enrollment operations in the background.
  *
  * This worker:
- * - Gets all certificate IDs from managed configuration
+ * - Gets host certificates from managed configuration
  * - Calls CertificateOrchestrator to enroll all certificates in parallel
  * - Returns appropriate Result based on enrollment outcomes
  * - Supports automatic retry for transient failures
@@ -26,14 +26,12 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             return Result.failure()
         }
 
-        val templates = CertificateOrchestrator.getCertificateTemplates(applicationContext)
+        val hostCertificates = CertificateOrchestrator.getHostCertificates(applicationContext) ?: emptyList()
 
         // STEP 1: Cleanup certificates marked for removal and orphaned certificates
-        // This runs even if templates is empty to clean up any orphaned certificates
-        val currentTemplates = templates ?: emptyList()
         val cleanupResults = CertificateOrchestrator.cleanupRemovedCertificates(
             context = applicationContext,
-            templates = currentTemplates,
+            hostCertificates = hostCertificates,
         )
 
         // Log cleanup results
@@ -48,17 +46,17 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             }
         }
 
-        // STEP 2: Filter templates to only those marked for install
-        val templatesToInstall = currentTemplates.filter { it.shouldInstall() }
+        // STEP 2: Filter to only certificates marked for install
+        val certificatesToInstall = hostCertificates.filter { it.shouldInstall() }
 
         // If no certificates to enroll, we're done
-        if (templatesToInstall.isEmpty()) {
+        if (certificatesToInstall.isEmpty()) {
             Log.d(TAG, "No certificates to enroll")
             return Result.success()
         }
 
         // STEP 3: Enroll new/updated certificates
-        val certificateIds = templatesToInstall.map { it.id }
+        val certificateIds = certificatesToInstall.map { it.id }
         Log.i(TAG, "Enrolling ${certificateIds.size} certificate(s): $certificateIds")
 
         val results = CertificateOrchestrator.enrollCertificates(
