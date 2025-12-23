@@ -2349,7 +2349,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	var labelID uint
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		m := map[string]uint{}
-		for _, label := range labels {
+		for _, label := range names {
 			if label != "baddy" {
 				labelID++
 				m[label] = labelID

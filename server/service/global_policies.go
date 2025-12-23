@@ -519,7 +519,7 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 // policies defined in the spec, and returns a map from team names to team IDs if successful
 func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) (map[string]uint, error) {
 	checkGlobalPolicyAuth := false
-	var teamIDsByName map[string]uint
+	var teamIDsByName = make(map[string]uint)
 	for _, policy := range policies {
 		if policy.Team != "" && policy.Team != "No team" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)

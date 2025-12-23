@@ -102,7 +102,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-		require.Equal(t, []string{"label1"}, labels)
+		require.Equal(t, []string{"label1"}, names)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
 
@@ -174,7 +174,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-		require.Equal(t, []string{"label1"}, labels)
+		require.Equal(t, []string{"label1"}, names)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
 
@@ -233,7 +233,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-		require.Equal(t, []string{"label1"}, labels)
+		require.Equal(t, []string{"label1"}, names)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
 
