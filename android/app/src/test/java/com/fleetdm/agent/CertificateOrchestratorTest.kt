@@ -72,11 +72,21 @@ class CertificateOrchestratorTest {
 
     // ========== Fake API Client for Testing ==========
 
+    data class UpdateStatusCall(
+        val certificateId: Int,
+        val status: UpdateCertificateStatusStatus,
+        val operationType: UpdateCertificateStatusOperation,
+        val detail: String?,
+    )
+
     class FakeCertificateApiClient : CertificateApiClient {
         var getCertificateTemplateHandler: (Int) -> Result<GetCertificateTemplateResponse> = {
             Result.failure(Exception("getCertificateTemplate not configured"))
         }
-        var updateCertificateStatusHandler: () -> Result<Unit> = { Result.success(Unit) }
+        var updateCertificateStatusHandler: (UpdateStatusCall) -> Result<Unit> = { Result.success(Unit) }
+
+        private val _updateStatusCalls = mutableListOf<UpdateStatusCall>()
+        val updateStatusCalls: List<UpdateStatusCall> get() = _updateStatusCalls.toList()
 
         override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> =
             getCertificateTemplateHandler(certificateId)
@@ -86,11 +96,16 @@ class CertificateOrchestratorTest {
             status: UpdateCertificateStatusStatus,
             operationType: UpdateCertificateStatusOperation,
             detail: String?,
-        ): Result<Unit> = updateCertificateStatusHandler()
+        ): Result<Unit> {
+            val call = UpdateStatusCall(certificateId, status, operationType, detail)
+            _updateStatusCalls.add(call)
+            return updateCertificateStatusHandler(call)
+        }
 
         fun reset() {
             getCertificateTemplateHandler = { Result.failure(Exception("getCertificateTemplate not configured")) }
             updateCertificateStatusHandler = { Result.success(Unit) }
+            _updateStatusCalls.clear()
         }
     }
 
@@ -713,6 +728,157 @@ class CertificateOrchestratorTest {
             val state = CertificateState("test", CertificateStatus.INSTALLED_UNREPORTED, statusReportRetries = case.retries)
             assertEquals("retries=${case.retries}", case.expected, state.shouldRetryStatusReport())
         }
+    }
+
+    // ========== Test Category 6: retryUnreportedStatuses ==========
+
+    @Test
+    fun `retryUnreportedStatuses returns empty map when no certificates exist`() = runTest {
+        val results = orchestrator.retryUnreportedStatuses(context)
+
+        assertTrue(results.isEmpty())
+        assertTrue(fakeApiClient.updateStatusCalls.isEmpty())
+    }
+
+    @Test
+    fun `retryUnreportedStatuses skips certificates that are not unreported`() = runTest {
+        // Store certificates with various non-unreported statuses
+        storeTestCertificateInDataStore(1, "cert-1", CertificateStatus.INSTALLED)
+        storeTestCertificateInDataStore(2, "cert-2", CertificateStatus.REMOVED)
+        storeTestCertificateInDataStore(3, "cert-3", CertificateStatus.FAILED)
+        storeTestCertificateInDataStore(4, "cert-4", CertificateStatus.RETRY)
+
+        val results = orchestrator.retryUnreportedStatuses(context)
+
+        assertTrue(results.isEmpty())
+        assertTrue(fakeApiClient.updateStatusCalls.isEmpty())
+    }
+
+    @Test
+    fun `retryUnreportedStatuses on success transitions to final status`() = runTest {
+        data class TestCase(
+            val name: String,
+            val initialStatus: CertificateStatus,
+            val expectedFinalStatus: CertificateStatus,
+            val expectedOperation: UpdateCertificateStatusOperation,
+        )
+
+        val testCases = listOf(
+            TestCase(
+                "install",
+                CertificateStatus.INSTALLED_UNREPORTED,
+                CertificateStatus.INSTALLED,
+                UpdateCertificateStatusOperation.INSTALL,
+            ),
+            TestCase(
+                "remove",
+                CertificateStatus.REMOVED_UNREPORTED,
+                CertificateStatus.REMOVED,
+                UpdateCertificateStatusOperation.REMOVE,
+            ),
+        )
+
+        for ((index, case) in testCases.withIndex()) {
+            clearDataStore()
+            fakeApiClient.reset()
+            val certId = index + 1
+
+            storeTestCertificateInDataStore(certId, "test-cert", case.initialStatus)
+
+            val results = orchestrator.retryUnreportedStatuses(context)
+
+            assertEquals("${case.name}: result", mapOf(certId to true), results)
+            assertEquals("${case.name}: status", case.expectedFinalStatus, getStoredCertificates()[certId]?.status)
+
+            // Verify correct API call
+            assertEquals("${case.name}: call count", 1, fakeApiClient.updateStatusCalls.size)
+            val call = fakeApiClient.updateStatusCalls[0]
+            assertEquals("${case.name}: certId", certId, call.certificateId)
+            assertEquals("${case.name}: status", UpdateCertificateStatusStatus.VERIFIED, call.status)
+            assertEquals("${case.name}: operation", case.expectedOperation, call.operationType)
+        }
+    }
+
+    @Test
+    fun `retryUnreportedStatuses on failure increments retry count and remains unreported`() = runTest {
+        storeTestCertificateInDataStore(123, "test-cert", CertificateStatus.INSTALLED_UNREPORTED, statusReportRetries = 2)
+        fakeApiClient.updateCertificateStatusHandler = { Result.failure(Exception("network error")) }
+
+        val results = orchestrator.retryUnreportedStatuses(context)
+
+        assertEquals(mapOf(123 to false), results)
+        val stored = getStoredCertificates()[123]
+        assertEquals(CertificateStatus.INSTALLED_UNREPORTED, stored?.status)
+        assertEquals(3, stored?.statusReportRetries)
+    }
+
+    @Test
+    fun `retryUnreportedStatuses on failure at max retries transitions to final status`() = runTest {
+        data class TestCase(val name: String, val initialStatus: CertificateStatus, val expectedFinalStatus: CertificateStatus)
+
+        val testCases = listOf(
+            TestCase("install", CertificateStatus.INSTALLED_UNREPORTED, CertificateStatus.INSTALLED),
+            TestCase("remove", CertificateStatus.REMOVED_UNREPORTED, CertificateStatus.REMOVED),
+        )
+
+        for ((index, case) in testCases.withIndex()) {
+            clearDataStore()
+            fakeApiClient.reset()
+            val certId = index + 1
+
+            storeTestCertificateInDataStore(
+                certId,
+                "test-cert",
+                case.initialStatus,
+                statusReportRetries = MAX_STATUS_REPORT_RETRIES - 1,
+            )
+            fakeApiClient.updateCertificateStatusHandler = { Result.failure(Exception("network error")) }
+
+            val results = orchestrator.retryUnreportedStatuses(context)
+
+            assertEquals("${case.name}: result", mapOf(certId to false), results)
+            val stored = getStoredCertificates()[certId]
+            assertEquals("${case.name}: status", case.expectedFinalStatus, stored?.status)
+            assertEquals("${case.name}: retries", MAX_STATUS_REPORT_RETRIES, stored?.statusReportRetries)
+        }
+    }
+
+    @Test
+    fun `retryUnreportedStatuses handles multiple unreported certificates`() = runTest {
+        storeTestCertificateInDataStore(1, "cert-1", CertificateStatus.INSTALLED_UNREPORTED)
+        storeTestCertificateInDataStore(2, "cert-2", CertificateStatus.REMOVED_UNREPORTED)
+        storeTestCertificateInDataStore(3, "cert-3", CertificateStatus.INSTALLED) // Should be skipped
+
+        val results = orchestrator.retryUnreportedStatuses(context)
+
+        assertEquals(2, results.size)
+        assertTrue(results[1] == true)
+        assertTrue(results[2] == true)
+
+        assertEquals(CertificateStatus.INSTALLED, getStoredCertificates()[1]?.status)
+        assertEquals(CertificateStatus.REMOVED, getStoredCertificates()[2]?.status)
+        assertEquals(CertificateStatus.INSTALLED, getStoredCertificates()[3]?.status) // Unchanged
+
+        assertEquals(2, fakeApiClient.updateStatusCalls.size)
+    }
+
+    @Test
+    fun `retryUnreportedStatuses handles mixed success and failure`() = runTest {
+        storeTestCertificateInDataStore(1, "cert-1", CertificateStatus.INSTALLED_UNREPORTED)
+        storeTestCertificateInDataStore(2, "cert-2", CertificateStatus.REMOVED_UNREPORTED)
+
+        // First call succeeds, second fails
+        fakeApiClient.updateCertificateStatusHandler = { call ->
+            if (call.certificateId == 1) Result.success(Unit) else Result.failure(Exception("error"))
+        }
+
+        val results = orchestrator.retryUnreportedStatuses(context)
+
+        assertEquals(true, results[1])
+        assertEquals(false, results[2])
+
+        assertEquals(CertificateStatus.INSTALLED, getStoredCertificates()[1]?.status)
+        assertEquals(CertificateStatus.REMOVED_UNREPORTED, getStoredCertificates()[2]?.status)
     }
 
     // ========== Helper Methods for Tests ==========
