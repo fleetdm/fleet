@@ -140,7 +140,7 @@ const Certificates = ({
           HeadingComponent={() => (
             <UploadListHeading
               entityName="Certificate"
-              createEntityText="Create"
+              createEntityText="Add"
               onClickAdd={() => setShowAddCertModal(true)}
             />
           )}
