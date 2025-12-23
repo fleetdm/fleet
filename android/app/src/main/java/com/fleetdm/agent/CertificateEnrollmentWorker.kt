@@ -26,8 +26,11 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             return Result.failure()
         }
 
+        // Get orchestrator from Application
+        val orchestrator = AgentApplication.getCertificateOrchestrator(applicationContext)
+
         // STEP 0: Retry any unreported statuses from previous runs
-        val unreportedResults = CertificateOrchestrator.retryUnreportedStatuses(applicationContext)
+        val unreportedResults = orchestrator.retryUnreportedStatuses(applicationContext)
         unreportedResults.forEach { (certId, success) ->
             if (success) {
                 Log.i(TAG, "Successfully reported unreported status for certificate $certId")
@@ -36,10 +39,10 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             }
         }
 
-        val hostCertificates = CertificateOrchestrator.getHostCertificates(applicationContext) ?: emptyList()
+        val hostCertificates = orchestrator.getHostCertificates(applicationContext) ?: emptyList()
 
         // STEP 1: Cleanup certificates marked for removal and orphaned certificates
-        val cleanupResults = CertificateOrchestrator.cleanupRemovedCertificates(
+        val cleanupResults = orchestrator.cleanupRemovedCertificates(
             context = applicationContext,
             hostCertificates = hostCertificates,
         )
@@ -69,7 +72,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
         val certificateIds = certificatesToInstall.map { it.id }
         Log.i(TAG, "Enrolling ${certificateIds.size} certificate(s): $certificateIds")
 
-        val results = CertificateOrchestrator.enrollCertificates(
+        val results = orchestrator.enrollCertificates(
             context = applicationContext,
             certificateIds = certificateIds,
         )

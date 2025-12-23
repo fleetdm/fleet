@@ -115,9 +115,10 @@ fun AppNavigation() {
 @Composable
 fun MainScreen(onNavigateToDebug: () -> Unit) {
     val context = LocalContext.current
+    val orchestrator = remember { AgentApplication.getCertificateOrchestrator(context) }
 
     var versionClicks by remember { mutableStateOf(0) }
-    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
+    val installedCerts by orchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -160,9 +161,10 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
     val appRestrictions = restrictionsManager.applicationRestrictions
     val dpm = context.getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
+    val orchestrator = remember { AgentApplication.getCertificateOrchestrator(context) }
     val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
     val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.let { "****" + it.takeLast(4) } }
-    val hostCertificates = remember { CertificateOrchestrator.getHostCertificates(context) }
+    val hostCertificates = remember { orchestrator.getHostCertificates(context) }
     val permissionsList = remember {
         val grantedPermissions = mutableListOf<String>()
         val packageInfo: PackageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
@@ -181,7 +183,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
     }
     val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
     val baseUrl by ApiClient.baseUrlFlow.collectAsStateWithLifecycle(initialValue = null)
-    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
+    val installedCerts by orchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

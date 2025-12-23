@@ -28,31 +28,20 @@ const val MAX_STATUS_REPORT_RETRIES = 10
  * Orchestrates certificate enrollment operations by coordinating API calls,
  * SCEP enrollment, and certificate installation.
  *
- * This object provides a neutral orchestration layer that can be called from
+ * This class provides a neutral orchestration layer that can be called from
  * multiple contexts (Service, Worker, direct calls) while maintaining separation
  * of concerns between Android framework code and business logic.
  *
- * ## Usage Examples
- *
- * Single certificate:
- * ```
- * val result = CertificateOrchestrator.enrollCertificate(
- *     context = applicationContext,
- *     certificateId = 123
- * )
- * ```
- *
- * Batch processing:
- * ```
- * val certificateIds = CertificateOrchestrator.getCertificateIDs(context)
- * val results = CertificateOrchestrator.enrollCertificates(
- *     context = applicationContext,
- *     certificateIds = certificateIds ?: emptyList()
- * )
- * ```
+ * @param apiClient Client for Fleet server API calls
+ * @param scepClient Client for SCEP enrollment operations
  */
-object CertificateOrchestrator {
-    private const val TAG = "fleet-CertificateOrchestrator"
+class CertificateOrchestrator(
+    private val apiClient: CertificateApiClient = ApiClient,
+    private val scepClient: ScepClient = ScepClientImpl(),
+) {
+    companion object {
+        private const val TAG = "fleet-CertificateOrchestrator"
+    }
 
     // DataStore key for storing installed certificates map as JSON
     private val INSTALLED_CERTIFICATES_KEY = stringPreferencesKey("installed_certificates")
@@ -350,7 +339,10 @@ object CertificateOrchestrator {
      * @param hostCertificates List of host certificates from managed configuration
      * @return Map of certificate ID to cleanup result
      */
-    suspend fun cleanupRemovedCertificates(context: Context, hostCertificates: List<HostCertificate>): Map<Int, CleanupResult> {
+    suspend fun cleanupRemovedCertificates(
+        context: Context,
+        hostCertificates: List<HostCertificate>,
+    ): Map<Int, CleanupResult> {
         Log.d(TAG, "Starting certificate cleanup. Host certificates: ${hostCertificates.map { "${it.id}:${it.operation}" }}")
 
         val certificateStates = getCertificateStates(context)
@@ -387,7 +379,7 @@ object CertificateOrchestrator {
                     // Notify server and save as REMOVED to prevent re-notification
                     Log.d(TAG, "Certificate ID $certId not in DataStore, notifying server as verified")
                     val alias = "cert-$certId"
-                    ApiClient.updateCertificateStatus(
+                    apiClient.updateCertificateStatus(
                         certificateId = certId,
                         status = UpdateCertificateStatusStatus.VERIFIED,
                         operationType = UpdateCertificateStatusOperation.REMOVE,
@@ -435,7 +427,7 @@ object CertificateOrchestrator {
             markCertificateUnreported(context, certificateId, alias, isInstall = false)
 
             // Attempt to report status
-            val reportResult = ApiClient.updateCertificateStatus(
+            val reportResult = apiClient.updateCertificateStatus(
                 certificateId = certificateId,
                 status = UpdateCertificateStatusStatus.VERIFIED,
                 operationType = UpdateCertificateStatusOperation.REMOVE,
@@ -453,7 +445,7 @@ object CertificateOrchestrator {
             CleanupResult.Success(alias)
         } else {
             val errorDetail = "Failed to remove certificate keypair from device"
-            ApiClient.updateCertificateStatus(
+            apiClient.updateCertificateStatus(
                 certificateId = certificateId,
                 status = UpdateCertificateStatusStatus.FAILED,
                 operationType = UpdateCertificateStatusOperation.REMOVE,
@@ -563,7 +555,7 @@ object CertificateOrchestrator {
 
             Log.d(TAG, "Retrying status report for $operationName certificate $certId (attempt ${state.statusReportRetries + 1})")
 
-            val result = ApiClient.updateCertificateStatus(
+            val result = apiClient.updateCertificateStatus(
                 certificateId = certId,
                 status = UpdateCertificateStatusStatus.VERIFIED,
                 operationType = operationType,
@@ -597,14 +589,12 @@ object CertificateOrchestrator {
      *
      * @param context Android context for certificate installation
      * @param certificateId ID of the certificate template to enroll
-     * @param scepClient SCEP client implementation (defaults to ScepClientImpl)
      * @param certificateInstaller Certificate installer implementation (defaults to AndroidCertificateInstaller)
      * @return EnrollmentResult indicating success or failure with details
      */
     suspend fun enrollCertificate(
         context: Context,
         certificateId: Int,
-        scepClient: ScepClient = ScepClientImpl(),
         certificateInstaller: CertificateEnrollmentHandler.CertificateInstaller? = null,
     ): CertificateEnrollmentHandler.EnrollmentResult {
         Log.d(TAG, "Starting certificate enrollment for certificate ID: $certificateId")
@@ -625,7 +615,7 @@ object CertificateOrchestrator {
         }
 
         // Fetch certificate template from API (only if not already installed)
-        val templateResult = ApiClient.getCertificateTemplate(certificateId)
+        val templateResult = apiClient.getCertificateTemplate(certificateId)
         val template = templateResult.getOrElse { error ->
             Log.e(TAG, "Failed to fetch certificate template for ID $certificateId: ${error.message}", error)
             return CertificateEnrollmentHandler.EnrollmentResult.Failure(
@@ -664,7 +654,7 @@ object CertificateOrchestrator {
                 markCertificateUnreported(context, certificateId, template.name, isInstall = true)
 
                 // Attempt to report status
-                val reportResult = ApiClient.updateCertificateStatus(
+                val reportResult = apiClient.updateCertificateStatus(
                     certificateId = certificateId,
                     status = UpdateCertificateStatusStatus.VERIFIED,
                     operationType = UpdateCertificateStatusOperation.INSTALL,
@@ -682,7 +672,7 @@ object CertificateOrchestrator {
                 val updatedInfo = markCertificateFailure(context = context, certificateId = certificateId, alias = template.name)
                 if (!updatedInfo.shouldRetry()) {
                     Log.e(TAG, "Certificate enrollment failed for ID $certificateId: ${result.reason}", result.exception)
-                    ApiClient.updateCertificateStatus(
+                    apiClient.updateCertificateStatus(
                         certificateId = certificateId,
                         status = UpdateCertificateStatusStatus.FAILED,
                         operationType = UpdateCertificateStatusOperation.INSTALL,
@@ -702,19 +692,17 @@ object CertificateOrchestrator {
      *
      * @param context Android context for certificate installation
      * @param certificateIds List of certificate template IDs to enroll
-     * @param scepClient SCEP client implementation (defaults to ScepClientImpl)
      * @return Map of certificate ID to enrollment result
      */
     suspend fun enrollCertificates(
         context: Context,
         certificateIds: List<Int>,
-        scepClient: ScepClient = ScepClientImpl(),
     ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> = coroutineScope {
         Log.d(TAG, "Starting batch certificate enrollment for ${certificateIds.size} certificates")
 
         certificateIds.associateWith { certificateId ->
             async {
-                enrollCertificate(context, certificateId, scepClient)
+                enrollCertificate(context, certificateId)
             }
         }.mapValues { it.value.await() }
     }
@@ -727,7 +715,9 @@ object CertificateOrchestrator {
      * delegated by the Device Policy Controller.
      */
     class AndroidCertificateInstaller(private val context: Context) : CertificateEnrollmentHandler.CertificateInstaller {
-        private val TAG = "AndroidCertInstaller"
+        companion object {
+            private const val TAG = "fleet-AndroidCertInstaller"
+        }
 
         override fun installCertificate(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>): Boolean {
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
