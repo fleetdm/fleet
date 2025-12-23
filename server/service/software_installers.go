@@ -184,6 +184,38 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		}
 	}
 
+	// Check if scripts are base64 encoded (to bypass WAF rules that block script patterns)
+	if isScriptsEncoded(r) {
+		if decoded.InstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.InstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for install_script"}
+			}
+			decoded.InstallScript = &decodedScript
+		}
+		if decoded.UninstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.UninstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for uninstall_script"}
+			}
+			decoded.UninstallScript = &decodedScript
+		}
+		if decoded.PreInstallQuery != nil {
+			decodedScript, err := decodeBase64Script(*decoded.PreInstallQuery)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for pre_install_query"}
+			}
+			decoded.PreInstallQuery = &decodedScript
+		}
+		if decoded.PostInstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.PostInstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for post_install_script"}
+			}
+			decoded.PostInstallScript = &decodedScript
+		}
+	}
+
 	return &decoded, nil
 }
 
@@ -349,6 +381,23 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode automatic_install bool in multipart form: %s", err.Error())}
 		}
 		decoded.AutomaticInstall = parsed
+	}
+
+	// Check if scripts are base64 encoded (to bypass WAF rules that block script patterns)
+	if isScriptsEncoded(r) {
+		var err error
+		if decoded.InstallScript, err = decodeBase64Script(decoded.InstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for install_script"}
+		}
+		if decoded.UninstallScript, err = decodeBase64Script(decoded.UninstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for uninstall_script"}
+		}
+		if decoded.PreInstallQuery, err = decodeBase64Script(decoded.PreInstallQuery); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for pre_install_query"}
+		}
+		if decoded.PostInstallScript, err = decodeBase64Script(decoded.PostInstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for post_install_script"}
+		}
 	}
 
 	return &decoded, nil
