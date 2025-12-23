@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,7 +16,9 @@ import (
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -357,6 +361,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 				BundleIdentifier: "com.foo.bar",
 				Version:          "1.2.3",
 				SoftwareTitle:    "test in-house app",
+				StorageID:        "123storageid",
 			}, nil
 		}
 
@@ -411,7 +416,24 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
-	// TODO(JK): test cloudfront signing
+	// Set up a new S3 store to test CloudFront signing
+	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
+	signerURL := "https://example.cloudfront.net"
+
+	s3Config := config.S3Config{
+		SoftwareInstallersCloudFrontURL:                   signerURL,
+		SoftwareInstallersCloudFrontURLSigningPublicKeyID: "ABC123XYZ",
+		SoftwareInstallersCloudFrontSigner:                signer,
+	}
+	s3Store, err := s3.NewTestSoftwareInstallerStore(s3Config)
+	require.NoError(t, err)
+	svc.softwareInstallStore = s3Store
+
+	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
+	require.NoError(t, err)
+	require.Contains(t, string(manifest), signerURL)
+
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
