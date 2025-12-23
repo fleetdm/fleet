@@ -198,7 +198,8 @@ type Datastore interface {
 	// GetLabelSpec returns the spec for the named label, filtered by the provided team filter.
 	GetLabelSpec(ctx context.Context, filter TeamFilter, name string) (*LabelSpec, error)
 
-	// AddLabelsToHost adds the given label IDs membership to the host.
+	// AddLabelsToHost adds the given label IDs membership to the host, with the assumption that the label
+	// is available for the host (visibility checks are assumed to have been done prior to this call).
 	// If a host is already a member of the label then this will update the row's updated_at.
 	AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error
 	// RemoveLabelsFromHost removes the given label IDs membership from the host.

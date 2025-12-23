@@ -1625,9 +1625,8 @@ func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, lab
 	return ok, nil
 }
 
+// AddLabelsToHost skips auth as it's only used in tests, and where label teams have already been validated.
 func (ds *Datastore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
-	// TODO kick back if team labels specified and host doesn't match label team
-
 	if len(labelIDs) == 0 {
 		return nil
 	}
