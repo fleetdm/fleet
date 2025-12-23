@@ -320,9 +320,20 @@ const handleAutoUpdateConfigAppStoreAppForm = (
   formData: ISoftwareAutoUpdateConfigFormData,
   body: IEditAppStoreAppPostBody
 ) => {
-  body.auto_update_enabled = formData.enabled;
-  body.auto_update_start_time = formData.startTime;
-  body.auto_update_end_time = formData.endTime;
+  body.auto_update_enabled = formData.autoUpdateEnabled;
+  body.auto_update_start_time = formData.autoUpdateStartTime;
+  body.auto_update_end_time = formData.autoUpdateEndTime;
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
+  } else {
+    body.labels_exclude_any = [];
+    body.labels_include_any = [];
+  }
 };
 
 const handleEditAppStoreAppForm = (
@@ -598,7 +609,7 @@ export default {
         formData as ISoftwareConfigurationFormData,
         body
       );
-    } else if ("auto_update_enabled" in formData) {
+    } else if ("autoUpdateEnabled" in formData) {
       // Handles Edit auto update configuration form only
       handleAutoUpdateConfigAppStoreAppForm(
         formData as ISoftwareAutoUpdateConfigFormData,

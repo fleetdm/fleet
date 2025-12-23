@@ -7,8 +7,8 @@ export interface ISoftwareAutoUpdateConfigInputValidation {
 
 export interface ISoftwareAutoUpdateConfigFormValidation {
   isValid: boolean;
-  startTime?: ISoftwareAutoUpdateConfigInputValidation;
-  endTime?: ISoftwareAutoUpdateConfigInputValidation;
+  autoUpdateStartTime?: ISoftwareAutoUpdateConfigInputValidation;
+  autoUpdateEndTime?: ISoftwareAutoUpdateConfigInputValidation;
   targets?: ISoftwareAutoUpdateConfigInputValidation;
 }
 
@@ -45,43 +45,43 @@ const validateTimeFormat = (time: string): boolean => {
 };
 
 const FORM_VALIDATIONS: IFormValidations = {
-  startTime: {
+  autoUpdateStartTime: {
     validations: [
       {
         name: "required",
         isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
-          return formData.startTime.length > 0;
+          return formData.autoUpdateStartTime.length > 0;
         },
         message: `Earliest start time is required`,
       },
       {
         name: "valid",
         isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
-          if (formData.startTime.length === 0) {
+          if (formData.autoUpdateStartTime.length === 0) {
             return true; // Skip this validation if startTime is empty
           }
-          return validateTimeFormat(formData.startTime);
+          return validateTimeFormat(formData.autoUpdateStartTime);
         },
         message: `Use HH:MM format (24-hour clock)`,
       },
     ],
   },
-  endTime: {
+  autoUpdateEndTime: {
     validations: [
       {
         name: "required",
         isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
-          return formData.endTime.length > 0;
+          return formData.autoUpdateEndTime.length > 0;
         },
         message: `Latest start time is required`,
       },
       {
         name: "valid",
         isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
-          if (formData.endTime.length === 0) {
+          if (formData.autoUpdateEndTime.length === 0) {
             return true; // Skip this validation if endTime is empty
           }
-          return validateTimeFormat(formData.endTime);
+          return validateTimeFormat(formData.autoUpdateEndTime);
         },
         message: `Use HH:MM format (24-hour clock)`,
       },
@@ -122,7 +122,7 @@ export const validateFormData = (
   };
   // If auto updates are not enabled, skip further validations.
   Object.keys(FORM_VALIDATIONS).forEach((key) => {
-    if (!formData.enabled && key !== "targets") {
+    if (!formData.autoUpdateEnabled && key !== "targets") {
       return;
     }
     const objKey = key as keyof typeof FORM_VALIDATIONS;

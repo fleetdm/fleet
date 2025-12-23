@@ -39,9 +39,9 @@ const baseClass = "edit-auto-update-config-modal";
 const formClass = "edit-auto-update-config-form";
 
 export interface ISoftwareAutoUpdateConfigFormData {
-  enabled: boolean;
-  startTime: string;
-  endTime: string;
+  autoUpdateEnabled: boolean;
+  autoUpdateStartTime: string;
+  autoUpdateEndTime: string;
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
@@ -64,9 +64,9 @@ const EditAutoUpdateConfigModal = ({
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
   const [formData, setFormData] = useState<ISoftwareAutoUpdateConfigFormData>({
-    enabled: softwareTitle.auto_update_enabled || false,
-    startTime: softwareTitle.auto_update_start_time || "",
-    endTime: softwareTitle.auto_update_end_time || "",
+    autoUpdateEnabled: softwareTitle.auto_update_enabled || false,
+    autoUpdateStartTime: softwareTitle.auto_update_start_time || "",
+    autoUpdateEndTime: softwareTitle.auto_update_end_time || "",
     targetType: getTargetType(softwareTitle.app_store_app as IAppStoreApp),
     customTarget: getCustomTarget(softwareTitle.app_store_app as IAppStoreApp),
     labelTargets: generateSelectedLabels(
@@ -122,7 +122,7 @@ const EditAutoUpdateConfigModal = ({
   };
 
   const onToggleEnabled = (value: boolean) => {
-    const newFormData = { ...formData, enabled: value };
+    const newFormData = { ...formData, autoUpdateEnabled: value };
     setFormData(newFormData);
     setFormValidation(validateFormData(newFormData));
     // setCanSaveForm(!error);
@@ -175,14 +175,14 @@ const EditAutoUpdateConfigModal = ({
             </p>
             <div>
               <Checkbox
-                value={formData.enabled}
+                value={formData.autoUpdateEnabled}
                 onChange={(newVal: boolean) => onToggleEnabled(newVal)}
               >
                 Enable auto updates
               </Checkbox>
             </div>
           </div>
-          {formData.enabled && (
+          {formData.autoUpdateEnabled && (
             <div>
               <div className="form-field">
                 <div className="form-field__label">
@@ -196,22 +196,22 @@ const EditAutoUpdateConfigModal = ({
               <div className={`${formClass}__auto-update-schedule-form`}>
                 <span className="date-time-inputs">
                   <InputField
-                    value={formData.startTime}
+                    value={formData.autoUpdateStartTime}
                     onChange={onChangeTimeField}
                     onBlur={() => setFormValidation(validateFormData(formData))}
                     label="Earliest start time"
-                    name="startTime"
+                    name="autoUpdateStartTime"
                     parseTarget
-                    error={formValidation.startTime?.message}
+                    error={formValidation.autoUpdateStartTime?.message}
                   />
                   <InputField
-                    value={formData.endTime}
+                    value={formData.autoUpdateEndTime}
                     onChange={onChangeTimeField}
                     onBlur={() => setFormValidation(validateFormData(formData))}
                     label="Latest start time"
-                    name="endTime"
+                    name="autoUpdateEndTime"
                     parseTarget
-                    error={formValidation.endTime?.message}
+                    error={formValidation.autoUpdateEndTime?.message}
                   />
                 </span>
               </div>
