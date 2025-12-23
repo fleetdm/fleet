@@ -5,8 +5,11 @@ import { IQueryStats } from "interfaces/query_stats";
 import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
+import Card from "components/Card";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import CardHeader from "components/CardHeader";
+import Icon from "components/Icon";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -24,6 +27,8 @@ interface IHostQueriesProps {
   hostPlatform: string;
   queryReportsDisabled?: boolean;
   router: InjectedRouter;
+  canAddQuery?: boolean;
+  onClickAddQuery: () => void;
 }
 
 interface IHostQueriesRowProps extends Row {
@@ -40,6 +45,8 @@ const HostQueries = ({
   hostPlatform,
   queryReportsDisabled,
   router,
+  canAddQuery,
+  onClickAddQuery,
 }: IHostQueriesProps): JSX.Element => {
   const renderEmptyQueriesTab = () => {
     if (hostPlatform === "chrome") {
@@ -155,10 +162,24 @@ const HostQueries = ({
   };
 
   return (
-    <div className={baseClass}>
-      <CardHeader header="Queries" />
-      {renderHostQueries()}
-    </div>
+    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
+      <div className={`${baseClass}__header`}>
+        <CardHeader header="Queries" />
+        {canAddQuery && (
+          <Button
+            className={`${baseClass}__add-query-btn`}
+            variant="inverse"
+            onClick={onClickAddQuery}
+            size="small"
+          >
+            <Icon name="plus" />
+            Add query
+          </Button>
+        )}
+      </div>
+
+      <div>{renderHostQueries()}</div>
+    </Card>
   );
 };
 

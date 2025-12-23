@@ -64,8 +64,7 @@ const generateColumnConfigs = (
 ): IDataColumn[] => {
   const cols: IDataColumn[] = [
     {
-      title: "Query",
-      Header: "Query",
+      Header: "Name",
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps) => (
@@ -73,60 +72,73 @@ const generateColumnConfigs = (
       ),
       sortType: "caseInsensitive",
     },
-    {
-      Header: () => {
-        return (
-          <TooltipWrapper
-            tipContent={
-              <>
-                This is the performance <br />
-                impact on this host.
-              </>
-            }
-          >
-            Performance impact
-          </TooltipWrapper>
-        );
-      },
-      disableSortBy: true,
-      accessor: "performance",
-      Cell: (cellProps: IPerformanceImpactCell) => {
-        const baseClass = "performance-cell";
-        const queryId = cellProps.row.original.id;
-        return (
-          <span className={baseClass}>
-            <PerformanceImpactCell
-              value={cellProps.cell.value}
-              customIdPrefix="query-perf-pill"
-              isHostSpecific
-            />
-            {!queryReportsDisabled &&
-              cellProps.row.original.should_link_to_hqr &&
-              hostId &&
-              queryId && (
-                // parent row has same onClick functionality but link here is required for keyboard accessibility
-                <Link
-                  className={`${baseClass}__link`}
-                  title="link to host query report"
-                  to={PATHS.HOST_QUERY_REPORT(hostId, queryId)}
-                >
-                  <Icon
-                    name="chevron-right"
-                    className={`${baseClass}__link-icon`}
-                    color="ui-fleet-black-75"
-                  />
-                </Link>
-              )}
-          </span>
-        );
-      },
-    },
+    // {
+    //   Header: () => {
+    //     return (
+    //       <TooltipWrapper
+    //         tipContent={
+    //           <>
+    //             This is the performance <br />
+    //             impact on this host.
+    //           </>
+    //         }
+    //       >
+    //         Performance impact
+    //       </TooltipWrapper>
+    //     );
+    //   },
+    //   disableSortBy: true,
+    //   accessor: "performance",
+    //   Cell: (cellProps: IPerformanceImpactCell) => {
+    //     const baseClass = "performance-cell";
+    //     const queryId = cellProps.row.original.id;
+    //     return (
+    //       <span className={baseClass}>
+    //         <PerformanceImpactCell
+    //           value={cellProps.cell.value}
+    //           customIdPrefix="query-perf-pill"
+    //           isHostSpecific
+    //         />
+    //         {!queryReportsDisabled &&
+    //           cellProps.row.original.should_link_to_hqr &&
+    //           hostId &&
+    //           queryId && (
+    //             // parent row has same onClick functionality but link here is required for keyboard accessibility
+    //             <Link
+    //               className={`${baseClass}__link`}
+    //               title="link to host query report"
+    //               to={PATHS.HOST_QUERY_REPORT(hostId, queryId)}
+    //             >
+    //               <Icon
+    //                 name="chevron-right"
+    //                 className={`${baseClass}__link-icon`}
+    //                 color="ui-fleet-black-75"
+    //               />
+    //             </Link>
+    //           )}
+    //       </span>
+    //     );
+    //   },
+    // },
   ];
 
   // include the Report updated column if query reports are globally enabled
   if (!queryReportsDisabled) {
     cols.push({
-      Header: "Report updated",
+      Header: () => {
+        return (
+          <TooltipWrapper
+            tipContent={
+              <>
+                Each query is updated based on an <br />
+                individually set interval.
+              </>
+            }
+          >
+            Last updated
+          </TooltipWrapper>
+        );
+      },
       disableSortBy: true,
       accessor: "last_fetched", // tbd - may change
       Cell: (cellProps: ICellProps) => {

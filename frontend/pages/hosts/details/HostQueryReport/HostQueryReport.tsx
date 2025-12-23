@@ -118,7 +118,7 @@ const HostQueryReport = ({
         <div className={`${baseClass}__header__row1`}>
           <BackButton
             text="Back to host details"
-            path={PATHS.HOST_QUERIES(hostId)}
+            path={PATHS.HOST_DETAILS_PAGE(hostId)}
           />
         </div>
         <div className={`${baseClass}__header__row2`}>
@@ -131,7 +131,7 @@ const HostQueryReport = ({
             iconStroke
           >
             <>
-              View full query report
+              View data for all hosts
               <Icon name="chevron-right" color="core-fleet-green" />
             </>
           </Button>
