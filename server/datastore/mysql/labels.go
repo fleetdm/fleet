@@ -980,7 +980,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	var foundID uint
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &foundID, labelCheckSql, labelCheckParams...); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
+			return nil, nil // matches previous behavior (invalid labels return no hosts)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "confirming label existence")
 	}
