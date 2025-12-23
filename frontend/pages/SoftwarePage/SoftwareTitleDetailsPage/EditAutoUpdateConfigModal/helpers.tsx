@@ -9,6 +9,7 @@ export interface ISoftwareAutoUpdateConfigFormValidation {
   isValid: boolean;
   startTime?: ISoftwareAutoUpdateConfigInputValidation;
   endTime?: ISoftwareAutoUpdateConfigInputValidation;
+  targets?: ISoftwareAutoUpdateConfigInputValidation;
 }
 
 type IMessageFunc = (formData: ISoftwareAutoUpdateConfigFormData) => string;
@@ -70,7 +71,7 @@ const FORM_VALIDATIONS: IFormValidations = {
       {
         name: "required",
         isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
-          return formData.startTime.length > 0;
+          return formData.endTime.length > 0;
         },
         message: `Latest start time is required`,
       },
@@ -83,6 +84,20 @@ const FORM_VALIDATIONS: IFormValidations = {
           return validateTimeFormat(formData.endTime);
         },
         message: `Use HH:MM format (24-hour clock)`,
+      },
+    ],
+  },
+  targets: {
+    validations: [
+      {
+        name: "custom_labels_selected",
+        isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
+          return (
+            formData.targetType !== "Custom" ||
+            Object.values(formData.labelTargets).filter((v) => v).length > 0
+          );
+        },
+        message: `At least one label target must be selected`,
       },
     ],
   },
@@ -105,6 +120,10 @@ export const validateFormData = (
   const formValidation: ISoftwareAutoUpdateConfigFormValidation = {
     isValid: true,
   };
+  // If auto updates are not enabled, skip further validations.
+  if (!formData.enabled) {
+    return formValidation;
+  }
   Object.keys(FORM_VALIDATIONS).forEach((key) => {
     const objKey = key as keyof typeof FORM_VALIDATIONS;
     const failedValidation = FORM_VALIDATIONS[objKey].validations.find(

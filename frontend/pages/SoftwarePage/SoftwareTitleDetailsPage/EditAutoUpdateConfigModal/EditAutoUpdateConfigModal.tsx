@@ -145,13 +145,13 @@ const EditAutoUpdateConfigModal = ({
   const onSelectTargetType = (value: string) => {
     const newData = { ...formData, targetType: value };
     setFormData(newData);
-    // setFormValidation(generateFormValidation(newData));
+    setFormValidation(validateFormData(newData));
   };
 
   const onSelectCustomTargetOption = (value: string) => {
     const newData = { ...formData, customTarget: value };
     setFormData(newData);
-    // setFormValidation(generateFormValidation(newData));
+    setFormValidation(validateFormData(newData));
   };
 
   const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
@@ -160,7 +160,7 @@ const EditAutoUpdateConfigModal = ({
       labelTargets: { ...formData.labelTargets, [name]: value },
     };
     setFormData(newData);
-    // setFormValidation(generateFormValidation(newData));
+    setFormValidation(validateFormData(newData));
   };
 
   const renderForm = () => (
