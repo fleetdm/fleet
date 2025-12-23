@@ -1101,6 +1101,13 @@
       "description": "OBS is open-source software for live streaming and screen recording."
     },
     {
+      "name": "OBS",
+      "slug": "obs/windows",
+      "platform": "windows",
+      "unique_identifier": "OBS Studio",
+      "description": "OBS is open-source software for live streaming and screen recording."
+    },
+    {
       "name": "Obsidian",
       "slug": "obsidian/darwin",
       "platform": "darwin",
