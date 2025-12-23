@@ -6,7 +6,7 @@ import createMockHost from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
 
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import Vitals from "./About";
+import Vitals from "./Vitals";
 
 describe("Vitals Card component", () => {
   it("renders only the device Hardware model for Android hosts that were not enrolled in MDM personally", () => {
