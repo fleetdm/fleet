@@ -86,6 +86,9 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 		WHERE certificate_templates.id = ?
 	`, fleet.MDMOperationTypeInstall)
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, stmt, hostUUID, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("CertificateTemplateForHost"))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id for host")
 	}
 
