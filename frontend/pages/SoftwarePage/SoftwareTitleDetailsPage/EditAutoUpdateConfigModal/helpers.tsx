@@ -1,33 +1,133 @@
-import React from "react";
-import { isAxiosError } from "axios";
+import { ISoftwareAutoUpdateConfigFormData } from "./EditAutoUpdateConfigModal";
 
-import { getErrorReason } from "interfaces/errors";
-import { IAppStoreApp, ISoftwareTitleDetails } from "interfaces/software";
+export interface ISoftwareAutoUpdateConfigInputValidation {
+  isValid: boolean;
+  message?: string;
+}
 
-import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+export interface ISoftwareAutoUpdateConfigFormValidation {
+  isValid: boolean;
+  startTime?: ISoftwareAutoUpdateConfigInputValidation;
+  endTime?: ISoftwareAutoUpdateConfigInputValidation;
+}
 
-const DEFAULT_ERROR_MESSAGE =
-  "Couldn't update configuration. Please try again.";
+type IMessageFunc = (formData: ISoftwareAutoUpdateConfigFormData) => string;
+type IValidationMessage = string | IMessageFunc;
+type IFormValidationKey = keyof Omit<
+  ISoftwareAutoUpdateConfigFormValidation,
+  "isValid"
+>;
 
-// eslint-disable-next-line import/prefer-default-export
-export const getErrorMessage = (
-  err: unknown,
-  software: ISoftwareTitleDetails
-) => {
-  const reason = getErrorReason(err);
+interface IValidation {
+  name: string;
+  isValid: (
+    formData: ISoftwareAutoUpdateConfigFormData,
+    validations?: ISoftwareAutoUpdateConfigFormValidation
+  ) => boolean;
+  message?: IValidationMessage;
+}
 
-  if (
-    reason.includes("managedConfiguration") ||
-    reason.includes("workProfileWidgets")
-  ) {
-    return (
-      <>
-        Couldn&apos;t update configuration. Only
-        &quot;managedConfiguration&quot; and &quot;workProfileWidgets&quot; are
-        supported as top-level keys.
-      </>
-    );
+type IFormValidations = Record<
+  IFormValidationKey,
+  { validations: IValidation[] }
+>;
+
+const validateTimeFormat = (time: string): boolean => {
+  if (!time.match(/^[0-9]{2}:[0-9]{2}$/)) {
+    return false;
   }
+  const [hours, minutes] = time.split(":").map(Number);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return false;
+  }
+  return true;
+};
 
-  return reason || DEFAULT_ERROR_MESSAGE;
+const FORM_VALIDATIONS: IFormValidations = {
+  startTime: {
+    validations: [
+      {
+        name: "required",
+        isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
+          return formData.startTime.length > 0;
+        },
+        message: `Earliest start time is required`,
+      },
+      {
+        name: "valid",
+        isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
+          if (formData.startTime.length === 0) {
+            return true; // Skip this validation if startTime is empty
+          }
+          return validateTimeFormat(formData.startTime);
+        },
+        message: `Use HH:MM format (24-hour clock)`,
+      },
+    ],
+  },
+  endTime: {
+    validations: [
+      {
+        name: "required",
+        isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
+          return formData.startTime.length > 0;
+        },
+        message: `Latest start time is required`,
+      },
+      {
+        name: "valid",
+        isValid: (formData: ISoftwareAutoUpdateConfigFormData) => {
+          if (formData.endTime.length === 0) {
+            return true; // Skip this validation if endTime is empty
+          }
+          return validateTimeFormat(formData.endTime);
+        },
+        message: `Use HH:MM format (24-hour clock)`,
+      },
+    ],
+  },
+};
+
+const getErrorMessage = (
+  formData: ISoftwareAutoUpdateConfigFormData,
+  message?: IValidationMessage
+) => {
+  if (message === undefined || typeof message === "string") {
+    return message;
+  }
+  return message(formData);
+};
+
+export const validateFormData = (
+  formData: ISoftwareAutoUpdateConfigFormData,
+  isSaving = false
+) => {
+  const formValidation: ISoftwareAutoUpdateConfigFormValidation = {
+    isValid: true,
+  };
+  Object.keys(FORM_VALIDATIONS).forEach((key) => {
+    const objKey = key as keyof typeof FORM_VALIDATIONS;
+    const failedValidation = FORM_VALIDATIONS[objKey].validations.find(
+      (validation) => {
+        if (!isSaving && validation.name === "required") {
+          return false; // Skip this validation if not saving
+        }
+        return !validation.isValid(formData, formValidation);
+      }
+    );
+
+    if (!failedValidation) {
+      formValidation[objKey] = {
+        isValid: true,
+      };
+    } else {
+      formValidation.isValid = false;
+      formValidation[objKey] = {
+        isValid: false,
+        message: getErrorMessage(formData, failedValidation.message),
+      };
+    }
+  });
+
+  return formValidation;
 };

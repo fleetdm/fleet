@@ -23,25 +23,20 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 
+import {
+  ISoftwareAutoUpdateConfigFormValidation,
+  ISoftwareAutoUpdateConfigInputValidation,
+  validateFormData,
+} from "./helpers";
+
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getErrorMessage } from "./helpers";
 
 const baseClass = "edit-auto-update-config-modal";
 const formClass = "edit-auto-update-config-form";
-
-// Used to surface error.message in UI of unknown error type
-type ErrorWithMessage = {
-  message: string;
-  [key: string]: unknown;
-};
-
-const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
-  return (error as ErrorWithMessage).message !== undefined;
-};
 
 export interface ISoftwareAutoUpdateConfigFormData {
   enabled: boolean;
@@ -88,19 +83,25 @@ const EditAutoUpdateConfigModal = ({
     }
   );
 
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const validateForm = (curFormData: ISoftwareAutoUpdateConfigFormData) => {
-    let error = null;
-    error = null;
-    return error;
-  };
+  const [
+    formValidation,
+    setFormValidation,
+  ] = useState<ISoftwareAutoUpdateConfigFormValidation>(() =>
+    validateFormData(formData)
+  );
 
   // Edit package API call
   const onSubmitForm = async (evt: React.MouseEvent<HTMLFormElement>) => {
-    setIsUpdatingConfiguration(true);
-
     evt.preventDefault();
+
+    const newValidation = validateFormData(formData, true);
+    setFormValidation(newValidation);
+
+    if (!newValidation.isValid) {
+      return false;
+    }
+
+    setIsUpdatingConfiguration(true);
 
     try {
       await softwareAPI.editAppStoreApp(softwareTitle.id, teamId, formData);
@@ -115,10 +116,7 @@ const EditAutoUpdateConfigModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareTitle as ISoftwareTitleDetails)
-      );
+      renderFlash("error", "");
     }
     setIsUpdatingConfiguration(false);
   };
@@ -126,18 +124,22 @@ const EditAutoUpdateConfigModal = ({
   const onToggleEnabled = (value: boolean) => {
     const newFormData = { ...formData, enabled: value };
     setFormData(newFormData);
-    const error = validateForm(newFormData);
-    setFormError(error);
-    setCanSaveForm(!error);
+    setFormValidation(validateFormData(newFormData));
+    // setCanSaveForm(!error);
   };
 
   const onChangeTimeField = (update: { name: string; value: string }) => {
     const value = update.value.substring(0, 5).replace(/[^0-9:]/g, ""); // limit to 5 characters and allow only numbers and colon
     const newFormData = { ...formData, [update.name]: value };
     setFormData(newFormData);
-    const error = validateForm(newFormData);
-    setFormError(error);
-    setCanSaveForm(!error);
+    const newValidation = validateFormData(newFormData);
+    const fieldName = update.name as keyof ISoftwareAutoUpdateConfigFormValidation;
+    const fieldValidation = newValidation[
+      fieldName
+    ] as ISoftwareAutoUpdateConfigInputValidation;
+    if (fieldValidation?.isValid) {
+      setFormValidation(newValidation);
+    }
   };
 
   const onSelectTargetType = (value: string) => {
@@ -196,16 +198,20 @@ const EditAutoUpdateConfigModal = ({
                   <InputField
                     value={formData.startTime}
                     onChange={onChangeTimeField}
+                    onBlur={() => setFormValidation(validateFormData(formData))}
                     label="Earliest start time"
                     name="startTime"
                     parseTarget
+                    error={formValidation.startTime?.message}
                   />
                   <InputField
                     value={formData.endTime}
                     onChange={onChangeTimeField}
+                    onBlur={() => setFormValidation(validateFormData(formData))}
                     label="Latest start time"
                     name="endTime"
                     parseTarget
+                    error={formValidation.endTime?.message}
                   />
                 </span>
               </div>
@@ -243,7 +249,7 @@ const EditAutoUpdateConfigModal = ({
               type="submit"
               onClick={onSubmitForm}
               isLoading={isUpdatingConfiguration}
-              disabled={!canSaveForm || isUpdatingConfiguration}
+              disabled={!formValidation.isValid || isUpdatingConfiguration}
             >
               Save
             </Button>
