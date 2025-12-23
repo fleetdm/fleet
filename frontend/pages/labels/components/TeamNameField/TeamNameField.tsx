@@ -12,9 +12,7 @@ const TeamNameField = ({ name }: ITeamNameFieldProps) => {
   return (
     <div className={baseClass}>
       <FormField label="Team" name="team_name">
-        <>
-          <p>{name}</p>
-        </>
+        <p>{name}</p>
       </FormField>
     </div>
   );
