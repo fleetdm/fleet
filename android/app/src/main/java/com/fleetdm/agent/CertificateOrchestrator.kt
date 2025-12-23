@@ -419,11 +419,7 @@ object CertificateOrchestrator {
     /**
      * Removes a certificate from the device and updates tracking.
      */
-    private suspend fun removeCertificateFromDevice(
-        context: Context,
-        certificateId: Int,
-        alias: String,
-    ): CleanupResult {
+    private suspend fun removeCertificateFromDevice(context: Context, certificateId: Int, alias: String): CleanupResult {
         Log.d(TAG, "Removing certificate ID $certificateId with alias '$alias'")
 
         val removed = removeKeyPair(context, alias)
