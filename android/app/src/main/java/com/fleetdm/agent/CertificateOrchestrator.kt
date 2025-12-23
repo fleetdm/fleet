@@ -339,10 +339,7 @@ class CertificateOrchestrator(
      * @param hostCertificates List of host certificates from managed configuration
      * @return Map of certificate ID to cleanup result
      */
-    suspend fun cleanupRemovedCertificates(
-        context: Context,
-        hostCertificates: List<HostCertificate>,
-    ): Map<Int, CleanupResult> {
+    suspend fun cleanupRemovedCertificates(context: Context, hostCertificates: List<HostCertificate>): Map<Int, CleanupResult> {
         Log.d(TAG, "Starting certificate cleanup. Host certificates: ${hostCertificates.map { "${it.id}:${it.operation}" }}")
 
         val certificateStates = getCertificateStates(context)
@@ -438,7 +435,10 @@ class CertificateOrchestrator(
                 markCertificateRemoved(context, certificateId, alias)
             } else {
                 // Status report failed; leave as REMOVED_UNREPORTED for retry later
-                Log.w(TAG, "Removal status report failed for certificate $certificateId, will retry later: ${reportResult.exceptionOrNull()?.message}")
+                Log.w(
+                    TAG,
+                    "Removal status report failed for certificate $certificateId, will retry later: ${reportResult.exceptionOrNull()?.message}",
+                )
             }
 
             Log.i(TAG, "Successfully removed certificate ID $certificateId (alias: '$alias')")
@@ -480,12 +480,7 @@ class CertificateOrchestrator(
      * @param alias Certificate alias
      * @param isInstall True for install operation, false for remove operation
      */
-    internal suspend fun markCertificateUnreported(
-        context: Context,
-        certificateId: Int,
-        alias: String,
-        isInstall: Boolean,
-    ) {
+    internal suspend fun markCertificateUnreported(context: Context, certificateId: Int, alias: String, isInstall: Boolean) {
         val status = if (isInstall) {
             CertificateStatus.INSTALLED_UNREPORTED
         } else {
@@ -665,7 +660,10 @@ class CertificateOrchestrator(
                     markCertificateInstalled(context, certificateId = certificateId, alias = template.name)
                 } else {
                     // Status report failed - leave as INSTALLED_UNREPORTED for retry later
-                    Log.w(TAG, "Status report failed for certificate $certificateId, will retry later: ${reportResult.exceptionOrNull()?.message}")
+                    Log.w(
+                        TAG,
+                        "Status report failed for certificate $certificateId, will retry later: ${reportResult.exceptionOrNull()?.message}",
+                    )
                 }
             }
             is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
@@ -694,18 +692,16 @@ class CertificateOrchestrator(
      * @param certificateIds List of certificate template IDs to enroll
      * @return Map of certificate ID to enrollment result
      */
-    suspend fun enrollCertificates(
-        context: Context,
-        certificateIds: List<Int>,
-    ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> = coroutineScope {
-        Log.d(TAG, "Starting batch certificate enrollment for ${certificateIds.size} certificates")
+    suspend fun enrollCertificates(context: Context, certificateIds: List<Int>): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> =
+        coroutineScope {
+            Log.d(TAG, "Starting batch certificate enrollment for ${certificateIds.size} certificates")
 
-        certificateIds.associateWith { certificateId ->
-            async {
-                enrollCertificate(context, certificateId)
-            }
-        }.mapValues { it.value.await() }
-    }
+            certificateIds.associateWith { certificateId ->
+                async {
+                    enrollCertificate(context, certificateId)
+                }
+            }.mapValues { it.value.await() }
+        }
 
     /**
      * Android-specific certificate installer using DevicePolicyManager.

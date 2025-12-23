@@ -78,18 +78,15 @@ class CertificateOrchestratorTest {
         }
         var updateCertificateStatusHandler: () -> Result<Unit> = { Result.success(Unit) }
 
-        override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
-            return getCertificateTemplateHandler(certificateId)
-        }
+        override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> =
+            getCertificateTemplateHandler(certificateId)
 
         override suspend fun updateCertificateStatus(
             certificateId: Int,
             status: UpdateCertificateStatusStatus,
             operationType: UpdateCertificateStatusOperation,
             detail: String?,
-        ): Result<Unit> {
-            return updateCertificateStatusHandler()
-        }
+        ): Result<Unit> = updateCertificateStatusHandler()
 
         fun reset() {
             getCertificateTemplateHandler = { Result.failure(Exception("getCertificateTemplate not configured")) }
@@ -634,11 +631,7 @@ class CertificateOrchestratorTest {
 
     @Test
     fun `markCertificateUnreported sets correct status based on operation type`() = runTest {
-        data class TestCase(
-            val name: String,
-            val isInstall: Boolean,
-            val expectedStatus: CertificateStatus,
-        )
+        data class TestCase(val name: String, val isInstall: Boolean, val expectedStatus: CertificateStatus)
 
         val testCases = listOf(
             TestCase("install", isInstall = true, CertificateStatus.INSTALLED_UNREPORTED),
@@ -673,11 +666,7 @@ class CertificateOrchestratorTest {
 
     @Test
     fun `incrementStatusReportRetries transitions to final status at max retries`() = runTest {
-        data class TestCase(
-            val name: String,
-            val initialStatus: CertificateStatus,
-            val expectedFinalStatus: CertificateStatus,
-        )
+        data class TestCase(val name: String, val initialStatus: CertificateStatus, val expectedFinalStatus: CertificateStatus)
 
         val testCases = listOf(
             TestCase("install", CertificateStatus.INSTALLED_UNREPORTED, CertificateStatus.INSTALLED),

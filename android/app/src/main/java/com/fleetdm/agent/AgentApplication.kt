@@ -33,9 +33,8 @@ class AgentApplication : Application() {
          * @param context Any context (will use applicationContext)
          * @return The shared CertificateOrchestrator instance
          */
-        fun getCertificateOrchestrator(context: Context): CertificateOrchestrator {
-            return (context.applicationContext as AgentApplication).certificateOrchestrator
-        }
+        fun getCertificateOrchestrator(context: Context): CertificateOrchestrator =
+            (context.applicationContext as AgentApplication).certificateOrchestrator
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
