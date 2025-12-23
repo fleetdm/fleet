@@ -106,7 +106,7 @@ const AddCertModal = ({
 
     setIsUpdating(true);
     try {
-      await certificatesAPI.createCert({
+      await certificatesAPI.addCert({
         name: formData.name,
         certAuthorityId: parseInt(formData.certAuthorityId, 10),
         subjectName: formData.subjectName,
