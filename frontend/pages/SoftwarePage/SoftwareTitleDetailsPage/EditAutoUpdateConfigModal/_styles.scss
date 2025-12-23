@@ -28,8 +28,8 @@
 
     position: relative;
 
-    p {
-      // margin-top: $pad-small;
+    &--disabled {
+      @include disabled;
     }
   
     &__auto-update-config {

@@ -1,10 +1,12 @@
 import React, { useContext, useState } from "react";
+import classnames from "classnames";
 import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
 import { ILabelSummary } from "interfaces/label";
 
 import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -61,6 +63,13 @@ const EditAutoUpdateConfigModal = ({
   onExit,
 }: EditAutoUpdateConfigModal) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
+
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+
+  const formClassNames = classnames(formClass, {
+    [`edit-auto-update-config-form--disabled`]: gitOpsModeEnabled,
+  });
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
   const [formData, setFormData] = useState<ISoftwareAutoUpdateConfigFormData>({
@@ -115,7 +124,10 @@ const EditAutoUpdateConfigModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash("error", "");
+      renderFlash(
+        "error",
+        "An error occurred while updating the configuration. Please try again."
+      );
     }
     setIsUpdatingConfiguration(false);
     return true;
@@ -249,18 +261,23 @@ const EditAutoUpdateConfigModal = ({
 
   return (
     <Modal className={baseClass} title="Schedule auto updates" onExit={onExit}>
-      <div className={formClass}>
+      <div className={formClassNames}>
         {renderForm()}
         <ModalFooter
           primaryButtons={
-            <Button
-              type="submit"
-              onClick={onSubmitForm}
-              isLoading={isUpdatingConfiguration}
-              disabled={!formValidation.isValid || isUpdatingConfiguration}
-            >
-              Save
-            </Button>
+            <>
+              <Button onClick={onExit} variant="inverse">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                onClick={onSubmitForm}
+                isLoading={isUpdatingConfiguration}
+                disabled={!formValidation.isValid || isUpdatingConfiguration}
+              >
+                Save
+              </Button>
+            </>
           }
         />
       </div>
