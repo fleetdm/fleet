@@ -287,6 +287,8 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 }
 
 func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
+	// TODO test label filtering
+
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),

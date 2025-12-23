@@ -5015,6 +5015,8 @@ func (s *integrationTestSuite) TestLabels() {
 		)
 
 		t.Run("IdP Group Label", func(t *testing.T) {
+			// TODO test team labels
+
 			// Create a label for an IdP group
 			criteria := &fleet.HostVitalCriteria{
 				Vital: ptr.String("end_user_idp_group"),

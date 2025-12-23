@@ -972,7 +972,18 @@ func (ds *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.
 // ListHostsInLabel returns a list of fleet.Host that are associated
 // with fleet.Label referenced by Label ID
 func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	// TODO make sure label isn't visible if team filter would filter it out
+	labelCheckSql, labelCheckParams, err := applyLabelTeamFilter(`SELECT l.id FROM labels l WHERE id = ?`, filter, lid)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to confirm label existence")
+	}
+
+	var label fleet.Label
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &label, labelCheckSql, labelCheckParams...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "confirming label existence")
+	}
 
 	queryFmt := `
     SELECT
