@@ -1,0 +1,8 @@
+{
+  "name": "Splashtop Business",
+  "unique_identifier": "com.splashtop.stb.macosx",
+  "token": "splashtop-business",
+  "installer_format": "dmg",
+  "slug": "splashtop-business/darwin",
+  "default_categories": ["Productivity"]
+}

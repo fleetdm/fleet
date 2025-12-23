@@ -34,7 +34,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 	}{
 		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/team_software_installer_install_script_secret.yml", "environment variable \"FLEET_SECRET_NAME\" not set"},
-		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
+		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
@@ -86,8 +86,8 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
-				return nil
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+				return false, nil
 			}
 			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
 				return []fleet.VPPAppResponse{}, nil
@@ -248,8 +248,8 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
-				return nil
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+				return false, nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
@@ -326,7 +326,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		wantErr    string
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
-		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
+		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
@@ -368,8 +368,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
-				return nil
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+				return false, nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
@@ -501,8 +501,8 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			token, err := test.CreateVPPTokenEncoded(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
-				return nil
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+				return false, nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
@@ -551,6 +551,18 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				}
 				return found, nil
 			}
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+				found2 := make(map[string]*fleet.Label)
+				for _, l := range names {
+					if id, ok := c.expectedLabels[l]; ok {
+						found2[l] = &fleet.Label{
+							ID:   id,
+							Name: l,
+						}
+					}
+				}
+				return found2, nil
+			}
 			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 			}
@@ -565,6 +577,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				require.NoError(t, err)
 				if len(c.expectedLabels) > 0 {
 					require.True(t, ds.LabelIDsByNameFuncInvoked)
+					require.True(t, ds.LabelsByNameFuncInvoked)
 				}
 
 				require.Equal(t, c.expectedLabels, found)

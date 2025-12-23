@@ -1,0 +1,9 @@
+{
+  "name": "Evernote",
+  "unique_identifier": "com.evernote.Evernote",
+  "token": "evernote",
+  "installer_format": "dmg",
+  "slug": "evernote/darwin",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/evernote-install.sh"
+}

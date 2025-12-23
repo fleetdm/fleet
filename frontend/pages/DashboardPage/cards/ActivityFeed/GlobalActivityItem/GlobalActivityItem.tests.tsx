@@ -867,7 +867,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS hosts that automatically enroll to",
+        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -884,7 +884,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS hosts that automatically enroll to no team.",
+        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -899,7 +899,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS hosts that automatically enroll to",
+        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -916,7 +916,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS hosts that automatically enroll to no team.",
+        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -1732,6 +1732,38 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText(/Bears/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
+  });
+  it("renders an enabledMacosUpdateNewHosts activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacosUpdateNewHosts,
+      details: {
+        team_name: "Lions",
+        team_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/enabled OS updates for all new/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/macOS/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lions/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
+  });
+  it("renders a disabledMacosUpdateNewHosts activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacosUpdateNewHosts,
+      details: {
+        team_name: "Lions",
+        team_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/disabled updates for all new/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/macOS/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lions/i)).toBeInTheDocument();
     expect(screen.getByText(/team/i)).toBeInTheDocument();
   });
 });

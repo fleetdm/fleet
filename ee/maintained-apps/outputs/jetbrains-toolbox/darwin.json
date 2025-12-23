@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.1.1",
+      "version": "3.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox';"
       },
-      "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.1.1.64142-arm64.dmg",
+      "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.2.0.65851-arm64.dmg",
       "install_script_ref": "409d461d",
       "uninstall_script_ref": "c03d182a",
-      "sha256": "4ff48b38e9cefb334ccf4cfd5708d88ada884da6fb47d6f06049b5a260315996",
+      "sha256": "40bfaf8a40b6db5649415c2123f6206e264501f8efe1538e3d8e8eab62e19d81",
       "default_categories": [
         "Developer tools"
       ]

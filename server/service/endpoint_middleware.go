@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -61,6 +62,9 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 	)
 }
 
+// authenticatedDevice checks the validity of the device auth token
+// provided in the request, and attaches the corresponding host to the
+// context for the request.
 func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
 	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		identifier, err := getDeviceAuthToken(request)
@@ -77,8 +81,16 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
 			authnMethod = authz_ctx.AuthnDeviceCertificate
 		} else {
+			// Try token auth first (hot path for Fleet Desktop).
 			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
-			authnMethod = authz_ctx.AuthnDeviceToken
+			if err == nil {
+				authnMethod = authz_ctx.AuthnDeviceToken
+			} else {
+				// Fallback to UUID auth for iOS/iPadOS self-service via URL.
+				// The identifier (from {token}) is treated as the device UUID.
+				host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
+				authnMethod = authz_ctx.AuthnDeviceURL
+			}
 		}
 
 		if err != nil {
@@ -157,9 +169,14 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 	return middleware_log.Logged(authHostFunc)
 }
 
-func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+func authenticatedOrbitHost(
+	svc fleet.Service,
+	logger log.Logger,
+	next endpoint.Endpoint,
+	orbitNodeKeyGetter func(context.Context, interface{}) (string, error),
+) endpoint.Endpoint {
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
-		nodeKey, err := getOrbitNodeKey(request)
+		nodeKey, err := orbitNodeKeyGetter(ctx, request)
 		if err != nil {
 			return nil, err
 		}
@@ -194,11 +211,20 @@ func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.
 	return middleware_log.Logged(authHostFunc)
 }
 
-func getOrbitNodeKey(r interface{}) (string, error) {
+func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
 	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
 		return onk.orbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")
+}
+
+func authHeaderValue(prefix string) func(ctx context.Context, r interface{}) (string, error) {
+	return func(ctx context.Context, r interface{}) (string, error) {
+		if authHeader, ok := ctx.Value(kithttp.ContextKeyRequestAuthorization).(string); ok {
+			return strings.TrimPrefix(authHeader, prefix), nil
+		}
+		return "", nil
+	}
 }
 
 func getNodeKey(r interface{}) (string, error) {

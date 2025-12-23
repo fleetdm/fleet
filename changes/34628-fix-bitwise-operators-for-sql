@@ -1,1 +1,0 @@
-- Fixed an issue where using bitwise operators in a query incorrectly marked the query as invalid.

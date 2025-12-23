@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "7.80.1",
+      "version": "7.83.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.whispersystems.signal-desktop';"
       },
-      "installer_url": "https://updates.signal.org/desktop/signal-desktop-mac-arm64-7.80.1.zip",
+      "installer_url": "https://updates.signal.org/desktop/signal-desktop-mac-arm64-7.83.0.zip",
       "install_script_ref": "5e2af773",
       "uninstall_script_ref": "3902de16",
-      "sha256": "faed7fa2850da3136fecf09ddf17c8dc3cde04337151cba1e1d55032c84c9189",
+      "sha256": "a64032e5f55b676d5d7c98db4c80ef7fae83467f2bdb9880e569e83214911765",
       "default_categories": [
         "Communication"
       ]

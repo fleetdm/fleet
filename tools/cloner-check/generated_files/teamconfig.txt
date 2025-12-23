@@ -33,6 +33,7 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	MDM	fleet.TeamMDM
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	EnableDiskEncryption	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	RequireBitLockerPIN	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSUpdates	fleet.AppleOSUpdateSettings
+github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	UpdateNewHosts	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	MinimumVersion	optjson.String
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Valid	bool
@@ -138,4 +139,6 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsExcludeAny	[]
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Icon	fleet.TeamSpecSoftwareAsset
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Platform	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	DisplayName	string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Configuration	fleet.TeamSpecSoftwareAsset

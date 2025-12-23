@@ -1,7 +1,6 @@
 package com.fleetdm.agent
 
 import com.fleetdm.agent.scep.MockScepClient
-import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -68,17 +67,17 @@ class CertificateEnrollmentHandlerTest {
     }
 
     @Test
-    fun `handler enrolls with valid CERT_DATA`() = runTest {
-        val certData = createValidCertDataJson()
+    fun `handler enrolls with valid certificate template`() = runTest {
+        val template = createValidCertificateTemplate()
 
-        val result = handler.handleEnrollment(certData.toString())
+        val result = handler.handleEnrollment(template)
 
         // Verify SCEP client was called with correct config
         assertNotNull(mockScepClient.capturedConfig)
         assertEquals("https://scep.example.com/cgi-bin/pkiclient.exe", mockScepClient.capturedConfig?.url)
-        assertEquals("secret123", mockScepClient.capturedConfig?.challenge)
-        assertEquals("device-cert", mockScepClient.capturedConfig?.alias)
-        assertEquals("CN=Device123,O=FleetDM", mockScepClient.capturedConfig?.subject)
+        assertEquals("secret123", mockScepClient.capturedConfig?.scepChallenge)
+        assertEquals("device-cert", mockScepClient.capturedConfig?.name)
+        assertEquals("CN=Device123,O=FleetDM", mockScepClient.capturedConfig?.subjectName)
 
         // Verify success
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Success)
@@ -86,9 +85,9 @@ class CertificateEnrollmentHandlerTest {
 
     @Test
     fun `handler installs certificate after successful enrollment`() = runTest {
-        val certData = createValidCertDataJson()
+        val template = createValidCertificateTemplate()
 
-        val result = handler.handleEnrollment(certData.toString())
+        val result = handler.handleEnrollment(template)
 
         // Verify certificate installer was called
         assertTrue(mockInstaller.wasInstallCalled)
@@ -105,9 +104,9 @@ class CertificateEnrollmentHandlerTest {
     fun `handler handles enrollment failure gracefully`() = runTest {
         mockScepClient.shouldThrowEnrollmentException = true
 
-        val certData = createValidCertDataJson()
+        val template = createValidCertificateTemplate()
 
-        val result = handler.handleEnrollment(certData.toString())
+        val result = handler.handleEnrollment(template)
 
         // Verify certificate installer was NOT called since enrollment failed
         assertFalse(mockInstaller.wasInstallCalled)
@@ -120,9 +119,9 @@ class CertificateEnrollmentHandlerTest {
     fun `handler handles network exception gracefully`() = runTest {
         mockScepClient.shouldThrowNetworkException = true
 
-        val certData = createValidCertDataJson()
+        val template = createValidCertificateTemplate()
 
-        val result = handler.handleEnrollment(certData.toString())
+        val result = handler.handleEnrollment(template)
 
         // Verify certificate installer was NOT called
         assertFalse(mockInstaller.wasInstallCalled)
@@ -135,9 +134,9 @@ class CertificateEnrollmentHandlerTest {
     fun `handler handles installation failure`() = runTest {
         mockInstaller.shouldSucceed = false
 
-        val certData = createValidCertDataJson()
+        val template = createValidCertificateTemplate()
 
-        val result = handler.handleEnrollment(certData.toString())
+        val result = handler.handleEnrollment(template)
 
         // Verify enrollment succeeded but installation failed
         assertTrue(mockInstaller.wasInstallCalled)
@@ -145,91 +144,53 @@ class CertificateEnrollmentHandlerTest {
     }
 
     @Test
-    fun `handler parses custom key length and signature algorithm`() = runTest {
-        val certData = JSONObject().apply {
-            put("scep_url", "https://scep.example.com/cgi-bin/pkiclient.exe")
-            put("challenge", "secret123")
-            put("alias", "device-cert")
-            put("subject", "CN=Device123,O=FleetDM")
-            put("key_length", 4096)
-            put("signature_algorithm", "SHA512withRSA")
-        }
+    fun `handler uses custom key length and signature algorithm`() = runTest {
+        val template = createValidCertificateTemplate(
+            keyLength = 4096,
+            signatureAlgorithm = "SHA512withRSA",
+        )
 
-        handler.handleEnrollment(certData.toString())
+        handler.handleEnrollment(template)
 
-        // Verify config was parsed correctly
+        // Verify config was used correctly
         assertEquals(4096, mockScepClient.capturedConfig?.keyLength)
         assertEquals("SHA512withRSA", mockScepClient.capturedConfig?.signatureAlgorithm)
     }
 
     @Test
-    fun `handler uses default values when optional parameters missing`() = runTest {
-        val certData = JSONObject().apply {
-            put("scep_url", "https://scep.example.com/cgi-bin/pkiclient.exe")
-            put("challenge", "secret123")
-            put("alias", "device-cert")
-            put("subject", "CN=Device123,O=FleetDM")
-            // key_length and signature_algorithm not provided
-        }
+    fun `handler uses default values for optional parameters`() = runTest {
+        val template = createValidCertificateTemplate()
 
-        handler.handleEnrollment(certData.toString())
+        handler.handleEnrollment(template)
 
         // Verify defaults were used
         assertEquals(2048, mockScepClient.capturedConfig?.keyLength)
         assertEquals("SHA256withRSA", mockScepClient.capturedConfig?.signatureAlgorithm)
     }
 
-    @Test
-    fun `handler rejects invalid JSON`() = runTest {
-        val invalidJson = "not valid json"
-
-        val result = handler.handleEnrollment(invalidJson)
-
-        // Verify failure result
-        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
-        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
-        assertTrue(failure.reason.contains("Invalid configuration"))
-    }
-
-    @Test
-    fun `handler rejects URL without scheme`() = runTest {
-        val certData = JSONObject().apply {
-            put("scep_url", "scep.example.com/path")
-            put("challenge", "secret123")
-            put("alias", "device-cert")
-            put("subject", "CN=Device123,O=FleetDM")
-        }
-
-        val result = handler.handleEnrollment(certData.toString())
-
-        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
-        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
-        assertTrue(failure.reason.contains("Invalid configuration"))
-    }
-
-    @Test
-    fun `handler rejects key length below 2048`() = runTest {
-        val certData = JSONObject().apply {
-            put("scep_url", "https://scep.example.com/path")
-            put("challenge", "secret123")
-            put("alias", "device-cert")
-            put("subject", "CN=Device123,O=FleetDM")
-            put("key_length", 1024)
-        }
-
-        val result = handler.handleEnrollment(certData.toString())
-
-        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
-        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
-        assertTrue(failure.reason.contains("Invalid configuration"))
-    }
-
     // Helper functions
 
-    private fun createValidCertDataJson(): JSONObject = JSONObject().apply {
-        put("scep_url", "https://scep.example.com/cgi-bin/pkiclient.exe")
-        put("challenge", "secret123")
-        put("alias", "device-cert")
-        put("subject", "CN=Device123,O=FleetDM")
-    }
+    private fun createValidCertificateTemplate(
+        id: Int = 1,
+        name: String = "device-cert",
+        scepUrl: String = "https://scep.example.com/cgi-bin/pkiclient.exe",
+        scepChallenge: String = "secret123",
+        subjectName: String = "CN=Device123,O=FleetDM",
+        keyLength: Int = 2048,
+        signatureAlgorithm: String = "SHA256withRSA",
+    ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
+        id = id,
+        name = name,
+        certificateAuthorityId = 123,
+        certificateAuthorityName = "Test CA",
+        createdAt = "2024-01-01T00:00:00Z",
+        subjectName = subjectName,
+        certificateAuthorityType = "SCEP",
+        status = "active",
+        scepChallenge = scepChallenge,
+        fleetChallenge = "fleet-secret",
+        keyLength = keyLength,
+        signatureAlgorithm = signatureAlgorithm,
+        url = scepUrl,
+    )
 }

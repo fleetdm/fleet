@@ -245,6 +245,33 @@ type SoftwareTitleSummary struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	// ApplicationID is used by Android apps to match with VPP app titles.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+}
+
+// Configuration for auto-updates for a software title.
+// Supported for VPP-apps only.
+// Only applicable when viewing a title in the context of a team.
+type SoftwareAutoUpdateConfig struct {
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEnabled *bool `json:"auto_update_enabled,omitempty" db:"auto_update_enabled"`
+	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty" db:"auto_update_start_time"`
+	// AutoUpdateEndTime is the end of the maintenance window for the software title.
+	// If the end time is less than the start time, the window wraps to the next day.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty" db:"auto_update_end_time"`
+}
+
+type SoftwareAutoUpdateSchedule struct {
+	TitleID uint `json:"title_id" db:"title_id"`
+	TeamID  uint `json:"team_id" db:"team_id"`
+	SoftwareAutoUpdateConfig
+}
+
+type SoftwareAutoUpdateScheduleFilter struct {
+	Enabled *bool
 }
 
 // SoftwareTitle represents a title backed by the `software_titles` table.
@@ -297,6 +324,7 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	SoftwareAutoUpdateConfig
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -382,6 +410,7 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	SoftwareAutoUpdateConfig
 }
 
 type SoftwareTitleListOptions struct {
@@ -656,10 +685,20 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories  []string `json:"categories"`
-	DisplayName string   `json:"display_name"`
-	IconPath    string   `json:"-"`
-	IconHash    string   `json:"-"`
+	Categories    []string                  `json:"categories"`
+	DisplayName   string                    `json:"display_name"`
+	IconPath      string                    `json:"-"`
+	IconHash      string                    `json:"-"`
+	Platform      InstallableDevicePlatform `json:"platform"`
+	Configuration json.RawMessage           `json:"configuration,omitempty"`
+}
+
+func (v VPPBatchPayload) GetPlatform() string {
+	return string(v.Platform)
+}
+
+func (v VPPBatchPayload) GetAppStoreID() string {
+	return v.AppStoreID
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -672,8 +711,9 @@ type VPPBatchPayloadWithPlatform struct {
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs []uint `json:"-"`
-	DisplayName string `json:"display_name"`
+	CategoryIDs   []uint          `json:"-"`
+	DisplayName   string          `json:"display_name"`
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 type SoftwareCategory struct {

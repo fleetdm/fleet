@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
 
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";

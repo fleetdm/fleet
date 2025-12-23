@@ -64,8 +64,8 @@ jobs:
         run: |
           mkdir trivy-download
           cd trivy-download
-          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.61.0/trivy_0.61.0_Linux-64bit.tar.gz --output trivy_0.61.0_Linux-64bit.tar.gz
-          tar -xf trivy_0.61.0_Linux-64bit.tar.gz
+          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.68.1/trivy_0.68.1_Linux-64bit.tar.gz --output trivy_0.68.1_Linux-64bit.tar.gz
+          tar -xf trivy_0.68.1_Linux-64bit.tar.gz
           mv trivy ..
           cd ..
           chmod +x ./trivy
@@ -117,5 +117,5 @@ jobs:
               ]
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_SECURITY_COMPLIANCE_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_ORCHESTRATION_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

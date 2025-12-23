@@ -1,6 +1,7 @@
 package com.fleetdm.agent.scep
 
 import android.util.Log
+import com.fleetdm.agent.GetCertificateTemplateResponse
 import org.bouncycastle.asn1.DERPrintableString
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.bouncycastle.asn1.x500.X500Name
@@ -32,6 +33,8 @@ import kotlinx.coroutines.withContext
  */
 class ScepClientImpl : ScepClient {
 
+    val TAG = "ScepClientImpl"
+
     companion object {
         private const val SCEP_PROFILE = "NDESCA" // Network Device Enrollment Service CA
         private const val SELF_SIGNED_CERT_VALIDITY_DAYS = 100L
@@ -44,7 +47,7 @@ class ScepClientImpl : ScepClient {
         }
     }
 
-    override suspend fun enroll(config: ScepConfig): ScepResult = withContext(Dispatchers.IO) {
+    override suspend fun enroll(config: GetCertificateTemplateResponse): ScepResult = withContext(Dispatchers.IO) {
         try {
             // Log calls removed to avoid test failures on JVM (use logcat in Android Studio)
 
@@ -53,9 +56,9 @@ class ScepClientImpl : ScepClient {
 
             // Step 2: Parse subject name
             val entity = try {
-                X500Name(config.subject)
+                X500Name(config.subjectName)
             } catch (e: Exception) {
-                throw ScepCsrException("Invalid X.500 subject name: ${config.subject}", e)
+                throw ScepCsrException("Invalid X.500 subject name: ${config.subjectName}", e)
             }
 
             // Step 3: Create self-signed certificate for signing the PKCS7 envelope
@@ -81,7 +84,7 @@ class ScepClientImpl : ScepClient {
             val client = Client(server, verifier)
 
             // Step 5: Build Certificate Signing Request (CSR)
-            val csr = buildCsr(entity, keyPair, config.challenge, config.signatureAlgorithm)
+            val csr = buildCsr(entity, keyPair, config.scepChallenge ?: "", config.signatureAlgorithm)
 
             // Step 6: Send enrollment request
             val response = try {

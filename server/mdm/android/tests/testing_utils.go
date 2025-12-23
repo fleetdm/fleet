@@ -175,7 +175,7 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
 		}, nil
 	}
-	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		assert.Contains(t, policyName, EnterpriseID)
 		return &androidmanagement.Policy{}, nil
 	}

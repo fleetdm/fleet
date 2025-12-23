@@ -195,6 +195,7 @@ type VPPAppResponse struct {
 	LocalIconHash string `json:"-" db:"-"`
 	// LocalIconPath is the path to the icon specified in YAML
 	LocalIconPath string `json:"-" db:"-"`
+	AppTeamID     uint   `json:"-" db:"app_team_id"`
 }
 
 func (v VPPAppResponse) GetTeamID() uint {
@@ -591,7 +592,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "deb_packages", nil
 	case "rpm":
 		return "rpm_packages", nil
-	case "exe", "msi":
+	case "exe", "msi", "zip":
 		return "programs", nil
 	case "pkg":
 		if filepath.Ext(name) == ".app" {
@@ -616,7 +617,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	switch ext {
 	case "deb", "rpm", "tar.gz", "sh":
 		return "linux", nil
-	case "exe", "msi", "ps1":
+	case "exe", "msi", "ps1", "zip":
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
@@ -706,6 +707,25 @@ type SoftwarePackageOrApp struct {
 	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
 	FleetMaintainedAppID *uint    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
 	Categories           []string `json:"categories,omitempty"`
+}
+
+func (s *SoftwarePackageOrApp) GetPlatform() string {
+	return s.Platform
+}
+
+func (s *SoftwarePackageOrApp) GetAppStoreID() string {
+	return s.AppStoreID
+}
+
+// Returns unique name by Platform + AppStoreID/Name
+func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
+	if s.AppStoreID != "" {
+		return fmt.Sprintf(`%s_%s`, s.AppStoreID, s.Platform)
+	}
+	if s.Name != "" {
+		return fmt.Sprintf(`%s_%s`, s.Name, s.Platform)
+	}
+	return ""
 }
 
 type SoftwarePackageSpec struct {

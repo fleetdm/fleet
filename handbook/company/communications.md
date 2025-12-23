@@ -193,6 +193,13 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) and the appropriate DRI will reply with feedback.
 
+### 1:1 meetings 
+
+All managers at Fleet have [1:1 meetings](https://handbook.gitlab.com/handbook/leadership/1-1/) with their direct reports at least once a month. These are dedicated spaces for coaching, two-way feedback, and alignment on priorities. To schedule a 1:1:
+1. Create a copy of the [1:1 agenda template](https://docs.google.com/document/d/1dxN1Q0GMawFrgKB_KxJ77N2pS-vXmopB358r-Q8Gxis/edit?tab=t.0) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
+2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager and title the calendar event by copying your 1:1 agenda title and appending "[no shadows]" to the end (this tells other team members that this is a private conversation).
+3. Link the agenda in the calendar event description before saving.
+
 
 ### Skip-level 1:1 meetings 
 
@@ -217,7 +224,7 @@ There are [several special email addresses](https://docs.google.com/document/d/1
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with the CEO, Executive Assitant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Executive Assistant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -243,6 +250,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
 > **Need an app that you don't see in Fleet Slack?** [Create a IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) to request an app be added to the Fleet Slack workspace.
 
@@ -350,6 +358,16 @@ In Figma:
   - Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
+#### Clearing cached images
+
+When replacing an existing image on the Fleet website, if the new version has the same filename as the old version, the image must be purged from the Cloudflare cache for the latest version to be visible to users.
+
+To purge an image from the Cloudflare cache:
+1. Copy the URL of the image hosted on fleetdm.com.
+2. Log into Cloudflare and select the Fleet account, then select fleetdm.com.
+3. Select **Caching** » **Configuration** in the navigation sidebar, and click the "Custom Purge" option.
+4. Select the option to purge by URL, paste the URL of the image, and select purge. After a few moments, Cloudflare will serve the new version of the image to users.
+
 
 ## Change management
 
@@ -404,8 +422,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [#g-it-and-enablement](https://github.com/fleetdm/confidential/issues#workspaces/g-it-and-enablement-6451748b4eb15200131d4bab/board) kanban board.
 
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/97ce6caa-4b21-4cc2-8fcb-91aa03dfc6d6">
 
 
 ### Process new requests
@@ -678,7 +694,11 @@ Finance will review and process your request within 2 business days.
 - If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
 - If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact People](https://fleetdm.com/handbook/people#contact-us) for their help approving and booking additional event space.
 
+<!--
+
 > ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
+
+-->
 
 
 ### Attending conferences
@@ -708,7 +728,7 @@ From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of
 
 ### Coworking
 
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the Head of People. 
 
 
 ### Relocating
@@ -922,7 +942,7 @@ Learn how to write as Fleet:
 - [Writing style](https://fleetdm.com/handbook/company/communications#writing-style)
 - [Writing types](https://fleetdm.com/handbook/company/communications#writing-types)
 - [Editing and publishing](https://fleetdm.com/handbook/company/communications#editing-and-publishing)
-- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance).
+- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance)
 - [Writing mechanics](https://fleetdm.com/handbook/company/communications#writing-mechanics)
 - [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown)
 
@@ -1586,7 +1606,7 @@ The following stubs are included only to make links backward compatible.
 Please see 📖[handbook/company/communications#competition](https://fleetdm.com/handbook/company/communications#new-fleeties).
 
 ##### Customer support service level agreements (SLAs)
-Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas).
+Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
 
 For below, please see 📖[handbook/company/communications#scheduling-a-meeting](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting).
 ##### Internal meetings

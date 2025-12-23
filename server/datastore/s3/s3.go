@@ -48,9 +48,7 @@ func (p installerNotFoundError) IsNotFound() bool {
 func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	var opts []func(*aws_config.LoadOptions) error
 
-	// The service endpoint is deprecated, but we still set it
-	// in case users are using it.
-	// It is also used when testing with minio.
+	// The service endpoint is deprecated in AWS, but required for S3 workalikes elsewhere
 	if cfg.EndpointURL != "" {
 		opts = append(opts, aws_config.WithEndpointResolver(aws.EndpointResolverFunc(
 			func(service, region string) (aws.Endpoint, error) {

@@ -14,9 +14,6 @@ import { size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-
-import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 
@@ -28,6 +25,7 @@ import {
   getCustomDropdownOptions,
   secondsToDhms,
 } from "utilities/helpers";
+
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
@@ -53,8 +51,10 @@ import labelsAPI, {
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -106,7 +106,8 @@ const validateQuerySQL = (query: string) => {
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
-    errors.query = queryError;
+    // queryError should be truthy at this point
+    errors.query = queryError ?? "Invalid query";
   }
 
   const valid = !size(errors);
@@ -377,12 +378,12 @@ const EditQueryForm = ({
       });
     }
 
-    let valid = true;
-    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
+    const { valid, errors: newErrs } = validateQuerySQL(lastEditedQueryBody);
 
-    valid = isValidated;
+    // allow save when invalid sqlite syntax
+    const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
 
-    if (valid) {
+    if (canSave) {
       if (!savedQueryMode) {
         platformSelector.setSelectedPlatforms(
           platformCompatibility.getCompatiblePlatforms()
@@ -397,6 +398,7 @@ const EditQueryForm = ({
   const renderAuthor = (): JSX.Element | null => {
     return storedQuery ? (
       <DataSet
+        className={`${baseClass}__author`}
         title="Author"
         value={
           <>
@@ -680,7 +682,7 @@ const EditQueryForm = ({
     // Save and save as new disabled for query name blank on existing query or sql errors
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      !!size(errors) ||
+      (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
       (savedQueryMode && !platformSelector.isAnyPlatformSelected) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {

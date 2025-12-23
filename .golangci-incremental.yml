@@ -1,0 +1,16 @@
+# This configuration is for incremental linting of new/experimental linters.
+# It is used with --new-from-rev to only lint changed code.
+# See .golangci.yml for the main linter configuration.
+version: "2"
+
+issues:
+  max-issues-per-linter: 0 # show all issues
+  max-same-issues: 0 # show all issues
+
+linters:
+  default: none
+  enable:
+    - modernize
+
+exclusions:
+  generated: strict

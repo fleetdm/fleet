@@ -12,6 +12,9 @@ style:
     active: false # Color hex values are standard in Compose
   MaxLineLength:
     active: false # Handled by ktlint
+  ReturnCount:
+    active: true
+    max: 5
 
 complexity:
   CognitiveComplexMethod:

@@ -35,7 +35,32 @@
 #       - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
 
-
+- jobTitle: 🐋 Enterprise Customer Success Manager
+  department: Customers
+  hiringManagerName: Zay Hanlon
+  hiringManagerGithubUsername: zayhanlon
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+  onTargetEarnings: '$130,000 - $160,000'
+  responsibilities: |
+      - ⏫ Own post-sales relationships with a portfolio of our customers and be responsible for advocating for their desired outcomes.
+      - 📣 Manage multiple Enterprise customer deployments and escalations simultaneously.
+      - 🌡️ Work as a projcct manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
+      - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
+      - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
+      - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
+      - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
+      - 💡 Excellent time management, communication and collaboration skills, with the ability to partner with various stakeholders to ensure customer key objectives for migration are top of mind.
+      - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
+  experience: |
+      - 💭 Customer success management background supporting solutions IT/MDM solutions like Fleet, Intune, Workspace One, etc.
+      - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
+      - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
+      - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+      - 🧑‍🔬 Experience working with Enterprise customers to coordinate resolution of complex technical issues and project manage intricate deployment initiatives.
+      - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing. 
+      - 🦉 5+ years of work experience managing relationships with enterprise customers in the device management space. Experience with executing and tracking results tied to customer escalations, customer renewals, and customer expansion opportunities.
+      - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
+      - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
 
 - jobTitle: 🚀 Software Engineer
   department: Engineering
@@ -216,34 +241,34 @@
       - ➕ Bonus: Hands-on experience testing across multiple operating systems and devices (macOS, Windows, Android, iOS, iPadOS).
 
 
-- jobTitle: 💻 IT Support Administrator
-  department: IT & Enablement
-  hiringManagerName: Allen Houchins
-  hiringManagerGithubUsername: allenhouchins
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
-  onTargetEarnings: '$80,000 - $130,000'
-  responsibilities: |
-      - 🖥️ Provide technical support to Fleet team members, troubleshooting hardware, software, and account access issues in a timely and professional manner.
-      - 📦 Manage hardware procurement, inventory, and distribution for company-issued equipment including laptops, YubiKeys, and other IT assets.
-      - 🔐 Provision and manage user accounts across various SaaS platforms (Google Workspace, Slack, Zoom, etc.) for new hires and role changes.
-      - 🛠️ Maintain and optimize IT infrastructure, tools, and systems to ensure smooth operations for a fully remote team.
-      - 📋 Process incoming and outgoing equipment, ensuring devices are properly configured, enrolled in device management, and securely shipped to team members.
-      - 🔄 Manage software licenses and subscriptions, including generating reports and performing audits to optimize costs.
-      - 🚀 Support onboarding new team members by provisioning necessary tools and ensuring they have all required equipment on day one.
-      - 📊 Track and manage IT assets in Fleet's device management system, maintaining accurate inventory records.
-      - 💡 Document IT processes and procedures in the handbook, ensuring knowledge is shared and processes are repeatable.
-      - 🤝 Collaborate with the IT & Enablement team to improve internal tooling, automation, and workflows.
-      - 🧹 Handle offboarding processes, including account deprovisioning, equipment recovery, and access revocation.
-      - 🌐 Assist with domain registrations, SaaS tool evaluations, and vendor management as requested.
-  experience: |
-      - 💼 3-5 years of experience in IT administration, help desk support, or similar technical support role.
-      - 🖥️ Strong technical skills with macOS, Windows, and Linux operating systems.
-      - 🍎 Experience with Apple Business Manager (ABM) and Apple Device Enrollment (ADE) for device procurement and management.
-      - 🔐 Experience with identity and access management, including provisioning accounts in Google Workspace, Slack, and other SaaS platforms.
-      - 📦 Familiarity with hardware procurement, inventory management, and asset tracking systems.
-      - 💬 Excellent communication and customer service skills, with the ability to explain technical concepts to non-technical users.
-      - 🎯 Strong attention to detail and organizational skills, with the ability to manage multiple tasks and priorities effectively.
-      - 📖 Experience documenting processes and procedures in a clear, concise manner.
-      - 🚀 Self-motivated and proactive, able to work independently in a fully remote environment.
-      - ➕ Bonus: Experience with Fleet, osquery, or other open-source IT tools. Familiarity with automation tools and scripting (Bash, PowerShell). Experience working in GitHub, with git, or in a code repository.
+#- jobTitle: 💻 IT Support Administrator
+ # department: IT & Enablement
+ # hiringManagerName: Allen Houchins
+ # hiringManagerGithubUsername: allenhouchins
+ # hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+ # onTargetEarnings: '$80,000 - $130,000'
+ # responsibilities: |
+  #    - 🖥️ Provide technical support to Fleet team members, troubleshooting hardware, software, and account access issues in a timely and professional manner.
+  #    - 📦 Manage hardware procurement, inventory, and distribution for company-issued equipment including laptops, YubiKeys, and other IT assets.
+  #    - 🔐 Provision and manage user accounts across various SaaS platforms (Google Workspace, Slack, Zoom, etc.) for new hires and role changes.
+  #    - 🛠️ Maintain and optimize IT infrastructure, tools, and systems to ensure smooth operations for a fully remote team.
+  #    - 📋 Process incoming and outgoing equipment, ensuring devices are properly configured, enrolled in device management, and securely shipped to team members.
+  #    - 🔄 Manage software licenses and subscriptions, including generating reports and performing audits to optimize costs.
+  #    - 🚀 Support onboarding new team members by provisioning necessary tools and ensuring they have all required equipment on day one.
+  #    - 📊 Track and manage IT assets in Fleet's device management system, maintaining accurate inventory records.
+  #    - 💡 Document IT processes and procedures in the handbook, ensuring knowledge is shared and processes are repeatable.
+  #    - 🤝 Collaborate with the IT & Enablement team to improve internal tooling, automation, and workflows.
+  #    - 🧹 Handle offboarding processes, including account deprovisioning, equipment recovery, and access revocation.
+  #    - 🌐 Assist with domain registrations, SaaS tool evaluations, and vendor management as requested.
+ # experience: |
+  #    - 💼 3-5 years of experience in IT administration, help desk support, or similar technical support role.
+  #    - 🖥️ Strong technical skills with macOS, Windows, and Linux operating systems.
+  #    - 🍎 Experience with Apple Business Manager (ABM) and Apple Device Enrollment (ADE) for device procurement and management.
+  #    - 🔐 Experience with identity and access management, including provisioning accounts in Google Workspace, Slack, and other SaaS platforms.
+  #    - 📦 Familiarity with hardware procurement, inventory management, and asset tracking systems.
+  #    - 💬 Excellent communication and customer service skills, with the ability to explain technical concepts to non-technical users.
+  #    - 🎯 Strong attention to detail and organizational skills, with the ability to manage multiple tasks and priorities effectively.
+  #    - 📖 Experience documenting processes and procedures in a clear, concise manner.
+  #    - 🚀 Self-motivated and proactive, able to work independently in a fully remote environment.
+  #    - ➕ Bonus: Experience with Fleet, osquery, or other open-source IT tools. Familiarity with automation tools and scripting (Bash, PowerShell). Experience working in GitHub, with git, or in a code repository.
 

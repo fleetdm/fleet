@@ -1,0 +1,8 @@
+{
+  "name": "TextExpander",
+  "unique_identifier": "com.smileonmymac.textexpander",
+  "token": "textexpander",
+  "installer_format": "dmg",
+  "slug": "textexpander/darwin",
+  "default_categories": ["Productivity"]
+}

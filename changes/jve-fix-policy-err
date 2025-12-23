@@ -1,0 +1,1 @@
+- Updated the `migrate_to_per_host_policy` cron job to no-op if Android MDM is not enabled.

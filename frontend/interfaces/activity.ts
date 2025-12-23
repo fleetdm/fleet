@@ -43,6 +43,8 @@ export enum ActivityType {
   EditedMacosMinVersion = "edited_macos_min_version",
   EditedIosMinVersion = "edited_ios_min_version",
   EditedIpadosMinVersion = "edited_ipados_min_version",
+  EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
+  DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   CreatedAppleOSProfile = "created_macos_profile",
@@ -77,6 +79,7 @@ export enum ActivityType {
   CreatedAndroidProfile = "created_android_profile",
   DeletedAndroidProfile = "deleted_android_profile",
   EditedAndroidProfile = "edited_android_profile",
+  EditedAndroidCertificate = "edited_android_certificate",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -147,6 +150,8 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
+  CreatedCertificate = "created_certificate",
+  DeletedCertificate = "deleted_certificate",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -175,7 +180,7 @@ export type IHostUpcomingActivityType =
 
 export interface IActivity {
   created_at: string;
-  id: number;
+  id: number | string;
   actor_full_name: string;
   actor_id: number;
   actor_gravatar: string;
@@ -207,6 +212,7 @@ export interface IActivityDetails {
   bootstrap_package_name?: string;
   batch_execution_id?: string;
   command_uuid?: string;
+  host_uuid?: string;
   deadline_days?: number;
   deadline?: string;
   email?: string;
@@ -267,8 +273,9 @@ export interface IActivityDetails {
   host_idp_username?: string;
 }
 
-export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
-  added_app_store_app: "Added App Store (VPP) app",
+// maps activity types to their corresponding label to use when filtering activites via the dropdown
+export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
+  added_app_store_app: "Added App Store app", // Includes VPP and Android Playstore apps
   added_bootstrap_package: "Added bootstrap package",
   added_conditional_access_microsoft: "Added conditional access: Microsoft",
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
@@ -297,7 +304,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   created_team: "Added team",
   created_user: "Added user",
   created_windows_profile: "Added configuration profile: Windows",
-  deleted_app_store_app: "Deleted App Store (VPP) app",
+  deleted_app_store_app: "Deleted App Store app", // Includes VPP and Android Playstore apps
   deleted_bootstrap_package: "Deleted bootstrap package",
   deleted_conditional_access_microsoft: "Deleted conditional access: Microsoft",
   deleted_custom_scep_proxy: "Deleted certificate authority (CA): custom SCEP",
@@ -326,12 +333,13 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
+  disabled_macos_update_new_hosts: "Disabled OS updates for new macOS hosts",
   disabled_vpp: "Disabled Volume Purchasing Program (VPP)",
   disabled_windows_mdm: "Turned off Windows MDM",
   disabled_windows_mdm_migration: "Turned off Windows MDM migration",
   edited_activity_automations: "Edited activity automations",
   edited_agent_options: "Edited agent options",
-  edited_app_store_app: "Edited App Store (VPP) app",
+  edited_app_store_app: "Edited App Store app", // Includes VPP and Android Playstore apps
   edited_conditional_access_microsoft: "Edited conditional access: Microsoft",
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
   edited_declaration_profile: "GitOps: edited declaration (DDM) profiles",
@@ -357,6 +365,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
+  enabled_macos_update_new_hosts: "Enabled OS updates for new macOS hosts",
   enabled_vpp: "Enabled Volume Purchasing Program (VPP)",
   enabled_windows_mdm: "Turned on Windows MDM",
   enabled_windows_mdm_migration: "Turned on Windows MDM migration",
@@ -409,10 +418,14 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
     "Deleted configuration profile: Android",
   [ActivityType.EditedAndroidProfile]:
     "GitOps: edited configuration profiles: Android",
+  [ActivityType.EditedAndroidCertificate]:
+    "GitOps: edited certificate templates: Android",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
   [ActivityType.DeletedConditionalAccessOkta]:
     "Deleted conditional access: Okta",
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
+  [ActivityType.CreatedCertificate]: "Created certificate",
+  [ActivityType.DeletedCertificate]: "Deleted certificate",
 };

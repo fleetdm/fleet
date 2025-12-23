@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -617,19 +618,35 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
-	// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
-	err := svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
-	if err != nil {
-		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
-	}
-
 	// must read the existing setup assistant first to detect if it did change
-	// (so that the changed activity is not created if the same assistant was
-	// uploaded).
+	// so that we can skip sending to Apple if it did not change and so that the
+	// changed activity is not created if the same assistant was uploaded).
 	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, asst.TeamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get previous setup assistant")
 	}
+
+	validateIncomingSetupAssistant := true
+	// If name and contents are the same, skip validation with Apple. Name is included to match
+	// the logic we use below for determining whether or not to post the activity
+	if prevAsst != nil && asst.Name == prevAsst.Name {
+		var m2 map[string]any
+		if err := json.Unmarshal(prevAsst.Profile, &m2); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "json unmarshal previous setup assistant profile")
+		}
+		if reflect.DeepEqual(m, m2) {
+			validateIncomingSetupAssistant = false
+		}
+	}
+
+	if validateIncomingSetupAssistant {
+		// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
+		err = svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("profile", err.Error())
+		}
+	}
+
 	newAsst, err := svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set or update setup assistant")

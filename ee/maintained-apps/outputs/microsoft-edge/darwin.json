@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "142.0.3595.94",
+      "version": "143.0.3650.96",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';"
       },
-      "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/9d2b7e5f-8c6f-4661-9c90-afadc2befce6/MicrosoftEdge-142.0.3595.94.dmg",
+      "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/99e1efcd-46cc-403d-b12f-810e6380c1ab/MicrosoftEdge-143.0.3650.96.dmg",
       "install_script_ref": "b9ba259a",
       "uninstall_script_ref": "6ee9d9a4",
-      "sha256": "6e6f55524f2c535a4f96b40b79d3801c47f6b878545bcc0134bd7b869bc111bf",
+      "sha256": "f8597944c504befc96d8c1d1306cfc55ea2e0b1bfd9dbff1ca4360ba4eccdfd7",
       "default_categories": [
         "Browsers"
       ]

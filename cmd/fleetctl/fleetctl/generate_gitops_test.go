@@ -261,8 +261,19 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				Name: "My App Store App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID: "com.example.team-software",
+					Platform:   string(fleet.MacOSPlatform),
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
+			},
+			{
+				ID:   6,
+				Name: "My Setup Experience App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID:         "com.example.setup-experience-software",
+					Platform:           string(fleet.AndroidPlatform),
+					InstallDuringSetup: ptr.Bool(true),
+				},
+				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
 		}, nil
 	case "available_for_install=1&team_id=0":
@@ -385,15 +396,30 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 2,
 			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID: fleet.VPPAppID{Platform: fleet.MacOSPlatform},
 				LabelsExcludeAny: []fleet.SoftwareScopeLabel{{
 					LabelName: "Label C",
 				}, {
 					LabelName: "Label D",
 				}},
-				Categories:  []string{"Productivity", "Utilities"},
+				Categories: []string{"Productivity", "Utilities"},
+
 				SelfService: true,
 			},
 			IconUrl: ptr.String("/api/icon2.png"),
+		}, nil
+	case 6:
+		if *teamID != 1 {
+			return nil, errors.New("team ID mismatch")
+		}
+		return &fleet.SoftwareTitle{
+			ID: 6,
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
+				LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
+				SelfService:      true,
+			},
+			IconUrl: ptr.String("/api/icon3.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -457,6 +483,16 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 					Platform:           "darwin",
 					Version:            "13.37",
 				},
+			},
+			{
+				ID:   6,
+				Name: "My Setup Experience App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID:         "com.example.setup-experience-software",
+					Platform:           string(fleet.AndroidPlatform),
+					InstallDuringSetup: ptr.Bool(true),
+				},
+				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
 		}, nil
 	}
@@ -589,22 +625,8 @@ func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTe
 				ID:                       1,
 				CertificateAuthorityName: "DIGIDOO",
 				Name:                     "my_certypoo",
+				SubjectName:              "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 			},
-		}
-	}
-	return res, nil
-}
-
-func (MockClient) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
-	var res *fleet.CertificateTemplateResponseFull
-	if certificateID == 1 {
-		res = &fleet.CertificateTemplateResponseFull{
-			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-				ID:                       1,
-				CertificateAuthorityName: "DIGIDOO",
-				Name:                     "my_certypoo",
-			},
-			SubjectName: "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 		}
 	}
 	return res, nil

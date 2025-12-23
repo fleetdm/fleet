@@ -357,7 +357,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			continue
 		}
 
-		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID)
+		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID, args.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to get MDM command results")
 		}

@@ -27,15 +27,18 @@ controls:
   ios_updates:
     deadline: "2021-12-31"
     minimum_version: "98.1"
+    update_new_hosts:
   ipados_updates:
     deadline: "2022-12-31"
     minimum_version: "98.2"
+    update_new_hosts:
   macos_settings:
     custom_settings:
     - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
   macos_updates:
     deadline: "2020-12-31"
     minimum_version: "95.1"
+    update_new_hosts: true
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
   windows_enabled_and_configured: true
@@ -71,11 +74,18 @@ software:
     - Productivity
     - Utilities
     icon:
-      path: "../lib/team-a-👍/icons/my-app-store-app--icon.png"
+      path: "../lib/team-a-👍/icons/my-app-store-app-darwin-icon.png"
     labels_exclude_any:
     - Label C
     - Label D
+    platform: darwin
     self_service: true
+  - app_store_id: com.example.setup-experience-software
+    icon:
+      path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
+    platform: android
+    self_service: true
+    setup_experience: true
   packages:
   - categories:
     - Browsers

@@ -13,6 +13,10 @@ type VPPAppID struct {
 	Platform InstallableDevicePlatform `db:"platform" json:"platform"`
 }
 
+func (v VPPAppID) String() string {
+	return fmt.Sprintf(`%s_%s`, v.AdamID, v.Platform)
+}
+
 // VPPAppTeam contains extra metadata injected by fleet
 type VPPAppTeam struct {
 	VPPAppID
@@ -51,6 +55,14 @@ type VPPAppTeam struct {
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Applicable to Android apps only.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
+}
+
+func (v VPPAppTeam) GetPlatform() string {
+	return string(v.Platform)
+}
+
+func (v VPPAppTeam) GetAppStoreID() string {
+	return v.AdamID
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -168,4 +180,5 @@ type AppStoreAppUpdatePayload struct {
 	Categories       []string
 	DisplayName      *string
 	Configuration    json.RawMessage
+	SoftwareAutoUpdateConfig
 }

@@ -56,7 +56,7 @@ type AgentManagedConfiguration struct {
 	ServerURL              string                     `json:"server_url"`
 	HostUUID               string                     `json:"host_uuid"`
 	EnrollSecret           string                     `json:"enroll_secret"`
-	CertificateTemplateIDs []AgentCertificateTemplate `json:"certificate_template_ids,omitempty"`
+	CertificateTemplateIDs []AgentCertificateTemplate `json:"certificate_templates,omitempty"`
 }
 
 type AgentCertificateTemplate struct {
@@ -76,3 +76,5 @@ type MDMAndroidPolicyRequest struct {
 	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
+
+const AppStatusAvailable = "AVAILABLE"

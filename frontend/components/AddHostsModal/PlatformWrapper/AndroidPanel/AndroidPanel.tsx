@@ -44,7 +44,7 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
         label="Send this to your end users:"
         enableCopy
         readOnly
-        inputWrapperClass
+        inputWrapperClass={`${baseClass}__enroll-link`}
         name="enroll-link"
         value={url}
       />

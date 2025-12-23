@@ -10,7 +10,6 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w).
 
-
 ## Enforce
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best practice GitOps](https://github.com/fleetdm/fleet-gitops).
@@ -65,14 +64,6 @@ In versions older than 4.71.0, Fleet always delivered configuration profiles to 
 
 If you want to make sure the profile stays device-scoped, update `PayloadScope` to `System` or remove `PayloadScope` entirely. The default scope in Fleet is `System`. 
 
-#### Broken profiles
-
-If one or more labels included in the profile's scope are deleted, the profile will not apply to new hosts that enroll.
-
-On macOS, iOS, iPadOS, and Windows, a broken profile will not remove the enforcement of the OS settings applied to existing hosts. To enforce the OS setting on new hosts, delete it and upload it again.
-
-On Android hosts, a broken profile will remove the enforcement of the OS settings for existing hosts. To enforce the OS setting on existing and new hosts, delete it and upload it again.
-
 ## See status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
@@ -109,7 +100,23 @@ To verify that the OS setting is applied, run the following osquery query:
 SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\employee\Attributes\Subteam';
 ```
 
-#### Partial failure (Android profiles)
+> If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
+
+### Broken profiles
+
+If one or more labels included in the profile's scope are deleted, the profile will not apply to new hosts that enroll.
+
+On macOS, iOS, iPadOS, and Windows, a broken profile will not remove the enforcement of the OS settings applied to existing hosts. To enforce the OS setting on new hosts, delete it and upload it again.
+
+On Android hosts, a broken profile will remove the enforcement of the OS settings for existing hosts. To enforce the OS setting on existing and new hosts, delete it and upload it again.
+
+### Unmanaged profiles (macOS, iOS, and iPadOS)
+
+Profiles installed manually by the end user aren't managed by Fleet. They're not visible and can't be removed from the host via Fleet. Additionally, if a backup is migrated to a new host using [Apple's Migration Assistant](https://support.apple.com/en-us/102613) and it contains configuration profiles, those profiles aren't managed.
+
+To manually remove unmanaged profiles, ask the end user to go to **System Settings > General > Device Management**, select the profile, and select the **- (minus)** button at the bottom of the list.
+
+### Partial failure (Android)
 
 On Android, if some settings from the profile fail (e.g. incompatible device), other settings from the profile will still be applied. Failed settings will be surfaced on **Host > OS settings**.
 Also, some settings from the profile might be overridden by another configuration profile, which means if multiple profiles include the same setting, the profile that is delivered most recently will be applied.

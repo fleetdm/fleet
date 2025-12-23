@@ -34,9 +34,9 @@ If you would like to use Fleet's macOS MDM features, the following endpoints nee
 - `/api/mdm/apple/enroll`: If you use automatic enrollment, allows hosts to get an enrollment profile.
 - `/api/*/fleet/device/*`: Provides end users access to their **My device** page.
   - This page is where they download their manual enrollment profile, rotate their disk encryption key, and use other features. For more information on these API endpoints see the [API documentation for device-authenticated routes](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#device-authenticated-routes).
-- `/mdm/sso`, `/api/*/fleet/mdm/sso`, `/mdm/sso/callback`, `/api/*/fleet/mdm/sso/callback`, and `/assets/*`: If you use automatic enrollment and you require [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula) during out-of-the-box macOS setup, allows end users to authenticate with your IdP.
-- `/api/*/fleet/mdm/setup/eula/*`: If you use automatic enrollment and you require that the end user agrees to an [End User License Agreement (EULA)](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula) during out-of-the-box macOS setup, allows end user to see the EULA.
-- `/api/*/fleet/mdm/bootstrap`: If you use automatic enrollment and you install a [bootstrap package](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) during out-of-the-box macOS setup, installs the bootstrap package.
+- `/mdm/sso`, `/api/*/fleet/mdm/sso`, `/mdm/sso/callback`, `/api/*/fleet/mdm/sso/callback`, and `/assets/*`: If you use automatic enrollment and you require [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) during out-of-the-box macOS setup, allows end users to authenticate with your IdP.
+- `/api/*/fleet/mdm/setup/eula/*`: If you use automatic enrollment and you require that the end user agrees to an [End User License Agreement (EULA)](https://fleetdm.com/guides/setup-experience#end-user-authentication) during out-of-the-box macOS setup, allows end user to see the EULA.
+- `/api/*/fleet/mdm/bootstrap`: If you use automatic enrollment and you install a [bootstrap package](https://fleetdm.com/guides/setup-experience#end-user-authentication) during out-of-the-box macOS setup, installs the bootstrap package.
 
 > The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
 > are not RESTful and are not intended for use by API clients or browsers.
@@ -67,6 +67,7 @@ If you would like to use Fleet's iOS/iPadOS MDM features, the following endpoint
 ### Android
 
 - `/enroll`: Allows end users to access the enrollment page where they select a link to enroll their Android host.
+- `/api/*/fleet/android_enterprise/enrollment_token`: Allows Fleet to receive the [Android Management API enrollment token](https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens/get).
 - `/api/*/fleet/android_enterprise/pubsub`: Allows Fleet to receive enrollment and status report [notifications from the Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises).
 
 ## SCEP proxy

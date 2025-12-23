@@ -102,6 +102,7 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
@@ -140,7 +141,7 @@ export const generateSoftwareTableHeaders = ({
         } else if (isLinuxLike(platform) || isWindows(platform)) {
           tooltipContent = <>When any version was last opened.</>;
         } else if (isIPadOrIPhone(platform)) {
-          tooltipContent = <>Date and time of last opened.</>;
+          tooltipContent = <>Date and time of last open.</>;
         }
 
         const lastOpenedHeader = tooltipContent ? (

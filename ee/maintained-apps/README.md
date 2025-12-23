@@ -24,7 +24,7 @@
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script.
+5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script. **The script automatically adds the import statement and map entry to `frontend/pages/SoftwarePage/components/icons/index.ts`**, so you don't need to manually update the index file.
 
 6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/). For consistency and presentation on the website, the description should follow sentence casing and the following format: `<App Name>` is a(n) (copy description from Homebrew)., making sure to end with a `.`.
 
@@ -81,7 +81,7 @@ If the `unique_identifier` doesn't match the `DisplayName`, then Fleet will inco
 go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 ```
 
-5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script.
+5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script. **The script automatically adds the import statement and map entry to `frontend/pages/SoftwarePage/components/icons/index.ts`**, so you don't need to manually update the index file.
 
 6. Add a description for the app in outputs/apps.json file. You can use descriptions from the wingest manifest.
 
