@@ -23,17 +23,17 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 
-import {
-  ISoftwareAutoUpdateConfigFormValidation,
-  ISoftwareAutoUpdateConfigInputValidation,
-  validateFormData,
-} from "./helpers";
-
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
+import {
+  ISoftwareAutoUpdateConfigFormValidation,
+  ISoftwareAutoUpdateConfigInputValidation,
+  validateFormData,
+} from "./helpers";
 
 const baseClass = "edit-auto-update-config-modal";
 const formClass = "edit-auto-update-config-form";
@@ -63,7 +63,6 @@ const EditAutoUpdateConfigModal = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
-  const [canSaveForm, setCanSaveForm] = useState(true);
   const [formData, setFormData] = useState<ISoftwareAutoUpdateConfigFormData>({
     enabled: softwareTitle.auto_update_enabled || false,
     startTime: softwareTitle.auto_update_start_time || "",
@@ -119,6 +118,7 @@ const EditAutoUpdateConfigModal = ({
       renderFlash("error", "");
     }
     setIsUpdatingConfiguration(false);
+    return true;
   };
 
   const onToggleEnabled = (value: boolean) => {
