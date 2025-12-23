@@ -26,14 +26,14 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             return Result.failure()
         }
 
-        val certificateIds = CertificateOrchestrator.getCertificateIDs(applicationContext)
+        val templates = CertificateOrchestrator.getCertificateTemplates(applicationContext)
 
-        // STEP 1: Cleanup removed certificates BEFORE enrolling new ones
-        // This runs even if certificateIds is empty to clean up any orphaned certificates
-        val currentIds = certificateIds ?: emptyList()
+        // STEP 1: Cleanup certificates marked for removal and orphaned certificates
+        // This runs even if templates is empty to clean up any orphaned certificates
+        val currentTemplates = templates ?: emptyList()
         val cleanupResults = CertificateOrchestrator.cleanupRemovedCertificates(
             context = applicationContext,
-            currentCertificateIds = currentIds,
+            templates = currentTemplates,
         )
 
         // Log cleanup results
@@ -48,14 +48,18 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             }
         }
 
-        // STEP 2: If no certificates to enroll, we're done
-        if (certificateIds.isNullOrEmpty()) {
+        // STEP 2: Filter templates to only those marked for install
+        val templatesToInstall = currentTemplates.filter { it.shouldInstall() }
+
+        // If no certificates to enroll, we're done
+        if (templatesToInstall.isEmpty()) {
             Log.d(TAG, "No certificates to enroll")
             return Result.success()
         }
 
         // STEP 3: Enroll new/updated certificates
-        Log.i(TAG, "Enrolling ${certificateIds.size} certificate(s)")
+        val certificateIds = templatesToInstall.map { it.id }
+        Log.i(TAG, "Enrolling ${certificateIds.size} certificate(s): $certificateIds")
 
         val results = CertificateOrchestrator.enrollCertificates(
             context = applicationContext,

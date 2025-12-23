@@ -162,7 +162,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
 
     val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
     val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.let { "****" + it.takeLast(4) } }
-    val certIds = remember { CertificateOrchestrator.getCertificateIDs(context) }
+    val certTemplates = remember { CertificateOrchestrator.getCertificateTemplates(context) }
     val permissionsList = remember {
         val grantedPermissions = mutableListOf<String>()
         val packageInfo: PackageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
@@ -211,7 +211,7 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
                 KeyValue("host_uuid (MC)", enrollmentSpecificID)
                 KeyValue("server_url (MC)", fleetBaseUrl)
                 KeyValue("server_url (DS)", baseUrl)
-                KeyValue("certificate_templates->id", certIds.toString())
+                KeyValue("certificate_templates", certTemplates?.map { "${it.id}:${it.operation}" }.toString())
                 DebugCertificateList(certificates = installedCerts)
                 PermissionList(
                     permissionsList = permissionsList,

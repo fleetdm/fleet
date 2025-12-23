@@ -51,7 +51,7 @@ const val MAX_CERT_INSTALL_RETRIES = 3
  * ```
  */
 object CertificateOrchestrator {
-    private const val TAG = "CertificateOrchestrator"
+    private const val TAG = "fleet-CertificateOrchestrator"
 
     // DataStore key for storing installed certificates map as JSON
     private val INSTALLED_CERTIFICATES_KEY = stringPreferencesKey("installed_certificates")
@@ -78,17 +78,23 @@ object CertificateOrchestrator {
     }
 
     /**
-     * Reads certificate IDs from Android Managed Configuration.
+     * Reads certificate templates from Android Managed Configuration.
      *
      * @param context Android context
-     * @return List of certificate IDs to enroll, or null if none configured
+     * @return List of certificate templates, or null if none configured
      */
-    fun getCertificateIDs(context: Context): List<Int>? {
+    fun getCertificateTemplates(context: Context): List<AgentCertificateTemplate>? {
         val restrictionsManager = context.getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
         val appRestrictions = restrictionsManager.applicationRestrictions
 
         val certRequestList = appRestrictions.getParcelableArray("certificate_templates", Bundle::class.java)?.toList()
-        return certRequestList?.map { bundle -> bundle.getInt("id") }
+        return certRequestList?.map { bundle ->
+            AgentCertificateTemplate(
+                id = bundle.getInt("id"),
+                status = bundle.getString("status", ""),
+                operation = bundle.getString("operation", AgentCertificateTemplate.OPERATION_INSTALL),
+            )
+        }
     }
 
     /**
@@ -327,27 +333,39 @@ object CertificateOrchestrator {
     }
 
     /**
-     * Cleans up certificates that were removed from managed configuration.
+     * Cleans up certificates based on managed configuration templates.
      *
-     * This function:
-     * 1. Identifies certificates in DataStore that are no longer in current config
-     * 2. Removes the corresponding keypairs from the device using DevicePolicyManager
-     * 3. Cleans up the DataStore tracking
-     * 4. Reports removal status to the server
+     * This function removes certificates that should be deleted:
+     * 1. Primary case: Templates with operation="remove" (explicitly marked for deletion)
+     * 2. Corner case: Certificates in DataStore that are not present in any template (orphaned)
+     *
+     * For each certificate to remove:
+     * - Removes the keypair from the device using DevicePolicyManager
+     * - Cleans up the DataStore tracking
+     * - Reports removal status to the server
      *
      * @param context Android context for certificate operations
-     * @param currentCertificateIds List of certificate IDs from current managed configuration
+     * @param templates List of certificate templates from managed configuration
      * @return Map of certificate ID to cleanup result
      */
-    suspend fun cleanupRemovedCertificates(context: Context, currentCertificateIds: List<Int>): Map<Int, CleanupResult> {
-        Log.d(TAG, "Starting certificate cleanup. Current IDs: $currentCertificateIds")
+    suspend fun cleanupRemovedCertificates(context: Context, templates: List<AgentCertificateTemplate>): Map<Int, CleanupResult> {
+        Log.d(TAG, "Starting certificate cleanup. Templates: ${templates.map { "${it.id}:${it.operation}" }}")
 
         // Get all installed certificates from DataStore
         val installedCerts = getCertificateInstallInfos(context)
         Log.d(TAG, "Found ${installedCerts.size} certificate(s) in DataStore")
 
-        // Identify certificates to remove (in DataStore but not in current config)
-        val certificatesToRemove = installedCerts.keys.filter { it !in currentCertificateIds }
+        // Primary case: Templates with operation="remove"
+        val templatesMarkedForRemoval = templates.filter { it.shouldRemove() }.map { it.id }
+        Log.d(TAG, "Templates marked for removal: $templatesMarkedForRemoval")
+
+        // Corner case: Certificates in DataStore but not in any template (orphaned)
+        val allTemplateIds = templates.map { it.id }.toSet()
+        val orphanedCertificates = installedCerts.keys.filter { it !in allTemplateIds }
+        Log.d(TAG, "Orphaned certificates (not in any template): $orphanedCertificates")
+
+        // Combine both lists (removing duplicates)
+        val certificatesToRemove = (templatesMarkedForRemoval + orphanedCertificates).distinct()
 
         if (certificatesToRemove.isEmpty()) {
             Log.d(TAG, "No certificates to remove")
@@ -356,9 +374,20 @@ object CertificateOrchestrator {
 
         Log.i(TAG, "Removing ${certificatesToRemove.size} certificate(s): $certificatesToRemove")
 
+        return removeCertificates(context, certificatesToRemove, installedCerts)
+    }
+
+    /**
+     * Internal helper to remove certificates from device and DataStore.
+     */
+    private suspend fun removeCertificates(
+        context: Context,
+        certificateIds: List<Int>,
+        installedCerts: CertStatusMap,
+    ): Map<Int, CleanupResult> {
         val results = mutableMapOf<Int, CleanupResult>()
 
-        for (certificateId in certificatesToRemove) {
+        for (certificateId in certificateIds) {
             val certInfo = installedCerts[certificateId]
             if (certInfo == null) {
                 Log.w(TAG, "Certificate ID $certificateId not found in DataStore, skipping")
@@ -598,4 +627,21 @@ sealed class CleanupResult {
     data class Success(val alias: String) : CleanupResult()
     data class Failure(val reason: String, val exception: Exception?, val shouldRetry: Boolean) : CleanupResult()
     data class AlreadyRemoved(val alias: String) : CleanupResult()
+}
+
+/**
+ * Represents a certificate template from managed configuration.
+ *
+ * @property id Certificate template ID
+ * @property status Current status of the certificate template
+ * @property operation Operation to perform: "install" or "remove"
+ */
+data class AgentCertificateTemplate(val id: Int, val status: String, val operation: String) {
+    companion object {
+        const val OPERATION_INSTALL = "install"
+        const val OPERATION_REMOVE = "remove"
+    }
+
+    fun shouldInstall(): Boolean = operation == OPERATION_INSTALL
+    fun shouldRemove(): Boolean = operation == OPERATION_REMOVE
 }

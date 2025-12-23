@@ -415,6 +415,8 @@ class CertificateOrchestratorTest {
 
     // ========== Test Category 4: Certificate Cleanup ==========
 
+    // --- removeCertificateInstallInfo tests ---
+
     @Test
     fun `removeCertificateInstallInfo removes certificate from DataStore`() = runTest {
         // Arrange: Store 3 certificates
@@ -494,38 +496,64 @@ class CertificateOrchestratorTest {
     }
 
     @Test
-    fun `cleanupRemovedCertificates returns empty map when DataStore is empty`() = runTest {
-        // Arrange: DataStore is empty (default state after clearDataStore in setup)
-
-        // Act: Call cleanup with some certificate IDs
-        val results = CertificateOrchestrator.cleanupRemovedCertificates(
-            context = context,
-            currentCertificateIds = listOf(1, 2, 3),
+    fun `cleanupRemovedCertificates identifies correct certificates for removal`() = runTest {
+        data class TestCase(
+            val name: String,
+            val storedCerts: List<Int>,
+            val templates: List<AgentCertificateTemplate>,
+            val expectedRemovals: Set<Int>,
+            val expectedRemaining: Set<Int>,
         )
 
-        // Assert: No cleanup performed
-        assertTrue(results.isEmpty())
-    }
+        fun template(id: Int, operation: String) = AgentCertificateTemplate(id, "verified", operation)
 
-    @Test
-    fun `cleanupRemovedCertificates returns empty map when all certificates still in config`() = runTest {
-        // Arrange: Store 3 certificates
-        storeTestCertificateInDataStore(1, "cert-1")
-        storeTestCertificateInDataStore(2, "cert-2")
-        storeTestCertificateInDataStore(3, "cert-3")
-
-        // Act: Call cleanup with the same certificate IDs
-        val results = CertificateOrchestrator.cleanupRemovedCertificates(
-            context = context,
-            currentCertificateIds = listOf(1, 2, 3),
+        val testCases = listOf(
+            TestCase(
+                name = "removes certificates marked for removal",
+                storedCerts = listOf(1, 2, 3),
+                templates = listOf(template(1, "install"), template(2, "remove"), template(3, "install")),
+                expectedRemovals = setOf(2),
+                expectedRemaining = setOf(1, 3),
+            ),
+            TestCase(
+                name = "removes orphaned certificates",
+                storedCerts = listOf(1, 2, 3),
+                templates = listOf(template(1, "install"), template(2, "install")),
+                expectedRemovals = setOf(3),
+                expectedRemaining = setOf(1, 2),
+            ),
+            TestCase(
+                name = "handles both removal operation and orphaned",
+                storedCerts = listOf(1, 2, 3, 4),
+                templates = listOf(template(1, "install"), template(2, "remove"), template(3, "install")),
+                expectedRemovals = setOf(2, 4),
+                expectedRemaining = setOf(1, 3),
+            ),
+            TestCase(
+                name = "returns empty when all are install operations",
+                storedCerts = listOf(1, 2, 3),
+                templates = listOf(template(1, "install"), template(2, "install"), template(3, "install")),
+                expectedRemovals = emptySet(),
+                expectedRemaining = setOf(1, 2, 3),
+            ),
+            TestCase(
+                name = "with empty list removes all stored certificates",
+                storedCerts = listOf(1, 2),
+                templates = emptyList(),
+                expectedRemovals = setOf(1, 2),
+                expectedRemaining = emptySet(),
+            ),
         )
 
-        // Assert: No cleanup performed
-        assertTrue(results.isEmpty())
+        for (case in testCases) {
+            clearDataStore()
+            case.storedCerts.forEach { storeTestCertificateInDataStore(it, "cert-$it") }
 
-        // Verify certificates still in DataStore
-        val stored = getStoredCertificates()
-        assertEquals(3, stored.size)
+            val results = CertificateOrchestrator.cleanupRemovedCertificates(context, case.templates)
+
+            assertEquals("Removals failed: ${case.name}", case.expectedRemovals, results.keys)
+            assertEquals("Remaining failed: ${case.name}", case.expectedRemaining, getStoredCertificates().keys)
+        }
     }
 
     // ========== Helper Methods for Tests ==========
