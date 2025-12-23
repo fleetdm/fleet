@@ -801,16 +801,16 @@ func applyLabelTeamFilter(query string, filter fleet.TeamFilter, initialParams .
 
 	if filter.TeamID != nil {
 		if *filter.TeamID == 0 { // global labels only; any user can see them
-			return maybeIn(query + whereOrAnd + " l.team_id IS NULL")
+			return maybeIn(query + whereOrAnd + "l.team_id IS NULL")
 		} else if !filter.UserCanAccessSelectedTeam() {
 			return "", nil, fleet.NewUserMessageError(errInaccessibleTeam, 403)
 		} // else user can see the team labels they're asking for; return global labels plus that team's labels
 
-		return sqlx.In(query+whereOrAnd+" l.team_id IS NULL OR l.team_id = ?", append(initialParams, *filter.TeamID)...)
+		return sqlx.In(query+whereOrAnd+"(l.team_id IS NULL OR l.team_id = ?)", append(initialParams, *filter.TeamID)...)
 	}
 
 	if !filter.User.HasAnyGlobalRole() && filter.User.HasAnyTeamRole() { // filter to teams user can see
-		return sqlx.In(query+whereOrAnd+" l.team_id IS NULL OR l.team_id IN (?)", append(initialParams, filter.User.TeamIDsWithAnyRole())...)
+		return sqlx.In(query+whereOrAnd+"(l.team_id IS NULL OR l.team_id IN (?))", append(initialParams, filter.User.TeamIDsWithAnyRole())...)
 	} // else user exists and has a global role, so we don't need to filter out any team labels
 
 	return maybeIn(query)
