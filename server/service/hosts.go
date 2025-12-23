@@ -3098,7 +3098,7 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 
 	var tmID uint
 	if host.TeamID != nil {
-		tmId = *host.TeamID
+		tmID = *host.TeamID
 	}
 
 	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames, tmID)
