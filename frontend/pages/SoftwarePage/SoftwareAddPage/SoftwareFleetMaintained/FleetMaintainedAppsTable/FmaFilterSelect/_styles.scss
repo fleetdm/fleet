@@ -1,0 +1,182 @@
+.fma-filter-select {
+  width: 305px;
+
+  svg {
+    transition: transform 0.25s ease;
+  }
+
+  &:hover {
+    // no access to hover state from react-select in JS so this is done here.
+    .custom-dropdown-indicator {
+      & path {
+        stroke: $ui-fleet-black-75;
+      }
+    }
+
+    .filter-icon {
+      & path {
+        fill: $ui-fleet-black-75;
+      }
+    }
+  }
+
+  .fma-filter-select__control {
+    border: 1px solid $ui-fleet-black-10;
+    background-color: $core-fleet-white;
+    border-radius: $border-radius;
+    height: 36px;
+
+    &:hover {
+      cursor: pointer;
+      border: 1px solid $ui-fleet-black-50;
+    }
+
+    &--is-focused,
+    &--menu-is-open {
+      box-shadow: none;
+      border: 1px solid $core-fleet-black;
+    }
+
+    &--menu-is-open {
+      .custom-dropdown-indicator {
+        svg {
+          transform: rotate(180deg);
+          transition: transform 0.25s ease;
+        }
+      }
+      .filter-icon {
+        & path {
+          fill: $ui-fleet-black-75;
+        }
+      }
+    }
+  }
+
+  .fma-filter-select__value-container {
+    display: flex;
+    gap: $pad-small;
+    margin-left: $pad-xsmall;
+  }
+
+  .fma-filter-select__single-value,
+  .fma-filter-select__placeholder {
+    color: $core-fleet-black;
+    font-size: $x-small;
+  }
+
+  .fma-filter-select__single-value {
+    max-width: 84%; // Must override default styling of .css-qc6sy-singleValue
+  }
+
+  .fma-filter-select__placeholder {
+    width: 215px; // Any larger runs into indicator
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    @media (max-width: $table-controls-break) {
+      width: auto;
+    }
+  }
+
+  .fma-filter-select__indicator-separator {
+    display: none;
+  }
+
+  .fma-filter-select__indicator {
+    color: $core-fleet-black;
+    // override react-select default styles to increase flexibility of dropdown styling
+    padding: 0;
+    padding-right: $pad-small;
+  }
+
+  .fma-filter-select__menu {
+    width: 300px;
+    margin-top: 0;
+    z-index: 2;
+    animation: fade-in 150ms ease-out;
+  }
+
+  .fma-filter-select__menu-list {
+    max-height: 574px;
+    padding: $pad-small $pad-medium;
+  }
+
+  .dropdown-wrapper-option__label {
+    border-radius: $border-radius;
+    font-size: $x-small;
+
+    &:hover {
+      cursor: pointer;
+    }
+
+    &--is-selected {
+      background-color: transparent;
+
+      .option-label {
+        span {
+          font-weight: $bold;
+        }
+      }
+    }
+
+    &--is-focused {
+      background-color: $ui-fleet-black-5;
+
+      &:active {
+        background-color: $ui-fleet-black-10;
+      }
+    }
+
+    &--is-disabled {
+      &:active {
+        background-color: transparent;
+      }
+    }
+  }
+
+  .fma-filter-select__group-heading {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-small;
+    padding: 0;
+    text-transform: none;
+    color: $core-fleet-black;
+    padding-left: $pad-smedium;
+    font-style: $bold;
+  }
+
+  .option-label {
+    display: flex;
+    align-items: center;
+
+    span {
+      font-size: $x-small;
+      font-weight: $regular;
+      color: $core-fleet-black;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .option-icon {
+      margin-right: $pad-small;
+    }
+  }
+
+  &__custom-dropdown-indicator {
+    &:hover {
+      cursor: pointer;
+    }
+  }
+}
+
+@media (min-width: $table-controls-break) {
+  .fma-filter-select {
+    min-width: 305px;
+
+    &__single-value {
+      max-width: 210px !important; // Must override default styling of .css-qc6sy-singleValue
+    }
+  }
+}

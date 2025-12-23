@@ -1,16 +1,14 @@
-// frontend/pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppsTable/FmaFilterSelect/FmaStatusSelect.tsx
-
 import React, { useMemo } from "react";
 import Select, {
   GroupBase,
   GroupHeadingProps,
   DropdownIndicatorProps,
+  components,
 } from "react-select-5";
-
+import Icon from "components/Icon";
 import CustomDropdownIndicator from "pages/hosts/ManageHostsPage/components/CustomDropdownIndicator";
-import CustomLabelGroupHeading from "pages/hosts/ManageHostsPage/components/CustomLabelGroupHeading";
 
-const baseClass = "fma-status-select";
+const baseClass = "fma-filter-select";
 
 export type FmaStatusValue =
   | "all"
@@ -24,7 +22,8 @@ export type FmaStatusValue =
 interface IStatusOption {
   value: FmaStatusValue;
   label: string;
-  subtext?: string;
+  helpText?: string;
+  isDisabled: boolean;
 }
 
 export type FmaStatusGroup = GroupBase<IStatusOption>;
@@ -35,14 +34,39 @@ interface IFmaStatusSelectProps {
   className?: string;
 }
 
-// Wrapper so types match this select’s generics
-const FmaFilterSelectGroupHeading = (
+/** Simple group heading: just the section title + optional icon */
+const FmaGroupHeading = (
   props: GroupHeadingProps<IStatusOption, false, FmaStatusGroup>
 ) => {
-  return <CustomLabelGroupHeading {...(props as any)} />;
+  const { children } = props;
+
+  return (
+    <components.GroupHeading {...props}>
+      <>
+        {children === "macOS" && (
+          <Icon name="darwin" className={`${baseClass}__group-heading-icon`} />
+        )}
+        {children === "Windows" && (
+          <Icon name="windows" className={`${baseClass}__group-heading-icon`} />
+        )}
+        <span className={`${baseClass}__group-heading-text`}>{children}</span>
+      </>
+    </components.GroupHeading>
+  );
 };
 
-const FmaFilterSelectDropdownIndicator = (
+const ValueContainer = ({ children, ...props }: any) => {
+  return (
+    components.ValueContainer && (
+      <components.ValueContainer {...props}>
+        {!!children && <Icon name="filter-alt" className="filter-icon" />}
+        {children}
+      </components.ValueContainer>
+    )
+  );
+};
+
+const FmaStatusDropdownIndicator = (
   props: DropdownIndicatorProps<IStatusOption, false, FmaStatusGroup>
 ) => {
   return <CustomDropdownIndicator {...(props as any)} />;
@@ -56,49 +80,56 @@ const FmaStatusSelect = ({
   const options = useMemo<FmaStatusGroup[]>(() => {
     const allOption: IStatusOption = {
       value: "all",
-      label: "All apps",
-      subtext: "Show apps for all platforms and states",
+      label: "All Fleet-maintained apps",
+      helpText: "Show apps for all platforms and statuses",
+      isDisabled: false,
     };
 
     const macOptions: IStatusOption[] = [
       {
         value: "macos",
-        label: "macOS (any state)",
-        subtext: "Apps with any macOS status",
+        label: "All macOS apps",
+        helpText: "Show all apps for macOS",
+        isDisabled: false,
       },
       {
         value: "added_macos",
-        label: "macOS added",
-        subtext: "Apps already added for macOS",
+        label: "Added apps",
+        helpText: "Apps already added to this team for macOS",
+        isDisabled: false,
       },
       {
         value: "available_macos",
-        label: "macOS available to add",
-        subtext: "Apps that can be added for macOS",
+        label: "Available apps",
+        helpText: "Apps available to add to this team for macOS",
+        isDisabled: false,
       },
     ];
 
     const windowsOptions: IStatusOption[] = [
       {
         value: "windows",
-        label: "Windows (any state)",
-        subtext: "Apps with any Windows status",
+        label: "All Windows apps",
+        helpText: "Show all apps for Windows",
+        isDisabled: false,
       },
       {
         value: "added_windows",
-        label: "Windows added",
-        subtext: "Apps already added for Windows",
+        label: "Added apps",
+        helpText: "Apps already added to this team for Windows",
+        isDisabled: false,
       },
       {
         value: "available_windows",
-        label: "Windows available to add",
-        subtext: "Apps that can be added for Windows",
+        label: "Available apps",
+        helpText: "Apps available to add to this team for Windows",
+        isDisabled: false,
       },
     ];
 
     return [
       {
-        label: "General",
+        label: undefined,
         options: [allOption],
       },
       {
@@ -117,12 +148,18 @@ const FmaStatusSelect = ({
     onChange(option.value);
   };
 
-  const formatOptionLabel = (option: IStatusOption) => (
+  // Only show helpText in the menu (not for the selected value)
+  const formatOptionLabel = (
+    option: IStatusOption,
+    { context }: { context: "menu" | "value" }
+  ) => (
     <div className={`${baseClass}__option`}>
-      <div className={`${baseClass}__option-label`}>{option.label}</div>
-      {option.subtext && (
-        <div className={`${baseClass}__option-subtext`}>{option.subtext}</div>
-      )}
+      <div className="dropdown-wrapper-option__label">{option.label}</div>
+      {/* {context === "menu" && option.helpText && (
+        <div className="dropdown-wrapper-option__help-text">
+          {option.helpText}
+        </div>
+      )} */}
     </div>
   );
 
@@ -145,8 +182,9 @@ const FmaStatusSelect = ({
         options={options}
         isSearchable={false}
         components={{
-          GroupHeading: FmaFilterSelectGroupHeading,
-          DropdownIndicator: FmaFilterSelectDropdownIndicator,
+          GroupHeading: FmaGroupHeading,
+          DropdownIndicator: FmaStatusDropdownIndicator,
+          ValueContainer,
         }}
         formatOptionLabel={formatOptionLabel}
         getOptionLabel={(o) => o.label}
