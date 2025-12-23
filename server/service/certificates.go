@@ -78,7 +78,7 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
 	}
 
-	activity := fleet.ActivityTypeCreatedCertificate{
+	activity := fleet.ActivityTypeAddedCertificate{
 		Name: name,
 	}
 	if teamID != 0 {
