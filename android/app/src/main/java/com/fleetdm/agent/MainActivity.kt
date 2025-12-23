@@ -313,7 +313,7 @@ fun CertificateList(modifier: Modifier = Modifier, certificates: CertificateStat
             Text(text = stringResource(R.string.certificate_list_no_certificates))
         }
         certificates.forEach { (_, value) ->
-            if (value.status == CertificateStatus.INSTALLED) {
+            if (value.status == CertificateStatus.INSTALLED || value.status == CertificateStatus.INSTALLED_UNREPORTED) {
                 Text(text = value.alias)
             }
         }

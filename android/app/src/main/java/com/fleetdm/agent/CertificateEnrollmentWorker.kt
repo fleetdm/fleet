@@ -26,6 +26,16 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             return Result.failure()
         }
 
+        // STEP 0: Retry any unreported statuses from previous runs
+        val unreportedResults = CertificateOrchestrator.retryUnreportedStatuses(applicationContext)
+        unreportedResults.forEach { (certId, success) ->
+            if (success) {
+                Log.i(TAG, "Successfully reported unreported status for certificate $certId")
+            } else {
+                Log.w(TAG, "Failed to report unreported status for certificate $certId, will retry next run")
+            }
+        }
+
         val hostCertificates = CertificateOrchestrator.getHostCertificates(applicationContext) ?: emptyList()
 
         // STEP 1: Cleanup certificates marked for removal and orphaned certificates

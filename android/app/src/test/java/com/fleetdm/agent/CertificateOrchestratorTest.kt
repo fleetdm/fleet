@@ -81,13 +81,14 @@ class CertificateOrchestratorTest {
         alias: String,
         status: CertificateStatus = CertificateStatus.INSTALLED,
         retries: Int = 0,
+        statusReportRetries: Int = 0,
     ) {
         context.prefDataStore.edit { preferences ->
             val existing = preferences[stringPreferencesKey("installed_certificates")]?.let {
                 json.decodeFromString<CertificateStateMap>(it)
             } ?: emptyMap()
 
-            val certInfo = CertificateState(alias, status, retries)
+            val certInfo = CertificateState(alias, status, retries, statusReportRetries)
             val updated = existing.toMutableMap().apply {
                 put(certificateId, certInfo)
             }
@@ -509,15 +510,17 @@ class CertificateOrchestratorTest {
 
         fun hostCert(id: Int, op: String) = HostCertificate(id, "verified", op)
 
+        // Note: Since API calls fail in tests (no mock), removals end up in REMOVED_UNREPORTED
+        // status. In production with successful API calls, they would transition to REMOVED.
         val testCases = listOf(
             TestCase(
-                name = "marks INSTALLED cert as REMOVED when operation=remove",
+                name = "marks INSTALLED cert as REMOVED_UNREPORTED when operation=remove",
                 stored = listOf(StoredCert(1), StoredCert(2), StoredCert(3)),
                 hostCertificates = listOf(hostCert(1, "install"), hostCert(2, "remove"), hostCert(3, "install")),
                 expectedResultIds = setOf(2),
                 expectedState = listOf(
                     ExpectedCert(1, CertificateStatus.INSTALLED),
-                    ExpectedCert(2, CertificateStatus.REMOVED),
+                    ExpectedCert(2, CertificateStatus.REMOVED_UNREPORTED), // Unreported because API call fails
                     ExpectedCert(3, CertificateStatus.INSTALLED),
                 ),
             ),
@@ -538,7 +541,7 @@ class CertificateOrchestratorTest {
                 expectedResultIds = setOf(2),
                 expectedState = listOf(
                     ExpectedCert(1, CertificateStatus.INSTALLED),
-                    ExpectedCert(2, CertificateStatus.REMOVED),
+                    ExpectedCert(2, CertificateStatus.REMOVED), // Direct REMOVED for certs not in DataStore
                 ),
             ),
             TestCase(
@@ -553,14 +556,14 @@ class CertificateOrchestratorTest {
                 ),
             ),
             TestCase(
-                name = "marks orphaned INSTALLED cert as REMOVED",
+                name = "marks orphaned INSTALLED cert as REMOVED_UNREPORTED",
                 stored = listOf(StoredCert(1), StoredCert(2), StoredCert(3)),
                 hostCertificates = listOf(hostCert(1, "install"), hostCert(2, "install")),
                 expectedResultIds = setOf(3),
                 expectedState = listOf(
                     ExpectedCert(1, CertificateStatus.INSTALLED),
                     ExpectedCert(2, CertificateStatus.INSTALLED),
-                    ExpectedCert(3, CertificateStatus.REMOVED),
+                    ExpectedCert(3, CertificateStatus.REMOVED_UNREPORTED), // Unreported because API call fails
                 ),
             ),
             TestCase(
@@ -590,6 +593,102 @@ class CertificateOrchestratorTest {
                     assertEquals("Cert ${expected.id} status - ${case.name}", expected.status, stored[expected.id]?.status)
                 }
             }
+        }
+    }
+
+    // ========== Test Category 5: Status Report Retry Logic ==========
+
+    @Test
+    fun `markCertificateUnreported sets correct status based on operation type`() = runTest {
+        data class TestCase(
+            val name: String,
+            val isInstall: Boolean,
+            val expectedStatus: CertificateStatus,
+        )
+
+        val testCases = listOf(
+            TestCase("install", isInstall = true, CertificateStatus.INSTALLED_UNREPORTED),
+            TestCase("remove", isInstall = false, CertificateStatus.REMOVED_UNREPORTED),
+        )
+
+        for ((index, case) in testCases.withIndex()) {
+            clearDataStore()
+            val certId = index + 1
+
+            CertificateOrchestrator.markCertificateUnreported(context, certId, "test-cert", case.isInstall)
+
+            val stored = getStoredCertificates()
+            assertEquals("${case.name}: size", 1, stored.size)
+            assertEquals("${case.name}: alias", "test-cert", stored[certId]?.alias)
+            assertEquals("${case.name}: status", case.expectedStatus, stored[certId]?.status)
+            assertEquals("${case.name}: statusReportRetries", 0, stored[certId]?.statusReportRetries)
+        }
+    }
+
+    @Test
+    fun `incrementStatusReportRetries increments counter`() = runTest {
+        storeTestCertificateInDataStore(123, "test-cert", CertificateStatus.INSTALLED_UNREPORTED, statusReportRetries = 3)
+
+        val result = CertificateOrchestrator.incrementStatusReportRetries(context, 123)
+
+        assertNotNull(result)
+        assertEquals(4, result!!.statusReportRetries)
+        assertEquals(CertificateStatus.INSTALLED_UNREPORTED, result.status)
+        assertEquals(4, getStoredCertificates()[123]?.statusReportRetries)
+    }
+
+    @Test
+    fun `incrementStatusReportRetries transitions to final status at max retries`() = runTest {
+        data class TestCase(
+            val name: String,
+            val initialStatus: CertificateStatus,
+            val expectedFinalStatus: CertificateStatus,
+        )
+
+        val testCases = listOf(
+            TestCase("install", CertificateStatus.INSTALLED_UNREPORTED, CertificateStatus.INSTALLED),
+            TestCase("remove", CertificateStatus.REMOVED_UNREPORTED, CertificateStatus.REMOVED),
+        )
+
+        for ((index, case) in testCases.withIndex()) {
+            clearDataStore()
+            val certId = index + 1
+            storeTestCertificateInDataStore(
+                certId,
+                "test-cert",
+                case.initialStatus,
+                statusReportRetries = MAX_STATUS_REPORT_RETRIES - 1,
+            )
+
+            val result = CertificateOrchestrator.incrementStatusReportRetries(context, certId)
+
+            assertNotNull("${case.name}: result not null", result)
+            assertEquals("${case.name}: retries", MAX_STATUS_REPORT_RETRIES, result!!.statusReportRetries)
+            assertEquals("${case.name}: status", case.expectedFinalStatus, result.status)
+            assertEquals("${case.name}: stored status", case.expectedFinalStatus, getStoredCertificates()[certId]?.status)
+        }
+    }
+
+    @Test
+    fun `incrementStatusReportRetries returns null for non-existent certificate`() = runTest {
+        assertNull(CertificateOrchestrator.incrementStatusReportRetries(context, 999))
+    }
+
+    @Test
+    fun `shouldRetryStatusReport respects max retry limit`() {
+        data class TestCase(val retries: Int, val expected: Boolean)
+
+        val testCases = listOf(
+            TestCase(0, true),
+            TestCase(5, true),
+            TestCase(MAX_STATUS_REPORT_RETRIES - 1, true),
+            TestCase(MAX_STATUS_REPORT_RETRIES, false),
+            TestCase(MAX_STATUS_REPORT_RETRIES + 1, false),
+        )
+
+        for (case in testCases) {
+            val state = CertificateState("test", CertificateStatus.INSTALLED_UNREPORTED, statusReportRetries = case.retries)
+            assertEquals("retries=${case.retries}", case.expected, state.shouldRetryStatusReport())
         }
     }
 

@@ -22,6 +22,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 const val MAX_CERT_INSTALL_RETRIES = 3
+const val MAX_STATUS_REPORT_RETRIES = 10
 
 /**
  * Orchestrates certificate enrollment operations by coordinating API calls,
@@ -371,6 +372,11 @@ object CertificateOrchestrator {
                     Log.d(TAG, "Certificate ID $certId already removed, skipping")
                     results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
                 }
+                certState?.status == CertificateStatus.REMOVED_UNREPORTED -> {
+                    // Already removed but not yet reported to server; skip removal, will be retried
+                    Log.d(TAG, "Certificate ID $certId already removed (unreported), skipping")
+                    results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
+                }
                 certState != null -> {
                     // Certificate exists in DataStore, remove it
                     val result = removeCertificateFromDevice(context, certId, certState.alias)
@@ -400,8 +406,8 @@ object CertificateOrchestrator {
         Log.d(TAG, "Orphaned certificates: ${orphanedCerts.keys}")
 
         for ((certId, certState) in orphanedCerts) {
-            if (certState.status == CertificateStatus.REMOVED) {
-                // Removal complete and host certificate gone, clean up tracking
+            if (certState.status == CertificateStatus.REMOVED || certState.status == CertificateStatus.REMOVED_UNREPORTED) {
+                // Removal complete (or unreported) and host certificate gone, clean up tracking
                 Log.d(TAG, "Cleaning up tracking for removed certificate ID $certId")
                 removeCertificateState(context, certId)
                 results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
@@ -425,15 +431,24 @@ object CertificateOrchestrator {
         val removed = removeKeyPair(context, alias)
 
         return if (removed) {
-            ApiClient.updateCertificateStatus(
+            // First, mark as unreported (persisted before network call)
+            markCertificateUnreported(context, certificateId, alias, isInstall = false)
+
+            // Attempt to report status
+            val reportResult = ApiClient.updateCertificateStatus(
                 certificateId = certificateId,
                 status = UpdateCertificateStatusStatus.VERIFIED,
                 operationType = UpdateCertificateStatusOperation.REMOVE,
-            ).onFailure { error ->
-                Log.e(TAG, "Failed to report removal status for ID $certificateId: ${error.message}", error)
+            )
+
+            if (reportResult.isSuccess) {
+                // Status reported successfully, mark as fully removed
+                markCertificateRemoved(context, certificateId, alias)
+            } else {
+                // Status report failed; leave as REMOVED_UNREPORTED for retry later
+                Log.w(TAG, "Removal status report failed for certificate $certificateId, will retry later: ${reportResult.exceptionOrNull()?.message}")
             }
 
-            markCertificateRemoved(context, certificateId, alias)
             Log.i(TAG, "Successfully removed certificate ID $certificateId (alias: '$alias')")
             CleanupResult.Success(alias)
         } else {
@@ -462,6 +477,118 @@ object CertificateOrchestrator {
     private suspend fun markCertificateRemoved(context: Context, certificateId: Int, alias: String) {
         val info = CertificateState(alias = alias, status = CertificateStatus.REMOVED)
         storeCertificateState(context, certificateId, info)
+    }
+
+    /**
+     * Marks a certificate as unreported after successful install/remove.
+     * We persist this state before attempting the network call so that we can retry later if needed.
+     *
+     * @param context Android context
+     * @param certificateId Certificate template ID
+     * @param alias Certificate alias
+     * @param isInstall True for install operation, false for remove operation
+     */
+    internal suspend fun markCertificateUnreported(
+        context: Context,
+        certificateId: Int,
+        alias: String,
+        isInstall: Boolean,
+    ) {
+        val status = if (isInstall) {
+            CertificateStatus.INSTALLED_UNREPORTED
+        } else {
+            CertificateStatus.REMOVED_UNREPORTED
+        }
+        val info = CertificateState(alias = alias, status = status, statusReportRetries = 0)
+        storeCertificateState(context, certificateId, info)
+    }
+
+    /**
+     * Increments the status report retry count for a certificate.
+     * If max retries reached, transitions to final status (INSTALLED or REMOVED).
+     *
+     * @param context Android context
+     * @param certificateId Certificate template ID
+     * @return The updated CertificateState, or null if not found
+     */
+    internal suspend fun incrementStatusReportRetries(context: Context, certificateId: Int): CertificateState? {
+        val existingState = getCertificateState(context, certificateId) ?: return null
+
+        val newRetries = existingState.statusReportRetries + 1
+        val newStatus = when {
+            newRetries >= MAX_STATUS_REPORT_RETRIES -> {
+                // Max retries reached, transition to final status
+                when (existingState.status) {
+                    CertificateStatus.INSTALLED_UNREPORTED -> CertificateStatus.INSTALLED
+                    CertificateStatus.REMOVED_UNREPORTED -> CertificateStatus.REMOVED
+                    else -> existingState.status
+                }
+            }
+            else -> existingState.status
+        }
+
+        val updatedState = existingState.copy(
+            status = newStatus,
+            statusReportRetries = newRetries,
+        )
+        storeCertificateState(context, certificateId, updatedState)
+
+        if (newRetries >= MAX_STATUS_REPORT_RETRIES) {
+            Log.w(TAG, "Certificate $certificateId reached max status report retries ($MAX_STATUS_REPORT_RETRIES), giving up")
+        }
+
+        return updatedState
+    }
+
+    /**
+     * Retries unreported statuses for certificates that were installed/removed
+     * but whose status wasn't successfully reported to the server.
+     *
+     * @param context Android context
+     * @return Map of certificate ID to success (true) or failure (false)
+     */
+    suspend fun retryUnreportedStatuses(context: Context): Map<Int, Boolean> {
+        val states = getCertificateStates(context)
+        val results = mutableMapOf<Int, Boolean>()
+
+        val unreportedStates = states.filter { (_, state) ->
+            state.status == CertificateStatus.INSTALLED_UNREPORTED ||
+                state.status == CertificateStatus.REMOVED_UNREPORTED
+        }
+
+        for ((certId, state) in unreportedStates) {
+            val isInstall = state.status == CertificateStatus.INSTALLED_UNREPORTED
+            val operationType = if (isInstall) UpdateCertificateStatusOperation.INSTALL else UpdateCertificateStatusOperation.REMOVE
+            val operationName = if (isInstall) "install" else "removal"
+
+            Log.d(TAG, "Retrying status report for $operationName certificate $certId (attempt ${state.statusReportRetries + 1})")
+
+            val result = ApiClient.updateCertificateStatus(
+                certificateId = certId,
+                status = UpdateCertificateStatusStatus.VERIFIED,
+                operationType = operationType,
+            )
+
+            if (result.isSuccess) {
+                if (isInstall) {
+                    markCertificateInstalled(context, certId, state.alias)
+                } else {
+                    markCertificateRemoved(context, certId, state.alias)
+                }
+                Log.i(TAG, "Successfully reported $operationName status for certificate $certId")
+                results[certId] = true
+            } else {
+                val updatedState = incrementStatusReportRetries(context, certId)
+                Log.w(TAG, "Failed to report $operationName status for certificate $certId: ${result.exceptionOrNull()?.message}")
+                results[certId] = false
+
+                val finalStatus = if (isInstall) CertificateStatus.INSTALLED else CertificateStatus.REMOVED
+                if (updatedState?.status == finalStatus) {
+                    Log.w(TAG, "Gave up reporting $operationName status for certificate $certId after $MAX_STATUS_REPORT_RETRIES attempts")
+                }
+            }
+        }
+        return results
     }
 
     /**
@@ -532,16 +659,24 @@ object CertificateOrchestrator {
         when (result) {
             is CertificateEnrollmentHandler.EnrollmentResult.Success -> {
                 Log.i(TAG, "Certificate enrollment successful for ID $certificateId with alias: ${result.alias}")
-                ApiClient.updateCertificateStatus(
+
+                // First, mark as unreported (persisted before network call)
+                markCertificateUnreported(context, certificateId, template.name, isInstall = true)
+
+                // Attempt to report status
+                val reportResult = ApiClient.updateCertificateStatus(
                     certificateId = certificateId,
                     status = UpdateCertificateStatusStatus.VERIFIED,
                     operationType = UpdateCertificateStatusOperation.INSTALL,
-                ).onFailure { error ->
-                    Log.e(TAG, "Failed to update certificate status to verified for ID $certificateId: ${error.message}", error)
-                }
+                )
 
-                // Store certificate installation in DataStore
-                markCertificateInstalled(context, certificateId = certificateId, alias = template.name)
+                if (reportResult.isSuccess) {
+                    // Status reported successfully, mark as fully installed
+                    markCertificateInstalled(context, certificateId = certificateId, alias = template.name)
+                } else {
+                    // Status report failed - leave as INSTALLED_UNREPORTED for retry later
+                    Log.w(TAG, "Status report failed for certificate $certificateId, will retry later: ${reportResult.exceptionOrNull()?.message}")
+                }
             }
             is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
                 val updatedInfo = markCertificateFailure(context = context, certificateId = certificateId, alias = template.name)
@@ -626,6 +761,9 @@ enum class CertificateStatus {
     @SerialName("installed")
     INSTALLED,
 
+    @SerialName("installed_unreported")
+    INSTALLED_UNREPORTED,
+
     @SerialName("failed")
     FAILED,
 
@@ -634,6 +772,9 @@ enum class CertificateStatus {
 
     @SerialName("removed")
     REMOVED,
+
+    @SerialName("removed_unreported")
+    REMOVED_UNREPORTED,
 }
 
 @Serializable
@@ -644,8 +785,11 @@ data class CertificateState(
     val status: CertificateStatus,
     @SerialName("retries")
     val retries: Int = 0,
+    @SerialName("status_report_retries")
+    val statusReportRetries: Int = 0,
 ) {
     fun shouldRetry(): Boolean = status == CertificateStatus.RETRY && retries < (MAX_CERT_INSTALL_RETRIES)
+    fun shouldRetryStatusReport(): Boolean = statusReportRetries < MAX_STATUS_REPORT_RETRIES
 }
 
 /**
