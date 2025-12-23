@@ -409,6 +409,7 @@ const EditQueryPage = ({
               queryIdForEdit={queryId}
               apiTeamIdForQuery={apiTeamIdForQuery}
               currentTeamId={currentTeamId}
+              currentTeamName={teamNameForQuery}
               isStoredQueryLoading={isStoredQueryLoading}
               showOpenSchemaActionText={showOpenSchemaActionText}
               onOpenSchemaSidebar={onOpenSchemaSidebar}
