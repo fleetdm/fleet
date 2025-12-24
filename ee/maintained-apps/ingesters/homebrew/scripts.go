@@ -39,7 +39,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 			sb.Write("# copy to the applications folder")
 			// Quit the app before installing if it's running, and track state for relaunch
 			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
-			if cask.Token == "docker" {
+			if cask.Token == "docker-desktop" {
 				sb.Writef("quit_and_track_application 'com.electron.dockerdesktop'")
 			}
 			for _, appItem := range artifact.App {
@@ -55,7 +55,7 @@ fi`, appPath)
 			}
 			// Relaunch the app if it was running before installation
 			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
-			if cask.Token == "docker" {
+			if cask.Token == "docker-desktop" {
 				sb.Writef("relaunch_application 'com.electron.dockerdesktop'")
 			}
 
@@ -63,7 +63,7 @@ fi`, appPath)
 			sb.Write("# install pkg files")
 			// Quit the app before installing if it's running, and track state for relaunch
 			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
-			if cask.Token == "docker" {
+			if cask.Token == "docker-desktop" {
 				sb.Writef("quit_and_track_application 'com.electron.dockerdesktop'")
 			}
 			switch len(artifact.Pkg) {
@@ -80,7 +80,7 @@ fi`, appPath)
 			}
 			// Relaunch the app if it was running before installation
 			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
-			if cask.Token == "docker" {
+			if cask.Token == "docker-desktop" {
 				sb.Writef("relaunch_application 'com.electron.dockerdesktop'")
 			}
 
