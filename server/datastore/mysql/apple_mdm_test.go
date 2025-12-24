@@ -9589,7 +9589,7 @@ func testDeviceLocation(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	iOSHost := newTestHostWithPlatform(t, ds, "iphone_"+t.Name(), string(fleet.IOSPlatform), nil)
 
-	expected := fleet.HostLocationData{HostID: iOSHost.ID, Latitude: 42.42, Longitude: -42.42}
+	expected := fleet.HostLocationData{HostID: iOSHost.ID, Latitude: "42.42" + strings.Repeat("0", 6), Longitude: "-42.42" + strings.Repeat("0", 6)}
 	err := ds.InsertHostLocationData(ctx, expected)
 	require.NoError(t, err)
 
@@ -9599,7 +9599,7 @@ func testDeviceLocation(t *testing.T, ds *Datastore) {
 	assert.Equal(t, expected, *locData)
 
 	// Update data
-	expected = fleet.HostLocationData{HostID: iOSHost.ID, Latitude: 20.25, Longitude: -20.25}
+	expected = fleet.HostLocationData{HostID: iOSHost.ID, Latitude: "20.25" + strings.Repeat("0", 6), Longitude: "-20.25" + strings.Repeat("0", 6)}
 	err = ds.InsertHostLocationData(ctx, expected)
 	require.NoError(t, err)
 

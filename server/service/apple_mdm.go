@@ -4292,23 +4292,23 @@ type deviceLocationResult struct {
 	raw       []byte
 	uuid      string
 	hostID    uint
-	latitude  float64 `plist:"Latitude"`
-	longitude float64 `plist:"Longitude"`
+	latitude  string `plist:"Latitude"`
+	longitude string `plist:"Longitude"`
 	hostUUID  string
 }
 
-func (i *deviceLocationResult) Raw() []byte        { return i.raw }
-func (i *deviceLocationResult) UUID() string       { return i.uuid }
-func (i *deviceLocationResult) HostUUID() string   { return i.hostUUID }
-func (i *deviceLocationResult) HostID() uint       { return i.hostID }
-func (i *deviceLocationResult) Latitude() float64  { return i.latitude }
-func (i *deviceLocationResult) Longitude() float64 { return i.longitude }
+func (i *deviceLocationResult) Raw() []byte       { return i.raw }
+func (i *deviceLocationResult) UUID() string      { return i.uuid }
+func (i *deviceLocationResult) HostUUID() string  { return i.hostUUID }
+func (i *deviceLocationResult) HostID() uint      { return i.hostID }
+func (i *deviceLocationResult) Latitude() string  { return i.latitude }
+func (i *deviceLocationResult) Longitude() string { return i.longitude }
 
 type DeviceLocationResult interface {
 	fleet.MDMCommandResults
 	HostID() uint
-	Latitude() float64
-	Longitude() float64
+	Latitude() string
+	Longitude() string
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,

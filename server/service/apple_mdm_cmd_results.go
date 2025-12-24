@@ -19,8 +19,8 @@ func NewDeviceLocationResult(result *mdm.CommandResults, hostID uint) (DeviceLoc
 
 	// parse results
 	var deviceLocResult struct {
-		Latitude  float64 `plist:"Latitude"`
-		Longitude float64 `plist:"Longitude"`
+		Latitude  string `plist:"Latitude"`
+		Longitude string `plist:"Longitude"`
 	}
 
 	if err := plist.Unmarshal(result.Raw, &deviceLocResult); err != nil {
