@@ -4563,6 +4563,8 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 }
 
 func (s *integrationTestSuite) TestLabels() {
+	// TODO team labels
+
 	t := s.T()
 
 	// create some hosts to use for manual labels
@@ -5015,8 +5017,6 @@ func (s *integrationTestSuite) TestLabels() {
 		)
 
 		t.Run("IdP Group Label", func(t *testing.T) {
-			// TODO test team labels
-
 			// Create a label for an IdP group
 			criteria := &fleet.HostVitalCriteria{
 				Vital: ptr.String("end_user_idp_group"),
@@ -5382,6 +5382,8 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
+
+	// TODO team labels
 }
 
 func (s *integrationTestSuite) TestUsers() {
@@ -13477,6 +13479,8 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 }
 
 func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
+	// TODO team labels
+
 	t := s.T()
 	ctx := context.Background()
 

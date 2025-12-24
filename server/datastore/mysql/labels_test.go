@@ -102,6 +102,7 @@ func TestLabels(t *testing.T) {
 		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
 		{"TeamLabels", testTeamLabels},
 		{"UpdateLabelMembershipForTransferredHost", testUpdateLabelMembershipForTransferredHost},
+		{"SetAsideLabels", testSetAsideLabels},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -2568,4 +2569,8 @@ func testUpdateLabelMembershipForTransferredHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 	require.Equal(t, "global", labels[0].Name)
+}
+
+func testSetAsideLabels(t *testing.T, ds *Datastore) {
+	// TODO
 }
