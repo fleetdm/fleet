@@ -183,6 +183,21 @@ const EditAutoUpdateConfigModal = ({
     setFormValidation(validateFormData(newData));
   };
 
+  const earliestStartTimeError =
+    formValidation.autoUpdateStartTime?.message ||
+    (formValidation.windowLength?.message ? "Earliest start time" : undefined);
+
+  const latestStartTimeError =
+    formValidation.autoUpdateEndTime?.message ||
+    (formValidation.windowLength?.message ? "Latest start time" : undefined);
+
+  const updateWindowLabel = formValidation.windowLength?.message || (
+    <>Update window (host&rsquo;s local time)</>
+  );
+  const updateWindowLabelClass = classnames("form-field__label", {
+    "form-field__label--error": !!formValidation.windowLength?.message,
+  });
+
   const renderForm = () => (
     <div className={`${formClass}__form-frame`}>
       <Card paddingSize="medium" borderRadiusSize="medium">
@@ -206,8 +221,8 @@ const EditAutoUpdateConfigModal = ({
             <>
               <div>
                 <div className="form-field">
-                  <div className="form-field__label">
-                    Update window (host&rsquo;s local time)
+                  <div className={updateWindowLabelClass}>
+                    {updateWindowLabel}
                   </div>
                   <div className="form-field__subtitle">
                     Times are formatted as HH:MM in 24 hour time (e.g.,
@@ -227,7 +242,7 @@ const EditAutoUpdateConfigModal = ({
                       label="Earliest start time"
                       name="autoUpdateStartTime"
                       parseTarget
-                      error={formValidation.autoUpdateStartTime?.message}
+                      error={earliestStartTimeError}
                     />
                     <InputField
                       value={formData.autoUpdateEndTime}
@@ -238,7 +253,7 @@ const EditAutoUpdateConfigModal = ({
                       label="Latest start time"
                       name="autoUpdateEndTime"
                       parseTarget
-                      error={formValidation.autoUpdateEndTime?.message}
+                      error={latestStartTimeError}
                     />
                   </span>
                 </div>

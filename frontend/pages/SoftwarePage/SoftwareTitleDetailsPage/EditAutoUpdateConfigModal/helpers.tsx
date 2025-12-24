@@ -10,6 +10,7 @@ export interface ISoftwareAutoUpdateConfigFormValidation {
   autoUpdateStartTime?: ISoftwareAutoUpdateConfigInputValidation;
   autoUpdateEndTime?: ISoftwareAutoUpdateConfigInputValidation;
   targets?: ISoftwareAutoUpdateConfigInputValidation;
+  windowLength?: ISoftwareAutoUpdateConfigInputValidation;
 }
 
 type IMessageFunc = (formData: ISoftwareAutoUpdateConfigFormData) => string;
@@ -42,6 +43,32 @@ const validateTimeFormat = (time: string): boolean => {
     return false;
   }
   return true;
+};
+
+const validateWindowLength = (
+  formData: ISoftwareAutoUpdateConfigFormData,
+  validations?: ISoftwareAutoUpdateConfigFormValidation
+) => {
+  if (
+    !validations?.autoUpdateStartTime ||
+    !validations.autoUpdateStartTime.isValid ||
+    !validations.autoUpdateEndTime ||
+    !validations.autoUpdateEndTime.isValid
+  ) {
+    return true; // Skip this validation if startTime is invalid
+  }
+  const [startHours, startMinutes] = formData.autoUpdateStartTime
+    .split(":")
+    .map(Number);
+  const [endHours, endMinutes] = formData.autoUpdateEndTime
+    .split(":")
+    .map(Number);
+  const startTotalMinutes = startHours * 60 + startMinutes;
+  const endTotalMinutes = endHours * 60 + endMinutes;
+  return (
+    endTotalMinutes < startTotalMinutes ||
+    endTotalMinutes - startTotalMinutes >= 60
+  );
 };
 
 const FORM_VALIDATIONS: IFormValidations = {
@@ -98,6 +125,15 @@ const FORM_VALIDATIONS: IFormValidations = {
           );
         },
         message: `At least one label target must be selected`,
+      },
+    ],
+  },
+  windowLength: {
+    validations: [
+      {
+        name: "minimum_length",
+        isValid: validateWindowLength,
+        message: `Update window must be at least 60 minutes long`,
       },
     ],
   },
