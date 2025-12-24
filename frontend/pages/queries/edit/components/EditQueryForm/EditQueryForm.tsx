@@ -971,6 +971,7 @@ const EditQueryForm = ({
               ...updateQueryData,
               team_id: apiTeamIdForQuery,
             }}
+            hostId={hostId}
             onExit={toggleSaveAsNewQueryModal}
           />
         )}
