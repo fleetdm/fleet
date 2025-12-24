@@ -49,10 +49,6 @@ func NewDeviceLocationResultsHandler(
 			Latitude:  deviceLocResult.Latitude(),
 			Longitude: deviceLocResult.Longitude(),
 		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "device location command result: insert host location data")
-		}
-
-		return nil
+		return ctxerr.Wrap(ctx, err, "device location command result: insert host location data")
 	}
 }
