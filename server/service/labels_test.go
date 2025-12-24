@@ -118,7 +118,38 @@ func TestLabelsAuth(t *testing.T) {
 	otherLabel, _, err := svc.NewLabel(viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleMaintainer)}}), fleet.LabelPayload{Name: "Other label", Query: "SELECT 0"})
 	require.NoError(t, err)
 
-	// TODO create other-team label
+	// Create a team and team label for testing team permissions
+	team1 := &fleet.Team{ID: 1, Name: "team1"}
+
+	// Create team label
+	teamLabel := &fleet.Label{
+		ID:     3,
+		Name:   "Team label",
+		Query:  "SELECT 1",
+		TeamID: &team1.ID,
+	}
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		lbl.ID = 1
+		if lbl.Name == "Other label" {
+			lbl.ID = 2
+		}
+		if lbl.Name == "Team label" {
+			lbl.ID = 3
+			lbl.TeamID = &team1.ID
+		}
+		return lbl, nil
+	}
+	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		switch id {
+		case uint(1):
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id, AuthorID: &filter.User.ID}}, nil, nil
+		case uint(2):
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id}}, nil, nil
+		case uint(3):
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id, TeamID: &team1.ID}}, nil, nil
+		}
+		return nil, nil, ctxerr.Wrap(ctx, notFoundErr{"label", fleet.ErrorWithUUID{}})
+	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -167,7 +198,41 @@ func TestLabelsAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err)
 			}
 
-			// TODO add team label permissions
+			// Test team label permissions
+			// Determine if user has access to team1 label
+			isGlobalWrite := tt.user.GlobalRole != nil && (*tt.user.GlobalRole == fleet.RoleAdmin || *tt.user.GlobalRole == fleet.RoleMaintainer)
+			isGlobalRead := tt.user.GlobalRole != nil
+
+			// Check if user is a team1 member
+			hasTeam1Access := false
+			isTeam1Maintainer := false
+			for _, t := range tt.user.Teams {
+				if t.Team.ID == team1.ID {
+					hasTeam1Access = true
+					if t.Role == fleet.RoleMaintainer || t.Role == fleet.RoleAdmin {
+						isTeam1Maintainer = true
+					}
+					break
+				}
+			}
+
+			// Try to get team label (read access)
+			// Should succeed for: global users, team1 members (any role)
+			_, _, err = svc.GetLabel(ctx, teamLabel.ID)
+			shouldFailRead := !isGlobalRead && !hasTeam1Access
+			checkAuthErr(t, shouldFailRead, err)
+
+			// Try to modify team label (write access)
+			// Should succeed for: global admins/maintainers, team1 admins/maintainers
+			_, _, err = svc.ModifyLabel(ctx, teamLabel.ID, fleet.ModifyLabelPayload{})
+			shouldFailWrite := !isGlobalWrite && !isTeam1Maintainer
+			checkAuthErr(t, shouldFailWrite, err)
+
+			// Try to delete team label (write access)
+			// Should succeed for: global admins/maintainers, team1 admins/maintainers
+			err = svc.DeleteLabelByID(ctx, teamLabel.ID)
+			shouldFailDelete := !isGlobalWrite && !isTeam1Maintainer
+			checkAuthErr(t, shouldFailDelete, err)
 		})
 	}
 }
