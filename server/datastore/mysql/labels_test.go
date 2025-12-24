@@ -340,7 +340,6 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1, nil))
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2, nil))
 
-	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
 	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: automatic
 	require.NoError(t, err)
@@ -1103,8 +1102,6 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 
 	// Test team label filtering
 	team1, err := db.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-	team2, err := db.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
 	// Create team labels
