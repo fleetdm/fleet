@@ -7075,7 +7075,7 @@ func (ds *Datastore) GetHostLocationData(ctx context.Context, hostID uint) (*fle
 
 	var ret fleet.HostLocationData
 
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &ret, "SELECT latitude, longitude FROM host_last_known_locations WHERE host_id = ?", hostID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &ret, "SELECT host_id, latitude, longitude FROM host_last_known_locations WHERE host_id = ?", hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostLocation"))

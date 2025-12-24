@@ -13,7 +13,9 @@ import (
 )
 
 func NewDeviceLocationResult(result *mdm.CommandResults, hostID uint) (DeviceLocationResult, error) {
-	var ret deviceLocationResult
+	ret := &deviceLocationResult{
+		hostID: hostID,
+	}
 
 	// parse results
 	var deviceLocResult struct {
@@ -25,12 +27,10 @@ func NewDeviceLocationResult(result *mdm.CommandResults, hostID uint) (DeviceLoc
 		return nil, fmt.Errorf("device location command result: xml unmarshal: %w", err)
 	}
 
-	ret.hostID = hostID
 	ret.latitude = deviceLocResult.Latitude
 	ret.longitude = deviceLocResult.Longitude
 
-	return &ret, nil
-
+	return ret, nil
 }
 
 func NewDeviceLocationResultsHandler(
@@ -54,6 +54,5 @@ func NewDeviceLocationResultsHandler(
 		}
 
 		return nil
-
 	}
 }
