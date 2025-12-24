@@ -399,6 +399,7 @@ const EditQueryForm = ({
   const renderAuthor = (): JSX.Element | null => {
     return storedQuery ? (
       <DataSet
+        className={`${baseClass}__author`}
         title="Author"
         value={
           <>

@@ -455,6 +455,10 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFi
 
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
+type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error
+
+type ListSoftwareAutoUpdateSchedulesFunc func(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error)
+
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
 
 type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
@@ -1683,9 +1687,13 @@ type ListCertificateTemplatesForHostsFunc func(ctx context.Context, hostUUIDs []
 
 type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error)
 
+type GetHostCertificateTemplateRecordFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error)
+
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
+
+type DeleteHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) error
 
 type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
 
@@ -1694,6 +1702,8 @@ type GetAndTransitionCertificateTemplatesToDeliveringFunc func(ctx context.Conte
 type TransitionCertificateTemplatesToDeliveredFunc func(ctx context.Context, hostUUID string, challenges map[uint]string) error
 
 type RevertHostCertificateTemplatesToPendingFunc func(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
+
+type SetHostCertificateTemplatesToPendingRemoveFunc func(ctx context.Context, certificateTemplateID uint) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -2351,6 +2361,12 @@ type DataStore struct {
 
 	UpdateSoftwareTitleNameFunc        UpdateSoftwareTitleNameFunc
 	UpdateSoftwareTitleNameFuncInvoked bool
+
+	UpdateSoftwareTitleAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
+	UpdateSoftwareTitleAutoUpdateConfigFuncInvoked bool
+
+	ListSoftwareAutoUpdateSchedulesFunc        ListSoftwareAutoUpdateSchedulesFunc
+	ListSoftwareAutoUpdateSchedulesFuncInvoked bool
 
 	InsertSoftwareInstallRequestFunc        InsertSoftwareInstallRequestFunc
 	InsertSoftwareInstallRequestFuncInvoked bool
@@ -4194,11 +4210,17 @@ type DataStore struct {
 	GetCertificateTemplateForHostFunc        GetCertificateTemplateForHostFunc
 	GetCertificateTemplateForHostFuncInvoked bool
 
+	GetHostCertificateTemplateRecordFunc        GetHostCertificateTemplateRecordFunc
+	GetHostCertificateTemplateRecordFuncInvoked bool
+
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
 	BulkInsertHostCertificateTemplatesFuncInvoked bool
 
 	DeleteHostCertificateTemplatesFunc        DeleteHostCertificateTemplatesFunc
 	DeleteHostCertificateTemplatesFuncInvoked bool
+
+	DeleteHostCertificateTemplateFunc        DeleteHostCertificateTemplateFunc
+	DeleteHostCertificateTemplateFuncInvoked bool
 
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc        ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked bool
@@ -4211,6 +4233,9 @@ type DataStore struct {
 
 	RevertHostCertificateTemplatesToPendingFunc        RevertHostCertificateTemplatesToPendingFunc
 	RevertHostCertificateTemplatesToPendingFuncInvoked bool
+
+	SetHostCertificateTemplatesToPendingRemoveFunc        SetHostCertificateTemplatesToPendingRemoveFunc
+	SetHostCertificateTemplatesToPendingRemoveFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -5737,6 +5762,20 @@ func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name s
 	s.UpdateSoftwareTitleNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateSoftwareTitleNameFunc(ctx, id, name)
+}
+
+func (s *DataStore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
+	s.mu.Lock()
+	s.UpdateSoftwareTitleAutoUpdateConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
+}
+
+func (s *DataStore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+	s.mu.Lock()
+	s.ListSoftwareAutoUpdateSchedulesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareAutoUpdateSchedulesFunc(ctx, teamID, optionalFilter...)
 }
 
 func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -10037,6 +10076,13 @@ func (s *DataStore) GetCertificateTemplateForHost(ctx context.Context, hostUUID 
 	return s.GetCertificateTemplateForHostFunc(ctx, hostUUID, certificateTemplateID)
 }
 
+func (s *DataStore) GetHostCertificateTemplateRecord(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error) {
+	s.mu.Lock()
+	s.GetHostCertificateTemplateRecordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCertificateTemplateRecordFunc(ctx, hostUUID, certificateTemplateID)
+}
+
 func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
 	s.mu.Lock()
 	s.BulkInsertHostCertificateTemplatesFuncInvoked = true
@@ -10049,6 +10095,13 @@ func (s *DataStore) DeleteHostCertificateTemplates(ctx context.Context, hostCert
 	s.DeleteHostCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostCertificateTemplatesFunc(ctx, hostCertTemplates)
+}
+
+func (s *DataStore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error {
+	s.mu.Lock()
+	s.DeleteHostCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID)
 }
 
 func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
@@ -10077,6 +10130,13 @@ func (s *DataStore) RevertHostCertificateTemplatesToPending(ctx context.Context,
 	s.RevertHostCertificateTemplatesToPendingFuncInvoked = true
 	s.mu.Unlock()
 	return s.RevertHostCertificateTemplatesToPendingFunc(ctx, hostUUID, certificateTemplateIDs)
+}
+
+func (s *DataStore) SetHostCertificateTemplatesToPendingRemove(ctx context.Context, certificateTemplateID uint) error {
+	s.mu.Lock()
+	s.SetHostCertificateTemplatesToPendingRemoveFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostCertificateTemplatesToPendingRemoveFunc(ctx, certificateTemplateID)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

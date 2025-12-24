@@ -8106,7 +8106,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
 	require.NoError(t, resp.Body.Close())
-	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
+	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed) // failed because no IDP user to replace variables
 
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
@@ -15069,5 +15069,365 @@ INSERT INTO host_certificate_templates (
 			resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", tc.templateID), req, tc.expectedResponseStatus, tc.headers)
 			require.NoError(t, resp.Body.Close())
 		})
+	}
+}
+
+func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestDeleteCertificateTemplate Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("TestDeleteCertificateTemplate SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	certTemplate := &fleet.CertificateTemplate{
+		Name:                   "TestDeleteCertificateTemplate-Cert",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject",
+	}
+	savedTemplate, err := s.ds.CreateCertificateTemplate(ctx, certTemplate)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate)
+	certificateTemplateID := savedTemplate.ID
+	certTemplateName := savedTemplate.Name
+
+	// Create hosts with different certificate template statuses
+	hostPending, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-template-host-pending",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostDelivered, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-template-host-delivered",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostVerified, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-template-host-verified",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostFailed, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-template-host-failed",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	// Insert host_certificate_templates with various statuses
+	insertSQL := `
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		// Pending status - should be deleted
+		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certificateTemplateID, "pending", "install", nil, certTemplateName)
+		require.NoError(t, err)
+		// Delivered status - should be updated to pending/remove
+		_, err = q.ExecContext(ctx, insertSQL, hostDelivered.UUID, certificateTemplateID, "delivered", "install", "challenge1", certTemplateName)
+		require.NoError(t, err)
+		// Verified status - should be updated to pending/remove
+		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certificateTemplateID, "verified", "install", "challenge2", certTemplateName)
+		require.NoError(t, err)
+		// Failed status - should be updated to pending/remove
+		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID, "failed", "install", "challenge3", certTemplateName)
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Enable Android MDM so GetHost returns certificate template profiles
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appCfg.MDM.AndroidEnabledAndConfigured
+	appCfg.MDM.AndroidEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	err = s.ds.SetAndroidEnabledAndConfigured(ctx, true)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		_ = s.ds.SaveAppConfig(ctx, appCfg)
+		_ = s.ds.SetAndroidEnabledAndConfigured(ctx, origAndroidEnabled)
+	}()
+
+	// Helper to find the certificate template profile by name
+	findProfile := func(profiles *[]fleet.HostMDMProfile, name string) *fleet.HostMDMProfile {
+		if profiles == nil {
+			return nil
+		}
+		for _, p := range *profiles {
+			if p.Name == name {
+				return &p
+			}
+		}
+		return nil
+	}
+
+	// Verify the records exist before deletion via GetHost API
+	var getHostResp getHostResponse
+	for _, tc := range []struct {
+		host           *fleet.Host
+		hostName       string
+		expectedStatus string
+	}{
+		{hostPending, "hostPending", string(fleet.CertificateTemplatePending)},
+		{hostDelivered, "hostDelivered", string(fleet.CertificateTemplateDelivered)},
+		{hostVerified, "hostVerified", string(fleet.CertificateTemplateVerified)},
+		{hostFailed, "hostFailed", string(fleet.CertificateTemplateFailed)},
+	} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.Profiles, "%s should have MDM profiles before deletion", tc.hostName)
+
+		profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+		require.NotNil(t, profile, "%s should have certificate template profile %s before deletion", tc.hostName, certTemplateName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, tc.expectedStatus, *profile.Status, "%s profile status should be %s before deletion", tc.hostName, tc.expectedStatus)
+		require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "%s profile operation_type should be install before deletion", tc.hostName)
+	}
+
+	// Delete the certificate template via API
+	var deleteResp deleteCertificateTemplateResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK, &deleteResp)
+
+	// After deletion:
+	// - hostPending (pending/install) should have NO profile (record was deleted)
+	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	//   (kept for cron job to process removal from devices)
+
+	// Verify hostPending has no profile after deletion
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
+	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	for _, tc := range []struct {
+		host     *fleet.Host
+		hostName string
+	}{
+		{hostDelivered, "hostDelivered"},
+		{hostVerified, "hostVerified"},
+		{hostFailed, "hostFailed"},
+	} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+		profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+		require.NotNil(t, profile, "%s should have pending remove profile after deletion", tc.hostName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
+		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
+	}
+}
+
+func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestDeleteCertificateTemplateSpec Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("TestDeleteCertificateTemplateSpec SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	// Create two certificate templates
+	certTemplate1 := &fleet.CertificateTemplate{
+		Name:                   "TestDeleteCertificateTemplateSpec-Cert1",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 1",
+	}
+	savedTemplate1, err := s.ds.CreateCertificateTemplate(ctx, certTemplate1)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate1)
+	certTemplateID1 := savedTemplate1.ID
+	certTemplateName1 := savedTemplate1.Name
+
+	certTemplate2 := &fleet.CertificateTemplate{
+		Name:                   "TestDeleteCertificateTemplateSpec-Cert2",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 2",
+	}
+	savedTemplate2, err := s.ds.CreateCertificateTemplate(ctx, certTemplate2)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate2)
+	certTemplateID2 := savedTemplate2.ID
+	certTemplateName2 := savedTemplate2.Name
+
+	// Create hosts with different certificate template statuses
+	hostPending, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-spec-host-pending",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostDelivered, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-spec-host-delivered",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostVerified, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-spec-host-verified",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostFailed, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-spec-host-failed",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	// Insert host_certificate_templates with various statuses for both templates
+	insertSQL := `
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		// Template 1 - hosts with pending and delivered status
+		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certTemplateID1, "pending", "install", nil, certTemplateName1)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, insertSQL, hostDelivered.UUID, certTemplateID1, "delivered", "install", "challenge1", certTemplateName1)
+		require.NoError(t, err)
+
+		// Template 2 - hosts with verified and failed status
+		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certTemplateID2, "verified", "install", "challenge2", certTemplateName2)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certTemplateID2, "failed", "install", "challenge3", certTemplateName2)
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Enable Android MDM so GetHost returns certificate template profiles
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appCfg.MDM.AndroidEnabledAndConfigured
+	appCfg.MDM.AndroidEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	err = s.ds.SetAndroidEnabledAndConfigured(ctx, true)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		_ = s.ds.SaveAppConfig(ctx, appCfg)
+		_ = s.ds.SetAndroidEnabledAndConfigured(ctx, origAndroidEnabled)
+	}()
+
+	// Helper to find the certificate template profile by name
+	findProfile := func(profiles *[]fleet.HostMDMProfile, name string) *fleet.HostMDMProfile {
+		if profiles == nil {
+			return nil
+		}
+		for _, p := range *profiles {
+			if p.Name == name {
+				return &p
+			}
+		}
+		return nil
+	}
+
+	// Verify the records exist before deletion via GetHost API
+	var getHostResp getHostResponse
+	for _, tc := range []struct {
+		host           *fleet.Host
+		hostName       string
+		expectedStatus string
+		templateName   string
+	}{
+		{hostPending, "hostPending", string(fleet.CertificateTemplatePending), certTemplateName1},
+		{hostDelivered, "hostDelivered", string(fleet.CertificateTemplateDelivered), certTemplateName1},
+		{hostVerified, "hostVerified", string(fleet.CertificateTemplateVerified), certTemplateName2},
+		{hostFailed, "hostFailed", string(fleet.CertificateTemplateFailed), certTemplateName2},
+	} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.Profiles, "%s should have MDM profiles before deletion", tc.hostName)
+
+		profile := findProfile(getHostResp.Host.MDM.Profiles, tc.templateName)
+		require.NotNil(t, profile, "%s should have certificate template profile %s before deletion", tc.hostName, tc.templateName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, tc.expectedStatus, *profile.Status, "%s profile status should be %s before deletion", tc.hostName, tc.expectedStatus)
+		require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "%s profile operation_type should be install before deletion", tc.hostName)
+	}
+
+	// Delete both certificate templates via spec endpoint (batch delete)
+	var delBatchResp deleteCertificateTemplateSpecsResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{certTemplateID1, certTemplateID2},
+		"team_id": teamID,
+	}, http.StatusOK, &delBatchResp)
+
+	// Verify certificate templates were deleted
+	_, err = s.ds.GetCertificateTemplateById(ctx, certTemplateID1)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "certificate template 1 should be deleted")
+
+	_, err = s.ds.GetCertificateTemplateById(ctx, certTemplateID2)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "certificate template 2 should be deleted")
+
+	// After deletion:
+	// - hostPending (pending/install) should have NO profile (record was deleted)
+	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	//   (kept for cron job to process removal from devices)
+
+	// Verify hostPending has no profile after deletion
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
+	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName1)
+	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	for _, tc := range []struct {
+		host         *fleet.Host
+		hostName     string
+		templateName string
+	}{
+		{hostDelivered, "hostDelivered", certTemplateName1},
+		{hostVerified, "hostVerified", certTemplateName2},
+		{hostFailed, "hostFailed", certTemplateName2},
+	} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+		profile := findProfile(getHostResp.Host.MDM.Profiles, tc.templateName)
+		require.NotNil(t, profile, "%s should have pending remove profile after deletion", tc.hostName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
+		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
 }

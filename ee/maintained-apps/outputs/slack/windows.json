@@ -1,21 +1,21 @@
 {
   "versions": [
     {
-      "version": "4.47.65",
+      "version": "4.47.69",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.';"
       },
-      "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.47.65/slack-standalone-4.47.65.0.msi",
+      "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.47.69/slack-standalone-4.47.69.0.msi",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "1531f608",
-      "sha256": "9944afaf4dcf7932f2c76ea2889ce1b46d5f74be494e0f6fdcff65bf105f1e52",
+      "uninstall_script_ref": "18f8b88b",
+      "sha256": "5f639b91c252f5149de634a3a6285564df0d3e08e15eefc19ff3501a638e593c",
       "default_categories": [
         "Communication"
       ]
     }
   ],
   "refs": {
-    "1531f608": "$product_code = \"{8A1BDE91-F31C-40A3-8708-CADD772475DD}\"\n$timeoutSeconds = 300  # 5 minute timeout\n\n# Fleet uninstalls app using product code that's extracted on upload\n$process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n# Wait for process with timeout\n$completed = $process.WaitForExit($timeoutSeconds * 1000)\n\nif (-not $completed) {\n    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n    Exit 1603  # ERROR_UNINSTALL_FAILURE\n}\n\n# Check exit code and output result\nif ($process.ExitCode -eq 0) {\n    Write-Output \"Exit 0\"\n    Exit 0\n} else {\n    Write-Output \"Exit $($process.ExitCode)\"\n    Exit $process.ExitCode\n}\n",
+    "18f8b88b": "$product_code = \"{8B47B0A3-5580-4B6E-BD38-3D4A527CCFE6}\"\n$timeoutSeconds = 300  # 5 minute timeout\n\n# Fleet uninstalls app using product code that's extracted on upload\n$process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n# Wait for process with timeout\n$completed = $process.WaitForExit($timeoutSeconds * 1000)\n\nif (-not $completed) {\n    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n    Exit 1603  # ERROR_UNINSTALL_FAILURE\n}\n\n# Check exit code and output result\nif ($process.ExitCode -eq 0) {\n    Write-Output \"Exit 0\"\n    Exit 0\n} else {\n    Write-Output \"Exit $($process.ExitCode)\"\n    Exit $process.ExitCode\n}\n",
     "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
   }
 }

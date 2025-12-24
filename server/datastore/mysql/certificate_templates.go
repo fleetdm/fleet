@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -28,6 +29,9 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
 		WHERE certificate_templates.id = ?
 	`, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
 	}
 

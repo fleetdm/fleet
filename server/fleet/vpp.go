@@ -180,4 +180,5 @@ type AppStoreAppUpdatePayload struct {
 	Categories       []string
 	DisplayName      *string
 	Configuration    json.RawMessage
+	SoftwareAutoUpdateConfig
 }

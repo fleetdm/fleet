@@ -457,6 +457,8 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint) (*fl
 
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error
+
 type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error)
 
 type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
@@ -1528,6 +1530,9 @@ type Service struct {
 
 	InstallSoftwareTitleFunc        InstallSoftwareTitleFunc
 	InstallSoftwareTitleFuncInvoked bool
+
+	UpdateSoftwareTitleAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
+	UpdateSoftwareTitleAutoUpdateConfigFuncInvoked bool
 
 	GetVPPTokenIfCanInstallVPPAppsFunc        GetVPPTokenIfCanInstallVPPAppsFunc
 	GetVPPTokenIfCanInstallVPPAppsFuncInvoked bool
@@ -3684,6 +3689,13 @@ func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwar
 	s.InstallSoftwareTitleFuncInvoked = true
 	s.mu.Unlock()
 	return s.InstallSoftwareTitleFunc(ctx, hostID, softwareTitleID)
+}
+
+func (s *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
+	s.mu.Lock()
+	s.UpdateSoftwareTitleAutoUpdateConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
 }
 
 func (s *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {

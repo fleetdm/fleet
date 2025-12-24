@@ -140,7 +140,7 @@ const Certificates = ({
           HeadingComponent={() => (
             <UploadListHeading
               entityName="Certificate"
-              createEntityText="Create"
+              createEntityText="Add"
               onClickAdd={() => setShowAddCertModal(true)}
             />
           )}
@@ -153,7 +153,7 @@ const Certificates = ({
 
             const details = (
               <>
-                {caName} &bull; Uploaded{" "}
+                {caName} &bull; Added{" "}
                 {formatDistanceToNow(new Date(created_at))} ago
               </>
             );
@@ -200,7 +200,7 @@ const Certificates = ({
           <>
             Deploy certificates. Currently only Android is supported. For macOS,
             iOS, iPadOS and Windows use configuration profiles, and for Linux
-            use Scripts.{" "}
+            use scripts.{" "}
             <CustomLink
               newTab
               text="Learn more"

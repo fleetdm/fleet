@@ -703,6 +703,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
+	// Handle certificate templates associated with the team
+	certTemplates, _, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, fleet.ListOptions{})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get certificate templates for team")
+	}
+	for _, ct := range certTemplates {
+		if err := svc.ds.SetHostCertificateTemplatesToPendingRemove(ctx, ct.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "set hosts to pending remove for certificate template %d", ct.ID)
+		}
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}

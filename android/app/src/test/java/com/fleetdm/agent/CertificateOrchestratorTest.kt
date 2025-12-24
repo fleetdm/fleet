@@ -413,6 +413,121 @@ class CertificateOrchestratorTest {
         assertFalse(mockInstaller.wasInstallCalled)
     }
 
+    // ========== Test Category 4: Certificate Cleanup ==========
+
+    @Test
+    fun `removeCertificateInstallInfo removes certificate from DataStore`() = runTest {
+        // Arrange: Store 3 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+        storeTestCertificateInDataStore(3, "cert-3")
+
+        // Act: Remove certificate 2
+        CertificateOrchestrator.removeCertificateInstallInfo(context, 2)
+
+        // Assert: Only 1 and 3 remain
+        val stored = getStoredCertificates()
+        assertEquals(2, stored.size)
+        assertTrue(stored.containsKey(1))
+        assertFalse(stored.containsKey(2))
+        assertTrue(stored.containsKey(3))
+        assertEquals("cert-1", stored[1]?.alias)
+        assertEquals("cert-3", stored[3]?.alias)
+    }
+
+    @Test
+    fun `removeCertificateInstallInfo handles non-existent certificate gracefully`() = runTest {
+        // Arrange: Store 2 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+
+        // Act: Try to remove non-existent certificate
+        CertificateOrchestrator.removeCertificateInstallInfo(context, 999)
+
+        // Assert: No exception thrown, DataStore unchanged
+        val stored = getStoredCertificates()
+        assertEquals(2, stored.size)
+        assertTrue(stored.containsKey(1))
+        assertTrue(stored.containsKey(2))
+    }
+
+    @Test
+    fun `removeCertificateInstallInfo handles corrupted DataStore gracefully`() = runTest {
+        // Arrange: Corrupt DataStore with invalid JSON
+        context.prefDataStore.edit { preferences ->
+            preferences[stringPreferencesKey("installed_certificates")] = "{ invalid json }"
+        }
+
+        // Act: Try to remove certificate (should not throw)
+        CertificateOrchestrator.removeCertificateInstallInfo(context, 123)
+
+        // Assert: No exception, operation succeeds
+        // DataStore should be cleared/reset
+        val stored = getStoredCertificates()
+        assertTrue(stored.isEmpty())
+    }
+
+    @Test
+    fun `concurrent removeCertificateInstallInfo operations are thread-safe`() = runTest {
+        // Arrange: Store 10 certificates
+        repeat(10) { id ->
+            storeTestCertificateInDataStore(id + 1, "cert-${id + 1}")
+        }
+
+        // Act: Remove certificates 2, 4, 6, 8, 10 in parallel
+        val jobs = listOf(2, 4, 6, 8, 10).map { certId ->
+            launch {
+                CertificateOrchestrator.removeCertificateInstallInfo(context, certId)
+            }
+        }
+        jobs.forEach { it.join() }
+
+        // Assert: Only odd-numbered certificates remain (1, 3, 5, 7, 9)
+        val stored = getStoredCertificates()
+        assertEquals(5, stored.size)
+        listOf(1, 3, 5, 7, 9).forEach { id ->
+            assertTrue("Certificate $id should exist", stored.containsKey(id))
+        }
+        listOf(2, 4, 6, 8, 10).forEach { id ->
+            assertFalse("Certificate $id should not exist", stored.containsKey(id))
+        }
+    }
+
+    @Test
+    fun `cleanupRemovedCertificates returns empty map when DataStore is empty`() = runTest {
+        // Arrange: DataStore is empty (default state after clearDataStore in setup)
+
+        // Act: Call cleanup with some certificate IDs
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = listOf(1, 2, 3),
+        )
+
+        // Assert: No cleanup performed
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
+    fun `cleanupRemovedCertificates returns empty map when all certificates still in config`() = runTest {
+        // Arrange: Store 3 certificates
+        storeTestCertificateInDataStore(1, "cert-1")
+        storeTestCertificateInDataStore(2, "cert-2")
+        storeTestCertificateInDataStore(3, "cert-3")
+
+        // Act: Call cleanup with the same certificate IDs
+        val results = CertificateOrchestrator.cleanupRemovedCertificates(
+            context = context,
+            currentCertificateIds = listOf(1, 2, 3),
+        )
+
+        // Assert: No cleanup performed
+        assertTrue(results.isEmpty())
+
+        // Verify certificates still in DataStore
+        val stored = getStoredCertificates()
+        assertEquals(3, stored.size)
+    }
+
     // ========== Helper Methods for Tests ==========
 
     private fun createMockTemplate(
