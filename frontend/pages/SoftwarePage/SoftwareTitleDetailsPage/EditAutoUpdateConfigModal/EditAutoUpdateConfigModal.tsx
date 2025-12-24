@@ -40,6 +40,8 @@ import {
 const baseClass = "edit-auto-update-config-modal";
 const formClass = "edit-auto-update-config-form";
 
+// Schema for the form data that will be used in the UI
+// and sent to the API.
 export interface ISoftwareAutoUpdateConfigFormData {
   autoUpdateEnabled: boolean;
   autoUpdateStartTime: string;
@@ -83,6 +85,7 @@ const EditAutoUpdateConfigModal = ({
     ),
   });
 
+  // Fetch labels for TargetLabelSelector
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
     () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
@@ -98,7 +101,8 @@ const EditAutoUpdateConfigModal = ({
     validateFormData(formData)
   );
 
-  // Edit package API call
+  // Currently calls the "edit app store app" API.
+  // FUTURE: switch endpoint based on software title type?
   const onSubmitForm = async (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
@@ -137,18 +141,22 @@ const EditAutoUpdateConfigModal = ({
     const newFormData = { ...formData, autoUpdateEnabled: value };
     setFormData(newFormData);
     setFormValidation(validateFormData(newFormData));
-    // setCanSaveForm(!error);
   };
 
   const onChangeTimeField = (update: { name: string; value: string }) => {
-    const value = update.value.substring(0, 5).replace(/[^0-9:]/g, ""); // limit to 5 characters and allow only numbers and colon
+    // Ensure HH:MM format with proper characters.
+    const value = update.value.substring(0, 5).replace(/[^0-9:]/g, "");
     const newFormData = { ...formData, [update.name]: value };
     setFormData(newFormData);
     const newValidation = validateFormData(newFormData);
+    // Can be "autoUpdateStartTime" or "autoUpdateEndTime".
     const fieldName = update.name as keyof ISoftwareAutoUpdateConfigFormValidation;
     const fieldValidation = newValidation[
       fieldName
     ] as ISoftwareAutoUpdateConfigInputValidation;
+    // We don't want to show an error message as the user types.
+    // (that will happen on blur instead)
+    // We'll just clear any existing error if the field is valid.
     if (fieldValidation?.isValid) {
       setFormValidation(newValidation);
     }
