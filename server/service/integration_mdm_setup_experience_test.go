@@ -1351,6 +1351,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
+	s.registerResetITunesData(t)
+
 	// Set up some additional VPP apps on the mock Apple servers
 	s.appleITunesSrvData["6"] = `{"bundleId": "f-6", "artworkUrl512": "https://example.com/images/6", "version": "6.0.0", "trackName": "App 6", "TrackID": 6}`
 	s.appleITunesSrvData["7"] = `{"bundleId": "g-7", "artworkUrl512": "https://example.com/images/7", "version": "7.0.0", "trackName": "App 7", "TrackID": 7}`
@@ -1387,11 +1389,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	}...)
 
 	t.Cleanup(func() {
-		delete(s.appleITunesSrvData, "6")
-		delete(s.appleITunesSrvData, "7")
-		delete(s.appleITunesSrvData, "8")
-		delete(s.appleITunesSrvData, "9")
-		delete(s.appleITunesSrvData, "10")
 		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
 	})
 
