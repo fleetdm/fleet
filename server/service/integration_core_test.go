@@ -5158,6 +5158,80 @@ func (s *integrationTestSuite) TestLabels() {
 			})
 		})
 	})
+
+	// Test team labels
+	t.Run("Team Labels", func(t *testing.T) {
+		// Create teams for testing
+		team1 := createTeamReq(t, "team1", s.token)
+		team2 := createTeamReq(t, "team2", s.token)
+
+		// Create team-specific hosts
+		team1Hosts := s.createHosts(t, "darwin", "windows")
+		team2Hosts := s.createHosts(t, "darwin")
+
+		// Assign hosts to teams
+		err := s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{team1Hosts[0].ID, team1Hosts[1].ID}))
+		require.NoError(t, err)
+		err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{team2Hosts[0].ID}))
+		require.NoError(t, err)
+
+		// Create a team label for team1
+		var createResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{
+			Name:   "team1_label",
+			Query:  "SELECT 1",
+			TeamID: &team1.ID,
+		}, http.StatusOK, &createResp)
+		assert.NotZero(t, createResp.Label.ID)
+		assert.Equal(t, "team1_label", createResp.Label.Name)
+		assert.Equal(t, &team1.ID, createResp.Label.TeamID)
+		team1Label := createResp.Label.Label
+
+		// Create a manual team label for team2
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{
+			Name:    "team2_manual_label",
+			TeamID:  &team2.ID,
+			HostIDs: []uint{team2Hosts[0].ID},
+		}, http.StatusOK, &createResp)
+		assert.NotZero(t, createResp.Label.ID)
+		assert.Equal(t, "team2_manual_label", createResp.Label.Name)
+		assert.Equal(t, &team2.ID, createResp.Label.TeamID)
+		assert.ElementsMatch(t, []uint{team2Hosts[0].ID}, createResp.Label.HostIDs)
+		team2Label := createResp.Label.Label
+
+		// List all labels should include both global and team labels
+		var listResp listLabelsResponse
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+		var foundTeam1Label, foundTeam2Label bool
+		for _, lbl := range listResp.Labels {
+			if lbl.ID == team1Label.ID {
+				foundTeam1Label = true
+				assert.Equal(t, &team1.ID, lbl.TeamID)
+			}
+			if lbl.ID == team2Label.ID {
+				foundTeam2Label = true
+				assert.Equal(t, &team2.ID, lbl.TeamID)
+			}
+		}
+		assert.True(t, foundTeam1Label, "team1 label should be in list")
+		assert.True(t, foundTeam2Label, "team2 label should be in list")
+
+		// Get team1 label
+		var getResp getLabelResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1Label.ID), nil, http.StatusOK, &getResp)
+		assert.Equal(t, team1Label.ID, getResp.Label.ID)
+		assert.Equal(t, &team1.ID, getResp.Label.TeamID)
+
+		// Delete team1 label
+		var deleteResp deleteLabelResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%d", team1Label.ID), nil, http.StatusOK, &deleteResp)
+
+		// Verify team1 label is deleted
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1Label.ID), nil, http.StatusNotFound, &getResp)
+
+		// Delete team2 label
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%d", team2Label.ID), nil, http.StatusOK, &deleteResp)
+	})
 }
 
 // Sanity test to make sure fleet/labels/<all>/hosts and fleet/hosts return the same thing.
@@ -5383,7 +5457,53 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
 
-	// TODO team labels
+	// Test team label specs
+	team1 := createTeamReq(t, "team1", s.token)
+	team2 := createTeamReq(t, "team2", s.token)
+
+	// Apply team label specs
+	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                "team1_label",
+				Query:               "select 1",
+				TeamID:              &team1.ID,
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			},
+			{
+				Name:                "team2_label",
+				Query:               "select 2",
+				TeamID:              &team2.ID,
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// List all label specs - should include team labels
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listResp)
+	var foundTeam1Spec, foundTeam2Spec bool
+	for _, spec := range listResp.Specs {
+		if spec.Name == "team1_label" {
+			foundTeam1Spec = true
+			assert.Equal(t, &team1.ID, spec.TeamID)
+		}
+		if spec.Name == "team2_label" {
+			foundTeam2Spec = true
+			assert.Equal(t, &team2.ID, spec.TeamID)
+		}
+	}
+	assert.True(t, foundTeam1Spec, "team1 label spec should be in list")
+	assert.True(t, foundTeam2Spec, "team2 label spec should be in list")
+
+	// Get a specific team label spec
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels/team1_label", nil, http.StatusOK, &getResp)
+	assert.Equal(t, "team1_label", getResp.Spec.Name)
+	assert.Equal(t, &team1.ID, getResp.Spec.TeamID)
+
+	// Get a specific team2 label spec
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels/team2_label", nil, http.StatusOK, &getResp)
+	assert.Equal(t, "team2_label", getResp.Spec.Name)
+	assert.Equal(t, &team2.ID, getResp.Spec.TeamID)
 }
 
 func (s *integrationTestSuite) TestUsers() {
@@ -13776,6 +13896,42 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), removeLabelsFromHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusOK, &removeLabelsFromHostResp)
+	teamHost2Labels = getHostLabels(teamHost2)
+	require.Empty(t, teamHost2Labels)
+
+	// Test team labels
+	teamManualLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                "teamManualLabel",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		TeamID:              &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// Add team label to team host
+	var addLabelsToTeamHostResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusOK, &addLabelsToTeamHostResp)
+
+	// Verify team host has team label
+	teamHost2Labels = getHostLabels(teamHost2)
+	require.Len(t, teamHost2Labels, 1)
+	require.Equal(t, teamManualLabel.Name, teamHost2Labels[0])
+
+	// Try to add team label to global host (should fail or be filtered)
+	// Team labels should only apply to hosts in the same team
+	var addLabelsToGlobalHostResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusUnprocessableEntity, &addLabelsToGlobalHostResp)
+
+	// Remove team label from team host
+	var removeTeamLabelsResp removeLabelsFromHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), removeLabelsFromHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusOK, &removeTeamLabelsResp)
+
+	// Verify team label is removed
 	teamHost2Labels = getHostLabels(teamHost2)
 	require.Empty(t, teamHost2Labels)
 }
