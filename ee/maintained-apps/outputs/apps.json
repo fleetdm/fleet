@@ -570,6 +570,13 @@
     },
     {
       "name": "Docker Desktop",
+      "slug": "docker-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.dockerdesktop",
+      "description": ""
+    },
+    {
+      "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
       "unique_identifier": "com.docker.docker",
