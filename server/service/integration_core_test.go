@@ -5162,7 +5162,7 @@ func (s *integrationTestSuite) TestLabels() {
 	// Test team labels
 	t.Run("Team Labels", func(t *testing.T) {
 		ctx := context.Background()
-		
+
 		// Create teams for testing
 		team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 		require.NoError(t, err)
@@ -5174,9 +5174,9 @@ func (s *integrationTestSuite) TestLabels() {
 		team2Hosts := s.createHosts(t, "darwin")
 
 		// Assign hosts to teams
-		err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{team1Hosts[0].ID, team1Hosts[1].ID}))
+		err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{team1Hosts[0].ID, team1Hosts[1].ID}))
 		require.NoError(t, err)
-		err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{team2Hosts[0].ID}))
+		err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{team2Hosts[0].ID}))
 		require.NoError(t, err)
 
 		// Create a team label for team1 using ApplyLabelSpecs

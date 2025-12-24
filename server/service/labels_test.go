@@ -202,18 +202,15 @@ func TestLabelsAuth(t *testing.T) {
 			// Determine if user has access to team1 label
 			isGlobalWrite := tt.user.GlobalRole != nil && (*tt.user.GlobalRole == fleet.RoleAdmin || *tt.user.GlobalRole == fleet.RoleMaintainer)
 			isGlobalRead := tt.user.GlobalRole != nil
-			
+
 			// Check if user is a team1 member
 			hasTeam1Access := false
 			isTeam1Maintainer := false
-			isTeam1Observer := false
 			for _, t := range tt.user.Teams {
 				if t.Team.ID == team1.ID {
 					hasTeam1Access = true
 					if t.Role == fleet.RoleMaintainer || t.Role == fleet.RoleAdmin {
 						isTeam1Maintainer = true
-					} else if t.Role == fleet.RoleObserver {
-						isTeam1Observer = true
 					}
 					break
 				}

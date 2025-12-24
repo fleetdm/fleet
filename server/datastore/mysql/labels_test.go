@@ -298,7 +298,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	team2, err := db.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	h1, err := db.NewHost(context.Background(), &fleet.Host{
+	h1, err := db.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -309,9 +309,9 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Hostname:        "foo.local",
 		Platform:        "darwin",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
-	h2, err := db.NewHost(context.Background(), &fleet.Host{
+	h2, err := db.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -322,9 +322,9 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Hostname:        "bar.local",
 		Platform:        "darwin",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
-	h3, err := db.NewHost(context.Background(), &fleet.Host{
+	h3, err := db.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -335,10 +335,10 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Hostname:        "baz.local",
 		Platform:        "darwin",
 	})
-	require.Nil(t, err)
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0, nil))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1, nil))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2, nil))
+	require.NoError(t, err)
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(ctx, h1.ID, 10, 5, 200.0, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(ctx, h2.ID, 20, 10, 200.1, nil))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(ctx, h3.ID, 30, 15, 200.2, nil))
 
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
 	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: automatic
@@ -362,15 +362,15 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Name:  "label foo",
 		Query: "query1",
 	}
-	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{l1})
-	require.Nil(t, err)
+	err = db.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{l1})
+	require.NoError(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 0)
 
 	for _, h := range []*fleet.Host{h1, h2, h3} {
-		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
+		err = db.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
 	}
 
