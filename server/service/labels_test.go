@@ -199,35 +199,43 @@ func TestLabelsAuth(t *testing.T) {
 			}
 
 			// Test team label permissions
-			// Team maintainers can create team labels
-			isTeamMaintainer := len(tt.user.Teams) > 0 && tt.user.Teams[0].Role == fleet.RoleMaintainer
+			// Determine if user has access to team1 label
 			isGlobalWrite := tt.user.GlobalRole != nil && (*tt.user.GlobalRole == fleet.RoleAdmin || *tt.user.GlobalRole == fleet.RoleMaintainer)
+			isGlobalRead := tt.user.GlobalRole != nil
+			
+			// Check if user is a team1 member
+			hasTeam1Access := false
+			isTeam1Maintainer := false
+			isTeam1Observer := false
+			for _, t := range tt.user.Teams {
+				if t.Team.ID == team1.ID {
+					hasTeam1Access = true
+					if t.Role == fleet.RoleMaintainer || t.Role == fleet.RoleAdmin {
+						isTeam1Maintainer = true
+					} else if t.Role == fleet.RoleObserver {
+						isTeam1Observer = true
+					}
+					break
+				}
+			}
 
-			// Try to get team label
+			// Try to get team label (read access)
+			// Should succeed for: global users, team1 members (any role)
 			_, _, err = svc.GetLabel(ctx, teamLabel.ID)
-			if !isGlobalWrite && !isTeamMaintainer {
-				checkAuthErr(t, true, err) // Should fail for observers and team members without access
-			} else {
-				// Global admins/maintainers and team maintainers should succeed
-				// But observers should still be able to read
-				checkAuthErr(t, false, err)
-			}
+			shouldFailRead := !isGlobalRead && !hasTeam1Access
+			checkAuthErr(t, shouldFailRead, err)
 
-			// Try to modify team label
+			// Try to modify team label (write access)
+			// Should succeed for: global admins/maintainers, team1 admins/maintainers
 			_, _, err = svc.ModifyLabel(ctx, teamLabel.ID, fleet.ModifyLabelPayload{})
-			if isGlobalWrite || isTeamMaintainer {
-				checkAuthErr(t, false, err) // Should succeed for global admins/maintainers and team maintainers
-			} else {
-				checkAuthErr(t, true, err) // Should fail for others
-			}
+			shouldFailWrite := !isGlobalWrite && !isTeam1Maintainer
+			checkAuthErr(t, shouldFailWrite, err)
 
-			// Try to delete team label
+			// Try to delete team label (write access)
+			// Should succeed for: global admins/maintainers, team1 admins/maintainers
 			err = svc.DeleteLabelByID(ctx, teamLabel.ID)
-			if isGlobalWrite || isTeamMaintainer {
-				checkAuthErr(t, false, err) // Should succeed for global admins/maintainers and team maintainers
-			} else {
-				checkAuthErr(t, true, err) // Should fail for others
-			}
+			shouldFailDelete := !isGlobalWrite && !isTeam1Maintainer
+			checkAuthErr(t, shouldFailDelete, err)
 		})
 	}
 }

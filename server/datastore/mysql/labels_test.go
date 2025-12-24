@@ -417,7 +417,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	// Team label should show h1
 	listHostsInLabelCheckCount(t, db, fleet.TeamFilter{TeamID: &team1.ID, User: test.UserAdmin}, teamLabelID, fleet.HostListOptions{}, 1)
 
-	// Global filter should not see team label hosts
+	// Global admin filter can see team label hosts
 	listHostsInLabelCheckCount(t, db, fleet.TeamFilter{User: test.UserAdmin}, teamLabelID, fleet.HostListOptions{}, 1)
 
 	// Wrong team filter should not see team label hosts
