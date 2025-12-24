@@ -106,6 +106,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestLockUnlockWipeIphone", testLockUnlockWipeIphone},
 		{"TestGetLatestAppleMDMCommandOfType", testGetLatestAppleMDMCommandOfType},
 		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
+		{"DeviceLocation", testDeviceLocation},
 	}
 
 	for _, c := range cases {
@@ -9582,4 +9583,25 @@ func testSetLockCommandForLostModeCheckin(t *testing.T, ds *Datastore) {
 	// Fails if trying to insert on existing row
 	err = ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
 	require.Error(t, err)
+}
+
+func testDeviceLocation(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	iOSHost := newTestHostWithPlatform(t, ds, "iphone_"+t.Name(), string(fleet.IOSPlatform), nil)
+
+	err := ds.InsertHostLocationData(ctx, iOSHost.ID, 42.42, -42.42)
+	require.NoError(t, err)
+
+	locData, err := ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, 42.42, locData.Latitude)
+	assert.Equal(t, -42.42, locData.Longitude)
+
+	err = ds.DeleteHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	_, err = ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.True(t, fleet.IsNotFound(err))
+
 }
