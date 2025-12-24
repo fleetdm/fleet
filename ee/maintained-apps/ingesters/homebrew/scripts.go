@@ -43,6 +43,14 @@ fi`, appPath)
 
 		case len(artifact.Pkg) > 0:
 			sb.Write("# install pkg files")
+			// Quit the app before installing if it's running, and track state for relaunch
+			sb.AddFunction("quit_and_track_application", quitAndTrackApplicationFunc)
+			sb.AddFunction("relaunch_application", relaunchApplicationFunc)
+			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+			if cask.Token == "docker" {
+				sb.Writef("quit_and_track_application 'com.electron.dockerdesktop'")
+			}
+			includeQuitFunc = true
 			switch len(artifact.Pkg) {
 			case 1:
 				if err := sb.InstallPkg(artifact.Pkg[0].String); err != nil {
@@ -54,6 +62,11 @@ fi`, appPath)
 				}
 			default:
 				return "", fmt.Errorf("application %s has unknown directive format for pkg", app.Token)
+			}
+			// Relaunch the app if it was running before installation
+			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			if cask.Token == "docker" {
+				sb.Writef("relaunch_application 'com.electron.dockerdesktop'")
 			}
 
 		case len(artifact.Binary) > 0:
@@ -552,6 +565,84 @@ const quitApplicationFunc = `quit_application() {
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+  fi
+}
+`
+
+// quitAndTrackApplicationFunc quits a running application and tracks whether it was running
+// so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
+const quitAndTrackApplicationFunc = `quit_and_track_application() {
+  local bundle_id="$1"
+  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local timeout_duration=10
+
+  # check if the application is running
+  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+    eval "export $var_name=0"
+    return
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+    echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    eval "export $var_name=0"
+    return
+  fi
+
+  # App was running, mark it for relaunch
+  eval "export $var_name=1"
+  echo "Application '$bundle_id' was running; will relaunch after installation."
+
+  echo "Quitting application '$bundle_id'..."
+
+  # try to quit the application within the timeout period
+  local quit_success=false
+  SECONDS=0
+  while (( SECONDS < timeout_duration )); do
+    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
+      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
+        echo "Application '$bundle_id' quit successfully."
+        quit_success=true
+        break
+      fi
+    fi
+    sleep 1
+  done
+
+  if [[ "$quit_success" = false ]]; then
+    echo "Application '$bundle_id' did not quit."
+  fi
+}
+`
+
+// relaunchApplicationFunc relaunches an application if it was running before installation.
+// Checks the APP_WAS_RUNNING_<bundle_id> environment variable set by quitAndTrackApplicationFunc.
+const relaunchApplicationFunc = `relaunch_application() {
+  local bundle_id="$1"
+  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local was_running
+
+  # Check if the app was running before installation
+  eval "was_running=\$$var_name"
+  if [[ "$was_running" != "1" ]]; then
+    return
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+    echo "Not logged into a non-root GUI; skipping relaunching application ID '$bundle_id'."
+    return
+  fi
+
+  echo "Relaunching application '$bundle_id'..."
+
+  # Try to launch the application
+  if osascript -e "tell application id \"$bundle_id\" to activate" >/dev/null 2>&1; then
+    echo "Application '$bundle_id' relaunched successfully."
+  else
+    echo "Failed to relaunch application '$bundle_id'."
   fi
 }
 `
