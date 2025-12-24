@@ -7,29 +7,27 @@
     padding-top: $pad-large;
   }
 
-  &__form-frame {
-    display: flex;
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 20px;
-    align-self: stretch;
-
-    .card {
-      display: flex;
-      align-items: flex-start;
-
-      gap: 12px;
-      flex: 1 0 0;
-      align-self: stretch;
-    }
-  }
-
   .edit-auto-update-config-form {
-
-    position: relative;
 
     &--disabled {
       @include disabled;
+    }
+  
+    &__form-frame {
+      display: flex;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 20px;
+      align-self: stretch;
+  
+      .card {
+        display: flex;
+        align-items: flex-start;
+  
+        gap: $pad-smedium;
+        flex: 1 0 0;
+        align-self: stretch;
+      }
     }
   
     &__auto-update-config {
@@ -50,11 +48,6 @@
         }
       }
     }
-
-    &__target {
-      width: 100%;
-    }
   
   }
-
 }

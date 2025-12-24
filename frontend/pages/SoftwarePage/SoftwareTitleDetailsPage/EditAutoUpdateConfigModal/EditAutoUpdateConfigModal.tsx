@@ -176,7 +176,7 @@ const EditAutoUpdateConfigModal = ({
   };
 
   const renderForm = () => (
-    <div className={`${baseClass}__form-frame`}>
+    <div className={`${formClass}__form-frame`}>
       <Card paddingSize="medium" borderRadiusSize="medium">
         <div className={`${formClass}__auto-update-config`}>
           <div className={`form-field`}>
