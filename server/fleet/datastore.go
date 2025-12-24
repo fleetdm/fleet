@@ -1956,7 +1956,7 @@ type Datastore interface {
 	// after it has been unlocked.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
-	InsertHostLocationData(ctx context.Context, hostID uint, latitude, longitude float64) error
+	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
 	GetHostLocationData(ctx context.Context, hostID uint) (*HostLocationData, error)
 	DeleteHostLocationData(ctx context.Context, hostID uint) error
 

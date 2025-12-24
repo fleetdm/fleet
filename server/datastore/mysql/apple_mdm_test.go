@@ -9598,6 +9598,16 @@ func testDeviceLocation(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 42.42, locData.Latitude)
 	assert.Equal(t, -42.42, locData.Longitude)
 
+	// Update data
+	err = ds.InsertHostLocationData(ctx, iOSHost.ID, 20.25, -20.25)
+	require.NoError(t, err)
+
+	locData, err = ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, 20.25, locData.Latitude)
+	assert.Equal(t, -20.25, locData.Longitude)
+
 	err = ds.DeleteHostLocationData(ctx, iOSHost.ID)
 	require.NoError(t, err)
 

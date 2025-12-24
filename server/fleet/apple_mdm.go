@@ -1120,6 +1120,7 @@ const EnableLostModeCmdName = "EnableLostMode"
 const DisableLostModeCmdName = "DisableLostMode"
 
 type HostLocationData struct {
+	HostID    uint    `db:"host_id"`
 	Latitude  float64 `db:"latitude"`
 	Longitude float64 `db:"longitude"`
 }

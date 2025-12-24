@@ -13,7 +13,7 @@ import (
 )
 
 func NewDeviceLocationResult(result *mdm.CommandResults, hostID uint) (DeviceLocationResult, error) {
-	var x deviceLocationResult
+	var ret deviceLocationResult
 
 	// parse results
 	var deviceLocResult struct {
@@ -25,11 +25,11 @@ func NewDeviceLocationResult(result *mdm.CommandResults, hostID uint) (DeviceLoc
 		return nil, fmt.Errorf("device location command result: xml unmarshal: %w", err)
 	}
 
-	x.hostID = hostID
-	x.latitude = deviceLocResult.Latitude
-	x.longitude = deviceLocResult.Longitude
+	ret.hostID = hostID
+	ret.latitude = deviceLocResult.Latitude
+	ret.longitude = deviceLocResult.Longitude
 
-	return &x, nil
+	return &ret, nil
 
 }
 
@@ -44,7 +44,11 @@ func NewDeviceLocationResultsHandler(
 			return ctxerr.New(ctx, "unexpected results type")
 		}
 
-		err := ds.InsertHostLocationData(ctx, deviceLocResult.HostID(), deviceLocResult.Latitude(), deviceLocResult.Longitude())
+		err := ds.InsertHostLocationData(ctx, fleet.HostLocationData{
+			HostID:    deviceLocResult.HostID(),
+			Latitude:  deviceLocResult.Latitude(),
+			Longitude: deviceLocResult.Longitude(),
+		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "device location command result: insert host location data")
 		}

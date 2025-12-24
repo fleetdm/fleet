@@ -7058,13 +7058,16 @@ func (ds *Datastore) SetLockCommandForLostModeCheckin(ctx context.Context, hostI
 	return ctxerr.Wrap(ctx, err, "set lock ref for lost mode checkin")
 }
 
-func (ds *Datastore) InsertHostLocationData(ctx context.Context, hostID uint, latitude, longitude float64) error {
+func (ds *Datastore) InsertHostLocationData(ctx context.Context, locData fleet.HostLocationData) error {
 	const stmt = `
-		INSERT INTO host_locations
+		INSERT INTO host_last_known_locations
 			(host_id, latitude, longitude)
 		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			latitude = VALUES(latitude),
+			longitude = VALUES(longitude)
 	`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, latitude, longitude)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, locData.HostID, locData.Latitude, locData.Longitude)
 	return ctxerr.Wrap(ctx, err, "insert host location data")
 }
 
@@ -7072,7 +7075,7 @@ func (ds *Datastore) GetHostLocationData(ctx context.Context, hostID uint) (*fle
 
 	var ret fleet.HostLocationData
 
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &ret, "SELECT latitude, longitude FROM host_locations WHERE host_id = ?", hostID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &ret, "SELECT latitude, longitude FROM host_last_known_locations WHERE host_id = ?", hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostLocation"))
@@ -7081,12 +7084,11 @@ func (ds *Datastore) GetHostLocationData(ctx context.Context, hostID uint) (*fle
 	}
 
 	return &ret, nil
-
 }
 
 func (ds *Datastore) DeleteHostLocationData(ctx context.Context, hostID uint) error {
 	const stmt = `
-	 	DELETE FROM host_locations WHERE host_id = ?
+	 	DELETE FROM host_last_known_locations WHERE host_id = ?
 	`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID)
 	return ctxerr.Wrap(ctx, err, "delete host location data")

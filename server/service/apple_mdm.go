@@ -4292,8 +4292,8 @@ type deviceLocationResult struct {
 	raw       []byte
 	uuid      string
 	hostID    uint
-	latitude  float64
-	longitude float64
+	latitude  float64 `plist:"Latitude"`
+	longitude float64 `plist:"Longitude"`
 	hostUUID  string
 }
 
