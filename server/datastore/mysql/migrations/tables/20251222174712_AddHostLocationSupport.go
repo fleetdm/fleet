@@ -18,7 +18,7 @@ func Up_20251222174712(tx *sql.Tx) error {
 		created_at timestamp(6) DEFAULT CURRENT_TIMESTAMP(6),
 		updated_at timestamp(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
-		PRIMARY KEY (host_id),
+		PRIMARY KEY (host_id)
 	) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("failed to create table host_last_known_locations: %w", err)

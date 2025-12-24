@@ -1257,7 +1257,7 @@ type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlat
 
 type CleanAppleMDMLockFunc func(ctx context.Context, hostUUID string) error
 
-type InsertHostLocationDataFunc func(ctx context.Context, hostID uint, latitude float64, longitude float64) error
+type InsertHostLocationDataFunc func(ctx context.Context, locData fleet.HostLocationData) error
 
 type GetHostLocationDataFunc func(ctx context.Context, hostID uint) (*fleet.HostLocationData, error)
 
@@ -8581,11 +8581,11 @@ func (s *DataStore) CleanAppleMDMLock(ctx context.Context, hostUUID string) erro
 	return s.CleanAppleMDMLockFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) InsertHostLocationData(ctx context.Context, hostID uint, latitude float64, longitude float64) error {
+func (s *DataStore) InsertHostLocationData(ctx context.Context, locData fleet.HostLocationData) error {
 	s.mu.Lock()
 	s.InsertHostLocationDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertHostLocationDataFunc(ctx, hostID, latitude, longitude)
+	return s.InsertHostLocationDataFunc(ctx, locData)
 }
 
 func (s *DataStore) GetHostLocationData(ctx context.Context, hostID uint) (*fleet.HostLocationData, error) {
