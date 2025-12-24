@@ -120,12 +120,6 @@ func TestLabelsAuth(t *testing.T) {
 
 	// Create a team and team label for testing team permissions
 	team1 := &fleet.Team{ID: 1, Name: "team1"}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		if tid == team1.ID {
-			return team1, nil
-		}
-		return nil, ctxerr.Wrap(ctx, notFoundErr{"team", fleet.ErrorWithUUID{}})
-	}
 
 	// Create team label
 	teamLabel := &fleet.Label{

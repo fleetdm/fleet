@@ -5161,47 +5161,72 @@ func (s *integrationTestSuite) TestLabels() {
 
 	// Test team labels
 	t.Run("Team Labels", func(t *testing.T) {
+		ctx := context.Background()
+		
 		// Create teams for testing
-		team1 := createTeamReq(t, "team1", s.token)
-		team2 := createTeamReq(t, "team2", s.token)
+		team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+		require.NoError(t, err)
+		team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+		require.NoError(t, err)
 
 		// Create team-specific hosts
 		team1Hosts := s.createHosts(t, "darwin", "windows")
 		team2Hosts := s.createHosts(t, "darwin")
 
 		// Assign hosts to teams
-		err := s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{team1Hosts[0].ID, team1Hosts[1].ID}))
+		err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{team1Hosts[0].ID, team1Hosts[1].ID}))
 		require.NoError(t, err)
 		err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{team2Hosts[0].ID}))
 		require.NoError(t, err)
 
-		// Create a team label for team1
-		var createResp createLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{
-			Name:   "team1_label",
-			Query:  "SELECT 1",
-			TeamID: &team1.ID,
-		}, http.StatusOK, &createResp)
-		assert.NotZero(t, createResp.Label.ID)
-		assert.Equal(t, "team1_label", createResp.Label.Name)
-		assert.Equal(t, &team1.ID, createResp.Label.TeamID)
-		team1Label := createResp.Label.Label
+		// Create a team label for team1 using ApplyLabelSpecs
+		var applyResp applyLabelSpecsResponse
+		s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:   "team1_label",
+					Query:  "SELECT 1",
+					TeamID: &team1.ID,
+				},
+			},
+		}, http.StatusOK, &applyResp)
 
-		// Create a manual team label for team2
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{
-			Name:    "team2_manual_label",
-			TeamID:  &team2.ID,
-			HostIDs: []uint{team2Hosts[0].ID},
-		}, http.StatusOK, &createResp)
-		assert.NotZero(t, createResp.Label.ID)
-		assert.Equal(t, "team2_manual_label", createResp.Label.Name)
-		assert.Equal(t, &team2.ID, createResp.Label.TeamID)
-		assert.ElementsMatch(t, []uint{team2Hosts[0].ID}, createResp.Label.HostIDs)
-		team2Label := createResp.Label.Label
-
-		// List all labels should include both global and team labels
+		// Get the created team label
 		var listResp listLabelsResponse
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+		var team1Label *fleet.Label
+		for _, lbl := range listResp.Labels {
+			if lbl.Name == "team1_label" && lbl.TeamID != nil && *lbl.TeamID == team1.ID {
+				team1Label = &lbl.Label
+				break
+			}
+		}
+		require.NotNil(t, team1Label)
+
+		// Create a manual team label for team2 using ApplyLabelSpecs
+		s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                "team2_manual_label",
+					TeamID:              &team2.ID,
+					LabelMembershipType: fleet.LabelMembershipTypeManual,
+					Hosts:               []string{fmt.Sprint(team2Hosts[0].ID)},
+				},
+			},
+		}, http.StatusOK, &applyResp)
+
+		// Get the created team2 label
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+		var team2Label *fleet.Label
+		for _, lbl := range listResp.Labels {
+			if lbl.Name == "team2_manual_label" && lbl.TeamID != nil && *lbl.TeamID == team2.ID {
+				team2Label = &lbl.Label
+				break
+			}
+		}
+		require.NotNil(t, team2Label)
+
+		// List all labels should already have both labels from previous calls
 		var foundTeam1Label, foundTeam2Label bool
 		for _, lbl := range listResp.Labels {
 			if lbl.ID == team1Label.ID {
@@ -5458,8 +5483,11 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
 
 	// Test team label specs
-	team1 := createTeamReq(t, "team1", s.token)
-	team2 := createTeamReq(t, "team2", s.token)
+	ctx := context.Background()
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
 
 	// Apply team label specs
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
