@@ -19,16 +19,29 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 
 	sb.Extract(app.InstallerFormat)
 
-	var includeQuitFunc bool
+	// Add quit/relaunch functions if we have App or Pkg artifacts
+	var needsQuitRelaunch bool
+	for _, artifact := range cask.Artifacts {
+		if len(artifact.App) > 0 || len(artifact.Pkg) > 0 {
+			needsQuitRelaunch = true
+			break
+		}
+	}
+
+	if needsQuitRelaunch {
+		sb.AddFunction("quit_and_track_application", quitAndTrackApplicationFunc)
+		sb.AddFunction("relaunch_application", relaunchApplicationFunc)
+	}
+
 	for _, artifact := range cask.Artifacts {
 		switch {
 		case len(artifact.App) > 0:
 			sb.Write("# copy to the applications folder")
-			sb.Writef("quit_application '%s'", app.UniqueIdentifier)
+			// Quit the app before installing if it's running, and track state for relaunch
+			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
 			if cask.Token == "docker" {
-				sb.Writef("quit_application 'com.electron.dockerdesktop'")
+				sb.Writef("quit_and_track_application 'com.electron.dockerdesktop'")
 			}
-			includeQuitFunc = true
 			for _, appItem := range artifact.App {
 				// Only process string values (skip objects with target, those are handled by custom scripts)
 				if appItem.String == "" {
@@ -40,17 +53,19 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 fi`, appPath)
 				sb.Copy(appPath, "$APPDIR")
 			}
+			// Relaunch the app if it was running before installation
+			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			if cask.Token == "docker" {
+				sb.Writef("relaunch_application 'com.electron.dockerdesktop'")
+			}
 
 		case len(artifact.Pkg) > 0:
 			sb.Write("# install pkg files")
 			// Quit the app before installing if it's running, and track state for relaunch
-			sb.AddFunction("quit_and_track_application", quitAndTrackApplicationFunc)
-			sb.AddFunction("relaunch_application", relaunchApplicationFunc)
 			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
 			if cask.Token == "docker" {
 				sb.Writef("quit_and_track_application 'com.electron.dockerdesktop'")
 			}
-			includeQuitFunc = true
 			switch len(artifact.Pkg) {
 			case 1:
 				if err := sb.InstallPkg(artifact.Pkg[0].String); err != nil {
@@ -80,10 +95,6 @@ fi`, appPath)
 				}
 			}
 		}
-	}
-
-	if includeQuitFunc {
-		sb.AddFunction("quit_application", quitApplicationFunc)
 	}
 
 	return sb.String(), nil
