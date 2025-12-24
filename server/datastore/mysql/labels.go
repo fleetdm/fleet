@@ -421,8 +421,6 @@ VALUES ` + strings.Join(placeholders, ", ")
 
 // Update label membership for a host vitals label.
 func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
-	// TODO take teams into account
-
 	// Get the label data.
 	label := hvl.GetLabel()
 
