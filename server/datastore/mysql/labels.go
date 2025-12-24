@@ -515,13 +515,10 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 
 func (ds *Datastore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
-	// Use alias l to be compatible with applyLabelTeamFilter
-	base := `
+	query, params, err := applyLabelTeamFilter(`
 SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type
 FROM labels l
-WHERE l.name = ?
-`
-	query, params, err := applyLabelTeamFilter(base, filter, name)
+WHERE l.name = ?`, filter, name)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query for getting label spec")
 	}

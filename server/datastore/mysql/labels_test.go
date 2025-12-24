@@ -87,6 +87,7 @@ func TestLabels(t *testing.T) {
 		{"UpdateLabelMembershipByHostIDs", testUpdateLabelMembershipByHostIDs},
 		{"IDsByName", testLabelsIDsByName},
 		{"ByName", testLabelsByName},
+		{"SingleByName", testLabelByName},
 		{"Save", testLabelsSave},
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
@@ -232,6 +233,8 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 }
 
 func testLabelsSearch(t *testing.T, db *Datastore) {
+	// TODO test team filtering
+
 	specs := []*fleet.LabelSpec{
 		{ID: 1, Name: "foo"},
 		{ID: 2, Name: "bar"},
@@ -702,6 +705,8 @@ func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 }
 
 func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
+	// TODO test team labels
+
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 	globalOnlyFilter := fleet.TeamFilter{}
 
@@ -730,6 +735,8 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 func testLabelsByName(t *testing.T, ds *Datastore) {
 	setupLabelSpecsTest(t, ds)
 
+	// TODO test team labels
+
 	names := []string{"foo", "bar", "bing"}
 	labels, err := ds.LabelsByName(context.Background(), names, fleet.TeamFilter{})
 	require.NoError(t, err)
@@ -749,6 +756,10 @@ func testLabelsByName(t *testing.T, ds *Datastore) {
 			assert.Empty(t, labels[name].Description)
 		}
 	}
+}
+
+func testLabelByName(t *testing.T, ds *Datastore) {
+	// TODO implement, including team filtering
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {
@@ -882,6 +893,8 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 }
 
 func testDeleteLabel(t *testing.T, db *Datastore) {
+	// TODO test team label filtering
+
 	ctx := context.Background()
 	l, err := db.NewLabel(ctx, &fleet.Label{
 		Name:  t.Name(),
