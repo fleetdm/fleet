@@ -1354,7 +1354,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_certificate
+## added_certificate
 
 Generated when a user adds a new certificate to a team (or no team).
 
