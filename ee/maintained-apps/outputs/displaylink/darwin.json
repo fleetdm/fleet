@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "14.2",
+      "version": "15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.displaylink.DisplayLinkUserAgent';"
       },
-      "installer_url": "https://www.synaptics.com/sites/default/files/exe_files/2025-11/DisplayLink%20Manager%20Graphics%20Connectivity14.2-EXE.zip",
+      "installer_url": "https://www.synaptics.com/sites/default/files/exe_files/2025-12/DisplayLink%20Manager%20Graphics%20Connectivity15.0-EXE.pkg",
       "install_script_ref": "72699921",
       "uninstall_script_ref": "ddab1ed1",
-      "sha256": "2a08be4e7fba2c11dbfaf5ea78f60c66e1683a14212c60ff36e24ba469822b1c",
+      "sha256": "4cedae42b642c3662b3eea0e81989226e5ae510a404bcf1fbbbb90262a71e014",
       "default_categories": [
         "Productivity"
       ]
