@@ -16,7 +16,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { ActivityType, IActivityDetails } from "interfaces/activity";
-import { PerformanceImpactIndicator } from "interfaces/performance_impact_indicator";
+import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 
 import { getPerformanceImpactDescription } from "utilities/helpers";
 

@@ -236,16 +236,14 @@ const generateColumnConfigs = ({
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps: IStringCellProps) => {
-        return (
-          <PerformanceImpactCell
-            value={{
-              indicator: cellProps.cell.value,
-              id: cellProps.row.original.id,
-            }}
-          />
-        );
-      },
+      Cell: (cellProps: IStringCellProps) => (
+        <PerformanceImpactCell
+          value={{
+            indicator: cellProps.cell.value,
+            id: cellProps.row.original.id,
+          }}
+        />
+      ),
     },
     {
       title: "Automations",

@@ -4,7 +4,7 @@ import SQLEditor from "components/SQLEditor";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
-import { PerformanceImpactIndicator } from "interfaces/performance_impact_indicator";
+import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 
 const baseClass = "show-query-modal";
 

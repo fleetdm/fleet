@@ -25,8 +25,11 @@ import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
-import type { PerformanceImpactIndicator } from "interfaces/performance_impact_indicator";
-import { PerformanceImpactIndicatorValue } from "interfaces/performance_impact_indicator";
+import type { PerformanceImpactIndicator } from "interfaces/schedulable_query";
+import {
+  PerformanceImpactIndicatorValue,
+  ISchedulableQueryStats,
+} from "interfaces/schedulable_query";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -51,7 +54,6 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
-import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import CustomLink from "components/CustomLink";
 

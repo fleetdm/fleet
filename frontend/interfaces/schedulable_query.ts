@@ -9,7 +9,6 @@ import {
   SelectedPlatform,
 } from "./platform";
 import { ILabelQuery } from "./label";
-import { PerformanceImpactIndicator } from "./performance_impact_indicator";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -48,6 +47,24 @@ export interface ISchedulableQueryStats {
   system_time_p95?: number | null;
   total_executions?: number;
 }
+
+export const PerformanceImpactIndicatorValue = {
+  MINIMAL: "Minimal",
+  CONSIDERABLE: "Considerable",
+  EXCESSIVE: "Excessive",
+  UNDETERMINED: "Undetermined",
+  DENYLISTED: "Denylisted",
+} as const;
+
+export type PerformanceImpactIndicator = typeof PerformanceImpactIndicatorValue[keyof typeof PerformanceImpactIndicatorValue];
+
+export const isPerformanceImpactIndicator = (
+  value: unknown
+): value is PerformanceImpactIndicator => {
+  return Object.values(PerformanceImpactIndicatorValue).includes(
+    value as PerformanceImpactIndicator
+  );
+};
 
 // legacy
 export default PropTypes.shape({

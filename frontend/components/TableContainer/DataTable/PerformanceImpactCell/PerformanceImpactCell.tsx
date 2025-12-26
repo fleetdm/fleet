@@ -9,7 +9,7 @@ import { getPerformanceImpactIndicatorTooltip } from "utilities/helpers";
 import {
   isPerformanceImpactIndicator,
   PerformanceImpactIndicatorValue,
-} from "interfaces/performance_impact_indicator";
+} from "interfaces/schedulable_query";
 
 interface IPerformanceImpactCellValue {
   indicator: string;
