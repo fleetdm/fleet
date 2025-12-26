@@ -121,23 +121,13 @@ After a software package is installed on a host, it can be uninstalled on the ho
 * Select **Install** action in the rightmost column of the table. Uninstall will happen automatically or when the host comes online.
 * Check uninstall status in the **Host > Software > Library > Status column** or the **Host > Details > Activity**.
 
-## Remove package
+## Delete package
 
-* **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
+* Navigate to the **Software** page, choose a team, and select the software you want to edit.
+  * You can use a dropdown above the table to filter software **Available for install** or software available in **Self-service**.
+* On **Software details** page select **Delete** icon in the section where you can see uploaded package file.
 
-* **Select a team**: Select a team (or "No team") to switch to the team whose software you want to remove.
-
-* **Find your software**: using the filters on the top of the table, you can choose between:
-
-    * “Available for install” filters software can be installed on your hosts.
-
-    * “Self-service” filters software that users can install from Fleet Desktop.
-
-* **Select software package**: Click on a software package to view details.
-
-* **Remove software package**: From the Actions menu, select "Delete." Click the "Delete" button on the dialog.
-
-> Removing a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software but will not uninstall the software from hosts where it is already installed.
+> Deleting a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software but will not uninstall the software from hosts where it is already installed.
 
 ## Manage packages with Fleet's REST API
 
@@ -149,7 +139,7 @@ Software packages can be managed via `fleetctl` using [GitOps](https://fleetdm.c
 
 Please refer to the documentation for [managing software with GitOps](https://fleetdm.com/docs/using-fleet/gitops#software), for a real-world example, [see how we manage software at Fleet](https://github.com/fleetdm/fleet/tree/main/it-and-security/teams).
 
-> When managing software installers via GitOps, the Fleet server receiving GitOps requests (**not** the machine running fleetctl as part of the GitOps workflow) will download installers from the specified URLs directly.
+> When managing software packages via GitOps, the Fleet server receiving GitOps requests (**not** the machine running fleetctl as part of the GitOps workflow) will download installers from the specified URLs directly.
 
 <meta name="articleTitle" value="Deploy software">
 <meta name="authorFullName" value="Roberto Dip">
