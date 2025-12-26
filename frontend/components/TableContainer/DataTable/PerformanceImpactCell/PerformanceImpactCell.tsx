@@ -48,8 +48,8 @@ const PerformanceImpactCell = ({
 
   const tooltipId = uniqueId();
 
-  const indicatorValue = isPerformanceImpactIndicator(value)
-    ? value
+  const indicatorValue = isPerformanceImpactIndicator(indicator)
+    ? indicator
     : PerformanceImpactIndicatorValue.UNDETERMINED;
 
   return (
