@@ -1,18 +1,12 @@
 import React from "react";
 
 import { IQueryStats } from "interfaces/query_stats";
-import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
-import Icon from "components/Icon";
-import { Link } from "react-router";
-import PATHS from "router/paths";
 
 interface IHostQueriesTableData extends Partial<IQueryStats> {
-  performance: { indicator: string; id: number };
   should_link_to_hqr: boolean;
   id: number;
 }
@@ -72,54 +66,6 @@ const generateColumnConfigs = (
       ),
       sortType: "caseInsensitive",
     },
-    // {
-    //   Header: () => {
-    //     return (
-    //       <TooltipWrapper
-    //         tipContent={
-    //           <>
-    //             This is the performance <br />
-    //             impact on this host.
-    //           </>
-    //         }
-    //       >
-    //         Performance impact
-    //       </TooltipWrapper>
-    //     );
-    //   },
-    //   disableSortBy: true,
-    //   accessor: "performance",
-    //   Cell: (cellProps: IPerformanceImpactCell) => {
-    //     const baseClass = "performance-cell";
-    //     const queryId = cellProps.row.original.id;
-    //     return (
-    //       <span className={baseClass}>
-    //         <PerformanceImpactCell
-    //           value={cellProps.cell.value}
-    //           customIdPrefix="query-perf-pill"
-    //           isHostSpecific
-    //         />
-    //         {!queryReportsDisabled &&
-    //           cellProps.row.original.should_link_to_hqr &&
-    //           hostId &&
-    //           queryId && (
-    //             // parent row has same onClick functionality but link here is required for keyboard accessibility
-    //             <Link
-    //               className={`${baseClass}__link`}
-    //               title="link to host query report"
-    //               to={PATHS.HOST_QUERY_REPORT(hostId, queryId)}
-    //             >
-    //               <Icon
-    //                 name="chevron-right"
-    //                 className={`${baseClass}__link-icon`}
-    //                 color="ui-fleet-black-75"
-    //               />
-    //             </Link>
-    //           )}
-    //       </span>
-    //     );
-    //   },
-    // },
   ];
 
   // include the Report updated column if query reports are globally enabled
@@ -160,9 +106,6 @@ const enhanceScheduleData = (
 ): IHostQueriesTableData[] => {
   return Object.values(query_stats).map((query) => {
     const {
-      user_time,
-      system_time,
-      executions,
       query_name,
       scheduled_query_id,
       last_fetched,
@@ -170,20 +113,9 @@ const enhanceScheduleData = (
       discard_data,
       automations_enabled,
     } = query;
-    // getPerformanceImpactDescription takes aggregate p50 values
-    // getPerformanceImpactDescription takes aggregate p50 values so we need to divide by total executions in order to show average performance per query execution
-    const scheduledQueryPerformance = {
-      user_time_p50: executions > 0 ? user_time / executions : 0,
-      system_time_p50: executions > 0 ? system_time / executions : 0,
-      total_executions: executions,
-    };
     return {
       query_name,
       id: scheduled_query_id,
-      performance: {
-        indicator: getPerformanceImpactDescription(scheduledQueryPerformance),
-        id: scheduled_query_id,
-      },
       last_fetched,
       interval,
       discard_data,
