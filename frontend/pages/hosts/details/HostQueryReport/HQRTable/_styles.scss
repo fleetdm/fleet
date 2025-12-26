@@ -1,6 +1,10 @@
 .hqr-table {
   @include vertical-card-layout;
 
+  .performance-impact {
+    font-size: $x-small;
+  }
+
   .last-fetched {
     font-weight: initial;
     @include grey-text;

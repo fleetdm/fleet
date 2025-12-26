@@ -6,10 +6,13 @@ import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 
 import { getPerformanceImpactIndicatorTooltip } from "utilities/helpers";
-import { PerformanceImpactIndicator } from "interfaces/performance_impact_indicator";
+import {
+  isPerformanceImpactIndicator,
+  PerformanceImpactIndicatorValue,
+} from "interfaces/performance_impact_indicator";
 
 interface IPerformanceImpactCellValue {
-  indicator: PerformanceImpactIndicator;
+  indicator: string;
   id?: number;
 }
 interface IPerformanceImpactCellProps {
@@ -45,6 +48,10 @@ const PerformanceImpactCell = ({
 
   const tooltipId = uniqueId();
 
+  const indicatorValue = isPerformanceImpactIndicator(value)
+    ? value
+    : PerformanceImpactIndicatorValue.UNDETERMINED;
+
   return (
     <span className={`${baseClass}`}>
       <span
@@ -52,7 +59,7 @@ const PerformanceImpactCell = ({
         data-for={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
         data-tip-disable={disableTooltip}
       >
-        <span className={pillClassName}>{indicator}</span>
+        <span className={pillClassName}>{indicatorValue}</span>
       </span>
       <ReactTooltip
         place="top"
@@ -63,10 +70,10 @@ const PerformanceImpactCell = ({
       >
         <span
           className={`tooltip ${generateClassTag(
-            indicator || ""
+            indicatorValue || ""
           )}__tooltip-text`}
         >
-          {getPerformanceImpactIndicatorTooltip(indicator, isHostSpecific)}
+          {getPerformanceImpactIndicatorTooltip(indicatorValue, isHostSpecific)}
         </span>
       </ReactTooltip>
     </span>

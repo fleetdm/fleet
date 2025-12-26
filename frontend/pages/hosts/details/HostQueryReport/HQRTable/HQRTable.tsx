@@ -66,7 +66,7 @@ const PerformanceImpact = ({ queryStats, queryId }: PerformanceImpactProps) => {
       )}
     >
       <span className="performance-impact">
-        Performance Impact: {performanceImpact.indicator}
+        <strong>Performance Impact</strong>: {performanceImpact.indicator}
       </span>
     </TooltipWrapper>
   );
