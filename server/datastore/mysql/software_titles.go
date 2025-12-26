@@ -836,6 +836,9 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
 	for _, t := range []*string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
 		if t == nil {
+			if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
+				return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
+			}
 			continue
 		}
 		duration, err := time.Parse("15:04", *t)
