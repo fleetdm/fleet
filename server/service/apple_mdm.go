@@ -3985,7 +3985,13 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		// Load software title.
 		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, host.TeamID, fleet.TeamFilter{})
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "software title by id")
+			level.Error(logger).Log(
+				"msg", "software title by id",
+				"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
+				"team_id", host.TeamID,
+				"err", err,
+			)
+			continue
 		}
 		logger := kitlog.With(logger,
 			"name", softwareTitle.Name,
@@ -4006,7 +4012,13 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		default:
-			return ctxerr.Wrap(ctx, err, "get VPP app metadata by team and title")
+			level.Error(logger).Log(
+				"msg", "get VPP app metadata by team and title",
+				"software_title_id", softwareTitle.ID,
+				"team_id", host.TeamID,
+				"err", err,
+			)
+			continue
 		}
 		softwareTitle.AppStoreApp = vppAppMetadata
 
