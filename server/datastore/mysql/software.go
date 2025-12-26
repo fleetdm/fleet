@@ -129,7 +129,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	error,
 ) {
 	stmt := `
-		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier, t.cdhash_sha256
+		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier, t.cdhash_sha256, t.binary_sha256
 		FROM host_software_installed_paths t
 		WHERE t.host_id = ?
 	`
@@ -183,13 +183,16 @@ func hostSoftwareInstalledPathsDelta(
 			toDelete = append(toDelete, r.ID)
 			continue
 		}
-		var cdHashSHA256 string
+		var cdHashSHA256, binHashSHA256 string
 		if r.CDHashSHA256 != nil {
 			cdHashSHA256 = *r.CDHashSHA256
 		}
+		if r.BinarySHA256 != nil {
+			binHashSHA256 = *r.BinarySHA256
+		}
 		key := fmt.Sprintf(
-			"%s%s%s%s%s%s%s",
-			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, cdHashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			"%s%s%s%s%s%s%s%s",
+			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, cdHashSHA256, binHashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 		)
 		iSPathLookup[key] = r
 
@@ -2166,7 +2169,9 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 			InstalledPath:  ip.InstalledPath,
 			TeamIdentifier: ip.TeamIdentifier,
 			CDHashSHA256:   ip.CDHashSHA256,
+			BinarySHA256:   ip.BinarySHA256,
 		})
+		fmt.Printf("\n\npath sig info: %+v\n\n", pathSignatureInformation[ip.SoftwareID])
 	}
 
 	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
@@ -5525,6 +5530,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				InstalledPath:  ip.InstalledPath,
 				TeamIdentifier: ip.TeamIdentifier,
 				CDHashSHA256:   ip.CDHashSHA256,
+				BinarySHA256:   ip.BinarySHA256,
 			})
 		}
 
