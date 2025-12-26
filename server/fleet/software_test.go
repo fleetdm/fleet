@@ -223,7 +223,7 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 			{
 				InstalledPath:  "/usr/local/bin/test",
 				TeamIdentifier: "ABCDE12345",
-				HashSha256:     &hashValue,
+				CDHashSHA256:   &hashValue,
 			},
 		},
 	}

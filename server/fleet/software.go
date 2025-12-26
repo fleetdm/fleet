@@ -503,7 +503,7 @@ func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
 type PathSignatureInformation struct {
 	InstalledPath  string  `json:"installed_path"`
 	TeamIdentifier string  `json:"team_identifier"`
-	HashSha256     *string `json:"hash_sha256"`
+	CDHashSHA256   *string `json:"cdhash_sha256"`
 }
 
 // HostSoftware is the set of software installed on a specific host
