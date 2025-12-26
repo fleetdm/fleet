@@ -1,12 +1,12 @@
 <resources>
     <string name="app_name">Fleet</string>
 
-    <string name="app_description">The app is installed by your IT administrator to install the certificates needed to connect to corporate networks.</string>
+    <string name="app_description">This app is installed by your IT admin to install the certificates needed to connect to corporate networks.</string>
     <string name="learn_about_fleet">About Fleet</string>
     <string name="fleet_logo">Fleet logo</string>
-    <string name="certificate_list_title">Installed certificates</string>
+    <string name="certificate_list_title">Certificates</string>
     <string name="certificate_list_no_certificates">No certificates installed</string>
-    <string name="app_version_title">App Version</string>
+    <string name="app_version_title">App version</string>
 
     <!-- Managed Configuration -->
     <string name="enroll_secret_title">Enroll secret</string>
