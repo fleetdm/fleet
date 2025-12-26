@@ -84,7 +84,6 @@ const HQRTable = ({
   onShowQuery,
   isLoading,
 }: IHQRTable) => {
-  console.log({ rows });
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
 
   const columnConfigs = generateColumnConfigs(rows);
