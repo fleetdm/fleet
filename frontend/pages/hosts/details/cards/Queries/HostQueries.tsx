@@ -21,6 +21,8 @@ import {
 
 const baseClass = "host-queries-card";
 
+const PAGE_SIZE = 4;
+
 interface IHostQueriesProps {
   hostId: number;
   schedule?: IQueryStats[];
@@ -151,7 +153,9 @@ const HostQueries = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           emptyComponent={() => <></>}
-          disablePagination
+          disablePagination={tableData.length <= PAGE_SIZE}
+          pageSize={PAGE_SIZE}
+          isClientSidePagination
           disableCount
           disableMultiRowSelect={!queryReportsDisabled} // Removes hover/click state if reports are disabled
           isLoading={false} // loading state handled at parent level
