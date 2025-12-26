@@ -3488,7 +3488,7 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	require.NoError(t, insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), toInsert))
 
 	var actual []fleet.HostSoftwareInstalledPath
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path, team_identifier, cd_sha256 FROM host_software_installed_paths`))
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path, team_identifier, cdhash_sha256 FROM host_software_installed_paths`))
 
 	require.ElementsMatch(t, actual, toInsert)
 }
