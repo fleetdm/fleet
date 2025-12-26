@@ -3885,6 +3885,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		return nil
 	}
 
+	// Get VPP token, fail early if we cannot get it
+	// (e.g. not configured, or not configured for the host's team).
+	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		level.Debug(logger).Log("msg", "no VPP token configured for this host's team")
+		return nil
+	default:
+		return ctxerr.Wrap(ctx, err, "get VPP token if can install VPP apps")
+	}
+
 	// Check if the device is managed or BYOD.
 	enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
@@ -4029,7 +4042,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		installedVersion, ok := installedVersionByNameBundleIdentifierAndSource[softwareTitle.Name+bundleIdentifier+softwareTitle.Source]
 		if !ok {
-			level.Info(logger).Log(
+			level.Debug(logger).Log(
 				"msg", "software title not installed on device, skipping from update",
 				"name", softwareTitle.Name,
 				"bundle_identifier", bundleIdentifier,
@@ -4127,12 +4140,6 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		"count", len(softwaresWithinUpdateScheduleToInstall),
 	)
 
-	// Get VPP token.
-	token, err := svc.vppInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get VPP token if can install VPP apps")
-	}
-
 	// 4. Issue installation of the software titles to update.
 	for _, softwareTitle := range softwaresWithinUpdateScheduleToInstall {
 		var bundleIdentifier string
@@ -4172,7 +4179,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			continue
 		}
 
-		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, fleet.HostSoftwareInstallOptions{
+		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken.Token, fleet.HostSoftwareInstallOptions{
 			ForScheduledUpdates: true,
 		})
 		if err != nil {
