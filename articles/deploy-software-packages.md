@@ -18,23 +18,15 @@ Learn more about automatically installing software [the Automatically install so
 
 ## Add a custom package
 
-* **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
-
-* **Select a team**: Select a team "No team" to add a software package.
-
+* Navigate to the **Software** page.
+* Select a team (or "No team")
 > Software cannot be added to "All teams."
-
-* Click the “Add Software” button in the top right corner.
-
-* Select the "Custom package" tab.
-
+* Click the **Add software** button in the top right corner.
+* Select the **Custom package** tab.
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, and `.ps1` files are supported.
-
-* If you check the "Automatic install" box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist. Note: Automatic install is not supported for payload-free packages (`.sh` and `.ps1` files).
-
-* To allow users to install the software from Fleet Desktop, check the "Self-service" checkbox.
-
-* To customize installer behavior, click on “Advanced options.”
+* If you check the **Automatic install** box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist. Note: Automatic install is not supported for payload-free packages (`.sh` and `.ps1` files).
+* To allow users to install the software from Fleet Desktop, check the **Self-service** checkbox.
+* To customize installer behavior, click on **Advanced options**.
 
 > After the initial package upload, all options, except for automatic install, can be modified. This includes the self-service setting, pre-install query, scripts, and the software package file. However, if the installer package needs to be replaced, the new package must be of the same file type (such as .pkg, .msi, .exe, .deb, .rpm, or .ipa) and for the same software as the original. Files in .dmg or .zip formats cannot be edited or uploaded for replacement. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
 
@@ -96,67 +88,40 @@ Fleet also provides an `$UPGRADE_CODE` placeholder for MSIs. This placeholder is
 
 > Uninstall scripts do _not_ download the installer package to a host before running; if a .tar.gz archive includes an uninstall script, the contents of that script and any dependencies should be copied into the uninstall script text field rather than referred to by filename.
 
-## Install the package
+## Install package
 
 After a software package is added to a team, it can be installed on hosts via the UI.
 
-* **Navigate to the Hosts page**: Click on the "Hosts" tab in the main navigation menu.
-
-* **Navigate to the Host details page**: Click the host you want to install the software package.
-
-* **Navigate to the Host software tab**: In the host details, search for the tab named “Software.”
-
-* **Find your software package**: Use the dropdown to select software “Available for install” or use the search bar to search for your software package by name.
-
-* **Install the software package on the host**: In the rightmost column of the table, click on “Actions” > “Install.” Installation will happen automatically or when the host comes online.
-
-* **Track installation status**: by either
-
-    * Checking the status column in the host software table.
-
-    * Navigate to the “Details” tab on the host details page and check the activity log.
+* Navigate to the **Hosts** page.
+* Select the host where you want to install the software package.
+* Select **Software > Library** on the host details page.
+* Use the dropdown to select software **Available for install** or use the search bar to search for your software by name.
+* Select **Install** action in the rightmost column of the table. Install will happen automatically or when the host comes online.
+* Check install status in the **Host > Software > Library > Status column** or the **Host > Details > Activity**.
 
 Once the package is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
 ## Edit package
 
-* **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
-
-* **Select a team**: Select a team (or "No team") to switch to the team whose software you want to edit.
-
-* **Find your software**: using the filters on the top of the table, you can choose between:
-
-    * “Available for install” filters software can be installed on your hosts.
-
-    * “Self-service” filters software that users can install from Fleet Desktop.
-
-* **Select software package**: Click on a software package to view details.
-
-* **Edit software package**: From the Actions menu, select "Edit." You can edit the package's [self-service](https://fleetdm.com/guides/software-self-service) status, change its target to different sets of hosts, or edit advanced options like pre-install query, install script, post-install script, and uninstall script.
+* Navigate to the **Software** page, choose a team, and select the software you want to edit.
+  * You can use a dropdown above the table to filter software **Available for install** or software available in **Self-service**.
+* On **Software details** page select **Actions > Edit software** to edit the software's [self-service](https://fleetdm.com/guides/software-self-service) status, change its target to different sets of hosts, or edit advanced options like pre-install query, install script, post-install script, and uninstall script.
+* Select **Actions > Edit appearance** to edit the software's icon and display name. The icon and display name can be edited for software available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded and on **My device > Self-service**. If display name is not set, then default name (ingested by osquery) will be used.
 
 > Editing the advanced options cancels all pending installations and uninstallations for that package. Installs and uninstalls currently running on a host will complete, but results won't appear in Fleet. The software's host counts will be reset.
 
-## Uninstall the package
+## Uninstall package
 
 After a software package is installed on a host, it can be uninstalled on the host via the UI.
 
-* **Navigate to the Hosts page**: Click on the "Hosts" tab in the main navigation menu.
+* Navigate to the **Hosts** page.
+* Select the host from which you want to uninstall the software package.
+* Select **Software > Library** on the host details page.
+* Use the dropdown to select software **Available for install** or use the search bar to search for your software by name.
+* Select **Install** action in the rightmost column of the table. Uninstall will happen automatically or when the host comes online.
+* Check uninstall status in the **Host > Software > Library > Status column** or the **Host > Details > Activity**.
 
-* **Navigate to the Host details page**: Click the host you want to uninstall the software package.
-
-* **Navigate to the Host software tab**: In the host details, search for the tab named “Software.”
-
-* **Find your software package**: Use the dropdown to select software “Available for install” or use the search bar to search for your software package by name.
-
-* **Uninstall the software package from the host**: In the rightmost column of the table, click on “Actions” > “Uninstall.”
-
-* **Track uninstallation status**: by either
-
-    * Checking the status column in the host software table.
-
-    * Navigate to the “Details” tab on the host details page and check the activity log.
-
-## Remove the package
+## Remove package
 
 * **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
 
