@@ -1462,8 +1462,10 @@ type HostSoftwareInstalledPath struct {
 	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
 	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
 	TeamIdentifier string `db:"team_identifier"`
-	// A SHA256 hash of the code directory of the software. See https://developer.apple.com/documentation/endpointsecurity/es_process_t/cdhash
+	// CDHashSHA256 is the SHA256 hash of the code directory of the software as reported on macOS by `codesign --display --verbose=3`. See https://developer.apple.com/documentation/endpointsecurity/es_process_t/cdhash
 	CDHashSHA256 *string `db:"cdhash_sha256"`
+	// BinarySHA256 is the SHA256 hash of the executable itself
+	BinarySHA256 *string `db:"binary_sha256"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
