@@ -321,8 +321,10 @@ const handleAutoUpdateConfigAppStoreAppForm = (
   body: IEditAppStoreAppPostBody
 ) => {
   body.auto_update_enabled = formData.autoUpdateEnabled;
-  body.auto_update_start_time = formData.autoUpdateStartTime;
-  body.auto_update_end_time = formData.autoUpdateEndTime;
+  if (formData.autoUpdateEnabled) {
+    body.auto_update_start_time = formData.autoUpdateStartTime;
+    body.auto_update_end_time = formData.autoUpdateEndTime;
+  }
   if (formData.targetType === "Custom") {
     const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
     if (formData.customTarget === "labelsIncludeAny") {
