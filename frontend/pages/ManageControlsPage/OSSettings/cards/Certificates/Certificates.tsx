@@ -140,7 +140,7 @@ const Certificates = ({
           HeadingComponent={() => (
             <UploadListHeading
               entityName="Certificate"
-              createEntityText="Create"
+              createEntityText="Add"
               onClickAdd={() => setShowAddCertModal(true)}
             />
           )}
@@ -153,7 +153,7 @@ const Certificates = ({
 
             const details = (
               <>
-                {caName} &bull; Uploaded{" "}
+                {caName} &bull; Added{" "}
                 {formatDistanceToNow(new Date(created_at))} ago
               </>
             );

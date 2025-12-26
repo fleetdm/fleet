@@ -140,7 +140,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
 
-	if req.AutoUpdateEnabled != nil && req.AutoUpdateStartTime != nil && req.AutoUpdateEndTime != nil {
+	if req.AutoUpdateEnabled != nil {
 		// Update AutoUpdateConfig separately
 		err = svc.UpdateSoftwareTitleAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.SoftwareAutoUpdateConfig{
 			AutoUpdateEnabled:   req.AutoUpdateEnabled,
