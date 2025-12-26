@@ -50,6 +50,8 @@ const validateWindowLength = (
   validations?: ISoftwareAutoUpdateConfigFormValidation
 ) => {
   if (
+    formData.autoUpdateStartTime.length === 0 ||
+    formData.autoUpdateEndTime.length === 0 ||
     !validations?.autoUpdateStartTime ||
     !validations.autoUpdateStartTime.isValid ||
     !validations.autoUpdateEndTime ||
