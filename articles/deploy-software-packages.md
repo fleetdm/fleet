@@ -118,7 +118,7 @@ After a software package is added to a team, it can be installed on hosts via th
 
 Once the package is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
-## Edit the package
+## Edit package
 
 * **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
 
