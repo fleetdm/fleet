@@ -2223,14 +2223,14 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	sigInfo0 := sw.PathSignatureInformation[0]
 	assert.Equal(t, "/Applications/Google Chrome.app", sigInfo0.InstalledPath)
 	assert.Equal(t, "EQHXZ8M8AV", sigInfo0.TeamIdentifier)
-	assert.NotNil(t, sigInfo0.HashSha256)
-	assert.Equal(t, "abc123hash", *sigInfo0.HashSha256)
+	assert.NotNil(t, sigInfo0.CDHashSHA256)
+	assert.Equal(t, "abc123hash", *sigInfo0.CDHashSHA256)
 
 	// Verify second signature information (user-level without team identifier)
 	sigInfo1 := sw.PathSignatureInformation[1]
 	assert.Equal(t, "/Users/test/Applications/Google Chrome.app", sigInfo1.InstalledPath)
 	assert.Equal(t, "", sigInfo1.TeamIdentifier)
-	assert.Nil(t, sigInfo1.HashSha256)
+	assert.Nil(t, sigInfo1.CDHashSHA256)
 
 	// Also verify the JSON marshaling by checking the raw JSON response
 	rawResp := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, "populate_software", "true")
@@ -14040,7 +14040,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation, 1)
 	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
-	require.Equal(t, "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb", *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].HashSha256)
+	require.Equal(t, "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb", *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
 
 	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
@@ -14056,8 +14056,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	})
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
-	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].HashSha256)
-	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].HashSha256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].CDHashSHA256)
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 

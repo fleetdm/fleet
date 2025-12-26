@@ -1350,10 +1350,10 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 
 	installpaths := []fleet.HostSoftwareInstalledPath{
 		{
-			HostID:           host.ID,
-			SoftwareID:       mutation.Inserted[0].ID,
-			InstalledPath:    "/the/path",
-			ExecutableSHA256: ptr.String("frog"),
+			HostID:        host.ID,
+			SoftwareID:    mutation.Inserted[0].ID,
+			InstalledPath: "/the/path",
+			CDHashSHA256:  ptr.String("frog"),
 		},
 	}
 
@@ -1364,7 +1364,7 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 	require.NoError(t, err)
 
 	require.Equal(t, "/the/path", host.Software[0].PathSignatureInformation[0].InstalledPath)
-	require.Equal(t, "frog", *host.Software[0].PathSignatureInformation[0].HashSha256)
+	require.Equal(t, "frog", *host.Software[0].PathSignatureInformation[0].CDHashSHA256)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
@@ -3270,11 +3270,11 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			}
 
 			stored = append(stored, fleet.HostSoftwareInstalledPath{
-				ID:               uint(i),
-				HostID:           host.ID,
-				SoftwareID:       s.ID,
-				InstalledPath:    fmt.Sprintf("/some/path/%d", s.ID),
-				ExecutableSHA256: executableSHA256,
+				ID:            uint(i),
+				HostID:        host.ID,
+				SoftwareID:    s.ID,
+				InstalledPath: fmt.Sprintf("/some/path/%d", s.ID),
+				CDHashSHA256:  executableSHA256,
 			})
 		}
 
@@ -3345,12 +3345,12 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			InstalledPath:  fmt.Sprintf("/some/path/%d", software[0].ID),
 		})
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
-			ID:               2,
-			HostID:           host.ID,
-			SoftwareID:       software[1].ID,
-			TeamIdentifier:   "corp1",
-			InstalledPath:    fmt.Sprintf("/some/path/%d", software[1].ID),
-			ExecutableSHA256: &hash1,
+			ID:             2,
+			HostID:         host.ID,
+			SoftwareID:     software[1].ID,
+			TeamIdentifier: "corp1",
+			InstalledPath:  fmt.Sprintf("/some/path/%d", software[1].ID),
+			CDHashSHA256:   &hash1,
 		})
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
 			ID:             3,
@@ -3360,12 +3360,12 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			InstalledPath:  fmt.Sprintf("/some/path/%d", software[2].ID+1),
 		})
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
-			ID:               4,
-			HostID:           host.ID,
-			SoftwareID:       software[3].ID,
-			TeamIdentifier:   "corp1",
-			InstalledPath:    fmt.Sprintf("/some/path/%d", software[3].ID),
-			ExecutableSHA256: &hash2,
+			ID:             4,
+			HostID:         host.ID,
+			SoftwareID:     software[3].ID,
+			TeamIdentifier: "corp1",
+			InstalledPath:  fmt.Sprintf("/some/path/%d", software[3].ID),
+			CDHashSHA256:   &hash2,
 		})
 
 		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, software, nil)
@@ -3391,7 +3391,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			[]string{fmt.Sprintf("/some/path/%d", software[1].ID+1), fmt.Sprintf("/some/path/%d", software[2].ID)},
 		)
 		require.ElementsMatch(t,
-			[]*string{toI[0].ExecutableSHA256, toI[1].ExecutableSHA256},
+			[]*string{toI[0].CDHashSHA256, toI[1].CDHashSHA256},
 			[]*string{&hash1, nil},
 		)
 	})
@@ -3464,31 +3464,31 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 
 	toInsert := []fleet.HostSoftwareInstalledPath{
 		{
-			HostID:           1,
-			SoftwareID:       1,
-			InstalledPath:    "1",
-			TeamIdentifier:   "corp1",
-			ExecutableSHA256: nil,
+			HostID:         1,
+			SoftwareID:     1,
+			InstalledPath:  "1",
+			TeamIdentifier: "corp1",
+			CDHashSHA256:   nil,
 		},
 		{
-			HostID:           1,
-			SoftwareID:       2,
-			InstalledPath:    "2",
-			TeamIdentifier:   "corp2",
-			ExecutableSHA256: ptr.String("c32f12fc330236fcef22a4c776b001da75e6a54d68aa4f1fd3f24ad66be76f63"),
+			HostID:         1,
+			SoftwareID:     2,
+			InstalledPath:  "2",
+			TeamIdentifier: "corp2",
+			CDHashSHA256:   ptr.String("c32f12fc330236fcef22a4c776b001da75e6a54d68aa4f1fd3f24ad66be76f63"),
 		},
 		{
-			HostID:           1,
-			SoftwareID:       3,
-			InstalledPath:    "3",
-			TeamIdentifier:   "",
-			ExecutableSHA256: nil,
+			HostID:         1,
+			SoftwareID:     3,
+			InstalledPath:  "3",
+			TeamIdentifier: "",
+			CDHashSHA256:   nil,
 		},
 	}
 	require.NoError(t, insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), toInsert))
 
 	var actual []fleet.HostSoftwareInstalledPath
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path, team_identifier, executable_sha256 FROM host_software_installed_paths`))
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path, team_identifier, cd_sha256 FROM host_software_installed_paths`))
 
 	require.ElementsMatch(t, actual, toInsert)
 }
