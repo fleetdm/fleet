@@ -201,7 +201,8 @@ func TestEnhanceOutputDetails(t *testing.T) {
 func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 	// Test that HostSoftwareEntry properly marshals all fields including
 	// InstalledPaths and PathSignatureInformation from the embedded Software struct
-	hashValue := "abc123"
+	cdHashValue := "abc123"
+	binHashValue := "def456"
 	entry := HostSoftwareEntry{
 		Software: Software{
 			ID:               1,
@@ -225,7 +226,8 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 			{
 				InstalledPath:  "/usr/local/bin/test",
 				TeamIdentifier: "ABCDE12345",
-				CDHashSHA256:   &hashValue,
+				CDHashSHA256:   &cdHashValue,
+				BinarySHA256:   &binHashValue,
 			},
 		},
 	}
@@ -257,7 +259,8 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 			{
 				"installed_path": "/usr/local/bin/test",
 				"team_identifier": "ABCDE12345",
-				"hash_sha256": "abc123"
+				"hash_sha256": "abc123",
+				"binary_sha256": "def456"
 			}
 		]
 	}`
