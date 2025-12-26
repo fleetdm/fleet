@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "8.0.1",
+      "version": "8.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.kapeli.dashdoc';"
       },
       "installer_url": "https://kapeli.com/downloads/v8/Dash.zip",
       "install_script_ref": "3c8c1d05",
       "uninstall_script_ref": "3e5b01cc",
-      "sha256": "0ba9727966c750987dec2aa69639fa03885ece17055bb8929c4acd3d630e09b2",
+      "sha256": "8786e9e19fa85e473617ea7d420edd0961c705421cf2b68ca38c89648a3142aa",
       "default_categories": [
         "Developer tools"
       ]
