@@ -57,7 +57,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -3875,12 +3874,12 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	host *fleet.Host,
 	softwares []fleet.Software,
 ) error {
-	logger := log.With(svc.logger,
+	logger := kitlog.With(svc.logger,
 		"method", "handle_scheduled_updates",
 		"host_id", host.ID,
 	)
 
-	if host.TimeZone == nil {
+	if host.TimeZone == nil || *host.TimeZone == "" {
 		// We cannot determine if it's safe to schedule an update on this host.
 		level.Debug(logger).Log("msg", "skipping updates, host has no timezone")
 		return nil
@@ -3890,6 +3889,10 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
+	}
+	if enrollment == nil {
+		level.Debug(logger).Log("msg", "skipping updates, missing nano enrollment type")
+		return nil
 	}
 	if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
 		level.Debug(logger).Log("msg", "skipping updates, software install isn't supported on personal (BYOD) iOS and iPadOS hosts")
@@ -3937,22 +3940,28 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	// 1. Filter out software that is not within the configured update window in the host timezone.
 	var softwaresWithinUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithAutoUpdateSchedule {
+		logger := kitlog.With(logger,
+			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
+			"team_id", softwareWithAutoUpdateSchedule.TeamID,
+			"update_window_start", softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
+			"update_window_end", softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
+			"host_timezone", *host.TimeZone,
+		)
 		ok, err := isTimezoneInWindow(ctx,
 			*host.TimeZone,
 			*softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
 			*softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
 		)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "is timezone in window")
+			level.Error(logger).Log(
+				"msg", "skipping software, failed to check if timezone is in window",
+				"err", err,
+			)
+			continue
 		}
 		if !ok {
 			level.Debug(logger).Log(
 				"msg", "host's local time is not within update window",
-				"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
-				"team_id", softwareWithAutoUpdateSchedule.TeamID,
-				"update_window_start", softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
-				"update_window_end", softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
-				"host_timezone", *host.TimeZone,
 			)
 			continue
 		}
@@ -3978,7 +3987,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "software title by id")
 		}
-		logger := log.With(logger,
+		logger := kitlog.With(logger,
 			"name", softwareTitle.Name,
 			"bundle_identifier", softwareTitle.BundleIdentifier,
 			"source", softwareTitle.Source,
@@ -4051,6 +4060,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		if fleet.CompareVersions(softwareTitle.AppStoreApp.LatestVersion, installedVersion) != 1 {
 			// Installed version is equal or higher than latest version, so nothing to do here.
+			level.Debug(logger).Log(
+				"msg", "skipping software version",
+				"latest_version", softwareTitle.AppStoreApp.LatestVersion,
+				"installed_version", installedVersion,
+			)
 			continue
 		}
 		softwaresWithinUpdateWindowThatNeedUpdate = append(softwaresWithinUpdateWindowThatNeedUpdate, softwareWithAutoUpdateSchedule)
@@ -4075,7 +4089,10 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		softwareTitle, ok := softwareTitles[softwareWithinUpdateSchedule.TitleID]
 		if !ok {
 			// "Should not happen", so we log it just in case.
-			level.Error(logger).Log("msg", "missing title ID from map", "software_title_id", softwareTitle.ID)
+			level.Error(logger).Log(
+				"msg", "missing title ID from map",
+				"software_title_id", softwareWithinUpdateSchedule.TitleID,
+			)
 			continue
 		}
 		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
@@ -4110,7 +4127,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		if softwareTitle.BundleIdentifier != nil {
 			bundleIdentifier = *softwareTitle.BundleIdentifier
 		}
-		logger := log.With(logger,
+		logger := kitlog.With(logger,
 			"software_title_id", softwareTitle.ID,
 			"team_id", host.TeamID,
 			"adam_id", softwareTitle.AppStoreApp.AdamID,
