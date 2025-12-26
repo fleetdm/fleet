@@ -25,6 +25,8 @@ import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import type { PerformanceImpactIndicator } from "interfaces/performance_impact_indicator";
+import { PerformanceImpactIndicatorValue } from "interfaces/performance_impact_indicator";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -658,13 +660,13 @@ export const readableDate = (date: string) => {
 
 export const getPerformanceImpactDescription = (
   scheduledQueryStats: ISchedulableQueryStats
-) => {
+): PerformanceImpactIndicator => {
   if (
     !scheduledQueryStats.total_executions ||
     scheduledQueryStats.total_executions === 0 ||
     scheduledQueryStats.total_executions === null
   ) {
-    return "Undetermined";
+    return PerformanceImpactIndicatorValue.UNDETERMINED;
   }
 
   if (
@@ -675,13 +677,59 @@ export const getPerformanceImpactDescription = (
       scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
 
     if (indicator < 2000) {
-      return "Minimal";
+      return PerformanceImpactIndicatorValue.MINIMAL;
     }
     if (indicator < 4000) {
-      return "Considerable";
+      return PerformanceImpactIndicatorValue.CONSIDERABLE;
     }
   }
-  return "Excessive";
+  return PerformanceImpactIndicatorValue.EXCESSIVE;
+};
+
+export const getPerformanceImpactIndicatorTooltip = (
+  indicator: PerformanceImpactIndicator,
+  isHostSpecific = false
+) => {
+  switch (indicator) {
+    case PerformanceImpactIndicatorValue.MINIMAL:
+      return (
+        <>
+          Running this query very frequently has little to no <br /> impact on
+          your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.CONSIDERABLE:
+      return (
+        <>
+          Running this query frequently can have a noticeable <br />
+          impact on your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.EXCESSIVE:
+      return (
+        <>
+          Running this query, even infrequently, can have a <br />
+          significant impact on your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.DENYLISTED:
+      return (
+        <>
+          This query has been <br /> stopped from running <br /> because of
+          excessive <br /> resource consumption.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.UNDETERMINED:
+      return (
+        <>
+          Performance impact will be available when{" "}
+          {isHostSpecific ? "the" : "this"} <br />
+          query runs{isHostSpecific && " on this host"}.
+        </>
+      );
+    default:
+      return null;
+  }
 };
 
 export const secondsToDhms = (s: number): string => {

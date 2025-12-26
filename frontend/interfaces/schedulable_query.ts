@@ -9,6 +9,7 @@ import {
   SelectedPlatform,
 } from "./platform";
 import { ILabelQuery } from "./label";
+import { PerformanceImpactIndicator } from "./performance_impact_indicator";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -37,7 +38,7 @@ export interface ISchedulableQuery {
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {
-  performance: string;
+  performance: PerformanceImpactIndicator;
   targetedPlatforms: QueryablePlatform[];
 }
 export interface ISchedulableQueryStats {

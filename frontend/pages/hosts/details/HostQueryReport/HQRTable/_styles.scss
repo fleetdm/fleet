@@ -13,7 +13,7 @@
 
   &__query-info {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     gap: $pad-xsmall;
 
     h2 {

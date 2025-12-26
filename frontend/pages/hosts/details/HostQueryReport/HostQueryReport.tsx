@@ -92,6 +92,7 @@ const HostQueryReport = ({
     description: queryDescription,
     query: querySQL,
     discard_data: queryDiscardData,
+    stats,
   } = queryResponse || {};
 
   // previous reroute can be done before API call, not this one, hence 2
@@ -148,8 +149,10 @@ const HostQueryReport = ({
         <>
           <HQRHeader />
           <HQRTable
+            queryId={queryId}
             queryName={queryName}
             queryDescription={queryDescription}
+            queryStats={stats}
             hostName={hostName}
             rows={rows}
             reportClipped={reportClipped}

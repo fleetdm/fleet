@@ -21,6 +21,10 @@ import {
   CommaSeparatedPlatformString,
 } from "interfaces/platform";
 import {
+  isPerformanceImpactIndicator,
+  PerformanceImpactIndicatorValue,
+} from "interfaces/performance_impact_indicator";
+import {
   IEnhancedQuery,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
@@ -236,14 +240,20 @@ const generateColumnConfigs = ({
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps: IStringCellProps) => (
-        <PerformanceImpactCell
-          value={{
-            indicator: cellProps.cell.value,
-            id: cellProps.row.original.id,
-          }}
-        />
-      ),
+      Cell: (cellProps: IStringCellProps) => {
+        const value = cellProps.cell.value;
+        const indicator = isPerformanceImpactIndicator(value)
+          ? value
+          : PerformanceImpactIndicatorValue.UNDETERMINED;
+        return (
+          <PerformanceImpactCell
+            value={{
+              indicator,
+              id: cellProps.row.original.id,
+            }}
+          />
+        );
+      },
     },
     {
       title: "Automations",
