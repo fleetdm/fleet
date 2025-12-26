@@ -17,13 +17,10 @@ CandidateCDHash sha1=21bbfcedb1ba1ed7078187432cf79234d65e290b
 CandidateCDHashFull sha1=21bbfcedb1ba1ed7078187432cf79234d65e290b
 CandidateCDHash sha256=cd1f004f0b0cd90c27d72375c7b9546b4c6df361
 CandidateCDHashFull sha256=cd1f004f0b0cd90c27d72375c7b9546b4c6df3610868f18ae49ca50c8dfce2d9
-CandidateBinaryHash sha256=ed1f004f0b0cd90c27d72375c7b9546b4c6df361
-CandidateBinaryHashFull sha256=ed1f004f0b0cd90c27d72375c7b9546b4c6df3610868f18ae49ca50c8dfce2d9
 Hash choices=sha1,sha256
 CMSDigest=e4d43bc2286f60ee818e829f2f72b909c86b2235ec91a44290ec51fdc2f11897
 CMSDigestType=2
 CDHash=cd1f004f0b0cd90c27d72375c7b9546b4c6df361
-BinaryHash=ed1f004f0b0cd90c27d72375c7b9546b4c6df361
 Signature size=4797
 Authority=Apple Mac OS Application Signing
 Authority=Apple Worldwide Developer Relations Certification Authority
@@ -38,5 +35,4 @@ Internal requirements count=1 size=220
 
 	require.Equal(t, "59GAB85EFG", info.teamIdentifier)
 	require.Equal(t, "cd1f004f0b0cd90c27d72375c7b9546b4c6df361", info.cdHash)
-	require.Equal(t, "ed1f004f0b0cd90c27d72375c7b9546b4c6df361", info.binSHA256)
 }

@@ -78,7 +78,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		info := parseCodesignOutput(output)
 		row["team_identifier"] = info.teamIdentifier
 		row["cdhash_sha256"] = info.cdHash
-		row["binary_sha256"] = info.binSHA256
+		// TODO - this data isn't available from codesign --display output. Need to figure out how to get it (see dev doc)
+		// row["binary_sha256"] = getBinSHA256FromSomeWhereElse()
 		rows = append(rows, row)
 	}
 
@@ -88,14 +89,11 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 type parsedInfo struct {
 	teamIdentifier string
 	cdHash         string
-	binSHA256      string
 }
 
 func parseCodesignOutput(output []byte) parsedInfo {
 	const teamIdentifierPrefix = "TeamIdentifier="
 	const cdHashPrefix = "CDHash="
-	// TODO - confirm this prefix
-	const bs256Prefix = "BinaryHash="
 
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	var info parsedInfo
@@ -109,8 +107,6 @@ func parseCodesignOutput(output []byte) parsedInfo {
 			}
 		} else if strings.HasPrefix(line, cdHashPrefix) {
 			info.cdHash = strings.TrimSpace(strings.TrimPrefix(line, cdHashPrefix))
-		} else if strings.HasPrefix(line, bs256Prefix) {
-			info.binSHA256 = strings.TrimSpace(strings.TrimPrefix(line, bs256Prefix))
 		}
 	}
 	return info
