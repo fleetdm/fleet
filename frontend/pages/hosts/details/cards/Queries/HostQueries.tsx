@@ -20,8 +20,8 @@ import {
 } from "./HostQueriesTableConfig";
 
 const baseClass = "host-queries-card";
-
 const PAGE_SIZE = 4;
+const QUERIES_NOT_SUPPORTED = "Queries are not supported for this host";
 
 interface IHostQueriesProps {
   hostId: number;
@@ -54,7 +54,7 @@ const HostQueries = ({
     if (hostPlatform === "chrome") {
       return (
         <EmptyTable
-          header="Scheduled queries are not supported for this host"
+          header={QUERIES_NOT_SUPPORTED}
           info={
             <>
               <span>Interested in collecting data from your Chromebooks? </span>
@@ -72,7 +72,7 @@ const HostQueries = ({
     if (hostPlatform === "ios" || hostPlatform === "ipados") {
       return (
         <EmptyTable
-          header="Queries are not supported for this host"
+          header={QUERIES_NOT_SUPPORTED}
           info={
             <>
               Interested in querying{" "}
@@ -87,7 +87,7 @@ const HostQueries = ({
     if (isAndroid(hostPlatform)) {
       return (
         <EmptyTable
-          header="Queries are not supported for this host"
+          header={QUERIES_NOT_SUPPORTED}
           info={
             <>
               Interested in querying Android hosts?{" "}
@@ -170,12 +170,7 @@ const HostQueries = ({
       <div className={`${baseClass}__header`}>
         <CardHeader header="Queries" />
         {canAddQuery && (
-          <Button
-            className={`${baseClass}__add-query-btn`}
-            variant="inverse"
-            onClick={onClickAddQuery}
-            size="small"
-          >
+          <Button variant="inverse" onClick={onClickAddQuery} size="small">
             <Icon name="plus" />
             Add query
           </Button>
