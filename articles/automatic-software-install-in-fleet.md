@@ -112,6 +112,19 @@ Fleet provides a REST API for managing policies, including software install auto
 
 To manage software automations using Fleet's best practice GitOps, check out the `install_software` key in the [policies section of the GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies).
 
+You can use Fleet-maintained apps in policies by specifying the `slug` field in `install_software`:
+
+```yaml
+policies:
+  - name: macOS - Company Portal installed
+    query: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';"
+    install_software:
+      slug: intune-company-portal/darwin
+    platform: darwin
+```
+
+Note that the Fleet-maintained app must be added to the team first (via the `fleet_maintained_apps` section in the software configuration) before it can be referenced in a policy.
+
 ## Conclusion
 
 Software deployment can be time-consuming and risky. This guide presents Fleet's ability to mass deploy software to your fleet in a simple and safe way. Starting with uploading a trusted installer and ending with deploying it to the proper set of machines answering the exact policy defined by you.

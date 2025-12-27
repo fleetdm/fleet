@@ -1049,7 +1049,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id, a hash_sha256, or a slug")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
@@ -1061,7 +1061,72 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must have only one of package_path or app_store_id")
+	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, or slug")
+
+	// Test slug validation
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    slug: intune-company-portal/darwin
+`
+	gitops, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	require.Len(t, gitops.Policies, 1)
+	assert.NotNil(t, gitops.Policies[0].InstallSoftware)
+	assert.Equal(t, "intune-company-portal/darwin", gitops.Policies[0].InstallSoftware.Slug)
+
+	// Test slug cannot be used on global policies
+	config = getGlobalConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    slug: intune-company-portal/darwin
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "install_software can only be set on team policies")
+
+	// Test slug cannot be combined with other install_software options
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    slug: intune-company-portal/darwin
+    package_path: ./some_path.yml
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, or slug")
+
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    slug: intune-company-portal/darwin
+    app_store_id: "123456"
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, or slug")
+
+	// Test slug cannot be combined with hash_sha256
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    slug: intune-company-portal/darwin
+    hash_sha256: abc123def456
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "must have only one of hash_sha256 or slug")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))

@@ -247,3 +247,14 @@ func (c *Client) InstallSoftware(hostID uint, softwareTitleID uint) error {
 	var responseBody installSoftwareResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }
+
+// ListFleetMaintainedApps retrieves the Fleet-maintained apps available for a team.
+func (c *Client) ListFleetMaintainedApps(teamID *uint, query string) ([]fleet.MaintainedApp, error) {
+	verb, path := "GET", "/api/latest/fleet/software/fleet_maintained_apps"
+	var responseBody listFleetMaintainedAppsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.FleetMaintainedApps, nil
+}

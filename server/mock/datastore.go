@@ -42,3 +42,12 @@ func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, er
 	return &fleet.MigrationStatus{}, nil
 }
 func (m *Store) Name() string { return "mock" }
+
+// ListAvailableFleetMaintainedApps provides a default implementation that returns empty results
+// to prevent nil pointer dereference when the function is not set in tests.
+func (m *Store) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	if m.DataStore.ListAvailableFleetMaintainedAppsFunc != nil {
+		return m.DataStore.ListAvailableFleetMaintainedApps(ctx, teamID, opt)
+	}
+	return []fleet.MaintainedApp{}, &fleet.PaginationMetadata{}, nil
+}

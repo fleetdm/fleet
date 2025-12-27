@@ -121,7 +121,10 @@ For possible options, see the parameters for the [Add policy API endpoint](https
 
 In Fleet Premium you can trigger software installs or script runs on policy failure:
 
-- For software installs, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML.
+- For software installs, specify one of the following in your YAML:
+  - `install_software.package_path` - Path to a software package YAML file (only one package can be specified in the package YAML)
+  - `install_software.hash_sha256` - SHA256 hash of the software package
+  - `install_software.slug` - Slug of a Fleet-maintained app (e.g., `intune-company-portal/darwin`)
 - For script runs, specify `run_script.path`.
 
 > Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
@@ -184,6 +187,13 @@ policies:
   install_software:
     package_path: ./linux-firefox.deb.package.yml
     # app_store_id: "1487937127" (for App Store apps)
+- name: macOS - Company Portal installed
+  platform: darwin
+  description: This policy checks that Company Portal is installed
+  resolution: Company Portal should be automatically installed. If it is missing, install it from self-service.
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';"
+  install_software:
+    slug: intune-company-portal/darwin
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -508,7 +518,7 @@ The `software` section allows you to configure packages, store apps (Apple App S
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
-Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/29584) is coming soon.
+Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package, App Store app, or Fleet-maintained app when a host fails a policy. For Fleet-maintained apps, use the `slug` field (e.g., `slug: intune-company-portal/darwin`).
 
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
