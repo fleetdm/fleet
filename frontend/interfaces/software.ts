@@ -774,6 +774,9 @@ export const hasHostSoftwareAppLastInstall = (
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
 
+export const isIpadOrIphoneSoftware = (platform: string) =>
+  ["ios", "ipados"].includes(platform);
+
 export const isAndroidSoftwareSource = (source: string) =>
   source === "android_apps";
 

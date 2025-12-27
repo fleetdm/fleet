@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { IAppStoreApp } from "interfaces/software";
+import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
 import Card from "components/Card";
@@ -247,9 +247,7 @@ const SoftwareVppForm = ({
   const renderContent = () => {
     // Edit VPP form
     if (softwareVppForEdit) {
-      const isAppleMobile =
-        softwareVppForEdit.platform === "ios" ||
-        softwareVppForEdit.platform === "ipados";
+      const isAppleMobile = isIpadOrIphoneSoftware(softwareVppForEdit.platform);
       return (
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
@@ -329,8 +327,7 @@ const SoftwareVppForm = ({
                 onSelectCategory={onSelectCategory}
                 onClickPreviewEndUserExperience={() =>
                   onClickPreviewEndUserExperience(
-                    formData.selectedApp?.platform === "ios" ||
-                      formData.selectedApp?.platform === "ipados"
+                    isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
                   )
                 }
               />
