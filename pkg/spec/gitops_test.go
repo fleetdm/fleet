@@ -1115,6 +1115,19 @@ policies:
 	_, err = gitOpsFromString(t, config)
 	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, or slug")
 
+	// Test slug cannot be combined with hash_sha256
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    slug: intune-company-portal/darwin
+    hash_sha256: abc123def456
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "must have only one of hash_sha256 or slug")
+
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
 	config = getTeamConfig([]string{"software"})

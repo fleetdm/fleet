@@ -1088,7 +1088,8 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" && policy.InstallSoftware.Slug == "" {
 		return errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256, or a slug")
 	}
-	// Count how many fields are set
+	// Count how many mutually exclusive fields are set
+	// Note: hash_sha256 can be used standalone, but slug should be mutually exclusive with all others
 	fieldsSet := 0
 	if policy.InstallSoftware.PackagePath != "" {
 		fieldsSet++
@@ -1101,6 +1102,10 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	}
 	if fieldsSet > 1 {
 		return errors.New("install_software must have only one of package_path, app_store_id, or slug")
+	}
+	// Slug should also be mutually exclusive with hash_sha256
+	if policy.InstallSoftware.Slug != "" && policy.InstallSoftware.HashSHA256 != "" {
+		return errors.New("install_software must have only one of hash_sha256 or slug")
 	}
 
 	if policy.InstallSoftware.PackagePath != "" {

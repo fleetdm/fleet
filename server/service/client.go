@@ -2763,6 +2763,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				break
 			}
 		}
+		fmaFetchSucceeded := false
 		if hasSlugPolicies {
 			query := fmt.Sprintf("team_id=%d&per_page=10000", *teamID)
 			fleetMaintainedApps, err := c.ListFleetMaintainedApps(teamID, query)
@@ -2778,6 +2779,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					logFn("[!] failed to get Fleet-maintained apps for team %d: %v\n", *teamID, err)
 				}
 			} else {
+				fmaFetchSucceeded = true
 				for _, app := range fleetMaintainedApps {
 					if app.TitleID != nil && app.Slug != "" {
 						softwareTitleIDsBySlug[app.Slug] = *app.TitleID
@@ -2828,8 +2830,9 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			if config.Policies[i].InstallSoftware.Slug != "" {
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].InstallSoftware.Slug]
 				if !ok {
-					// The FMA might not be added to the team yet, or the slug is invalid
-					if !dryRun {
+					// Only log if we successfully fetched the FMA list (meaning Premium is available)
+					// If we didn't fetch due to license errors, skip logging to avoid false warnings
+					if fmaFetchSucceeded && !dryRun {
 						logFn("[!] Fleet-maintained app slug %q not found on team %d (make sure the app is added to the team first)\n", config.Policies[i].InstallSoftware.Slug, *teamID)
 					}
 					continue
