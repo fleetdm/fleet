@@ -1,0 +1,162 @@
+"""
+Script to automatically update rustfs/rustfs Docker image tags in docker-compose.yml files.
+
+This script:
+1. Fetches all available tags for rustfs/rustfs from Docker Hub
+2. Uses the newest tag (excluding 'latest' tag)
+3. Compares with current tag in docker-compose.yml files
+4. Updates all docker-compose.yml files if the tag is different
+
+Used by the update-rustfs-docker-tag.yml GitHub Actions workflow.
+"""
+import os
+import re
+import json
+import http.client
+
+# Use GITHUB_WORKSPACE to get the root of your repository
+repo_root = os.environ.get('GITHUB_WORKSPACE', '')
+
+# Files to update
+DOCKER_COMPOSE_FILES = [
+    os.path.join(repo_root, 'docker-compose.yml'),
+    os.path.join(repo_root, 'tools', 'osquery', 'in-a-box', 'docker-compose.yml'),
+]
+
+
+def fetch_rustfs_tags():
+    """Fetch all tags for rustfs/rustfs from Docker Hub API."""
+    try:
+        conn = http.client.HTTPSConnection('hub.docker.com')
+        
+        # Docker Hub API endpoint for tags
+        conn.request('GET', '/v2/repositories/rustfs/rustfs/tags?page_size=100', 
+                     headers={"User-Agent": "Fleet/rustfs-checker"})
+        resp = conn.getresponse()
+        
+        if resp.status != 200:
+            print(f"Error: Docker Hub API returned status {resp.status}")
+            return []
+        
+        content = resp.read()
+        conn.close()
+        
+        data = json.loads(content.decode('utf-8'))
+        
+        # Extract tag names, excluding 'latest'
+        tags = [tag['name'] for tag in data.get('results', []) if tag['name'] != 'latest']
+        return tags
+    except (http.client.HTTPException, OSError, json.JSONDecodeError) as e:
+        print(f"Error fetching tags from Docker Hub: {e}")
+        return []
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            # Silently ignore connection close errors
+            pass
+
+
+def get_newest_tag(tags):
+    """Get the newest tag from a list of tags.
+    
+    Docker Hub API returns tags in reverse chronological order,
+    so the first tag is the newest.
+    """
+    if not tags:
+        return None
+    
+    # Return the first tag (newest)
+    return tags[0]
+
+
+def get_current_version_from_file(filepath):
+    """Extract current rustfs/rustfs version from a docker-compose.yml file."""
+    if not os.path.exists(filepath):
+        return None
+    
+    with open(filepath, 'r') as file:
+        content = file.read()
+    
+    # Look for rustfs/rustfs:VERSION pattern
+    match = re.search(r'rustfs/rustfs:(\S+)', content)
+    if match:
+        return match.group(1)
+    
+    return None
+
+
+def update_version_in_file(filepath, old_version, new_version):
+    """Update rustfs/rustfs version in a docker-compose.yml file."""
+    if not os.path.exists(filepath):
+        print(f"Warning: File not found: {filepath}")
+        return False
+    
+    with open(filepath, 'r') as file:
+        content = file.read()
+    
+    # Replace all occurrences of the old version with the new version
+    old_pattern = f'rustfs/rustfs:{old_version}'
+    new_pattern = f'rustfs/rustfs:{new_version}'
+    
+    if old_pattern not in content:
+        print(f"Warning: {old_pattern} not found in {filepath}")
+        return False
+    
+    updated_content = content.replace(old_pattern, new_pattern)
+    
+    with open(filepath, 'w') as file:
+        file.write(updated_content)
+    
+    print(f"Updated {filepath}: {old_version} -> {new_version}")
+    return True
+
+
+def main():
+    print("Fetching rustfs/rustfs tags from Docker Hub...")
+    tags = fetch_rustfs_tags()
+    
+    if not tags:
+        print("Error: Could not fetch tags from Docker Hub")
+        return
+    
+    print(f"Found {len(tags)} tags")
+    
+    newest_tag = get_newest_tag(tags)
+    if not newest_tag:
+        print("Error: Could not determine newest tag")
+        return
+    
+    print(f"Newest tag: {newest_tag}")
+    
+    # Get current tag from the first file
+    current_tag = None
+    for filepath in DOCKER_COMPOSE_FILES:
+        tag = get_current_version_from_file(filepath)
+        if tag:
+            current_tag = tag
+            break
+    
+    if not current_tag:
+        print("Error: Could not find current tag in docker-compose files")
+        return
+    
+    print(f"Current tag: {current_tag}")
+    
+    # Compare tags
+    if newest_tag != current_tag:
+        print(f"Update available: {current_tag} -> {newest_tag}")
+        
+        # Update all files
+        updated_count = 0
+        for filepath in DOCKER_COMPOSE_FILES:
+            if update_version_in_file(filepath, current_tag, newest_tag):
+                updated_count += 1
+        
+        print(f"Updated {updated_count} file(s)")
+    else:
+        print(f"Already using newest tag ({current_tag})")
+
+
+if __name__ == "__main__":
+    main()
