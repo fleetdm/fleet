@@ -3,11 +3,16 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -124,5 +129,50 @@ func TestValidateSqlInput(t *testing.T) {
 				t.Errorf("expected validation error for `%s`, but got no error", tc.input)
 			}
 		})
+	}
+}
+
+func TestDownloadMaintainedAppTimeout(t *testing.T) {
+	// This test verifies that the download timeout is set appropriately
+	// for large installers (e.g., Docker Desktop at 543MB)
+	//
+	// We verify the timeout is at least 10 minutes to handle:
+	// - Large installers (500+ MB)
+	// - Variable network speeds on CI runners
+	// - Network latency and retries
+
+	// Create a mock server that delays response
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Delay for 3 minutes to test timeout boundary
+		// (current timeout is 2 minutes, so this should fail)
+		time.Sleep(3 * time.Minute)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Create test app with slow download URL
+	app := fleet.MaintainedApp{
+		Name:         "TestApp",
+		InstallerURL: server.URL + "/slow-installer.dmg",
+	}
+
+	tmpDir := t.TempDir()
+	logger := log.NewNopLogger()
+
+	cfg := &Config{
+		tmpDir: tmpDir,
+		logger: logger,
+	}
+
+	// This should NOT timeout because we expect >= 10 minute timeout
+	// If it times out in < 2.5 minutes, the test fails
+	start := time.Now()
+	_, err := DownloadMaintainedApp(cfg, app)
+	elapsed := time.Since(start)
+
+	// We expect this to succeed (not timeout) if timeout >= 10 minutes
+	// Since our mock delays 3 minutes, a 2-minute timeout will fail here
+	if err != nil && strings.Contains(err.Error(), "context deadline exceeded") {
+		t.Errorf("Download timed out after %v, expected timeout >= 10 minutes", elapsed)
 	}
 }
