@@ -21,8 +21,20 @@ import kotlinx.coroutines.launch
  * Runs when the app process starts (triggered by broadcasts, not by user).
  */
 class AgentApplication : Application() {
+    /** Certificate orchestrator instance for the app */
+    lateinit var certificateOrchestrator: CertificateOrchestrator
+        private set
+
     companion object {
         private const val TAG = "fleet-app"
+
+        /**
+         * Gets the CertificateOrchestrator instance from the Application.
+         * @param context Any context (will use applicationContext)
+         * @return The shared CertificateOrchestrator instance
+         */
+        fun getCertificateOrchestrator(context: Context): CertificateOrchestrator =
+            (context.applicationContext as AgentApplication).certificateOrchestrator
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -30,7 +42,11 @@ class AgentApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "Fleet agent process started")
+
+        // Initialize dependencies
         ApiClient.initialize(this)
+        certificateOrchestrator = CertificateOrchestrator()
+
         refreshEnrollmentCredentials()
         schedulePeriodicCertificateEnrollment()
     }

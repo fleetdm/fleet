@@ -9,7 +9,7 @@ import androidx.work.WorkerParameters
  * WorkManager worker that handles certificate enrollment operations in the background.
  *
  * This worker:
- * - Gets all certificate IDs from managed configuration
+ * - Gets host certificates from managed configuration
  * - Calls CertificateOrchestrator to enroll all certificates in parallel
  * - Returns appropriate Result based on enrollment outcomes
  * - Supports automatic retry for transient failures
@@ -26,14 +26,25 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             return Result.failure()
         }
 
-        val certificateIds = CertificateOrchestrator.getCertificateIDs(applicationContext)
+        // Get orchestrator from Application
+        val orchestrator = AgentApplication.getCertificateOrchestrator(applicationContext)
 
-        // STEP 1: Cleanup removed certificates BEFORE enrolling new ones
-        // This runs even if certificateIds is empty to clean up any orphaned certificates
-        val currentIds = certificateIds ?: emptyList()
-        val cleanupResults = CertificateOrchestrator.cleanupRemovedCertificates(
+        // STEP 0: Retry any unreported statuses from previous runs
+        val unreportedResults = orchestrator.retryUnreportedStatuses(applicationContext)
+        unreportedResults.forEach { (certId, success) ->
+            if (success) {
+                Log.i(TAG, "Successfully reported unreported status for certificate $certId")
+            } else {
+                Log.w(TAG, "Failed to report unreported status for certificate $certId, will retry next run")
+            }
+        }
+
+        val hostCertificates = orchestrator.getHostCertificates(applicationContext) ?: emptyList()
+
+        // STEP 1: Cleanup certificates marked for removal and orphaned certificates
+        val cleanupResults = orchestrator.cleanupRemovedCertificates(
             context = applicationContext,
-            currentCertificateIds = currentIds,
+            hostCertificates = hostCertificates,
         )
 
         // Log cleanup results
@@ -48,16 +59,20 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             }
         }
 
-        // STEP 2: If no certificates to enroll, we're done
-        if (certificateIds.isNullOrEmpty()) {
+        // STEP 2: Filter to only certificates marked for install
+        val certificatesToInstall = hostCertificates.filter { it.shouldInstall() }
+
+        // If no certificates to enroll, we're done
+        if (certificatesToInstall.isEmpty()) {
             Log.d(TAG, "No certificates to enroll")
             return Result.success()
         }
 
         // STEP 3: Enroll new/updated certificates
-        Log.i(TAG, "Enrolling ${certificateIds.size} certificate(s)")
+        val certificateIds = certificatesToInstall.map { it.id }
+        Log.i(TAG, "Enrolling ${certificateIds.size} certificate(s): $certificateIds")
 
-        val results = CertificateOrchestrator.enrollCertificates(
+        val results = orchestrator.enrollCertificates(
             context = applicationContext,
             certificateIds = certificateIds,
         )

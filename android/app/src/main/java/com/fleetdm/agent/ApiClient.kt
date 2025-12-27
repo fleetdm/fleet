@@ -25,7 +25,21 @@ import kotlinx.serialization.json.JsonElement
 
 val Context.prefDataStore: DataStore<Preferences> by preferencesDataStore(name = "pref_datastore")
 
-object ApiClient {
+/**
+ * Interface for certificate-related API operations.
+ * Used by CertificateOrchestrator for dependency injection and testability.
+ */
+interface CertificateApiClient {
+    suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse>
+    suspend fun updateCertificateStatus(
+        certificateId: Int,
+        status: UpdateCertificateStatusStatus,
+        operationType: UpdateCertificateStatusOperation,
+        detail: String? = null,
+    ): Result<Unit>
+}
+
+object ApiClient : CertificateApiClient {
     private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
@@ -196,7 +210,7 @@ object ApiClient {
         }
     }
 
-    suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
+    override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
         val nodeKeyResult = getNodeKeyOrEnroll()
         val orbitNodeKey = nodeKeyResult.getOrElse { error ->
             return Result.failure(error)
@@ -230,11 +244,11 @@ object ApiClient {
         )
     }
 
-    suspend fun updateCertificateStatus(
+    override suspend fun updateCertificateStatus(
         certificateId: Int,
         status: UpdateCertificateStatusStatus,
         operationType: UpdateCertificateStatusOperation,
-        detail: String? = null,
+        detail: String?,
     ): Result<Unit> = makeRequest(
         endpoint = "/api/fleetd/certificates/$certificateId/status",
         method = "PUT",
