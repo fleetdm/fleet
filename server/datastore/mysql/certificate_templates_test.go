@@ -274,6 +274,11 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				require.Equal(t, fleet.CertificateTemplateDelivered, templateForHost.Status)
 				require.Equal(t, "fleet-challenge", *templateForHost.FleetChallenge)
 				require.Equal(t, "test-challenge", *templateForHost.SCEPChallenge)
+
+				// GetCertificateTemplateByIdForHost should return notFound for a host without a host_certificate_template record
+				_, err = ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, "non-existent-host-uuid")
+				require.Error(t, err)
+				require.True(t, fleet.IsNotFound(err), "expected notFound error, got: %v", err)
 			},
 		},
 		{
