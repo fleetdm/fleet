@@ -1,0 +1,2 @@
+- Updated error message to clarify that Fleet requires Apple (macOS, iOS, and iPadOS) configuration
+  profiles have a unique identifier (PayloadIdentifier) and scope (PayloadScope) across teams.
