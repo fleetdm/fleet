@@ -102,3 +102,28 @@ func (v Viewer) CanPerformPasswordReset() bool {
 	}
 	return false
 }
+
+// GetErrorAttributes implements ctxerr.ErrorAttributeProvider
+func (v *Viewer) GetErrorAttributes() map[string]any {
+	vdata := map[string]any{
+		"is_logged_in": v.IsLoggedIn(),
+	}
+	if v.User != nil {
+		vdata["sso_enabled"] = v.User.SSOEnabled
+	}
+	return map[string]any{
+		"viewer": vdata,
+	}
+}
+
+// GetTelemetryAttributes implements ctxerr.TelemetryAttributeProvider
+func (v *Viewer) GetTelemetryAttributes() map[string]any {
+	if v.User == nil {
+		return nil
+	}
+	return map[string]any{
+		// Not sending the email here as it may contain sensitive information (PII).
+		"user.id":    v.User.ID,
+		"user.email": v.User.Email,
+	}
+}

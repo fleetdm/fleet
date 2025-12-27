@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-json-experiment/json"
@@ -15,6 +16,9 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
+
+// AndroidFunc is the handler function signature for Android service endpoints.
+type AndroidFunc func(ctx context.Context, request any, svc android.Service) platform_http.Errorer
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	return eu.EncodeCommonResponse(ctx, w, response,
@@ -30,28 +34,25 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}, nil, nil, nil)
 }
 
-// handlerFunc is the handler function type for Android service endpoints.
-type handlerFunc func(ctx context.Context, request any, svc android.Service) fleet.Errorer
-
 // Compile-time check to ensure that endpointer implements Endpointer.
-var _ eu.Endpointer[handlerFunc] = &endpointer{}
+var _ eu.Endpointer[AndroidFunc] = &endpointer{}
 
 type endpointer struct {
 	svc android.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
-	svc interface{}) (fleet.Errorer, error) {
+func (e *endpointer) CallHandlerFunc(f AndroidFunc, ctx context.Context, request any,
+	svc any) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(android.Service)), nil
 }
 
-func (e *endpointer) Service() interface{} {
+func (e *endpointer) Service() any {
 	return e.svc
 }
 
 func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[handlerFunc] {
-	return &eu.CommonEndpointer[handlerFunc]{
+	versions ...string) *eu.CommonEndpointer[AndroidFunc] {
+	return &eu.CommonEndpointer[AndroidFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},
@@ -67,8 +68,8 @@ func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service,
 }
 
 func newNoAuthEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[handlerFunc] {
-	return &eu.CommonEndpointer[handlerFunc]{
+	versions ...string) *eu.CommonEndpointer[AndroidFunc] {
+	return &eu.CommonEndpointer[AndroidFunc]{
 		EP: &endpointer{
 			svc: svc,
 		},

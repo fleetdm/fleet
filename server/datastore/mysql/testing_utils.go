@@ -354,7 +354,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 	replica, err := NewDB(&replicaConfig, options)
 	require.NoError(t, err)
 	ds.replica = replica
-	ds.readReplicaConfig = &replicaConfig
+	ds.readReplicaConfig = toCommonMysqlConfig(&replicaConfig)
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in

@@ -1,10 +1,11 @@
-package ctxerr
+package integrationtest
 
 import (
 	"context"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -29,7 +30,11 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 					ID:    123,
 					Email: "test@example.com",
 				}
-				return viewer.NewContext(ctx, viewer.Viewer{User: testUser})
+				v := viewer.Viewer{User: testUser}
+				ctx = viewer.NewContext(ctx, v)
+				// Register the viewer as a telemetry provider
+				ctx = ctxerr.AddTelemetryProvider(ctx, &v)
+				return ctx
 			},
 			errorMessage: "test error with user context",
 			expectedAttrs: map[string]any{
@@ -43,7 +48,10 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 					ID:       456,
 					Hostname: "test-host.example.com",
 				}
-				return host.NewContext(ctx, testHost)
+				ctx = host.NewContext(ctx, testHost)
+				// Register the host as a telemetry provider
+				ctx = ctxerr.AddTelemetryProvider(ctx, &host.HostAttributeProvider{Host: testHost})
+				return ctx
 			},
 			errorMessage: "test error with host context",
 			expectedAttrs: map[string]any{
@@ -76,8 +84,8 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 			ctx = tc.setupContext(ctx)
 
 			// Create and handle an error
-			err := New(ctx, tc.errorMessage)
-			Handle(ctx, err)
+			err := ctxerr.New(ctx, tc.errorMessage)
+			ctxerr.Handle(ctx, err)
 
 			// Force span to end so we can check recorded data
 			span.End()

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -16,7 +16,7 @@ import (
 )
 
 // testHandlerFunc is a handler function type used for testing.
-type testHandlerFunc func(ctx context.Context, request any, svc any) (fleet.Errorer, error)
+type testHandlerFunc func(ctx context.Context, request any) (platform_http.Errorer, error)
 
 func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	var (
@@ -82,7 +82,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		},
 		Router: r,
 	}
-	ce.handleEndpoint("/", func(ctx context.Context, request interface{}, svc any) (fleet.Errorer, error) {
+	ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
 		fmt.Printf("handler\n")
 		return nopResponse{}, nil
 	}, nil, "GET")
@@ -116,10 +116,10 @@ func (n nopResponse) Error() error {
 
 type nopEP struct{}
 
-func (n nopEP) CallHandlerFunc(_ testHandlerFunc, _ context.Context, _ any, _ any) (fleet.Errorer, error) {
-	return nopResponse{}, nil
+func (n nopEP) CallHandlerFunc(f testHandlerFunc, ctx context.Context, request any, svc any) (platform_http.Errorer, error) {
+	return f(ctx, request)
 }
 
-func (n nopEP) Service() interface{} {
+func (n nopEP) Service() any {
 	return nil
 }

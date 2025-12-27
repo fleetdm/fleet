@@ -36,7 +36,7 @@ func WithInterceptor(i sqlmw.Interceptor) DBOption {
 // Replica sets the configuration of the read replica for the datastore.
 func Replica(conf *config.MysqlConfig) DBOption {
 	return func(o *common_mysql.DBOptions) error {
-		o.ReplicaConfig = conf
+		o.ReplicaConfig = toCommonMysqlConfig(conf)
 		return nil
 	}
 }
@@ -53,7 +53,7 @@ func LimitAttempts(attempts int) DBOption {
 
 func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
 	return func(o *common_mysql.DBOptions) error {
-		o.TracingConfig = lconfig
+		o.TracingConfig = toCommonLoggingConfig(lconfig)
 		return nil
 	}
 }
