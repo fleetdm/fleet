@@ -131,6 +131,9 @@ for system in $SYSTEMS; do
       if [ "$goose_value" = "darwin" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
         race_value=true
       fi
+      #
+      # TODO(lucas): Build orbit.exe with orbit/tools/build/build-windows.go to be as close to production binary as possible.
+      #
       # NOTE(lucas): Cross-compiling orbit for arm64 from Intel macOS currently fails (CGO error),
       # thus on Intel we do not build an universal binary.
       CGO_ENABLED=0 \
