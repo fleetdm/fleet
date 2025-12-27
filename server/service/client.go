@@ -2753,6 +2753,23 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			softwareTitleIDsByAppStoreAppID[vppApp.AppStoreID] = *vppApp.TitleID
 		}
 
+		// Get Fleet-maintained apps for the team to resolve slugs to software_title_id
+		softwareTitleIDsBySlug := make(map[string]uint)
+		query := fmt.Sprintf("team_id=%d&per_page=10000", *teamID)
+		fleetMaintainedApps, err := c.ListFleetMaintainedApps(teamID, query)
+		if err != nil {
+			// Log warning but continue - the FMA might not be added to the team yet
+			if !dryRun {
+				logFn("[!] failed to get Fleet-maintained apps for team %d: %v\n", *teamID, err)
+			}
+		} else {
+			for _, app := range fleetMaintainedApps {
+				if app.TitleID != nil && app.Slug != "" {
+					softwareTitleIDsBySlug[app.Slug] = *app.TitleID
+				}
+			}
+		}
+
 		for i := range config.Policies {
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
 
@@ -2787,6 +2804,17 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					// Should not happen because software packages are uploaded first.
 					if !dryRun {
 						logFn("[!] software hash without software title ID: %s\n", config.Policies[i].InstallSoftware.HashSHA256)
+					}
+					continue
+				}
+				config.Policies[i].SoftwareTitleID = &softwareTitleID
+			}
+			if config.Policies[i].InstallSoftware.Slug != "" {
+				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].InstallSoftware.Slug]
+				if !ok {
+					// The FMA might not be added to the team yet, or the slug is invalid
+					if !dryRun {
+						logFn("[!] Fleet-maintained app slug %q not found on team %d (make sure the app is added to the team first)\n", config.Policies[i].InstallSoftware.Slug, *teamID)
 					}
 					continue
 				}
