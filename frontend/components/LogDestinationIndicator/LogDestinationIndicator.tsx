@@ -42,8 +42,10 @@ const LogDestinationIndicator = ({
         return "AWS Lambda";
       case "pubsub":
         return "Google Cloud Pub/Sub";
-      case "kafta":
+      case "kafka":
         return "Apache Kafka";
+      case "nats":
+        return "NATS";
       case "stdout":
         return "Standard output (stdout)";
       case "webhook":
@@ -93,10 +95,16 @@ const LogDestinationIndicator = ({
             / Sub.
           </>
         );
-      case "kafta":
+      case "kafka":
         return (
           <>
             Each time a query runs, the data <br /> is sent to Apache Kafka.
+          </>
+        );
+      case "nats":
+        return (
+          <>
+            Each time a query runs, the data <br /> is sent to NATS.
           </>
         );
       case "stdout":

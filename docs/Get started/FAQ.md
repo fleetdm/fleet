@@ -224,7 +224,7 @@ For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `t
 Folks typically use Fleet to ship logs to data lakes and SIEMs like Splunk, the ELK stack, and Graylog.
 
 Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
-`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 See:
   - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
   - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.
