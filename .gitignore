@@ -30,6 +30,10 @@ frontend/coverage
 # typescript generated test files
 tmp/
 
+# Python cache files
+__pycache__/
+*.pyc
+
 # test debug files
 debug.test*
 
