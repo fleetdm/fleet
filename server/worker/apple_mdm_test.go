@@ -196,7 +196,7 @@ func TestAppleMDM(t *testing.T) {
 
 		// create a host and enqueue the job
 		h := createEnrolledHost(t, 1, nil, true, "darwin")
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should mark the job as done
@@ -226,7 +226,7 @@ func TestAppleMDM(t *testing.T) {
 
 		// create a host and enqueue the job
 		h := createEnrolledHost(t, 1, nil, true, "darwin")
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMTask("no-such-task"), h.UUID, "darwin", nil, "", false)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMTask("no-such-task"), h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should mark the job as failed
@@ -259,7 +259,7 @@ func TestAppleMDM(t *testing.T) {
 		w.Register(mdmWorker)
 
 		// use "" instead of "darwin" as platform to test a queued job after the upgrade to iOS/iPadOS support.
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "", false)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -294,7 +294,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -336,7 +336,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -385,7 +385,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -435,7 +435,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -459,6 +459,103 @@ func TestAppleMDM(t *testing.T) {
 		require.Equal(t, "custom-team-bootstrap", ms.BootstrapPackageName)
 	})
 
+	t.Run("skips install of custom bootstrap manifest during migration", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+		err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+			Name:   "custom-bootstrap",
+			TeamID: 0, // no-team
+			Bytes:  []byte("test"),
+			Sha256: []byte("test"),
+			Token:  "token",
+		}, nil)
+		require.NoError(t, err)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, true)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
+		require.NoError(t, err)
+
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
+
+		// Only the fleetd install is enqueued
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		var nfe fleet.NotFoundError
+		_, err = ds.GetHostMDMMacOSSetup(ctx, h.ID)
+		require.ErrorAs(t, err, &nfe)
+	})
+
+	t.Run("skips install of custom bootstrap manifest of a team during migration", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "darwin")
+		err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+			Name:   "custom-team-bootstrap",
+			TeamID: tm.ID,
+			Bytes:  []byte("test"),
+			Sha256: []byte("test"),
+			Token:  "token",
+		}, nil)
+		require.NoError(t, err)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, true)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
+		require.NoError(t, err)
+
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
+
+		// Only the fleetd install is enqueued
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		var nfe fleet.NotFoundError
+		_, err = ds.GetHostMDMMacOSSetup(ctx, h.ID)
+		require.ErrorAs(t, err, &nfe)
+	})
+
 	t.Run("unknown enroll reference", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
@@ -473,7 +570,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "abcd", false)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "abcd", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -516,7 +613,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, idpAcc.UUID, false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, idpAcc.UUID, false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -569,7 +666,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, idpAcc.UUID, false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, idpAcc.UUID, false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -603,7 +700,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -634,7 +731,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -670,7 +767,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -765,7 +862,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -868,7 +965,7 @@ INSERT INTO setup_experience_status_results (
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -1033,7 +1130,7 @@ INSERT INTO setup_experience_status_results (
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
