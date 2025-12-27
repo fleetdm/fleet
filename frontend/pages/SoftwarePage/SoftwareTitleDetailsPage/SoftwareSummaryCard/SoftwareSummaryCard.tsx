@@ -115,10 +115,8 @@ const SoftwareSummaryCard = ({
   const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
 
   const canEditAutoUpdateConfig =
-    softwareTitle.app_store_app &&
-    (softwareTitle.app_store_app.platform === "ios" ||
-      softwareTitle.app_store_app.platform === "ipados") &&
-    canManageSoftware;
+    softwareTitle.app_store_app && isIosOrIpadosApp;
+  canManageSoftware;
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
