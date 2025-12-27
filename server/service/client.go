@@ -2754,18 +2754,34 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 
 		// Get Fleet-maintained apps for the team to resolve slugs to software_title_id
+		// Only fetch if there are policies that use slugs
 		softwareTitleIDsBySlug := make(map[string]uint)
-		query := fmt.Sprintf("team_id=%d&per_page=10000", *teamID)
-		fleetMaintainedApps, err := c.ListFleetMaintainedApps(teamID, query)
-		if err != nil {
-			// Log warning but continue - the FMA might not be added to the team yet
-			if !dryRun {
-				logFn("[!] failed to get Fleet-maintained apps for team %d: %v\n", *teamID, err)
+		hasSlugPolicies := false
+		for i := range config.Policies {
+			if config.Policies[i].InstallSoftware != nil && config.Policies[i].InstallSoftware.Slug != "" {
+				hasSlugPolicies = true
+				break
 			}
-		} else {
-			for _, app := range fleetMaintainedApps {
-				if app.TitleID != nil && app.Slug != "" {
-					softwareTitleIDsBySlug[app.Slug] = *app.TitleID
+		}
+		if hasSlugPolicies {
+			query := fmt.Sprintf("team_id=%d&per_page=10000", *teamID)
+			fleetMaintainedApps, err := c.ListFleetMaintainedApps(teamID, query)
+			if err != nil {
+				// Check if this is a license/forbidden error - if so, silently skip (Fleet-maintained apps require Premium)
+				errStr := err.Error()
+				isLicenseError := strings.Contains(errStr, "missing or invalid license") ||
+					strings.Contains(errStr, "Requires Fleet Premium license") ||
+					strings.Contains(errStr, "forbidden") ||
+					strings.Contains(errStr, "403")
+				// Only log non-license errors - license errors are expected in non-premium environments
+				if !isLicenseError && !dryRun {
+					logFn("[!] failed to get Fleet-maintained apps for team %d: %v\n", *teamID, err)
+				}
+			} else {
+				for _, app := range fleetMaintainedApps {
+					if app.TitleID != nil && app.Slug != "" {
+						softwareTitleIDsBySlug[app.Slug] = *app.TitleID
+					}
 				}
 			}
 		}
