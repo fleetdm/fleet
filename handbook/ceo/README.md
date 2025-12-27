@@ -234,6 +234,16 @@ Mike and the Fleet team
 5. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
 
 
+### Archive channel and save memories
+
+Follow these steps to archive a channel and save memories (e.g. pictures or videos)
+1. Download all pictures and videos in the channel to your device you want to archive.
+2. Go to the [memories folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ?usp=drive_link) in Google Drive and create a new folder.
+3. When naming the new folder, put as many details as possible regarding the event the memories were taken place at.
+4. Upload all memories to the new folder.
+5. Archive the channel.
+
+
 ### Archive a document
 
 Follow these steps to archive any document:
