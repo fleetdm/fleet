@@ -430,6 +430,11 @@ func (MockClient) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error
 	return []byte(fmt.Sprintf("icon for title %d on team %d", titleID, teamID)), nil
 }
 
+func (MockClient) ListFleetMaintainedApps(teamID *uint, query string) ([]fleet.MaintainedApp, error) {
+	// Return empty list for tests - FMAs can be added if needed for specific test cases
+	return []fleet.MaintainedApp{}, nil
+}
+
 func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 	return []*fleet.LabelSpec{{
 		Name:                "Label A",
