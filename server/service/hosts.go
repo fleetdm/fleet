@@ -237,10 +237,41 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	var softwareTitle *fleet.SoftwareTitle
 	if req.Opts.SoftwareTitleIDFilter != nil {
-		var err error
+		titleID := *req.Opts.SoftwareTitleIDFilter
 
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
-		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software title in that case
+		// 1. Try full title for this team.
+		// Needed in order to grab display_name if it exists
+		st, err := svc.SoftwareTitleByID(ctx, titleID, req.Opts.TeamFilter)
+		switch {
+		case err == nil:
+			softwareTitle = st
+
+		case fleet.IsNotFound(err):
+			// 2. Try global.
+			stGlobal, errGlobal := svc.SoftwareTitleByID(ctx, titleID, nil)
+			switch {
+			case errGlobal == nil:
+				softwareTitle = stGlobal
+
+			case fleet.IsNotFound(errGlobal):
+				// 3. Not found anywhere: only ID + Name as string from helper.
+				name, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)
+				if errName != nil && !fleet.IsNotFound(errName) {
+					return listHostsResponse{Err: errName}, nil
+				}
+				if errName == nil {
+					softwareTitle = &fleet.SoftwareTitle{
+						ID:   titleID,
+						Name: name,
+					}
+				}
+				// If name helper also returns not found, leave softwareTitle nil.
+
+			default:
+				return listHostsResponse{Err: errGlobal}, nil
+			}
+
+		default:
 			return listHostsResponse{Err: err}, nil
 		}
 	}

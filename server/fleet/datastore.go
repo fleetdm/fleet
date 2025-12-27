@@ -592,6 +592,7 @@ type Datastore interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (string, error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
 	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
 	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
