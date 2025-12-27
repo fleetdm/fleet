@@ -14023,8 +14023,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 			cdHash := pathItem[2]
 			binHash := pathItem[3]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, binHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, binHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
