@@ -210,6 +210,18 @@ export const getSelfServiceTooltip = (
   );
 };
 
+export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
+  return (
+    <>
+      When a new version is available,
+      <br />
+      targeted hosts will begin updating between
+      <br />
+      {startTime} and {endTime} (host&rsquo;s local time).
+    </>
+  );
+};
+
 export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware
 ): number => {

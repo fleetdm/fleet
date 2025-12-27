@@ -384,9 +384,7 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title={
-          isSoftwarePackage(softwareInstaller) ? "Edit package" : "Edit app"
-        }
+        title="Edit software"
         onExit={onExit}
         width="large"
       >
