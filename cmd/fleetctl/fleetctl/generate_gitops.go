@@ -133,7 +133,7 @@ type GenerateGitopsCommand struct {
 	AppConfig    *fleet.EnrichedAppConfig
 	SoftwareList map[uint]Software
 	ScriptList   map[uint]string
-	FMASlugMap    map[uint]string // Maps software_title_id to FMA slug
+	FMASlugMap   map[uint]string // Maps software_title_id to FMA slug
 }
 
 func generateGitopsCommand() *cli.Command {
