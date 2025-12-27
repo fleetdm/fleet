@@ -1,7 +1,10 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getSelfServiceTooltip,
+  normalizeSoftwareDisplayName,
+} from "pages/SoftwarePage/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
@@ -175,11 +178,12 @@ const SoftwareNameCell = ({
   isAndroidPlayStoreApp = false,
 }: ISoftwareNameCellProps) => {
   const icon = <SoftwareIcon name={name} source={source} url={iconUrl} />;
+  // Normalize the display name if no custom display_name is provided
+  const displayValue = display_name || normalizeSoftwareDisplayName(name);
+
   // My device page > Software fake link as entire row opens a modal
   if (pageContext === "deviceUser" && !isSelfService) {
-    return (
-      <LinkCell tooltipTruncate prefix={icon} value={display_name || name} />
-    );
+    return <LinkCell tooltipTruncate prefix={icon} value={displayValue} />;
   }
 
   // Non-clickable cell if no router/path (e.g. My device page > SelfService)
@@ -188,7 +192,7 @@ const SoftwareNameCell = ({
       <div className={baseClass}>
         <TooltipTruncatedTextCell
           prefix={icon}
-          value={display_name || name}
+          value={displayValue}
           className="software-name"
         />
       </div>
@@ -208,7 +212,7 @@ const SoftwareNameCell = ({
       tooltipTruncate
       customOnClick={onClickSoftware}
       prefix={icon}
-      value={display_name || name}
+      value={displayValue}
       suffix={
         hasInstaller ? (
           <InstallIconWithTooltip
