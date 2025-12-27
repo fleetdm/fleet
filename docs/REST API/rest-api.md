@@ -4241,7 +4241,8 @@ Updates the email for the data source in the human-device mapping. This source c
 
 ```json
 {
-  "email": "user@example.com"
+  "email": "user@example.com",
+  "source": "idp"
 }
 ```
 
