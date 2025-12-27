@@ -1057,6 +1057,11 @@ func IsApplePlatform(hostPlatform string) bool {
 	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
+// Return true if the platform is either iOS or iPadOS
+func IsAppleMobilePlatform(hostPlatform string) bool {
+	return hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
 func IsAndroidPlatform(hostPlatform string) bool {
 	return hostPlatform == "android"
 }

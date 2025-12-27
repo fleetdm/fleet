@@ -12,6 +12,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
+import { isIPadOrIPhone } from "interfaces/platform";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
@@ -51,10 +52,16 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
+        let scope = cellProps.row.original.scope;
+
+        if (isIPadOrIPhone(cellProps.row.original.platform)) {
+          scope = null; // Don't show user-scoped icon for iOS/iPadOS profiles, since we don't support user channels.
+        }
+
         return (
           <OSSettingsNameCell
             profileName={cellProps.cell.value}
-            scope={cellProps.row.original.scope}
+            scope={scope}
             managedAccount={cellProps.row.original.managed_local_account}
           />
         );
