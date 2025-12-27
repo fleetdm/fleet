@@ -3265,9 +3265,9 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		for i, s := range software {
 			var cdHashSHA256, binHashSHA256 *string
 			if i%2 == 0 {
-				cdhash := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("cdhash-%d", s.ID))))
+				cdhash := fmt.Sprintf("%x", sha256.Sum256(fmt.Appendf(nil, "cdhash-%d", s.ID)))
 				cdHashSHA256 = &cdhash
-				binhash := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("binhash-%d", s.ID))))
+				binhash := fmt.Sprintf("%x", sha256.Sum256(fmt.Appendf(nil, "binhash-%d", s.ID)))
 				binHashSHA256 = &binhash
 			}
 
@@ -3319,18 +3319,18 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			switch s.ID {
 			case 3:
 				key = fmt.Sprintf(
-					"%s%d%s%s%s%s%s%s%s",
-					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, cdHash1, binHash1, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+					"%s%d%s%s%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, cdHash1, fleet.SoftwareFieldSeparator, binHash1, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 				)
 			case 5:
 				key = fmt.Sprintf(
-					"%s%d%s%s%s%s%s%s%s",
-					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, cdHash2, binHash2, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+					"%s%d%s%s%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, cdHash2, fleet.SoftwareFieldSeparator, binHash2, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 				)
 			default:
 				key = fmt.Sprintf(
-					"%s%d%s%s%s%s%s%s%s",
-					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, "", "", fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+					"%s%d%s%s%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 				)
 			}
 

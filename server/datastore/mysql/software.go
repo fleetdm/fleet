@@ -176,35 +176,35 @@ func hostSoftwareInstalledPathsDelta(
 	}
 
 	iSPathLookup := make(map[string]fleet.HostSoftwareInstalledPath)
-	for _, r := range stored {
-		s, ok := sIDLookup[r.SoftwareID]
-		// Software currently not found on the host, should be deleted ...
+	for _, iP := range stored {
+		s, ok := sIDLookup[iP.SoftwareID]
 		if !ok {
-			toDelete = append(toDelete, r.ID)
+			// Software currently not found on the host, should be deleted ...
+			toDelete = append(toDelete, iP.ID)
 			continue
 		}
 		var cdHashSHA256, binHashSHA256 string
-		if r.CDHashSHA256 != nil {
-			cdHashSHA256 = *r.CDHashSHA256
+		if iP.CDHashSHA256 != nil {
+			cdHashSHA256 = *iP.CDHashSHA256
 		}
-		if r.BinarySHA256 != nil {
-			binHashSHA256 = *r.BinarySHA256
+		if iP.BinarySHA256 != nil {
+			binHashSHA256 = *iP.BinarySHA256
 		}
 		key := fmt.Sprintf(
-			"%s%s%s%s%s%s%s%s",
-			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, cdHashSHA256, binHashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			"%s%s%s%s%s%s%s%s%s",
+			iP.InstalledPath, fleet.SoftwareFieldSeparator, iP.TeamIdentifier, fleet.SoftwareFieldSeparator, cdHashSHA256, fleet.SoftwareFieldSeparator, binHashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 		)
-		iSPathLookup[key] = r
+		iSPathLookup[key] = iP
 
 		// Anything stored but not reported should be deleted
 		if _, ok := reported[key]; !ok {
-			toDelete = append(toDelete, r.ID)
+			toDelete = append(toDelete, iP.ID)
 		}
 	}
 
 	for key := range reported {
-		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 4)
-		installedPath, teamIdentifier, cdHash, unqStr := parts[0], parts[1], parts[2], parts[3]
+		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 5)
+		installedPath, teamIdentifier, cdHash, binHash, unqStr := parts[0], parts[1], parts[2], parts[3], parts[4]
 
 		// Shouldn't be a common occurence ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
@@ -219,9 +219,12 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 
-		var cdHashSHA256 *string
+		var cdHashSHA256, binarySHA256 *string
 		if cdHash != "" {
 			cdHashSHA256 = ptr.String(cdHash)
+		}
+		if binHash != "" {
+			binarySHA256 = ptr.String(binHash)
 		}
 
 		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
@@ -230,6 +233,7 @@ func hostSoftwareInstalledPathsDelta(
 			InstalledPath:  installedPath,
 			TeamIdentifier: teamIdentifier,
 			CDHashSHA256:   cdHashSHA256,
+			BinarySHA256:   binarySHA256,
 		})
 	}
 
@@ -2151,7 +2155,6 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 			CDHashSHA256:   ip.CDHashSHA256,
 			BinarySHA256:   ip.BinarySHA256,
 		})
-		fmt.Printf("\n\npath sig info: %+v\n\n", pathSignatureInformation[ip.SoftwareID])
 	}
 
 	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
