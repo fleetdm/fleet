@@ -198,94 +198,90 @@ const EditAutoUpdateConfigModal = ({
     "form-field__label--error": !!formValidation.windowLength?.message,
   });
 
-  const renderForm = () => (
-    <div className={`${formClass}__form-frame`}>
-      <Card paddingSize="medium" borderRadiusSize="medium">
-        <div className={`${formClass}__auto-update-config`}>
-          <div className={`form-field`}>
-            <div className="form-field__label">Auto updates</div>
-            <div className="form-field__subtitle">
-              Automatically update <strong>{softwareTitle.name}</strong> on all
-              targeted hosts when a new version is available.
-            </div>
-            <div>
-              <Checkbox
-                value={formData.autoUpdateEnabled}
-                onChange={(newVal: boolean) => onToggleEnabled(newVal)}
-              >
-                Enable auto updates
-              </Checkbox>
-            </div>
-          </div>
-          {formData.autoUpdateEnabled && (
-            <>
-              <div>
-                <div className="form-field">
-                  <div className={updateWindowLabelClass}>
-                    {updateWindowLabel}
-                  </div>
-                  <div className="form-field__subtitle">
-                    Times are formatted as HH:MM in 24 hour time (e.g.,
-                    &quot;13:37&quot;).
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className={`${formClass}__auto-update-schedule-form`}>
-                  <span className="date-time-inputs">
-                    <InputField
-                      value={formData.autoUpdateStartTime}
-                      onChange={onChangeTimeField}
-                      onBlur={() =>
-                        setFormValidation(validateFormData(formData))
-                      }
-                      label="Earliest start time"
-                      name="autoUpdateStartTime"
-                      parseTarget
-                      error={earliestStartTimeError}
-                    />
-                    <InputField
-                      value={formData.autoUpdateEndTime}
-                      onChange={onChangeTimeField}
-                      onBlur={() =>
-                        setFormValidation(validateFormData(formData))
-                      }
-                      label="Latest start time"
-                      name="autoUpdateEndTime"
-                      parseTarget
-                      error={latestStartTimeError}
-                    />
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </Card>
-      <Card paddingSize="medium" borderRadiusSize="medium">
-        <TargetLabelSelector
-          selectedTargetType={formData.targetType}
-          selectedCustomTarget={formData.customTarget}
-          selectedLabels={formData.labelTargets}
-          customTargetOptions={CUSTOM_TARGET_OPTIONS}
-          className={`${formClass}__target`}
-          onSelectTargetType={onSelectTargetType}
-          onSelectCustomTarget={onSelectCustomTargetOption}
-          onSelectLabel={onSelectLabel}
-          labels={labels || []}
-          dropdownHelpText={
-            generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-          }
-          subTitle="Changes to targets will also apply to self-service."
-        />
-      </Card>
-    </div>
-  );
-
   return (
     <Modal className={baseClass} title="Schedule auto updates" onExit={onExit}>
       <div className={formClassNames}>
-        {renderForm()}
+        <div className={`${formClass}__form-frame`}>
+          <Card paddingSize="medium" borderRadiusSize="medium">
+            <div className={`${formClass}__auto-update-config`}>
+              <div className={`form-field`}>
+                <div className="form-field__label">Auto updates</div>
+                <div className="form-field__subtitle">
+                  Automatically update <strong>{softwareTitle.name}</strong> on
+                  all targeted hosts when a new version is available.
+                </div>
+                <div>
+                  <Checkbox
+                    value={formData.autoUpdateEnabled}
+                    onChange={(newVal: boolean) => onToggleEnabled(newVal)}
+                  >
+                    Enable auto updates
+                  </Checkbox>
+                </div>
+              </div>
+              {formData.autoUpdateEnabled && (
+                <>
+                  <div>
+                    <div className="form-field">
+                      <div className={updateWindowLabelClass}>
+                        {updateWindowLabel}
+                      </div>
+                      <div className="form-field__subtitle">
+                        Times are formatted as HH:MM in 24 hour time (e.g.,
+                        &quot;13:37&quot;).
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`${formClass}__auto-update-schedule-form`}>
+                      <span className="date-time-inputs">
+                        <InputField
+                          value={formData.autoUpdateStartTime}
+                          onChange={onChangeTimeField}
+                          onBlur={() =>
+                            setFormValidation(validateFormData(formData))
+                          }
+                          label="Earliest start time"
+                          name="autoUpdateStartTime"
+                          parseTarget
+                          error={earliestStartTimeError}
+                        />
+                        <InputField
+                          value={formData.autoUpdateEndTime}
+                          onChange={onChangeTimeField}
+                          onBlur={() =>
+                            setFormValidation(validateFormData(formData))
+                          }
+                          label="Latest start time"
+                          name="autoUpdateEndTime"
+                          parseTarget
+                          error={latestStartTimeError}
+                        />
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+          <Card paddingSize="medium" borderRadiusSize="medium">
+            <TargetLabelSelector
+              selectedTargetType={formData.targetType}
+              selectedCustomTarget={formData.customTarget}
+              selectedLabels={formData.labelTargets}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              className={`${formClass}__target`}
+              onSelectTargetType={onSelectTargetType}
+              onSelectCustomTarget={onSelectCustomTargetOption}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              dropdownHelpText={
+                generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+              }
+              subTitle="Changes to targets will also apply to self-service."
+            />
+          </Card>
+        </div>
         <ModalFooter
           primaryButtons={
             <>
