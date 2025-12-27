@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can install Fleet-maintained apps on macOS and Windows hosts without the need for manual uploads or extra configuration. This simplifies the process and adds another source of applications for your fleet.
+In Fleet, you can install Fleet-maintained apps on macOS and Windows hosts without the need for manual uploads or extra configuration. This simplifies the process and adds another source of applications for your fleet. View a list of the currently supported apps in the [software catalog](https://fleetdm.com/software-catalog).
 
 Fleet maintains installation metadata for [a number of apps](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json), letting you add them to your own Fleet instance and install them on your hosts without any additional configuration.
 
