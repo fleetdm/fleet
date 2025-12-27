@@ -32,6 +32,9 @@ func Columns() []table.ColumnDefinition {
 		// cdhash_sha256 is the SHA256 hash returned by codesign of the code directory for the macOS app or executable.
 		// It is a unique identifier for the code signature of the app.
 		table.TextColumn("cdhash_sha256"),
+		// binary_sha256 is the SHA256 hash returned by codesign of the binary file for the macOS app or executable.
+		// It is a unique identifier for the entire binary file.
+		table.TextColumn("binary_sha256"),
 	}
 }
 
@@ -75,6 +78,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		info := parseCodesignOutput(output)
 		row["team_identifier"] = info.teamIdentifier
 		row["cdhash_sha256"] = info.cdHash
+		// TODO - this data isn't available from codesign --display output. Need to figure out how to get it (see dev doc)
+		// row["binary_sha256"] = getBinSHA256FromSomeWhereElse()
 		rows = append(rows, row)
 	}
 
