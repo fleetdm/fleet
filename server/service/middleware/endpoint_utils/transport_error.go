@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
 )
@@ -78,7 +78,7 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	err = ctxerr.Cause(err)
 
 	var uuid string
-	if uuidErr, ok := err.(fleet.ErrorUUIDer); ok {
+	if uuidErr, ok := err.(platform_http.ErrorUUIDer); ok {
 		uuid = uuidErr.UUID()
 	}
 
@@ -153,7 +153,7 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			statusCode = http.StatusConflict
 		}
 		w.WriteHeader(statusCode)
-	case *fleet.Error:
+	case *platform_http.Error:
 		jsonErr.Message = e.Error()
 		jsonErr.Code = e.Code
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -168,7 +168,7 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			enc.Encode(jsonErr) //nolint:errcheck
 			return
 		}
-		if fleet.IsForeignKey(err) {
+		if platform_http.IsForeignKey(err) {
 			jsonErr.Message = "Validation Failed"
 			jsonErr.Errors = baseError(err.Error())
 			w.WriteHeader(http.StatusUnprocessableEntity)
@@ -186,14 +186,14 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 
 		// See header documentation
 		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-		var ewra fleet.ErrWithRetryAfter
+		var ewra platform_http.ErrWithRetryAfter
 		if errors.As(err, &ewra) {
 			w.Header().Add("Retry-After", strconv.Itoa(ewra.RetryAfter()))
 		}
 
 		msg := err.Error()
 		reason := err.Error()
-		var ume *fleet.UserMessageError
+		var ume *platform_http.UserMessageError
 		if errors.As(err, &ume) {
 			if text := http.StatusText(status); text != "" {
 				msg = text
@@ -232,10 +232,10 @@ type OsqueryError struct {
 	message     string
 	nodeInvalid bool
 	StatusCode  int
-	fleet.ErrorWithUUID
+	platform_http.ErrorWithUUID
 }
 
-var _ fleet.ErrorUUIDer = (*OsqueryError)(nil)
+var _ platform_http.ErrorUUIDer = (*OsqueryError)(nil)
 
 // Error implements the error interface.
 func (e *OsqueryError) Error() string {

@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -1236,11 +1237,14 @@ const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 // SecureframeTransparencyURL is the URL used for the "About Fleet" link in Fleet Desktop when the Secureframe partnership config value is enabled
 const SecureframeTransparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
 
-type OrderDirection int
+// OrderDirection is an alias for platform_http.OrderDirection.
+type OrderDirection = platform_http.OrderDirection
 
 const (
-	OrderAscending OrderDirection = iota
-	OrderDescending
+	// OrderAscending is an alias for platform_http.OrderAscending.
+	OrderAscending = platform_http.OrderAscending
+	// OrderDescending is an alias for platform_http.OrderDescending.
+	OrderDescending = platform_http.OrderDescending
 
 	// PerPageUnlimited is the value to pass to PerPage when we want
 	// "unlimited". If we ever find this limit to be too low, congratulations on
@@ -1474,6 +1478,24 @@ func (l *LicenseInfo) ForceUpgrade() {
 // Both free and specific premium users are allowed to disable telemetry
 func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
 	return !l.IsPremium() || l.AllowDisableTelemetry
+}
+
+// Tier returns the license tier.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetTier() string {
+	return l.Tier
+}
+
+// Organization returns the name of the licensed organization.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetOrganization() string {
+	return l.Organization
+}
+
+// DeviceCount returns the number of licensed devices.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetDeviceCount() int {
+	return l.DeviceCount
 }
 
 const (

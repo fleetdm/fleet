@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
@@ -32,9 +31,9 @@ type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB
 	MaxAttempts         int
 	Logger              log.Logger
-	ReplicaConfig       *config.MysqlConfig
+	ReplicaConfig       *MysqlConfig
 	Interceptor         sqlmw.Interceptor
-	TracingConfig       *config.LoggingConfig
+	TracingConfig       *LoggingConfig
 	MinLastOpenedAtDiff time.Duration
 	SqlMode             string
 	PrivateKey          string
@@ -43,7 +42,7 @@ type DBOptions struct {
 	ConnectorFactory ConnectorFactory
 }
 
-func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
+func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
 	driverName := "mysql"
 
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
@@ -103,7 +102,7 @@ func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*s
 
 // generateMysqlConnectionString returns a MySQL connection string using the
 // provided configuration.
-func generateMysqlConnectionString(conf config.MysqlConfig) string {
+func generateMysqlConnectionString(conf MysqlConfig) string {
 	params := url.Values{
 		// using collation implicitly sets the charset too
 		// and it's the recommended way to do it per the

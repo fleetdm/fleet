@@ -22,3 +22,33 @@ func FromContext(ctx context.Context) (*fleet.Host, bool) {
 	host, ok := ctx.Value(hostKey).(*fleet.Host)
 	return host, ok
 }
+
+// HostAttributeProvider wraps a fleet.Host to provide error attributes.
+// It implements ctxerr.ErrorAttributeProvider and ctxerr.TelemetryAttributeProvider.
+type HostAttributeProvider struct {
+	Host *fleet.Host
+}
+
+// GetErrorAttributes implements ctxerr.ErrorAttributeProvider
+func (p *HostAttributeProvider) GetErrorAttributes() map[string]any {
+	if p.Host == nil {
+		return nil
+	}
+	return map[string]any{
+		"host": map[string]any{
+			"platform":        p.Host.Platform,
+			"osquery_version": p.Host.OsqueryVersion,
+		},
+	}
+}
+
+// GetTelemetryAttributes implements ctxerr.TelemetryAttributeProvider
+func (p *HostAttributeProvider) GetTelemetryAttributes() map[string]any {
+	if p.Host == nil {
+		return nil
+	}
+	return map[string]any{
+		"host.hostname": p.Host.Hostname,
+		"host.id":       p.Host.ID,
+	}
+}

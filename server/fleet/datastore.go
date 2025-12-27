@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -19,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -2817,39 +2817,20 @@ const (
 // same in both (the other is currently NotFound), and ideally we'd just have
 // one of those interfaces.
 
-// NotFoundError is returned when the datastore resource cannot be found.
-type NotFoundError interface {
-	error
-	IsNotFound() bool
-}
+// NotFoundError is an alias for platform_http.NotFoundError.
+type NotFoundError = platform_http.NotFoundError
 
-func IsNotFound(err error) bool {
-	var nfe NotFoundError
-	if errors.As(err, &nfe) {
-		return nfe.IsNotFound()
-	}
-	return false
-}
+// IsNotFound is an alias for platform_http.IsNotFound.
+var IsNotFound = platform_http.IsNotFound
 
-// AlreadyExistsError is returned when creating a datastore resource that already exists.
-type AlreadyExistsError interface {
-	error
-	IsExists() bool
-}
+// AlreadyExistsError is an alias for platform_http.AlreadyExistsError.
+type AlreadyExistsError = platform_http.AlreadyExistsError
 
-// ForeignKeyError is returned when the operation fails due to foreign key constraints.
-type ForeignKeyError interface {
-	error
-	IsForeignKey() bool
-}
+// ForeignKeyError is an alias for platform_http.ForeignKeyError.
+type ForeignKeyError = platform_http.ForeignKeyError
 
-func IsForeignKey(err error) bool {
-	var fke ForeignKeyError
-	if errors.As(err, &fke) {
-		return fke.IsForeignKey()
-	}
-	return false
-}
+// IsForeignKey is an alias for platform_http.IsForeignKey.
+var IsForeignKey = platform_http.IsForeignKey
 
 type OptionalArg func() interface{}
 

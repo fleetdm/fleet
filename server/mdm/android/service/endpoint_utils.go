@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-json-experiment/json"
@@ -40,12 +41,12 @@ type endpointer struct {
 	svc android.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
-	svc interface{}) (fleet.Errorer, error) {
+func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any,
+	svc any) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(android.Service)), nil
 }
 
-func (e *endpointer) Service() interface{} {
+func (e *endpointer) Service() any {
 	return e.svc
 }
 

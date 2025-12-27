@@ -8,9 +8,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -32,13 +31,13 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 
 			// If authentication check failed, return that error (so that we log
 			// appropriately).
-			var authFailedError *fleet.AuthFailedError
-			var authRequiredError *fleet.AuthRequiredError
-			var authHeaderRequiredError *fleet.AuthHeaderRequiredError
+			var authFailedError *platform_http.AuthFailedError
+			var authRequiredError *platform_http.AuthRequiredError
+			var authHeaderRequiredError *platform_http.AuthHeaderRequiredError
 			if errors.As(err, &authFailedError) ||
 				errors.As(err, &authRequiredError) ||
 				errors.As(err, &authHeaderRequiredError) ||
-				errors.Is(err, fleet.ErrPasswordResetRequired) {
+				errors.Is(err, platform_http.ErrPasswordResetRequired) {
 				return nil, err
 			}
 
@@ -52,7 +51,7 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			// marshal to a generic error and log that the check was missed.
 			if !authzctx.Checked() {
 				// Getting to here means there is an authorization-related bug in our code.
-				return nil, authz.CheckMissingWithResponse(response)
+				return nil, platform_http.CheckMissingWithResponse(response)
 			}
 
 			return response, err

@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/kit/endpoint"
@@ -100,7 +101,7 @@ type endpointer struct {
 
 func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
 	svc interface{},
-) (fleet.Errorer, error) {
+) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(fleet.Service))
 }
 
