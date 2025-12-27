@@ -32,6 +32,11 @@ import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRo
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
 
+const ACTION_EDIT_APPEARANCE = "edit_appearance";
+const ACTION_EDIT_SOFTWARE = "edit_software";
+const ACTION_EDIT_CONFIGURATION = "edit_configuration";
+const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION = "edit_auto_update_configuration";
+
 const buildActionOptions = (
   gitOpsModeEnabled: boolean | undefined,
   repoURL: string | undefined,
@@ -58,7 +63,7 @@ const buildActionOptions = (
   const options: CustomOptionType[] = [
     {
       label: "Edit appearance",
-      value: "edit_appearance",
+      value: ACTION_EDIT_APPEARANCE,
       isDisabled: !!disableEditAppearanceTooltipContent,
       tooltipContent: disableEditAppearanceTooltipContent,
     },
@@ -68,7 +73,7 @@ const buildActionOptions = (
   if (!androidSoftwareAvailableForInstall) {
     options.push({
       label: "Edit software",
-      value: "edit_software",
+      value: ACTION_EDIT_SOFTWARE,
       isDisabled: !!disableEditSoftwareTooltipContent,
       tooltipContent: disableEditSoftwareTooltipContent,
     });
@@ -78,7 +83,7 @@ const buildActionOptions = (
   if (androidSoftwareAvailableForInstall) {
     options.push({
       label: "Edit configuration",
-      value: "edit_configuration",
+      value: ACTION_EDIT_CONFIGURATION,
       isDisabled: !!disabledEditConfigurationTooltipContent,
       tooltipContent: disabledEditConfigurationTooltipContent,
     });
@@ -87,7 +92,7 @@ const buildActionOptions = (
   if (canConfigureAutoUpdate) {
     options.push({
       label: "Schedule auto updates",
-      value: "edit_auto_update_configuration",
+      value: ACTION_EDIT_AUTO_UPDATE_CONFIGURATION,
     });
   }
 
@@ -160,16 +165,16 @@ const SoftwareDetailsSummary = ({
 
   const onSelectSoftwareAction = (option: SingleValue<CustomOptionType>) => {
     switch (option?.value) {
-      case "edit_appearance":
+      case ACTION_EDIT_APPEARANCE:
         onClickEditAppearance && onClickEditAppearance();
         break;
-      case "edit_software":
+      case ACTION_EDIT_SOFTWARE:
         onClickEditSoftware && onClickEditSoftware();
         break;
-      case "edit_configuration":
+      case ACTION_EDIT_CONFIGURATION:
         onClickEditConfiguration && onClickEditConfiguration();
         break;
-      case "edit_auto_update_configuration":
+      case ACTION_EDIT_AUTO_UPDATE_CONFIGURATION:
         onClickEditAutoUpdateConfig && onClickEditAutoUpdateConfig();
         break;
       default:
