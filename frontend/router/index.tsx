@@ -277,9 +277,6 @@ const routes = (
                 <Route path="inventory" component={HostDetailsPage} />
                 <Route path="library" component={HostDetailsPage} />
               </Route>
-
-              <Route path="queries" component={HostDetailsPage} />
-              <Route path=":query_id" component={HostQueryReport} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 

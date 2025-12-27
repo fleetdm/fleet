@@ -1,6 +1,10 @@
 .hqr-table {
   @include vertical-card-layout;
 
+  .performance-impact {
+    font-size: $x-small;
+  }
+
   .last-fetched {
     font-weight: initial;
     @include grey-text;
@@ -13,7 +17,7 @@
 
   &__query-info {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     gap: $pad-xsmall;
 
     h2 {

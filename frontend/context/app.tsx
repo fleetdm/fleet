@@ -167,6 +167,7 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
+  isAnyMaintainerAdminObserverPlus?: boolean;
   isAndroidEnterpriseDeleted: boolean;
   isAppleBmExpired: boolean;
   isApplePnsExpired: boolean;
@@ -237,6 +238,7 @@ export const initialState = {
   isOnlyObserver: undefined,
   isObserverPlus: undefined,
   isNoAccess: undefined,
+  isAnyMaintainerAdminObserverPlus: undefined,
   filteredHostsPath: undefined,
   filteredSoftwarePath: undefined,
   filteredQueriesPath: undefined,
@@ -522,6 +524,13 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isOnlyObserver: state.isOnlyObserver,
       isObserverPlus: state.isObserverPlus,
       isNoAccess: state.isNoAccess,
+      isAnyMaintainerAdminObserverPlus:
+        state.isGlobalAdmin ||
+        state.isGlobalMaintainer ||
+        state.isAnyTeamAdmin ||
+        state.isAnyTeamMaintainer ||
+        state.isObserverPlus ||
+        state.isAnyTeamObserverPlus,
       setAvailableTeams: (
         user: IUser | null,
         availableTeams: ITeamSummary[]

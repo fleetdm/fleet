@@ -5,8 +5,11 @@ import { IQueryStats } from "interfaces/query_stats";
 import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
+import Card from "components/Card";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import CardHeader from "components/CardHeader";
+import Icon from "components/Icon";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -17,6 +20,8 @@ import {
 } from "./HostQueriesTableConfig";
 
 const baseClass = "host-queries-card";
+const PAGE_SIZE = 4;
+const QUERIES_NOT_SUPPORTED = "Queries are not supported for this host";
 
 interface IHostQueriesProps {
   hostId: number;
@@ -24,6 +29,8 @@ interface IHostQueriesProps {
   hostPlatform: string;
   queryReportsDisabled?: boolean;
   router: InjectedRouter;
+  canAddQuery?: boolean;
+  onClickAddQuery: () => void;
 }
 
 interface IHostQueriesRowProps extends Row {
@@ -40,12 +47,14 @@ const HostQueries = ({
   hostPlatform,
   queryReportsDisabled,
   router,
+  canAddQuery,
+  onClickAddQuery,
 }: IHostQueriesProps): JSX.Element => {
   const renderEmptyQueriesTab = () => {
     if (hostPlatform === "chrome") {
       return (
         <EmptyTable
-          header="Scheduled queries are not supported for this host"
+          header={QUERIES_NOT_SUPPORTED}
           info={
             <>
               <span>Interested in collecting data from your Chromebooks? </span>
@@ -63,7 +72,7 @@ const HostQueries = ({
     if (hostPlatform === "ios" || hostPlatform === "ipados") {
       return (
         <EmptyTable
-          header="Queries are not supported for this host"
+          header={QUERIES_NOT_SUPPORTED}
           info={
             <>
               Interested in querying{" "}
@@ -78,7 +87,7 @@ const HostQueries = ({
     if (isAndroid(hostPlatform)) {
       return (
         <EmptyTable
-          header="Queries are not supported for this host"
+          header={QUERIES_NOT_SUPPORTED}
           info={
             <>
               Interested in querying Android hosts?{" "}
@@ -144,7 +153,9 @@ const HostQueries = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           emptyComponent={() => <></>}
-          disablePagination
+          disablePagination={tableData.length <= PAGE_SIZE}
+          pageSize={PAGE_SIZE}
+          isClientSidePagination
           disableCount
           disableMultiRowSelect={!queryReportsDisabled} // Removes hover/click state if reports are disabled
           isLoading={false} // loading state handled at parent level
@@ -155,10 +166,19 @@ const HostQueries = ({
   };
 
   return (
-    <div className={baseClass}>
-      <CardHeader header="Queries" />
-      {renderHostQueries()}
-    </div>
+    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
+      <div className={`${baseClass}__header`}>
+        <CardHeader header="Queries" />
+        {canAddQuery && (
+          <Button variant="inverse" onClick={onClickAddQuery} size="small">
+            <Icon name="plus" />
+            Add query
+          </Button>
+        )}
+      </div>
+
+      <div>{renderHostQueries()}</div>
+    </Card>
   );
 };
 

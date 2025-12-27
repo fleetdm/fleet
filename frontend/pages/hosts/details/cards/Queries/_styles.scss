@@ -1,6 +1,12 @@
 .host-queries-card {
   @include vertical-page-tab-panel-layout;
 
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
   .table-container__header {
     display: none;
   }
@@ -8,7 +14,7 @@
     .data-table__table {
       thead {
         .query_name__header {
-          min-width: $col-lg;
+          min-width: $col-sm;
         }
         .last_fetched__header {
           display: table-cell;
@@ -27,7 +33,7 @@
           }
 
           .query_name__cell {
-            min-width: $col-lg;
+            min-width: $col-sm;
           }
           .last_fetched__cell {
             .report-updated-cell {

@@ -56,6 +56,7 @@ import {
   HOST_OSQUERY_DATA,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import {
   isAppleDevice,
@@ -107,7 +108,6 @@ import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
 import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
-import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 
@@ -141,7 +141,7 @@ const baseClass = "host-details";
 
 const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
-const tripleHeightCardClass = `${baseClass}__card--triple-height`;
+const doubleHeightCardClass = `${baseClass}__card--double-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
 const BYOD_SW_INSTALL_LEARN_MORE_LINK =
@@ -197,12 +197,12 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
-    isGlobalObserver,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
+    isAnyMaintainerAdminObserverPlus,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -259,7 +259,6 @@ const HostDetailsPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
-  const [packsState, setPackState] = useState<IPackStats[]>();
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [
@@ -949,6 +948,15 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
+  const onClickAddQuery = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.NEW_QUERY, {
+        team_id: currentTeam?.id,
+        host_id: hostIdFromURL,
+      })
+    );
+  };
+
   const renderActionsDropdown = () => {
     if (!host) {
       return null;
@@ -1029,11 +1037,6 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
     {
-      name: "Queries",
-      title: "queries",
-      pathname: PATHS.HOST_QUERIES(hostIdFromURL),
-    },
-    {
       name: "Policies",
       title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
@@ -1085,23 +1088,6 @@ const HostDetailsPage = ({
     currentUser,
     host?.team_id
   );
-
-  /*  Context team id might be different that host's team id
-Observer plus must be checked against host's team id  */
-  const isGlobalOrHostsTeamObserverPlus =
-    currentUser && host?.team_id
-      ? permissions.isObserverPlus(currentUser, host.team_id)
-      : false;
-
-  const isHostsTeamObserver =
-    currentUser && host?.team_id
-      ? permissions.isTeamObserver(currentUser, host.team_id)
-      : false;
-
-  const canViewPacks =
-    !isGlobalObserver &&
-    !isGlobalOrHostsTeamObserverPlus &&
-    !isHostsTeamObserver;
 
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup?.bootstrap_package_status,
@@ -1317,11 +1303,39 @@ Observer plus must be checked against host's team id  */
                     host.platform
                   )}
                 />
+                <QueriesCard
+                  hostId={host.id}
+                  router={router}
+                  hostPlatform={host.platform}
+                  schedule={schedule}
+                  queryReportsDisabled={
+                    config?.server_settings?.query_reports_disabled
+                  }
+                  canAddQuery={isAnyMaintainerAdminObserverPlus}
+                  onClickAddQuery={onClickAddQuery}
+                />
+                <UserCard
+                  className={defaultCardClass}
+                  endUsers={host.end_users ?? []}
+                  canWriteEndUser={
+                    isTeamMaintainerOrTeamAdmin ||
+                    isGlobalAdmin ||
+                    isGlobalMaintainer
+                  }
+                  onClickUpdateUser={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    setShowUpdateEndUserModal(true);
+                  }}
+                />
                 {showActivityCard && (
                   <ActivityCard
                     className={
                       showAgentOptionsCard
-                        ? tripleHeightCardClass
+                        ? doubleHeightCardClass
                         : defaultCardClass
                     }
                     activeTab={activeActivityTab}
@@ -1375,23 +1389,6 @@ Observer plus must be checked against host's team id  */
                     onCancel={onCancelActivity}
                   />
                 )}
-                <UserCard
-                  className={defaultCardClass}
-                  endUsers={host.end_users ?? []}
-                  canWriteEndUser={
-                    isTeamMaintainerOrTeamAdmin ||
-                    isGlobalAdmin ||
-                    isGlobalMaintainer
-                  }
-                  onClickUpdateUser={(
-                    e:
-                      | React.MouseEvent<HTMLButtonElement>
-                      | React.KeyboardEvent<HTMLButtonElement>
-                  ) => {
-                    e.preventDefault();
-                    setShowUpdateEndUserModal(true);
-                  }}
-                />
                 {showAgentOptionsCard && (
                   <AgentOptionsCard
                     className={defaultCardClass}
@@ -1447,23 +1444,6 @@ Observer plus must be checked against host's team id  */
                     {renderSoftwareCard()}
                   </Tabs>
                 </TabNav>
-              </TabPanel>
-              <TabPanel>
-                <QueriesCard
-                  hostId={host.id}
-                  router={router}
-                  hostPlatform={host.platform}
-                  schedule={schedule}
-                  queryReportsDisabled={
-                    config?.server_settings?.query_reports_disabled
-                  }
-                />
-                {canViewPacks && (
-                  <PacksCard
-                    packsState={packsState}
-                    isLoading={isLoadingHost}
-                  />
-                )}
               </TabPanel>
               <TabPanel>
                 <PoliciesCard
