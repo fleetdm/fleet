@@ -151,13 +151,20 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		if err != nil {
 			return updateAppStoreAppResponse{Err: err}, nil
 		}
-		activity.AutoUpdateEnabled = req.AutoUpdateEnabled
-		if *req.AutoUpdateEnabled {
-			activity.AutoUpdateStartTime = req.AutoUpdateStartTime
-			activity.AutoUpdateEndTime = req.AutoUpdateEndTime
-		}
-		
 	}
+	
+	// Re-fetch the software title to get the updated auto-update config.
+	updatedTitle, err := svc.SoftwareTitleByID(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return updateAppStoreAppResponse{Err: err}, nil	
+	}
+	if updatedTitle.AutoUpdateEnabled != nil {
+		activity.AutoUpdateEnabled = updatedTitle.AutoUpdateEnabled
+		if *updatedTitle.AutoUpdateEnabled {
+			activity.AutoUpdateStartTime = updatedTitle.AutoUpdateStartTime
+			activity.AutoUpdateEndTime = updatedTitle.AutoUpdateEndTime
+		}
+	}		
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil

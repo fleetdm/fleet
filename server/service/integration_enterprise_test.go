@@ -23211,6 +23211,8 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEndTime:   ptr.String("04:00"),
 	}, http.StatusOK, &titlesResp)
 
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_end_time":"04:00", "auto_update_start_time":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+
 	// Get the software title again.
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
 	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateEnabled)
@@ -23219,4 +23221,28 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	require.Equal(t, "02:00", *titlesResp.SoftwareTitle.AutoUpdateStartTime)
 	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateEndTime)
 	require.Equal(t, "04:00", *titlesResp.SoftwareTitle.AutoUpdateEndTime)
+
+	// Do an update without auto-update fields to check that it still includes the auto-update values.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
+		TeamID: &teamID,
+		DisplayName: ptr.String("New Display Name"),
+	}, http.StatusOK, &titlesResp)
+
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_end_time":"04:00", "auto_update_start_time":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+
+	// Disable the auto-update config
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
+		TeamID:              &teamID,
+		AutoUpdateEnabled:   ptr.Bool(false),
+	}, http.StatusOK, &titlesResp)
+
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+
+	// Do an update without auto-update fields to check that it still includes the auto-update values.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
+		TeamID: &teamID,
+		DisplayName: ptr.String("Updated Display Name"),
+	}, http.StatusOK, &titlesResp)
+
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
 }
