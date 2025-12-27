@@ -572,6 +572,7 @@ var hostRefs = []string{
 	// needed for in-house apps as the activity contains the MDM command UUID and
 	// can access the request/response without this table's entry.
 	"host_in_house_software_installs",
+	"host_last_known_locations",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not

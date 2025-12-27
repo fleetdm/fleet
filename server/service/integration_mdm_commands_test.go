@@ -322,6 +322,14 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			unlockResp = unlockHostResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", tc.host.ID), nil, http.StatusUnprocessableEntity, &unlockResp)
 
+			// send idle to simulate the host checking in, and see DeviceLocation is sent.
+			cmd, err = tc.mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd)
+			require.Equal(t, "DeviceLocation", cmd.Command.RequestType)
+			_, err = tc.mdmClient.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+
 			// send idle to simulate the host checking in, and see DisableLostMode is sent.
 			cmd, err = tc.mdmClient.Idle()
 			require.NoError(t, err)
