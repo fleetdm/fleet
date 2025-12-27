@@ -207,13 +207,18 @@ func (m *mockService) NewActivity(ctx context.Context, user *fleet.User, details
 }
 
 func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
+	// androidErrorEncoder wraps EncodeError with nil domain encoder for android tests
+	androidErrorEncoder := func(ctx context.Context, err error, w http.ResponseWriter) {
+		endpoint_utils.EncodeError(ctx, err, w, nil)
+	}
+
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(fleetSvc),
 		),
 		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: logger}),
-		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
+		kithttp.ServerErrorEncoder(androidErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			log.LogRequestEnd(logger),

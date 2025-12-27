@@ -1793,7 +1793,7 @@ func (r mdmAppleEnrollResponse) HijackRender(ctx context.Context, w http.Respons
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
 		if err := json.NewEncoder(w).Encode(r.SoftwareUpdateRequired); err != nil {
-			endpoint_utils.EncodeError(ctx, ctxerr.New(ctx, "failed to encode software update required"), w)
+			encodeError(ctx, ctxerr.New(ctx, "failed to encode software update required"), w)
 		}
 		return
 	}

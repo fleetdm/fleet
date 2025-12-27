@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +25,7 @@ type newAndExciting struct{}
 func (newAndExciting) Error() string { return "" }
 
 type notFoundError struct {
-	fleet.ErrorWithUUID
+	platform_http.ErrorWithUUID
 }
 
 func (e *notFoundError) Error() string {
@@ -36,6 +36,32 @@ func (e *notFoundError) IsNotFound() bool {
 	return true
 }
 
+// validationError is a test implementation of validationErrorInterface.
+type validationError struct {
+	errors []map[string]string
+}
+
+func (e validationError) Error() string {
+	return "validation failed"
+}
+
+func (e validationError) Invalid() []map[string]string {
+	return e.errors
+}
+
+// permissionError is a test implementation of permissionErrorInterface.
+type permissionError struct {
+	message string
+}
+
+func (e permissionError) Error() string {
+	return e.message
+}
+
+func (e permissionError) PermissionError() []map[string]string {
+	return nil
+}
+
 func TestHandlesErrorsCode(t *testing.T) {
 	errorTests := []struct {
 		name string
@@ -44,33 +70,18 @@ func TestHandlesErrorsCode(t *testing.T) {
 	}{
 		{
 			"validation",
-			fleet.NewInvalidArgumentError("a", "b"),
+			validationError{errors: []map[string]string{{"name": "a", "reason": "b"}}},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"permission",
-			fleet.NewPermissionError("a"),
+			permissionError{message: "a"},
 			http.StatusForbidden,
 		},
 		{
 			"foreign key",
 			foreignKeyError{},
 			http.StatusUnprocessableEntity,
-		},
-		{
-			"mail error",
-			MailError{},
-			http.StatusInternalServerError,
-		},
-		{
-			"osquery error - invalid node",
-			&OsqueryError{nodeInvalid: true},
-			http.StatusUnauthorized,
-		},
-		{
-			"osquery error - valid node",
-			&OsqueryError{},
-			http.StatusInternalServerError,
 		},
 		{
 			"data not found",
@@ -84,7 +95,7 @@ func TestHandlesErrorsCode(t *testing.T) {
 		},
 		{
 			"status coder",
-			fleet.NewAuthFailedError(""),
+			platform_http.NewAuthFailedError(""),
 			http.StatusUnauthorized,
 		},
 		{
@@ -97,7 +108,7 @@ func TestHandlesErrorsCode(t *testing.T) {
 	for _, tt := range errorTests {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			EncodeError(context.Background(), tt.err, recorder)
+			EncodeError(context.Background(), tt.err, recorder, nil)
 			assert.Equal(t, recorder.Code, tt.code)
 		})
 	}

@@ -1476,6 +1476,24 @@ func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
 	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
+// Tier returns the license tier.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetTier() string {
+	return l.Tier
+}
+
+// Organization returns the name of the licensed organization.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetOrganization() string {
+	return l.Organization
+}
+
+// DeviceCount returns the number of licensed devices.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetDeviceCount() int {
+	return l.DeviceCount
+}
+
 const (
 	HeaderLicenseKey          = "X-Fleet-License"
 	HeaderLicenseValueExpired = "Expired"

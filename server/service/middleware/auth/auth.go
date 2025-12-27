@@ -9,6 +9,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -76,6 +78,10 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		}
 
 		ctx = viewer.NewContext(ctx, *v)
+		// Register viewer as error context provider for ctxerr enrichment
+		ctx = ctxerr.AddErrorContextProvider(ctx, v)
+		// Register viewer as user emailer for logging
+		ctx = logging.WithUserEmailer(ctx, v)
 		if ac, ok := authz.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz.AuthnUserToken)
 		}
@@ -123,6 +129,10 @@ func AuthenticatedUserMiddleware(svc fleet.Service, errHandler errorHandler, nex
 		}
 
 		ctx := viewer.NewContext(r.Context(), *v)
+		// Register viewer as error context provider for ctxerr enrichment
+		ctx = ctxerr.AddErrorContextProvider(ctx, v)
+		// Register viewer as user emailer for logging
+		ctx = logging.WithUserEmailer(ctx, v)
 		if ac, ok := authz.FromContext(r.Context()); ok {
 			ac.SetAuthnMethod(authz.AuthnUserToken)
 		}

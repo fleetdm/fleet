@@ -16,7 +16,7 @@ import (
 )
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	return endpoint_utils.EncodeCommonResponse(ctx, w, response, jsonMarshal)
+	return endpoint_utils.EncodeCommonResponse(ctx, w, response, jsonMarshal, FleetErrorEncoder)
 }
 
 func jsonMarshal(w http.ResponseWriter, response interface{}) error {

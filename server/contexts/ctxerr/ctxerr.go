@@ -16,13 +16,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"runtime"
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/host"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/getsentry/sentry-go"
 	"go.elastic.co/apm/v2"
 	"go.opentelemetry.io/otel/attribute"
@@ -121,21 +120,9 @@ func setMetadata(ctx context.Context, data map[string]interface{}) map[string]in
 
 	data["timestamp"] = nowFn().Format(time.RFC3339)
 
-	if h, ok := host.FromContext(ctx); ok {
-		data["host"] = map[string]interface{}{
-			"platform":        h.Platform,
-			"osquery_version": h.OsqueryVersion,
-		}
-	}
-
-	if v, ok := viewer.FromContext(ctx); ok {
-		vdata := map[string]interface{}{}
-		data["viewer"] = vdata
-		vdata["is_logged_in"] = v.IsLoggedIn()
-
-		if v.User != nil {
-			vdata["sso_enabled"] = v.User.SSOEnabled
-		}
+	// Get diagnostic context from all registered providers
+	for _, provider := range getErrorContextProviders(ctx) {
+		maps.Copy(data, provider.GetDiagnosticContext())
 	}
 
 	return data
@@ -215,7 +202,7 @@ func Wrapf(ctx context.Context, cause error, format string, args ...interface{})
 
 // Cause returns the root error in err's chain.
 func Cause(err error) error {
-	return fleet.Cause(err)
+	return platform_http.Cause(err)
 }
 
 // FleetCause is similar to Cause, but returns the root-most
@@ -319,6 +306,9 @@ func Handle(ctx context.Context, err error) {
 		cause = rootCause
 	}
 
+	// Collect telemetry context from registered providers
+	telemetryAttrs := collectTelemetryContext(ctx)
+
 	// send to OpenTelemetry if there's an active span
 	if span := trace.SpanFromContext(ctx); span != nil && span.IsRecording() {
 		// Mark the current span as failed by setting the error status.
@@ -333,20 +323,25 @@ func Handle(ctx context.Context, err error) {
 			attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
 		}
 
-		// Add contextual information if available (same as Sentry)
-		v, _ := viewer.FromContext(ctx)
-		h, _ := host.FromContext(ctx)
-
-		if v.User != nil {
-			attrs = append(attrs,
-				// Not sending the email here as it may contain sensitive information (PII).
-				attribute.Int64("user.id", int64(v.User.ID)), //nolint:gosec
-			)
-		} else if h != nil {
-			attrs = append(attrs,
-				attribute.String("host.hostname", h.Hostname),
-				attribute.Int64("host.id", int64(h.ID)), //nolint:gosec
-			)
+		// Add contextual information from telemetry providers.
+		// OpenTelemetry requires typed attributes, so we convert the values to the appropriate type.
+		for k, v := range telemetryAttrs {
+			switch val := v.(type) {
+			case string:
+				attrs = append(attrs, attribute.String(k, val))
+			case int:
+				attrs = append(attrs, attribute.Int64(k, int64(val)))
+			case int64:
+				attrs = append(attrs, attribute.Int64(k, val))
+			case uint:
+				attrs = append(attrs, attribute.Int64(k, int64(val))) //nolint:gosec
+			case uint64:
+				attrs = append(attrs, attribute.Int64(k, int64(val))) //nolint:gosec
+			case bool:
+				attrs = append(attrs, attribute.Bool(k, val))
+			default:
+				attrs = append(attrs, attribute.String(k, fmt.Sprint(val)))
+			}
 		}
 
 		span.AddEvent("exception", trace.WithAttributes(attrs...))
@@ -357,25 +352,14 @@ func Handle(ctx context.Context, err error) {
 
 	// if Sentry is configured, capture the error there
 	if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {
-		// sentry is configured, add contextual information if available
-		v, _ := viewer.FromContext(ctx)
-		h, _ := host.FromContext(ctx)
-
-		if v.User != nil || h != nil {
-			// we have a viewer (user) or a host in the context, use this to
-			// enrich the error with more context
+		if len(telemetryAttrs) > 0 {
+			// we have contextual information, use it to enrich the error
 			ctxHub := sentry.CurrentHub().Clone()
-			if v.User != nil {
-				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
-					scope.SetTag("email", v.User.Email)
-					scope.SetTag("user_id", fmt.Sprint(v.User.ID))
-				})
-			} else if h != nil {
-				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
-					scope.SetTag("hostname", h.Hostname)
-					scope.SetTag("host_id", fmt.Sprint(h.ID))
-				})
-			}
+			ctxHub.ConfigureScope(func(scope *sentry.Scope) {
+				for k, v := range telemetryAttrs {
+					scope.SetTag(k, fmt.Sprint(v))
+				}
+			})
 			ctxHub.CaptureException(cause)
 		} else {
 			sentry.CaptureException(cause)
@@ -385,6 +369,17 @@ func Handle(ctx context.Context, err error) {
 	if eh := FromContext(ctx); eh != nil {
 		eh.Store(ferr)
 	}
+}
+
+// collectTelemetryContext gathers telemetry context from all registered providers.
+func collectTelemetryContext(ctx context.Context) map[string]any {
+	attrs := make(map[string]any)
+	for _, provider := range getErrorContextProviders(ctx) {
+		if telemetry := provider.GetTelemetryContext(); telemetry != nil {
+			maps.Copy(attrs, telemetry)
+		}
+	}
+	return attrs
 }
 
 // Retrieve retrieves an error from the registered error handler

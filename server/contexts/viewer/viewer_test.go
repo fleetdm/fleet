@@ -153,3 +153,26 @@ func TestCanPerformActions(t *testing.T) {
 // 	assert.Equal(t, false, needsPasswordResetAdminViewer.CanPerformWriteActionOnUser(1))
 // 	assert.Equal(t, true, needsPasswordResetAdminViewer.CanPerformWriteActionOnUser(needsPasswordResetAdminViewer.User.ID))
 // }
+
+func TestMaskEmail(t *testing.T) {
+	cases := []struct {
+		name     string
+		email    string
+		expected string
+	}{
+		{"standard email", "john.doe@example.com", "j***@example.com"},
+		{"single char local", "j@example.com", "j***@example.com"},
+		{"subdomain", "user@mail.example.com", "u***@mail.example.com"},
+		{"empty string", "", "***"},
+		{"no at sign", "invalid", "***"},
+		{"empty local part", "@example.com", "***"},
+		{"only at sign", "@", "***"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := maskEmail(tc.email)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}

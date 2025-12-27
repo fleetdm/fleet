@@ -322,7 +322,10 @@ func TestAdditionalMetadata(t *testing.T) {
 	t.Run("saves additional data about the host if present", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		hctx := host.NewContext(ctx, &fleet.Host{Platform: "test_platform", OsqueryVersion: "5.0"})
+		h := &fleet.Host{Platform: "test_platform", OsqueryVersion: "5.0"}
+		hctx := host.NewContext(ctx, h)
+		// Register the host as an error context provider
+		hctx = AddErrorContextProvider(hctx, &host.HostAttributeProvider{Host: h})
 		err := New(hctx, "with host context").(*FleetError)
 
 		require.JSONEq(t, string(err.data), `{"host":{"osquery_version":"5.0","platform":"test_platform"},"timestamp":"1969-06-19T21:44:05Z"}`)
@@ -331,7 +334,10 @@ func TestAdditionalMetadata(t *testing.T) {
 	t.Run("saves additional data about the viewer if present", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		vctx := viewer.NewContext(ctx, viewer.Viewer{Session: &fleet.Session{ID: 1}, User: &fleet.User{SSOEnabled: true}})
+		v := viewer.Viewer{Session: &fleet.Session{ID: 1}, User: &fleet.User{SSOEnabled: true}}
+		vctx := viewer.NewContext(ctx, v)
+		// Register the viewer as an error context provider
+		vctx = AddErrorContextProvider(vctx, &v)
 		err := New(vctx, "with host context").(*FleetError)
 
 		require.JSONEq(t, string(err.data), `{"viewer":{"is_logged_in":true,"sso_enabled":true},"timestamp":"1969-06-19T21:44:05Z"}`)

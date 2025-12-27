@@ -4,6 +4,7 @@ package viewer
 
 import (
 	"context"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -101,4 +102,39 @@ func (v Viewer) CanPerformPasswordReset() bool {
 		return v.IsLoggedIn() && v.User.IsAdminForcedPasswordReset()
 	}
 	return false
+}
+
+// GetDiagnosticContext implements ctxerr.ErrorContextProvider
+func (v *Viewer) GetDiagnosticContext() map[string]any {
+	vdata := map[string]any{
+		"is_logged_in": v.IsLoggedIn(),
+	}
+	if v.User != nil {
+		vdata["sso_enabled"] = v.User.SSOEnabled
+	}
+	return map[string]any{
+		"viewer": vdata,
+	}
+}
+
+// GetTelemetryContext implements ctxerr.ErrorContextProvider
+func (v *Viewer) GetTelemetryContext() map[string]any {
+	if v.User == nil {
+		return nil
+	}
+	return map[string]any{
+		"user.id":    v.User.ID,
+		"user.email": maskEmail(v.User.Email),
+	}
+}
+
+// maskEmail anonymizes an email address for telemetry by showing only
+// the first character of the local part and the full domain.
+// Example: "john.doe@example.com" -> "j***@example.com"
+func maskEmail(email string) string {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 || len(parts[0]) == 0 {
+		return "***"
+	}
+	return string(parts[0][0]) + "***@" + parts[1]
 }

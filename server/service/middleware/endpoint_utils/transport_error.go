@@ -4,19 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
 )
 
 // ErrBadRoute is used for mux errors
 var ErrBadRoute = errors.New("bad route")
+
+// DomainErrorEncoder handles domain-specific error encoding.
+// It returns true if it handled the error, false if default handling should be used.
+// The encoder should write the appropriate status code and response body.
+type DomainErrorEncoder func(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *JsonError) (handled bool)
 
 type JsonError struct {
 	Message string              `json:"message"`
@@ -67,8 +71,10 @@ type conflictErrorInterface interface {
 	IsConflict() bool
 }
 
-// EncodeError encodes error and status header to the client
-func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
+// EncodeError encodes error and status header to the client.
+// The domainEncoder parameter allows services to inject domain-specific error
+// handling. If nil, only generic error handling is performed.
+func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEncoder DomainErrorEncoder) {
 	ctxerr.Handle(ctx, err)
 	origErr := err
 
@@ -78,12 +84,19 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	err = ctxerr.Cause(err)
 
 	var uuid string
-	if uuidErr, ok := err.(fleet.ErrorUUIDer); ok {
+	if uuidErr, ok := err.(platform_http.ErrorUUIDer); ok {
 		uuid = uuidErr.UUID()
 	}
 
 	jsonErr := JsonError{
 		UUID: uuid,
+	}
+
+	// Try domain-specific error encoder first
+	if domainEncoder != nil {
+		if handled := domainEncoder(ctx, err, w, enc, &jsonErr); handled {
+			return
+		}
 	}
 
 	switch e := err.(type) {
@@ -99,36 +112,6 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		jsonErr.Message = "Permission Denied"
 		jsonErr.Errors = e.PermissionError()
 		w.WriteHeader(http.StatusForbidden)
-	case MailError:
-		jsonErr.Message = "Mail Error"
-		jsonErr.Errors = e.MailError()
-		w.WriteHeader(http.StatusInternalServerError)
-	case *OsqueryError:
-		// osquery expects to receive the node_invalid key when a TLS
-		// request provides an invalid node_key for authentication. It
-		// doesn't use the error message provided, but we provide this
-		// for debugging purposes (and perhaps osquery will use this
-		// error message in the future).
-
-		errMap := map[string]interface{}{
-			"error": e.Error(),
-			"uuid":  uuid,
-		}
-		if e.NodeInvalid() { //nolint:gocritic // ignore ifElseChain
-			w.WriteHeader(http.StatusUnauthorized)
-			errMap["node_invalid"] = true
-		} else if e.Status() != 0 {
-			w.WriteHeader(e.Status())
-		} else {
-			// TODO: osqueryError is not always the result of an internal error on
-			// our side, it is also used to represent a client error (invalid data,
-			// e.g. malformed json, carve too large, etc., so 4xx), are we returning
-			// a 500 because of some osquery-specific requirement?
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-
-		enc.Encode(errMap) //nolint:errcheck
-		return
 	case NotFoundErrorInterface:
 		jsonErr.Message = "Resource Not Found"
 		jsonErr.Errors = baseError(e.Error())
@@ -153,7 +136,7 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			statusCode = http.StatusConflict
 		}
 		w.WriteHeader(statusCode)
-	case *fleet.Error:
+	case *platform_http.Error:
 		jsonErr.Message = e.Error()
 		jsonErr.Code = e.Code
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -168,7 +151,7 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			enc.Encode(jsonErr) //nolint:errcheck
 			return
 		}
-		if fleet.IsForeignKey(err) {
+		if platform_http.IsForeignKey(err) {
 			jsonErr.Message = "Validation Failed"
 			jsonErr.Errors = baseError(err.Error())
 			w.WriteHeader(http.StatusUnprocessableEntity)
@@ -186,14 +169,14 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 
 		// See header documentation
 		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-		var ewra fleet.ErrWithRetryAfter
+		var ewra platform_http.ErrWithRetryAfter
 		if errors.As(err, &ewra) {
 			w.Header().Add("Retry-After", strconv.Itoa(ewra.RetryAfter()))
 		}
 
 		msg := err.Error()
 		reason := err.Error()
-		var ume *fleet.UserMessageError
+		var ume *platform_http.UserMessageError
 		if errors.As(err, &ume) {
 			if text := http.StatusText(status); text != "" {
 				msg = text
@@ -207,54 +190,4 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	}
 
 	enc.Encode(jsonErr) //nolint:errcheck
-}
-
-// MailError is set when an error performing mail operations
-type MailError struct {
-	Message string
-}
-
-func (e MailError) Error() string {
-	return fmt.Sprintf("a mail error occurred: %s", e.Message)
-}
-
-func (e MailError) MailError() []map[string]string {
-	return []map[string]string{
-		{
-			"name":   "base",
-			"reason": e.Message,
-		},
-	}
-}
-
-// OsqueryError is the error returned to osquery agents.
-type OsqueryError struct {
-	message     string
-	nodeInvalid bool
-	StatusCode  int
-	fleet.ErrorWithUUID
-}
-
-var _ fleet.ErrorUUIDer = (*OsqueryError)(nil)
-
-// Error implements the error interface.
-func (e *OsqueryError) Error() string {
-	return e.message
-}
-
-// NodeInvalid returns whether the error returned to osquery
-// should contain the node_invalid property.
-func (e *OsqueryError) NodeInvalid() bool {
-	return e.nodeInvalid
-}
-
-func (e *OsqueryError) Status() int {
-	return e.StatusCode
-}
-
-func NewOsqueryError(message string, nodeInvalid bool) *OsqueryError {
-	return &OsqueryError{
-		message:     message,
-		nodeInvalid: nodeInvalid,
-	}
 }
