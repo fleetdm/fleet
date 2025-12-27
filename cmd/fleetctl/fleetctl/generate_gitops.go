@@ -1322,15 +1322,15 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		if policy.InstallSoftware != nil {
 			// Check if this is a Fleet-maintained app
 			if slug, ok := cmd.FMASlugMap[policy.InstallSoftware.SoftwareTitleID]; ok {
-				policySpec["install_software"] = map[string]interface{}{
+				policySpec["install_software"] = map[string]any{
 					"slug": slug,
 				}
 			} else if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
-				policySpec["install_software"] = map[string]interface{}{
+				policySpec["install_software"] = map[string]any{
 					"hash_sha256": software.Hash + " " + software.Comment,
 				}
 			} else {
-				policySpec["install_software"] = map[string]interface{}{
+				policySpec["install_software"] = map[string]any{
 					"hash_sha256": cmd.AddComment(filePath, "TODO: Add your hash_sha256 here"),
 				}
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
