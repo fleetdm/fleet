@@ -52,6 +52,38 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
       );
     },
   },
+  locating: {
+    title: "LOCKED",
+    tagType: "warning",
+    generateTooltip: (platform) => {
+      if (isIPadOrIPhone(platform)) {
+        return (
+          <>
+            Host is locked. The end user can&apos;t use the host until
+            <br />
+            unlocked. To unlock select <b>Actions &gt; Unlock</b>.
+          </>
+        );
+      } else if (isMacOS(platform)) {
+        return (
+          <>
+            Host is locked. The end user can&apos;t use the host until
+            <br />
+            the six-digit PIN has been entered. To view pin select
+            <br />
+            <b>Actions &gt; Unlock</b>.
+          </>
+        );
+      }
+      return (
+        <>
+          Host is locked. The end user can&apos;t use the host until
+          <br />
+          unlocked. To unlock select <b>Actions &gt; Unlock</b>.
+        </>
+      );
+    },
+  },
   unlocking: {
     title: "UNLOCK PENDING",
     tagType: "warning",
@@ -106,6 +138,12 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
     </>
   ),
   locked: (
+    <>
+      You can&apos;t fetch data from <br /> a locked host.
+    </>
+  ),
+  // Same as locked
+  locating: (
     <>
       You can&apos;t fetch data from <br /> a locked host.
     </>
