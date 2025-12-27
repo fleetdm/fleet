@@ -57,6 +57,7 @@
       "team_id": null,
       "pack_stats": null,
       "team_name": null,
+      "timezone": null,
       "additional": {
         "query1": [
           {
@@ -135,6 +136,7 @@
       "team_id": null,
       "pack_stats": null,
       "team_name": null,
+      "timezone": null,
       "gigs_disk_space_available": 0,
       "percent_disk_space_available": 0,
       "gigs_total_disk_space": 0,

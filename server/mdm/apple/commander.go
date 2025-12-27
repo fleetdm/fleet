@@ -399,6 +399,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>WiFiMAC</string>
             <string>ProductName</string>
 			<string>IsMDMLostModeEnabled</string>
+			<string>TimeZone</string>
         </array>
         <key>RequestType</key>
         <string>DeviceInformation</string>

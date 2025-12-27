@@ -5368,7 +5368,6 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 					require.Nil(t, sur)
 				}
 			})
-
 		})
 	}
 
@@ -6250,4 +6249,10 @@ var customProfileValidationMobileconfig string
 
 func customProfileForValidation(value string) string {
 	return fmt.Sprintf(customProfileValidationMobileconfig, value)
+}
+
+func TestIsTimezoneInWindow(t *testing.T) {
+	ok, err := isTimezoneInWindow(t.Context(), "Australia/Hobart", "00:00", "23:59")
+	require.NoError(t, err)
+	require.True(t, ok)
 }

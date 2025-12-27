@@ -741,6 +741,7 @@ SELECT
   t.name AS team_name,
   COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
   h.last_restarted_at,
+  h.timezone,
   (
     SELECT
       additional
@@ -1031,7 +1032,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-	h.last_restarted_at
+    h.last_restarted_at,
+    h.timezone
 	`
 
 	sql += hostMDMSelect
@@ -2700,7 +2702,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
-	  h.last_restarted_at,
+      h.last_restarted_at,
+      h.timezone,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
@@ -3234,6 +3237,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
+      h.timezone,
       t.name AS team_name,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
@@ -5304,7 +5308,8 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			refetch_requested = ?,
 			orbit_node_key = ?,
 			refetch_critical_queries_until = ?,
-			last_restarted_at = COALESCE(?, last_restarted_at)
+			last_restarted_at = COALESCE(?, last_restarted_at),
+			timezone = ?
 		WHERE id = ?
 	`
 
@@ -5352,6 +5357,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 				host.OrbitNodeKey,
 				host.RefetchCriticalQueriesUntil,
 				lastRestartedAt,
+				host.TimeZone,
 				host.ID,
 			)
 			if err != nil {

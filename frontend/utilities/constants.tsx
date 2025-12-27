@@ -441,6 +441,7 @@ export const HOST_VITALS_DATA = [
   "memory",
   "cpu_type",
   "os_version",
+  "timezone",
 ];
 
 export const HOST_OSQUERY_DATA = [
