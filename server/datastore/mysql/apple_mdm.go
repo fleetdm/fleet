@@ -2000,7 +2000,7 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 		normalizedHint := strings.ToLower(d.PlatformHint)
 		platform := string(fleet.MacOSPlatform)
 		switch {
-		case strings.Contains(normalizedHint, "iphone"):
+		case strings.Contains(normalizedHint, "iphone"), strings.Contains(normalizedHint, "ipod"):
 			platform = string(fleet.IOSPlatform)
 		case strings.Contains(normalizedHint, "ipad"):
 			platform = string(fleet.IPadOSPlatform)
