@@ -407,7 +407,7 @@ const ManageHostsPage = ({
     ILabelsResponse,
     Error,
     ILabel[]
-  >(["labels"], () => labelsAPI.loadAll(), {
+  >(["labels", currentTeamId], () => labelsAPI.loadAll(currentTeamId), {
     enabled: isRouteOk,
     select: (data: ILabelsResponse) => data.labels,
   });

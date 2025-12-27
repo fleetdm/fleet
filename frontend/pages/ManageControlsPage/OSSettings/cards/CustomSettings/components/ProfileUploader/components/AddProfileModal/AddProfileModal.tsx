@@ -130,7 +130,10 @@ const AddProfileModal = ({
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () =>
+      labelsAPI
+        .summary(currentTeamId)
+        .then((res) => getCustomLabels(res.labels)),
     {
       enabled: isPremiumTier,
       refetchOnWindowFocus: false,

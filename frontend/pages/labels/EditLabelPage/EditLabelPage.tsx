@@ -12,6 +12,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { ILabel } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
@@ -21,6 +22,7 @@ import DynamicLabelForm from "../components/DynamicLabelForm";
 import ManualLabelForm from "../components/ManualLabelForm";
 import { IDynamicLabelFormData } from "../components/DynamicLabelForm/DynamicLabelForm";
 import { IManualLabelFormData } from "../components/ManualLabelForm/ManualLabelForm";
+import { hasEditPermission } from "../ManageLabelsPage/LabelsTable/LabelsTableConfig";
 
 const baseClass = "edit-label-page";
 
@@ -35,6 +37,7 @@ type IEditLabelPageProps = RouteComponentProps<
 
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { currentUser } = useContext(AppContext);
 
   const labelId = parseInt(routeParams.label_id, 10);
 
@@ -43,7 +46,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     isLoading: isLoadingLabel,
     isError: isErrorLabel,
   } = useQuery<IGetLabelResponse, AxiosError, ILabel>(
-    ["label", labelId],
+    ["label", labelId, currentUser],
     () => labelsAPI.getLabel(labelId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -54,6 +57,14 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
           renderFlash(
             "error",
             "Host vitals labels are not editable. Delete the label and re-add it to make changes."
+          );
+          router.replace(PATHS.MANAGE_LABELS);
+        }
+
+        if (currentUser && !hasEditPermission(currentUser, data)) {
+          renderFlash(
+            "error",
+            "You do not have permission to edit this label."
           );
           router.replace(PATHS.MANAGE_LABELS);
         }
@@ -118,6 +129,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
         defaultDescription={label.description}
         defaultQuery={label.query}
         defaultPlatform={label.platform}
+        teamName={label.team_name || null}
         isEditing
         onSave={onUpdateLabel}
         onCancel={onCancelEdit}
@@ -128,6 +140,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
         defaultName={label.name}
         defaultDescription={label.description}
         defaultTargetedHosts={targetedHosts}
+        teamName={label.team_name || null}
         onSave={onUpdateLabel}
         onCancel={onCancelEdit}
       />

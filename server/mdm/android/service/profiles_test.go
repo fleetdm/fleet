@@ -637,9 +637,9 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	})
 
 	// make h1 member of inclany and h2 of inclall
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, linclAny.ID, []uint{h1.Host.ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *linclAny, []uint{h1.Host.ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, linclAll.ID, []uint{h2.Host.ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *linclAll, []uint{h2.Host.ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// no-label, exclude any and the respective include profiles are applied
@@ -661,7 +661,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	})
 
 	// make h1 member of exclAny so it stops receiving this profile
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lexclAny.ID, []uint{h1.Host.ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lexclAny, []uint{h1.Host.ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// this only affects h1, h2 version is unchanged

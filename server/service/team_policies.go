@@ -91,7 +91,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, append(tp.LabelsIncludeAny, tp.LabelsExcludeAny...)); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, append(tp.LabelsIncludeAny, tp.LabelsExcludeAny...), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -570,7 +570,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, append(p.LabelsIncludeAny, p.LabelsExcludeAny...)); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, append(p.LabelsIncludeAny, p.LabelsExcludeAny...), authz.UserFromContext(ctx)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 

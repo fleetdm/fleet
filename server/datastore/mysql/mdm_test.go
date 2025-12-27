@@ -1052,9 +1052,9 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 	// delete label 3, 4 and 8 so that profiles D, E and G are broken
-	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[8].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[8].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 	profLabels := map[string][]fleet.ConfigurationProfileLabel{
 		"C": {
 			{LabelName: labels[0].Name, LabelID: labels[0].ID, RequireAll: true},
@@ -3809,8 +3809,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// "break" the two G6 label-based profile by deleting labels[0] and [3]
-	require.NoError(t, ds.DeleteLabel(ctx, labels[0].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[0].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	// sync the affected profiles
 	updates, err = ds.BulkSetPendingMDMHostProfiles(
@@ -4868,8 +4868,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// "break" the team 2 label-based profile by deleting a label
-	require.NoError(t, ds.DeleteLabel(ctx, labels[1].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[1].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	// sync team 2, the label-based profile of team2 is left untouched (broken
 	// profiles are ignored)
@@ -5982,7 +5982,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.Len(t, profs, 3)
 
 		// Now delete label, we shouldn't see the related profile
-		err = ds.DeleteLabel(ctx, testLabel4.Name)
+		err = ds.DeleteLabel(ctx, testLabel4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.NoError(t, err)
 
 		return team.ID, host
@@ -6483,7 +6483,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.Len(t, profs, 3)
 
 		// Now delete label, we shouldn't see the related profile
-		err = ds.DeleteLabel(ctx, label.Name)
+		err = ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.NoError(t, err)
 
 		return team.ID, host
@@ -8275,13 +8275,13 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	})
 
 	// delete labels 0, 2, 3, and 6, breaking all profiles
-	err = ds.DeleteLabel(ctx, labels[0].Name)
+	err = ds.DeleteLabel(ctx, labels[0].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[2].Name)
+	err = ds.DeleteLabel(ctx, labels[2].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[3].Name)
+	err = ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[6].Name)
+	err = ds.DeleteLabel(ctx, labels[6].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)

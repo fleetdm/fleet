@@ -8,6 +8,7 @@ import (
 
 // ApplyLabels sends the list of Labels to be applied (upserted) to the
 // Fleet instance.
+// TODO gitops allow specifying by team
 func (c *Client) ApplyLabels(specs []*fleet.LabelSpec) error {
 	req := applyLabelSpecsRequest{Specs: specs}
 	verb, path := "POST", "/api/latest/fleet/spec/labels"
@@ -24,6 +25,7 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 }
 
 // GetLabels retrieves the list of all LabelSpecs.
+// TODO gitops allow passing team ID or name
 func (c *Client) GetLabels() ([]*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/latest/fleet/spec/labels"
 	var responseBody getLabelSpecsResponse

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
@@ -39,7 +40,7 @@ func translateEmailToUserID(ctx context.Context, ds fleet.Datastore, identifier 
 }
 
 func translateLabelToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
-	labelIDs, err := ds.LabelIDsByName(ctx, []string{identifier})
+	labelIDs, err := ds.LabelIDsByName(ctx, []string{identifier}, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
 	if err != nil {
 		return 0, err
 	}

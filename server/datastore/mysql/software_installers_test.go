@@ -302,7 +302,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	createBuiltinLabels(t, ds)
-	labelsByName, err := ds.LabelIDsByName(ctx, []string{fleet.BuiltinLabelNameAllHosts})
+	labelsByName, err := ds.LabelIDsByName(ctx, []string{fleet.BuiltinLabelNameAllHosts}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labelsByName, 1)
 

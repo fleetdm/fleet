@@ -274,7 +274,7 @@ func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		return nil
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		labels := make(map[string]*fleet.Label, len(names))
 		for _, name := range names {
 			if name == "foo" {

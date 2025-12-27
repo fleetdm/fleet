@@ -154,6 +154,11 @@ type Label struct {
 	TeamID              *uint               `json:"team_id" db:"team_id"`
 }
 
+type LabelWithTeamName struct {
+	Label
+	TeamName *string `json:"team_name" db:"team_name"`
+}
+
 // Implement the HostVitalsLabel interface.
 func (l *Label) GetLabel() *Label {
 	return l
@@ -225,6 +230,7 @@ type LabelSpec struct {
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	Hosts               HostsSlice          `json:"hosts"`
 	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
+	TeamID              *uint               `json:"team_id" db:"team_id"`
 }
 
 const (
@@ -351,7 +357,7 @@ func (l *Label) CalculateHostVitalsQuery() (query string, values []any, err erro
 	// We'll use a set to gather the foreign vitals groups we need to join on,
 	// so that we can avoid duplicates.
 	foreignVitalsGroups := make(map[*HostForeignVitalGroup]struct{})
-	// Hold values to be substituted in the paramerized query.
+	// Hold values to be substituted in the parameterized query.
 	values = make([]any, 0)
 	// Recursively parse the criteria to build the WHERE clause.
 	whereClause, err := parseHostVitalCriteria(criteria, foreignVitalsGroups, &values)

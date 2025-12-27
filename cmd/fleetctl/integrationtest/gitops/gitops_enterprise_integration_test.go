@@ -149,11 +149,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		return err
 	})
 
-	lbls, err := s.DS.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	lbls, err := s.DS.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := s.DS.DeleteLabel(ctx, lbl.Name)
+			err := s.DS.DeleteLabel(ctx, lbl.Name, fleet.TeamFilter{User: test.UserAdmin})
 			require.NoError(t, err)
 		}
 	}
@@ -1602,7 +1602,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitOpsDeletesNonManagedL
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", opsFile})
 
 	// Check label was removed successfully
-	result, err := s.DS.LabelIDsByName(ctx, []string{nonManagedLabel.Name})
+	result, err := s.DS.LabelIDsByName(ctx, []string{nonManagedLabel.Name}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Empty(t, result)
 }
@@ -1999,7 +1999,7 @@ labels:
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
 
 	// Verify the label was created and has the correct hosts
-	labels, err := s.DS.LabelsByName(ctx, []string{"my-label"})
+	labels, err := s.DS.LabelsByName(ctx, []string{"my-label"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 	label := labels["my-label"]
