@@ -987,6 +987,8 @@ type MDMAppleDDMActivation struct {
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
 }
 
+const BootstrapPackageSignedURLExpiry = 6 * time.Hour
+
 // MDMBootstrapPackageStore is the interface to store and retrieve bootstrap
 // package files. Fleet supports storing to the database and to an S3 bucket.
 type MDMBootstrapPackageStore interface {
@@ -994,7 +996,7 @@ type MDMBootstrapPackageStore interface {
 	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, packageID string) (bool, error)
 	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, fileID string) (string, error)
+	Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 }
 
 // MDMAppleMachineInfo is a [device's information][1] sent as part of an MDM enrollment profile request

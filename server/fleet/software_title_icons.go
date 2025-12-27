@@ -10,6 +10,8 @@ import (
 
 var SoftwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?team_id=\d+`)
 
+const SoftwareTitleIconSignedURLExpiry = 6 * time.Hour
+
 type UploadSoftwareTitleIconPayload struct {
 	TitleID   uint
 	TeamID    uint
@@ -42,7 +44,7 @@ type SoftwareTitleIconStore interface {
 	Get(ctx context.Context, iconID string) (io.ReadCloser, int64, error)
 	Exists(ctx context.Context, iconID string) (bool, error)
 	Cleanup(ctx context.Context, usedIconIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, iconID string) (string, error)
+	Sign(ctx context.Context, iconID string, expiresIn time.Duration) (string, error)
 }
 
 type DetailsForSoftwareIconActivity struct {

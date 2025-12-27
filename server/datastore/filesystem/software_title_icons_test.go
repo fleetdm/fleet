@@ -91,7 +91,7 @@ func TestSoftwareTitleIconStore(t *testing.T) {
 	require.Equal(t, 1, n)
 	assertIconsOnDisk(t, dir, []string{id0})
 
-	_, err = store.Sign(ctx, id0)
+	_, err = store.Sign(ctx, id0, fleet.SoftwareTitleIconSignedURLExpiry)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "signing not supported for software title icons in filesystem store")
 }
