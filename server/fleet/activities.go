@@ -2457,6 +2457,9 @@ type ActivityEditedAppStoreApp struct {
 	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 	SoftwareDisplayName string                    `json:"software_display_name"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_start_time,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_end_time,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
