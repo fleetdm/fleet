@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.11.62",
+      "version": "2.11.63",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats';"
       },
-      "installer_url": "https://github.com/exelban/stats/releases/download/v2.11.62/Stats.dmg",
+      "installer_url": "https://github.com/exelban/stats/releases/download/v2.11.63/Stats.dmg",
       "install_script_ref": "512089ad",
       "uninstall_script_ref": "38a63041",
-      "sha256": "db7c533f535b278dde5884842c052eeda66e216d9caf93bc8d5da7469a62f58c",
+      "sha256": "e5cfbdf70e2a56889948b787b218b16a7077b16ac36717a8594b05f114788cee",
       "default_categories": [
         "Productivity"
       ]
