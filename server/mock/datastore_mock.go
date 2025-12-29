@@ -453,6 +453,10 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFi
 
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
+type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error
+
+type ListSoftwareAutoUpdateSchedulesFunc func(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error)
+
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
 
 type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
@@ -980,6 +984,8 @@ type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string
 type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error)
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
+
+type RecordSkippedHostBootstrapPackageFunc func(ctx context.Context, hostUUID string) error
 
 type GetHostBootstrapPackageCommandFunc func(ctx context.Context, hostUUID string) (string, error)
 
@@ -2355,6 +2361,12 @@ type DataStore struct {
 	UpdateSoftwareTitleNameFunc        UpdateSoftwareTitleNameFunc
 	UpdateSoftwareTitleNameFuncInvoked bool
 
+	UpdateSoftwareTitleAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
+	UpdateSoftwareTitleAutoUpdateConfigFuncInvoked bool
+
+	ListSoftwareAutoUpdateSchedulesFunc        ListSoftwareAutoUpdateSchedulesFunc
+	ListSoftwareAutoUpdateSchedulesFuncInvoked bool
+
 	InsertSoftwareInstallRequestFunc        InsertSoftwareInstallRequestFunc
 	InsertSoftwareInstallRequestFuncInvoked bool
 
@@ -3146,6 +3158,9 @@ type DataStore struct {
 
 	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
 	RecordHostBootstrapPackageFuncInvoked bool
+
+	RecordSkippedHostBootstrapPackageFunc        RecordSkippedHostBootstrapPackageFunc
+	RecordSkippedHostBootstrapPackageFuncInvoked bool
 
 	GetHostBootstrapPackageCommandFunc        GetHostBootstrapPackageCommandFunc
 	GetHostBootstrapPackageCommandFuncInvoked bool
@@ -5747,6 +5762,20 @@ func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name s
 	return s.UpdateSoftwareTitleNameFunc(ctx, id, name)
 }
 
+func (s *DataStore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
+	s.mu.Lock()
+	s.UpdateSoftwareTitleAutoUpdateConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
+}
+
+func (s *DataStore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+	s.mu.Lock()
+	s.ListSoftwareAutoUpdateSchedulesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareAutoUpdateSchedulesFunc(ctx, teamID, optionalFilter...)
+}
+
 func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	s.mu.Lock()
 	s.InsertSoftwareInstallRequestFuncInvoked = true
@@ -7593,6 +7622,13 @@ func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID 
 	s.RecordHostBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
 	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) RecordSkippedHostBootstrapPackage(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.RecordSkippedHostBootstrapPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordSkippedHostBootstrapPackageFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error) {
