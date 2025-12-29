@@ -62,12 +62,11 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
         }
 
         // STEP 3: Enroll new/updated certificates
-        val certificateIds = certificatesToInstall.map { it.id }
-        Log.i(TAG, "Enrolling ${certificateIds.size} certificate(s): $certificateIds")
+        Log.i(TAG, "Enrolling ${certificatesToInstall.size} certificate(s): ${certificatesToInstall.map { it.id }}")
 
         val results = orchestrator.enrollCertificates(
             context = applicationContext,
-            certificateIds = certificateIds,
+            hostCertificates = certificatesToInstall,
         )
 
         // Analyze results to determine worker outcome

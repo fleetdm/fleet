@@ -177,7 +177,7 @@ class CertificateOrchestratorTest {
     @Test
     fun `storeCertificateInstallation stores certificate in DataStore`() = runTest {
         // Act
-        orchestrator.markCertificateInstalled(context, 123, "test-cert-1")
+        orchestrator.markCertificateInstalled(context, 123, "test-cert-1", version = 1)
 
         // Assert
         val stored = getStoredCertificates()
@@ -188,9 +188,9 @@ class CertificateOrchestratorTest {
     @Test
     fun `storeCertificateInstallation handles multiple certificates`() = runTest {
         // Act
-        orchestrator.markCertificateInstalled(context, 123, "cert-1")
-        orchestrator.markCertificateInstalled(context, 456, "cert-2")
-        orchestrator.markCertificateInstalled(context, 789, "cert-3")
+        orchestrator.markCertificateInstalled(context, 123, "cert-1", version = 1)
+        orchestrator.markCertificateInstalled(context, 456, "cert-2", version = 1)
+        orchestrator.markCertificateInstalled(context, 789, "cert-3", version = 1)
 
         // Assert
         val stored = getStoredCertificates()
@@ -203,10 +203,10 @@ class CertificateOrchestratorTest {
     @Test
     fun `storeCertificateInstallation updates existing certificate`() = runTest {
         // Arrange
-        orchestrator.markCertificateInstalled(context, 123, "old-alias")
+        orchestrator.markCertificateInstalled(context, 123, "old-alias", version = 1)
 
         // Act - Update the same certificate ID
-        orchestrator.markCertificateInstalled(context, 123, "new-alias")
+        orchestrator.markCertificateInstalled(context, 123, "new-alias", version = 1)
 
         // Assert
         val stored = getStoredCertificates()
@@ -226,7 +226,7 @@ class CertificateOrchestratorTest {
     @Test
     fun `getCertificateAlias retrieves stored certificate`() = runTest {
         // Arrange
-        orchestrator.markCertificateInstalled(context, 456, "my-cert")
+        orchestrator.markCertificateInstalled(context, 456, "my-cert", version = 1)
 
         // Act
         val alias = orchestrator.getCertificateAlias(context, 456)
@@ -258,7 +258,7 @@ class CertificateOrchestratorTest {
         assertTrue(certificates.isEmpty())
 
         // Verify we can still store new certificates after recovery
-        orchestrator.markCertificateInstalled(context, 111, "recovered-cert")
+        orchestrator.markCertificateInstalled(context, 111, "recovered-cert", version = 1)
         val stored = getStoredCertificates()
         assertEquals(1, stored.size)
         assertEquals("recovered-cert", stored[111]?.alias)
@@ -326,6 +326,7 @@ class CertificateOrchestratorTest {
                     context,
                     certId,
                     "cert-$certId",
+                    version = 1,
                 )
             }
         }
@@ -345,7 +346,7 @@ class CertificateOrchestratorTest {
     fun `rapid sequential certificate storage preserves all data`() = runTest {
         // Act: Store 5 certificates rapidly in sequence
         repeat(5) { index ->
-            orchestrator.markCertificateInstalled(context, index * 100, "cert-$index")
+            orchestrator.markCertificateInstalled(context, index * 100, "cert-$index", version = 1)
         }
 
         // Assert: All 5 should be stored
@@ -360,12 +361,12 @@ class CertificateOrchestratorTest {
     @Test
     fun `concurrent reads during writes see consistent data`() = runTest {
         // Arrange: Pre-populate with some certificates
-        orchestrator.markCertificateInstalled(context, 1, "cert-1")
-        orchestrator.markCertificateInstalled(context, 2, "cert-2")
+        orchestrator.markCertificateInstalled(context, 1, "cert-1", version = 1)
+        orchestrator.markCertificateInstalled(context, 2, "cert-2", version = 1)
 
         // Act: Concurrent write and read
         val writeJob = launch {
-            orchestrator.markCertificateInstalled(context, 3, "cert-3")
+            orchestrator.markCertificateInstalled(context, 3, "cert-3", version = 1)
         }
 
         val readJob = launch {
@@ -408,7 +409,7 @@ class CertificateOrchestratorTest {
 
         // Manually verify the pattern - orchestrator would call storeCertificateInstallation
         val alias = (result as CertificateEnrollmentHandler.EnrollmentResult.Success).alias
-        orchestrator.markCertificateInstalled(context, 123, alias)
+        orchestrator.markCertificateInstalled(context, 123, alias, version = 1)
 
         // Verify it was stored
         val storedAlias = orchestrator.getCertificateAlias(context, 123)
@@ -555,7 +556,7 @@ class CertificateOrchestratorTest {
             val expectedState: List<ExpectedCert>,
         )
 
-        fun hostCert(id: Int, op: String) = HostCertificate(id, "verified", op)
+        fun hostCert(id: Int, op: String) = HostCertificate(id, "verified", op, version = 1)
 
         // With FakeCertificateApiClient returning success, removals transition to REMOVED status.
         val testCases = listOf(
@@ -657,7 +658,7 @@ class CertificateOrchestratorTest {
             clearDataStore()
             val certId = index + 1
 
-            orchestrator.markCertificateUnreported(context, certId, "test-cert", case.isInstall)
+            orchestrator.markCertificateUnreported(context, certId, "test-cert", version = 1, isInstall = case.isInstall)
 
             val stored = getStoredCertificates()
             assertEquals("${case.name}: size", 1, stored.size)

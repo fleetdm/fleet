@@ -83,6 +83,7 @@ class CertificateOrchestrator(
                 id = bundle.getInt("id"),
                 status = bundle.getString("status", ""),
                 operation = bundle.getString("operation", HostCertificate.OPERATION_INSTALL),
+                version = bundle.getInt("version", 1),
             )
         }
     }
@@ -117,11 +118,11 @@ class CertificateOrchestrator(
         return certs[certificateId]
     }
 
-    internal suspend fun markCertificateInstalled(context: Context, certificateId: Int, alias: String) {
+    internal suspend fun markCertificateInstalled(context: Context, certificateId: Int, alias: String, version: Int) {
         val existingInfo = getCertificateState(context = context, certificateId = certificateId)
-            ?: CertificateState(alias = alias, status = CertificateStatus.INSTALLED, retries = 0)
+            ?: CertificateState(alias = alias, status = CertificateStatus.INSTALLED, retries = 0, version = version)
 
-        val newInfo = existingInfo.copy(alias = alias, status = CertificateStatus.INSTALLED, retries = 0)
+        val newInfo = existingInfo.copy(alias = alias, status = CertificateStatus.INSTALLED, retries = 0, version = version)
         storeCertificateState(context = context, certificateId = certificateId, certInstallInfo = newInfo)
     }
 
@@ -366,7 +367,7 @@ class CertificateOrchestrator(
                 }
                 certState != null -> {
                     // Certificate exists in DataStore, remove it
-                    val result = removeCertificateFromDevice(context, certId, certState.alias)
+                    val result = removeCertificateFromDevice(context, certId, certState.alias, certState.version)
                     results[certId] = result
                 }
                 else -> {
@@ -401,7 +402,7 @@ class CertificateOrchestrator(
             } else {
                 // Orphaned but not removed - this is unexpected, remove it
                 Log.w(TAG, "Orphaned certificate ID $certId with status ${certState.status}, removing")
-                val result = removeCertificateFromDevice(context, certId, certState.alias)
+                val result = removeCertificateFromDevice(context, certId, certState.alias, certState.version)
                 results[certId] = result
             }
         }
@@ -412,14 +413,14 @@ class CertificateOrchestrator(
     /**
      * Removes a certificate from the device and updates tracking.
      */
-    private suspend fun removeCertificateFromDevice(context: Context, certificateId: Int, alias: String): CleanupResult {
+    private suspend fun removeCertificateFromDevice(context: Context, certificateId: Int, alias: String, version: Int): CleanupResult {
         Log.d(TAG, "Removing certificate ID $certificateId with alias '$alias'")
 
         val removed = removeKeyPair(context, alias)
 
         return if (removed) {
             // First, mark as unreported (persisted before network call)
-            markCertificateUnreported(context, certificateId, alias, isInstall = false)
+            markCertificateUnreported(context, certificateId, alias, version = version, isInstall = false)
 
             // Attempt to report status
             val reportResult = apiClient.updateCertificateStatus(
@@ -478,13 +479,13 @@ class CertificateOrchestrator(
      * @param alias Certificate alias
      * @param isInstall True for install operation, false for remove operation
      */
-    internal suspend fun markCertificateUnreported(context: Context, certificateId: Int, alias: String, isInstall: Boolean) {
+    internal suspend fun markCertificateUnreported(context: Context, certificateId: Int, alias: String, version: Int, isInstall: Boolean) {
         val status = if (isInstall) {
             CertificateStatus.INSTALLED_UNREPORTED
         } else {
             CertificateStatus.REMOVED_UNREPORTED
         }
-        val info = CertificateState(alias = alias, status = status, statusReportRetries = 0)
+        val info = CertificateState(alias = alias, status = status, statusReportRetries = 0, version = version)
         storeCertificateState(context, certificateId, info)
     }
 
@@ -556,7 +557,7 @@ class CertificateOrchestrator(
 
             if (result.isSuccess) {
                 if (isInstall) {
-                    markCertificateInstalled(context, certId, state.alias)
+                    markCertificateInstalled(context, certId, state.alias, state.version)
                 } else {
                     markCertificateRemoved(context, certId, state.alias)
                 }
@@ -582,29 +583,38 @@ class CertificateOrchestrator(
      *
      * @param context Android context for certificate installation
      * @param certificateId ID of the certificate template to enroll
+     * @param version Version number from managed config, used to detect when reinstallation is needed
      * @param certificateInstaller Certificate installer implementation (defaults to AndroidCertificateInstaller)
      * @return EnrollmentResult indicating success or failure with details
      */
     suspend fun enrollCertificate(
         context: Context,
         certificateId: Int,
+        version: Int,
         certificateInstaller: CertificateEnrollmentHandler.CertificateInstaller? = null,
     ): CertificateEnrollmentHandler.EnrollmentResult {
-        Log.d(TAG, "Starting certificate enrollment for certificate ID: $certificateId")
+        Log.d(TAG, "Starting certificate enrollment for certificate ID: $certificateId (version: $version)")
 
-        // Check if certificate is already installed (BEFORE API call)
-        if (isCertificateIdInstalled(context, certificateId)) {
-            val alias = getCertificateAlias(context, certificateId)!!
-            Log.i(TAG, "Certificate ID $certificateId (alias: '$alias') is already installed, skipping enrollment")
-            return CertificateEnrollmentHandler.EnrollmentResult.Success(alias)
+        // Check if certificate is already installed with matching version (BEFORE API call)
+        val storedState = getCertificateState(context, certificateId)
+        if (storedState != null) {
+            val existsInKeystore = isCertificateInstalled(context, storedState.alias)
+            if (existsInKeystore && storedState.version == version && storedState.status == CertificateStatus.INSTALLED) {
+                Log.i(
+                    TAG,
+                    "Certificate ID $certificateId (alias: '${storedState.alias}', version: $version) is already installed, skipping enrollment",
+                )
+                return CertificateEnrollmentHandler.EnrollmentResult.Success(storedState.alias)
+            }
+            if (existsInKeystore && storedState.version != version) {
+                Log.i(TAG, "Certificate ID $certificateId version changed (${storedState.version} -> $version), will reinstall")
+            }
         }
 
-        // Skip enrollment if already marked as permanently failed (max retries exceeded).
-        // Returns Success to prevent retry loops - the failure has already been reported
-        // to the Fleet server via updateCertificateStatus().
-        val storedInfo = getCertificateState(context = context, certificateId = certificateId)
-        if (storedInfo?.status == CertificateStatus.FAILED) {
-            return CertificateEnrollmentHandler.EnrollmentResult.Success(storedInfo.alias)
+        // Skip enrollment if already marked as permanently failed (max retries exceeded),
+        // unless the version changed (server wants a fresh install).
+        if (storedState?.status == CertificateStatus.FAILED && storedState.version == version) {
+            return CertificateEnrollmentHandler.EnrollmentResult.Success(storedState.alias)
         }
 
         // Fetch certificate template from API (only if not already installed)
@@ -644,7 +654,7 @@ class CertificateOrchestrator(
                 Log.i(TAG, "Certificate enrollment successful for ID $certificateId with alias: ${result.alias}")
 
                 // First, mark as unreported (persisted before network call)
-                markCertificateUnreported(context, certificateId, template.name, isInstall = true)
+                markCertificateUnreported(context, certificateId, template.name, version = version, isInstall = true)
 
                 // Attempt to report status
                 val reportResult = apiClient.updateCertificateStatus(
@@ -655,7 +665,7 @@ class CertificateOrchestrator(
 
                 if (reportResult.isSuccess) {
                     // Status reported successfully, mark as fully installed
-                    markCertificateInstalled(context, certificateId = certificateId, alias = template.name)
+                    markCertificateInstalled(context, certificateId = certificateId, alias = template.name, version = version)
                 } else {
                     // Status report failed - leave as INSTALLED_UNREPORTED for retry later
                     Log.w(
@@ -687,19 +697,21 @@ class CertificateOrchestrator(
      * Enrolls multiple certificates in parallel.
      *
      * @param context Android context for certificate installation
-     * @param certificateIds List of certificate template IDs to enroll
+     * @param hostCertificates List of certificate templates to enroll
      * @return Map of certificate ID to enrollment result
      */
-    suspend fun enrollCertificates(context: Context, certificateIds: List<Int>): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> =
-        coroutineScope {
-            Log.d(TAG, "Starting batch certificate enrollment for ${certificateIds.size} certificates")
+    suspend fun enrollCertificates(
+        context: Context,
+        hostCertificates: List<HostCertificate>,
+    ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> = coroutineScope {
+        Log.d(TAG, "Starting batch certificate enrollment for ${hostCertificates.size} certificates")
 
-            certificateIds.associateWith { certificateId ->
-                async {
-                    enrollCertificate(context, certificateId)
-                }
-            }.mapValues { it.value.await() }
-        }
+        hostCertificates.associate { cert ->
+            cert.id to async {
+                enrollCertificate(context, cert.id, cert.version)
+            }
+        }.mapValues { it.value.await() }
+    }
 
     /**
      * Android-specific certificate installer using DevicePolicyManager.
@@ -771,6 +783,8 @@ data class CertificateState(
     val retries: Int = 0,
     @SerialName("status_report_retries")
     val statusReportRetries: Int = 0,
+    @SerialName("version")
+    val version: Int = 1,
 ) {
     fun shouldRetry(): Boolean = status == CertificateStatus.RETRY && retries < (MAX_CERT_INSTALL_RETRIES)
     fun shouldRetryStatusReport(): Boolean = statusReportRetries < MAX_STATUS_REPORT_RETRIES
@@ -791,8 +805,9 @@ sealed class CleanupResult {
  * @property id Certificate template ID
  * @property status Current status of the certificate template
  * @property operation Operation to perform: "install" or "remove"
+ * @property version Version number, incremented by server to trigger reinstallation
  */
-data class HostCertificate(val id: Int, val status: String, val operation: String) {
+data class HostCertificate(val id: Int, val status: String, val operation: String, val version: Int) {
     companion object {
         const val OPERATION_INSTALL = "install"
         const val OPERATION_REMOVE = "remove"
