@@ -1,0 +1,1 @@
+* The macOS bootstrap package is no longer installed during MDM migration, only initial setup
