@@ -38,6 +38,7 @@ const val MAX_STATUS_REPORT_RETRIES = 10
 class CertificateOrchestrator(
     private val apiClient: CertificateApiClient = ApiClient,
     private val scepClient: ScepClient = ScepClientImpl(),
+    private val deviceKeystoreManager: DeviceKeystoreManager? = null,
 ) {
     companion object {
         private const val TAG = "fleet-CertificateOrchestrator"
@@ -243,20 +244,22 @@ class CertificateOrchestrator(
     }
 
     /**
+     * Gets the device keystore manager, using injected instance or creating a default one.
+     */
+    private fun getDeviceKeystoreManager(context: Context): DeviceKeystoreManager =
+        deviceKeystoreManager ?: AndroidDeviceKeystoreManager(context)
+
+    /**
      * Checks if a certificate is installed in the Android keystore.
      *
      * @param context Android context
      * @param alias Certificate alias
      * @return True if certificate exists in keystore
      */
-    private fun isCertificateInstalled(context: Context, alias: String): Boolean = try {
-        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        val hasKeyPair = dpm.hasKeyPair(alias)
+    private fun isCertificateInstalled(context: Context, alias: String): Boolean {
+        val hasKeyPair = getDeviceKeystoreManager(context).hasKeyPair(alias)
         Log.d(TAG, "Certificate '$alias' installation check: $hasKeyPair")
-        hasKeyPair
-    } catch (e: Exception) {
-        Log.e(TAG, "Error checking if certificate '$alias' is installed: ${e.message}", e)
-        false
+        return hasKeyPair
     }
 
     /**
@@ -266,35 +269,7 @@ class CertificateOrchestrator(
      * @param alias Certificate alias to remove
      * @return True if removal was successful or certificate doesn't exist
      */
-    private fun removeKeyPair(context: Context, alias: String): Boolean {
-        return try {
-            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-
-            // First check if keypair exists
-            if (!dpm.hasKeyPair(alias)) {
-                Log.i(TAG, "Certificate '$alias' doesn't exist in keystore, considering removal successful")
-                return true
-            }
-
-            // Attempt to remove the keypair
-            // admin component is null because we're using delegated certificate management
-            val removed = dpm.removeKeyPair(null, alias)
-
-            if (removed) {
-                Log.i(TAG, "Successfully removed certificate keypair with alias: $alias")
-            } else {
-                Log.e(TAG, "Failed to remove certificate keypair '$alias'. Check MDM policy and delegation status.")
-            }
-
-            removed
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception removing certificate '$alias': ${e.message}", e)
-            false
-        } catch (e: Exception) {
-            Log.e(TAG, "Error removing certificate '$alias': ${e.message}", e)
-            false
-        }
-    }
+    private fun removeKeyPair(context: Context, alias: String): Boolean = getDeviceKeystoreManager(context).removeKeyPair(alias)
 
     /**
      * Checks if a certificate ID has been successfully installed and still exists in keystore.

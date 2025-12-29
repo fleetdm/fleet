@@ -40,6 +40,7 @@ class CertificateOrchestratorTest {
     private lateinit var mockScepClient: MockScepClient
     private lateinit var mockInstaller: MockCertificateInstaller
     private lateinit var fakeApiClient: FakeCertificateApiClient
+    private lateinit var fakeDeviceKeystoreManager: FakeDeviceKeystoreManager
     private lateinit var orchestrator: CertificateOrchestrator
 
     private val json = Json {
@@ -53,9 +54,11 @@ class CertificateOrchestratorTest {
         mockScepClient = MockScepClient()
         mockInstaller = MockCertificateInstaller()
         fakeApiClient = FakeCertificateApiClient()
+        fakeDeviceKeystoreManager = FakeDeviceKeystoreManager()
         orchestrator = CertificateOrchestrator(
             apiClient = fakeApiClient,
             scepClient = mockScepClient,
+            deviceKeystoreManager = fakeDeviceKeystoreManager,
         )
 
         // Clear DataStore before each test
@@ -68,6 +71,7 @@ class CertificateOrchestratorTest {
         mockScepClient.reset()
         mockInstaller.reset()
         fakeApiClient.reset()
+        fakeDeviceKeystoreManager.reset()
     }
 
     // ========== Fake API Client for Testing ==========
@@ -88,8 +92,13 @@ class CertificateOrchestratorTest {
         private val _updateStatusCalls = mutableListOf<UpdateStatusCall>()
         val updateStatusCalls: List<UpdateStatusCall> get() = _updateStatusCalls.toList()
 
-        override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> =
-            getCertificateTemplateHandler(certificateId)
+        private val _getCertificateTemplateCalls = mutableListOf<Int>()
+        val getCertificateTemplateCalls: List<Int> get() = _getCertificateTemplateCalls.toList()
+
+        override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
+            _getCertificateTemplateCalls.add(certificateId)
+            return getCertificateTemplateHandler(certificateId)
+        }
 
         override suspend fun updateCertificateStatus(
             certificateId: Int,
@@ -106,6 +115,7 @@ class CertificateOrchestratorTest {
             getCertificateTemplateHandler = { Result.failure(Exception("getCertificateTemplate not configured")) }
             updateCertificateStatusHandler = { Result.success(Unit) }
             _updateStatusCalls.clear()
+            _getCertificateTemplateCalls.clear()
         }
     }
 
@@ -172,7 +182,31 @@ class CertificateOrchestratorTest {
         }
     }
 
-    // ========== Test Category 1: DataStore Certificate Tracking ==========
+    // ========== Fake Device Keystore Manager ==========
+
+    class FakeDeviceKeystoreManager : DeviceKeystoreManager {
+        val installedCerts = mutableSetOf<String>()
+        var removeKeyPairShouldSucceed = true
+
+        override fun hasKeyPair(alias: String): Boolean = alias in installedCerts
+
+        override fun removeKeyPair(alias: String): Boolean {
+            if (!removeKeyPairShouldSucceed) return false
+            installedCerts.remove(alias)
+            return true
+        }
+
+        fun installCert(alias: String) {
+            installedCerts.add(alias)
+        }
+
+        fun reset() {
+            installedCerts.clear()
+            removeKeyPairShouldSucceed = true
+        }
+    }
+
+    // ========== Test category: DataStore certificate tracking ==========
 
     @Test
     fun `storeCertificateInstallation stores certificate in DataStore`() = runTest {
@@ -264,9 +298,8 @@ class CertificateOrchestratorTest {
         assertEquals("recovered-cert", stored[111]?.alias)
     }
 
-    // ========== Test Category 2: Optimized API Call Avoidance ==========
+    // ========== Test category: Optimized API call avoidance ==========
 
-    @Ignore("Requires DevicePolicyManager mocking - TODO: redesign test or add DI")
     @Test
     fun `isCertificateIdInstalled returns true when certificate tracked and in keystore`() = runTest {
         // Arrange
@@ -274,7 +307,7 @@ class CertificateOrchestratorTest {
         val alias = "device-cert"
 
         storeTestCertificateInDataStore(certificateId, alias)
-        mockInstaller.installedCertificates.add(alias)
+        fakeDeviceKeystoreManager.installCert(alias)
 
         // Act
         val result = orchestrator.isCertificateIdInstalled(context, certificateId)
@@ -312,7 +345,105 @@ class CertificateOrchestratorTest {
         assertFalse(result)
     }
 
-    // ========== Test Category 3: Mutex Protection (Concurrency) ==========
+    // ========== Test category: Version-based reinstallation ==========
+
+    @Test
+    fun `enrollCertificate handles version-based reinstallation correctly`() = runTest {
+        data class TestCase(
+            val name: String,
+            val initialStatus: CertificateStatus,
+            val inKeystore: Boolean,
+            val storedVersion: Int,
+            val requestedVersion: Int,
+            val expectApiCall: Boolean,
+        )
+
+        val testCases = listOf(
+            TestCase(
+                name = "skips installed cert when version matches",
+                initialStatus = CertificateStatus.INSTALLED,
+                inKeystore = true,
+                storedVersion = 1,
+                requestedVersion = 1,
+                expectApiCall = false,
+            ),
+            TestCase(
+                name = "reinstalls when version changes",
+                initialStatus = CertificateStatus.INSTALLED,
+                inKeystore = true,
+                storedVersion = 1,
+                requestedVersion = 2,
+                expectApiCall = true,
+            ),
+            TestCase(
+                name = "retries failed cert when version changes",
+                initialStatus = CertificateStatus.FAILED,
+                inKeystore = false,
+                storedVersion = 1,
+                requestedVersion = 2,
+                expectApiCall = true,
+            ),
+            TestCase(
+                name = "skips failed cert when version is same",
+                initialStatus = CertificateStatus.FAILED,
+                inKeystore = false,
+                storedVersion = 1,
+                requestedVersion = 1,
+                expectApiCall = false,
+            ),
+        )
+
+        for (case in testCases) {
+            // Reset state between test cases
+            clearDataStore()
+            fakeApiClient.reset()
+            fakeDeviceKeystoreManager.reset()
+
+            // Arrange
+            val state = CertificateState(
+                alias = "test-cert",
+                status = case.initialStatus,
+                retries = if (case.initialStatus == CertificateStatus.FAILED) 3 else 0,
+                version = case.storedVersion,
+            )
+            orchestrator.storeCertificateState(context, 123, state)
+
+            if (case.inKeystore) {
+                fakeDeviceKeystoreManager.installCert("test-cert")
+            }
+
+            // Act
+            val hostCert = HostCertificate(
+                id = 123,
+                status = "delivered",
+                operation = "install",
+                version = case.requestedVersion,
+            )
+            val results = orchestrator.enrollCertificates(context, listOf(hostCert))
+
+            // Assert
+            assertEquals("${case.name}: should have 1 result", 1, results.size)
+
+            if (case.expectApiCall) {
+                assertEquals(
+                    "${case.name}: should call API",
+                    1,
+                    fakeApiClient.getCertificateTemplateCalls.size,
+                )
+            } else {
+                assertTrue(
+                    "${case.name}: should skip API call",
+                    fakeApiClient.getCertificateTemplateCalls.isEmpty(),
+                )
+                assertTrue(
+                    "${case.name}: should return success",
+                    results[123] is CertificateEnrollmentHandler.EnrollmentResult.Success,
+                )
+            }
+        }
+    }
+
+    // ========== Test category: Mutex protection (concurrency) ==========
 
     @Test
     fun `concurrent certificate storage does not lose data`() = runTest {
@@ -383,7 +514,7 @@ class CertificateOrchestratorTest {
         assertEquals(3, stored.size)
     }
 
-    // ========== Test Category 4: Integration Tests ==========
+    // ========== Test category: Integration tests ==========
 
     @Test
     fun `full enrollment flow stores certificate in DataStore after success`() = runTest {
@@ -462,7 +593,7 @@ class CertificateOrchestratorTest {
         assertFalse(mockInstaller.wasInstallCalled)
     }
 
-    // ========== Test Category 4: Certificate Cleanup ==========
+    // ========== Test category: Certificate cleanup ==========
 
     // --- removeCertificateState tests ---
 
@@ -643,7 +774,7 @@ class CertificateOrchestratorTest {
         }
     }
 
-    // ========== Test Category 5: Status Report Retry Logic ==========
+    // ========== Test category: Status report retry logic ==========
 
     @Test
     fun `markCertificateUnreported sets correct status based on operation type`() = runTest {
@@ -731,7 +862,7 @@ class CertificateOrchestratorTest {
         }
     }
 
-    // ========== Test Category 6: retryUnreportedStatuses ==========
+    // ========== Test category: retryUnreportedStatuses ==========
 
     @Test
     fun `retryUnreportedStatuses returns empty map when no certificates exist`() = runTest {
