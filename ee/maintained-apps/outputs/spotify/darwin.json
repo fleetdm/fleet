@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "1.2.77.358",
+      "version": "1.2.79.427",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.spotify.client';"
       },

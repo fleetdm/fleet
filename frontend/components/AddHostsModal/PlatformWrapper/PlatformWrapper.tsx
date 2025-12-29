@@ -371,7 +371,7 @@ const PlatformWrapper = ({
               Chromebooks,&nbsp;
               <Button
                 variant="text-link-dark"
-                onClick={() => setSelectedTabIndex(4)}
+                onClick={() => setSelectedTabIndex(3)}
               >
                 click here
               </Button>

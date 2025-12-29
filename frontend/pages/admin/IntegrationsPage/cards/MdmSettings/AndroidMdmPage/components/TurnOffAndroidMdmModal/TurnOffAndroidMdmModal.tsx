@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
@@ -21,7 +21,10 @@ const TurnOffAndroidMdmModal = ({
 }: ITurnOffAndroidMdmModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const onTurnOffAndroidMdm = async () => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const onClickConfirm = useCallback(async () => {
+    setIsDeleting(true);
     try {
       await mdmAndroidAPI.turnOffAndroidMdm();
       renderFlash("success", "Android MDM turned off successfully.", {
@@ -32,7 +35,7 @@ const TurnOffAndroidMdmModal = ({
       onExit();
       renderFlash("error", "Couldn't turn off Android MDM. Please try again.");
     }
-  };
+  }, [onExit, renderFlash, router]);
 
   return (
     <Modal title="Turn off Android MDM" className={baseClass} onExit={onExit}>
@@ -46,10 +49,19 @@ const TurnOffAndroidMdmModal = ({
           their Android work partition.
         </p>
         <div className="modal-cta-wrap">
-          <Button onClick={onTurnOffAndroidMdm} variant="alert">
+          <Button
+            variant="alert"
+            isLoading={isDeleting}
+            disabled={isDeleting}
+            onClick={onClickConfirm}
+          >
             Turn off
           </Button>
-          <Button onClick={onExit} variant="inverse-alert">
+          <Button
+            variant="inverse-alert"
+            disabled={isDeleting}
+            onClick={onExit}
+          >
             Cancel
           </Button>
         </div>

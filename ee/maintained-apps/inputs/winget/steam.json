@@ -1,0 +1,12 @@
+{
+  "name": "Steam",
+  "slug": "steam/windows",
+  "package_identifier": "Valve.Steam",
+  "unique_identifier": "Steam",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/steam_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/steam_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

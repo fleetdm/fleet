@@ -1473,6 +1473,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 				Usage:    "Filter MDM commands by ID.",
 				Required: true,
 			},
+			byHostIdentifier(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1485,10 +1486,10 @@ func getMDMCommandResultsCommand() *cli.Command {
 				return err
 			}
 
-			res, err := client.MDMGetCommandResults(c.String("id"))
+			res, err := client.MDMGetCommandResults(c.String("id"), c.String("host"))
 			if err != nil {
 				var nfe service.NotFoundErr
-				if errors.As(err, &nfe) {
+				if errors.As(err, &nfe) && c.String("host") == "" {
 					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetctl get mdm-commands`.")
 				}
 
@@ -1569,6 +1570,7 @@ func getMDMCommandsCommand() *cli.Command {
 			debugFlag(),
 			byHostIdentifier(),
 			byMDMCommandRequestType(),
+			withMDMCommandStatusFilter(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1581,10 +1583,18 @@ func getMDMCommandsCommand() *cli.Command {
 				return err
 			}
 
+			commandStatuses := []fleet.MDMCommandStatusFilter{}
+			if c.IsSet("command_status") {
+				for val := range strings.SplitSeq(c.String("command_status"), ",") {
+					commandStatuses = append(commandStatuses, fleet.MDMCommandStatusFilter(val))
+				}
+			}
+
 			opts := fleet.MDMCommandListOptions{
 				Filters: fleet.MDMCommandFilters{
-					HostIdentifier: c.String("host"),
-					RequestType:    c.String("type"),
+					HostIdentifier:  c.String("host"),
+					RequestType:     c.String("type"),
+					CommandStatuses: commandStatuses,
 				},
 			}
 
@@ -1595,7 +1605,13 @@ func getMDMCommandsCommand() *cli.Command {
 				}
 				return err
 			}
-			if len(results) == 0 && opts.Filters.HostIdentifier == "" && opts.Filters.RequestType == "" {
+
+			if len(results) == 0 {
+				if opts.Filters.HostIdentifier != "" {
+					log(c, "No MDM commands have been run on this host.\n")
+					return nil
+				}
+
 				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
 				return nil
 			}

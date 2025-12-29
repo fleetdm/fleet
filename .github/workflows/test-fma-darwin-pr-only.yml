@@ -23,6 +23,9 @@ on:
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+permissions:
+  contents: read
+
 jobs:
   test-fma-pr-only:
     env:
@@ -77,6 +80,7 @@ jobs:
         run: |
           if [ "${{ steps.check-changes.outputs.has_changes }}" != "true" ]; then
             echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
+            echo "has_google_chrome=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -85,6 +89,7 @@ jobs:
 
           if [ -z "$DARWIN_SLUGS" ]; then
             echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
+            echo "has_google_chrome=false" >> $GITHUB_OUTPUT
             echo "No darwin apps changed, skipping Darwin workflow"
           else
             echo "has_darwin_apps=true" >> $GITHUB_OUTPUT
@@ -92,6 +97,14 @@ jobs:
             echo "$DARWIN_SLUGS" | while read -r slug; do
               echo "  - $slug"
             done
+
+            # Check if google-chrome/darwin is in the changed apps
+            if echo "$DARWIN_SLUGS" | grep -q "^google-chrome/darwin$"; then
+              echo "has_google_chrome=true" >> $GITHUB_OUTPUT
+              echo "Google Chrome detected in changed apps"
+            else
+              echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            fi
           fi
         shell: bash
 
@@ -107,7 +120,7 @@ jobs:
           sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
 
       - name: Remove pre-installed google chrome mac
-        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
+        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true' && steps.check-darwin-apps.outputs.has_google_chrome == 'true'
         run: |
           ls /Applications | grep -i "Chrome"
           find /Applications -name "*Chrome*.app" -type d | while read app;
@@ -122,7 +135,7 @@ jobs:
           cd fleet
           # Set GITHUB_WORKSPACE to current directory so scripts can find files
           export GITHUB_WORKSPACE="$PWD"
-          
+
           # Filter changed apps to only include darwin platform
           DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
           DARWIN_SLUGS_JSON=$(echo "$DARWIN_SLUGS" | jq -R -s -c 'split("\n") | map(select(length > 0))')

@@ -1,11 +1,20 @@
 package com.fleetdm.agent
 
 import android.app.Application
+import android.content.Context
+import android.content.RestrictionsManager
+import android.os.Build
 import android.util.Log
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Custom Application class for Fleet Agent.
@@ -14,30 +23,72 @@ import java.util.concurrent.TimeUnit
 class AgentApplication : Application() {
     companion object {
         private const val TAG = "fleet-app"
-        private const val CONFIG_CHECK_WORK_NAME = "config_check_periodic"
     }
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "Fleet agent process started")
-        schedulePeriodicConfigCheck()
+        ApiClient.initialize(this)
+        refreshEnrollmentCredentials()
+        schedulePeriodicCertificateEnrollment()
     }
 
-    private fun schedulePeriodicConfigCheck() {
-        val workRequest =
-            PeriodicWorkRequestBuilder<ConfigCheckWorker>(
-                15, // 15 is the minimum
-                TimeUnit.MINUTES,
-            ).build()
+    private fun refreshEnrollmentCredentials() {
+        applicationScope.launch {
+            try {
+                val restrictionsManager = getSystemService(Context.RESTRICTIONS_SERVICE)
+                    as? RestrictionsManager
+                val appRestrictions = restrictionsManager?.applicationRestrictions ?: return@launch
 
-        WorkManager
-            .getInstance(this)
+                val enrollSecret = appRestrictions.getString("enroll_secret")
+                val hostUUID = appRestrictions.getString("host_uuid")
+                val serverURL = appRestrictions.getString("server_url")
+
+                if (enrollSecret != null && hostUUID != null && serverURL != null) {
+                    Log.d(TAG, "Refreshing enrollment credentials from MDM config")
+                    ApiClient.setEnrollmentCredentials(
+                        enrollSecret = enrollSecret,
+                        hardwareUUID = hostUUID,
+                        serverUrl = serverURL,
+                        computerName = "${Build.BRAND} ${Build.MODEL}",
+                    )
+
+                    // Trigger auto-enrollment if node key is missing
+                    // This also fetches initial orbit config
+                    val configResult = ApiClient.getOrbitConfig()
+                    configResult.onSuccess {
+                        Log.d(TAG, "Successfully enrolled and fetched initial orbit config")
+                    }.onFailure { error ->
+                        Log.w(TAG, "Auto-enrollment on startup failed: ${error.message}")
+                    }
+                } else {
+                    Log.d(TAG, "MDM enrollment credentials not available")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing enrollment credentials", e)
+            }
+        }
+    }
+
+    private fun schedulePeriodicCertificateEnrollment() {
+        val workRequest = PeriodicWorkRequestBuilder<CertificateEnrollmentWorker>(
+            15, // 15 minutes is the minimum
+            TimeUnit.MINUTES,
+        ).setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build(),
+        ).build()
+
+        WorkManager.getInstance(this)
             .enqueueUniquePeriodicWork(
-                CONFIG_CHECK_WORK_NAME,
+                CertificateEnrollmentWorker.WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
                 workRequest,
             )
 
-        Log.i(TAG, "Scheduled periodic config check every 15 minutes")
+        Log.i(TAG, "Scheduled periodic certificate enrollment every 15 minutes")
     }
 }

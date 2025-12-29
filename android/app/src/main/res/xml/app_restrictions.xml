@@ -2,37 +2,37 @@
 <restrictions xmlns:android="http://schemas.android.com/apk/res/android">
 
     <restriction
-        android:key="enrollSecret"
+        android:key="enroll_secret"
         android:title="@string/enroll_secret_title"
         android:restrictionType="string"
         android:description="@string/enroll_secret_description" />
 
     <restriction
-        android:key="fleetBaseUrl"
-        android:title="@string/fleet_base_url_title"
+        android:key="server_url"
+        android:title="@string/server_url_title"
         android:restrictionType="string"
-        android:description="@string/fleet_base_url_description" />
+        android:description="@string/server_url_description" />
 
     <restriction
-        android:key="enrollmentSpecificID"
-        android:title="@string/enrollment_specific_id_title"
+            android:key="host_uuid"
+        android:title="@string/host_uuid_title"
         android:restrictionType="string"
-        android:description="@string/enrollment_specific_id_description" />
+        android:description="@string/host_uuid_description" />
 
     <restriction
-        android:key="certificates"
-        android:title="@string/certificates_title"
-        android:description="@string/certificates_description"
+        android:key="certificate_templates"
+        android:title="@string/certificate_templates_title"
+        android:description="@string/certificate_templates_description"
         android:restrictionType="bundle_array" >
         <restriction
-            android:key="certificate"
-            android:title="@string/certificate_title"
-            android:description="@string/certificate_description"
+            android:key="certificate_template"
+            android:title="@string/certificate_template_title"
+            android:description="@string/certificate_template_description"
             android:restrictionType="bundle">
             <restriction
-                android:key="certificate_id"
-                android:title="@string/certificate_id_title"
-                android:description="@string/certificate_id_description"
+                android:key="id"
+                android:title="@string/certificate_template_id_title"
+                android:description="@string/certificate_template_id_description"
                 android:restrictionType="integer" />
         </restriction>
     </restriction>

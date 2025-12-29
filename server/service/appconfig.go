@@ -233,7 +233,9 @@ func (svc *Service) SandboxEnabled() bool {
 }
 
 func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
@@ -387,6 +389,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
+	// AppleOSUpdateSettings.UpdateNewHosts only applies to macOS ... so just ignore w/e posted for iOS/iPadOS
+	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
+	appConfig.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
 
 	// if turning off Windows MDM and Windows Migration is not explicitly set to
 	// on in the same update, set it to off (otherwise, if it is explicitly set
@@ -1124,6 +1130,17 @@ func (svc *Service) processAppleOSUpdateSettings(
 				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
 				Deadline:       newOSUpdateSettings.Deadline.Value,
 			}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")
+		}
+	}
+
+	if oldOSUpdateSettings.UpdateNewHosts.Value != newOSUpdateSettings.UpdateNewHosts.Value && appleDevice == fleet.MacOS {
+		var activity fleet.ActivityDetails
+		activity = fleet.ActivityTypeEnabledMacosUpdateNewHosts{}
+		if !newOSUpdateSettings.UpdateNewHosts.Value {
+			activity = fleet.ActivityTypeDisabledMacosUpdateNewHosts{}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")

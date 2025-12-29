@@ -50,7 +50,11 @@ extract_slugs_from_changed_manifests() {
     done <<< "$changed_files"
     
     # Remove duplicates and sort
-    printf '%s\n' "${slugs[@]}" | sort -u
+    if [ ${#slugs[@]} -eq 0 ]; then
+        echo ""
+    else
+        printf '%s\n' "${slugs[@]}" | sort -u
+    fi
 }
 
 # Get changed files in outputs directory

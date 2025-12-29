@@ -13,6 +13,10 @@ type VPPAppID struct {
 	Platform InstallableDevicePlatform `db:"platform" json:"platform"`
 }
 
+func (v VPPAppID) String() string {
+	return fmt.Sprintf(`%s_%s`, v.AdamID, v.Platform)
+}
+
 // VPPAppTeam contains extra metadata injected by fleet
 type VPPAppTeam struct {
 	VPPAppID
@@ -51,6 +55,14 @@ type VPPAppTeam struct {
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Applicable to Android apps only.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
+}
+
+func (v VPPAppTeam) GetPlatform() string {
+	return string(v.Platform)
+}
+
+func (v VPPAppTeam) GetAppStoreID() string {
+	return v.AdamID
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -141,6 +153,21 @@ type HostVPPSoftwareInstall struct {
 	BundleIdentifier     string     `db:"bundle_identifier"`
 }
 
+// HostAndroidVPPSoftwareInstall represents the payload needed to
+// insert a VPP software install record for an Android host.
+//
+// NOTE: Currently only supported for setup experience, to revisit when
+// we support Android app installs at-large (as it will then go through
+// the upcoming queue). For this reason, user ID and (Fleet-) policy id
+// are always null and self-service is always false, while platform is
+// always android.
+type HostAndroidVPPSoftwareInstall struct {
+	HostID            uint   `db:"host_id"`
+	AdamID            string `db:"adam_id"`             // for Android, this is the e.g. com.chrome application ID
+	CommandUUID       string `db:"command_uuid"`        // uuid of the corresponding android_policy_request row
+	AssociatedEventID string `db:"associated_event_id"` // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
+}
+
 const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
@@ -153,4 +180,5 @@ type AppStoreAppUpdatePayload struct {
 	Categories       []string
 	DisplayName      *string
 	Configuration    json.RawMessage
+	SoftwareAutoUpdateConfig
 }

@@ -768,6 +768,21 @@ the way that the Fleet server works.
 			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
+
+			activitiesModule := activities.NewActivityModule(ds, logger)
+			androidSvc, err := android_service.NewService(
+				ctx,
+				logger,
+				ds,
+				config.License.Key,
+				config.Server.PrivateKey,
+				ds,
+				activitiesModule,
+			)
+			if err != nil {
+				initFatal(err, "initializing android service")
+			}
+
 			svc, err := service.NewService(
 				ctx,
 				ds,
@@ -796,22 +811,10 @@ the way that the Fleet server works.
 				digiCertService,
 				conditionalAccessMicrosoftProxy,
 				redis_key_value.New(redisPool),
+				androidSvc,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
-			}
-			activitiesModule := activities.NewActivityModule(ds, logger)
-			androidSvc, err := android_service.NewService(
-				ctx,
-				logger,
-				ds,
-				config.License.Key,
-				config.Server.PrivateKey,
-				ds,
-				activitiesModule,
-			)
-			if err != nil {
-				initFatal(err, "initializing android service")
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
@@ -1853,7 +1856,7 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 		initFatal(err, "initializing S3 software installer store")
 	}
 	if err := softwareInstallerStore.CreateTestBucket(context.Background(), config.S3.SoftwareInstallersBucket); err != nil {
-		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		// Don't panic, allow devs to run Fleet without S3 dependency.
 		level.Info(logger).Log(
 			"err", err,
 			"msg", "failed to create test software installer bucket",
@@ -1865,7 +1868,7 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 		initFatal(err, "initializing S3 carve store")
 	}
 	if err := carveStore.CreateTestBucket(context.Background(), config.S3.CarvesBucket); err != nil {
-		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		// Don't panic, allow devs to run Fleet without S3 dependency.
 		level.Info(logger).Log(
 			"err", err,
 			"msg", "failed to create test carve bucket",

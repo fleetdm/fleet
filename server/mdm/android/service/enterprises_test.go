@@ -217,6 +217,12 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return &fleet.Job{}, nil
 	}
+	ds.Store.MarkAllPendingAndroidVPPInstallsAsFailedFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.Store.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+		return 0, nil
+	}
 	return &ds
 }
 

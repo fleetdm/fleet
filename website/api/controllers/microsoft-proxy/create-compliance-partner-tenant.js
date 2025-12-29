@@ -49,7 +49,7 @@ module.exports = {
       setupCompleted: false,
     })
     .fetch()
-    .tolerate('E_UNIQUE', 'connectionAlreadyExists');
+    .intercept('E_UNIQUE', 'connectionAlreadyExists');
 
 
     return {

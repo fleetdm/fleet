@@ -43,6 +43,19 @@ describe("formatAlreadyAvailableInstallMessage", () => {
     expect(container.textContent).toContain("Marketing team");
   });
 
+  it("returns React with correct text and team when the string matches the package exists regex", () => {
+    const msg = `SoftwareInstaller "MyApp" already exists with team "Marketing".`;
+    const result = formatAlreadyAvailableInstallMessage(msg);
+
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain("Couldn't add.");
+    expect(container.textContent).toContain("MyApp");
+    expect(container.textContent).toContain(
+      "already has an installer available"
+    );
+    expect(container.textContent).toContain("Marketing");
+  });
+
   it("returns null if the string does not match the expected pattern", () => {
     const msg = "Random error message not matching pattern";
     const result = formatAlreadyAvailableInstallMessage(msg);

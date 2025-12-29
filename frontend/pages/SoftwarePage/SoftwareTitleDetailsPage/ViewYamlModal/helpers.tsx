@@ -150,6 +150,7 @@ interface CreatePackageYamlParams {
   postInstallScript?: string;
   uninstallScript?: string;
   iconUrl: string | null;
+  displayName?: string;
   isScriptPackage?: boolean;
 }
 
@@ -164,6 +165,7 @@ export const createPackageYaml = ({
   postInstallScript,
   uninstallScript,
   iconUrl,
+  displayName,
   isScriptPackage = false,
 }: CreatePackageYamlParams): string => {
   let yaml = `# ${softwareTitle} (${packageName}) version ${version}
@@ -177,6 +179,11 @@ export const createPackageYaml = ({
   if (sha256) {
     yaml += url ? "  " : "- ";
     yaml += `hash_sha256: ${sha256}
+`;
+  }
+
+  if (displayName) {
+    yaml += `  display_name: ${displayName}
 `;
   }
 

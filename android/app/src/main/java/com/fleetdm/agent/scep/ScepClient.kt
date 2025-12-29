@@ -1,5 +1,7 @@
 package com.fleetdm.agent.scep
 
+import com.fleetdm.agent.GetCertificateTemplateResponse
+
 /**
  * Interface for SCEP (Simple Certificate Enrollment Protocol) client operations.
  *
@@ -17,5 +19,5 @@ interface ScepClient {
      * @return ScepResult containing the private key and certificate chain
      * @throws ScepException if enrollment fails
      */
-    suspend fun enroll(config: ScepConfig): ScepResult
+    suspend fun enroll(config: GetCertificateTemplateResponse): ScepResult
 }

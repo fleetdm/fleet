@@ -10,7 +10,10 @@ import Select, {
   ValueContainerProps,
 } from "react-select-5";
 
-import { ACTIVITY_DISPLAY_NAME_MAP, ActivityType } from "interfaces/activity";
+import {
+  ACTIVITY_TYPE_TO_FILTER_LABEL,
+  ActivityType,
+} from "interfaces/activity";
 
 import {
   CustomOptionType,
@@ -98,7 +101,7 @@ const CustomValueContainer = ({
 
 const TYPE_FILTER_OPTIONS: CustomOptionType[] = Object.values(ActivityType)
   .map((type) => ({
-    label: ACTIVITY_DISPLAY_NAME_MAP[type],
+    label: ACTIVITY_TYPE_TO_FILTER_LABEL[type],
     value: type,
   }))
   .sort((a, b) => a.label.localeCompare(b.label));

@@ -2143,4 +2143,22 @@ spec:
       <integer>1</integer>
     </dict>
     </plist>
-
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CrowdStrike Falcon System Extension enabled and activated (macOS)
+  query: |
+    SELECT 1 
+    WHERE (EXISTS (SELECT 1 FROM system_extensions WHERE identifier = 'com.crowdstrike.falcon.Agent'))
+    AND EXISTS (SELECT 1 FROM system_extensions WHERE state = 'activated_enabled');
+  bash: systemextensionsctl list | grep 'falcon' | grep 'activated enabled'
+  description: Checks to make sure that the CrowdStrike System Extension is enabled and activated on macOS devices.
+  resolution: "To activate the CrowdStrike Falcon System Extension, on the failing device, run the following command in the Terminal app: sudo /Applications/Falcon.app/Contents/Resources/falconctl load"
+  tags: compliance, hardening, critical
+  platform: darwin
+  contributors: spalmesano0
+  script: |
+    #!/bin/sh
+    
+    /Applications/Falcon.app/Contents/Resources/falconctl load

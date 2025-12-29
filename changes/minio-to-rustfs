@@ -1,0 +1,1 @@
+- Updated S3 username/password when running in dev mode to remove outdated mentions of MinIO

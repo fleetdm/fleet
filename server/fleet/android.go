@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -94,20 +93,6 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	return nil
 }
 
-// MDMAndroidPolicyRequest represents a request made to the Android Management
-// API (AMAPI) to patch the policy or the device (as made by
-// androidsvc.ReconcileProfiles).
-type MDMAndroidPolicyRequest struct {
-	RequestUUID          string           `db:"request_uuid"`
-	RequestName          string           `db:"request_name"`
-	PolicyID             string           `db:"policy_id"`
-	Payload              []byte           `db:"payload"`
-	StatusCode           int              `db:"status_code"`
-	ErrorDetails         sql.Null[string] `db:"error_details"`
-	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
-	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
-}
-
 type MDMAndroidProfilePayload struct {
 	HostUUID                string             `db:"host_uuid"`
 	Status                  *MDMDeliveryStatus `db:"status"`
@@ -137,7 +122,7 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
-		Status:        p.Status,
+		Status:        p.Status.StringPtr(),
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",
@@ -196,6 +181,12 @@ func IsAndroidPolicyFieldValid(fieldName string) bool {
 	return policyFieldsCache[fieldName]
 }
 
+var validAndroidWorkProfileWidgets = map[string]struct{}{
+	"WORK_PROFILE_WIDGETS_UNSPECIFIED": {},
+	"WORK_PROFILE_WIDGETS_ALLOWED":     {},
+	"WORK_PROFILE_WIDGETS_DISALLOWED":  {},
+}
+
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
 // Configuration must be valid JSON with only "managedConfiguration" and/or
 // "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
@@ -208,7 +199,7 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 
 	type androidAppConfig struct {
 		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets   json.RawMessage `json:"workProfileWidgets"`
+		WorkProfileWidgets   string          `json:"workProfileWidgets"`
 	}
 
 	var cfg androidAppConfig
@@ -221,6 +212,10 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		return &BadRequestError{
 			Message: "Couldn't update configuration. Invalid JSON.",
 		}
+	}
+
+	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
 	}
 
 	return nil

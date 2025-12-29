@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/go-json-experiment/json"
@@ -18,6 +20,30 @@ var (
 	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	androidProjectID          string
 )
+
+const (
+	cmdEnterprisesDelete          = "enterprises.delete"
+	cmdEnterprisesList            = "enterprises.list"
+	cmdEnterprisesWebTokensCreate = "enterprises.webTokens.create"
+	cmdApplicationsGet            = "applications.get"
+	cmdPoliciesList               = "policies.list"
+	cmdPoliciesDelete             = "policies.delete"
+	cmdDevicesList                = "devices.list"
+	cmdDevicesDelete              = "devices.delete"
+	cmdDevicesRelinquish          = "devices.issueCommand.RELINQUISH_OWNERSHIP"
+)
+
+var commands = []string{
+	cmdEnterprisesDelete,
+	cmdEnterprisesList,
+	cmdEnterprisesWebTokensCreate,
+	cmdApplicationsGet,
+	cmdPoliciesList,
+	cmdPoliciesDelete,
+	cmdDevicesList,
+	cmdDevicesDelete,
+	cmdDevicesRelinquish,
+}
 
 func main() {
 	if androidServiceCredentials == "" {
@@ -37,15 +63,24 @@ func main() {
 		log.Fatal("project_id not found in android service credentials")
 	}
 
-	command := flag.String("command", "", "")
+	command := flag.String("command", "", strings.Join(commands, "\n"))
 	enterpriseID := flag.String("enterprise_id", "", "")
 	deviceID := flag.String("device_id", "", "")
 	policyID := flag.String("policy_id", "", "")
 	flag.Parse()
 
+	if !slices.Contains(commands, *command) {
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	// Normalize enterprise_id by stripping "enterprises/" prefix if present
 	if *enterpriseID != "" {
 		*enterpriseID = strings.TrimPrefix(*enterpriseID, "enterprises/")
+	}
+
+	if slices.Index(commands, *command) == -1 {
+		log.Fatalf("Command must be one of: %s", strings.Join(commands, ", "))
 	}
 
 	ctx := context.Background()
@@ -55,21 +90,23 @@ func main() {
 	}
 
 	switch *command {
-	case "enterprises.delete":
+	case cmdEnterprisesDelete:
 		enterprisesDelete(mgmt, *enterpriseID)
-	case "enterprises.list":
+	case cmdEnterprisesList:
 		enterprisesList(mgmt)
-	case "enterprises.webTokens.create":
+	case cmdEnterprisesWebTokensCreate:
 		enterprisesWebTokensCreate(mgmt, *enterpriseID)
-	case "policies.list":
+	case cmdApplicationsGet:
+		applicationsGet(mgmt, *enterpriseID, flag.Arg(0))
+	case cmdPoliciesList:
 		policiesList(mgmt, *enterpriseID)
-	case "policies.delete":
+	case cmdPoliciesDelete:
 		policiesDelete(mgmt, *enterpriseID, *policyID)
-	case "devices.list":
+	case cmdDevicesList:
 		devicesList(mgmt, *enterpriseID)
-	case "devices.delete":
+	case cmdDevicesDelete:
 		devicesDelete(mgmt, *enterpriseID, *deviceID)
-	case "devices.issueCommand.RELINQUISH_OWNERSHIP":
+	case cmdDevicesRelinquish:
 		devicesRelinquishOwnership(mgmt, *enterpriseID, *deviceID)
 	default:
 		log.Fatalf("Unknown command: %s", *command)
@@ -113,9 +150,29 @@ func policiesList(mgmt *androidmanagement.Service, enterpriseID string) {
 		log.Printf("No policies found")
 		return
 	}
-	for _, policy := range result.Policies {
-		log.Printf("Policy: %+v", *policy)
+	b, err := json.Marshal(result.Policies, jsontext.WithIndent("  "))
+	if err != nil {
+		log.Fatalf("Error marshalling policies: %v", err)
 	}
+	fmt.Println(string(b))
+}
+
+func applicationsGet(mgmt *androidmanagement.Service, enterpriseID string, applicationID string) {
+	if enterpriseID == "" {
+		log.Fatalf("enterprise_id must be set")
+	}
+	if applicationID == "" {
+		log.Fatal("application ID argument missing")
+	}
+	result, err := mgmt.Enterprises.Applications.Get(fmt.Sprintf("enterprises/%s/applications/%s", enterpriseID, applicationID)).Do()
+	if err != nil {
+		log.Fatalf("Error getting application: %v", err)
+	}
+	b, err := json.Marshal(result, jsontext.WithIndent("  "))
+	if err != nil {
+		log.Fatalf("Error marshalling application: %v", err)
+	}
+	fmt.Println(string(b))
 }
 
 func policiesDelete(mgmt *androidmanagement.Service, enterpriseID, policyID string) {
@@ -141,13 +198,11 @@ func devicesList(mgmt *androidmanagement.Service, enterpriseID string) {
 		log.Printf("No policies found")
 		return
 	}
-	for _, device := range result.Devices {
-		data, err := json.Marshal(device, jsontext.WithIndent("  "))
-		if err != nil {
-			log.Fatalf("Error marshalling device: %v", err)
-		}
-		log.Println(string(data))
+	b, err := json.Marshal(result.Devices, jsontext.WithIndent("  "))
+	if err != nil {
+		log.Fatalf("Error marshalling devices: %v", err)
 	}
+	fmt.Println(string(b))
 	log.Printf("Total devices: %d", len(result.Devices))
 }
 

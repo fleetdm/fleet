@@ -267,10 +267,8 @@ func gitopsCommand() *cli.Command {
 					if slices.Index(proposedLabelNames, labelUsed) == -1 {
 						if _, ok := storedLabelNames[fleet.LabelTypeBuiltIn][labelUsed]; ok {
 							logf(
-								fmt.Sprintf(
-									"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
-									labelUsed,
-								),
+								"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
+								labelUsed,
 							)
 							builtInLabelsUsed = true
 						} else {
@@ -425,7 +423,7 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
-							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)
+							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
 						} else {
 							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting team %s\n", team.Name)
 							if err := fleetClient.DeleteTeam(team.ID); err != nil {
@@ -762,7 +760,8 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
 										vppTeams = append(vppTeams, normalizedTeam)
-										if _, ok := teamNames[normalizedTeam]; !ok {
+										// ListTeams doesn't return "No team", so account for it here
+										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam {
 											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}

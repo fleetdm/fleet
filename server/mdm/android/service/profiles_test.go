@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -13,8 +15,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -74,6 +78,9 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithAPIFailures", testHostsWithAPIFailures},
 		{"HostsWithAddRemoveUpdateProfiles", testHostsWithAddRemoveUpdateProfiles},
 		{"HostsWithLabelProfiles", testHostsWithLabelProfiles},
+		{"CertificateTemplates", testCertificateTemplates},
+		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
+		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -100,7 +107,7 @@ func testNoHost(t *testing.T, ds fleet.Datastore, client *mock.Client, reconcile
 	ctx := t.Context()
 
 	client.InitCommonMocks()
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		return policy, nil
 	}
 	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
@@ -123,7 +130,7 @@ func testNoHost(t *testing.T, ds fleet.Datastore, client *mock.Client, reconcile
 func testHostsWithoutProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		return policy, nil
 	}
 	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
@@ -150,7 +157,7 @@ func testHostsWithoutProfile(t *testing.T, ds fleet.Datastore, client *mock.Clie
 func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		policy.Version = 1
 		return policy, nil
 	}
@@ -191,7 +198,7 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		policy.Version = 1
 		return policy, nil
 	}
@@ -238,7 +245,7 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock
 func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		policy.Version = 1
 		return policy, nil
 	}
@@ -292,7 +299,7 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		return nil, errors.New("nope")
 	}
 	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
@@ -346,7 +353,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	require.NoError(t, err)
 
 	// and this time make it succeed
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		policy.Version = 1
 		return policy, nil
 	}
@@ -369,7 +376,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		// use the received maximumTimeToLock value as the version to simplify testing
 		policy.Version = policy.MaximumTimeToLock
 		return policy, nil
@@ -494,7 +501,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.NoError(t, err)
 
 	// update the patch policy mock to return a higher version
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		policy.Version = 5
 		return policy, nil
 	}
@@ -583,7 +590,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	// mock and control the version number, and validate the expected MaximumTimeToLock value
 	expectedMaxTimeToLock := int64(1) // will always be this due to pNoLabel always winning the setting
 	version := int64(1)
-	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		policy.Version = version
 		require.Equal(t, expectedMaxTimeToLock, policy.MaximumTimeToLock)
 		return policy, nil
@@ -789,4 +796,432 @@ func androidProfileWithPayloadForTest(name, payload string, labels ...*fleet.Lab
 	}
 
 	return profile
+}
+
+func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team"})
+	require.NoError(t, err)
+
+	// insert enroll secret for team
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID,
+		[]*fleet.EnrollSecret{
+			{Secret: "secret", TeamID: &team.ID},
+		},
+	)
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	var caID uint
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID = ca.ID
+
+	// Create certificate templates
+	template1 := &fleet.CertificateTemplate{
+		Name:                   "cert-template-1",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Certificate 1",
+	}
+	_, err = ds.CreateCertificateTemplate(ctx, template1)
+	require.NoError(t, err)
+
+	template2 := &fleet.CertificateTemplate{
+		Name:                   "cert-template-2",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Certificate 2",
+	}
+	_, err = ds.CreateCertificateTemplate(ctx, template2)
+	require.NoError(t, err)
+
+	// Create Android hosts in the team
+	host1 := createAndroidHostInTeam(t, ds, 1, &team.ID)
+	host2 := createAndroidHostInTeam(t, ds, 2, &team.ID)
+
+	// Add host certificate templates for host 2 with 'delivered' status to exclude it from processing
+	// (only 'pending' status templates are picked up by reconcileCertificateTemplates)
+	var certificateTemplateIDs []uint
+	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		query := `
+			SELECT id
+			FROM certificate_templates
+			WHERE team_id = ?
+			ORDER BY id
+		`
+		err := sqlx.SelectContext(ctx, q, &certificateTemplateIDs, query, team.ID)
+		require.NoError(t, err)
+
+		for _, certTemplateID := range certificateTemplateIDs {
+			_, err = q.ExecContext(ctx,
+				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+				host2.UUID,
+				certTemplateID,
+				"challenge",
+				fleet.CertificateTemplateDelivered,
+				fleet.MDMOperationTypeInstall,
+				fmt.Sprintf("Cert Template %d", certTemplateID),
+			)
+			require.NoError(t, err)
+		}
+
+		return nil
+	})
+
+	// Create pending certificate templates for host1 (this is what triggers processing)
+	for _, certTemplateID := range certificateTemplateIDs {
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, certTemplateID, team.ID)
+		require.NoError(t, err)
+	}
+
+	// Get app config for server URL
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.ServerSettings.ServerURL = "https://fleet.example.com"
+	err = ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	// AddFleetAgentToAndroidPolicy calls EnterprisesPoliciesModifyPolicyApplications
+	// easier to mock that than the AddFleetAgentToAndroidPolicy
+	var capturedPolicyName string
+	var capturedPolicies []*androidmanagement.ApplicationPolicy
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		capturedPolicyName = policyName
+		capturedPolicies = policies
+		return &androidmanagement.Policy{}, nil
+	}
+
+	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
+	defer func() {
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
+	}()
+
+	err = reconciler.reconcileCertificateTemplates(ctx)
+	require.NoError(t, err)
+
+	// verify host1 is targetted by the api call
+	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.Equal(t, fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host1.Host.UUID), capturedPolicyName)
+	require.Len(t, capturedPolicies, 1)
+
+	// Verify the managed configuration contains certificate template IDs
+	var managedConfig android.AgentManagedConfiguration
+	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
+	require.NoError(t, err)
+	require.Len(t, managedConfig.CertificateTemplateIDs, 2)
+	for _, certTemplate := range managedConfig.CertificateTemplateIDs {
+		require.Contains(t, certificateTemplateIDs, certTemplate.ID)
+	}
+
+	// Verify that host_certificate_template records were created with pending status
+	var host1CertTemplates []struct {
+		HostUUID              string `db:"host_uuid"`
+		CertificateTemplateID uint   `db:"certificate_template_id"`
+		FleetChallenge        string `db:"fleet_challenge"`
+		Status                string `db:"status"`
+	}
+	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		query := `
+			SELECT host_uuid, certificate_template_id, fleet_challenge, status
+			FROM host_certificate_templates
+			WHERE host_uuid = ?
+			ORDER BY certificate_template_id
+		`
+		return sqlx.SelectContext(ctx, q, &host1CertTemplates, query, host1.Host.UUID)
+	})
+	require.Len(t, host1CertTemplates, 2)
+
+	for _, hct := range host1CertTemplates {
+		require.Equal(t, host1.Host.UUID, hct.HostUUID)
+		require.NotEmpty(t, hct.FleetChallenge)
+		require.EqualValues(t, fleet.CertificateTemplateDelivered, hct.Status)
+	}
+
+	client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+
+	// Run reconciliation again - should not create duplicate records or make API calls
+	err = reconciler.reconcileCertificateTemplates(ctx)
+	require.NoError(t, err)
+
+	// Verify the API was NOT called again
+	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
+	// no duplicate records were created
+	var countHost1 int
+	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		query := `SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?`
+		return sqlx.GetContext(ctx, q, &countHost1, query, host1.Host.UUID)
+	})
+	require.Equal(t, 2, countHost1)
+}
+
+// testBuildAndSendFleetAgentConfigForEnrollment tests the enrollment flow where we send
+// the Fleet agent config to hosts even if they don't have certificate templates to install.
+// This is needed when new hosts are enrolling to receive the Fleet app.
+func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "enrollment-test-team"})
+	require.NoError(t, err)
+
+	// Insert enroll secret for team
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID,
+		[]*fleet.EnrollSecret{
+			{Secret: "enroll-secret", TeamID: &team.ID},
+		},
+	)
+	require.NoError(t, err)
+
+	// Get app config for server URL
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.ServerSettings.ServerURL = "https://fleet.example.com"
+	err = ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	// Create Android host in the team (no certificate templates)
+	host := createAndroidHostInTeam(t, ds, 100, &team.ID)
+
+	// Track API calls
+	var capturedPolicyName string
+	var capturedPolicies []*androidmanagement.ApplicationPolicy
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		capturedPolicyName = policyName
+		capturedPolicies = policies
+		return &androidmanagement.Policy{}, nil
+	}
+
+	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
+	defer func() {
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
+	}()
+
+	// Create service and call BuildAndSendFleetAgentConfig with skipHostsWithoutNewCerts=false
+	// This simulates the enrollment flow from software_worker.go
+	svc := &Service{
+		logger:           kitlog.NewNopLogger(),
+		fleetDS:          ds,
+		ds:               ds.(fleet.AndroidDatastore),
+		androidAPIClient: client,
+	}
+
+	// Call with skipHostsWithoutNewCerts=false (enrollment scenario)
+	err = svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false)
+	require.NoError(t, err)
+
+	// Verify the API was called for the host even without certificate templates
+	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.Equal(t, fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host.Host.UUID), capturedPolicyName)
+	require.Len(t, capturedPolicies, 1)
+
+	// Verify the managed configuration was sent without certificate template IDs
+	var managedConfig android.AgentManagedConfiguration
+	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
+	require.NoError(t, err)
+	require.Empty(t, managedConfig.CertificateTemplateIDs)
+	require.Equal(t, "https://fleet.example.com", managedConfig.ServerURL)
+	require.Equal(t, host.Host.UUID, managedConfig.HostUUID)
+	require.Equal(t, "enroll-secret", managedConfig.EnrollSecret)
+
+	// Reset the invocation flag
+	client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+
+	// Now test with skipHostsWithoutNewCerts=true (reconciliation scenario)
+	// The host should be skipped since it has no pending certificate templates
+	err = svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, true)
+	require.NoError(t, err)
+
+	// Verify the API was NOT called since we're skipping hosts without new certs
+	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+}
+
+// testCertificateTemplatesIncludesExistingVerified tests that when a host has existing
+// certificates in various statuses AND a new pending certificate, the agent config sent
+// to AMAPI includes ALL certificate templates, not just the new pending one.
+func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "existing-cert-test-team"})
+	require.NoError(t, err)
+
+	// Insert enroll secret for team
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID,
+		[]*fleet.EnrollSecret{
+			{Secret: "secret", TeamID: &team.ID},
+		},
+	)
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// Create certificate templates for each status we want to test
+	templateVerified := &fleet.CertificateTemplate{
+		Name:                   "verified-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Verified Certificate",
+	}
+	verifiedCert, err := ds.CreateCertificateTemplate(ctx, templateVerified)
+	require.NoError(t, err)
+
+	templateDelivered := &fleet.CertificateTemplate{
+		Name:                   "delivered-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Delivered Certificate",
+	}
+	deliveredCert, err := ds.CreateCertificateTemplate(ctx, templateDelivered)
+	require.NoError(t, err)
+
+	templateDelivering := &fleet.CertificateTemplate{
+		Name:                   "delivering-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Delivering Certificate",
+	}
+	deliveringCert, err := ds.CreateCertificateTemplate(ctx, templateDelivering)
+	require.NoError(t, err)
+
+	templateFailed := &fleet.CertificateTemplate{
+		Name:                   "failed-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Failed Certificate",
+	}
+	failedCert, err := ds.CreateCertificateTemplate(ctx, templateFailed)
+	require.NoError(t, err)
+
+	templatePending := &fleet.CertificateTemplate{
+		Name:                   "pending-cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Pending Certificate",
+	}
+	pendingCert, err := ds.CreateCertificateTemplate(ctx, templatePending)
+	require.NoError(t, err)
+
+	// Create an Android host in the team
+	host := createAndroidHostInTeam(t, ds, 300, &team.ID)
+
+	// Insert certificate templates with various statuses
+	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		// Verified status
+		_, err := q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+			host.Host.UUID, verifiedCert.ID, "verified-challenge", fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, verifiedCert.Name,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Delivered status
+		_, err = q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+			host.Host.UUID, deliveredCert.ID, "delivered-challenge", fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, deliveredCert.Name,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Delivering status (from a previous failed run)
+		_, err = q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+			host.Host.UUID, deliveringCert.ID, "delivering-challenge", fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall, deliveringCert.Name,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Failed status
+		_, err = q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+			host.Host.UUID, failedCert.ID, "failed-challenge", fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall, failedCert.Name,
+		)
+		if err != nil {
+			return err
+		}
+
+		// Pending status (new certificate to be processed)
+		_, err = q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+			host.Host.UUID, pendingCert.ID, "", fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, pendingCert.Name,
+		)
+		return err
+	})
+
+	// Get app config for server URL
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.ServerSettings.ServerURL = "https://fleet.example.com"
+	err = ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	// Track API calls
+	var capturedPolicies []*androidmanagement.ApplicationPolicy
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		capturedPolicies = policies
+		return &androidmanagement.Policy{}, nil
+	}
+
+	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
+	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
+	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
+	defer func() {
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
+		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
+	}()
+
+	// Run reconciliation
+	err = reconciler.reconcileCertificateTemplates(ctx)
+	require.NoError(t, err)
+
+	// Verify the API was called
+	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.Len(t, capturedPolicies, 1)
+
+	// Parse the managed configuration
+	var managedConfig android.AgentManagedConfiguration
+	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
+	require.NoError(t, err)
+
+	// Agent config should include ALL 5 certificate templates regardless of status
+	require.Len(t, managedConfig.CertificateTemplateIDs, 5,
+		"Agent config should include all certificate templates (verified, delivered, delivering, failed, and pending)")
+
+	// Verify all certificate template IDs are present
+	templateIDs := make(map[uint]bool)
+	for _, tmpl := range managedConfig.CertificateTemplateIDs {
+		templateIDs[tmpl.ID] = true
+	}
+	require.True(t, templateIDs[verifiedCert.ID], "Verified certificate should be in the config")
+	require.True(t, templateIDs[deliveredCert.ID], "Delivered certificate should be in the config")
+	require.True(t, templateIDs[deliveringCert.ID], "Delivering certificate should be in the config")
+	require.True(t, templateIDs[failedCert.ID], "Failed certificate should be in the config")
+	require.True(t, templateIDs[pendingCert.ID], "Pending certificate should be in the config")
 }

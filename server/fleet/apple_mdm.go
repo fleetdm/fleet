@@ -321,7 +321,7 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 		ProfileUUID:         p.ProfileUUID,
 		Name:                p.Name,
 		Identifier:          p.Identifier,
-		Status:              p.Status,
+		Status:              p.Status.StringPtr(),
 		OperationType:       p.OperationType,
 		Detail:              p.Detail,
 		Platform:            platform,

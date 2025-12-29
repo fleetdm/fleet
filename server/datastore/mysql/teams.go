@@ -132,8 +132,21 @@ var teamRefs = []string{
 	"mdm_windows_configuration_profiles",
 	"mdm_apple_declarations",
 	"mdm_android_configuration_profiles",
+	"certificate_templates",
 	"software_title_icons",
 	"software_title_display_names",
+}
+
+// teamLabelsRefs are the tables that could be referenced by team labels that
+// have ON DELETE RESTRICT so they have to be deleted before the team labels are deleted.
+// These tables are cleared when the team is deleted.
+// Analogous to hostRefs.
+var teamLabelsRefs = []string{
+	"in_house_app_labels",
+	"software_installer_labels",
+	"vpp_app_team_labels",
+	// `mdm_configuration_profile_labels` and `mdm_declaration_labels` are defined with `ON DELETE SET NULL`, so not necessary.
+	// `policy_labels` and `query_labels` are defined with `ON DELETE CASCADE`, so not necessary.
 }
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
@@ -145,21 +158,48 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)
 		}
 
+		// Delete related records from teamRefs tables before deleting the team itself
+		// to avoid foreign key constraint violations
+		for _, table := range teamRefs {
+			_, err = tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE team_id = ?`, table), tid)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting %s for team %d", table, tid)
+			}
+		}
+
+		// Get labels that belong to this team.
+		getTeamLabelIDsStmt := `SELECT id FROM labels WHERE team_id = ?`
+		teamLabelIDs := []uint{}
+		if err := sqlx.SelectContext(ctx, tx, &teamLabelIDs, getTeamLabelIDsStmt, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "load labels for team %d", tid)
+		}
+
+		if len(teamLabelIDs) > 0 {
+			// Delete related records from teamLabelRefs tables before deleting labels on this team
+			// to avoid foreign key constraint violations.
+			for _, table := range teamLabelsRefs {
+				query, args, err := sqlx.In(fmt.Sprintf(`DELETE FROM %s WHERE label_id IN (?)`, table), teamLabelIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build sqlx.In statement for labels")
+				}
+				if _, err = tx.ExecContext(ctx, query, args...); err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete %s label associated tables", table)
+				}
+			}
+
+			if err := deleteLabelsInTx(ctx, tx, teamLabelIDs); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete labels")
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetTeam, tid)
+		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type = ? AND target_id = ?`, fleet.TargetTeam, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
-		}
-
-		for _, table := range teamRefs {
-			_, err = tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE team_id=?`, table), tid)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "deleting %s for team %d", table, tid)
-			}
 		}
 
 		return nil

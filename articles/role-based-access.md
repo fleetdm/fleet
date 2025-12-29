@@ -96,7 +96,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅    |         |
 | Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                               |          |            | ✅          | ✅    | ✅      |
 | View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                           |          |            | ✅          | ✅    | ✅      |
-| Edit [setup experience](https://fleetdm.com/guides/macos-setup-experience)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
+| Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*                                                                                         |          |            |              | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                        |          |            |            | ✅    | ✅      |
 | Request certificates (CA)\*                                             |          |            |            | ✅    | ✅      |
@@ -173,8 +173,8 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Edit [team OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                |               |                | ✅               | ✅         | ✅          |
-| Edit [setup experience](https://fleetdm.com/guides/macos-setup-experience#macos-setup-assistant)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
-| Schedule and run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
+| Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
+| Schedule and run scripts on hosts                                                                                                               |               |                | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |

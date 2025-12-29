@@ -989,7 +989,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
 				}
 
-				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code
+				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
 					FROM software_titles
 					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
 
@@ -1020,6 +1020,54 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
+						}
+					}
+				}
+
+				// For Android apps, also try matching by application_id since VPP apps use it
+				// and MDM inventory may report different names than the Play Store.
+				var unmatchedAppIDs []string
+				unmatchedByAppID := make(map[string][]string)
+				for checksum, title := range newTitlesNeeded {
+					if _, ok := titleIDsByChecksum[checksum]; ok {
+						continue
+					}
+					if title.ApplicationID != nil && *title.ApplicationID != "" && title.Source == "android_apps" {
+						appID := *title.ApplicationID
+						unmatchedAppIDs = append(unmatchedAppIDs, appID)
+						unmatchedByAppID[appID] = append(unmatchedByAppID[appID], checksum)
+					}
+				}
+
+				if len(unmatchedAppIDs) > 0 {
+					appIDPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(unmatchedAppIDs)), ",")
+					appIDStmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, application_id
+						FROM software_titles
+						WHERE application_id IN (%s) AND source = 'android_apps'`, appIDPlaceholders)
+
+					appIDArgs := make([]any, len(unmatchedAppIDs))
+					for i, appID := range unmatchedAppIDs {
+						appIDArgs[i] = appID
+					}
+
+					var appIDTitleSummaries []fleet.SoftwareTitleSummary
+					if err := sqlx.SelectContext(ctx, tx, &appIDTitleSummaries, appIDStmt, appIDArgs...); err != nil {
+						return ctxerr.Wrap(ctx, err, "select software titles by application_id")
+					}
+
+					for _, titleSummary := range appIDTitleSummaries {
+						if titleSummary.ApplicationID == nil {
+							continue
+						}
+						checksums, ok := unmatchedByAppID[*titleSummary.ApplicationID]
+						if !ok {
+							continue
+						}
+						for _, checksum := range checksums {
+							title := newTitlesNeeded[checksum]
+							if titleSummary.Source == title.Source {
+								titleIDsByChecksum[checksum] = titleSummary.ID
+							}
 						}
 					}
 				}
@@ -3612,26 +3660,26 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 		}
 	}
 	vppInstallsStmt := fmt.Sprintf(`
-        (   -- upcoming_vpp_install
-            SELECT
-				vpp_apps.title_id AS id,
-                ua.execution_id AS last_install_install_uuid,
-                ua.created_at AS last_install_installed_at,
-                vaua.adam_id AS vpp_app_adam_id,
-				vat.self_service AS vpp_app_self_service,
-                'pending_install' AS status
-            FROM
-                upcoming_activities ua
-            INNER JOIN
-                vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-            LEFT JOIN (
-                upcoming_activities ua2
-                INNER JOIN vpp_app_upcoming_activities vaua2 ON ua2.id = vaua2.upcoming_activity_id
-            ) ON ua.host_id = ua2.host_id AND
-                vaua.adam_id = vaua2.adam_id AND
-                vaua.platform = vaua2.platform AND
-                ua.activity_type = ua2.activity_type AND
-                (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+	(   -- upcoming_vpp_install
+			SELECT
+					vpp_apps.title_id AS id,
+					ua.execution_id AS last_install_install_uuid,
+					ua.created_at AS last_install_installed_at,
+					vaua.adam_id AS vpp_app_adam_id,
+					vat.self_service AS vpp_app_self_service,
+					'pending_install' AS status
+			FROM
+					upcoming_activities ua
+			INNER JOIN
+					vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+			LEFT JOIN (
+					upcoming_activities ua2
+					INNER JOIN vpp_app_upcoming_activities vaua2 ON ua2.id = vaua2.upcoming_activity_id
+			) ON ua.host_id = ua2.host_id AND
+					vaua.adam_id = vaua2.adam_id AND
+					vaua.platform = vaua2.platform AND
+					ua.activity_type = ua2.activity_type AND
+					(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
 			LEFT JOIN
 				vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 			INNER JOIN
@@ -3639,55 +3687,56 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 			WHERE
 				-- selfServiceFilter
 				%s
-                ua.host_id = :host_id AND
-                ua.activity_type = 'vpp_app_install' AND
-                ua2.id IS NULL
-        ) UNION (
-		 	-- last_vpp_install
-            SELECT
+			 ua.host_id = :host_id AND
+			 ua.activity_type = 'vpp_app_install' AND
+			 ua2.id IS NULL
+) UNION (
+			-- last_vpp_install
+			SELECT
 				vpp_apps.title_id AS id,
-                hvsi.command_uuid AS last_install_install_uuid,
-                hvsi.created_at AS last_install_installed_at,
-                hvsi.adam_id AS vpp_app_adam_id,
+				hvsi.command_uuid AS last_install_install_uuid,
+				hvsi.created_at AS last_install_installed_at,
+				hvsi.adam_id AS vpp_app_adam_id,
 				vat.self_service AS vpp_app_self_service,
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
-                %s
-            FROM
-                host_vpp_software_installs hvsi
-            LEFT JOIN
-                nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-            LEFT JOIN
-                host_vpp_software_installs hvsi2 ON hvsi.host_id = hvsi2.host_id AND
-                    hvsi.adam_id = hvsi2.adam_id AND
-                    hvsi.platform = hvsi2.platform AND
-                    hvsi2.removed = 0 AND
-					hvsi2.canceled = 0 AND
-                    (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+				%s
+			FROM
+				host_vpp_software_installs hvsi
+			LEFT JOIN
+				nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+			LEFT JOIN
+				host_vpp_software_installs hvsi2 ON hvsi.host_id = hvsi2.host_id AND
+				hvsi.adam_id = hvsi2.adam_id AND
+				hvsi.platform = hvsi2.platform AND
+				hvsi2.removed = 0 AND
+				hvsi2.canceled = 0 AND
+				(hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 			INNER JOIN
 				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
-            INNER JOIN
+			INNER JOIN
 				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 			WHERE
 				-- selfServiceFilter
 				%s
-                hvsi.host_id = :host_id AND
-                hvsi.removed = 0 AND
+				hvsi.host_id = :host_id AND
+				hvsi.removed = 0 AND
 				hvsi.canceled = 0 AND
-                hvsi2.id IS NULL AND
-                NOT EXISTS (
-                    SELECT 1
-                    FROM
-                        upcoming_activities ua
-                    INNER JOIN
-                        vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-                    WHERE
-                        ua.host_id = hvsi.host_id AND
-                        vaua.adam_id = hvsi.adam_id AND
-                        vaua.platform = hvsi.platform AND
-                        ua.activity_type = 'vpp_app_install'
-                )
-        )
-    `, selfServiceFilter, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), selfServiceFilter)
+				(hvsi.platform != 'android' OR ncr.id IS NULL) AND
+				hvsi2.id IS NULL AND
+				NOT EXISTS (
+					SELECT 1
+					FROM
+						upcoming_activities ua
+					INNER JOIN
+						vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+					WHERE
+						ua.host_id = hvsi.host_id AND
+						vaua.adam_id = hvsi.adam_id AND
+						vaua.platform = hvsi.platform AND
+						ua.activity_type = 'vpp_app_install'
+				)
+)
+`, selfServiceFilter, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), selfServiceFilter)
 	vppInstallsStmt, args, err := sqlx.Named(vppInstallsStmt, map[string]any{
 		"host_id":                   hostID,
 		"global_or_team_id":         globalOrTeamID,
@@ -3852,7 +3901,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 	}
 }
 
-func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint) ([]*hostSoftware, error) {
 	vppInstalledStmt := `
 		SELECT
 			vpp_apps.title_id AS id,
@@ -3869,12 +3918,12 @@ func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint) ([]*host
 		INNER JOIN
 			vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 		INNER JOIN
-			vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform
+			vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = ?
 		WHERE
 			hvsi.host_id = ?
 	`
 	var vppInstalled []*hostSoftware
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalled, vppInstalledStmt, hostID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalled, vppInstalledStmt, globalOrTeamID, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -4045,7 +4094,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		"self_service":            opts.SelfServiceOnly,
 		"min_cvss":                opts.MinimumCVSS,
 		"max_cvss":                opts.MaximumCVSS,
-		"vpp_apps_platforms":      fleet.VPPAppsPlatforms,
+		"vpp_apps_platforms":      fleet.AppStoreAppsPlatforms,
 		"known_exploit":           1,
 	}
 	var hasCVEMetaFilters bool
@@ -4211,7 +4260,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	hostInstalledVppsApps, err := hostInstalledVpps(ds, ctx, host.ID)
+	hostInstalledVppsApps, err := hostInstalledVpps(ds, ctx, host.ID, globalOrTeamID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -5910,8 +5959,11 @@ SELECT
 FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
 INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
-INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-WHERE hvsi.removed = 0 AND hvsi.canceled = 0 AND ncr.status = :mdm_status_acknowledged
+LEFT JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+WHERE 
+	hvsi.removed = 0 AND 
+	hvsi.canceled = 0 AND 
+	(ncr.status = :mdm_status_acknowledged OR hvsi.verification_at IS NOT NULL)
 `
 	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"host_id":                   hostID,

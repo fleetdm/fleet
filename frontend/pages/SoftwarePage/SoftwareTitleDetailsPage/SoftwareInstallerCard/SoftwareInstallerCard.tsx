@@ -5,13 +5,14 @@ import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { isAndroid } from "interfaces/platform";
 import {
+  ISoftwareTitleDetails,
   ISoftwarePackage,
-  IAppStoreApp,
-  isSoftwarePackage,
+  InstallerType,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+
+import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 
 import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 
@@ -28,7 +29,6 @@ import CustomLink from "components/CustomLink";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
-import EditSoftwareModal from "../EditSoftwareModal";
 import ViewYamlModal from "../ViewYamlModal";
 
 import {
@@ -42,17 +42,10 @@ import InstallerPoliciesTable from "./InstallerPoliciesTable";
 
 const baseClass = "software-installer-card";
 
-interface IStatusDisplayOption {
-  displayName: string;
-  iconName: "success" | "pending-outline" | "error";
-  tooltip: React.ReactNode;
-}
-
 interface IActionsDropdownProps {
-  installerType: "package" | "app-store";
+  installerType: InstallerType;
   onDownloadClick: () => void;
   onDeleteClick: () => void;
-  onEditSoftwareClick: () => void;
   gitOpsModeEnabled?: boolean;
   repoURL?: string;
   isFMA?: boolean;
@@ -63,7 +56,6 @@ export const SoftwareActionButtons = ({
   installerType,
   onDownloadClick,
   onDeleteClick,
-  onEditSoftwareClick,
   gitOpsModeEnabled,
   repoURL,
   isFMA,
@@ -96,11 +88,10 @@ export const SoftwareActionButtons = ({
       </>
     );
     options = options.map((option) => {
-      // edit is disabled in gitOpsMode for VPP only
       // delete is disabled in gitOpsMode for software types that can't be added in GitOps mode (FMA, VPP)
       if (
-        (option.value === "edit" && installerType === "app-store") ||
-        (option.value === "delete" && (installerType === "app-store" || isFMA))
+        option.value === "delete" &&
+        (installerType === "app-store" || isFMA)
       ) {
         return {
           ...option,
@@ -116,7 +107,6 @@ export const SoftwareActionButtons = ({
   const actionHandlers = {
     download: onDownloadClick,
     delete: onDeleteClick,
-    edit: onEditSoftwareClick,
   };
 
   return (
@@ -154,102 +144,80 @@ export const SoftwareActionButtons = ({
 };
 
 interface ISoftwareInstallerCardProps {
-  softwareTitleName: string;
-  softwareDisplayName: string;
-  isScriptPackage?: boolean;
-  isIosOrIpadosApp?: boolean;
-  name: string;
-  version: string | null;
-  addedTimestamp: string;
-  status: {
-    installed: number;
-    pending: number;
-    failed: number;
-  };
-  isSelfService: boolean;
   softwareId: number;
-  iconUrl?: string | null;
   teamId: number;
   teamIdForApi?: number;
-  softwareInstaller: ISoftwarePackage | IAppStoreApp;
   onDelete: () => void;
-  refetchSoftwareTitle: () => void;
   isLoading: boolean;
-  router: InjectedRouter;
-  gitOpsYamlParam?: boolean;
+  onToggleViewYaml: () => void;
+  showViewYamlModal: boolean;
+  softwareTitle: ISoftwareTitleDetails;
 }
 
 // NOTE: This component is dependent on having either a software package
 // (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwareInstallerCard = ({
-  softwareTitleName,
-  softwareDisplayName,
-  isScriptPackage = false,
-  isIosOrIpadosApp = false,
-  name,
-  version,
-  addedTimestamp,
-  status,
-  isSelfService,
-  softwareInstaller,
   softwareId,
-  iconUrl,
   teamId,
   teamIdForApi,
   onDelete,
-  refetchSoftwareTitle,
   isLoading,
-  router,
-  gitOpsYamlParam = false,
+  onToggleViewYaml,
+  showViewYamlModal,
+  softwareTitle,
 }: ISoftwareInstallerCardProps) => {
-  const installerType = isSoftwarePackage(softwareInstaller)
-    ? "package"
-    : "app-store";
-  const isAndroidPlayStoreApp =
-    "platform" in softwareInstaller && isAndroid(softwareInstaller.platform);
-  const isFleetMaintainedApp =
-    "fleet_maintained_app_id" in softwareInstaller &&
-    !!softwareInstaller.fleet_maintained_app_id;
-  const isCustomPackage = installerType === "package" && !isFleetMaintainedApp;
-  const sha256 =
-    "hash_sha256" in softwareInstaller
-      ? softwareInstaller.hash_sha256
-      : undefined;
+  const softwareInstallerMetaData = useSoftwareInstaller(softwareTitle);
+
+  if (!softwareInstallerMetaData) {
+    // This should never happen for SoftwareInstallerCard; fail fast in dev.
+    throw new Error(
+      "useSoftwareInstaller: called with a softwareTitle that has no installer"
+    );
+  }
+
+  const { cardInfo, meta: softwareInstallerMeta } = softwareInstallerMetaData;
 
   const {
-    automatic_install_policies: automaticInstallPolicies,
-  } = softwareInstaller;
+    softwareTitleName,
+    softwareDisplayName,
+    softwareInstaller,
+    name,
+    version,
+    addedTimestamp,
+    status,
+    iconUrl,
+    displayName,
+    isSelfService,
+    isScriptPackage,
+  } = cardInfo;
+
+  const {
+    installerType,
+    isAndroidPlayStoreApp,
+    isFleetMaintainedApp,
+    isCustomPackage,
+    isIosOrIpadosApp,
+    sha256,
+    androidPlayStoreId,
+    automaticInstallPolicies,
+    gitOpsModeEnabled,
+    repoURL,
+  } = softwareInstallerMeta;
 
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
-    config,
   } = useContext(AppContext);
-
-  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
-    config?.gitops || {};
 
   const { renderFlash } = useContext(NotificationContext);
 
-  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
-  // as it automatically opens from adding flow of custom software in gitOps mode
-  const [showViewYamlModal, setShowViewYamlModal] = useState(gitOpsYamlParam);
-  const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  const onEditSoftwareClick = () => {
-    setShowEditSoftwareModal(true);
-  };
 
   const onDeleteClick = () => {
     setShowDeleteModal(true);
-  };
-
-  const onToggleViewYaml = () => {
-    setShowViewYamlModal(!showViewYamlModal);
   };
 
   const onDeleteSuccess = useCallback(() => {
@@ -294,6 +262,7 @@ const SoftwareInstallerCard = ({
               sha256={sha256}
               isFma={isFleetMaintainedApp}
               isScriptPackage={isScriptPackage}
+              androidPlayStoreId={androidPlayStoreId}
             />
             <div className={`${baseClass}__tags-wrapper`}>
               {Array.isArray(automaticInstallPolicies) &&
@@ -332,7 +301,6 @@ const SoftwareInstallerCard = ({
                 installerType={installerType}
                 onDownloadClick={onDownloadClick}
                 onDeleteClick={onDeleteClick}
-                onEditSoftwareClick={onEditSoftwareClick}
                 gitOpsModeEnabled={gitOpsModeEnabled}
                 repoURL={repoURL}
                 isFMA={isFleetMaintainedApp}
@@ -352,6 +320,7 @@ const SoftwareInstallerCard = ({
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable
           isScriptPackage={isScriptPackage}
+          isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           softwareId={softwareId}
           teamId={teamId}
           status={status}
@@ -366,20 +335,6 @@ const SoftwareInstallerCard = ({
             policies={automaticInstallPolicies}
           />
         </div>
-      )}
-      {showEditSoftwareModal && (
-        <EditSoftwareModal
-          router={router}
-          gitOpsModeEnabled={gitOpsModeEnabled}
-          softwareId={softwareId}
-          teamId={teamId}
-          software={softwareInstaller}
-          onExit={() => setShowEditSoftwareModal(false)}
-          refetchSoftwareTitle={refetchSoftwareTitle}
-          installerType={installerType}
-          openViewYamlModal={onToggleViewYaml}
-          isIosOrIpadosApp={isIosOrIpadosApp}
-        />
       )}
       {showDeleteModal && (
         <DeleteSoftwareModal
@@ -398,6 +353,7 @@ const SoftwareInstallerCard = ({
           softwareTitleId={softwareId}
           teamId={teamId}
           iconUrl={iconUrl}
+          displayName={displayName}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
           isScriptPackage={isScriptPackage}

@@ -4,27 +4,87 @@ software/versions/:id > Top section
 software/os/:id > Top section
 */
 
-import React from "react";
+import React, { useContext } from "react";
+
+import { SingleValue } from "react-select-5";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import { TooltipContent } from "interfaces/dropdownOption";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 import paths from "router/paths";
 import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   ROLLING_ARCH_LINUX_VERSIONS,
 } from "interfaces/software";
 
+import { AppContext } from "context/app";
+
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
+
+const buildActionOptions = (
+  gitOpsModeEnabled: boolean | undefined,
+  repoURL: string | undefined,
+  source: string | undefined,
+  androidSoftwareAvailableForInstall: boolean
+): CustomOptionType[] => {
+  let disableEditAppearanceTooltipContent: TooltipContent | undefined;
+  let disableEditSoftwareTooltipContent: TooltipContent | undefined;
+  let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
+
+  if (gitOpsModeEnabled) {
+    const gitOpsModeTooltipContent =
+      repoURL && getGitOpsModeTipContent(repoURL);
+
+    disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
+    disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
+
+    if (source === "vpp_apps") {
+      disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
+    }
+  }
+
+  const options: CustomOptionType[] = [
+    {
+      label: "Edit appearance",
+      value: "edit_appearance",
+      isDisabled: !!disableEditAppearanceTooltipContent,
+      tooltipContent: disableEditAppearanceTooltipContent,
+    },
+  ];
+
+  // Hides edit software option only for Android installers, as they are currently non-editable
+  if (!androidSoftwareAvailableForInstall) {
+    options.push({
+      label: "Edit software",
+      value: "edit_software",
+      isDisabled: !!disableEditSoftwareTooltipContent,
+      tooltipContent: disableEditSoftwareTooltipContent,
+    });
+  }
+
+  // Show edit configuration option only for Android installers
+  if (androidSoftwareAvailableForInstall) {
+    options.push({
+      label: "Edit configuration",
+      value: "edit_configuration",
+      isDisabled: !!disabledEditConfigurationTooltipContent,
+      tooltipContent: disabledEditConfigurationTooltipContent,
+    });
+  }
+
+  return options;
+};
 
 const baseClass = "software-details-summary";
 
@@ -45,10 +105,18 @@ interface ISoftwareDetailsSummaryProps {
   iconUrl?: string | null;
   /** Displays OS icon instead of Software icon */
   isOperatingSystem?: boolean;
+  /** Shows Actions dropdown allowing user to edit software */
+  canManageSoftware?: boolean;
+  /** Displays an edit CTA to edit the software's icon and display name
+   * Should only be defined for team view of an installable software */
+  onClickEditAppearance?: () => void;
+  /** Displays an edit CTA to edit the software installer
+   * Should only be defined for team view of an installable software */
+  onClickEditSoftware?: () => void;
+  /** undefined unless previewing icon, in which case is string or null */
   /** Displays an edit CTA to edit the software's icon
    * Should only be defined for team view of an installable software */
-  onClickEditIcon?: () => void;
-  /** undefined unless previewing icon, in which case is string or null */
+  onClickEditConfiguration?: () => void;
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
@@ -65,11 +133,35 @@ const SoftwareDetailsSummary = ({
   versions,
   iconUrl,
   isOperatingSystem,
-  onClickEditIcon,
+  canManageSoftware = false,
+  onClickEditAppearance,
+  onClickEditSoftware,
+  onClickEditConfiguration,
   iconPreviewUrl,
   iconUploadedAt,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
+
+  const { config } = useContext(AppContext);
+
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const repoURL = config?.gitops.repository_url;
+  const isRollingArch = ROLLING_ARCH_LINUX_VERSIONS.includes(displayName);
+
+  const onSelectSoftwareAction = (option: SingleValue<CustomOptionType>) => {
+    switch (option?.value) {
+      case "edit_appearance":
+        onClickEditAppearance && onClickEditAppearance();
+        break;
+      case "edit_software":
+        onClickEditSoftware && onClickEditSoftware();
+        break;
+      case "edit_configuration":
+        onClickEditConfiguration && onClickEditConfiguration();
+        break;
+      default:
+    }
+  };
 
   // Remove host count for tgz_packages, sh_packages, and ps1_packages only
   // or if viewing details summary from edit icon preview modal
@@ -101,6 +193,13 @@ const SoftwareDetailsSummary = ({
     );
   };
 
+  const actionOptions = buildActionOptions(
+    gitOpsModeEnabled,
+    repoURL,
+    source,
+    !!onClickEditConfiguration
+  );
+
   return (
     <>
       <div className={baseClass}>
@@ -110,9 +209,9 @@ const SoftwareDetailsSummary = ({
           renderSoftwareIcon()
         )}
         <dl className={`${baseClass}__info`}>
-          <div className={`${baseClass}__title-edit-icon`}>
+          <div className={`${baseClass}__title-actions`}>
             <h1>
-              {ROLLING_ARCH_LINUX_VERSIONS.includes(displayName) ? (
+              {isRollingArch ? (
                 // wrap a tooltip around the "rolling" suffix
                 <>
                   {displayName.slice(0, -8)}
@@ -122,15 +221,17 @@ const SoftwareDetailsSummary = ({
                 <TooltipTruncatedText value={displayName} />
               )}
             </h1>
-            {onClickEditIcon && (
-              <div className={`${baseClass}__edit-icon`}>
-                <Button
-                  onClick={onClickEditIcon}
-                  className={`${baseClass}__edit-icon-btn`}
-                  variant="icon"
-                >
-                  <Icon name="pencil" />
-                </Button>
+            {canManageSoftware && (
+              <div className={`${baseClass}__actions-wrapper`}>
+                <DropdownWrapper
+                  className={`${baseClass}__actions-dropdown`}
+                  name="software-actions"
+                  onChange={onSelectSoftwareAction}
+                  placeholder="Actions"
+                  options={actionOptions}
+                  variant="button"
+                  nowrapMenu
+                />
               </div>
             )}
           </div>

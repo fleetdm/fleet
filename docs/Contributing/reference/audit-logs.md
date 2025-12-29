@@ -723,6 +723,40 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_macos_update_new_hosts
+
+Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_macos_update_new_hosts
+
+Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## read_host_disk_encryption_key
 
 Generated when a user reads the disk encryption key for a host.
@@ -1308,6 +1342,23 @@ Generated when a user edits the Android profiles of a team (or no team) via the 
 This activity contains the following fields:
 - "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_android_certificate
+
+Generated when a user adds or removes Android certificate templates of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
 
 #### Example
 
@@ -2242,7 +2293,7 @@ This activity contains the following fields:
 Generated when a user edits setup experience software.
 
 This activity contains the following fields:
-- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "platform": the platform of the host ("darwin", "android", "windows", or "linux").
 - "team_id": the ID of the team associated with the setup experience (0 for "No team").
 - "team_name": the name of the team associated with the setup experience (empty for "No team").
 

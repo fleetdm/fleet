@@ -1497,6 +1497,7 @@ const ManageHostsPage = ({
         onCancel={toggleTransferHostModal}
         isUpdating={isUpdating}
         multipleHosts={selectedHostIds.length > 1}
+        hostsTeamId={currentTeamId} // Removes current team from the transfer options
       />
     );
   };

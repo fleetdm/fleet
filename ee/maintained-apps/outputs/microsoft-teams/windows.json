@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "25306.804.4102.7193",
+      "version": "25332.1210.4188.1171",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft Corporation';"
       },
-      "installer_url": "https://installer.teams.static.microsoft/production-windows-x64/25306.804.4102.7193/MSTeams-x64.msix",
+      "installer_url": "https://installer.teams.static.microsoft/production-windows-x64/25332.1210.4188.1171/MSTeams-x64.msix",
       "install_script_ref": "a90fa842",
       "uninstall_script_ref": "8c408748",
-      "sha256": "7bd9be340d47eabaaaa105b819a29f86cb5c1c9038874e1f0f17cd5cde92839f",
+      "sha256": "95d508cc89fd1cd43163c1789b26e8f770c30f4be077e817226d77720606ba08",
       "default_categories": [
         "Communication"
       ]

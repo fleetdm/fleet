@@ -725,6 +725,15 @@ FROM
 WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
+	const getSoftwareTitle = `
+SELECT 
+	id 
+FROM 
+	software_titles 
+WHERE 
+	unique_identifier = ? AND source = ? AND extension_for = ''
+`
+
 	const cancelAllPendingInHouseInstalls = `
 UPDATE
 	host_in_house_software_installs
@@ -875,7 +884,7 @@ FROM
 	in_house_apps
 WHERE
 	global_or_team_id = ?	AND
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+	title_id = ?
 `
 
 	const insertNewOrEditedInstaller = `
@@ -891,8 +900,7 @@ INSERT INTO in_house_apps (
 	self_service,
 	url
 ) VALUES (
-  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = ''),
-  ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 ON DUPLICATE KEY UPDATE
   filename = VALUES(filename),
@@ -979,6 +987,28 @@ VALUES
 	%s
 `
 
+	const getDisplayNamesForTeam = `
+SELECT
+	stdn.software_title_id, stdn.display_name
+FROM
+	software_title_display_names stdn
+INNER JOIN
+	in_house_apps iha ON stdn.software_title_id = iha.title_id AND stdn.team_id = iha.global_or_team_id
+WHERE
+	stdn.team_id = ?
+`
+
+	const deleteDisplayNamesNotInList = `
+DELETE
+	stdn
+FROM
+	software_title_display_names stdn
+INNER JOIN
+	in_house_apps iha ON stdn.software_title_id = iha.title_id AND stdn.team_id = iha.global_or_team_id
+WHERE
+	stdn.team_id = ? AND stdn.software_title_id NOT IN (?)
+`
+
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	if tmID != nil {
@@ -986,8 +1016,8 @@ VALUES
 	}
 
 	// NOTE: at the time of implementation, in-house apps do not support install
-	// during setup, automatic install (via policies), categories, and
-	// uninstalls, so the related validations and updates that are done in
+	// during setup, automatic install (via policies), and uninstalls,
+	// so the related validations and updates that are done in
 	// BatchSetSoftwareInstallers are removed here.
 
 	var activateAffectedHostIDs []uint
@@ -1017,6 +1047,12 @@ VALUES
 				return ctxerr.Wrap(ctx, err, "mark all host in-house installs as removed")
 			}
 
+			// reuse query to delete all display names associated with in-house apps, by providing just 0
+			// which should make the WHERE clause equivalent to WHERE stdn.team_id = ? AND TRUE
+			if _, err := tx.ExecContext(ctx, deleteDisplayNamesNotInList, globalOrTeamID, 0); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all display names associated with in-house apps")
+			}
+
 			if _, err := tx.ExecContext(ctx, deleteAllInHouseInstallersInTeam, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete obsolete in-house installers")
 			}
@@ -1026,9 +1062,16 @@ VALUES
 
 		var args []any
 		for _, installer := range installers {
+			var providedTitle *string
+			if installer.Title != "" {
+				providedTitle = &installer.Title // for IPAs downloaded via URL; IPAs referenced by hash won't have this
+			}
+
 			args = append(
 				args,
-				strings.TrimSuffix(installer.Filename, ".ipa"),
+				providedTitle,       // if IPA is downloaded as part of the GitOps run, we'll have this via metadata extraction
+				installer.StorageID, // if the IPA already exists in the DB, pull the name from an existing title if possible
+				strings.TrimSuffix(installer.Filename, ".ipa"), // if neither of the above turns up anything, fall back to filename
 				installer.Source,
 				"",
 				func() *string {
@@ -1040,7 +1083,8 @@ VALUES
 			)
 		}
 
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(installers)), ",")
+		values := strings.TrimSuffix(strings.Repeat(
+			"(COALESCE(?, (SELECT name FROM software_titles st JOIN in_house_apps iha ON iha.title_id = st.id AND iha.storage_id = ? ORDER BY st.id ASC LIMIT 1), ?),?,?,?),", len(installers)), ",")
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert new/edited software titles")
 		}
@@ -1102,6 +1146,14 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "mark obsolete host in-house installs as removed")
 		}
 
+		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
+		}
+
 		stmt, args, err = sqlx.In(deleteInHouseInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete in-house installers")
@@ -1110,9 +1162,32 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "delete obsolete in-house installers")
 		}
 
+		// Fill a map of title IDs for this team that have a display name
+		var titlesWithDisplayNames []struct {
+			TitleID uint   `db:"software_title_id"`
+			Name    string `db:"display_name"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &titlesWithDisplayNames, getDisplayNamesForTeam, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load display names for updating")
+		}
+		displayNameIDMap := make(map[uint]string, len(titlesWithDisplayNames))
+		for _, d := range titlesWithDisplayNames {
+			displayNameIDMap[d.TitleID] = d.Name
+		}
+
 		for _, installer := range installers {
 			if installer.ValidatedLabels == nil {
 				return ctxerr.Errorf(ctx, "labels have not been validated for in-house app with name %s", installer.Filename)
+			}
+
+			titleArgs := []any{
+				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
+				installer.Source,
+			}
+			var titleID uint
+			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, titleArgs...)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting software title id for existing installer with name %q", installer.Filename)
 			}
 
 			wasUpdatedArgs := []any{
@@ -1120,8 +1195,7 @@ VALUES
 				installer.StorageID,
 				// WHERE clause
 				globalOrTeamID,
-				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
-				installer.Source,
+				titleID,
 			}
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
@@ -1137,8 +1211,7 @@ VALUES
 			}
 
 			args := []any{
-				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
-				installer.Source,
+				titleID,
 				tmID,
 				globalOrTeamID,
 				installer.Filename,
@@ -1261,6 +1334,14 @@ VALUES
 				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInHouseCategories, upsertCategoriesValues), upsertCategoriesArgs...)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert new/edited categories for in-house with name %q", installer.Filename)
+				}
+			}
+
+			// update display name for the software title if it needs to be updated or inserted
+			// no deletions will happen, display names will be set to empty if needed
+			if name, ok := displayNameIDMap[titleID]; (ok && name != installer.DisplayName) || (!ok && installer.DisplayName != "") {
+				if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
+					return ctxerr.Wrapf(ctx, err, "update software title display name for in-house app with name %q", installer.Filename)
 				}
 			}
 

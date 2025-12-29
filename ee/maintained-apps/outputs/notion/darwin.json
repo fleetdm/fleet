@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.24.0",
+      "version": "6.3.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion-4.24.0-arm64.dmg",
+      "installer_url": "https://desktop-release.notion-static.com/Notion-6.3.2-arm64.dmg",
       "install_script_ref": "ac717b8d",
       "uninstall_script_ref": "21cd1000",
-      "sha256": "263420e6c248989b88d86359b229c1065adc3a708012af3dcd27fd3bd1088a46",
+      "sha256": "5fcc287b2a0c29d02fd91fbc6f0dee82940c44b73c652863a121f1a168620f03",
       "default_categories": [
         "Productivity"
       ]

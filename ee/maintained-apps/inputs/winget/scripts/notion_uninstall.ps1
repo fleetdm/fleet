@@ -33,6 +33,16 @@ try {
         `$uninstallCommand = `$splitArgs[1]
     }
 
+    # NSIS installers require /S flag for silent uninstall
+    # Append /S if not already present in the uninstall args
+    if (`$uninstallArgs) {
+        if (`$uninstallArgs -notmatch '\b/S\b') {
+            `$uninstallArgs = "`$uninstallArgs /S".Trim()
+        }
+    } else {
+        `$uninstallArgs = "/S"
+    }
+
     Write-Host "Uninstall command: `$uninstallCommand"
     Write-Host "Uninstall args: `$uninstallArgs"
 
