@@ -142,26 +142,24 @@ const HostQueries = ({
     }
 
     return (
-      <div>
-        <TableContainer
-          columnConfigs={columnConfigs}
-          data={tableData}
-          onQueryChange={() => null}
-          resultsTitle="queries"
-          defaultSortHeader="query_name"
-          defaultSortDirection="asc"
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          emptyComponent={() => <></>}
-          disablePagination={tableData.length <= PAGE_SIZE}
-          pageSize={PAGE_SIZE}
-          isClientSidePagination
-          disableCount
-          disableMultiRowSelect={!queryReportsDisabled} // Removes hover/click state if reports are disabled
-          isLoading={false} // loading state handled at parent level
-          onSelectSingleRow={onSelectSingleRow}
-        />
-      </div>
+      <TableContainer
+        columnConfigs={columnConfigs}
+        data={tableData}
+        onQueryChange={() => null}
+        resultsTitle="queries"
+        defaultSortHeader="query_name"
+        defaultSortDirection="asc"
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        emptyComponent={() => <></>}
+        disablePagination={tableData.length <= PAGE_SIZE}
+        pageSize={PAGE_SIZE}
+        isClientSidePagination
+        disableCount
+        disableMultiRowSelect={!queryReportsDisabled} // Removes hover/click state if reports are disabled
+        isLoading={false} // loading state handled at parent level
+        onSelectSingleRow={onSelectSingleRow}
+      />
     );
   };
 
@@ -177,7 +175,7 @@ const HostQueries = ({
         )}
       </div>
 
-      <div>{renderHostQueries()}</div>
+      {renderHostQueries()}
     </Card>
   );
 };

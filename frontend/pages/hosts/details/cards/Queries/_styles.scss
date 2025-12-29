@@ -1,6 +1,10 @@
 .host-queries-card {
   @include vertical-page-tab-panel-layout;
 
+  // prevent layout shift if last page of paginated table
+  // doesn't fill all the vertical space due to fewer rows.
+  min-height: 305px;
+
   &__header {
     display: flex;
     align-items: baseline;
@@ -50,7 +54,7 @@
             }
           }
 
-          @media (max-width: 1300px) {
+          @media (min-width: $break-md) and (max-width: 1300px) {
             .report-updated-cell__view-report--text {
               display: none;
               width: 0;
