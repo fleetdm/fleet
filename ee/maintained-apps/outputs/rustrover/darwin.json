@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3",
+      "version": "2025.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover';"
       },
-      "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2025.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2025.3.1-aarch64.dmg",
       "install_script_ref": "2aa641c6",
       "uninstall_script_ref": "5c287f74",
-      "sha256": "7fb3793813e69fb49e7bc7bb5ce8549cb2d12416c52a877b87cf731e39643cfa",
+      "sha256": "103a12ed1c37b6b38cff5d637e7dc7b8dcc78f5c576ba38b8f862c6ba3647d52",
       "default_categories": [
         "Developer tools"
       ]

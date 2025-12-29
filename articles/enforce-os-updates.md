@@ -10,9 +10,11 @@ For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is 
 
 1. Head to the **Controls** > **OS updates** tab.
 
-2. To enforce OS updates for macOS, iOS, or iPadOS, select the platform and set a **Minimum version** and **Deadline**.
+2. To enforce OS updates for enrolled macOS, iOS, or iPadOS hosts, select the platform and set a **Minimum version** and **Deadline**.
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
+
+4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings.
 
 ## Fleet API
 

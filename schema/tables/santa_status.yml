@@ -9,28 +9,40 @@ examples: |-
   SELECT mode FROM santa_status;
   ```
 columns:
-  - name: last_successful_rule
-    description: Last successful rule sync
+  - name: sync_server
+    description: The server Santa syncs rules and configuration from
     required: false
     type: text
-  - name: push_notifications
-    description: Push notifications status
-    required: false
-    type: text
-  - name: bundle_scanning
-    description: Whether bundle scanning is enabled (1=true, 0=false)
+  - name: sync_enabled
+    description: Whether Santa is configured to sync with a remote server (1=true, 0=false)
     required: false
     type: integer
-  - name: clean_required
-    description: Whether a clean is required (1=true, 0=false)
-    required: false
-    type: integer
-  - name: server
-    description: Sync server address
+  - name: sync_last_successful_rule
+    description: Timestamp of the last successful rules-only sync
     required: false
     type: text
-  - name: last_successful_full
-    description: Last successful full sync
+  - name: sync_push_notifications
+    description: Whether push notifications are enabled to trigger immediate syncs
+    required: false
+    type: text
+  - name: sync_execution_rules_hash
+    description: Hash of the currently applied file access ruleset
+    required: false
+    type: text
+  - name: sync_file_access_rules_hash
+    description: Hash of the currently applied execution ruleset
+    required: false
+    type: text
+  - name: sync_bundle_scanning
+    description: Whether Santa scans and evaluates entire application bundles during sync (1=true, 0=false)
+    required: false
+    type: integer
+  - name: sync_clean_required
+    description: Whether a full clean sync is required before Santa can resume normal operation (1=true, 0=false)
+    required: false
+    type: integer
+  - name: sync_last_successful_full
+    description: Timestamp of the last successful full sync
     required: false
     type: text
   - name: file_logging
@@ -39,10 +51,6 @@ columns:
     type: integer
   - name: watchdog_ram_events
     description: Number of watchdog RAM events
-    required: false
-    type: integer
-  - name: driver_connected
-    description: Whether the driver is connected (1=true, 0=false)
     required: false
     type: integer
   - name: log_type
@@ -129,3 +137,36 @@ columns:
     description: Watch items enabled (1=true, 0=false)
     required: false
     type: integer
+  - name: metrics_enabled
+    description: Metrics enabled (1=true, 0=false)
+    required: false
+    type: integer
+  - name: metrics_export_interval_seconds
+    description: The metrics export frequency in seconds.
+    required: false
+    type: integer
+  - name: metrics_server
+    description: The address of the server Santa sends metrics to.
+    required: false
+    type: integer
+  - name: watch_items_config_path
+    description: Path to the configuration file that defines watch items
+    required: false
+    type: text
+  - name: watch_items_data_source
+    description: Source of the watch items policy (for example, local file or synced server policy)
+    required: false
+    type: text
+  - name: watch_items_last_policy_update
+    description: Timestamp of the last time the watch items policy was updated
+    required: false
+    type: text
+  - name: watch_items_policy_version
+    description: Version of the currently applied watch items policy
+    required: false
+    type: text
+  - name: watch_items_rule_count
+    description: Number of active watch item rules currently enforced
+    required: false
+    type: text
+    

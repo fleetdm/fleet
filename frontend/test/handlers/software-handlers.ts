@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { baseUrl } from "test/test-utils";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
-import { createMockMdmCommandResult } from "__mocks__/mdmMock";
+import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
 
 // ---- Software Install Handlers ----
 
@@ -118,7 +118,7 @@ export const getMdmCommandResultHandler = http.get(
     };
     const status = statusMap[commandUuid ?? ""] || "Acknowledged";
 
-    const mdmCommand = createMockMdmCommandResult({
+    const mdmCommand = createMockAppleMdmCommandResult({
       command_uuid: commandUuid ?? "",
       status,
     });

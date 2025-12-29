@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3",
+      "version": "2025.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.pycharm';"
       },
-      "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2025.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2025.3.1-aarch64.dmg",
       "install_script_ref": "6f8948a3",
       "uninstall_script_ref": "dc86547f",
-      "sha256": "aa6770f7b336aa9afe43f946d5f34627c1679bdc990e52c09e4d8098d54ab785",
+      "sha256": "ec8e97856f00da902020c72b0f079cc10983de6bb4438292ea5faa1e5b0cb935",
       "default_categories": [
         "Developer tools"
       ]

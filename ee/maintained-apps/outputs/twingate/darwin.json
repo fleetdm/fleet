@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.327.21336",
+      "version": "2025.338.21484",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos';"
       },
-      "installer_url": "https://binaries.twingate.com/client/macos/2025.327.21336/Twingate.pkg",
+      "installer_url": "https://binaries.twingate.com/client/macos/2025.338.21484/Twingate.pkg",
       "install_script_ref": "46fecb23",
       "uninstall_script_ref": "1dcccc7a",
-      "sha256": "b63ce987e9db70f99465006a43b2a72c9e0f475c766fc7693eefb00a7d81ce5a",
+      "sha256": "b785ea1756377c7ef7460aaefece4ac1aefe65bdc869c9c1ac0ce0077ed73ee3",
       "default_categories": [
         "Productivity"
       ]
