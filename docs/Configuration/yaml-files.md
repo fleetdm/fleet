@@ -531,12 +531,19 @@ software:
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "1091189122"
+      platform: ios
       labels_include_any: # Available in Fleet Premium
         - Product
         - Marketing
       categories:
         - Communication
       setup_experience: true
+    - app_store_id: "us.zoom.videomeetings"
+      platform: android
+      self_service: true
+      configuration:
+        path: ../lib/software/zoom-config.json
+  setup_experience: true
   fleet_maintained_apps:
     - slug: slack/darwin
       pin_version: "4.47.59"
@@ -617,52 +624,12 @@ You can view the hash for existing software in the software detail page in the F
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
 - `configuration.path` is the Android Play Store app's managed configuration in JSON format. Currently only supported for Android.
+  + `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
+  + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
 
-#### Android Play Store app with configuration
-
-For Android apps, you can specify managed configuration using a separate JSON file.
-
-`teams/team-name.yml`:
-
-```yaml
-software:
-  app_store_apps:
-    - app_store_id: "us.zoom.videomeetings"
-      platform: android
-      self_service: true
-      configuration:
-        path: ../lib/android-configs/zoom-config.json
-```
-
-`lib/android-configs/zoom-config.json`:
-
-```json
-{
-  "managedConfiguration": {
-    "DisableDirectShare": true,
-    "DisableVirtualBackgrounds": false,
-    "ForceLoginWithSSO": false
-  }
-}
-```
-
-For apps that support work profile widgets (like Google Calendar):
-
-`lib/android-configs/calendar-config.json`:
-
-```json
-{
-  "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
-}
-```
-
-> Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
-
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
-
-When `fleetctl generate-gitops` exports your configuration, apps with managed configurations will include `configuration.path` pointing to a JSON file in the `lib/<team>/configs/` directory. Apps without configuration will not include this field.
 
 ### fleet_maintained_apps
 
