@@ -46,7 +46,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                 is CleanupResult.Success ->
                     Log.i(TAG, "Cleaned up certificate $certId (alias: ${result.alias})")
                 is CleanupResult.AlreadyRemoved ->
-                    Log.i(TAG, "Certificate $certId already removed (alias: ${result.alias})")
+                    Log.d(TAG, "Certificate $certId already removed (alias: ${result.alias})")
                 is CleanupResult.Failure ->
                     Log.e(TAG, "Failed to cleanup certificate $certId: ${result.reason}", result.exception)
             }
@@ -100,7 +100,10 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                     Log.w(TAG, "Some certificates had transient failures, exhausted $MAX_RETRY_ATTEMPTS retries, will retry in 15 minutes")
                     Result.success()
                 } else {
-                    Log.w(TAG, "Some certificates had transient failures, will retry (attempt ${runAttemptCount + 1} of $MAX_RETRY_ATTEMPTS)")
+                    Log.w(
+                        TAG,
+                        "Some certificates had transient failures, will retry (attempt ${runAttemptCount + 1} of $MAX_RETRY_ATTEMPTS)",
+                    )
                     Result.retry()
                 }
             }

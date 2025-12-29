@@ -104,9 +104,7 @@ class CertificateOrchestrator(
                     return emptyMap()
                 }
 
-                val map = json.decodeFromString<CertificateStateMap>(jsonString)
-                Log.d(TAG, "Loaded ${map.size} installed certificate(s) from DataStore")
-                map
+                json.decodeFromString<CertificateStateMap>(jsonString)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to read installed certificates from DataStore: ${e.message}", e)
                 emptyMap()

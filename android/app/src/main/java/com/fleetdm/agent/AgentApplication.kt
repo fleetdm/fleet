@@ -77,7 +77,7 @@ class AgentApplication : Application() {
                     // This also fetches initial orbit config
                     val configResult = ApiClient.getOrbitConfig()
                     configResult.onSuccess {
-                        Log.d(TAG, "Successfully enrolled and fetched initial orbit config")
+                        Log.d(TAG, "Successfully enrolled host with Fleet server")
                     }.onFailure { error ->
                         Log.w(TAG, "Auto-enrollment on startup failed: ${error.message}")
                     }
