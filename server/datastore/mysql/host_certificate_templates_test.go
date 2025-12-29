@@ -1039,11 +1039,11 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 
 		// Insert records with various statuses for the same template
 		_, err := ds.writer(ctx).ExecContext(ctx, `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
-			(?, ?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?, ?)
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name, uuid) VALUES
+			(?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true)),
+			(?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true)),
+			(?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true)),
+			(?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true))
 		`,
 			"host-pending", setup.template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, nil, setup.template.Name,
 			"host-delivered", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", setup.template.Name,
@@ -1073,15 +1073,36 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 			HostUUID      string                 `db:"host_uuid"`
 			Status        string                 `db:"status"`
 			OperationType fleet.MDMOperationType `db:"operation_type"`
+			UUID          string                 `db:"uuid"`
 		}
 		err = ds.writer(ctx).SelectContext(ctx, &remaining,
-			"SELECT host_uuid, status, operation_type FROM host_certificate_templates ORDER BY host_uuid")
+			"SELECT host_uuid, status, operation_type, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid FROM host_certificate_templates ORDER BY host_uuid")
 		require.NoError(t, err)
 		require.Len(t, remaining, 2)
 
 		for _, r := range remaining {
 			require.Equal(t, string(fleet.CertificateTemplatePending), r.Status)
 			require.Equal(t, fleet.MDMOperationTypeRemove, r.OperationType)
+			require.NotEmpty(t, r.UUID, "UUID should be set after transition to remove")
+		}
+
+		// Capture UUIDs before second call
+		uuidsBefore := make(map[string]string)
+		for _, r := range remaining {
+			uuidsBefore[r.HostUUID] = r.UUID
+		}
+
+		// Second call should be idempotent - UUIDs should not change
+		err = ds.SetHostCertificateTemplatesToPendingRemove(ctx, setup.template.ID)
+		require.NoError(t, err)
+
+		err = ds.writer(ctx).SelectContext(ctx, &remaining,
+			"SELECT host_uuid, status, operation_type, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid FROM host_certificate_templates ORDER BY host_uuid")
+		require.NoError(t, err)
+		require.Len(t, remaining, 2)
+
+		for _, r := range remaining {
+			require.Equal(t, uuidsBefore[r.HostUUID], r.UUID, "UUID should not change when already in remove state")
 		}
 	})
 
