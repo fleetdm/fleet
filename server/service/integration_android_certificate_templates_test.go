@@ -982,7 +982,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 
 	t.Run("host with certs transfers to team with different certs", func(t *testing.T) {
 		// Create host in Team A
-		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamAID, "transfer-certs")
+		host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamAID, "transfer-certs")
 
 		// Create pending certificate templates for this host (Team A certs)
 		_, err := s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamAID)
@@ -1030,5 +1030,25 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		// Team B cert should be pending install
 		require.Equal(t, fleet.CertificateTemplatePending, statuses[certTemplateB1ID].Status)
 		require.Equal(t, fleet.MDMOperationTypeInstall, statuses[certTemplateB1ID].OperationType)
+
+		// Test that device can report "verified" for a pending removal and the record gets deleted.
+		// This handles race conditions where the device processes the removal before the server
+		// transitions the status through the full state machine.
+		updateReq, err := json.Marshal(updateCertificateStatusRequest{
+			Status:        string(fleet.CertificateTemplateVerified),
+			OperationType: ptr.String(string(fleet.MDMOperationTypeRemove)),
+		})
+		require.NoError(t, err)
+
+		resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateA1ID), updateReq, http.StatusOK, map[string]string{
+			"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+		})
+		_ = resp.Body.Close()
+
+		// Verify the record was deleted
+		statuses = getCertTemplateStatuses(host.UUID)
+		require.Len(t, statuses, 2, "Should have 1 pending remove + 1 pending install after removal confirmed")
+		_, exists := statuses[certTemplateA1ID]
+		require.False(t, exists, "certTemplateA1 should be deleted after verified removal")
 	})
 }

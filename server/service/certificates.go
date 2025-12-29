@@ -589,19 +589,21 @@ func (svc *Service) UpdateCertificateStatus(
 		return err
 	}
 
-	if record.Status != fleet.CertificateTemplateDelivered {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_status", record.Status, "new_status", status)
-		return nil
-	}
-
 	if record.OperationType != opType {
 		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", opType)
 		return nil
 	}
 
-	// If operation_type is "remove" and status is "verified", delete the host_certificate_template row
+	// If operation_type is "remove" and status is "verified", delete the host_certificate_template row.
+	// This allows deletions even when there are race conditions or status sync issues
+	// (e.g., device reports removal before server transitions status).
 	if opType == fleet.MDMOperationTypeRemove && status == fleet.MDMDeliveryVerified {
 		return svc.ds.DeleteHostCertificateTemplate(ctx, host.UUID, certificateTemplateID)
+	}
+
+	if record.Status != fleet.CertificateTemplateDelivered {
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_status", record.Status, "new_status", status)
+		return nil
 	}
 
 	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, opType)
