@@ -73,13 +73,14 @@ class AgentApplication : Application() {
                         computerName = "${Build.BRAND} ${Build.MODEL}",
                     )
 
-                    // Trigger auto-enrollment if node key is missing
-                    // This also fetches initial orbit config
-                    val configResult = ApiClient.getOrbitConfig()
-                    configResult.onSuccess {
-                        Log.d(TAG, "Successfully enrolled host with Fleet server")
-                    }.onFailure { error ->
-                        Log.w(TAG, "Auto-enrollment on startup failed: ${error.message}")
+                    // Only enroll if not already enrolled
+                    if (ApiClient.getApiKey() == null) {
+                        val configResult = ApiClient.getOrbitConfig()
+                        configResult.onSuccess {
+                            Log.d(TAG, "Successfully enrolled host with Fleet server")
+                        }.onFailure { error ->
+                            Log.w(TAG, "Host enrollment failed: ${error.message}")
+                        }
                     }
                 } else {
                     Log.d(TAG, "MDM enrollment credentials not available")
