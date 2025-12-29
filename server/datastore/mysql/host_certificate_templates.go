@@ -60,7 +60,7 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
 			host_certificate_templates.operation_type AS operation_type,
-			BIN_TO_UUID(host_certificate_templates.uuid, true) AS uuid,
+			COALESCE(BIN_TO_UUID(host_certificate_templates.uuid, true), '') AS uuid,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -80,7 +80,7 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			hct.fleet_challenge AS fleet_challenge,
 			hct.status AS status,
 			hct.operation_type AS operation_type,
-			BIN_TO_UUID(hct.uuid, true) AS uuid,
+			COALESCE(BIN_TO_UUID(hct.uuid, true), '') AS uuid,
 			ca.type AS ca_type,
 			ca.name AS ca_name
 		FROM host_certificate_templates hct
@@ -113,7 +113,7 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
 			host_certificate_templates.operation_type AS operation_type,
-			BIN_TO_UUID(host_certificate_templates.uuid, true) AS uuid,
+			COALESCE(BIN_TO_UUID(host_certificate_templates.uuid, true), '') AS uuid,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -150,7 +150,7 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 			status,
 			operation_type,
 			detail,
-			BIN_TO_UUID(uuid, true) AS uuid,
+			COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid,
 			created_at,
 			updated_at
 		FROM host_certificate_templates
@@ -348,7 +348,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 			UUID                  string                          `db:"uuid"`
 		}
 		const selectStmt = `
-			SELECT id, certificate_template_id, status, operation_type, BIN_TO_UUID(uuid, true) AS uuid
+			SELECT id, certificate_template_id, status, operation_type, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid
 			FROM host_certificate_templates
 			WHERE host_uuid = ?
 			FOR UPDATE

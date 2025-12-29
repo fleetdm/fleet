@@ -76,7 +76,7 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 			certificate_authorities.type AS certificate_authority_type,
 			certificate_authorities.challenge_encrypted AS scep_challenge_encrypted,
 			host_certificate_templates.status AS status,
-			BIN_TO_UUID(host_certificate_templates.uuid, true) AS uuid,
+			COALESCE(BIN_TO_UUID(host_certificate_templates.uuid, true), '') AS uuid,
 			host_certificate_templates.fleet_challenge AS fleet_challenge
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
