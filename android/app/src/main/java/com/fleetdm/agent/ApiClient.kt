@@ -40,6 +40,7 @@ interface CertificateApiClient {
 }
 
 object ApiClient : CertificateApiClient {
+    private const val TAG = "fleet-ApiClient"
     private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
@@ -52,7 +53,7 @@ object ApiClient : CertificateApiClient {
     private val enrollmentMutex = Mutex()
 
     fun initialize(context: Context) {
-        Log.d("fleet-apiClient", "initializing api client")
+        Log.d(TAG, "initializing api client")
         if (!::dataStore.isInitialized) {
             dataStore = context.applicationContext.prefDataStore
         }
@@ -74,7 +75,7 @@ object ApiClient : CertificateApiClient {
         return try {
             KeystoreManager.decrypt(encrypted)
         } catch (e: Exception) {
-            Log.e("ApiClient", "Failed to decrypt API key", e)
+            Log.e(TAG, "Failed to decrypt API key", e)
             null
         }
     }
@@ -143,7 +144,7 @@ object ApiClient : CertificateApiClient {
                     ?: "HTTP $responseCode"
             }
 
-            Log.d("ApiClient", "server response from $method $endpoint ($responseCode): $response")
+            Log.d(TAG, "server response from $method $endpoint ($responseCode): $response")
 
             if (responseCode in 200..299) {
                 val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
@@ -178,7 +179,7 @@ object ApiClient : CertificateApiClient {
             setApiKey(value.orbitNodeKey)
         }
         resp.onFailure { exception ->
-            Log.d("ApiClient.enroll", "Enrollment failed: ${exception.message}")
+            Log.d(TAG, "Enrollment failed: ${exception.message}")
         }
 
         return resp
@@ -227,7 +228,7 @@ object ApiClient : CertificateApiClient {
         ).fold(
             onSuccess = { wrapper ->
                 val res = wrapper.certificate
-                Log.i("ApiClient", "successfully retrieved certificate template ${res.id}: ${res.name}")
+                Log.i(TAG, "successfully retrieved certificate template ${res.id}: ${res.name}")
                 Result.success(
                     res.apply {
                         setUrl(
@@ -238,7 +239,7 @@ object ApiClient : CertificateApiClient {
                 )
             },
             onFailure = { throwable ->
-                Log.e("ApiClient", "failed to get certificate template $certificateId")
+                Log.e(TAG, "failed to get certificate template $certificateId")
                 Result.failure(throwable)
             },
         )
@@ -262,15 +263,15 @@ object ApiClient : CertificateApiClient {
     ).fold(
         onSuccess = { response ->
             if (response.error != null) {
-                Log.e("ApiClient", "failed to update certificate status $certificateId: ${response.error}")
+                Log.e(TAG, "failed to update certificate status $certificateId: ${response.error}")
                 Result.failure(Exception(response.error))
             } else {
-                Log.i("ApiClient", "successfully updated certificate status for $certificateId to $status")
+                Log.i(TAG, "successfully updated certificate status for $certificateId to $status")
                 Result.success(Unit)
             }
         },
         onFailure = { throwable ->
-            Log.e("ApiClient", "failed to update certificate status $certificateId: ${throwable.message}")
+            Log.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
             Result.failure(throwable)
         },
     )
@@ -303,18 +304,18 @@ object ApiClient : CertificateApiClient {
             }
 
             // Node key is missing, attempt auto-enrollment
-            Log.d("ApiClient", "Orbit node key missing, attempting auto-enrollment")
+            Log.d(TAG, "Orbit node key missing, attempting auto-enrollment")
 
             // Re-enroll
             val enrollResult = enroll()
 
             return enrollResult.fold(
                 onSuccess = { response ->
-                    Log.d("ApiClient", "Auto-enrollment successful")
+                    Log.d(TAG, "Auto-enrollment successful")
                     Result.success(response.orbitNodeKey)
                 },
                 onFailure = { error ->
-                    Log.e("ApiClient", "Auto-enrollment failed: ${error.message}")
+                    Log.e(TAG, "Auto-enrollment failed: ${error.message}")
                     Result.failure(error)
                 },
             )

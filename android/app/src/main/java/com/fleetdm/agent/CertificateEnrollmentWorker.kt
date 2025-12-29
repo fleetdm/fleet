@@ -17,14 +17,7 @@ import androidx.work.WorkerParameters
 class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        val attemptCount = runAttemptCount
-        Log.d(TAG, "Starting certificate enrollment worker (attempt $attemptCount)")
-
-        // Limit retries to avoid infinite loops
-        if (attemptCount >= MAX_RETRY_ATTEMPTS) {
-            Log.e(TAG, "Maximum retry attempts ($MAX_RETRY_ATTEMPTS) reached, giving up")
-            return Result.failure()
-        }
+        Log.d(TAG, "Starting certificate enrollment worker (attempt ${runAttemptCount + 1})")
 
         // Get orchestrator from Application
         val orchestrator = AgentApplication.getCertificateOrchestrator(applicationContext)
@@ -102,8 +95,14 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
         // Return result based on outcomes
         return when {
             hasTransientFailure -> {
-                Log.w(TAG, "Some certificates had transient failures, will retry (attempt $attemptCount of $MAX_RETRY_ATTEMPTS)")
-                Result.retry()
+                if (runAttemptCount >= MAX_RETRY_ATTEMPTS - 1) {
+                    // Exhausted retries, return success to reset and let periodic schedule take over
+                    Log.w(TAG, "Some certificates had transient failures, exhausted $MAX_RETRY_ATTEMPTS retries, will retry in 15 minutes")
+                    Result.success()
+                } else {
+                    Log.w(TAG, "Some certificates had transient failures, will retry (attempt ${runAttemptCount + 1} of $MAX_RETRY_ATTEMPTS)")
+                    Result.retry()
+                }
             }
             hasPermanentFailure -> {
                 if (hasSuccess) {
@@ -120,7 +119,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
 
     companion object {
         const val WORK_NAME = "certificate_enrollment"
-        private const val TAG = "CertEnrollmentWorker"
+        private const val TAG = "fleet-CertificateEnrollmentWorker"
         private const val MAX_RETRY_ATTEMPTS = 5
 
         private fun shouldRetry(reason: String): Boolean {

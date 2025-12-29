@@ -5,11 +5,13 @@ import android.content.Context
 import android.content.RestrictionsManager
 import android.os.Build
 import android.util.Log
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -92,6 +94,10 @@ class AgentApplication : Application() {
         val workRequest = PeriodicWorkRequestBuilder<CertificateEnrollmentWorker>(
             15, // 15 minutes is the minimum
             TimeUnit.MINUTES,
+        ).setBackoffCriteria(
+            BackoffPolicy.EXPONENTIAL,
+            WorkRequest.MIN_BACKOFF_MILLIS,
+            TimeUnit.MILLISECONDS,
         ).setConstraints(
             Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
