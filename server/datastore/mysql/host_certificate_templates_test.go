@@ -36,6 +36,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"ListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer", testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer},
 		{"ListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval", testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval},
 		{"GetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval", testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval},
+		{"CertificateTemplateReinstalledAfterTransferBackToOriginalTeam", testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam},
 	}
 
 	for _, c := range cases {
@@ -1407,4 +1408,56 @@ func testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval(t *test
 	}
 	require.True(t, hasInstall, "should include install operation")
 	require.True(t, hasRemove, "should include remove operation")
+}
+
+// testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam verifies that when a host
+// transfers back to its original team, the certificate template that was marked for removal
+// is correctly transitioned back to pending install.
+func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setupA := createCertTemplateTestSetup(t, ctx, ds, "Team A")
+	setupB := createCertTemplateTestSetup(t, ctx, ds, "Team B")
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setupA.team.ID)
+
+	// Host starts with verified cert in Team A
+	challenge := "challenge-a"
+	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setupA.template.ID,
+		Status:                fleet.CertificateTemplateVerified,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		FleetChallenge:        &challenge,
+		Name:                  setupA.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Transfer to Team B: mark Team A cert for removal, create pending install for Team B
+	host.TeamID = &setupB.team.ID
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
+	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupB.team.ID)
+	require.NoError(t, err)
+
+	// Transfer back to Team A: mark Team B cert for removal, re-create pending install for Team A
+	host.TeamID = &setupA.team.ID
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
+	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupA.team.ID)
+	require.NoError(t, err)
+
+	// Team A's cert should now be pending install (not pending remove)
+	results, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
+	require.NoError(t, err)
+
+	var certA *fleet.CertificateTemplateForHost
+	for _, r := range results {
+		if r.CertificateTemplateID == setupA.template.ID {
+			certA = &r
+			break
+		}
+	}
+	require.NotNil(t, certA, "Team A cert should exist")
+	require.Equal(t, fleet.MDMOperationTypeInstall, *certA.OperationType)
+	require.Equal(t, fleet.CertificateTemplatePending, *certA.Status)
 }

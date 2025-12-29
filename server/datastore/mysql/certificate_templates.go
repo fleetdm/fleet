@@ -354,8 +354,13 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 			name
 		FROM certificate_templates
 		WHERE team_id = ?
-		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
-	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
+		ON DUPLICATE KEY UPDATE
+		    -- allow 'remove' to transition to 'pending install'
+			status = IF(operation_type = '%s', '%s', status),
+			operation_type = IF(operation_type = '%s', '%s', operation_type)
+	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,
+		fleet.MDMOperationTypeRemove, fleet.CertificateTemplatePending,
+		fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
