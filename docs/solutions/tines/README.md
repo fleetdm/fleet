@@ -6,6 +6,10 @@ These are best practices to be followed by Fleeties when creating and sharing St
 
 - Include a note with what credentials/resources need to be set before running.
 - Remove your email from the monitoring section.
+- If actions are device-specific, prefix the Story with the platform. Examples:
+  - `windows-story.json`
+  - `mac-update.json`
+  - `apple-device-location.json` — If the command applies to more than just Macs, use `apple` as the prefix.
 - After exporting, open the .json file and:
   - Double-check to make sure your Fleet email (or any other confidential information) isn't in the contents.
   - Add an empty newline at the bottom of the file.
