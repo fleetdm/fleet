@@ -11032,27 +11032,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-##### Add Android app with configuration
-
-`POST /api/v1/fleet/software/app_store_apps`
-
-##### Request body
-
-```json
-{
-  "app_store_id": "us.zoom.videomeetings",
-  "team_id": 2,
-  "platform": "android",
-  "self_service": true,
-  "configuration": {
-    "managedConfiguration": {
-      "DisableDirectShare": true,
-      "ForceLoginWithSSO": false
-    }
-  }
-}
-```
-
 ##### Default response
 
 `Status: 200`
@@ -11088,6 +11067,8 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
+`configuration` only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
 #### Example
 
 `PATCH /api/v1/fleet/software/titles/3467/app_store_app`
@@ -11103,26 +11084,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "Product",
     "Marketing"
   ]
-}
-```
-
-##### Update Android app configuration
-
-`PATCH /api/v1/fleet/software/titles/456/app_store_app`
-
-##### Request body
-
-```json
-{
-  "team_id": 2,
-  "self_service": true,
-  "configuration": {
-    "managedConfiguration": {
-      "DisableDirectShare": true,
-      "ForceLoginWithSSO": true
-    },
-    "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
-  }
 }
 ```
 
