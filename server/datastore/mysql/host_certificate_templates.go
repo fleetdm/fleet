@@ -60,7 +60,7 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
 			host_certificate_templates.operation_type AS operation_type,
-			host_certificate_templates.version AS version,
+			BIN_TO_UUID(host_certificate_templates.uuid, true) AS uuid,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -80,7 +80,7 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			hct.fleet_challenge AS fleet_challenge,
 			hct.status AS status,
 			hct.operation_type AS operation_type,
-			hct.version AS version,
+			BIN_TO_UUID(hct.uuid, true) AS uuid,
 			ca.type AS ca_type,
 			ca.name AS ca_name
 		FROM host_certificate_templates hct
@@ -113,7 +113,7 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
 			host_certificate_templates.operation_type AS operation_type,
-			host_certificate_templates.version AS version,
+			BIN_TO_UUID(host_certificate_templates.uuid, true) AS uuid,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -150,7 +150,7 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 			status,
 			operation_type,
 			detail,
-			version,
+			BIN_TO_UUID(uuid, true) AS uuid,
 			created_at,
 			updated_at
 		FROM host_certificate_templates
@@ -183,7 +183,8 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 			fleet_challenge,
 			status,
 			operation_type,
-			name
+			name,
+			uuid
 		) VALUES %s
 	`
 
@@ -192,7 +193,7 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 
 	for _, hct := range hostCertTemplates {
 		args = append(args, hct.HostUUID, hct.CertificateTemplateID, hct.FleetChallenge, hct.Status, hct.OperationType, hct.Name)
-		placeholders.WriteString("(?,?,?,?,?,?),")
+		placeholders.WriteString("(?,?,?,?,?,?,UUID_TO_BIN(UUID(), true)),")
 	}
 
 	stmt := fmt.Sprintf(sqlInsert, strings.TrimSuffix(placeholders.String(), ","))
@@ -295,8 +296,8 @@ func (ds *Datastore) UpsertCertificateStatus(
 		}
 
 		insertStmt := `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name, uuid)
+			VALUES (?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true))`
 		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType, templateInfo.Name}
 
 		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
@@ -344,10 +345,10 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 			CertificateTemplateID uint                            `db:"certificate_template_id"`
 			Status                fleet.CertificateTemplateStatus `db:"status"`
 			OperationType         fleet.MDMOperationType          `db:"operation_type"`
-			Version               uint                            `db:"version"`
+			UUID                  string                          `db:"uuid"`
 		}
 		const selectStmt = `
-			SELECT id, certificate_template_id, status, operation_type, version
+			SELECT id, certificate_template_id, status, operation_type, BIN_TO_UUID(uuid, true) AS uuid
 			FROM host_certificate_templates
 			WHERE host_uuid = ?
 			FOR UPDATE
@@ -372,7 +373,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 					CertificateTemplateID: r.CertificateTemplateID,
 					Status:                fleet.CertificateTemplateDelivering,
 					OperationType:         r.OperationType,
-					Version:               r.Version,
+					UUID:                  r.UUID,
 				})
 			case fleet.CertificateTemplateDelivering:
 				// Already delivering (from a previous failed run), include in delivering list; should be very rare
@@ -381,7 +382,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 					CertificateTemplateID: r.CertificateTemplateID,
 					Status:                r.Status,
 					OperationType:         r.OperationType,
-					Version:               r.Version,
+					UUID:                  r.UUID,
 				})
 			default:
 				// delivered, verified, failed
@@ -389,7 +390,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 					CertificateTemplateID: r.CertificateTemplateID,
 					Status:                r.Status,
 					OperationType:         r.OperationType,
-					Version:               r.Version,
+					UUID:                  r.UUID,
 				})
 			}
 		}
@@ -517,7 +518,7 @@ func (ds *Datastore) RevertStaleCertificateTemplates(
 
 // SetHostCertificateTemplatesToPendingRemove prepares certificate templates for removal.
 // For a given certificate template ID, it deletes any rows with status in (pending, failed)
-// and updates all other rows to status=pending, operation_type=remove.
+// and updates all other rows to status=pending, operation_type=remove with a new UUID.
 func (ds *Datastore) SetHostCertificateTemplatesToPendingRemove(
 	ctx context.Context,
 	certificateTemplateID uint,
@@ -532,10 +533,11 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemove(
 			return ctxerr.Wrap(ctx, err, "delete pending/failed host certificate templates")
 		}
 
-		// Update all remaining rows to status=pending, operation_type=remove
+		// Update all remaining rows to status=pending, operation_type=remove with new UUID
+		// New UUID ensures the agent can distinguish this removal from previous operations
 		updateStmt := fmt.Sprintf(`
 			UPDATE host_certificate_templates
-			SET status = '%s', operation_type = '%s'
+			SET status = '%s', operation_type = '%s', uuid = UUID_TO_BIN(UUID(), true)
 			WHERE certificate_template_id = ?
 		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove)
 		if _, err := tx.ExecContext(ctx, updateStmt, certificateTemplateID); err != nil {
@@ -565,10 +567,11 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemoveForHost(
 			return ctxerr.Wrap(ctx, err, "delete pending/failed install host certificate templates for host")
 		}
 
-		// Update remaining install rows to status=pending, operation_type=remove
+		// Update remaining install rows to status=pending, operation_type=remove with new UUID
+		// New UUID ensures the agent can distinguish this removal from previous operations
 		updateStmt := fmt.Sprintf(`
 			UPDATE host_certificate_templates
-			SET status = '%s', operation_type = '%s'
+			SET status = '%s', operation_type = '%s', uuid = UUID_TO_BIN(UUID(), true)
 			WHERE host_uuid = ? AND operation_type = '%s'
 		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 		if _, err := tx.ExecContext(ctx, updateStmt, hostUUID); err != nil {

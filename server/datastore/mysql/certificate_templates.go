@@ -76,7 +76,7 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 			certificate_authorities.type AS certificate_authority_type,
 			certificate_authorities.challenge_encrypted AS scep_challenge_encrypted,
 			host_certificate_templates.status AS status,
-			host_certificate_templates.version AS version,
+			BIN_TO_UUID(host_certificate_templates.uuid, true) AS uuid,
 			host_certificate_templates.fleet_challenge AS fleet_challenge
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
@@ -306,7 +306,8 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 			fleet_challenge,
 			status,
 			operation_type,
-			name
+			name,
+			uuid
 		)
 		SELECT
 			hosts.uuid,
@@ -314,7 +315,8 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 			NULL,
 			'%s',
 			'%s',
-			ct.name
+			ct.name,
+			UUID_TO_BIN(UUID(), true)
 		FROM hosts
 		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
 		INNER JOIN certificate_templates ct ON ct.id = ?
@@ -345,19 +347,21 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 			certificate_template_id,
 			status,
 			operation_type,
-			name
+			name,
+			uuid
 		)
 		SELECT
 			?,
 			id,
 			'%s',
 			'%s',
-			name
+			name,
+			UUID_TO_BIN(UUID(), true)
 		FROM certificate_templates
 		WHERE team_id = ?
 		ON DUPLICATE KEY UPDATE
-		    -- allow 'remove' to transition to 'pending install', incrementing version
-			version = IF(operation_type = '%s', version + 1, version),
+		    -- allow 'remove' to transition to 'pending install', generating new uuid
+			uuid = IF(operation_type = '%s', UUID_TO_BIN(UUID(), true), uuid),
 			status = IF(operation_type = '%s', '%s', status),
 			operation_type = IF(operation_type = '%s', '%s', operation_type)
 	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,

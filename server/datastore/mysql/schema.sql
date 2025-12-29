@@ -517,7 +517,7 @@ CREATE TABLE `host_certificate_templates` (
   `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'install',
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `version` int unsigned NOT NULL DEFAULT '1',
+  `uuid` binary(16) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_certificate_templates_host_template` (`host_uuid`,`certificate_template_id`),
   KEY `fk_host_certificate_templates_operation_type` (`operation_type`),

@@ -13,10 +13,10 @@ func init() {
 func Up_20251229000000(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE host_certificate_templates
-		ADD COLUMN version INT UNSIGNED NOT NULL DEFAULT 1
+		ADD COLUMN uuid BINARY(16) NULL
 	`)
 	if err != nil {
-		return errors.Wrap(err, "add version column to host_certificate_templates")
+		return errors.Wrap(err, "add uuid column to host_certificate_templates")
 	}
 	return nil
 }

@@ -39,7 +39,7 @@ type CertificateTemplateResponse struct {
 type CertificateTemplateResponseForHost struct {
 	CertificateTemplateResponse
 	Status                 CertificateTemplateStatus `json:"status" db:"status"`
-	Version                uint                      `json:"version" db:"version"`
+	UUID                   string                    `json:"uuid" db:"uuid"`
 	SCEPChallenge          *string                   `json:"scep_challenge" db:"scep_challenge"`
 	FleetChallenge         *string                   `json:"fleet_challenge" db:"fleet_challenge"`
 	SCEPChallengeEncrypted []byte                    `json:"-" db:"scep_challenge_encrypted"`
@@ -75,7 +75,7 @@ type HostCertificateTemplateForDelivery struct {
 	CertificateTemplateID uint
 	Status                CertificateTemplateStatus
 	OperationType         MDMOperationType
-	Version               uint
+	UUID                  string
 }
 
 // HostCertificateTemplatesForDelivery contains the result of preparing certificate templates

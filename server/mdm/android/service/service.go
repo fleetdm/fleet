@@ -1013,8 +1013,8 @@ func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string
 		if ct.OperationType != nil {
 			template.Operation = string(*ct.OperationType)
 		}
-		if ct.Version != nil {
-			template.Version = *ct.Version
+		if ct.UUID != nil {
+			template.UUID = *ct.UUID
 		}
 		certificateTemplateIDs = append(certificateTemplateIDs, template)
 	}
@@ -1264,7 +1264,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 				ID:        ct.CertificateTemplateID,
 				Status:    string(ct.Status),
 				Operation: string(ct.OperationType),
-				Version:   ct.Version,
+				UUID:      ct.UUID,
 			})
 		}
 

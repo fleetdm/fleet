@@ -1432,12 +1432,38 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	}})
 	require.NoError(t, err)
 
+	// Capture initial UUID
+	initialResults, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
+	require.NoError(t, err)
+	var initialUUID string
+	for _, r := range initialResults {
+		if r.CertificateTemplateID == setupA.template.ID {
+			require.NotNil(t, r.UUID, "initial UUID should be set")
+			initialUUID = *r.UUID
+			break
+		}
+	}
+	require.NotEmpty(t, initialUUID, "initial UUID should not be empty")
+
 	// Transfer to Team B: mark Team A cert for removal, create pending install for Team B
 	host.TeamID = &setupB.team.ID
 	require.NoError(t, ds.UpdateHost(ctx, host))
 	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupB.team.ID)
 	require.NoError(t, err)
+
+	// Capture UUID after marking for removal (should be different from initial)
+	removeResults, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
+	require.NoError(t, err)
+	var uuidAfterRemove string
+	for _, r := range removeResults {
+		if r.CertificateTemplateID == setupA.template.ID {
+			require.NotNil(t, r.UUID, "UUID after remove should be set")
+			uuidAfterRemove = *r.UUID
+			break
+		}
+	}
+	require.NotEqual(t, initialUUID, uuidAfterRemove, "UUID should change when marked for removal")
 
 	// Transfer back to Team A: mark Team B cert for removal, re-create pending install for Team A
 	host.TeamID = &setupA.team.ID
@@ -1446,7 +1472,7 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupA.team.ID)
 	require.NoError(t, err)
 
-	// Team A's cert should now be pending install (not pending remove) with version incremented
+	// Team A's cert should now be pending install (not pending remove) with a new UUID
 	results, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
 	require.NoError(t, err)
 
@@ -1460,6 +1486,6 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.NotNil(t, certA, "Team A cert should exist")
 	require.Equal(t, fleet.MDMOperationTypeInstall, *certA.OperationType)
 	require.Equal(t, fleet.CertificateTemplatePending, *certA.Status)
-	require.NotNil(t, certA.Version, "version should be set")
-	require.Equal(t, uint(2), *certA.Version, "version should be 2 after reinstall")
+	require.NotNil(t, certA.UUID, "UUID should be set")
+	require.NotEqual(t, uuidAfterRemove, *certA.UUID, "UUID should change when reinstalled")
 }
