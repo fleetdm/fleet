@@ -10554,7 +10554,7 @@ You need to send a request of type `multipart/form-data`. Include the software f
 | uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
-| self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
@@ -10564,14 +10564,14 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 #### Example
 
 ```
-/api/v1/fleet/software/package
+POST /api/v1/fleet/software/package
 ```
 
 ##### Request body
 
 ```
-team_id=1
-self_service=true
+team_id="1"
+self_service="true"
 install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
 pre_install_query"SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
 post_install_script"sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX"
