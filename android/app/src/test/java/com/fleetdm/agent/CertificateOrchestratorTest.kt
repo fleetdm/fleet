@@ -139,14 +139,14 @@ class CertificateOrchestratorTest {
         status: CertificateStatus = CertificateStatus.INSTALLED,
         retries: Int = 0,
         statusReportRetries: Int = 0,
-        version: Int = 1,
+        uuid: String = "uuid-1",
     ) {
         context.prefDataStore.edit { preferences ->
             val existing = preferences[stringPreferencesKey("installed_certificates")]?.let {
                 json.decodeFromString<CertificateStateMap>(it)
             } ?: emptyMap()
 
-            val certInfo = CertificateState(alias, status, retries, statusReportRetries, version)
+            val certInfo = CertificateState(alias, status, retries, statusReportRetries, uuid)
             val updated = existing.toMutableMap().apply {
                 put(certificateId, certInfo)
             }
@@ -212,7 +212,7 @@ class CertificateOrchestratorTest {
     @Test
     fun `storeCertificateInstallation stores certificate in DataStore`() = runTest {
         // Act
-        orchestrator.markCertificateInstalled(context, 123, "test-cert-1", version = 1)
+        orchestrator.markCertificateInstalled(context, 123, "test-cert-1", uuid = "uuid-1")
 
         // Assert
         val stored = getStoredCertificates()
@@ -223,9 +223,9 @@ class CertificateOrchestratorTest {
     @Test
     fun `storeCertificateInstallation handles multiple certificates`() = runTest {
         // Act
-        orchestrator.markCertificateInstalled(context, 123, "cert-1", version = 1)
-        orchestrator.markCertificateInstalled(context, 456, "cert-2", version = 1)
-        orchestrator.markCertificateInstalled(context, 789, "cert-3", version = 1)
+        orchestrator.markCertificateInstalled(context, 123, "cert-1", uuid = "uuid-1")
+        orchestrator.markCertificateInstalled(context, 456, "cert-2", uuid = "uuid-1")
+        orchestrator.markCertificateInstalled(context, 789, "cert-3", uuid = "uuid-1")
 
         // Assert
         val stored = getStoredCertificates()
@@ -238,10 +238,10 @@ class CertificateOrchestratorTest {
     @Test
     fun `storeCertificateInstallation updates existing certificate`() = runTest {
         // Arrange
-        orchestrator.markCertificateInstalled(context, 123, "old-alias", version = 1)
+        orchestrator.markCertificateInstalled(context, 123, "old-alias", uuid = "uuid-1")
 
         // Act - Update the same certificate ID
-        orchestrator.markCertificateInstalled(context, 123, "new-alias", version = 1)
+        orchestrator.markCertificateInstalled(context, 123, "new-alias", uuid = "uuid-1")
 
         // Assert
         val stored = getStoredCertificates()
@@ -261,7 +261,7 @@ class CertificateOrchestratorTest {
     @Test
     fun `getCertificateAlias retrieves stored certificate`() = runTest {
         // Arrange
-        orchestrator.markCertificateInstalled(context, 456, "my-cert", version = 1)
+        orchestrator.markCertificateInstalled(context, 456, "my-cert", uuid = "uuid-1")
 
         // Act
         val alias = orchestrator.getCertificateAlias(context, 456)
@@ -293,7 +293,7 @@ class CertificateOrchestratorTest {
         assertTrue(certificates.isEmpty())
 
         // Verify we can still store new certificates after recovery
-        orchestrator.markCertificateInstalled(context, 111, "recovered-cert", version = 1)
+        orchestrator.markCertificateInstalled(context, 111, "recovered-cert", uuid = "uuid-1")
         val stored = getStoredCertificates()
         assertEquals(1, stored.size)
         assertEquals("recovered-cert", stored[111]?.alias)
@@ -346,50 +346,50 @@ class CertificateOrchestratorTest {
         assertFalse(result)
     }
 
-    // ========== Test category: Version-based reinstallation ==========
+    // ========== Test category: UUID-based reinstallation ==========
 
     @Test
-    fun `enrollCertificate handles version-based reinstallation correctly`() = runTest {
+    fun `enrollCertificate handles uuid-based reinstallation correctly`() = runTest {
         data class TestCase(
             val name: String,
             val initialStatus: CertificateStatus,
             val inKeystore: Boolean,
-            val storedVersion: Int,
-            val requestedVersion: Int,
+            val storedUuid: String,
+            val requestedUuid: String,
             val expectApiCall: Boolean,
         )
 
         val testCases = listOf(
             TestCase(
-                name = "skips installed cert when version matches",
+                name = "skips installed cert when uuid matches",
                 initialStatus = CertificateStatus.INSTALLED,
                 inKeystore = true,
-                storedVersion = 1,
-                requestedVersion = 1,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-1",
                 expectApiCall = false,
             ),
             TestCase(
-                name = "reinstalls when version changes",
+                name = "reinstalls when uuid changes",
                 initialStatus = CertificateStatus.INSTALLED,
                 inKeystore = true,
-                storedVersion = 1,
-                requestedVersion = 2,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-2",
                 expectApiCall = true,
             ),
             TestCase(
-                name = "retries failed cert when version changes",
+                name = "retries failed cert when uuid changes",
                 initialStatus = CertificateStatus.FAILED,
                 inKeystore = false,
-                storedVersion = 1,
-                requestedVersion = 2,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-2",
                 expectApiCall = true,
             ),
             TestCase(
-                name = "skips failed cert when version is same",
+                name = "skips failed cert when uuid is same",
                 initialStatus = CertificateStatus.FAILED,
                 inKeystore = false,
-                storedVersion = 1,
-                requestedVersion = 1,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-1",
                 expectApiCall = false,
             ),
         )
@@ -405,7 +405,7 @@ class CertificateOrchestratorTest {
                 alias = "test-cert",
                 status = case.initialStatus,
                 retries = if (case.initialStatus == CertificateStatus.FAILED) 3 else 0,
-                version = case.storedVersion,
+                uuid = case.storedUuid,
             )
             orchestrator.storeCertificateState(context, 123, state)
 
@@ -418,7 +418,7 @@ class CertificateOrchestratorTest {
                 id = 123,
                 status = "delivered",
                 operation = "install",
-                version = case.requestedVersion,
+                uuid = case.requestedUuid,
             )
             val results = orchestrator.enrollCertificates(context, listOf(hostCert))
 
@@ -458,7 +458,7 @@ class CertificateOrchestratorTest {
                     context,
                     certId,
                     "cert-$certId",
-                    version = 1,
+                    uuid = "uuid-1",
                 )
             }
         }
@@ -478,7 +478,7 @@ class CertificateOrchestratorTest {
     fun `rapid sequential certificate storage preserves all data`() = runTest {
         // Act: Store 5 certificates rapidly in sequence
         repeat(5) { index ->
-            orchestrator.markCertificateInstalled(context, index * 100, "cert-$index", version = 1)
+            orchestrator.markCertificateInstalled(context, index * 100, "cert-$index", uuid = "uuid-1")
         }
 
         // Assert: All 5 should be stored
@@ -493,12 +493,12 @@ class CertificateOrchestratorTest {
     @Test
     fun `concurrent reads during writes see consistent data`() = runTest {
         // Arrange: Pre-populate with some certificates
-        orchestrator.markCertificateInstalled(context, 1, "cert-1", version = 1)
-        orchestrator.markCertificateInstalled(context, 2, "cert-2", version = 1)
+        orchestrator.markCertificateInstalled(context, 1, "cert-1", uuid = "uuid-1")
+        orchestrator.markCertificateInstalled(context, 2, "cert-2", uuid = "uuid-1")
 
         // Act: Concurrent write and read
         val writeJob = launch {
-            orchestrator.markCertificateInstalled(context, 3, "cert-3", version = 1)
+            orchestrator.markCertificateInstalled(context, 3, "cert-3", uuid = "uuid-1")
         }
 
         val readJob = launch {
@@ -541,7 +541,7 @@ class CertificateOrchestratorTest {
 
         // Manually verify the pattern - orchestrator would call storeCertificateInstallation
         val alias = (result as CertificateEnrollmentHandler.EnrollmentResult.Success).alias
-        orchestrator.markCertificateInstalled(context, 123, alias, version = 1)
+        orchestrator.markCertificateInstalled(context, 123, alias, uuid = "uuid-1")
 
         // Verify it was stored
         val storedAlias = orchestrator.getCertificateAlias(context, 123)
@@ -688,7 +688,7 @@ class CertificateOrchestratorTest {
             val expectedState: List<ExpectedCert>,
         )
 
-        fun hostCert(id: Int, op: String) = HostCertificate(id, "verified", op, version = 1)
+        fun hostCert(id: Int, op: String) = HostCertificate(id, "verified", op, uuid = "uuid-1")
 
         // With FakeCertificateApiClient returning success, removals transition to REMOVED status.
         val testCases = listOf(
@@ -776,44 +776,44 @@ class CertificateOrchestratorTest {
     }
 
     @Test
-    fun `cleanupRemovedCertificates handles version changes for already-removed certs`() = runTest {
+    fun `cleanupRemovedCertificates handles uuid changes for already-removed certs`() = runTest {
         data class TestCase(
             val name: String,
             val storedStatus: CertificateStatus,
-            val storedVersion: Int,
-            val requestedVersion: Int,
+            val storedUuid: String,
+            val requestedUuid: String,
             val expectApiCall: Boolean,
-            val expectedVersion: Int,
+            val expectedUuid: String,
             val expectedStatus: CertificateStatus,
         )
 
         // Note: "skips already REMOVED cert" is tested in `cleanupRemovedCertificates handles removal flow correctly`
         val testCases = listOf(
             TestCase(
-                name = "reports to server when REMOVED cert has version change",
+                name = "reports to server when REMOVED cert has uuid change",
                 storedStatus = CertificateStatus.REMOVED,
-                storedVersion = 1,
-                requestedVersion = 2,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-2",
                 expectApiCall = true,
-                expectedVersion = 2,
+                expectedUuid = "uuid-2",
                 expectedStatus = CertificateStatus.REMOVED,
             ),
             TestCase(
-                name = "skips REMOVED_UNREPORTED cert when version matches",
+                name = "skips REMOVED_UNREPORTED cert when uuid matches",
                 storedStatus = CertificateStatus.REMOVED_UNREPORTED,
-                storedVersion = 1,
-                requestedVersion = 1,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-1",
                 expectApiCall = false,
-                expectedVersion = 1,
+                expectedUuid = "uuid-1",
                 expectedStatus = CertificateStatus.REMOVED_UNREPORTED, // Stays unreported, retry logic will handle it
             ),
             TestCase(
-                name = "reports to server when REMOVED_UNREPORTED cert has version change",
+                name = "reports to server when REMOVED_UNREPORTED cert has uuid change",
                 storedStatus = CertificateStatus.REMOVED_UNREPORTED,
-                storedVersion = 1,
-                requestedVersion = 2,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-2",
                 expectApiCall = true,
-                expectedVersion = 2,
+                expectedUuid = "uuid-2",
                 expectedStatus = CertificateStatus.REMOVED, // Successfully reported, transitions to REMOVED
             ),
         )
@@ -823,16 +823,16 @@ class CertificateOrchestratorTest {
             clearDataStore()
             fakeApiClient.reset()
 
-            // Arrange: Store a cert with the specified status and version
+            // Arrange: Store a cert with the specified status and uuid
             storeTestCertificateInDataStore(
                 certificateId = 123,
                 alias = "test-cert",
                 status = case.storedStatus,
-                version = case.storedVersion,
+                uuid = case.storedUuid,
             )
 
-            // Act: Request removal with the specified version
-            val hostCert = HostCertificate(id = 123, status = "verified", operation = "remove", version = case.requestedVersion)
+            // Act: Request removal with the specified uuid
+            val hostCert = HostCertificate(id = 123, status = "verified", operation = "remove", uuid = case.requestedUuid)
             orchestrator.cleanupRemovedCertificates(context, listOf(hostCert))
 
             // Assert: Check if API was called
@@ -854,12 +854,12 @@ class CertificateOrchestratorTest {
                 )
             }
 
-            // Assert: Check stored version is updated
+            // Assert: Check stored uuid is updated
             val stored = getStoredCertificates()
             assertEquals(
-                "${case.name}: stored version should be ${case.expectedVersion}",
-                case.expectedVersion,
-                stored[123]?.version,
+                "${case.name}: stored uuid should be ${case.expectedUuid}",
+                case.expectedUuid,
+                stored[123]?.uuid,
             )
 
             // Assert: Check status
@@ -886,7 +886,7 @@ class CertificateOrchestratorTest {
             clearDataStore()
             val certId = index + 1
 
-            orchestrator.markCertificateUnreported(context, certId, "test-cert", version = 1, isInstall = case.isInstall)
+            orchestrator.markCertificateUnreported(context, certId, "test-cert", uuid = "uuid-1", isInstall = case.isInstall)
 
             val stored = getStoredCertificates()
             assertEquals("${case.name}: size", 1, stored.size)
