@@ -10,7 +10,11 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Installing fleetctl
 
-Download and install [Node.js](https://nodejs.org/en).
+You can download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases). Be sure to match the version of the binary with the version of your Fleet server.
+
+Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
+
+Alternatively, you can use npm. Download and install [Node.js](https://nodejs.org/en).
 
 Install fleetctl with npm (included in Node.js).
 
@@ -24,9 +28,6 @@ If you see an error such as `Please try running this command again as root/Admin
 sudo npm install -g fleetctl
 ```
 
-Alternatively, and for Windows and Linux, you can download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases). 
-
-Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
 
 ### Upgrading fleetctl
 
