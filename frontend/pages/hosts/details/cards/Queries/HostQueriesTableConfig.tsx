@@ -3,6 +3,7 @@ import React from "react";
 import { IQueryStats } from "interfaces/query_stats";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
 
@@ -58,11 +59,12 @@ const generateColumnConfigs = (
 ): IDataColumn[] => {
   const cols: IDataColumn[] = [
     {
-      Header: "Name",
-      disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps) => (
         <TooltipTruncatedTextCell value={cellProps.cell.value} />
+      ),
+      Header: (cellProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
       sortType: "caseInsensitive",
     },

@@ -132,7 +132,7 @@ const ReportUpdatedCell = ({
           onClick={onClick}
           size="small"
         >
-          <span>View data</span>
+          <span className={`${baseClass}__view-report--text`}>View data</span>
           <Icon name="chevron-right" color="ui-fleet-black-75" />
         </Button>
       )}

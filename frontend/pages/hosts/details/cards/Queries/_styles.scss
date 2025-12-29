@@ -19,12 +19,6 @@
         .last_fetched__header {
           display: table-cell;
         }
-        @media (max-width: $break-md) {
-          .last_fetched__header {
-            display: none;
-            width: 0;
-          }
-        }
       }
       tbody {
         tr {
@@ -55,15 +49,15 @@
               opacity: 1;
             }
           }
-          @media (max-width: $break-md) {
-            .last_fetched__cell {
+
+          @media (max-width: 1300px) {
+            .report-updated-cell__view-report--text {
               display: none;
               width: 0;
             }
-            .performance-cell__link-icon {
-              display: inline-flex;
-              align-self: center;
-              width: initial;
+
+            td {
+              max-width: 140px;
             }
           }
         }
