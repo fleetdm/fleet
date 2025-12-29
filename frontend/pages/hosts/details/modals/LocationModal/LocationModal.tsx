@@ -9,6 +9,7 @@ import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+import DataSet from "components/DataSet";
 
 const baseClass = "location-modal";
 
@@ -139,10 +140,15 @@ const LocationModal = ({
     return (
       <div className={`${baseClass}__content`}>
         <div className={`${baseClass}__updated-at`}>
-          Last reported location {lastUpdatedAt}
+          <DataSet
+            title="Last reported location"
+            value={
+              <>
+                {location} {lastUpdatedAt}
+              </>
+            }
+          />
         </div>
-        <div className={`${baseClass}__name`}>{location}</div>
-        <div className={`${baseClass}__map`}>{"Insert map here"}</div>
         {googleMapsUrl && (
           <div className={`${baseClass}__link`}>
             <CustomLink url={googleMapsUrl} text="Open in Google Maps" newTab />
@@ -185,7 +191,7 @@ const LocationModal = ({
   };
 
   return (
-    <Modal title="Location" className={baseClass} onExit={onExit} width="large">
+    <Modal title="Location" className={baseClass} onExit={onExit}>
       <>
         {renderContent()}
         {renderFooter()}

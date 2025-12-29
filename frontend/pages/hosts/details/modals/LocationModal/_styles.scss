@@ -1,2 +1,10 @@
 .location-modal {
+  &__content {
+    @include vertical-modal-layout;
+  }
+
+  dd {
+    align-items: baseline;
+    gap: $pad-small;
+  }
 }
