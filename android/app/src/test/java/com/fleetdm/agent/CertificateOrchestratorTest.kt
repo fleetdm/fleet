@@ -139,13 +139,14 @@ class CertificateOrchestratorTest {
         status: CertificateStatus = CertificateStatus.INSTALLED,
         retries: Int = 0,
         statusReportRetries: Int = 0,
+        version: Int = 1,
     ) {
         context.prefDataStore.edit { preferences ->
             val existing = preferences[stringPreferencesKey("installed_certificates")]?.let {
                 json.decodeFromString<CertificateStateMap>(it)
             } ?: emptyMap()
 
-            val certInfo = CertificateState(alias, status, retries, statusReportRetries)
+            val certInfo = CertificateState(alias, status, retries, statusReportRetries, version)
             val updated = existing.toMutableMap().apply {
                 put(certificateId, certInfo)
             }
@@ -771,6 +772,102 @@ class CertificateOrchestratorTest {
                     assertEquals("Cert ${expected.id} status - ${case.name}", expected.status, stored[expected.id]?.status)
                 }
             }
+        }
+    }
+
+    @Test
+    fun `cleanupRemovedCertificates handles version changes for already-removed certs`() = runTest {
+        data class TestCase(
+            val name: String,
+            val storedStatus: CertificateStatus,
+            val storedVersion: Int,
+            val requestedVersion: Int,
+            val expectApiCall: Boolean,
+            val expectedVersion: Int,
+            val expectedStatus: CertificateStatus,
+        )
+
+        // Note: "skips already REMOVED cert" is tested in `cleanupRemovedCertificates handles removal flow correctly`
+        val testCases = listOf(
+            TestCase(
+                name = "reports to server when REMOVED cert has version change",
+                storedStatus = CertificateStatus.REMOVED,
+                storedVersion = 1,
+                requestedVersion = 2,
+                expectApiCall = true,
+                expectedVersion = 2,
+                expectedStatus = CertificateStatus.REMOVED,
+            ),
+            TestCase(
+                name = "skips REMOVED_UNREPORTED cert when version matches",
+                storedStatus = CertificateStatus.REMOVED_UNREPORTED,
+                storedVersion = 1,
+                requestedVersion = 1,
+                expectApiCall = false,
+                expectedVersion = 1,
+                expectedStatus = CertificateStatus.REMOVED_UNREPORTED, // Stays unreported, retry logic will handle it
+            ),
+            TestCase(
+                name = "reports to server when REMOVED_UNREPORTED cert has version change",
+                storedStatus = CertificateStatus.REMOVED_UNREPORTED,
+                storedVersion = 1,
+                requestedVersion = 2,
+                expectApiCall = true,
+                expectedVersion = 2,
+                expectedStatus = CertificateStatus.REMOVED, // Successfully reported, transitions to REMOVED
+            ),
+        )
+
+        for (case in testCases) {
+            // Reset state between test cases
+            clearDataStore()
+            fakeApiClient.reset()
+
+            // Arrange: Store a cert with the specified status and version
+            storeTestCertificateInDataStore(
+                certificateId = 123,
+                alias = "test-cert",
+                status = case.storedStatus,
+                version = case.storedVersion,
+            )
+
+            // Act: Request removal with the specified version
+            val hostCert = HostCertificate(id = 123, status = "verified", operation = "remove", version = case.requestedVersion)
+            orchestrator.cleanupRemovedCertificates(context, listOf(hostCert))
+
+            // Assert: Check if API was called
+            if (case.expectApiCall) {
+                assertEquals(
+                    "${case.name}: should call updateCertificateStatus",
+                    1,
+                    fakeApiClient.updateStatusCalls.size,
+                )
+                assertEquals(
+                    "${case.name}: should report VERIFIED status",
+                    UpdateCertificateStatusStatus.VERIFIED,
+                    fakeApiClient.updateStatusCalls[0].status,
+                )
+            } else {
+                assertTrue(
+                    "${case.name}: should not call API",
+                    fakeApiClient.updateStatusCalls.isEmpty(),
+                )
+            }
+
+            // Assert: Check stored version is updated
+            val stored = getStoredCertificates()
+            assertEquals(
+                "${case.name}: stored version should be ${case.expectedVersion}",
+                case.expectedVersion,
+                stored[123]?.version,
+            )
+
+            // Assert: Check status
+            assertEquals(
+                "${case.name}: status should be ${case.expectedStatus}",
+                case.expectedStatus,
+                stored[123]?.status,
+            )
         }
     }
 

@@ -331,14 +331,42 @@ class CertificateOrchestrator(
 
             when {
                 certState?.status == CertificateStatus.REMOVED -> {
-                    // Already removed, skip
-                    Log.d(TAG, "Certificate ID $certId already removed, skipping")
-                    results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
+                    if (certState.version == hostCert.version) {
+                        // Already removed with same version, skip
+                        Log.d(TAG, "Certificate ID $certId already removed (version ${certState.version}), skipping")
+                        results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
+                    } else {
+                        // Version changed - report to server and update stored version
+                        Log.d(TAG, "Certificate ID $certId already removed but version changed (${certState.version} -> ${hostCert.version}), reporting to server")
+                        apiClient.updateCertificateStatus(
+                            certificateId = certId,
+                            status = UpdateCertificateStatusStatus.VERIFIED,
+                            operationType = UpdateCertificateStatusOperation.REMOVE,
+                        ).onFailure { error ->
+                            Log.e(TAG, "Failed to report removal status for ID $certId: ${error.message}", error)
+                        }
+                        markCertificateRemoved(context, certId, certState.alias, hostCert.version)
+                        results[certId] = CleanupResult.Success(certState.alias)
+                    }
                 }
                 certState?.status == CertificateStatus.REMOVED_UNREPORTED -> {
-                    // Already removed but not yet reported to server; skip removal, will be retried
-                    Log.d(TAG, "Certificate ID $certId already removed (unreported), skipping")
-                    results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
+                    if (certState.version == hostCert.version) {
+                        // Already removed but not yet reported to server; skip removal, will be retried
+                        Log.d(TAG, "Certificate ID $certId already removed (unreported, version ${certState.version}), skipping")
+                        results[certId] = CleanupResult.AlreadyRemoved(certState.alias)
+                    } else {
+                        // Version changed - report to server and update stored version
+                        Log.d(TAG, "Certificate ID $certId already removed (unreported) but version changed (${certState.version} -> ${hostCert.version}), reporting to server")
+                        apiClient.updateCertificateStatus(
+                            certificateId = certId,
+                            status = UpdateCertificateStatusStatus.VERIFIED,
+                            operationType = UpdateCertificateStatusOperation.REMOVE,
+                        ).onFailure { error ->
+                            Log.e(TAG, "Failed to report removal status for ID $certId: ${error.message}", error)
+                        }
+                        markCertificateRemoved(context, certId, certState.alias, hostCert.version)
+                        results[certId] = CleanupResult.Success(certState.alias)
+                    }
                 }
                 certState != null -> {
                     // Certificate exists in DataStore, remove it
@@ -357,7 +385,7 @@ class CertificateOrchestrator(
                     ).onFailure { error ->
                         Log.e(TAG, "Failed to report removal status for ID $certId: ${error.message}", error)
                     }
-                    markCertificateRemoved(context, certId, alias)
+                    markCertificateRemoved(context, certId, alias, hostCert.version)
                     results[certId] = CleanupResult.Success(alias)
                 }
             }
@@ -406,7 +434,7 @@ class CertificateOrchestrator(
 
             if (reportResult.isSuccess) {
                 // Status reported successfully, mark as fully removed
-                markCertificateRemoved(context, certificateId, alias)
+                markCertificateRemoved(context, certificateId, alias, version)
             } else {
                 // Status report failed; leave as REMOVED_UNREPORTED for retry later
                 Log.w(
@@ -440,8 +468,8 @@ class CertificateOrchestrator(
     /**
      * Marks a certificate as removed in DataStore.
      */
-    private suspend fun markCertificateRemoved(context: Context, certificateId: Int, alias: String) {
-        val info = CertificateState(alias = alias, status = CertificateStatus.REMOVED)
+    private suspend fun markCertificateRemoved(context: Context, certificateId: Int, alias: String, version: Int) {
+        val info = CertificateState(alias = alias, status = CertificateStatus.REMOVED, version = version)
         storeCertificateState(context, certificateId, info)
     }
 
@@ -534,7 +562,7 @@ class CertificateOrchestrator(
                 if (isInstall) {
                     markCertificateInstalled(context, certId, state.alias, state.version)
                 } else {
-                    markCertificateRemoved(context, certId, state.alias)
+                    markCertificateRemoved(context, certId, state.alias, state.version)
                 }
                 Log.i(TAG, "Successfully reported $operationName status for certificate $certId")
                 results[certId] = true
