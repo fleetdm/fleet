@@ -76,6 +76,7 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 			certificate_authorities.type AS certificate_authority_type,
 			certificate_authorities.challenge_encrypted AS scep_challenge_encrypted,
 			host_certificate_templates.status AS status,
+			host_certificate_templates.version AS version,
 			host_certificate_templates.fleet_challenge AS fleet_challenge
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
@@ -355,10 +356,12 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 		FROM certificate_templates
 		WHERE team_id = ?
 		ON DUPLICATE KEY UPDATE
-		    -- allow 'remove' to transition to 'pending install'
+		    -- allow 'remove' to transition to 'pending install', incrementing version
+			version = IF(operation_type = '%s', version + 1, version),
 			status = IF(operation_type = '%s', '%s', status),
 			operation_type = IF(operation_type = '%s', '%s', operation_type)
 	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,
+		fleet.MDMOperationTypeRemove,
 		fleet.MDMOperationTypeRemove, fleet.CertificateTemplatePending,
 		fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)

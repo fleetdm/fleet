@@ -60,6 +60,7 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
 			host_certificate_templates.operation_type AS operation_type,
+			host_certificate_templates.version AS version,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -79,6 +80,7 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			hct.fleet_challenge AS fleet_challenge,
 			hct.status AS status,
 			hct.operation_type AS operation_type,
+			hct.version AS version,
 			ca.type AS ca_type,
 			ca.name AS ca_name
 		FROM host_certificate_templates hct
@@ -111,6 +113,7 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
 			host_certificate_templates.operation_type AS operation_type,
+			host_certificate_templates.version AS version,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -147,6 +150,7 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 			status,
 			operation_type,
 			detail,
+			version,
 			created_at,
 			updated_at
 		FROM host_certificate_templates
@@ -340,9 +344,10 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 			CertificateTemplateID uint                            `db:"certificate_template_id"`
 			Status                fleet.CertificateTemplateStatus `db:"status"`
 			OperationType         fleet.MDMOperationType          `db:"operation_type"`
+			Version               uint                            `db:"version"`
 		}
 		const selectStmt = `
-			SELECT id, certificate_template_id, status, operation_type
+			SELECT id, certificate_template_id, status, operation_type, version
 			FROM host_certificate_templates
 			WHERE host_uuid = ?
 			FOR UPDATE
@@ -367,6 +372,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 					CertificateTemplateID: r.CertificateTemplateID,
 					Status:                fleet.CertificateTemplateDelivering,
 					OperationType:         r.OperationType,
+					Version:               r.Version,
 				})
 			case fleet.CertificateTemplateDelivering:
 				// Already delivering (from a previous failed run), include in delivering list; should be very rare
@@ -375,6 +381,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 					CertificateTemplateID: r.CertificateTemplateID,
 					Status:                r.Status,
 					OperationType:         r.OperationType,
+					Version:               r.Version,
 				})
 			default:
 				// delivered, verified, failed
@@ -382,6 +389,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 					CertificateTemplateID: r.CertificateTemplateID,
 					Status:                r.Status,
 					OperationType:         r.OperationType,
+					Version:               r.Version,
 				})
 			}
 		}

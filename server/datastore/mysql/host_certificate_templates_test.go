@@ -1446,7 +1446,7 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupA.team.ID)
 	require.NoError(t, err)
 
-	// Team A's cert should now be pending install (not pending remove)
+	// Team A's cert should now be pending install (not pending remove) with version incremented
 	results, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
 	require.NoError(t, err)
 
@@ -1460,4 +1460,6 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.NotNil(t, certA, "Team A cert should exist")
 	require.Equal(t, fleet.MDMOperationTypeInstall, *certA.OperationType)
 	require.Equal(t, fleet.CertificateTemplatePending, *certA.Status)
+	require.NotNil(t, certA.Version, "version should be set")
+	require.Equal(t, uint(2), *certA.Version, "version should be 2 after reinstall")
 }
