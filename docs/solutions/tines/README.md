@@ -31,3 +31,8 @@ Originally created for `customer-reedtimmer`.
 Fleet API commands to lock and unlock hosts.
 
 Originally created for `customer-reedtimmer`.
+
+## [MDM Migration (Jamf Pro)](mdm-migration-jamf-pro.json)
+
+Used when migrating from Jamf Pro to Fleet. This eeceives the migration web hook from Fleet, looks up that serial number in Jamf Pro via Jamf's API, then sends an unenroll command from Jamf.
+
