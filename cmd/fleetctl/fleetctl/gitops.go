@@ -210,6 +210,11 @@ func gitopsCommand() *cli.Command {
 				flFilename := configFile.Filename
 				isGlobalConfig := configFile.IsGlobalConfig
 
+				if !isGlobalConfig && !appConfig.License.IsPremium() {
+					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
+					continue
+				}
+
 				if isGlobalConfig {
 					if noTeamControls.Set() && config.Controls.Set() {
 						return errors.New("'controls' cannot be set on both global config and on no-team.yml")
@@ -236,9 +241,6 @@ func gitopsCommand() *cli.Command {
 							proposedLabelNames[i] = l.Name
 						}
 					}
-				} else if !appConfig.License.IsPremium() {
-					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
-					continue
 				}
 
 				// If we haven't populated this list yet, it means we're either doing team-level GitOps only,
