@@ -2356,21 +2356,19 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
 	require.NotNil(t, retrieved)
-	require.Equal(t, appID, retrieved.ApplicationID)
-	require.Nil(t, retrieved.TeamID)
-	require.JSONEq(t, string(config.Configuration), string(retrieved.Configuration))
+	require.JSONEq(t, string(config.Configuration), string(*retrieved))
 
 	// test bulk-get configuration
 	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID}, 0)
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(retrieved.Configuration), string(configsByAppID[appID]))
+	require.Equal(t, string(*retrieved), string(configsByAppID[appID]))
 
 	// bulk-get configuration returns any known app config, ignores others
 	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID, "no-such-app"}, 0)
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(retrieved.Configuration), string(configsByAppID[appID]))
+	require.Equal(t, string(*retrieved), string(configsByAppID[appID]))
 }
 
 func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
@@ -2394,7 +2392,7 @@ func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	// Verify update
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
-	require.JSONEq(t, string(newConfig), string(retrieved.Configuration))
+	require.JSONEq(t, string(newConfig), string(*retrieved))
 }
 
 func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
@@ -2488,15 +2486,12 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	// Verify global configuration
 	retrievedGlobal, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(retrievedGlobal.Configuration))
-	require.Nil(t, retrievedGlobal.TeamID)
+	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(*retrievedGlobal))
 
 	// Verify team configuration
 	retrievedTeam, err := ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(retrievedTeam.Configuration))
-	require.NotNil(t, retrievedTeam.TeamID)
-	require.Equal(t, teamID, *retrievedTeam.TeamID)
+	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(*retrievedTeam))
 }
 
 func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {

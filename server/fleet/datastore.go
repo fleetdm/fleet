@@ -2395,10 +2395,9 @@ type Datastore interface {
 	// VPP app install record for the setup experience flow.
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
-	// GetAndroidAppConfiguration retrieves the configuration for an Android app
-	// identified by adam_id and global_or_team_id.
-	GetAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) (*AndroidAppConfiguration, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*AndroidAppConfiguration, error)
+	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
 	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error

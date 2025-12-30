@@ -1703,17 +1703,12 @@ WHERE
 	return hasChanged, nil
 }
 
-// GetAndroidAppConfiguration retrieves the configuration for an Android app
-// identified by adam_id and global_or_team_id.
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) (*fleet.AndroidAppConfiguration, error) {
-	stmt := `
-		SELECT application_id, team_id, configuration
-		FROM android_app_configurations
-		WHERE application_id = ? AND global_or_team_id = ?
-	`
+// GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
+	stmt := `SELECT configuration FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`
 
-	var config fleet.AndroidAppConfiguration
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, teamID)
+	var config json.RawMessage
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
@@ -1724,23 +1719,16 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	return &config, nil
 }
 
-func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
 	stmt := `
-	SELECT
-		aac.id,
-		aac.application_id,
-		aac.team_id,
-		aac.global_or_team_id,
-		aac.configuration,
-		aac.created_at,
-		aac.updated_at
+	SELECT aac.configuration
 	FROM android_app_configurations aac
 	JOIN vpp_apps_teams vat
 		ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id
 	WHERE vat.id = ?
 `
 
-	var config fleet.AndroidAppConfiguration
+	var config json.RawMessage
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
 	if err != nil {
 		if err == sql.ErrNoRows {

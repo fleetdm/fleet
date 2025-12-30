@@ -100,8 +100,8 @@ WHERE
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
 	}
-	if config != nil && config.Configuration != nil {
-		app.Configuration = config.Configuration
+	if config != nil {
+		app.Configuration = *config
 	}
 
 	if teamID != nil {
