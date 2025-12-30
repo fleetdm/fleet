@@ -819,10 +819,6 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 		}
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
-	}
-
 	byName := make(map[string]fleet.LabelIdent, len(labels))
 	for labelName, labelID := range labels {
 		byName[labelName] = fleet.LabelIdent{
