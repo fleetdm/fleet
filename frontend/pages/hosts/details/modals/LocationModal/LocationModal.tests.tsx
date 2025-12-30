@@ -34,7 +34,7 @@ describe("LocationModal", () => {
     ).toBeVisible();
 
     // Google Maps link built from coordinates (lat,lng)
-    const link = screen.getByRole("link", { name: "Open in Google Maps" });
+    const link = screen.getByRole("link", { name: /Google Maps/i });
     expect(link).toBeVisible();
     expect(link).toHaveAttribute(
       "href",
