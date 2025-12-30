@@ -84,7 +84,7 @@ be run on the union of the hosts and hosts with matching labels.
 				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
 			&cli.UintFlag{
-				Name:  teamIDFlagName,
+				Name:  teamFlagName,
 				Usage: "ID of the team where the named query belongs to (0 means global)",
 			},
 			configFlag(),
@@ -108,7 +108,7 @@ be run on the union of the hosts and hosts with matching labels.
 			var queryID *uint
 			if flQueryName != "" {
 				var teamID *uint
-				if tid := c.Uint(teamIDFlagName); tid != 0 {
+				if tid := c.Uint(teamFlagName); tid != 0 {
 					teamID = &tid
 				}
 				queries, err := client.GetQueries(teamID, &flQueryName)

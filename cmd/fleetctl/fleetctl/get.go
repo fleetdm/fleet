@@ -675,7 +675,7 @@ func getLabelsCommand() *cli.Command {
 			debugFlag(),
 			&cli.UintFlag{
 				Name:  teamFlagName,
-				Usage: "Return labels specific to this team ID; default global labels only when viewing a set of labels",
+				Usage: "Return labels specific to this team ID; default global labels only when viewing multiple labels",
 				Value: 0,
 			},
 		},
@@ -722,7 +722,7 @@ func getLabelsCommand() *cli.Command {
 				printTable(c, columns, data)
 
 				return nil
-			} else if c.Uint(teamFlagName) > 0 {
+			} else if c.Uint(teamFlagName) != 0 {
 				return errors.New("cannot provide both a team ID and a label name")
 			}
 
@@ -1235,7 +1235,7 @@ func getSoftwareCommand() *cli.Command {
 		Usage:   "List software titles",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:  teamIDFlagName,
+				Name:  teamFlagName,
 				Usage: "Only list software of hosts that belong to the specified team",
 			},
 			&cli.BoolFlag{
@@ -1260,7 +1260,7 @@ func getSoftwareCommand() *cli.Command {
 
 			query := url.Values{}
 
-			teamID := c.Uint(teamIDFlagName)
+			teamID := c.Uint(teamFlagName)
 			if teamID != 0 {
 				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 			}

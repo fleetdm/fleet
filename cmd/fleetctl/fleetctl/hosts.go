@@ -31,7 +31,7 @@ func transferCommand() *cli.Command {
 		UsageText: `This command will gather the set of hosts specified and transfer them to the team.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     teamIDFlagName,
+				Name:     teamFlagName,
 				Usage:    "Team name hosts will be transferred to. Use '' for No team",
 				Required: true,
 			},
@@ -62,7 +62,7 @@ func transferCommand() *cli.Command {
 				return err
 			}
 
-			team := c.String(teamIDFlagName)
+			team := c.String(teamFlagName)
 			var hosts []string
 			if hostsFlag := c.String(hostsFlagName); hostsFlag != "" {
 				hosts = strings.Split(hostsFlag, ",")
