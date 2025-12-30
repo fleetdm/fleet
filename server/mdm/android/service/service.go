@@ -920,6 +920,7 @@ func buildFleetAgentAppPolicy(packageName, sha256Fingerprint string, managedConf
 				RoleType: "COMPANION_APP",
 			},
 		},
+		AutoUpdateMode: "AUTO_UPDATE_HIGH_PRIORITY",
 	}, nil
 }
 
