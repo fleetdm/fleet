@@ -8,10 +8,10 @@ Our go-to-market approach is built on a foundation of end-to-end visibility. We 
 
 ### Key processes/resources (see below)
 
-1. [Conversion rates](#Conversion rates)
+1. [Conversion rates](#Conversion-rates)
 2. [GTM Model](#GTM-model)
-2. [Attribution framework (aka Lead Source)](#Attribution-framework-(aka-Lead-Source))  
-3. Unified Campaign member status framework  
+3. [Attribution framework (aka Lead Source)](#Attribution-framework-(aka-Lead-Source))  
+4. [Unified Campaign member status framework](#Unified-campaign-member-status-framework)
 
 ## Conversion rates
 
@@ -25,7 +25,7 @@ There are several key comparisons that we want to understand:
 
 ## GTM model
 We can build a reverse funnel hsing the conversion rates and an estimated ASP which will indicate the business demand for top of funnel leads/contacts, and opportunities in order to attain future revenue targets. 
-See our current model in google docs [link](link to google docs)
+See our current model in google docs [link](link to google docs) <Tbd/todo>
 
 ## Attribution framework (aka Lead Source)
 
@@ -69,7 +69,7 @@ Example:
 
 This allows us to see that our webinars are great for *finding* leads, and our SDR team is great at *converting* them.
 
-### **4\. 3-tier attribution hierarchy**
+### **2\. 3-tier attribution hierarchy**
 
 Our model is a simple 3-level hierarchy. Every report can be rolled up to Level 1 for an executive summary or drilled down to Level 3 for granular analysis.
 
@@ -81,9 +81,7 @@ Our model is a simple 3-level hierarchy. Every report can be rolled up to Level 
 
 ---
 
-### 
-
-### **5\. Level 1:  The main buckets:  “SOURCES.”**
+### **3\. Level 1:  The main buckets:  “SOURCES.”**
 
 At the top of the hierarchy, there are 6 “Source” buckets, where all our leads and new logo opportunities will align.
 
@@ -100,7 +98,7 @@ At the top of the hierarchy, there are 6 “Source” buckets, where all our lea
 
 **🤝 Partner**		*All co-marketing and leads generated from formal channel partners.*
 
-### **6\. The detailed attribution model (level 2 and 3 of the model)**
+### **4\. The detailed attribution model (level 2 and 3 of the model)**
 
 Here is the complete, definitive list of all Sources and Source Details.
 
@@ -115,7 +113,6 @@ Here is the complete, definitive list of all Sources and Source Details.
 | Web referral | WR | WR-Default |
 | Organic social | SOC | SOC-Default |
 
-#### 
 
 #### **🗣️ Source: Word-of-mouth**
 
@@ -176,7 +173,6 @@ Here is the complete, definitive list of all Sources and Source Details.
 
 ---
 
-### 
 
 ### **5\. Campaign naming convention: The "how-to"**
 
