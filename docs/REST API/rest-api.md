@@ -1588,6 +1588,9 @@ None.
     "disable_data_sync": false,
     "periodicity": 3600000000000,
     "recent_vulnerability_max_age": 2592000000000000
+  },
+  "identity_provider": {
+    "auto_delete_fleet_user": true,
   }
 }
 ```
@@ -1611,16 +1614,16 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
-| integrations             | object  | body  | See [integrations](#integrations).                                                                                           |
+| integrations             | object  | body  | See [integrations](#integrations).                                                                                                   |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
-| conditional_access       | object  | body  | See [conditional_access](#conditional-access).    |
+| conditional_access       | object  | body  | See [conditional_access](#conditional-access).                                                                                       |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
+| identity_provider        | object  | body  | See [identity_provider](#identity-provider).                                                                                         |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
-
 
 #### Example
 
@@ -2495,6 +2498,24 @@ _Available in Fleet Premium._
       "time": "SELECT * FROM time",
       "macs": "SELECT mac FROM interface_details"
     }
+  }
+}
+```
+
+#### Identity provider
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| auto_delete_fleet_user            | boolean | Whether to enable automatic deletion of Fleet user when IdP is updated. (Default: `true`)                                                                                              |
+
+<br/>
+
+##### Example request body
+
+```json
+{
+  "identity_provider": {
+    "auto_delete_fleet_user": true,
   }
 }
 ```
