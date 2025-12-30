@@ -1758,7 +1758,10 @@ func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs
 		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
 	}
 
-	var configs []*fleet.AndroidAppConfiguration
+	var configs []*struct {
+		ApplicationID string          `db:"application_id"`
+		Configuration json.RawMessage `db:"configuration"`
+	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
