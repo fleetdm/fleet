@@ -341,14 +341,18 @@ class CertificateOrchestrator(
                             TAG,
                             "Certificate ID $certId already removed but uuid changed (${certState.uuid} -> ${hostCert.uuid}), reporting to server",
                         )
-                        apiClient.updateCertificateStatus(
+                        val reportResult = apiClient.updateCertificateStatus(
                             certificateId = certId,
                             status = UpdateCertificateStatusStatus.VERIFIED,
                             operationType = UpdateCertificateStatusOperation.REMOVE,
-                        ).onFailure { error ->
-                            Log.e(TAG, "Failed to report removal status for ID $certId: ${error.message}", error)
+                        )
+                        if (reportResult.isSuccess) {
+                            markCertificateRemoved(context, certId, certState.alias, hostCert.uuid)
+                        } else {
+                            Log.e(TAG, "Failed to report removal status for ID $certId: ${reportResult.exceptionOrNull()?.message}")
+                            // Mark as unreported so retry logic will handle it
+                            markCertificateUnreported(context, certId, certState.alias, hostCert.uuid, isInstall = false)
                         }
-                        markCertificateRemoved(context, certId, certState.alias, hostCert.uuid)
                         results[certId] = CleanupResult.Success(certState.alias)
                     }
                 }
@@ -363,14 +367,18 @@ class CertificateOrchestrator(
                             TAG,
                             "Certificate ID $certId already removed (unreported) but uuid changed (${certState.uuid} -> ${hostCert.uuid}), reporting to server",
                         )
-                        apiClient.updateCertificateStatus(
+                        val reportResult = apiClient.updateCertificateStatus(
                             certificateId = certId,
                             status = UpdateCertificateStatusStatus.VERIFIED,
                             operationType = UpdateCertificateStatusOperation.REMOVE,
-                        ).onFailure { error ->
-                            Log.e(TAG, "Failed to report removal status for ID $certId: ${error.message}", error)
+                        )
+                        if (reportResult.isSuccess) {
+                            markCertificateRemoved(context, certId, certState.alias, hostCert.uuid)
+                        } else {
+                            Log.e(TAG, "Failed to report removal status for ID $certId: ${reportResult.exceptionOrNull()?.message}")
+                            // Keep as unreported with new uuid so retry logic will handle it
+                            markCertificateUnreported(context, certId, certState.alias, hostCert.uuid, isInstall = false)
                         }
-                        markCertificateRemoved(context, certId, certState.alias, hostCert.uuid)
                         results[certId] = CleanupResult.Success(certState.alias)
                     }
                 }

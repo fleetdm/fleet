@@ -811,6 +811,16 @@ class CertificateOrchestratorTest {
                 expectedStatus = CertificateStatus.REMOVED,
             ),
             TestCase(
+                name = "marks as unreported when REMOVED cert has uuid change and API fails",
+                storedStatus = CertificateStatus.REMOVED,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-2",
+                apiShouldFail = true,
+                expectApiCall = true,
+                expectedUuid = "uuid-2",
+                expectedStatus = CertificateStatus.REMOVED_UNREPORTED, // API failed, so mark for retry
+            ),
+            TestCase(
                 name = "skips REMOVED_UNREPORTED cert when uuid matches",
                 storedStatus = CertificateStatus.REMOVED_UNREPORTED,
                 storedUuid = "uuid-1",
@@ -827,6 +837,16 @@ class CertificateOrchestratorTest {
                 expectApiCall = true,
                 expectedUuid = "uuid-2",
                 expectedStatus = CertificateStatus.REMOVED, // Successfully reported, transitions to REMOVED
+            ),
+            TestCase(
+                name = "stays unreported when REMOVED_UNREPORTED cert has uuid change and API fails",
+                storedStatus = CertificateStatus.REMOVED_UNREPORTED,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-2",
+                apiShouldFail = true,
+                expectApiCall = true,
+                expectedUuid = "uuid-2",
+                expectedStatus = CertificateStatus.REMOVED_UNREPORTED, // API failed, stays unreported for retry
             ),
             TestCase(
                 name = "stores new uuid when removing INSTALLED cert and API fails",
