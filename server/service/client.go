@@ -2668,7 +2668,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 
 // TODO allow spec'ing labels by either "everything" or team-specific (team ID or name?)
 func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) ([]string, error) {
-	persistedLabels, err := c.GetLabels()
+	persistedLabels, err := c.GetLabels(0) // TODO handle per-team
 	if err != nil {
 		return nil, err
 	}

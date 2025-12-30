@@ -430,7 +430,11 @@ func (MockClient) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error
 	return []byte(fmt.Sprintf("icon for title %d on team %d", titleID, teamID)), nil
 }
 
-func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
+func (MockClient) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
+	if teamID != 0 {
+		return nil, nil // simulate no team-specific labels
+	}
+
 	return []*fleet.LabelSpec{{
 		Name:                "Label A",
 		Platform:            "linux,macos",
@@ -1564,25 +1568,28 @@ func TestGenerateLabels(t *testing.T) {
 		AppConfig:    appConfig,
 	}
 
-	labelsRaw, err := cmd.generateLabels()
+	labelsRaw, err := cmd.generateLabels(nil)
 	require.NoError(t, err)
 	require.NotNil(t, labelsRaw)
 	var labels []map[string]interface{}
 	b, err := yaml.Marshal(labelsRaw)
 	require.NoError(t, err)
-	fmt.Println("labels raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &labels)
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedLabels.yaml")
 	require.NoError(t, err)
-	var expectedlabels []map[string]interface{}
-	err = yaml.Unmarshal(b, &expectedlabels)
+	var expectedLabels []map[string]any
+	err = yaml.Unmarshal(b, &expectedLabels)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedlabels, labels)
+	require.Equal(t, expectedLabels, labels)
+
+	teamLabels, err := cmd.generateLabels(&fleet.Team{ID: 1})
+	require.NoError(t, err)
+	require.Empty(t, teamLabels)
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
