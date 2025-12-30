@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.37.0",
+      "version": "4.38",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'epp.package.committers';"
       },
-      "installer_url": "https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2025-09/R/eclipse-committers-2025-09-R-macosx-cocoa-aarch64.dmg&r=1",
+      "installer_url": "https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2025-12/R/eclipse-committers-2025-12-R-macosx-cocoa-aarch64.dmg&r=1",
       "install_script_ref": "46f2e5d8",
       "uninstall_script_ref": "e1bb6dbf",
-      "sha256": "e8cde37e430499a336bbd2a50c89150799b9c59a85b70df9a361a05c9bbf8e32",
+      "sha256": "9c2f8151949725c6bc63651018d3df54d1453f57009724f1db5eee1d53f7e2d9",
       "default_categories": [
         "Developer tools"
       ]
