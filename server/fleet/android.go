@@ -91,23 +91,26 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	}
 
 	if err := json.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
-		// json: cannot unmarshal object into Go struct field Policy.passwordPolicies of type []*androidmanagement.PasswordRequirements"
-		// ^ Is an error produced, so we split on "." and get the field name to produce a better error message
-
-		// This is a bit fragile which is why we have fallback errors, but the error message format is consistent in the encoding/json package
-		parts := strings.SplitN(err.Error(), ".", 2)
-		if len(parts) < 2 {
-			return errors.New("Invalid JSON payload.")
-		}
-		rightHalf := strings.SplitN(parts[1], " ", 2)
-		if len(rightHalf) < 2 {
-			return errors.New("Invalid JSON payload.")
-		}
-		fieldName := rightHalf[0]
-		return fmt.Errorf("Invalid JSON payload. %q format is wrong.", fieldName)
+		return parseAndroidProfileValidationError(err)
 	}
 
 	return nil
+}
+
+func parseAndroidProfileValidationError(err error) error {
+	var typeErr *json.UnmarshalTypeError
+
+	// Check for type mismatches (e.g., array where object expected)
+	if errors.As(err, &typeErr) {
+		fieldPath := typeErr.Field
+		if fieldPath == "" {
+			fieldPath = "<root>"
+		}
+		return fmt.Errorf("Invalid JSON payload. %q format is wrong.", fieldPath)
+	}
+
+	// Fallback for any other unexpected errors
+	return errors.New("Invalid JSON payload.")
 }
 
 type MDMAndroidProfilePayload struct {
