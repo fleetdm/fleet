@@ -1580,7 +1580,7 @@ func TestGenerateLabels(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedLabels.yaml")
 	require.NoError(t, err)
-	var expectedLabels []map[string]interface{}
+	var expectedLabels []map[string]any
 	err = yaml.Unmarshal(b, &expectedLabels)
 	require.NoError(t, err)
 

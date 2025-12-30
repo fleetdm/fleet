@@ -384,7 +384,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
 				return ErrGeneric
 			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["labels"] = labels
+			cmd.FilesToWrite[fileName].(map[string]any)["labels"] = labels
 		}
 
 		// Generate controls.
@@ -1684,7 +1684,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string]any, error) {
 	var tmID uint // default to 0 for pulling global-only labels
 	if team != nil {
 		tmID = team.ID
