@@ -2346,7 +2346,7 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	configuration := json.RawMessage(`{"managedConfiguration": {"key": "value"}}`)
 
 	// Insert configuration
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), nil, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
 
 	// Get configuration
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
@@ -2374,11 +2374,11 @@ func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	configuration := json.RawMessage(`{"managedConfiguration": {"key": "value1"}}`)
 
 	// Insert initial configuration
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), nil, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
 
 	// Update configuration
 	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value2"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), nil, appID, newConfig))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, newConfig))
 
 	// Verify update
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
@@ -2393,7 +2393,7 @@ func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	configuration := json.RawMessage(`{"managedConfiguration": {}}`)
 
 	// Insert configuration
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), nil, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
 
 	// Verify it exists
 	_, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
@@ -2429,7 +2429,7 @@ func testAndroidAppConfigurationCascadeDeleteTeam(t *testing.T, ds *Datastore) {
 	configuration := json.RawMessage(`{"managedConfiguration": {}}`)
 
 	// Insert configuration
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), ptr.Uint(teamID), appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), teamID, appID, configuration))
 
 	// Verify it exists
 	_, err := ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
@@ -2452,11 +2452,11 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 
 	// Insert global configuration
 	globalConfiguration := json.RawMessage(`{"managedConfiguration": {"env": "global"}}`)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), nil, appID, globalConfiguration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, globalConfiguration))
 
 	// Insert team configuration
 	teamConfiguration := json.RawMessage(`{"managedConfiguration": {"env": "team"}}`)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), ptr.Uint(teamID), appID, teamConfiguration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), teamID, appID, teamConfiguration))
 
 	// Verify global configuration
 	retrievedGlobal, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
@@ -2544,7 +2544,7 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	setupTestApp(t, ds, appID)
 
 	configuration := json.RawMessage(`{"managedConfiguration": {"a": 1}}`)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), nil, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
 
 	cases := []struct {
 		desc         string
