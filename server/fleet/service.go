@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"iter"
 	"net/url"
 	"time"
 
@@ -252,18 +253,20 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// LabelService
 
-	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
-	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
-	// GetLabelSpecs returns all of the stored LabelSpecs.
-	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
+	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary,
+	// plus rename existing labels *on other teams* to avoid name conflicts
+	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec, teamID *uint, namesToMove []string) error
+	// GetLabelSpecs returns either all labels a user can see (no team ID), global labels only (team ID 0),
+	// or team-specific labels
+	GetLabelSpecs(ctx context.Context, teamID *uint) ([]*LabelSpec, error)
 	// GetLabelSpec gets the spec for the label with the given name.
 	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
-	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
-	ListLabels(ctx context.Context, opt ListOptions, includeHostCounts bool) (labels []*Label, err error)
-	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
-	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
+	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*LabelWithTeamName, []uint, error)
+	ListLabels(ctx context.Context, opt ListOptions, teamID *uint, includeHostCounts bool) (labels []*Label, err error)
+	LabelsSummary(ctx context.Context, teamID *uint) (labels []*LabelSummary, err error)
+	GetLabel(ctx context.Context, id uint) (label *LabelWithTeamName, hostIDs []uint, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
 	// DeleteLabelByID is for backwards compatibility with the UI
@@ -275,10 +278,13 @@ type Service interface {
 	// ListLabelsForHost returns a slice of labels for a given host
 	ListLabelsForHost(ctx context.Context, hostID uint) ([]*Label, error)
 
-	// BatchValidateLabels validates that each of the provided label names exists. The returned map
-	// is keyed by label name. Caller must ensure that appropirate authorization checks are
-	// performed prior to calling this method.
-	BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]LabelIdent, error)
+	// BatchValidateLabels validates that each of the provided label names exists,
+	// and verifies the provided label names belong to the given teamID.
+	//
+	// The returned map is keyed by label name.
+	// Caller must ensure that appropriate authorization checks are performed prior
+	// to calling this method.
+	BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]LabelIdent, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// QueryService
@@ -363,6 +369,7 @@ type Service interface {
 	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
 	AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *Host, debug bool, err error)
 
+	StreamHosts(ctx context.Context, opt HostListOptions) (hostIterator iter.Seq2[*Host, error], err error)
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	// GetHost returns the host with the provided ID.
 	//
@@ -636,14 +643,14 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Templates
 
-	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponseFull, error)
+	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponse, error)
 	ListCertificateTemplates(ctx context.Context, teamID uint, opts ListOptions) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
-	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateDeviceResponseFull, error)
-	GetCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
+	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseForHost, error)
+	GetCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponse, error)
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
 	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
-	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType *string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
@@ -699,6 +706,9 @@ type Service interface {
 
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
+
+	// UpdateSoftwareTitleAutoUpdateConfig updates the auto-update configuration for a software title.
+	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config SoftwareAutoUpdateConfig) error
 
 	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
@@ -949,10 +959,6 @@ type Service interface {
 	// devices. Note that a deviceID is the same as a host's UUID.
 	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
-	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
-	// profile used for Fleet MDM enrollment from the specified device.
-	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
-
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
@@ -1104,10 +1110,10 @@ type Service interface {
 	RunMDMCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
 	// GetMDMCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+	GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*MDMCommandResult, error)
 
 	// ListMDMCommands returns MDM commands based on the provided options.
-	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, error)
+	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
@@ -1394,6 +1400,9 @@ type Service interface {
 	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
 	// GetGroupedCertificateAuthorities retrieves the grouped certificate authorities
 	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
+
+	// UnenrollMDM unenrolls the host from MDM
+	UnenrollMDM(ctx context.Context, hostID uint) error
 }
 
 type KeyValueStore interface {

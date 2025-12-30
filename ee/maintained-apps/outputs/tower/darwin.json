@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "15.0.1",
+      "version": "15.0.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.fournova.Tower';"
       },
-      "installer_url": "https://www.git-tower.com/apps/tower3-mac/514-7c00d65c/Tower-15.0.1-514.zip",
+      "installer_url": "https://www.git-tower.com/apps/tower3-mac/519-1444f429/Tower-15.0.3-519.zip",
       "install_script_ref": "6fd71d77",
       "uninstall_script_ref": "87a1537c",
-      "sha256": "f46420a9b68ba231ea7e3be155e12cb9e3752d36c45aa0d4f6c52a28a008f01d",
+      "sha256": "0575f7b1c5c14b784149ec27b2d4b0d80bb9dbeba399a86634961ce73acd101f",
       "default_categories": [
         "Developer tools"
       ]

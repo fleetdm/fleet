@@ -1,0 +1,210 @@
+{
+  "schema_version": 27,
+  "standard_lib_version": 85,
+  "action_runtime_version": 64,
+  "name": "Lock commands",
+  "description": null,
+  "guid": "0148ac5701e1d147a8f5aea682b3edaa",
+  "slug": "lock_commands",
+  "agents": [
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Lock host",
+      "disabled": false,
+      "description": null,
+      "guid": "bd6d7c97063ca1e582016d2d141af6f6",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/hosts/<<get_host_by_identifier.body.host.id>>/lock?view_pin=true",
+        "content_type": "application_json",
+        "method": "post",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get host by identifier",
+      "disabled": false,
+      "description": null,
+      "guid": "ebe41e1c7c619f144b9952f9b94a0b7b",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/hosts/identifier/<<RESOURCE.host_serial_number>>?exclude_software=true&exclude_fleet_maintained_policies=true",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Unlock host",
+      "disabled": false,
+      "description": null,
+      "guid": "456e882b81905d3b4793fffe202cb2ac",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/hosts/<<get_host_by_identifier.body.host.id>>/unlock",
+        "content_type": "application_json",
+        "method": "post",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get host by identifier",
+      "disabled": false,
+      "description": null,
+      "guid": "f3b58825c1c3f0135fc7db34526e43e2",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/hosts/identifier/<<RESOURCE.host_serial_number>>?exclude_software=true&exclude_fleet_maintained_policies=true",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    }
+  ],
+  "diagram_notes": [
+    {
+      "content": "# Edit before running\n\n- Fleet API key (credential)\n  - Set the \"URLs and Domains.\"\n- Fleet domain (resource)\n  - Example:\n     `acme.cloud.fleetdm.com`\n- Host serial number (resource)",
+      "position": [
+        -225,
+        30
+      ],
+      "guid": "2f39aa56c7a4a503e92b4caad5522a07",
+      "width": 248
+    },
+    {
+      "content": "**Lock host**",
+      "position": [
+        60,
+        30
+      ],
+      "guid": "b46b14239c4b37a7f72b4111d110fa5c",
+      "width": 180
+    },
+    {
+      "content": "**Unlock host**",
+      "position": [
+        270,
+        30
+      ],
+      "guid": "12c81fbb298f3cf52853486069882d17",
+      "width": 180
+    }
+  ],
+  "links": [
+    {
+      "source": 1,
+      "receiver": 0
+    },
+    {
+      "source": 3,
+      "receiver": 2
+    }
+  ],
+  "diagram_layout": "{\"456e882b81905d3b4793fffe202cb2ac\":[270,180],\"bd6d7c97063ca1e582016d2d141af6f6\":[60,180],\"ebe41e1c7c619f144b9952f9b94a0b7b\":[60,105],\"f3b58825c1c3f0135fc7db34526e43e2\":[270,105]}",
+  "story_library_metadata": {},
+  "monitor_failures": false,
+  "synchronous_webhooks_enabled": false,
+  "integrations": [],
+  "parent_only_send_to_story": false,
+  "send_to_story_timeout_enabled": false,
+  "send_to_story_timeout_duration_seconds": null,
+  "keep_events_for": 86400,
+  "reporting_status": true,
+  "send_to_story_enabled": false,
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": 0,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "pages": [],
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0,
+  "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+  "recipients": [
+    ""
+  ],
+  "integration_product": null,
+  "integration_vendor": null,
+  "llm_product_instructions": "",
+  "send_to_stories": [],
+  "exported_at": "2025-12-29T15:38:39Z",
+  "icon": ":lock:"
+}

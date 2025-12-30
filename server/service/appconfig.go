@@ -390,6 +390,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// AppleOSUpdateSettings.UpdateNewHosts only applies to macOS ... so just ignore w/e posted for iOS/iPadOS
+	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
+	appConfig.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
+
 	// if turning off Windows MDM and Windows Migration is not explicitly set to
 	// on in the same update, set it to off (otherwise, if it is explicitly set
 	// to true, return an error that it can't be done when MDM is off, this is
@@ -473,7 +477,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if newAppConfig.AgentOptions != nil {
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
-		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, *appConfig.AgentOptions, license.IsPremium()); err != nil {
+		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, *appConfig.AgentOptions, license.IsPremium(), 0); err != nil {
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
@@ -1126,6 +1130,17 @@ func (svc *Service) processAppleOSUpdateSettings(
 				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
 				Deadline:       newOSUpdateSettings.Deadline.Value,
 			}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")
+		}
+	}
+
+	if oldOSUpdateSettings.UpdateNewHosts.Value != newOSUpdateSettings.UpdateNewHosts.Value && appleDevice == fleet.MacOS {
+		var activity fleet.ActivityDetails
+		activity = fleet.ActivityTypeEnabledMacosUpdateNewHosts{}
+		if !newOSUpdateSettings.UpdateNewHosts.Value {
+			activity = fleet.ActivityTypeDisabledMacosUpdateNewHosts{}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")

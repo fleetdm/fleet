@@ -1327,7 +1327,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 
-	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1)
+	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1, "")
 	require.NoError(t, err)
 	require.Len(t, appleCmdRes, 1)
 	require.Equal(t, "Acknowledged", appleCmdRes[0].Status)
@@ -1408,7 +1408,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 
-	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2)
+	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2, "")
 	require.NoError(t, err)
 	require.Len(t, appleCmdRes, 1)
 	require.Equal(t, "Error", appleCmdRes[0].Status)

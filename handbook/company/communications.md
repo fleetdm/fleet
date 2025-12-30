@@ -224,7 +224,7 @@ There are [several special email addresses](https://docs.google.com/document/d/1
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with the CEO, Executive Assitant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Executive Assistant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -358,6 +358,16 @@ In Figma:
   - Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
+#### Clearing cached images
+
+When replacing an existing image on the Fleet website, if the new version has the same filename as the old version, the image must be purged from the Cloudflare cache for the latest version to be visible to users.
+
+To purge an image from the Cloudflare cache:
+1. Copy the URL of the image hosted on fleetdm.com.
+2. Log into Cloudflare and select the Fleet account, then select fleetdm.com.
+3. Select **Caching** » **Configuration** in the navigation sidebar, and click the "Custom Purge" option.
+4. Select the option to purge by URL, paste the URL of the image, and select purge. After a few moments, Cloudflare will serve the new version of the image to users.
+
 
 ## Change management
 
@@ -412,8 +422,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [#g-it-and-enablement](https://github.com/fleetdm/confidential/issues#workspaces/g-it-and-enablement-6451748b4eb15200131d4bab/board) kanban board.
 
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/97ce6caa-4b21-4cc2-8fcb-91aa03dfc6d6">
 
 
 ### Process new requests
@@ -720,7 +728,7 @@ From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of
 
 ### Coworking
 
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the Head of People. 
 
 
 ### Relocating
@@ -934,7 +942,7 @@ Learn how to write as Fleet:
 - [Writing style](https://fleetdm.com/handbook/company/communications#writing-style)
 - [Writing types](https://fleetdm.com/handbook/company/communications#writing-types)
 - [Editing and publishing](https://fleetdm.com/handbook/company/communications#editing-and-publishing)
-- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance).
+- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance)
 - [Writing mechanics](https://fleetdm.com/handbook/company/communications#writing-mechanics)
 - [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown)
 

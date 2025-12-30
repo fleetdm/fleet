@@ -24,27 +24,21 @@ const Labels = ({
 }: ILabelsProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
-  const labelItems = labels.map((label: ILabel) => {
-    return (
-      <li className="list__item" key={label.id}>
-        <Button
-          onClick={() => onLabelClick(label)}
-          variant="pill"
-          className="list__button"
-        >
-          <TooltipTruncatedText
-            value={
-              label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP
-                ? LABEL_DISPLAY_MAP[
-                    label.name as keyof typeof LABEL_DISPLAY_MAP
-                  ]
-                : label.name
-            }
-          />
-        </Button>
-      </li>
-    );
-  });
+  const labelItems = labels
+    .filter((label: ILabel) => label.label_type !== "builtin")
+    .map((label: ILabel) => {
+      return (
+        <li className="list__item" key={label.id}>
+          <Button
+            onClick={() => onLabelClick(label)}
+            variant="pill"
+            className="list__button"
+          >
+            <TooltipTruncatedText value={label.name} />
+          </Button>
+        </li>
+      );
+    });
 
   return (
     <Card
@@ -53,7 +47,7 @@ const Labels = ({
       className={classNames}
     >
       <CardHeader header="Labels" />
-      {labels.length === 0 ? (
+      {labelItems.length === 0 ? (
         <p className="info-flex__item">
           No labels are associated with this host.
         </p>

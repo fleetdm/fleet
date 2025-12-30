@@ -149,7 +149,8 @@ func gitopsCommand() *cli.Command {
 			// Get all labels ... this is used to both populate the proposedLabelNames list and check if
 			// we reference a built-in label (which is not allowed).
 			storedLabelNames := make(map[fleet.LabelType]map[string]interface{}) // label type -> label name set
-			labels, err := fleetClient.GetLabels()
+			// TODO gitops get labels for other teams instead of global-only
+			labels, err := fleetClient.GetLabels(0)
 			if err != nil {
 				return fmt.Errorf("getting labels: %w", err)
 			}
@@ -222,6 +223,8 @@ func gitopsCommand() *cli.Command {
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
 					}
+
+					// TODO GitOps move this to have team-specific and global names
 
 					// If config.Labels is nil, it means we plan on deleting all existing labels.
 					if config.Labels == nil {
@@ -423,7 +426,7 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
-							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)
+							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
 						} else {
 							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting team %s\n", team.Name)
 							if err := fleetClient.DeleteTeam(team.ID); err != nil {
@@ -760,7 +763,8 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
 										vppTeams = append(vppTeams, normalizedTeam)
-										if _, ok := teamNames[normalizedTeam]; !ok {
+										// ListTeams doesn't return "No team", so account for it here
+										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam {
 											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}

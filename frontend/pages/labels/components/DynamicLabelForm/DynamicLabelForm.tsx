@@ -13,9 +13,6 @@ import PlatformField from "../PlatformField";
 
 const baseClass = "dynamic-label-form";
 
-const IMMUTABLE_QUERY_HELP_TEXT =
-  "Label queries are immutable. To change the query, delete this label and create a new one.";
-
 export interface IDynamicLabelFormData {
   name: string;
   description: string;
@@ -32,6 +29,7 @@ interface IDynamicLabelFormProps {
   isEditing?: boolean;
   onOpenSidebar?: () => void;
   onOsqueryTableSelect?: (tableName: string) => void;
+  teamName: string | null;
   onSave: (formData: IDynamicLabelFormData) => void;
   onCancel: () => void;
 }
@@ -45,6 +43,7 @@ const DynamicLabelForm = ({
   showOpenSidebarButton = false,
   onOpenSidebar,
   onOsqueryTableSelect,
+  teamName,
   onSave,
   onCancel,
 }: IDynamicLabelFormProps) => {
@@ -120,8 +119,14 @@ const DynamicLabelForm = ({
       <LabelForm
         defaultName={defaultName}
         defaultDescription={defaultDescription}
+        teamName={teamName}
         onSave={onSaveForm}
         onCancel={onCancel}
+        immutableFields={
+          teamName
+            ? ["teams", "queries", "platforms"]
+            : ["queries", "platforms"]
+        }
         additionalFields={
           <>
             <SQLEditor
@@ -134,7 +139,6 @@ const DynamicLabelForm = ({
               readOnly={isEditing}
               onLoad={onLoad}
               wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
-              helpText={isEditing ? IMMUTABLE_QUERY_HELP_TEXT : ""}
               wrapEnabled
             />
             <PlatformField

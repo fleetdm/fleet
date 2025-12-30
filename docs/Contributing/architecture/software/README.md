@@ -15,4 +15,3 @@ Fleet's software architecture is designed to manage software across the device f
 ## Related resources
 
 - [Software Product Group Documentation](../../product-groups/software/) - Documentation for the Software product group
-- [Software Development Guides](../../guides/software/) - Guides for Software development

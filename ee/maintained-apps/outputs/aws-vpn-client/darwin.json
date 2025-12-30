@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "5.3.2",
+      "version": "5.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx';"
       },
-      "installer_url": "https://d20adtppz83p9s.cloudfront.net/OSX/5.3.2/AWS_VPN_Client.pkg",
+      "installer_url": "https://d20adtppz83p9s.cloudfront.net/OSX/5.3.3/AWS_VPN_Client.pkg",
       "install_script_ref": "65bc7d31",
       "uninstall_script_ref": "704ae6a9",
-      "sha256": "29c0fc329b7ac457bbbb3ee71004bf4f7ef76a928b08c8c589a04f65804f8986",
+      "sha256": "cf8d16ec35b330969510a6cfc828db1157088ad7bb77e0344b87bd7a59921c1f",
       "default_categories": [
         "Productivity"
       ]

@@ -1016,8 +1016,8 @@ WHERE
 	}
 
 	// NOTE: at the time of implementation, in-house apps do not support install
-	// during setup, automatic install (via policies), categories, and
-	// uninstalls, so the related validations and updates that are done in
+	// during setup, automatic install (via policies), and uninstalls,
+	// so the related validations and updates that are done in
 	// BatchSetSoftwareInstallers are removed here.
 
 	var activateAffectedHostIDs []uint

@@ -1,7 +1,6 @@
 import React from "react";
 
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
@@ -35,16 +34,22 @@ const FORM_VALIDATION_CONFIG: Record<
     validations: [
       {
         name: "invalidQuery",
-        isValid: (formData) => {
+        // Allow all SQL including empty SQL: this field never blocks form submission Request: #35058
+        isValid: () => true,
+        message: (formData) => {
           const query = formData.preInstallQuery;
-          return (
-            query === undefined || query === "" || validateQuery(query).valid
-          );
+          if (!query) {
+            return "";
+          }
+
+          const { error } = validateQuery(query);
+          // Return error text (or empty string)
+          return error || "";
         },
-        message: (formData) => validateQuery(formData.preInstallQuery).error,
       },
     ],
   },
+
   installScript: {
     validations: [
       {
@@ -60,6 +65,20 @@ const FORM_VALIDATION_CONFIG: Record<
           return true;
         },
         message: "Install script is required for .exe packages.",
+      },
+      {
+        name: "requiredForZip",
+        isValid: (formData) => {
+          if (
+            formData.software?.type === "zip" ||
+            getExtensionFromFileName(formData.software?.name || "") === "zip"
+          ) {
+            // Handle undefined safely with nullish coalescing
+            return (formData.installScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Install script is required for .zip packages.",
       },
       {
         name: "requiredForTgz",
@@ -92,6 +111,20 @@ const FORM_VALIDATION_CONFIG: Record<
           return true;
         },
         message: "Uninstall script is required for .exe packages.",
+      },
+      {
+        name: "requiredForZip",
+        isValid: (formData) => {
+          if (
+            formData.software?.type === "zip" ||
+            getExtensionFromFileName(formData.software?.name || "") === "zip"
+          ) {
+            // Handle undefined safely with nullish coalescing
+            return (formData.uninstallScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Uninstall script is required for .zip packages.",
       },
       {
         name: "requiredForTgz",
@@ -154,6 +187,14 @@ export const generateFormValidation = (formData: IPackageFormData) => {
     if (!failedValidation) {
       formValidation[objKey] = {
         isValid: true,
+        // still compute error message for preInstallQuery since it can have warnings
+        // of bad SQL but still allow form submission
+        ...(objKey === "preInstallQuery" && {
+          message: getErrorMessage(
+            formData,
+            FORM_VALIDATION_CONFIG[objKey].validations[0].message
+          ),
+        }),
       };
     } else {
       formValidation.isValid = false;

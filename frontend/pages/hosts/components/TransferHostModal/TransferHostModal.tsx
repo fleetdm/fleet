@@ -89,7 +89,7 @@ const TransferHostModal = ({
             options={createTeamDropdownOptions()}
             onChange={onChangeSelectTeam}
             placeholder="Select a team"
-            searchable={false}
+            searchable
             autoFocus
           />
           {isGlobalAdmin ? (
