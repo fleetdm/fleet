@@ -85,6 +85,7 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
+	ListFleetMaintainedApps(teamID *uint, query string) ([]fleet.MaintainedApp, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -132,6 +133,7 @@ type GenerateGitopsCommand struct {
 	AppConfig    *fleet.EnrichedAppConfig
 	SoftwareList map[uint]Software
 	ScriptList   map[uint]string
+	FMASlugMap   map[uint]string // Maps software_title_id to FMA slug
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -190,6 +192,7 @@ func createGenerateGitopsAction(fleetClient generateGitopsClient) func(*cli.Cont
 			FilesToWrite: make(map[string]interface{}),
 			SoftwareList: make(map[uint]Software),
 			ScriptList:   make(map[uint]string),
+			FMASlugMap:   make(map[uint]string),
 		}
 		return cmd.Run()
 	}
@@ -1318,12 +1321,17 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		}
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
-			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
-				policySpec["install_software"] = map[string]interface{}{
+			// Check if this is a Fleet-maintained app
+			if slug, ok := cmd.FMASlugMap[policy.InstallSoftware.SoftwareTitleID]; ok {
+				policySpec["install_software"] = map[string]any{
+					"slug": slug,
+				}
+			} else if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
+				policySpec["install_software"] = map[string]any{
 					"hash_sha256": software.Hash + " " + software.Comment,
 				}
 			} else {
-				policySpec["install_software"] = map[string]interface{}{
+				policySpec["install_software"] = map[string]any{
 					"hash_sha256": cmd.AddComment(filePath, "TODO: Add your hash_sha256 here"),
 				}
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
@@ -1404,7 +1412,21 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		return nil, nil // software is premium-only
 	}
 
-	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamID)
+	// Get Fleet-maintained apps for the team to build slug map
+	query := fmt.Sprintf("team_id=%d&per_page=10000", teamID)
+	fleetMaintainedApps, err := cmd.Client.ListFleetMaintainedApps(&teamID, query)
+	if err != nil {
+		// Log warning but continue - FMAs might not be available
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Warning: failed to get Fleet-maintained apps: %s\n", err)
+	} else {
+		for _, app := range fleetMaintainedApps {
+			if app.TitleID != nil && app.Slug != "" {
+				cmd.FMASlugMap[*app.TitleID] = app.Slug
+			}
+		}
+	}
+
+	query = fmt.Sprintf("available_for_install=1&team_id=%d", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)

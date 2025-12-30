@@ -149,6 +149,7 @@ type PolicyInstallSoftware struct {
 	PackagePath string `json:"package_path"`
 	AppStoreID  string `json:"app_store_id"`
 	HashSHA256  string `json:"hash_sha256"`
+	Slug        string `json:"slug"`
 }
 
 type Query struct {
@@ -1081,14 +1082,30 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
 		return nil
 	}
-	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
+	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "" || policy.InstallSoftware.Slug != "") && teamName == nil {
 		return errors.New("install_software can only be set on team policies")
 	}
-	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
-		return errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256")
+	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" && policy.InstallSoftware.Slug == "" {
+		return errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256, or a slug")
 	}
-	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
-		return errors.New("install_software must have only one of package_path or app_store_id")
+	// Count how many mutually exclusive fields are set
+	// Note: hash_sha256 can be used standalone, but slug should be mutually exclusive with all others
+	fieldsSet := 0
+	if policy.InstallSoftware.PackagePath != "" {
+		fieldsSet++
+	}
+	if policy.InstallSoftware.AppStoreID != "" {
+		fieldsSet++
+	}
+	if policy.InstallSoftware.Slug != "" {
+		fieldsSet++
+	}
+	if fieldsSet > 1 {
+		return errors.New("install_software must have only one of package_path, app_store_id, or slug")
+	}
+	// Slug should also be mutually exclusive with hash_sha256
+	if policy.InstallSoftware.Slug != "" && policy.InstallSoftware.HashSHA256 != "" {
+		return errors.New("install_software must have only one of hash_sha256 or slug")
 	}
 
 	if policy.InstallSoftware.PackagePath != "" {
