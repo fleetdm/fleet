@@ -86,7 +86,7 @@ func TestCreateCertificateTemplate(t *testing.T) {
 		require.Contains(t, err.Error(), "not found")
 	})
 
-	t.Run("Empty or hitespace-only name", func(t *testing.T) {
+	t.Run("Empty or whitespace-only name", func(t *testing.T) {
 		whitespaceNames := []string{"", " ", "  ", "\t", "\n", "   \t\n  "}
 		for _, name := range whitespaceNames {
 			_, err := svc.CreateCertificateTemplate(ctx, name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
