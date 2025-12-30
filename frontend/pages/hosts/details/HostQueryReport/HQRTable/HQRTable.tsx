@@ -21,6 +21,42 @@ import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
+const DEFAULT_CSV_TITLE = "Host-Specific Query Report";
+
+type PerformanceImpactProps = {
+  queryStats?: ISchedulableQueryStats;
+  queryId: number;
+};
+
+const PerformanceImpact = ({ queryStats, queryId }: PerformanceImpactProps) => {
+  const { total_executions = 0, user_time_p50 = 0, system_time_p50 = 0 } =
+    queryStats || {};
+
+  const scheduledQueryPerformance = {
+    user_time_p50:
+      total_executions > 0 ? Number(user_time_p50) / total_executions : 0,
+    system_time_p50:
+      total_executions > 0 ? Number(system_time_p50) / total_executions : 0,
+    total_executions,
+  };
+
+  const performanceImpact = {
+    indicator: getPerformanceImpactDescription(scheduledQueryPerformance),
+    id: queryId,
+  };
+
+  return (
+    <TooltipWrapper
+      tipContent={getPerformanceImpactIndicatorTooltip(
+        performanceImpact.indicator
+      )}
+    >
+      <span className="performance-impact">
+        <strong>Performance impact</strong>: {performanceImpact.indicator}
+      </span>
+    </TooltipWrapper>
+  );
+};
 
 export interface IHQRTable {
   queryId: number;
@@ -34,8 +70,6 @@ export interface IHQRTable {
   onShowQuery: () => void;
   isLoading: boolean;
 }
-
-const DEFAULT_CSV_TITLE = "Host-Specific Query Report";
 
 const HQRTable = ({
   queryId,
@@ -146,7 +180,6 @@ const HQRTable = ({
           <h2>{queryName}</h2>
           <h3>{queryDescription}</h3>
         </div>
-        {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
         <PerformanceImpact queryStats={queryStats} queryId={queryId} />
       </div>
     ),
@@ -181,41 +214,6 @@ const HQRTable = ({
         />
       )}
     </div>
-  );
-};
-
-type PerformanceImpactProps = {
-  queryStats?: ISchedulableQueryStats;
-  queryId: number;
-};
-
-const PerformanceImpact = ({ queryStats, queryId }: PerformanceImpactProps) => {
-  const { total_executions = 0, user_time_p50 = 0, system_time_p50 = 0 } =
-    queryStats || {};
-
-  const scheduledQueryPerformance = {
-    user_time_p50:
-      total_executions > 0 ? Number(user_time_p50) / total_executions : 0,
-    system_time_p50:
-      total_executions > 0 ? Number(system_time_p50) / total_executions : 0,
-    total_executions,
-  };
-
-  const performanceImpact = {
-    indicator: getPerformanceImpactDescription(scheduledQueryPerformance),
-    id: queryId,
-  };
-
-  return (
-    <TooltipWrapper
-      tipContent={getPerformanceImpactIndicatorTooltip(
-        performanceImpact.indicator
-      )}
-    >
-      <span className="performance-impact">
-        <strong>Performance impact</strong>: {performanceImpact.indicator}
-      </span>
-    </TooltipWrapper>
   );
 };
 

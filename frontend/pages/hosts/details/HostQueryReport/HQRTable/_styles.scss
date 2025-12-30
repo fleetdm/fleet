@@ -17,6 +17,7 @@
 
   &__query-info {
     display: flex;
+    align-items: start;
     justify-content: space-between;
     gap: $pad-xsmall;
 
@@ -29,6 +30,11 @@
       font-size: $x-small;
       font-weight: $regular;
       margin: 0;
+    }
+
+    @media (max-width: $break-sm) {
+      flex-direction: column;
+      gap: $pad-medium;
     }
   }
 
