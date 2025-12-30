@@ -5,6 +5,7 @@ import validate_presence from "components/forms/validators/validate_presence";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import TeamNameField from "../TeamNameField/TeamNameField";
 
 export interface ILabelFormData {
   name: string;
@@ -16,19 +17,38 @@ interface ILabelFormProps {
   defaultDescription?: string;
   additionalFields?: ReactNode;
   isUpdatingLabel?: boolean;
+  teamName: string | null;
   onCancel: () => void;
+  immutableFields: string[];
   onSave: (formData: ILabelFormData, isValid: boolean) => void;
 }
 
 const baseClass = "label-form";
+
+const generateDescriptionHelpText = (immutableFields: string[]) => {
+  if (immutableFields.length === 0) {
+    return "";
+  }
+
+  const SUFFIX =
+    "are immutable. To make changes, delete this label and create a new one.";
+
+  return immutableFields.length === 1
+    ? `Label ${immutableFields[0]} ${SUFFIX}`
+    : `Label ${immutableFields
+        .slice(0, -1)
+        .join(", ")} and ${immutableFields.pop()} ${SUFFIX}`;
+};
 
 const LabelForm = ({
   defaultName = "",
   defaultDescription = "",
   additionalFields,
   isUpdatingLabel,
+  teamName,
   onCancel,
   onSave,
+  immutableFields,
 }: ILabelFormProps) => {
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState(defaultDescription);
@@ -75,6 +95,12 @@ const LabelForm = ({
         type="textarea"
         placeholder="Label description (optional)"
       />
+      {immutableFields.length > 0 ? (
+        <span className={`${baseClass}__help-text`}>
+          {generateDescriptionHelpText(immutableFields)}
+        </span>
+      ) : null}
+      {teamName ? <TeamNameField name={teamName} /> : null}
       {additionalFields}
       <div className="button-wrap">
         <Button onClick={onCancel} variant="inverse">

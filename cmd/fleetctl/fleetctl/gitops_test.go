@@ -127,7 +127,7 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
 
@@ -314,7 +314,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
 
@@ -323,8 +323,8 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		enrolledSecrets = secrets
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		return map[string]uint{labels[0]: 1}, nil
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{names[0]: 1}, nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{}, nil
@@ -640,7 +640,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
@@ -708,9 +708,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.Len(t, labels, 1)
-		switch labels[0] {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.Len(t, names, 1)
+		switch names[0] {
 		case fleet.BuiltinLabelMacOS14Plus:
 			return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 		case fleet.BuiltinLabelIOS:
@@ -904,6 +904,9 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
 
 	// Policies
 	policy := fleet.Policy{}
@@ -967,7 +970,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 
 	var appliedLabelSpecs []*fleet.LabelSpec
 	var deletedLabels []string
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
 				Name:                "a",
@@ -988,12 +991,15 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		return nil
 	}
 
-	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{Name: name}, nil
+	}
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
 	}
 
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{
 			"a": {
 				ID:   1,
@@ -1203,8 +1209,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		return declaration, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -1647,8 +1653,8 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
@@ -2046,8 +2052,8 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
@@ -2513,6 +2519,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
@@ -2539,7 +2548,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{
 			"a": {
 				ID:   1,
@@ -2702,7 +2711,7 @@ func TestGitOpsCustomSettings(t *testing.T) {
 			ds, appCfgPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 			(*appCfgPtr).MDM.EnabledAndConfigured = true
 			(*appCfgPtr).MDM.WindowsEnabledAndConfigured = true
-			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return []*fleet.LabelSpec{
 					{
 						Name:                "A",
@@ -2731,10 +2740,10 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				"C":                           4,
 			}
 
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 				// for this test, recognize labels A, B and C (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
-				for _, lbl := range labels {
+				for _, lbl := range names {
 					id, ok := labelToIDs[lbl]
 					if ok {
 						ret[lbl] = id
@@ -2742,7 +2751,7 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				}
 				return ret, nil
 			}
-			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 				// for this test, recognize labels A, B and C (as well as the built-in macos 14+ one)
 				ret := make(map[string]*fleet.Label)
 				for _, lbl := range names {
@@ -3873,8 +3882,8 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 	}
 
 	// Override LabelIDsByNameFunc to handle empty labels
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		if len(labels) == 0 {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		if len(names) == 0 {
 			return map[string]uint{}, nil
 		}
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
@@ -4481,7 +4490,7 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
 	}
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
@@ -4549,7 +4558,7 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{}, nil
 	}
 

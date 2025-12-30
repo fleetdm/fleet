@@ -8905,25 +8905,25 @@ func testLabelScopingTimestampLogic(t *testing.T, ds *Datastore) {
 	})
 
 	// Dynamic label
-	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeDynamic})
+	label1Orig, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeDynamic})
 	require.NoError(t, err)
 
 	// Manual label
-	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
+	label2Orig, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
 
 	// make sure the label is created after the host's labels_updated_at timestamp
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id in (?, ?)`, host.LabelUpdatedAt.Add(time.Hour), label1.ID, label2.ID)
+		_, err = q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id in (?, ?)`, host.LabelUpdatedAt.Add(time.Hour), label1Orig.ID, label2Orig.ID)
 		if err != nil {
 			return err
 		}
 		return nil
 	})
 	// refetch labels to ensure their state is correct
-	label1, _, err = ds.Label(ctx, label1.ID, fleet.TeamFilter{})
+	label1, _, err := ds.Label(ctx, label1Orig.ID, fleet.TeamFilter{})
 	require.NoError(t, err)
-	label2, _, err = ds.Label(ctx, label2.ID, fleet.TeamFilter{})
+	label2, _, err := ds.Label(ctx, label2Orig.ID, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	require.Greater(t, label1.CreatedAt, host.LabelUpdatedAt)

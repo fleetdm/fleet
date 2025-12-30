@@ -3496,7 +3496,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.Equal(t, tm2.ID, *getResp.Host.TeamID)
 
 	// get all hosts label
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	labelID := lblIDs["All Hosts"]
 
@@ -4563,6 +4563,8 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 }
 
 func (s *integrationTestSuite) TestLabels() {
+	// TODO team labels
+
 	t := s.T()
 
 	// create some hosts to use for manual labels
@@ -5162,7 +5164,7 @@ func (s *integrationTestSuite) TestLabels() {
 func (s *integrationTestSuite) TestListHostsByLabel() {
 	t := s.T()
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblIDs, 1)
 	labelID := lblIDs["All Hosts"]
@@ -5380,6 +5382,8 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
+
+	// TODO team labels
 }
 
 func (s *integrationTestSuite) TestUsers() {
@@ -8773,7 +8777,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	for name := range fleet.ReservedLabelNames() {
 		builtinNames = append(builtinNames, name)
 	}
-	lblMap, err := s.ds.LabelIDsByName(context.Background(), builtinNames)
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), builtinNames, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblMap, len(builtinNames))
 
@@ -8894,7 +8898,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblMap, 1)
 
@@ -9697,7 +9701,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 		{Name: t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual, Query: "select 1", Hosts: []string{hosts[2].Hostname}},
 	})
 	require.NoError(t, err)
-	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()})
+	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
 	customLabelID := lids[t.Name()]
@@ -13475,6 +13479,8 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 }
 
 func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
+	// TODO team labels
+
 	t := s.T()
 	ctx := context.Background()
 
@@ -13531,7 +13537,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	host2 := newHostFunc("host2", nil)
 	teamHost2 := newHostFunc("teamHost2", &team1.ID)
 
-	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 1)
 	allHostsLabelID, ok := ls["All Hosts"]

@@ -232,7 +232,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			"baz": 3,
 		}
 
-		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 			res := make(map[string]uint)
 			if names == nil {
 				return res, nil
@@ -244,7 +244,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			}
 			return res, nil
 		}
-		ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 			res := make(map[string]*fleet.Label)
 			if names == nil {
 				return res, nil
@@ -381,7 +381,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			"baz": 3,
 		}
 
-		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 			res := make(map[string]uint)
 			if names == nil {
 				return res, nil

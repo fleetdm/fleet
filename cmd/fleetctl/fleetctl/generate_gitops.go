@@ -361,6 +361,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
 
+			// TODO gitops do this for every team other than no team
 			// Generate labels.
 			labels, err := cmd.generateLabels()
 			if err != nil {
@@ -1685,6 +1686,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 }
 
 func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, error) {
+	// TODO gitops pass team ID
 	labels, err := cmd.Client.GetLabels()
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting labels: %s\n", err)
