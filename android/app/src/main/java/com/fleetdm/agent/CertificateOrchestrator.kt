@@ -376,7 +376,7 @@ class CertificateOrchestrator(
                 }
                 certState != null -> {
                     // Certificate exists in DataStore, remove it
-                    val result = removeCertificateFromDevice(context, certId, certState.alias, certState.uuid)
+                    val result = removeCertificateFromDevice(context, certId, certState.alias, hostCert.uuid)
                     results[certId] = result
                 }
                 else -> {

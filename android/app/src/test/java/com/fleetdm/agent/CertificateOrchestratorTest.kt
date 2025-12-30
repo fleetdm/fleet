@@ -776,18 +776,22 @@ class CertificateOrchestratorTest {
     }
 
     @Test
-    fun `cleanupRemovedCertificates handles uuid changes for already-removed certs`() = runTest {
+    fun `cleanupRemovedCertificates stores correct uuid during removal`() = runTest {
+        // This test verifies uuid handling during certificate removal for various scenarios.
         data class TestCase(
             val name: String,
             val storedStatus: CertificateStatus,
             val storedUuid: String,
             val requestedUuid: String,
+            val inKeystore: Boolean = false,
+            val apiShouldFail: Boolean = false,
             val expectApiCall: Boolean,
             val expectedUuid: String,
             val expectedStatus: CertificateStatus,
         )
 
-        // Note: "skips already REMOVED cert" is tested in `cleanupRemovedCertificates handles removal flow correctly`
+        // Note: "skips already REMOVED cert when uuid matches" is tested in
+        // `cleanupRemovedCertificates handles removal flow correctly`
         val testCases = listOf(
             TestCase(
                 name = "reports to server when REMOVED cert has uuid change",
@@ -816,12 +820,24 @@ class CertificateOrchestratorTest {
                 expectedUuid = "uuid-2",
                 expectedStatus = CertificateStatus.REMOVED, // Successfully reported, transitions to REMOVED
             ),
+            TestCase(
+                name = "stores new uuid when removing INSTALLED cert and API fails",
+                storedStatus = CertificateStatus.INSTALLED,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-2",
+                inKeystore = true,
+                apiShouldFail = true,
+                expectApiCall = true,
+                expectedUuid = "uuid-2", // Must store NEW uuid, not old one
+                expectedStatus = CertificateStatus.REMOVED_UNREPORTED,
+            ),
         )
 
         for (case in testCases) {
             // Reset state between test cases
             clearDataStore()
             fakeApiClient.reset()
+            fakeDeviceKeystoreManager.reset()
 
             // Arrange: Store a cert with the specified status and uuid
             storeTestCertificateInDataStore(
@@ -830,6 +846,14 @@ class CertificateOrchestratorTest {
                 status = case.storedStatus,
                 uuid = case.storedUuid,
             )
+
+            if (case.inKeystore) {
+                fakeDeviceKeystoreManager.installCert("test-cert")
+            }
+
+            if (case.apiShouldFail) {
+                fakeApiClient.updateCertificateStatusHandler = { Result.failure(Exception("network error")) }
+            }
 
             // Act: Request removal with the specified uuid
             val hostCert = HostCertificate(id = 123, status = "verified", operation = "remove", uuid = case.requestedUuid)
