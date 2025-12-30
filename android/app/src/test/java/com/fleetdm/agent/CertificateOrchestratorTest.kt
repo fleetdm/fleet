@@ -923,6 +923,80 @@ class CertificateOrchestratorTest {
         }
     }
 
+    // ========== Test category: Team change (same alias, different cert IDs) ==========
+
+    @Test
+    fun `team change - old cert removed and new cert installed with same alias`() = runTest {
+        // Scenario: Host moves between teams. Old team's cert (ID 14) is removed,
+        // new team's cert (ID 20) is installed. Both use the same alias "cert-1".
+
+        // Arrange: Old cert is installed
+        storeTestCertificateInDataStore(
+            certificateId = 14,
+            alias = "cert-1",
+            status = CertificateStatus.INSTALLED,
+            uuid = "old-uuid",
+        )
+        fakeDeviceKeystoreManager.installCert("cert-1")
+
+        // Configure API to return template for new cert
+        fakeApiClient.getCertificateTemplateHandler = { certId ->
+            if (certId == 20) {
+                Result.success(
+                    GetCertificateTemplateResponse(
+                        id = 20,
+                        name = "cert-1",
+                        certificateAuthorityId = 1,
+                        certificateAuthorityName = "TestCA",
+                        createdAt = "2025-01-01T00:00:00Z",
+                        subjectName = "CN=test",
+                        certificateAuthorityType = "custom_scep_proxy",
+                        status = "delivered",
+                    ),
+                )
+            } else {
+                Result.failure(Exception("Unexpected cert ID: $certId"))
+            }
+        }
+        mockInstaller.shouldSucceed = true
+
+        val hostCertificates = listOf(
+            HostCertificate(id = 14, status = "verified", operation = "remove", uuid = "old-uuid"),
+            HostCertificate(id = 20, status = "delivered", operation = "install", uuid = "new-uuid"),
+        )
+
+        // Act: Cleanup removes old cert
+        val cleanupResults = orchestrator.cleanupRemovedCertificates(context, hostCertificates)
+
+        // Assert: Cleanup
+        assertEquals(1, cleanupResults.size)
+        assertTrue(cleanupResults[14] is CleanupResult.Success)
+        assertFalse("Old cert should be removed from keystore", fakeDeviceKeystoreManager.hasKeyPair("cert-1"))
+
+        // Act: Enrollment installs new cert
+        val installCerts = hostCertificates.filter { it.shouldInstall() }
+        val enrollResults = orchestrator.enrollCertificates(context, installCerts, mockInstaller)
+
+        // Assert: Enrollment
+        assertEquals(1, enrollResults.size)
+        assertTrue(
+            "Expected enrollment success but got: ${enrollResults[20]}",
+            enrollResults[20] is CertificateEnrollmentHandler.EnrollmentResult.Success,
+        )
+        assertTrue("Installer should have been called", mockInstaller.wasInstallCalled)
+        assertEquals("cert-1", mockInstaller.capturedAlias)
+
+        // Assert: Both certs tracked independently by ID with correct UUIDs
+        val stored = getStoredCertificates()
+        assertEquals(2, stored.size)
+        assertEquals(CertificateStatus.REMOVED, stored[14]?.status)
+        assertEquals("cert-1", stored[14]?.alias)
+        assertEquals("old-uuid", stored[14]?.uuid)
+        assertEquals(CertificateStatus.INSTALLED, stored[20]?.status)
+        assertEquals("cert-1", stored[20]?.alias)
+        assertEquals("new-uuid", stored[20]?.uuid)
+    }
+
     // ========== Test category: Status report retry logic ==========
 
     @Test

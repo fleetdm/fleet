@@ -722,12 +722,13 @@ class CertificateOrchestrator(
     suspend fun enrollCertificates(
         context: Context,
         hostCertificates: List<HostCertificate>,
+        certificateInstaller: CertificateEnrollmentHandler.CertificateInstaller? = null,
     ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> = coroutineScope {
         Log.d(TAG, "Starting batch certificate enrollment for ${hostCertificates.size} certificates")
 
         hostCertificates.associate { cert ->
             cert.id to async {
-                enrollCertificate(context, cert.id, cert.uuid)
+                enrollCertificate(context, cert.id, cert.uuid, certificateInstaller)
             }
         }.mapValues { it.value.await() }
     }
