@@ -3,7 +3,8 @@
     @include vertical-modal-layout;
   }
 
-  dd {
+  dd,
+  dt {
     align-items: baseline;
     gap: $pad-small;
   }

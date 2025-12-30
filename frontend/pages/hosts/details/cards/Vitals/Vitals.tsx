@@ -38,6 +38,7 @@ import Icon from "components/Icon/Icon";
 import Button from "components/buttons/Button";
 
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
 interface IVitalsProps {
   vitalsData: { [key: string]: any };
@@ -246,18 +247,16 @@ const Vitals = ({
   const renderGeolocation = () => {
     const geolocation = vitalsData.geolocation;
 
+    // This section is hidden only if non-ipados non-ios and no geolocation
     if (!geolocation && !isIosOrIpadosHost) {
       return null;
     }
 
-    // Also used in location modal
-    const location = [geolocation?.city_name, geolocation?.country_iso]
-      .filter(Boolean)
-      .join(", ");
-
     const geoLocationButton = (
       <Button variant="text-link" onClick={toggleLocationModal}>
-        {isIosOrIpadosHost ? "Show location" : location}
+        {isIosOrIpadosHost
+          ? "Show location"
+          : getCityCountryLocation(geolocation)}
       </Button>
     );
     return <DataSet title="Location" value={geoLocationButton} />;
