@@ -225,6 +225,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		// validator requires that an authz check has been performed upstream so we'll set it now for
 		// the rest of the tests
 		authCtx.SetChecked()
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 		mockLabels := map[string]uint{
 			"foo": 1,
