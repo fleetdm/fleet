@@ -52,16 +52,19 @@ type santaStatus struct {
 		TransitiveRules int  `json:"transitive_rules"`
 	} `json:"transitive_allowlisting"`
 	Sync struct {
-		Enabled             bool   `json:"enabled"`
-		Server              string `json:"server"`
-		CleanRequired       bool   `json:"clean_required"`
-		LastSuccessfulFull  string `json:"last_successful_full"`
-		LastSuccessfulRule  string `json:"last_successful_rule"`
-		PushNotifications   string `json:"push_notifications"`
-		BundleScanning      bool   `json:"bundle_scanning"`
-		EventsPendingUpload int    `json:"events_pending_upload"`
-		ExecutionRulesHash  string `json:"execution_rules_hash"`
-		FileAccessRulesHash string `json:"file_access_rules_hash"`
+		Enabled                               bool   `json:"enabled"`
+		Server                                string `json:"server"`
+		CleanRequired                         bool   `json:"clean_required"`
+		LastSuccessfulFull                    string `json:"last_successful_full"`
+		LastSuccessfulRule                    string `json:"last_successful_rule"`
+		PushNotifications                     string `json:"push_notifications"`
+		PushServer                            string `json:"push_server"`
+		BundleScanning                        bool   `json:"bundle_scanning"`
+		EventsPendingUpload                   int    `json:"events_pending_upload"`
+		ExecutionRulesHash                    string `json:"execution_rules_hash"`
+		FullSyncIntervalSeconds               int    `json:"full_sync_interval_seconds"`
+		PushNotificationsFullSyncIntervalSecs int    `json:"push_notifications_full_sync_interval_seconds"`
+		FileAccessRulesHash                   string `json:"file_access_rules_hash"`
 	} `json:"sync"`
 	WatchItems struct {
 		Enabled          bool   `json:"enabled"`
@@ -111,7 +114,10 @@ func StatusColumns() []table.ColumnDefinition {
 		table.TextColumn("sync_push_notifications"),
 		table.IntegerColumn("sync_bundle_scanning"),
 		table.TextColumn("sync_execution_rules_hash"),
+		table.IntegerColumn("sync_full_sync_interval_seconds"),
+		table.IntegerColumn("sync_push_notifications_full_sync_interval_seconds"),
 		table.TextColumn("sync_file_access_rules_hash"),
+		table.TextColumn("sync_push_server"),
 		table.TextColumn("watch_items_data_source"),
 		table.IntegerColumn("watch_items_rule_count"),
 		table.TextColumn("watch_items_last_policy_update"),
@@ -169,15 +175,18 @@ func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]str
 		"sync_push_notifications":         status.Sync.PushNotifications,
 		"sync_bundle_scanning":            boolToIntString(status.Sync.BundleScanning),
 		"sync_execution_rules_hash":       status.Sync.ExecutionRulesHash,
-		"sync_file_access_rules_hash":     status.Sync.FileAccessRulesHash,
-		"watch_items_data_source":         status.WatchItems.DataSource,
-		"watch_items_rule_count":          strconv.Itoa(status.WatchItems.RuleCount),
-		"watch_items_last_policy_update":  status.WatchItems.LastPolicyUpdate,
-		"watch_items_policy_version":      status.WatchItems.PolicyVersion,
-		"watch_items_config_path":         status.WatchItems.ConfigPath,
-		"metrics_enabled":                 boolToIntString(status.Metrics.Enabled),
-		"metrics_server":                  status.Metrics.Server,
-		"metrics_export_interval_seconds": strconv.Itoa(status.Metrics.ExportIntervalSeconds),
+		"sync_full_sync_interval_seconds": strconv.Itoa(status.Sync.FullSyncIntervalSeconds),
+		"sync_push_notifications_full_sync_interval_seconds": strconv.Itoa(status.Sync.PushNotificationsFullSyncIntervalSecs),
+		"sync_file_access_rules_hash":                        status.Sync.FileAccessRulesHash,
+		"sync_push_server":                                   status.Sync.PushServer,
+		"watch_items_data_source":                            status.WatchItems.DataSource,
+		"watch_items_rule_count":                             strconv.Itoa(status.WatchItems.RuleCount),
+		"watch_items_last_policy_update":                     status.WatchItems.LastPolicyUpdate,
+		"watch_items_policy_version":                         status.WatchItems.PolicyVersion,
+		"watch_items_config_path":                            status.WatchItems.ConfigPath,
+		"metrics_enabled":                                    boolToIntString(status.Metrics.Enabled),
+		"metrics_server":                                     status.Metrics.Server,
+		"metrics_export_interval_seconds":                    strconv.Itoa(status.Metrics.ExportIntervalSeconds),
 	}
 
 	return []map[string]string{row}, nil

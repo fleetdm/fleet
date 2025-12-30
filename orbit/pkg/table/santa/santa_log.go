@@ -94,7 +94,8 @@ func extractValues(line string) map[string]string {
 	}
 	rest := line[pos+len(kLogEntryPreface):]
 
-	for seg := range strings.SplitSeq(rest, "|") {
+	// Parse key=value pairs separated by |
+	for _, seg := range strings.Split(rest, "|") {
 		seg = strings.TrimSpace(seg)
 		if seg == "" {
 			continue
