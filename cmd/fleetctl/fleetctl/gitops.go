@@ -25,6 +25,13 @@ type LabelUsage struct {
 	Type string
 }
 
+// Specifies a CRUD label operation
+type labelOpType struct {
+	Name   string // The globally unique label name
+	Op     string // What operation to perform on the label. +:add, -:remove
+	TeamID uint   // The team this label belongs to, 0 means the label is global.
+}
+
 func gitopsCommand() *cli.Command {
 	var (
 		flFilenames             cli.StringSlice
@@ -143,25 +150,11 @@ func gitopsCommand() *cli.Command {
 			secrets := make(map[string]struct{})
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
-			// Keep track of which labels we'd have after this gitops run.
-			var proposedLabelNames []string
 
-			// Get all labels ... this is used to both populate the proposedLabelNames list and check if
-			// we reference a built-in label (which is not allowed).
-			storedLabelNames := make(map[fleet.LabelType]map[string]interface{}) // label type -> label name set
-			// TODO gitops get labels for other teams instead of global-only
-			labels, err := fleetClient.GetLabels(0)
-			if err != nil {
-				return fmt.Errorf("getting labels: %w", err)
-			}
-			for _, lbl := range labels {
-				if storedLabelNames[lbl.LabelType] == nil {
-					storedLabelNames[lbl.LabelType] = make(map[string]interface{})
-				}
-				storedLabelNames[lbl.LabelType][lbl.Name] = struct{}{}
-			}
+			var lblOps []labelOpType
+			var builtInLabelNames []string
 
-			// Parsed config and filename pair
+			// Parsed a config and filename pair
 			type ConfigFile struct {
 				Config         *spec.GitOps
 				Filename       string
@@ -228,31 +221,32 @@ func gitopsCommand() *cli.Command {
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
 					}
+				}
 
-					// TODO GitOps move this to have team-specific and global names
+				teamID := uint(0)
+				if !isGlobalConfig && config.TeamID != nil {
+					teamID = *config.TeamID
+				}
+				existingLabels, err := fleetClient.GetLabels(teamID)
+				if err != nil {
+					return fmt.Errorf("getting labels for team %d: %w", teamID, err)
+				}
 
-					// If config.Labels is nil, it means we plan on deleting all existing labels.
-					if config.Labels == nil {
-						proposedLabelNames = make([]string, 0)
-					} else if len(config.Labels) > 0 {
-						// If config.Labels is populated, get the names it contains.
-						proposedLabelNames = make([]string, len(config.Labels))
-						for i, l := range config.Labels {
-							proposedLabelNames[i] = l.Name
+				// We need the list of built-in labels for showing pretty errors in case the user
+				// decides to reference a built-in label.
+				if teamID == 0 {
+					for _, l := range existingLabels {
+						if l.LabelType == fleet.LabelTypeBuiltIn {
+							builtInLabelNames = append(builtInLabelNames, l.Name)
 						}
 					}
 				}
 
-				// If we haven't populated this list yet, it means we're either doing team-level GitOps only,
-				// or a global YAML was provided with no `labels:` key in it (meaning "keep existing labels").
-				// In either case we'll get the list of label names from the db so we can ensure that we're
-				// not attempting to apply non-existent labels to other entities.
-				if proposedLabelNames == nil {
-					proposedLabelNames = make([]string, 0, len(storedLabelNames[fleet.LabelTypeRegular]))
-					for persistedLabel := range storedLabelNames[fleet.LabelTypeRegular] {
-						proposedLabelNames = append(proposedLabelNames, persistedLabel)
-					}
+				ops, err := computeLabelOperations(teamID, existingLabels, config.Labels)
+				if err != nil {
+					return err
 				}
+				lblOps = append(lblOps, ops...)
 
 				// Gather stats on where labels are used in this gitops config,
 				// so we can bail if any of the referenced labels don't exist
@@ -269,8 +263,11 @@ func gitopsCommand() *cli.Command {
 				builtInLabelsUsed := false
 
 				for labelUsed := range labelsUsed {
-					if slices.Index(proposedLabelNames, labelUsed) == -1 {
-						if _, ok := storedLabelNames[fleet.LabelTypeBuiltIn][labelUsed]; ok {
+					// The valid labels are based on whatever is going to be added or stayed the same
+					if slices.IndexFunc(lblOps, func(op labelOpType) bool {
+						return op.Name == labelUsed && (op.Op == "+" || op.Op == "=")
+					}) == -1 {
+						if slices.Index(builtInLabelNames, labelUsed) != -1 {
 							logf(
 								"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
 								labelUsed,
@@ -336,8 +333,8 @@ func gitopsCommand() *cli.Command {
 									}
 								}
 
-								// If team is not found, we need to remove the VPP config from
-								// the global config, and then apply it after teams are processed
+								// If a team is not found, we need to remove the VPP config from
+								// the global config and then apply it after teams are processed
 								mdmMap["volume_purchasing_program"] = nil
 							}
 						}
@@ -469,6 +466,48 @@ func gitopsCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// Returns a list of label operations to be executed for either a global config file or a team config file,
+// along with a set of valid label names for the given scope.
+func computeLabelOperations(
+	teamID uint,
+	existingLabels []*fleet.LabelSpec,
+	specifiedLabels []*fleet.LabelSpec,
+) ([]labelOpType, error) {
+	var labelOperations []labelOpType
+
+	// If the 'labels:' section is specified and empty, then all existing labels are to be deleted or moved to another team.
+	if specifiedLabels == nil {
+		for _, l := range existingLabels {
+			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "-", TeamID: teamID})
+		}
+		return labelOperations, nil
+	}
+
+	// If the 'labels:' section was omitted, then we do a no-op. We add these as operations so that we can do
+	// some ref validation down the pipe-line.
+	if len(specifiedLabels) == 0 {
+		for _, l := range existingLabels {
+			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "=", TeamID: teamID})
+		}
+		return labelOperations, nil
+	}
+
+	// If not, figure out what needs to be done by comparing the list to the existing global labels.
+	for _, l := range existingLabels {
+		if !slices.ContainsFunc(specifiedLabels, func(other *fleet.LabelSpec) bool { return l.Name == other.Name }) {
+			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "-", TeamID: teamID})
+		} else {
+			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "=", TeamID: teamID})
+		}
+	}
+	for _, l := range specifiedLabels {
+		if !slices.ContainsFunc(existingLabels, func(other *fleet.LabelSpec) bool { return l.Name == other.Name }) {
+			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "+", TeamID: teamID})
+		}
+	}
+	return labelOperations, nil
 }
 
 // Given a set of referenced labels and info about who is using them, update a provided usage map.
