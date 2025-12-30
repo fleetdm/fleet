@@ -35,13 +35,13 @@
         grid-column: span 2; // card will fill the whole row
       }
 
-      &--double-height {
-        grid-row: span 2; // card will be 1 column x 2 rows
+      &--triple-height {
+        grid-row: span 3; // card will be 1 column x 3 rows
       }
     }
   }
 
-  .about-card,
+  .vitals-card,
   .agent-options-card {
     .info {
       &__item {

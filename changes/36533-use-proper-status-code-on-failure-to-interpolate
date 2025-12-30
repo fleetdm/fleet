@@ -1,1 +1,0 @@
-* Fixed incorrect status code on failure to interpolate certificate template variables.
