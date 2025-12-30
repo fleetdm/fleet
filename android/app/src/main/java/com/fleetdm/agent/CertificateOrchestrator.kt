@@ -608,7 +608,9 @@ class CertificateOrchestrator(
         val storedState = getCertificateState(context, certificateId)
         if (storedState != null) {
             val existsInKeystore = isCertificateInstalled(context, storedState.alias)
-            if (existsInKeystore && storedState.uuid == uuid && storedState.status == CertificateStatus.INSTALLED) {
+            val isInstalled = storedState.status == CertificateStatus.INSTALLED ||
+                storedState.status == CertificateStatus.INSTALLED_UNREPORTED
+            if (existsInKeystore && storedState.uuid == uuid && isInstalled) {
                 Log.i(
                     TAG,
                     "Certificate ID $certificateId (alias: '${storedState.alias}', uuid: $uuid) is already installed, skipping enrollment",

@@ -369,6 +369,14 @@ class CertificateOrchestratorTest {
                 expectApiCall = false,
             ),
             TestCase(
+                name = "skips installed_unreported cert when uuid matches",
+                initialStatus = CertificateStatus.INSTALLED_UNREPORTED,
+                inKeystore = true,
+                storedUuid = "uuid-1",
+                requestedUuid = "uuid-1",
+                expectApiCall = false,
+            ),
+            TestCase(
                 name = "reinstalls when uuid changes",
                 initialStatus = CertificateStatus.INSTALLED,
                 inKeystore = true,
