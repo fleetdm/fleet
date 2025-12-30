@@ -29,7 +29,6 @@ import (
 const (
 	yamlFlagName                = "yaml"
 	jsonFlagName                = "json"
-	teamIDFlagName              = "team-id"
 	withQueriesFlagName         = "with-queries"
 	expiredFlagName             = "expired"
 	includeServerConfigFlagName = "include-server-config"
@@ -385,7 +384,7 @@ func getQueriesCommand() *cli.Command {
 		Usage:   "List information about queries",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:  teamIDFlagName,
+				Name:  teamFlagName,
 				Usage: "filter queries by team_id (0 means global)",
 			},
 			jsonFlag(),
@@ -405,7 +404,7 @@ func getQueriesCommand() *cli.Command {
 			var teamID *uint
 			var teamName string
 
-			if tid := c.Uint(teamIDFlagName); tid != 0 {
+			if tid := c.Uint(teamFlagName); tid != 0 {
 				teamID = &tid
 				team, err := client.GetTeam(*teamID)
 				if err != nil {
@@ -675,7 +674,7 @@ func getLabelsCommand() *cli.Command {
 			contextFlag(),
 			debugFlag(),
 			&cli.UintFlag{
-				Name:  teamIDFlagName,
+				Name:  teamFlagName,
 				Usage: "Return labels specific to this team ID; default global labels only when viewing a set of labels",
 				Value: 0,
 			},
@@ -690,7 +689,7 @@ func getLabelsCommand() *cli.Command {
 
 			// if name wasn't provided, list all labels, either globally or on a team
 			if name == "" {
-				labels, err := client.GetLabels(c.Uint(teamIDFlagName))
+				labels, err := client.GetLabels(c.Uint(teamFlagName))
 				if err != nil {
 					return fmt.Errorf("could not list labels: %w", err)
 				}
@@ -723,7 +722,7 @@ func getLabelsCommand() *cli.Command {
 				printTable(c, columns, data)
 
 				return nil
-			} else if c.Uint(teamIDFlagName) > 0 {
+			} else if c.Uint(teamFlagName) > 0 {
 				return errors.New("cannot provide both a team ID and a label name")
 			}
 
