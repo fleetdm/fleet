@@ -2390,26 +2390,19 @@ type Datastore interface {
 	// VPP app install record for the setup experience flow.
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
-	// GetAndroidAppConfiguration retrieves the configuration for an Android app
-	// identified by adam_id and global_or_team_id.
-	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*AndroidAppConfiguration, error)
-	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
+	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
-	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
-
-	// InsertAndroidAppConfiguration creates a new Android app configuration entry.
-	InsertAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
-
-	// UpdateAndroidAppConfiguration updates an existing Android app configuration.
-	UpdateAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
-	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error
+	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
 
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
