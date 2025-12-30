@@ -108,7 +108,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return nil, err
 	}
-	license, err := svc.License(ctx)
+	lic, err := svc.License(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 	transparencyURL := fleet.DefaultTransparencyURL
 	// Fleet Premium license is required for custom transparency url
-	if license.IsPremium() && appConfig.FleetDesktop.TransparencyURL != "" {
+	if lic.IsPremium() && appConfig.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = appConfig.FleetDesktop.TransparencyURL
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
@@ -218,7 +218,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
 			Vulnerabilities: vulnConfig,
-			License:         license,
+			License:         lic,
 			Logging:         loggingConfig,
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
@@ -361,7 +361,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	if newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL {
-		if !license.IsPremium(ctx) {
+		if !lic.IsPremium() {
 			invalid.Append("transparency_url", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
@@ -439,7 +439,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually
 	}
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
-		if !license.IsPremium(ctx) {
+		if !lic.IsPremium() {
 			invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
@@ -479,7 +479,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if newAppConfig.AgentOptions != nil {
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
-		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, *appConfig.AgentOptions, license.IsPremium(ctx), 0); err != nil {
+		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, *appConfig.AgentOptions, lic.IsPremium(), 0); err != nil {
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
@@ -492,7 +492,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// If the license is Premium, we should always send usage statisics.
-	if !license.IsAllowDisableTelemetry(ctx) {
+	if !lic.IsAllowDisableTelemetry() {
 		appConfig.ServerSettings.EnableAnalytics = true
 	}
 
@@ -534,7 +534,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		isNonEmpty(newAppConfig.ConditionalAccess.OktaAudienceURI) ||
 		isNonEmpty(newAppConfig.ConditionalAccess.OktaCertificate)
 
-	if oktaFieldsBeingSet && !license.IsPremium(ctx) {
+	if oktaFieldsBeingSet && !lic.IsPremium() {
 		invalid.Append("conditional_access", ErrMissingLicense.Error())
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -740,7 +740,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	gitopsModeEnabled, gitopsRepoURL := appConfig.UIGitOpsMode.GitopsModeEnabled, appConfig.UIGitOpsMode.RepositoryURL
 	if gitopsModeEnabled {
-		if !license.IsPremium(ctx) {
+		if !lic.IsPremium() {
 			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
 		}
 		if gitopsRepoURL == "" {
@@ -769,7 +769,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	}
 
-	if !license.IsPremium(ctx) {
+	if !lic.IsPremium() {
 		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
@@ -1004,7 +1004,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
 	appleMDMUrlChanged := oldAppConfig.MDMUrl() != appConfig.MDMUrl()
-	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && license.IsPremium(ctx) {
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && lic.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
@@ -1102,14 +1102,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 // processAppleOSUpdateSettings updates the OS updates configuration if the minimum version+deadline are updated.
 func (svc *Service) processAppleOSUpdateSettings(
 	ctx context.Context,
-	license *fleet.LicenseInfo,
+	lic *fleet.LicenseInfo,
 	appleDevice fleet.AppleDevice,
 	oldOSUpdateSettings fleet.AppleOSUpdateSettings,
 	newOSUpdateSettings fleet.AppleOSUpdateSettings,
 ) error {
 	if oldOSUpdateSettings.MinimumVersion.Value != newOSUpdateSettings.MinimumVersion.Value ||
 		oldOSUpdateSettings.Deadline.Value != newOSUpdateSettings.Deadline.Value {
-		if license.IsPremium() {
+		if lic.IsPremium() {
 			if err := svc.EnterpriseOverrides.MDMAppleEditedAppleOSUpdates(ctx, nil, appleDevice, newOSUpdateSettings); err != nil {
 				return ctxerr.Wrap(ctx, err, "update DDM profile after Apple OS updates change")
 			}
@@ -1176,33 +1176,33 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 
 func (svc *Service) validateMDM(
 	ctx context.Context,
-	license *fleet.LicenseInfo,
+	lic *fleet.LicenseInfo,
 	oldMdm *fleet.MDM,
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 ) error {
-	if mdm.EnableDiskEncryption.Value && !license.IsPremium() {
+	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
-	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
+	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !lic.IsPremium() {
 		invalid.Append("macos_setup.macos_setup_assistant", ErrMissingLicense.Error())
 	}
-	if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value && !license.IsPremium() {
+	if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value && !lic.IsPremium() {
 		invalid.Append("macos_setup.enable_release_device_manually", ErrMissingLicense.Error())
 	}
-	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
+	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !lic.IsPremium() {
 		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
 	}
-	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
+	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !lic.IsPremium() {
 		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
-	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !license.IsPremium() {
+	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
 	}
-	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
+	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
 	}
-	if mdm.EnableTurnOnWindowsMDMManually && !license.IsPremium() {
+	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
 	}
 
@@ -1300,7 +1300,7 @@ func (svc *Service) validateMDM(
 		updatingIPadOSVersion || updatingIPadOSDeadline {
 		// TODO: Should we validate MDM configured on here too?
 
-		if !license.IsPremium() {
+		if !lic.IsPremium() {
 			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
 			return nil
 		}
@@ -1320,7 +1320,7 @@ func (svc *Service) validateMDM(
 	if updatingWindowsUpdates {
 		// TODO: Should we validate MDM configured on here too?
 
-		if !license.IsPremium() {
+		if !lic.IsPremium() {
 			invalid.Append("windows_updates.deadline_days", ErrMissingLicense.Error())
 			return nil
 		}
@@ -1332,7 +1332,7 @@ func (svc *Service) validateMDM(
 	// EndUserAuthentication
 	// only validate SSO settings if they changed
 	if mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings {
-		if !license.IsPremium() {
+		if !lic.IsPremium() {
 			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
 			return nil
 		}
@@ -1368,7 +1368,7 @@ func (svc *Service) validateMDM(
 		// TODO: Should we validate MDM configured on here too?
 
 		if mdm.MacOSMigration.Enable {
-			if !license.IsPremium() {
+			if !lic.IsPremium() {
 				invalid.Append("macos_migration.enable", ErrMissingLicense.Error())
 				return nil
 			}
@@ -1425,7 +1425,7 @@ func (svc *Service) validateABMAssignments(
 	ctx context.Context,
 	mdm, oldMdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
-	license *fleet.LicenseInfo,
+	lic *fleet.LicenseInfo,
 ) ([]*fleet.ABMToken, error) {
 	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
 		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
@@ -1433,7 +1433,7 @@ func (svc *Service) validateABMAssignments(
 	}
 
 	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
-		if !license.IsPremium() {
+		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
 			return nil, nil
 		}
@@ -1466,7 +1466,7 @@ func (svc *Service) validateABMAssignments(
 	}
 
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
-		if !license.IsPremium() {
+		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
 			return nil, nil
 		}
@@ -1527,14 +1527,14 @@ func (svc *Service) validateVPPAssignments(
 	ctx context.Context,
 	volumePurchasingProgramInfo []fleet.MDMAppleVolumePurchasingProgramInfo,
 	invalid *fleet.InvalidArgumentError,
-	license *fleet.LicenseInfo,
+	lic *fleet.LicenseInfo,
 ) (map[uint][]uint, error) {
 	// Allow clearing VPP assignments in free and premium.
 	if len(volumePurchasingProgramInfo) == 0 {
 		return nil, nil
 	}
 
-	if !license.IsPremium() {
+	if !lic.IsPremium() {
 		invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
 		return nil, nil
 	}
@@ -1624,7 +1624,7 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 	}
 }
 
-func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, license *fleet.LicenseInfo) {
+func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, lic *fleet.LicenseInfo) {
 	if p.SSOSettings != nil && p.SSOSettings.EnableSSO {
 
 		var existingSSOProviderSettings fleet.SSOProviderSettings
@@ -1633,7 +1633,7 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 		}
 		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid)
 
-		if !license.IsPremium() {
+		if !lic.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
 				invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
 			}
