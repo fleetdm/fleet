@@ -138,14 +138,6 @@ type AndroidPolicyRequestPayloadMetadata struct {
 	SettingsOrigin map[string]string `json:"settings_origin"` // Map of policy setting name, to profile uuid.
 }
 
-// AndroidAppConfiguration represents an Android app configuration stored in Fleet.
-// It contains the managedConfiguration and workProfileWidgets settings for an Android app.
-type AndroidAppConfiguration struct {
-	ApplicationID string          `db:"application_id" json:"application_id"`
-	TeamID        *uint           `db:"team_id" json:"team_id,omitempty"`
-	Configuration json.RawMessage `db:"configuration" json:"configuration"`
-}
-
 var (
 	policyFieldsCache map[string]bool
 	policyFieldsOnce  sync.Once
