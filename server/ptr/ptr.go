@@ -22,7 +22,8 @@ func Uint(x uint) *uint {
 }
 
 // UintOrNilIfZero returns nil if the supplied value is zero, else a pointer to the provided uint.
-// This is useful for cases that expect nil to be supplied for "No team" instead of zero.
+// This is useful for cases that expect nil to be supplied for "No team" instead of zero, and allows for
+// a quick way to sidestep e.g. https://github.com/fleetdm/fleet/issues/37729 (which ptr.Uint() would cause).
 func UintOrNilIfZero(x uint) *uint {
 	if x > 0 {
 		return &x
