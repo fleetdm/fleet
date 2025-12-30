@@ -36,7 +36,7 @@ Currently, Android apps can only be installed via self-service in the end user's
 
 Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 
-> VPP apps will be uninstalled when the host is unenrolled from MDM.
+> VPP apps on iOS/iPadOS will be uninstalled when the host is unenrolled from MDM.
 
 ## API and GitOps
 
