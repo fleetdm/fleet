@@ -496,6 +496,12 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query for getting label specs")
 	}
+	// Normally, we want to show all available labels for e.g. applying to a resource, but for specs it's
+	// better to show only the labels on a given team when a filter is applied. Doing this query hack rather
+	// than editing the applyLabelTeamFilter implementation to avoid adding a flag that's only set here.
+	if filter.TeamID != nil && *filter.TeamID > 0 {
+		query += " AND l.team_id IS NOT NULL"
+	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &specs, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels")

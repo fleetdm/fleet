@@ -29,6 +29,7 @@ import (
 const (
 	yamlFlagName                = "yaml"
 	jsonFlagName                = "json"
+	teamIDFlagName              = "team-id"
 	withQueriesFlagName         = "with-queries"
 	expiredFlagName             = "expired"
 	includeServerConfigFlagName = "include-server-config"
@@ -384,7 +385,7 @@ func getQueriesCommand() *cli.Command {
 		Usage:   "List information about queries",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:  teamFlagName,
+				Name:  teamIDFlagName,
 				Usage: "filter queries by team_id (0 means global)",
 			},
 			jsonFlag(),
@@ -404,7 +405,7 @@ func getQueriesCommand() *cli.Command {
 			var teamID *uint
 			var teamName string
 
-			if tid := c.Uint(teamFlagName); tid != 0 {
+			if tid := c.Uint(teamIDFlagName); tid != 0 {
 				teamID = &tid
 				team, err := client.GetTeam(*teamID)
 				if err != nil {
@@ -673,6 +674,11 @@ func getLabelsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.UintFlag{
+				Name:  teamIDFlagName,
+				Usage: "Return labels specific to this team ID; default global labels only when viewing a set of labels",
+				Value: 0,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -682,9 +688,9 @@ func getLabelsCommand() *cli.Command {
 
 			name := c.Args().First()
 
-			// if name wasn't provided, list all labels
+			// if name wasn't provided, list all labels, either globally or on a team
 			if name == "" {
-				labels, err := client.GetLabels()
+				labels, err := client.GetLabels(c.Uint(teamIDFlagName))
 				if err != nil {
 					return fmt.Errorf("could not list labels: %w", err)
 				}
@@ -717,6 +723,8 @@ func getLabelsCommand() *cli.Command {
 				printTable(c, columns, data)
 
 				return nil
+			} else if c.Uint(teamIDFlagName) > 0 {
+				return errors.New("cannot provide both a team ID and a label name")
 			}
 
 			// Label name was specified
@@ -1228,7 +1236,7 @@ func getSoftwareCommand() *cli.Command {
 		Usage:   "List software titles",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:  teamFlagName,
+				Name:  teamIDFlagName,
 				Usage: "Only list software of hosts that belong to the specified team",
 			},
 			&cli.BoolFlag{
@@ -1253,7 +1261,7 @@ func getSoftwareCommand() *cli.Command {
 
 			query := url.Values{}
 
-			teamID := c.Uint(teamFlagName)
+			teamID := c.Uint(teamIDFlagName)
 			if teamID != 0 {
 				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 			}
