@@ -881,7 +881,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	hostSummary.AllLinuxCount = linuxCount
 
-	labelsSummary, err := svc.ds.LabelsSummary(ctx)
+	labelsSummary, err := svc.ds.LabelsSummary(ctx, fleet.TeamFilter{})
 	if err != nil {
 		return nil, err
 	}
@@ -3096,7 +3096,12 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames)
+	var tmID uint
+	if host.TeamID != nil {
+		tmID = *host.TeamID
+	}
+
+	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames, tmID)
 	if err != nil {
 		return err
 	}
@@ -3141,7 +3146,12 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames)
+	var tmID uint
+	if host.TeamID != nil {
+		tmID = *host.TeamID
+	}
+
+	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames, tmID)
 	if err != nil {
 		return err
 	}
@@ -3156,7 +3166,7 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 	return nil
 }
 
-func (svc *Service) validateLabelNames(ctx context.Context, action string, labelNames []string) ([]uint, error) {
+func (svc *Service) validateLabelNames(ctx context.Context, action string, labelNames []string, teamID uint) ([]uint, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
@@ -3174,7 +3184,8 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 		return nil, nil
 	}
 
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	// team ID is always set because we are assigning labels to an entity; no-team entities can only use global labels
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{TeamID: &teamID, User: authz.UserFromContext(ctx)})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
 	}

@@ -139,29 +139,33 @@ type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) err
 
 type ApplyLabelSpecsWithAuthorFunc func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error
 
-type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
+type SetAsideLabelsFunc func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error
 
-type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
+type GetLabelSpecsFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error)
+
+type GetLabelSpecFunc func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error)
 
 type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
-type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
+type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type UpdateLabelMembershipByHostCriteriaFunc func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error)
 
 type NewLabelFunc func(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
-type DeleteLabelFunc func(ctx context.Context, name string) error
+type DeleteLabelFunc func(ctx context.Context, name string, filter fleet.TeamFilter) error
 
-type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
+type LabelByNameFunc func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error)
 
-type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
+type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
-type LabelsSummaryFunc func(ctx context.Context) ([]*fleet.LabelSummary, error)
+type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error)
+
+type LabelsSummaryFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error)
 
 type GetEnrollmentIDsWithPendingMDMAppleCommandsFunc func(ctx context.Context) ([]string, error)
 
@@ -171,13 +175,11 @@ type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, 
 
 type ListHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type ListUniqueHostsInLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error)
-
 type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
-type LabelIDsByNameFunc func(ctx context.Context, labels []string) (map[string]uint, error)
+type LabelIDsByNameFunc func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error)
 
-type LabelsByNameFunc func(ctx context.Context, names []string) (map[string]*fleet.Label, error)
+type LabelsByNameFunc func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error)
 
 type AsyncBatchInsertLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
 
@@ -1888,6 +1890,9 @@ type DataStore struct {
 	ApplyLabelSpecsWithAuthorFunc        ApplyLabelSpecsWithAuthorFunc
 	ApplyLabelSpecsWithAuthorFuncInvoked bool
 
+	SetAsideLabelsFunc        SetAsideLabelsFunc
+	SetAsideLabelsFuncInvoked bool
+
 	GetLabelSpecsFunc        GetLabelSpecsFunc
 	GetLabelSpecsFuncInvoked bool
 
@@ -1915,6 +1920,9 @@ type DataStore struct {
 	DeleteLabelFunc        DeleteLabelFunc
 	DeleteLabelFuncInvoked bool
 
+	LabelByNameFunc        LabelByNameFunc
+	LabelByNameFuncInvoked bool
+
 	LabelFunc        LabelFunc
 	LabelFuncInvoked bool
 
@@ -1935,9 +1943,6 @@ type DataStore struct {
 
 	ListHostsInLabelFunc        ListHostsInLabelFunc
 	ListHostsInLabelFuncInvoked bool
-
-	ListUniqueHostsInLabelsFunc        ListUniqueHostsInLabelsFunc
-	ListUniqueHostsInLabelsFuncInvoked bool
 
 	SearchLabelsFunc        SearchLabelsFunc
 	SearchLabelsFuncInvoked bool
@@ -4658,18 +4663,25 @@ func (s *DataStore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*flee
 	return s.ApplyLabelSpecsWithAuthorFunc(ctx, specs, authorId)
 }
 
-func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
+func (s *DataStore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	s.mu.Lock()
+	s.SetAsideLabelsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAsideLabelsFunc(ctx, notOnTeamID, names, user)
+}
+
+func (s *DataStore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecsFunc(ctx)
+	return s.GetLabelSpecsFunc(ctx, filter)
 }
 
-func (s *DataStore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+func (s *DataStore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecFunc(ctx, name)
+	return s.GetLabelSpecFunc(ctx, filter, name)
 }
 
 func (s *DataStore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
@@ -4686,11 +4698,11 @@ func (s *DataStore) RemoveLabelsFromHost(ctx context.Context, hostID uint, label
 	return s.RemoveLabelsFromHostFunc(ctx, hostID, labelIDs)
 }
 
-func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIds, teamFilter)
+	return s.UpdateLabelMembershipByHostIDsFunc(ctx, label, hostIds, teamFilter)
 }
 
 func (s *DataStore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
@@ -4707,39 +4719,46 @@ func (s *DataStore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 	return s.NewLabelFunc(ctx, label, opts...)
 }
 
-func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	s.mu.Lock()
 	s.SaveLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveLabelFunc(ctx, label, teamFilter)
 }
 
-func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
+func (s *DataStore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
 	s.mu.Lock()
 	s.DeleteLabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteLabelFunc(ctx, name)
+	return s.DeleteLabelFunc(ctx, name, filter)
 }
 
-func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (s *DataStore) LabelByName(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+	s.mu.Lock()
+	s.LabelByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.LabelByNameFunc(ctx, name, filter)
+}
+
+func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	s.mu.Lock()
 	s.LabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.LabelFunc(ctx, lid, teamFilter)
 }
 
-func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 	s.mu.Lock()
 	s.ListLabelsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListLabelsFunc(ctx, filter, opt)
+	return s.ListLabelsFunc(ctx, filter, opt, includeHostCounts)
 }
 
-func (s *DataStore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
+func (s *DataStore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
 	s.mu.Lock()
 	s.LabelsSummaryFuncInvoked = true
 	s.mu.Unlock()
-	return s.LabelsSummaryFunc(ctx)
+	return s.LabelsSummaryFunc(ctx, filter)
 }
 
 func (s *DataStore) GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error) {
@@ -4770,13 +4789,6 @@ func (s *DataStore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilte
 	return s.ListHostsInLabelFunc(ctx, filter, lid, opt)
 }
 
-func (s *DataStore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
-	s.mu.Lock()
-	s.ListUniqueHostsInLabelsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListUniqueHostsInLabelsFunc(ctx, filter, labels)
-}
-
 func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	s.mu.Lock()
 	s.SearchLabelsFuncInvoked = true
@@ -4784,18 +4796,18 @@ func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, q
 	return s.SearchLabelsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error) {
+func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error) {
 	s.mu.Lock()
 	s.LabelIDsByNameFuncInvoked = true
 	s.mu.Unlock()
-	return s.LabelIDsByNameFunc(ctx, labels)
+	return s.LabelIDsByNameFunc(ctx, labels, filter)
 }
 
-func (s *DataStore) LabelsByName(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+func (s *DataStore) LabelsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 	s.mu.Lock()
 	s.LabelsByNameFuncInvoked = true
 	s.mu.Unlock()
-	return s.LabelsByNameFunc(ctx, names)
+	return s.LabelsByNameFunc(ctx, names, filter)
 }
 
 func (s *DataStore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {

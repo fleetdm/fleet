@@ -1152,7 +1152,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}, profs)
 
 	// make host[0] a member of only one of the labels
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAll1.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblIncAll1, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
@@ -1167,7 +1167,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}, profs)
 
 	// make host[0] a member of the other label
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAll2.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblIncAll2, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// now p4 is applicable to host 0
@@ -1203,7 +1203,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}, profs)
 
 	// make host[0] a member of one of the labels
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAny1.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblIncAny1, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// now p5 is applicable to host 0
@@ -1261,7 +1261,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}, profs)
 
 	// make host[0] a member of one of the exclude labels
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblExclAny2.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny2, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// p6 is not applicable anymore
@@ -1493,7 +1493,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	}, profs)
 
 	// Make host 0 a member of labelExclAny2 which excludes everything except p1 for it
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblExclAny2.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny2, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
@@ -1510,7 +1510,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	// Make hosts 0 and 1 members of labelExclAny1 which excludes everything except p5 for host p1. Android doesn't
 	// currently support dynamic labels but this ensures the datastore processes it right if somehow an Android host
 	// becomes a member of one
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblExclAny1.ID, []uint{hosts[0].ID, hosts[1].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny1, []uint{hosts[0].ID, hosts[1].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)

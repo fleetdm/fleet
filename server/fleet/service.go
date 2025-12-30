@@ -253,18 +253,19 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// LabelService
 
-	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
-	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
-	// GetLabelSpecs returns all of the stored LabelSpecs.
-	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
+	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary,
+	// plus rename existing labels *on other teams* to avoid name conflicts
+	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec, teamID *uint, namesToMove []string) error
+	// GetLabelSpecs returns global labels, plus either all team labels a user can see or just ones in the specified team ID.
+	GetLabelSpecs(ctx context.Context, teamID *uint) ([]*LabelSpec, error)
 	// GetLabelSpec gets the spec for the label with the given name.
 	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
-	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
-	ListLabels(ctx context.Context, opt ListOptions, includeHostCounts bool) (labels []*Label, err error)
-	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
-	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
+	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*LabelWithTeamName, []uint, error)
+	ListLabels(ctx context.Context, opt ListOptions, teamID *uint, includeHostCounts bool) (labels []*Label, err error)
+	LabelsSummary(ctx context.Context, teamID *uint) (labels []*LabelSummary, err error)
+	GetLabel(ctx context.Context, id uint) (label *LabelWithTeamName, hostIDs []uint, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
 	// DeleteLabelByID is for backwards compatibility with the UI
