@@ -2201,7 +2201,9 @@ Gets all labels visible to the currently logged-in user.
 
 #### Parameters
 
-None.
+| Name  | Type | In   | Description                                                                                                   |
+| ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id | int | query | The ID of the team to view all labels from; omit to see all labels, supply 0 to see only global labels |
 
 #### Example
 
