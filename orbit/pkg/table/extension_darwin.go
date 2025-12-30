@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/app_sso_platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/brew_list"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
@@ -111,6 +112,8 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("santa_status", santa.StatusColumns(), santa.GenerateStatus),
 		table.NewPlugin("santa_allowed", santa.LogColumns(), santa.GenerateAllowed),
 		table.NewPlugin("santa_denied", santa.LogColumns(), santa.GenerateDenied),
+
+		table.NewPlugin("brew_list", brew_list.Columns(), brew_list.Generate),
 	}
 
 	// append platform specific tables

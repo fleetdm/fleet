@@ -1,0 +1,70 @@
+name: brew_list
+description: List all Homebrew packages (formulas and casks) installed on macOS systems. This table provides package names, versions, installation paths, and package types.
+platforms:
+  - darwin
+evented: false
+examples: |-
+  List all installed Homebrew packages:
+
+  ```
+  SELECT * FROM brew_list;
+  ```
+
+  Find a specific package:
+
+  ```
+  SELECT * FROM brew_list WHERE package_name = 'git';
+  ```
+
+  Count total packages:
+
+  ```
+  SELECT COUNT(*) as total_packages FROM brew_list;
+  ```
+
+  List only casks (macOS only):
+
+  ```
+  SELECT * FROM brew_list WHERE type = 'cask';
+  ```
+
+  List only formulae:
+
+  ```
+  SELECT * FROM brew_list WHERE type = 'formula';
+  ```
+
+  Count packages by type:
+
+  ```
+  SELECT type, COUNT(*) as count FROM brew_list GROUP BY type;
+  ```
+
+  Find packages with specific version patterns:
+
+  ```
+  SELECT package_name, version FROM brew_list WHERE version LIKE '2.%';
+  ```
+notes: |-
+  - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+  - The table automatically detects Homebrew installation locations on macOS systems (supports both Apple Silicon and Intel Macs).
+  - The table uses multiple data collection methods: it first attempts to read from Homebrew's SQLite database, then falls back to `brew list` commands if the database is not available.
+  - If Homebrew is not installed or not accessible, the table will return empty results without errors.
+columns:
+  - name: package_name
+    description: Name of the Homebrew package
+    required: false
+    type: text
+  - name: version
+    description: Installed version of the package
+    required: false
+    type: text
+  - name: install_path
+    description: Full path where the package is installed (typically under the Homebrew prefix, e.g., /opt/homebrew/opt/<package_name> or /usr/local/opt/<package_name>)
+    required: false
+    type: text
+  - name: type
+    description: Package type - either "cask" (macOS GUI applications) or "formula" (command-line tools and libraries).
+    required: false
+    type: text
+
