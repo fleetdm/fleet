@@ -1569,10 +1569,6 @@ type SetAndroidAppInstallPendingApplyConfigFunc func(ctx context.Context, hostUU
 
 type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
 
-type InsertAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
-
-type UpdateAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
-
 type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) error
 
 type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) (map[string]uint, error)
@@ -4032,12 +4028,6 @@ type DataStore struct {
 
 	BulkGetAndroidAppConfigurationsFunc        BulkGetAndroidAppConfigurationsFunc
 	BulkGetAndroidAppConfigurationsFuncInvoked bool
-
-	InsertAndroidAppConfigurationFunc        InsertAndroidAppConfigurationFunc
-	InsertAndroidAppConfigurationFuncInvoked bool
-
-	UpdateAndroidAppConfigurationFunc        UpdateAndroidAppConfigurationFunc
-	UpdateAndroidAppConfigurationFuncInvoked bool
 
 	DeleteAndroidAppConfigurationFunc        DeleteAndroidAppConfigurationFunc
 	DeleteAndroidAppConfigurationFuncInvoked bool
@@ -9661,20 +9651,6 @@ func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs 
 	s.BulkGetAndroidAppConfigurationsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkGetAndroidAppConfigurationsFunc(ctx, appIDs, globalOrTeamID)
-}
-
-func (s *DataStore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	s.mu.Lock()
-	s.InsertAndroidAppConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertAndroidAppConfigurationFunc(ctx, config)
-}
-
-func (s *DataStore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	s.mu.Lock()
-	s.UpdateAndroidAppConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateAndroidAppConfigurationFunc(ctx, config)
 }
 
 func (s *DataStore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error {
