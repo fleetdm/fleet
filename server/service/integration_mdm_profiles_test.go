@@ -3460,6 +3460,26 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		require.Contains(t, errMsg, expectedErr)
 	}
 
+	// invalid JSON structure
+	body, headers = generateNewProfileMultipartRequest(t,
+		"android.json", []byte(`{"passwordPolicies": {"testKey": 123}}`), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies" format is wrong.`)
+	// nested key
+	body, headers = generateNewProfileMultipartRequest(t,
+		"android.json", []byte(`{"passwordPolicies": [{"passwordMinimumLength": true}]}`), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.passwordMinimumLength" format is wrong.`)
+
+	// disallow unknown keys
+	body, headers = generateNewProfileMultipartRequest(t,
+		"android.json", []byte(`{"unknownKey": true}`), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. Unknown key "unknownKey"`)
+
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
 		{ProfileUUID: noTeamAppleProfUUID, Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil, Scope: string(fleet.PayloadScopeSystem)},
