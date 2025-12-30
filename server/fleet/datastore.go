@@ -193,7 +193,9 @@ type Datastore interface {
 	// SetAsideLabels moves a set of labels out of the way if those labels *aren't* on the specified team and *are*
 	// writable by the specified user
 	SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user User) error
-	// GetLabelSpecs returns all of the stored LabelSpecs that the user can see.
+	// GetLabelSpecs returns all of the stored LabelSpecs that the user can see, optionally filtered to
+	// a specific team (or global-only); in this case the team filter does *not* include global
+	// labels if the user asks for a specific team
 	GetLabelSpecs(ctx context.Context, filter TeamFilter) ([]*LabelSpec, error)
 	// GetLabelSpec returns the spec for the named label, filtered by the provided team filter.
 	GetLabelSpec(ctx context.Context, filter TeamFilter, name string) (*LabelSpec, error)
