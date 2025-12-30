@@ -375,7 +375,7 @@ allow {
   action == write
 }
 
-# Global admins, maintainers and gitops can write labels
+# Global admins, maintainers and gitops can create labels
 allow {
   object.type == "label"
   subject.global_role == [admin, maintainer, gitops][_]

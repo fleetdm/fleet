@@ -624,6 +624,10 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
+	user, ok := viewer.FromContext(ctx)
+	if !ok || user.User == nil {
+		return fleet.ErrNoContext
+	}
 	if !license.IsPremium(ctx) && teamID != nil && *teamID > 0 {
 		return fleet.ErrMissingLicense
 	}
@@ -713,22 +717,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return nil
 	}
 
-	user, ok := viewer.FromContext(ctx)
-	if ok && user.User != nil {
-		if err := svc.ds.SetAsideLabels(ctx, teamID, namesToMove, *user.User); err != nil {
-			return ctxerr.Wrap(ctx, err, "cleaning up conflicting other team labels")
-		}
-	} else if len(namesToMove) > 0 {
-		return fleet.NewUserMessageError(
-			ctxerr.New(ctx, "cannot move labels out of the way without user authentication"), http.StatusForbidden,
-		)
+	if err := svc.ds.SetAsideLabels(ctx, teamID, namesToMove, *user.User); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up conflicting other team labels")
 	}
 
-	// If we have a user, mark them as the label's author.
-	if ok {
-		return svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID()))
-	}
-	return svc.ds.ApplyLabelSpecs(ctx, regularSpecs)
+	return svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID()))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
