@@ -37,7 +37,7 @@ const generateDescriptionHelpText = (immutableFields: string[]) => {
     ? `Label ${immutableFields[0]} ${SUFFIX}`
     : `Label ${immutableFields
         .slice(0, -1)
-        .join(", ")} and ${immutableFields.pop()} ${SUFFIX}`;
+        .join(", ")} and ${immutableFields.slice(-1)} ${SUFFIX}`;
 };
 
 const LabelForm = ({
