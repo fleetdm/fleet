@@ -27,7 +27,7 @@ func verifyLabelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeam
 		return nil
 	}
 	if user == nil {
-		return ctxerr.New(ctx, "unauthorized")
+		return ctxerr.New(ctx, "Authentication required")
 	}
 
 	// Remove duplicate names.
