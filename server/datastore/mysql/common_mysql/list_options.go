@@ -3,7 +3,6 @@ package common_mysql
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -59,12 +58,10 @@ func AppendListOptionsWithParams(sql string, params []any, opts ListOptions) (st
 		if strings.Contains(strings.ToLower(sql), "where") {
 			cursorSQL = " AND "
 		}
-		if strings.HasSuffix(orderKey, "id") {
-			i, _ := strconv.Atoi(cursor)
-			params = append(params, i)
-		} else {
-			params = append(params, cursor)
-		}
+		// Cursor value is always passed as string. MySQL automatically converts
+		// string to integer when comparing against integer columns.
+		// See: https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html
+		params = append(params, cursor)
 		direction := ">" // ASC
 		if opts.IsDescending() {
 			direction = "<" // DESC
