@@ -14,7 +14,7 @@ type MysqlConfig struct {
 	TLSKey          string
 	TLSCA           string
 	TLSServerName   string
-	TLSConfig       string // tls=customValue in DSN
+	TLSConfig       string
 	MaxOpenConns    int
 	MaxIdleConns    int
 	ConnMaxLifetime int

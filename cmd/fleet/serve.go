@@ -1257,9 +1257,7 @@ the way that the Fleet server works.
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
-					[]endpoint_utils.HandlerRoutesFunc{
-						android_service.GetRoutes(svc, androidSvc),
-					}, extra...)
+					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
