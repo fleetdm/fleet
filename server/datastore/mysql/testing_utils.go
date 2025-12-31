@@ -41,7 +41,8 @@ import (
 )
 
 func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
-	cfg := testing_utils.MysqlTestConfig(testName)
+	commonCfg := testing_utils.MysqlTestConfig(testName)
+	cfg := fromCommonMysqlConfig(commonCfg)
 
 	// Create datastore client
 	var replicaOpt DBOption
