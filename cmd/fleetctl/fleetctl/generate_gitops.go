@@ -1613,7 +1613,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 			config := softwareTitle.AppStoreApp.Configuration
 			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
-				fileName := fmt.Sprintf("lib/%s/configs/%s", teamFilename, filenamePrefix+"-config.json")
+				// all per-team software-related artifacts are generated in lib/{team}/software
+				fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["configuration"] = map[string]any{
 					"path": path,

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -11,6 +13,32 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 )
+
+// Certificate template name validation constants
+const (
+	maxCertificateTemplateNameLength = 255
+)
+
+// certificateTemplateNameRegex allows only letters, numbers, spaces, dashes, and underscores
+var certificateTemplateNameRegex = regexp.MustCompile(`^[a-zA-Z0-9 \-_]+$`)
+
+// validateCertificateTemplateName validates the certificate template name.
+// Returns a BadRequestError if validation fails.
+func validateCertificateTemplateName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return &fleet.BadRequestError{Message: "Certificate template name is required."}
+	}
+
+	if len(name) > maxCertificateTemplateNameLength {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("Certificate template name is too long. Maximum is %d characters.", maxCertificateTemplateNameLength)}
+	}
+
+	if !certificateTemplateNameRegex.MatchString(name) {
+		return &fleet.BadRequestError{Message: "Invalid certificate template name. Only letters, numbers, spaces, dashes, and underscores are allowed."}
+	}
+
+	return nil
+}
 
 type createCertificateTemplateRequest struct {
 	Name                   string `json:"name"`
@@ -44,6 +72,11 @@ func createCertificateTemplateEndpoint(ctx context.Context, request interface{},
 
 func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// Validate certificate template name
+	if err := validateCertificateTemplateName(name); err != nil {
 		return nil, err
 	}
 
@@ -387,6 +420,11 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 
 	var certificates []*fleet.CertificateTemplate
 	for _, spec := range specs {
+		// Validate certificate template name
+		if err := validateCertificateTemplateName(spec.Name); err != nil {
+			return err
+		}
+
 		// Get the CA to validate its existence and type.
 		ca, ok := casByID[spec.CertificateAuthorityId]
 		if !ok {
@@ -394,7 +432,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		}
 
 		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Ccertificate `%s`: Currently, only the custom_scep_proxy certificate authority is supported.", spec.Name)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Certificate `%s`: Currently, only the custom_scep_proxy certificate authority is supported.", spec.Name)}
 		}
 
 		// Validate Fleet variables in subject name

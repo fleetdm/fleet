@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/gocarina/gocsv"
@@ -2319,7 +2318,7 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	var buf bytes.Buffer
 	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
 		logging.WithErr(ctx, err)
-		endpoint_utils.EncodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
 		return
 	}
 
@@ -2331,7 +2330,7 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 		recs, err := csv.NewReader(&buf).ReadAll()
 		if err != nil {
 			logging.WithErr(ctx, err)
-			endpoint_utils.EncodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
 			return
 		}
 
@@ -2352,7 +2351,7 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 						// duplicating the list of columns from the Host's struct tags to a
 						// map and keep this in sync, for what is essentially a programmer
 						// mistake that should be caught and corrected early.
-						endpoint_utils.EncodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
+						encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
 						return
 					}
 					outRows[i] = append(outRows[i], rec[colIx])
