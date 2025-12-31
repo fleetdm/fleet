@@ -151,8 +151,20 @@ func gitopsCommand() *cli.Command {
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
 
-			var lblChanges []labelChange
+			allLblChanges := make(map[uint][]labelChange) // teamID -> label changes
 			var builtInLabelNames []string
+
+			// We need the list of built-in labels for showing contextual errors in case the user
+			// decides to reference a built-in label.
+			globalLabels, err := fleetClient.GetLabels(0)
+			if err != nil {
+				return fmt.Errorf("getting global labels: %w", err)
+			}
+			for _, l := range globalLabels {
+				if l.LabelType == fleet.LabelTypeBuiltIn {
+					builtInLabelNames = append(builtInLabelNames, l.Name)
+				}
+			}
 
 			// Parsed a config and filename pair
 			type ConfigFile struct {
@@ -184,13 +196,42 @@ func gitopsCommand() *cli.Command {
 					globalConfigLoaded = true
 				}
 				configFile := ConfigFile{Config: config, Filename: flFilename, IsGlobalConfig: isGlobalConfig}
+
 				if isGlobalConfig {
 					// If it's a global file, put it at the beginning
 					// of the array so it gets processed first
 					configs = append([]ConfigFile{configFile}, configs...)
+				} else if !appConfig.License.IsPremium() {
+					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
+					continue
 				} else {
 					configs = append(configs, configFile)
 				}
+
+				// We want to compute label changes early ... this will allow us to detect any funky
+				// operations (like trying to add the same label on different teams), labels can also move from one
+				// team to another, so we need the complete list of changes to plan how the changes will be applied.
+				teamID := uint(0)
+				if config.TeamID != nil {
+					teamID = *config.TeamID
+				}
+				if _, ok := allLblChanges[teamID]; ok {
+					continue
+				}
+
+				var existingLabels []*fleet.LabelSpec
+				if teamID == 0 {
+					existingLabels = globalLabels
+				} else {
+					if existingLabels, err = fleetClient.GetLabels(teamID); err != nil {
+						return fmt.Errorf("getting team %d labels: %w", teamID, err)
+					}
+				}
+				localLblChanges, err := computeLabelChanges(teamID, existingLabels, config.Labels)
+				if err != nil {
+					return err
+				}
+				allLblChanges[teamID] = localLblChanges
 			}
 
 			// fail if scripts are supplied on no-team and global config is missing
@@ -203,9 +244,9 @@ func gitopsCommand() *cli.Command {
 				flFilename := configFile.Filename
 				isGlobalConfig := configFile.IsGlobalConfig
 
-				if !isGlobalConfig && !appConfig.License.IsPremium() {
-					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
-					continue
+				teamID := uint(0)
+				if config.TeamID != nil {
+					teamID = *config.TeamID
 				}
 
 				if isGlobalConfig {
@@ -223,31 +264,6 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				teamID := uint(0)
-				if !isGlobalConfig && config.TeamID != nil {
-					teamID = *config.TeamID
-				}
-				existingLabels, err := fleetClient.GetLabels(teamID)
-				if err != nil {
-					return fmt.Errorf("getting labels for team %d: %w", teamID, err)
-				}
-
-				// We need the list of built-in labels for showing pretty errors in case the user
-				// decides to reference a built-in label.
-				if teamID == 0 {
-					for _, l := range existingLabels {
-						if l.LabelType == fleet.LabelTypeBuiltIn {
-							builtInLabelNames = append(builtInLabelNames, l.Name)
-						}
-					}
-				}
-
-				localLblChanges, err := computeLabelChanges(teamID, existingLabels, config.Labels)
-				if err != nil {
-					return err
-				}
-				lblChanges = append(lblChanges, localLblChanges...)
-
 				// Gather stats on where labels are used in this gitops config,
 				// so we can bail if any of the referenced labels don't exist
 				// after this run (either because they'd be deleted, never existed
@@ -257,29 +273,38 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 
+				// The validity of a label is based on the label existence (either the label is going to be added or
+				// the label stayed the same). We look at both global label changes and team-specific label changes
+				// because of scoping rules; a team resource can reference a global label.
+				var searchSpace []labelChange
+				searchSpace = append(searchSpace, allLblChanges[0]...)
+				searchSpace = append(searchSpace, allLblChanges[teamID]...)
+
 				// Check if any used labels are not in the proposed labels list.
 				// If there are, we'll bail out with helpful error messages.
 				unknownLabelsUsed := false
 				builtInLabelsUsed := false
 
 				for labelUsed := range labelsUsed {
-					// The valid labels are based on whatever is going to be added or stayed the same
-					if slices.IndexFunc(lblChanges, func(ch labelChange) bool {
+					isValid := slices.ContainsFunc(searchSpace, func(ch labelChange) bool {
 						return ch.Name == labelUsed && (ch.Op == "+" || ch.Op == "=")
-					}) == -1 {
-						if slices.Index(builtInLabelNames, labelUsed) != -1 {
-							logf(
-								"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
-								labelUsed,
-							)
-							builtInLabelsUsed = true
-						} else {
-							for _, labelUser := range labelsUsed[labelUsed] {
-								logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
-							}
-							unknownLabelsUsed = true
-						}
+					})
+					if isValid {
+						continue
 					}
+					if slices.Contains(builtInLabelNames, labelUsed) {
+						logf(
+							"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
+							labelUsed,
+						)
+						builtInLabelsUsed = true
+						continue
+					}
+
+					for _, labelUser := range labelsUsed[labelUsed] {
+						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
+					}
+					unknownLabelsUsed = true
 				}
 				if unknownLabelsUsed {
 					return errors.New("Please create the missing labels, or update your settings to not refer to these labels.")
@@ -292,7 +317,6 @@ func gitopsCommand() *cli.Command {
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
 				// when to perform the associations.
-
 				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) && appConfig.License.IsPremium() {
 					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
@@ -370,8 +394,19 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				assumptions, postOps, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig,
-					teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &iconSettings)
+				assumptions, postOps, err := fleetClient.DoGitOps(
+					c.Context,
+					config,
+					flFilename,
+					logf,
+					flDryRun,
+					teamDryRunAssumptions,
+					appConfig,
+					teamsSoftwareInstallers,
+					teamsVPPApps,
+					teamsScripts,
+					&iconSettings,
+				)
 				if err != nil {
 					return err
 				}
