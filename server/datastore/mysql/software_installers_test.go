@@ -1513,12 +1513,11 @@ func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore)
 	require.NotNil(t, storedUpgradeCode)
 	require.Equal(t, upgradeCode, *storedUpgradeCode)
 
-	// Add a second Windows installer with a different upgrade code
+	// Add a second Windows installer with no upgrade code
 	ins1 := "windows-installer2"
 	ins1File := bytes.NewReader([]byte("installer1"))
 	tfr1, err := fleet.NewTempFileReader(ins1File, t.TempDir)
 	require.NoError(t, err)
-	upgradeCode2 := "{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}"
 
 	// Reset tfr0 for reuse
 	ins0File = bytes.NewReader([]byte("installer0-v2"))
@@ -1550,7 +1549,7 @@ func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore)
 			UserID:          user1.ID,
 			Platform:        "windows",
 			ValidatedLabels: &fleet.LabelIdentsWithScope{},
-			UpgradeCode:     upgradeCode2,
+			UpgradeCode:     "",
 		},
 	})
 	require.NoError(t, err)
@@ -1571,7 +1570,7 @@ func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore)
 
 	storedUpgradeCode2 := getUpgradeCodeForTitle(secondTitleID)
 	require.NotNil(t, storedUpgradeCode2)
-	require.Equal(t, upgradeCode2, *storedUpgradeCode2)
+	require.Empty(t, *storedUpgradeCode2)
 
 	// Verify non-Windows installers don't get upgrade_code set
 	ins2 := "mac-installer"
@@ -1612,7 +1611,7 @@ func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore)
 			UserID:          user1.ID,
 			Platform:        "windows",
 			ValidatedLabels: &fleet.LabelIdentsWithScope{},
-			UpgradeCode:     upgradeCode2,
+			UpgradeCode:     "",
 		},
 		{
 			InstallScript:    "install3.sh",
