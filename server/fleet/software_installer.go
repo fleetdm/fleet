@@ -524,6 +524,16 @@ type UploadSoftwareInstallerPayload struct {
 	AddedAutomaticInstallPolicy *Policy
 }
 
+func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
+	if p.BundleIdentifier != "" {
+		return p.BundleIdentifier
+	}
+	if p.Source == "programs" && p.UpgradeCode != "" {
+		return p.UpgradeCode
+	}
+	return p.Title
+}
+
 type ExistingSoftwareInstaller struct {
 	InstallerID      uint    `db:"installer_id"`
 	TeamID           *uint   `db:"team_id"`

@@ -1928,7 +1928,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
-  (name, source, extension_for, bundle_identifier)
+  (name, source, extension_for, bundle_identifier, upgrade_code)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE
@@ -1943,7 +1943,7 @@ SELECT
   id
 FROM
   software_titles
-WHERE (unique_identifier, source, extension_for) IN (%s)
+WHERE (unique_identifier, source) IN (%s) AND extension_for = ''
 `
 
 	const getSoftwareTitle = `
@@ -2387,11 +2387,17 @@ WHERE
 					}
 					return nil
 				}(),
+				func() *string {
+					if installer.Source != "programs" {
+						return nil
+					}
+					return &installer.UpgradeCode
+				}(),
 			)
 		}
 
 		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?,?),", len(installers)),
+			strings.Repeat("(?,?,?,?,?),", len(installers)),
 			",",
 		)
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
@@ -2401,15 +2407,10 @@ WHERE
 		var titleIDs []uint
 		args = []any{}
 		for _, installer := range installers {
-			args = append(
-				args,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
-				"",
-			)
+			args = append(args, installer.UniqueIdentifier(), installer.Source)
 		}
 		values = strings.TrimSuffix(
-			strings.Repeat("(?,?,?),", len(installers)),
+			strings.Repeat(`(?,?),`, len(installers)),
 			",",
 		)
 
@@ -2549,7 +2550,7 @@ WHERE
 			}
 
 			var titleID uint
-			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source)
+			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, installer.UniqueIdentifier(), installer.Source)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting software title id for software installer with name %q", installer.Filename)
 			}
