@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -86,7 +86,7 @@ func BadRequestErr(publicMsg string, internalErr error) error {
 	if errors.As(internalErr, &opErr) {
 		return fmt.Errorf(publicMsg+", internal: %w", internalErr)
 	}
-	return &fleet.BadRequestError{
+	return &platform_http.BadRequestError{
 		Message:     publicMsg,
 		InternalErr: internalErr,
 	}
@@ -169,7 +169,11 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 	return nil
 }
 
-func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
+// DomainQueryFieldDecoder decodes a query parameter value into the target field.
+// It returns true if it handled the field, false if default handling should be used.
+type DomainQueryFieldDecoder func(queryTagName, queryVal string, field reflect.Value) (handled bool, err error)
+
+func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQueryFieldDecoder) error {
 	queryTagValue, ok := fp.Sf.Tag.Lookup("query")
 
 	if ok {
@@ -185,7 +189,7 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			if optional {
 				return nil
 			}
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Param %s is required", queryTagValue)}
+			return &platform_http.BadRequestError{Message: fmt.Sprintf("Param %s is required", queryTagValue)}
 		}
 		field := fp.V
 		if field.Kind() == reflect.Ptr {
@@ -193,6 +197,18 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			field.Set(reflect.New(field.Type().Elem()))
 			field = field.Elem()
 		}
+
+		// Try custom decoder first if provided
+		if customDecoder != nil {
+			handled, err := customDecoder(queryTagValue, queryVal, field)
+			if err != nil {
+				return err
+			}
+			if handled {
+				return nil
+			}
+		}
+
 		switch field.Kind() {
 		case reflect.String:
 			field.SetString(queryVal)
@@ -211,22 +227,9 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 		case reflect.Bool:
 			field.SetBool(queryVal == "1" || queryVal == "true")
 		case reflect.Int:
-			queryValInt := 0
-			switch queryTagValue {
-			case "order_direction", "inherited_order_direction":
-				switch queryVal {
-				case "desc":
-					queryValInt = int(fleet.OrderDescending)
-				case "asc":
-					queryValInt = int(fleet.OrderAscending)
-				default:
-					return &fleet.BadRequestError{Message: "unknown order_direction: " + queryVal}
-				}
-			default:
-				queryValInt, err = strconv.Atoi(queryVal)
-				if err != nil {
-					return BadRequestErr("parsing int from query", err)
-				}
+			queryValInt, err := strconv.Atoi(queryVal)
+			if err != nil {
+				return BadRequestErr("parsing int from query", err)
 			}
 			field.SetInt(int64(queryValInt))
 		default:
@@ -297,17 +300,17 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 		logger = log.With(logger, "took", time.Since(startTime))
 	}
 
-	var ewi fleet.ErrWithInternal
+	var ewi platform_http.ErrWithInternal
 	if errors.As(err, &ewi) {
 		logger = log.With(logger, "internal", ewi.Internal())
 	}
 
-	var ewlf fleet.ErrWithLogFields
+	var ewlf platform_http.ErrWithLogFields
 	if errors.As(err, &ewlf) {
 		logger = log.With(logger, ewlf.LogFields()...)
 	}
 
-	var uuider fleet.ErrorUUIDer
+	var uuider platform_http.ErrorUUIDer
 	if errors.As(err, &uuider) {
 		logger = log.With(logger, "uuid", uuider.UUID())
 	}
@@ -338,17 +341,14 @@ type requestValidator interface {
 }
 
 // MakeDecoder creates a decoder for the type for the struct passed on. If the
-// struct has at least 1 json tag it'll unmarshall the body. If the struct has
-// a `url` tag with value list_options it'll gather fleet.ListOptions from the
-// URL (similarly for host_options, carve_options, user_options that derive
-// from the common list_options). Note that these behaviors do not work for embedded structs.
+// struct has at least 1 json tag it'll unmarshall the body. Custom `url` tag
+// values can be handled by providing a parseCustomTags function. Note that
+// these behaviors do not work for embedded structs.
 //
-// Finally, any other `url` tag will be treated as a path variable (of the form
+// Any other `url` tag will be treated as a path variable (of the form
 // /path/{name} in the route's path) from the URL path pattern, and it'll be
 // decoded and set accordingly. Variables can be optional by setting the tag as
 // follows: `url:"some-id,optional"`.
-// The "list_options" are optional by default and it'll ignore the optional
-// portion of the tag.
 //
 // If iface implements the RequestDecoder interface, it returns a function that
 // calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
@@ -357,12 +357,16 @@ type requestValidator interface {
 // If iface implements the bodyDecoder interface, it calls iface.DecodeBody
 // after having decoded any non-body fields (such as url and query parameters)
 // into the struct.
+//
+// The customQueryDecoder parameter allows services to inject domain-specific
+// query parameter decoding logic.
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
 	parseCustomTags func(urlTagValue string, r *http.Request, field reflect.Value) (bool, error),
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
+	customQueryDecoder DomainQueryFieldDecoder,
 ) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -441,16 +445,16 @@ func MakeDecoder(
 
 			_, jsonExpected := fp.Sf.Tag.Lookup("json")
 			if jsonExpected && nilBody {
-				return nil, &fleet.BadRequestError{Message: "Expected JSON Body"}
+				return nil, &platform_http.BadRequestError{Message: "Expected JSON Body"}
 			}
 
 			isContentJson := r.Header.Get("Content-Type") == "application/json"
 			isCrossSite := r.Header.Get("Origin") != "" || r.Header.Get("Referer") != ""
 			if jsonExpected && isCrossSite && !isContentJson {
-				return nil, fleet.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
+				return nil, platform_http.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
 			}
 
-			err = DecodeQueryTagValue(r, fp)
+			err = DecodeQueryTagValue(r, fp, customQueryDecoder)
 			if err != nil {
 				return nil, err
 			}
@@ -471,7 +475,7 @@ func MakeDecoder(
 						return nil, err
 					}
 					if val && !fp.V.IsZero() {
-						return nil, &fleet.BadRequestError{Message: fmt.Sprintf(
+						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
 							fp.Sf.Name,
 						)}
@@ -509,17 +513,19 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 }
 
 type CommonEndpointer[H any] struct {
-	EP             Endpointer[H]
-	MakeDecoderFn  func(iface interface{}) kithttp.DecodeRequestFunc
-	EncodeFn       kithttp.EncodeResponseFunc
-	Opts           []kithttp.ServerOption
-	AuthMiddleware endpoint.Middleware
-	Router         *mux.Router
-	Versions       []string
+	EP            Endpointer[H]
+	MakeDecoderFn func(iface any) kithttp.DecodeRequestFunc
+	EncodeFn      kithttp.EncodeResponseFunc
+	Opts          []kithttp.ServerOption
+	Router        *mux.Router
+	Versions      []string
 
-	// CustomMiddleware are middlewares that run before AuthMiddleware.
+	// AuthMiddleware is a pre-built authentication middleware.
+	AuthMiddleware endpoint.Middleware
+
+	// CustomMiddleware are middlewares that run before authentication.
 	CustomMiddleware []endpoint.Middleware
-	// CustomMiddlewareAfterAuth are middlewares that run after AuthMiddleware.
+	// CustomMiddlewareAfterAuth are middlewares that run after authentication.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
 
 	startingAtVersion string
@@ -529,8 +535,8 @@ type CommonEndpointer[H any] struct {
 }
 
 type Endpointer[H any] interface {
-	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error)
-	Service() interface{}
+	CallHandlerFunc(f H, ctx context.Context, request any, svc any) (platform_http.Errorer, error)
+	Service() any
 }
 
 func (e *CommonEndpointer[H]) POST(path string, f H, v interface{}) {
@@ -730,6 +736,7 @@ func EncodeCommonResponse(
 	w http.ResponseWriter,
 	response interface{},
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
+	domainErrorEncoder DomainErrorEncoder,
 ) error {
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
@@ -747,8 +754,8 @@ func EncodeCommonResponse(
 		return err
 	}
 
-	if e, ok := response.(fleet.Errorer); ok && e.Error() != nil {
-		EncodeError(ctx, e.Error(), w)
+	if e, ok := response.(platform_http.Errorer); ok && e.Error() != nil {
+		EncodeError(ctx, e.Error(), w, domainErrorEncoder)
 		return nil
 	}
 

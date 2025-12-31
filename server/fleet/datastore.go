@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -2836,19 +2837,11 @@ type AlreadyExistsError interface {
 	IsExists() bool
 }
 
-// ForeignKeyError is returned when the operation fails due to foreign key constraints.
-type ForeignKeyError interface {
-	error
-	IsForeignKey() bool
-}
+// ForeignKeyError is an alias for platform_http.ForeignKeyError.
+type ForeignKeyError = platform_http.ForeignKeyError
 
-func IsForeignKey(err error) bool {
-	var fke ForeignKeyError
-	if errors.As(err, &fke) {
-		return fke.IsForeignKey()
-	}
-	return false
-}
+// IsForeignKey is an alias for platform_http.IsForeignKey.
+var IsForeignKey = platform_http.IsForeignKey
 
 type OptionalArg func() interface{}
 
