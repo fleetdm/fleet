@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.0.22",
+      "version": "3.0.23",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'VLC media player' AND publisher = 'VideoLAN';"
       },
-      "installer_url": "https://download.videolan.org/pub/videolan/vlc/3.0.22/win64/vlc-3.0.22-win64.msi",
+      "installer_url": "https://artifacts.videolan.org/vlc/release-win64/vlc-3.0.23-win64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "9e6b767e",
-      "sha256": "48d357c0676a263b0354c555cdb118d228b109a0fc8410374f0e9b437c056495",
+      "sha256": "16f23df4b01a6df95ac25ea728b223c0b10c5715a15cb77c3ffc8b9c926cfc70",
       "default_categories": [
         "Productivity"
       ],
