@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -1297,9 +1296,6 @@ func (l ListOptions) GetSecondaryOrderKey() string { return l.TestSecondaryOrder
 func (l ListOptions) IsSecondaryDescending() bool {
 	return l.TestSecondaryOrderDirection == OrderDescending
 }
-
-// Compile-time check that ListOptions implements common_mysql.ListOptions
-var _ common_mysql.ListOptions = ListOptions{}
 
 type ListQueryOptions struct {
 	ListOptions

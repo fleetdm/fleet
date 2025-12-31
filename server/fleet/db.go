@@ -1,9 +1,6 @@
 package fleet
 
-import (
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-	"github.com/jmoiron/sqlx"
-)
+import "github.com/jmoiron/sqlx"
 
 // DBLock represents a database transaction lock information as returned
 // by datastore.DBLocks.
@@ -24,6 +21,3 @@ type DBReader interface {
 	Close() error
 	Rebind(string) string
 }
-
-// DBReadTx is an alias for common_mysql.DBReadTx.
-type DBReadTx = common_mysql.DBReadTx
