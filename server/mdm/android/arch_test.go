@@ -26,14 +26,13 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 		IgnoreDeps(
 			// Android packages
 			m+"/server/mdm/android...",
+			// Platform packages
+			m+"/server/platform...",
 			// Other/infra packages
 			m+"/server/datastore/mysql/common_mysql",
 			m+"/server/service/externalsvc", // dependency on Jira and Zendesk
 			m+"/server/service/middleware/auth",
-			m+"/server/service/middleware/authzcheck",
-			m+"/server/service/middleware/endpoint_utils",
 			m+"/server/service/middleware/log",
-			m+"/server/service/middleware/ratelimit",
 			m+"/server/service/modules/activities",
 		).
 		Check()

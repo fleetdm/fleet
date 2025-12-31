@@ -42,8 +42,8 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -1794,7 +1794,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 
 	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
 	if err != nil {
-		var existsErr endpoint_utils.ExistsErrorInterface
+		var existsErr endpointer.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
 				WithStatus(http.StatusConflict)

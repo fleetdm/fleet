@@ -1,4 +1,4 @@
-package endpoint_utils
+package endpointer
 
 import (
 	"bufio"
@@ -19,8 +19,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/authzcheck"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
