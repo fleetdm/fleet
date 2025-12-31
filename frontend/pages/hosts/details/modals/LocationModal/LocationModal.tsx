@@ -27,10 +27,10 @@ const getLocationMessage = (
   hasLocation: boolean
 ): JSX.Element | null => {
   const FETCH_LATEST_LOCATION_MESSAGE = (
-    <div>
+    <>
       Close this modal and select <strong>Refetch</strong> to fetch new
       location.
-    </div>
+    </>
   );
   const IOS_LOCKING_MESSAGE = (
     <>
@@ -136,7 +136,7 @@ const LocationModal = ({
   );
   const renderContent = () => {
     return (
-      <div className={`${baseClass}__content`}>
+      <>
         <div className={`${baseClass}__location`}>
           {hostGeolocation && getCityCountryLocation(hostGeolocation)}{" "}
           {googleMapsUrl && (
@@ -154,7 +154,7 @@ const LocationModal = ({
           {getLocationMessage(iosOrIpadosDetails, Boolean(hostGeolocation))}
           {shouldShowLastUpdatedAt && renderLastUpdatedAt()}
         </div>
-      </div>
+      </>
     );
   };
 
