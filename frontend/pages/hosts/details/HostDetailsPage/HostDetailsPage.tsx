@@ -21,9 +21,6 @@ import hostAPI, {
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
 
-// TODO: Remove
-import { createMockHostGeolocation } from "__mocks__/hostMock";
-
 import {
   IHost,
   IMacadminsResponse,
@@ -687,12 +684,7 @@ const HostDetailsPage = ({
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const fakeHost = {
-    ...host,
-    geolocation: createMockHostGeolocation(),
-  };
-
-  const vitalsData = normalizeEmptyValues(pick(fakeHost, HOST_VITALS_DATA));
+  const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
@@ -1686,7 +1678,7 @@ Observer plus must be checked against host's team id  */
         )}
         {showLocationModal && (
           <LocationModal
-            hostGeolocation={fakeHost.geolocation}
+            hostGeolocation={host.geolocation}
             onExit={toggleLocationModal}
             iosOrIpadosDetails={{
               isIosOrIpadosHost,
