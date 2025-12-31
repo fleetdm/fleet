@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -18,13 +19,13 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string) error {
-	return ReconcileProfilesWithClient(ctx, ds, logger, licenseKey, nil)
+func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, androidAgentConfig config.AndroidAgentConfig) error {
+	return ReconcileProfilesWithClient(ctx, ds, logger, licenseKey, nil, androidAgentConfig)
 }
 
 // ReconcileProfilesWithClient is like ReconcileProfiles but allows injecting a custom client for testing.
 // If client is nil, a new AMAPI client will be created.
-func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, client androidmgmt.Client) error {
+func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -54,9 +55,10 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 	}
 
 	reconciler := &profileReconciler{
-		DS:         ds,
-		Enterprise: enterprise,
-		Client:     client,
+		DS:                 ds,
+		Enterprise:         enterprise,
+		Client:             client,
+		AndroidAgentConfig: androidAgentConfig,
 	}
 	return reconciler.ReconcileProfiles(ctx)
 }
@@ -64,9 +66,10 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 // profileReconciler is a struct to facilitate testability, it should not be
 // used outside of tests.
 type profileReconciler struct {
-	DS         fleet.Datastore
-	Enterprise *android.Enterprise
-	Client     androidmgmt.Client
+	DS                 fleet.Datastore
+	Enterprise         *android.Enterprise
+	Client             androidmgmt.Client
+	AndroidAgentConfig config.AndroidAgentConfig
 }
 
 func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (string, error) {
@@ -439,10 +442,11 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 
 		// Process this batch - BuildAndSendFleetAgentConfig handles the state transitions
 		svc := &Service{
-			logger:           kitlog.NewNopLogger(),
-			ds:               r.DS,
-			fleetDS:          r.DS,
-			androidAPIClient: r.Client,
+			logger:             kitlog.NewNopLogger(),
+			ds:                 r.DS,
+			fleetDS:            r.DS,
+			androidAPIClient:   r.Client,
+			androidAgentConfig: r.AndroidAgentConfig,
 		}
 		if err := svc.BuildAndSendFleetAgentConfig(ctx, r.Enterprise.Name(), hostUUIDs, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "build and send fleet agent config with certificates")

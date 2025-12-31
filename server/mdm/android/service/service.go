@@ -16,6 +16,7 @@ import (
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -45,6 +46,9 @@ type Service struct {
 	activityModule   activities.ActivityModule
 	serverPrivateKey string
 
+	// Android agent configuration
+	androidAgentConfig config.AndroidAgentConfig
+
 	// SignupSSEInterval can be overwritten in tests.
 	SignupSSEInterval time.Duration
 	// AllowLocalhostServerURL is set during tests.
@@ -59,9 +63,10 @@ func NewService(
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
 	activityModule activities.ActivityModule,
+	androidAgentConfig config.AndroidAgentConfig,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule, androidAgentConfig)
 }
 
 func NewServiceWithClient(
@@ -71,6 +76,7 @@ func NewServiceWithClient(
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
 	activityModule activities.ActivityModule,
+	androidAgentConfig config.AndroidAgentConfig,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -78,14 +84,15 @@ func NewServiceWithClient(
 	}
 
 	svc := &Service{
-		logger:            logger,
-		authz:             authorizer,
-		ds:                ds,
-		androidAPIClient:  client,
-		serverPrivateKey:  serverPrivateKey,
-		SignupSSEInterval: DefaultSignupSSEInterval,
-		fleetDS:           fleetDS,
-		activityModule:    activityModule,
+		logger:             logger,
+		authz:              authorizer,
+		ds:                 ds,
+		androidAPIClient:   client,
+		serverPrivateKey:   serverPrivateKey,
+		SignupSSEInterval:  DefaultSignupSSEInterval,
+		fleetDS:            fleetDS,
+		activityModule:     activityModule,
+		androidAgentConfig: androidAgentConfig,
 	}
 
 	// OK to use background context here because this function is only called during server bootstrap
@@ -883,18 +890,16 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 
 // getFleetAgentPackageInfo returns the Fleet agent package name and SHA256 fingerprint.
 // Returns empty strings if the package is not configured, or an error if the package is configured but SHA256 is missing.
-func getFleetAgentPackageInfo(ctx context.Context) (packageName, sha256Fingerprint string, err error) {
-	packageName = os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	if packageName == "" {
+func (svc *Service) getFleetAgentPackageInfo(ctx context.Context) (packageName, sha256Fingerprint string, err error) {
+	if svc.androidAgentConfig.Package == "" {
 		return "", "", nil
 	}
 
-	sha256Fingerprint = os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	if sha256Fingerprint == "" {
-		return "", "", ctxerr.New(ctx, "FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256 must be set when FLEET_DEV_ANDROID_AGENT_PACKAGE is set")
+	if svc.androidAgentConfig.SigningSHA256 == "" {
+		return "", "", ctxerr.New(ctx, "mdm.android_agent.signing_sha256 must be set when mdm.android_agent.package is set")
 	}
 
-	return packageName, sha256Fingerprint, nil
+	return svc.androidAgentConfig.Package, svc.androidAgentConfig.SigningSHA256, nil
 }
 
 // buildFleetAgentAppPolicy builds an ApplicationPolicy for the Fleet agent from the given managed configuration.
@@ -929,7 +934,7 @@ func buildFleetAgentAppPolicy(packageName, sha256Fingerprint string, managedConf
 func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string,
 	hostConfigs map[string]android.AgentManagedConfiguration,
 ) error {
-	packageName, sha256Fingerprint, err := getFleetAgentPackageInfo(ctx)
+	packageName, sha256Fingerprint, err := svc.getFleetAgentPackageInfo(ctx)
 	if err != nil {
 		return err
 	}
@@ -958,7 +963,7 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 
 // BuildFleetAgentApplicationPolicy builds the ApplicationPolicy for the Fleet agent for the given host.
 func (svc *Service) BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
-	packageName, sha256Fingerprint, err := getFleetAgentPackageInfo(ctx)
+	packageName, sha256Fingerprint, err := svc.getFleetAgentPackageInfo(ctx)
 	if err != nil {
 		return nil, err
 	}

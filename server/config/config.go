@@ -739,6 +739,17 @@ type MDMConfig struct {
 
 	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
+
+	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+}
+
+// AndroidAgentConfig holds configuration for the Fleet Android agent.
+type AndroidAgentConfig struct {
+	// Package is the package name for the Fleet Android agent.
+	// Default: com.fleetdm.agent
+	Package string `yaml:"package"`
+	// SigningSHA256 is the signing certificate SHA256 fingerprint for the Fleet Android agent.
+	SigningSHA256 string `yaml:"signing_sha256"`
 }
 
 type CalendarConfig struct {
@@ -1475,6 +1486,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Experimental feature: allows usage of specific Apple MDM profiles for OS updates and FileVault")
+	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
+	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
+	man.hideConfig("mdm.android_agent.package")
+	man.hideConfig("mdm.android_agent.signing_sha256")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1768,6 +1783,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			AndroidAgent: AndroidAgentConfig{
+				Package:       man.getConfigString("mdm.android_agent.package"),
+				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
+			},
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
