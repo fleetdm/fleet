@@ -7,20 +7,20 @@ Lorem ipsum...
 
 Fleetd will send stdout/stderr logs to the following directories:
 
-- macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
+- macOS: `/var/log/orbit/orbit.std{out|err}.log`.
 - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
 - Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora).
 
 If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
-- Windows: `C:\Program Files\Orbit\osquery_log`
 - macOS: `/opt/orbit/osquery_log`
+- Windows: `C:\Program Files\Orbit\osquery_log`
 - Linux: `/opt/orbit/osquery_log`
 
 The Fleet Desktop log files can be found in the following directories depending on the platform:
 
-- Linux: `$XDG_STATE_HOME/Fleet` or `$HOME/.local/state/Fleet`
 - macOS: `$HOME/Library/Logs/Fleet`
 - Windows: `%LocalAppData%/Fleet`
+- Linux: `$XDG_STATE_HOME/Fleet` or `$HOME/.local/state/Fleet`
 
 The log file name is `fleet-desktop.log`.
 
