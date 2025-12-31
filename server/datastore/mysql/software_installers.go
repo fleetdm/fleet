@@ -2381,18 +2381,8 @@ WHERE
 				installer.Title,
 				installer.Source,
 				"",
-				func() *string {
-					if strings.TrimSpace(installer.BundleIdentifier) != "" {
-						return &installer.BundleIdentifier
-					}
-					return nil
-				}(),
-				func() *string {
-					if installer.Source != "programs" {
-						return nil
-					}
-					return &installer.UpgradeCode
-				}(),
+				installer.GetBundleIdentifierForDB(),
+				installer.GetUpgradeCodeForDB(),
 			)
 		}
 
