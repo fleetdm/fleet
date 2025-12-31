@@ -27,9 +27,10 @@ type LabelUsage struct {
 
 // Specifies a CRUD label operation
 type labelChange struct {
-	Name   string // The globally unique label name
-	Op     string // What operation to perform on the label. +:add, -:remove, =:no-op
-	TeamID uint   // The team this label belongs to, 0 means the label is global.
+	Name     string // The globally unique label name
+	Op       string // What operation to perform on the label. +:add, -:remove, =:no-op
+	TeamID   uint   // The team this label belongs to, 0 means the label is global.
+	FileName string // The filename that contains the label changes
 }
 
 func gitopsCommand() *cli.Command {
@@ -208,8 +209,8 @@ func gitopsCommand() *cli.Command {
 					configs = append(configs, configFile)
 				}
 
-				// We want to compute label changes early ... this will allow us to detect any funky
-				// operations (like trying to add the same label on different teams), labels can also move from one
+				// We want to compute label changes early ... this will allow us to detect any funky business,
+				// like trying to add the same label on different teams; labels can also move from one
 				// team to another, so we need the complete list of changes to plan how the changes will be applied.
 				teamID := uint(0)
 				if config.TeamID != nil {
@@ -224,10 +225,15 @@ func gitopsCommand() *cli.Command {
 					existingLabels = globalLabels
 				} else {
 					if existingLabels, err = fleetClient.GetLabels(teamID); err != nil {
-						return fmt.Errorf("getting team %d labels: %w", teamID, err)
+						return fmt.Errorf("getting team '%s' labels: %w", flFilename, err)
 					}
 				}
-				localLblChanges, err := computeLabelChanges(teamID, existingLabels, config.Labels)
+				localLblChanges, err := computeLabelChanges(
+					flFilename,
+					teamID,
+					existingLabels,
+					config.Labels,
+				)
 				if err != nil {
 					return err
 				}
@@ -506,42 +512,50 @@ func gitopsCommand() *cli.Command {
 // Returns a list of label operations to be executed for either a global config file or a team config file,
 // along with a set of valid label names for the given scope.
 func computeLabelChanges(
+	filename string,
 	teamID uint,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
 ) ([]labelChange, error) {
 	var labelOperations []labelChange
 
-	// If the 'labels:' section is specified and empty, then all existing labels are to be deleted or moved to another team.
-	if specifiedLabels == nil {
-		for _, l := range existingLabels {
-			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "-", TeamID: teamID})
-		}
-		return labelOperations, nil
-	}
-
-	// If the 'labels:' section was omitted, then we do a no-op. We add these as operations so that we can do
-	// some ref validation down the pipe-line.
+	// Handle the cases where the 'labels:' section is either nil (an empty 'labels:' section was specified,
+	// meaning remove-all) or an empty list (the 'labels:' section was not specified, so we do a no-op).
 	if len(specifiedLabels) == 0 {
+		op := "="
+		if specifiedLabels == nil {
+			op = "-"
+		}
 		for _, l := range existingLabels {
-			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "=", TeamID: teamID})
+			change := labelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
+			labelOperations = append(labelOperations, change)
 		}
 		return labelOperations, nil
 	}
 
-	// If not, figure out what needs to be done by comparing the list to the existing global labels.
-	for _, l := range existingLabels {
-		if !slices.ContainsFunc(specifiedLabels, func(other *fleet.LabelSpec) bool { return l.Name == other.Name }) {
-			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "-", TeamID: teamID})
-		} else {
-			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "=", TeamID: teamID})
-		}
-	}
+	specifiedMap := make(map[string]any, len(specifiedLabels))
 	for _, l := range specifiedLabels {
-		if !slices.ContainsFunc(existingLabels, func(other *fleet.LabelSpec) bool { return l.Name == other.Name }) {
-			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "+", TeamID: teamID})
-		}
+		specifiedMap[l.Name] = nil
 	}
+
+	// Determine which existing labels to remove.
+	for _, l := range existingLabels {
+		op := "-"
+		if _, ok := specifiedMap[l.Name]; ok {
+			op = "="
+		}
+		// Remove from the map to track which specified labels are to be added.
+		delete(specifiedMap, l.Name)
+		change := labelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
+		labelOperations = append(labelOperations, change)
+	}
+
+	// Any names remaining in the map are new labels.
+	for lblName, _ := range specifiedMap {
+		change := labelChange{Name: lblName, Op: "+", TeamID: teamID, FileName: filename}
+		labelOperations = append(labelOperations, change)
+	}
+
 	return labelOperations, nil
 }
 
