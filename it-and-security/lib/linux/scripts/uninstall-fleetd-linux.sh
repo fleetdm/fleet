@@ -17,6 +17,8 @@ function remove_fleet {
         dpkg --purge fleet-osquery || true
     elif command -v rpm > /dev/null; then
         rpm -e fleet-osquery || true
+    elif command -v pacman > /dev/null; then
+        pacman -Rns --noconfirm fleet-osquery || true
     fi
 
     # Kill any running Fleet processes
