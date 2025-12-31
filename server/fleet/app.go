@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -1283,6 +1284,22 @@ func (l ListOptions) Empty() bool {
 func (l ListOptions) UsesCursorPagination() bool {
 	return l.After != "" && l.OrderKey != ""
 }
+
+// Interface methods for common_mysql.ListOptions
+
+func (l ListOptions) GetPage() uint                { return l.Page }
+func (l ListOptions) GetPerPage() uint             { return l.PerPage }
+func (l ListOptions) GetOrderKey() string          { return l.OrderKey }
+func (l ListOptions) IsDescending() bool           { return l.OrderDirection == OrderDescending }
+func (l ListOptions) GetCursorValue() string       { return l.After }
+func (l ListOptions) WantsPaginationInfo() bool    { return l.IncludeMetadata }
+func (l ListOptions) GetSecondaryOrderKey() string { return l.TestSecondaryOrderKey }
+func (l ListOptions) IsSecondaryDescending() bool {
+	return l.TestSecondaryOrderDirection == OrderDescending
+}
+
+// Compile-time check that ListOptions implements common_mysql.ListOptions
+var _ common_mysql.ListOptions = ListOptions{}
 
 type ListQueryOptions struct {
 	ListOptions

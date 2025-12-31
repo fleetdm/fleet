@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -58,9 +57,6 @@ const (
 
 	fleet4731GoodMigrationID = 20250815130115
 )
-
-// Matches all non-word and '-' characters for replacement
-var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
@@ -778,23 +774,6 @@ func (ds *Datastore) Close() error {
 	return err
 }
 
-// sanitizeColumn is used to sanitize column names which can't be passed as placeholders when executing sql queries
-func sanitizeColumn(col string) string {
-	col = columnCharsRegexp.ReplaceAllString(col, "")
-	oldParts := strings.Split(col, ".")
-	parts := oldParts[:0]
-	for _, p := range oldParts {
-		if len(p) != 0 {
-			parts = append(parts, p)
-		}
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	col = "`" + strings.Join(parts, "`.`") + "`"
-	return col
-}
-
 // appendListOptionsToSelect will apply the given list options to ds and
 // return the new select dataset.
 //
@@ -848,79 +827,19 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	return ds
 }
 
-// Appends the list options SQL to the passed in SQL string. This appended
-// SQL is determined by the passed in options.
-//
-// NOTE: this method will mutate the options argument if no explicit PerPage
-// option is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []interface{}) {
-	return appendListOptionsWithCursorToSQL(sql, nil, opts)
+// sanitizeColumn is a facade that calls common_mysql.SanitizeColumn.
+func sanitizeColumn(col string) string {
+	return common_mysql.SanitizeColumn(col)
 }
 
-// Appends the list options SQL to the passed in SQL string. This appended
-// SQL is determined by the passed in options. This supports cursor options
-//
-// NOTE: this method will mutate the options argument if no explicit PerPage option
-// is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fleet.ListOptions) (string, []interface{}) {
-	orderKey := sanitizeColumn(opts.OrderKey)
+// appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
+	return common_mysql.AppendListOptions(sql, opts)
+}
 
-	if opts.After != "" && orderKey != "" {
-		afterSql := " WHERE "
-		if strings.Contains(strings.ToLower(sql), "where") {
-			afterSql = " AND "
-		}
-		if strings.HasSuffix(orderKey, "id") {
-			i, _ := strconv.Atoi(opts.After)
-			params = append(params, i)
-		} else {
-			params = append(params, opts.After)
-		}
-		direction := ">" // ASC
-		if opts.OrderDirection == fleet.OrderDescending {
-			direction = "<" // DESC
-		}
-		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, orderKey, direction)
-
-		// After existing supersedes Page, so we disable it
-		opts.Page = 0
-	}
-
-	if orderKey != "" {
-		direction := "ASC"
-		if opts.OrderDirection == fleet.OrderDescending {
-			direction = "DESC"
-		}
-
-		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
-		if opts.TestSecondaryOrderKey != "" {
-			direction := "ASC"
-			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
-				direction = "DESC"
-			}
-			sql += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.TestSecondaryOrderKey), direction)
-		}
-	}
-	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
-	// that an unbounded query with many results doesn't consume too much memory
-	// or hang
-	if opts.PerPage == 0 {
-		opts.PerPage = defaultSelectLimit
-	}
-
-	perPage := opts.PerPage
-	if opts.IncludeMetadata {
-		perPage++
-	}
-	sql = fmt.Sprintf("%s LIMIT %d", sql, perPage)
-
-	offset := opts.PerPage * opts.Page
-
-	if offset > 0 {
-		sql = fmt.Sprintf("%s OFFSET %d", sql, offset)
-	}
-
-	return sql, params
+// appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
+func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
+	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
