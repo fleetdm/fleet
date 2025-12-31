@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -181,15 +182,23 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
 		return nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.Len(t, labels, 1)
-		switch labels[0] {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.Len(t, names, 1)
+		switch names[0] {
 		case fleet.BuiltinLabelMacOS14Plus:
 			return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 		case fleet.BuiltinLabelIOS:
@@ -239,6 +248,7 @@ spec:
       macos_updates:
         minimum_version: 12.3.1
         deadline: 2011-03-01
+        update_new_hosts: true
 `)
 
 	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
@@ -246,6 +256,7 @@ spec:
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
+			UpdateNewHosts: optjson.SetBool(true),
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
@@ -282,6 +293,7 @@ spec:
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
+			UpdateNewHosts: optjson.SetBool(true),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -310,6 +322,7 @@ spec:
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
+			UpdateNewHosts: optjson.SetBool(true),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -644,8 +657,8 @@ func TestApplyAppConfig(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
@@ -1336,9 +1349,12 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		return nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
@@ -1764,6 +1780,9 @@ func TestApplyLabels(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var appliedLabels []*fleet.LabelSpec
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 		appliedLabels = specs
 		return nil
@@ -1818,7 +1837,7 @@ func TestApplyLabels(t *testing.T) {
 		LabelType:           fleet.LabelTypeBuiltIn,
 		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameUbuntuLinux}, names)
 		return map[string]*fleet.Label{
 			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
@@ -4112,6 +4131,150 @@ func TestApplyFileExtensionValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplyWindowsUpdates(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	teamsByName := map[string]*fleet.Team{
+		"Team1": {
+			ID:   1,
+			Name: "Team1",
+		},
+	}
+
+	// Track calls to Windows updates functions
+	var setOrUpdateCalls []fleet.MDMWindowsConfigProfile
+	var deleteCalls []struct {
+		teamID *uint
+		name   string
+	}
+
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		setOrUpdateCalls = append(setOrUpdateCalls, cp)
+		return nil
+	}
+
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		deleteCalls = append(deleteCalls, struct {
+			teamID *uint
+			name   string
+		}{teamID, profileName})
+		return nil
+	}
+
+	// Common mock setup
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		team, ok := teamsByName[name]
+		if !ok {
+			return nil, &notFoundError{}
+		}
+		return team, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		teamsByName[team.Name] = team
+		return team, nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		teamsByName[team.Name] = team
+		return team, nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
+
+	t.Run("with values", func(t *testing.T) {
+		// Reset call trackers
+		setOrUpdateCalls = nil
+		deleteCalls = nil
+
+		filename := writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Team1
+    mdm:
+      windows_updates:
+        deadline_days: 7
+        grace_period_days: 2
+`)
+
+		_ = RunAppForTest(t, []string{"apply", "-f", filename})
+
+		// Verify SetOrUpdateMDMWindowsConfigProfile was called
+		require.Len(t, setOrUpdateCalls, 1, "SetOrUpdateMDMWindowsConfigProfile should be called once")
+		assert.Equal(t, &teamsByName["Team1"].ID, setOrUpdateCalls[0].TeamID)
+		assert.Equal(t, mdm.FleetWindowsOSUpdatesProfileName, setOrUpdateCalls[0].Name)
+		assert.NotEmpty(t, setOrUpdateCalls[0].SyncML, "SyncML should contain profile data")
+
+		// Verify DeleteMDMWindowsConfigProfileByTeamAndName was NOT called
+		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
+	})
+
+	t.Run("with null values", func(t *testing.T) {
+		// Reset call trackers
+		setOrUpdateCalls = nil
+		deleteCalls = nil
+
+		filename := writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Team1
+    mdm:
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
+`)
+
+		_ = RunAppForTest(t, []string{"apply", "-f", filename})
+
+		// Verify DeleteMDMWindowsConfigProfileByTeamAndName was called
+		require.Len(t, deleteCalls, 1, "DeleteMDMWindowsConfigProfileByTeamAndName should be called once")
+		assert.Equal(t, &teamsByName["Team1"].ID, deleteCalls[0].teamID)
+		assert.Equal(t, mdm.FleetWindowsOSUpdatesProfileName, deleteCalls[0].name)
+
+		// Verify SetOrUpdateMDMWindowsConfigProfile was NOT called
+		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
+	})
+
+	t.Run("field omitted", func(t *testing.T) {
+		// Reset call trackers
+		setOrUpdateCalls = nil
+		deleteCalls = nil
+
+		filename := writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Team1
+    mdm: {}
+`)
+
+		_ = RunAppForTest(t, []string{"apply", "-f", filename})
+
+		// Verify neither function was called
+		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
+		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
+	})
 }
 
 type notFoundError struct{}

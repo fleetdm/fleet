@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -17,6 +16,11 @@ import (
 
 // ErrBadRoute is used for mux errors
 var ErrBadRoute = errors.New("bad route")
+
+// DomainErrorEncoder handles domain-specific error encoding.
+// It returns true if it handled the error, false if default handling should be used.
+// The encoder should write the appropriate status code and response body.
+type DomainErrorEncoder func(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *JsonError) (handled bool)
 
 type JsonError struct {
 	Message string              `json:"message"`
@@ -67,8 +71,10 @@ type conflictErrorInterface interface {
 	IsConflict() bool
 }
 
-// EncodeError encodes error and status header to the client
-func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
+// EncodeError encodes error and status header to the client.
+// The domainEncoder parameter allows services to inject domain-specific error
+// handling. If nil, only generic error handling is performed.
+func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEncoder DomainErrorEncoder) {
 	ctxerr.Handle(ctx, err)
 	origErr := err
 
@@ -86,6 +92,13 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		UUID: uuid,
 	}
 
+	// Try domain-specific error encoder first
+	if domainEncoder != nil {
+		if handled := domainEncoder(ctx, err, w, enc, &jsonErr); handled {
+			return
+		}
+	}
+
 	switch e := err.(type) {
 	case validationErrorInterface:
 		if statusErr, ok := e.(interface{ Status() int }); ok {
@@ -99,36 +112,6 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		jsonErr.Message = "Permission Denied"
 		jsonErr.Errors = e.PermissionError()
 		w.WriteHeader(http.StatusForbidden)
-	case MailError:
-		jsonErr.Message = "Mail Error"
-		jsonErr.Errors = e.MailError()
-		w.WriteHeader(http.StatusInternalServerError)
-	case *OsqueryError:
-		// osquery expects to receive the node_invalid key when a TLS
-		// request provides an invalid node_key for authentication. It
-		// doesn't use the error message provided, but we provide this
-		// for debugging purposes (and perhaps osquery will use this
-		// error message in the future).
-
-		errMap := map[string]interface{}{
-			"error": e.Error(),
-			"uuid":  uuid,
-		}
-		if e.NodeInvalid() { //nolint:gocritic // ignore ifElseChain
-			w.WriteHeader(http.StatusUnauthorized)
-			errMap["node_invalid"] = true
-		} else if e.Status() != 0 {
-			w.WriteHeader(e.Status())
-		} else {
-			// TODO: osqueryError is not always the result of an internal error on
-			// our side, it is also used to represent a client error (invalid data,
-			// e.g. malformed json, carve too large, etc., so 4xx), are we returning
-			// a 500 because of some osquery-specific requirement?
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-
-		enc.Encode(errMap) //nolint:errcheck
-		return
 	case NotFoundErrorInterface:
 		jsonErr.Message = "Resource Not Found"
 		jsonErr.Errors = baseError(e.Error())
@@ -207,54 +190,4 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	}
 
 	enc.Encode(jsonErr) //nolint:errcheck
-}
-
-// MailError is set when an error performing mail operations
-type MailError struct {
-	Message string
-}
-
-func (e MailError) Error() string {
-	return fmt.Sprintf("a mail error occurred: %s", e.Message)
-}
-
-func (e MailError) MailError() []map[string]string {
-	return []map[string]string{
-		{
-			"name":   "base",
-			"reason": e.Message,
-		},
-	}
-}
-
-// OsqueryError is the error returned to osquery agents.
-type OsqueryError struct {
-	message     string
-	nodeInvalid bool
-	StatusCode  int
-	platform_http.ErrorWithUUID
-}
-
-var _ platform_http.ErrorUUIDer = (*OsqueryError)(nil)
-
-// Error implements the error interface.
-func (e *OsqueryError) Error() string {
-	return e.message
-}
-
-// NodeInvalid returns whether the error returned to osquery
-// should contain the node_invalid property.
-func (e *OsqueryError) NodeInvalid() bool {
-	return e.nodeInvalid
-}
-
-func (e *OsqueryError) Status() int {
-	return e.StatusCode
-}
-
-func NewOsqueryError(message string, nodeInvalid bool) *OsqueryError {
-	return &OsqueryError{
-		message:     message,
-		nodeInvalid: nodeInvalid,
-	}
 }

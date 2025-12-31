@@ -15,12 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
@@ -172,7 +169,11 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 	return nil
 }
 
-func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
+// DomainQueryFieldDecoder decodes a query parameter value into the target field.
+// It returns true if it handled the field, false if default handling should be used.
+type DomainQueryFieldDecoder func(queryTagName, queryVal string, field reflect.Value) (handled bool, err error)
+
+func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQueryFieldDecoder) error {
 	queryTagValue, ok := fp.Sf.Tag.Lookup("query")
 
 	if ok {
@@ -196,6 +197,18 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			field.Set(reflect.New(field.Type().Elem()))
 			field = field.Elem()
 		}
+
+		// Try custom decoder first if provided
+		if customDecoder != nil {
+			handled, err := customDecoder(queryTagValue, queryVal, field)
+			if err != nil {
+				return err
+			}
+			if handled {
+				return nil
+			}
+		}
+
 		switch field.Kind() {
 		case reflect.String:
 			field.SetString(queryVal)
@@ -214,22 +227,9 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 		case reflect.Bool:
 			field.SetBool(queryVal == "1" || queryVal == "true")
 		case reflect.Int:
-			queryValInt := 0
-			switch queryTagValue {
-			case "order_direction", "inherited_order_direction":
-				switch queryVal {
-				case "desc":
-					queryValInt = int(platform_http.OrderDescending)
-				case "asc":
-					queryValInt = int(platform_http.OrderAscending)
-				default:
-					return &platform_http.BadRequestError{Message: "unknown order_direction: " + queryVal}
-				}
-			default:
-				queryValInt, err = strconv.Atoi(queryVal)
-				if err != nil {
-					return BadRequestErr("parsing int from query", err)
-				}
+			queryValInt, err := strconv.Atoi(queryVal)
+			if err != nil {
+				return BadRequestErr("parsing int from query", err)
 			}
 			field.SetInt(int64(queryValInt))
 		default:
@@ -341,17 +341,14 @@ type requestValidator interface {
 }
 
 // MakeDecoder creates a decoder for the type for the struct passed on. If the
-// struct has at least 1 json tag it'll unmarshall the body. If the struct has
-// a `url` tag with value list_options it'll gather fleet.ListOptions from the
-// URL (similarly for host_options, carve_options, user_options that derive
-// from the common list_options). Note that these behaviors do not work for embedded structs.
+// struct has at least 1 json tag it'll unmarshall the body. Custom `url` tag
+// values can be handled by providing a parseCustomTags function. Note that
+// these behaviors do not work for embedded structs.
 //
-// Finally, any other `url` tag will be treated as a path variable (of the form
+// Any other `url` tag will be treated as a path variable (of the form
 // /path/{name} in the route's path) from the URL path pattern, and it'll be
 // decoded and set accordingly. Variables can be optional by setting the tag as
 // follows: `url:"some-id,optional"`.
-// The "list_options" are optional by default and it'll ignore the optional
-// portion of the tag.
 //
 // If iface implements the RequestDecoder interface, it returns a function that
 // calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
@@ -360,12 +357,16 @@ type requestValidator interface {
 // If iface implements the bodyDecoder interface, it calls iface.DecodeBody
 // after having decoded any non-body fields (such as url and query parameters)
 // into the struct.
+//
+// The customQueryDecoder parameter allows services to inject domain-specific
+// query parameter decoding logic.
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
 	parseCustomTags func(urlTagValue string, r *http.Request, field reflect.Value) (bool, error),
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
+	customQueryDecoder DomainQueryFieldDecoder,
 ) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -453,7 +454,7 @@ func MakeDecoder(
 				return nil, platform_http.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
 			}
 
-			err = DecodeQueryTagValue(r, fp)
+			err = DecodeQueryTagValue(r, fp, customQueryDecoder)
 			if err != nil {
 				return nil, err
 			}
@@ -510,12 +511,6 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
-
-type HandlerFunc func(ctx context.Context, request any, svc fleet.Service) (platform_http.Errorer, error)
-
-type AndroidFunc func(ctx context.Context, request any, svc android.Service) platform_http.Errorer
-
-type ActivityFunc func(ctx context.Context, request any, svc activity.Service) platform_http.Errorer
 
 type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]
@@ -587,10 +582,11 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 			endp = mw(endp)
 		}
 	}
-	// Apply authentication middleware
-	if e.AuthMiddleware != nil {
-		endp = e.AuthMiddleware(endp)
+	if e.AuthMiddleware == nil {
+		// This panic catches potential security issues during development.
+		panic("AuthMiddleware must be set on CommonEndpointer")
 	}
+	endp = e.AuthMiddleware(endp)
 
 	// Apply "before auth" middleware (in reverse order so that the first wraps
 	// the second wraps the third etc.)
@@ -740,6 +736,7 @@ func EncodeCommonResponse(
 	w http.ResponseWriter,
 	response interface{},
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
+	domainErrorEncoder DomainErrorEncoder,
 ) error {
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
@@ -758,7 +755,7 @@ func EncodeCommonResponse(
 	}
 
 	if e, ok := response.(platform_http.Errorer); ok && e.Error() != nil {
-		EncodeError(ctx, e.Error(), w)
+		EncodeError(ctx, e.Error(), w, domainErrorEncoder)
 		return nil
 	}
 

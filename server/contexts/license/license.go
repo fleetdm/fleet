@@ -7,8 +7,7 @@ import (
 )
 
 // LicenseChecker is the interface for checking license properties.
-// This interface is implemented by fleet.LicenseInfo and allows packages
-// that only need license checks to avoid depending on the fleet package.
+// This interface is implemented by fleet.LicenseInfo
 type LicenseChecker interface {
 	IsPremium() bool
 	IsAllowDisableTelemetry() bool
@@ -25,14 +24,12 @@ type key int
 const licenseKey key = 0
 
 // NewContext creates a new context.Context with the license.
-// The license must implement LicenseChecker (e.g., *fleet.LicenseInfo).
 func NewContext(ctx context.Context, lic LicenseChecker) context.Context {
 	return context.WithValue(ctx, licenseKey, lic)
 }
 
 // FromContext returns the license from the context as a LicenseChecker interface.
 // Use this when you only need to check license properties via the interface methods.
-// If you need the concrete *fleet.LicenseInfo type, use type assertion on the result.
 func FromContext(ctx context.Context) (LicenseChecker, bool) {
 	v, ok := ctx.Value(licenseKey).(LicenseChecker)
 	return v, ok

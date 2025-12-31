@@ -120,9 +120,9 @@ func setMetadata(ctx context.Context, data map[string]interface{}) map[string]in
 
 	data["timestamp"] = nowFn().Format(time.RFC3339)
 
-	// Get attributes from all registered providers
-	for _, provider := range getErrorAttributeProviders(ctx) {
-		maps.Copy(data, provider.GetErrorAttributes())
+	// Get diagnostic context from all registered providers
+	for _, provider := range getErrorContextProviders(ctx) {
+		maps.Copy(data, provider.GetDiagnosticContext())
 	}
 
 	return data
@@ -306,8 +306,8 @@ func Handle(ctx context.Context, err error) {
 		cause = rootCause
 	}
 
-	// Collect telemetry attributes from registered providers
-	telemetryAttrs := collectTelemetryAttributes(ctx)
+	// Collect telemetry context from registered providers
+	telemetryAttrs := collectTelemetryContext(ctx)
 
 	// send to OpenTelemetry if there's an active span
 	if span := trace.SpanFromContext(ctx); span != nil && span.IsRecording() {
@@ -323,7 +323,8 @@ func Handle(ctx context.Context, err error) {
 			attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
 		}
 
-		// Add contextual information from telemetry providers
+		// Add contextual information from telemetry providers.
+		// OpenTelemetry requires typed attributes, so we convert the values to the appropriate type.
 		for k, v := range telemetryAttrs {
 			switch val := v.(type) {
 			case string:
@@ -370,11 +371,13 @@ func Handle(ctx context.Context, err error) {
 	}
 }
 
-// collectTelemetryAttributes gathers attributes from all registered telemetry providers.
-func collectTelemetryAttributes(ctx context.Context) map[string]any {
+// collectTelemetryContext gathers telemetry context from all registered providers.
+func collectTelemetryContext(ctx context.Context) map[string]any {
 	attrs := make(map[string]any)
-	for _, provider := range getTelemetryProviders(ctx) {
-		maps.Copy(attrs, provider.GetTelemetryAttributes())
+	for _, provider := range getErrorContextProviders(ctx) {
+		if telemetry := provider.GetTelemetryContext(); telemetry != nil {
+			maps.Copy(attrs, telemetry)
+		}
 	}
 	return attrs
 }

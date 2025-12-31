@@ -2,68 +2,34 @@ package ctxerr
 
 import "context"
 
-// ErrorAttributeProvider is an interface for types that can provide
-// additional attributes to be attached to errors. This allows bounded
-// contexts to enrich errors without ctxerr needing to know about
-// their specific types.
-type ErrorAttributeProvider interface {
-	// GetErrorAttributes returns a map of attributes to be attached to errors.
-	// The returned map will be merged into the error's data field.
-	GetErrorAttributes() map[string]any
+// ErrorContextProvider provides contextual information for error handling.
+// Implementations can provide data for both error storage and telemetry systems.
+type ErrorContextProvider interface {
+	// GetDiagnosticContext returns attributes stored with errors for troubleshooting.
+	// Data is persisted to Redis and included in logs. Should contain diagnostic
+	// information like platform, versions, and status flags. Avoid including PII.
+	GetDiagnosticContext() map[string]any
+
+	// GetTelemetryContext returns attributes sent to observability systems
+	// (OpenTelemetry, Sentry). May include identifiers not stored with errors.
+	// Return nil if no telemetry context is available.
+	GetTelemetryContext() map[string]any
 }
 
-// TelemetryAttributeProvider is an interface for types that can provide
-// attributes for telemetry (OpenTelemetry, Sentry, etc.). This is separate
-// from ErrorAttributeProvider because telemetry attributes have different
-// requirements (e.g., they may include PII that shouldn't be stored in errors).
-type TelemetryAttributeProvider interface {
-	// GetTelemetryAttributes returns key-value pairs for telemetry systems.
-	// Keys should be strings, values can be strings, ints, or other primitive types.
-	GetTelemetryAttributes() map[string]any
-}
+type errorContextProvidersKey struct{}
 
-type errorAttributeProvidersKey struct{}
-
-// WithErrorAttributeProviders returns a new context with the given error attribute providers.
-// Multiple calls to this function will replace the previous providers.
-func WithErrorAttributeProviders(ctx context.Context, providers ...ErrorAttributeProvider) context.Context {
-	return context.WithValue(ctx, errorAttributeProvidersKey{}, providers)
-}
-
-// AddErrorAttributeProvider returns a new context with the given provider added to
+// AddErrorContextProvider returns a new context with the given provider added to
 // the existing providers. This is useful when you want to add a provider
 // without replacing existing ones.
-func AddErrorAttributeProvider(ctx context.Context, provider ErrorAttributeProvider) context.Context {
-	existing := getErrorAttributeProviders(ctx)
-	providers := make([]ErrorAttributeProvider, len(existing)+1)
+func AddErrorContextProvider(ctx context.Context, provider ErrorContextProvider) context.Context {
+	existing := getErrorContextProviders(ctx)
+	providers := make([]ErrorContextProvider, len(existing)+1)
 	copy(providers, existing)
 	providers[len(existing)] = provider
-	return context.WithValue(ctx, errorAttributeProvidersKey{}, providers)
+	return context.WithValue(ctx, errorContextProvidersKey{}, providers)
 }
 
-func getErrorAttributeProviders(ctx context.Context) []ErrorAttributeProvider {
-	providers, _ := ctx.Value(errorAttributeProvidersKey{}).([]ErrorAttributeProvider)
-	return providers
-}
-
-type telemetryProvidersKey struct{}
-
-// WithTelemetryProviders returns a new context with the given telemetry providers.
-func WithTelemetryProviders(ctx context.Context, providers ...TelemetryAttributeProvider) context.Context {
-	return context.WithValue(ctx, telemetryProvidersKey{}, providers)
-}
-
-// AddTelemetryProvider returns a new context with the given provider added to
-// the existing providers.
-func AddTelemetryProvider(ctx context.Context, provider TelemetryAttributeProvider) context.Context {
-	existing := getTelemetryProviders(ctx)
-	providers := make([]TelemetryAttributeProvider, len(existing)+1)
-	copy(providers, existing)
-	providers[len(existing)] = provider
-	return context.WithValue(ctx, telemetryProvidersKey{}, providers)
-}
-
-func getTelemetryProviders(ctx context.Context) []TelemetryAttributeProvider {
-	providers, _ := ctx.Value(telemetryProvidersKey{}).([]TelemetryAttributeProvider)
+func getErrorContextProviders(ctx context.Context) []ErrorContextProvider {
+	providers, _ := ctx.Value(errorContextProvidersKey{}).([]ErrorContextProvider)
 	return providers
 }

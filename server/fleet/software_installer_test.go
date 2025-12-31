@@ -152,6 +152,8 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 		{"exe", "windows", false},
 		{".msi", "windows", false},
 		{"msi", "windows", false},
+		{".zip", "windows", false},
+		{"zip", "windows", false},
 
 		// New script extensions
 		{".sh", "linux", false},
@@ -160,7 +162,6 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 		{"ps1", "windows", false},
 
 		// Unsupported extensions
-		{".zip", "", true},
 		{".txt", "", true},
 		{"", "", true},
 	}
@@ -195,6 +196,8 @@ func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 		{"exe", "installer.exe", "programs", false},
 		{".msi", "installer.msi", "programs", false},
 		{"msi", "installer.msi", "programs", false},
+		{".zip", "installer.zip", "programs", false},
+		{"zip", "installer.zip", "programs", false},
 		{".pkg", "package.pkg", "pkg_packages", false},
 		{"pkg", "package.pkg", "pkg_packages", false},
 		{".pkg", "app.app", "apps", false},
@@ -209,7 +212,6 @@ func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 		{"ps1", "setup.ps1", "ps1_packages", false},
 
 		// Unsupported extensions
-		{".zip", "archive.zip", "", true},
 		{".txt", "readme.txt", "", true},
 		{"", "noext", "", true},
 	}

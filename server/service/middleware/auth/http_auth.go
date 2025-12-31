@@ -21,9 +21,8 @@ func SetRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 			v, err := AuthViewer(ctx, string(bearer), svc)
 			if err == nil {
 				ctx = viewer.NewContext(ctx, *v)
-				// Register viewer as error/telemetry attribute provider for ctxerr enrichment
-				ctx = ctxerr.AddErrorAttributeProvider(ctx, v)
-				ctx = ctxerr.AddTelemetryProvider(ctx, v)
+				// Register viewer as error context provider for ctxerr enrichment
+				ctx = ctxerr.AddErrorContextProvider(ctx, v)
 				// Register viewer as user emailer for logging
 				ctx = logging.WithUserEmailer(ctx, v)
 			}

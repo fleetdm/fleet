@@ -35,6 +35,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -755,6 +756,9 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	// ensure global Windows OS updates are always disabled for the next test
 	appCfg.MDM.WindowsUpdates = fleet.WindowsUpdates{}
+	appCfg.MDM.EnabledAndConfigured = true
+	appCfg.MDM.AppleBMEnabledAndConfigured = true
+	appCfg.MDM.AndroidEnabledAndConfigured = true
 	// ensure the server URL is constant
 	appCfg.ServerSettings.ServerURL = s.server.URL
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
@@ -851,6 +855,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
+		return err
+	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM android_app_configurations;")
 		return err
 	})
 
@@ -1769,7 +1778,7 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	require.Nil(t, assets)
 
 	// trying to upload a certificate without generating a private key first is not allowed
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", []byte("-----BEGIN CERTIFICATE-----\nZm9vCg==\n-----END CERTIFICATE-----"), http.StatusBadRequest, "Please generate a private key first.", nil)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", []byte("-----BEGIN CERTIFICATE-----\nZm9vCg==\n-----END CERTIFICATE-----"), http.StatusBadRequest, "Couldn't connect. Please download the certificate signing request (CSR) first, then upload APNs certificate.", nil)
 
 	// Check that we return bad gateway if the website API errors
 	s.FailNextCSRRequestWith(http.StatusInternalServerError)
@@ -3777,6 +3786,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		{"Offline", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")},
 		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")},
 		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")},
+		{"Skipped", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")},
 	}
 
 	teamDevices := []deviceWithResponse{
@@ -3787,6 +3797,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")},
 		{"Offline", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")},
 		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")},
+		{"Skipped", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")},
 	}
 
 	expectedSerialsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
@@ -3846,7 +3857,11 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		case "/devices/sync":
 			depResp := []godep.Device{}
 			for _, gd := range mockRespDevices {
-				depResp = append(depResp, godep.Device{SerialNumber: gd.device.SerialNumber})
+				device := godep.Device{SerialNumber: gd.device.SerialNumber}
+				if gd.bootstrapResponse == "Skipped" {
+					device.MDMMigrationDeadline = ptr.Time(time.Now())
+				}
+				depResp = append(depResp, device)
 			}
 			err := encoder.Encode(godep.DeviceResponse{Devices: depResp})
 			require.NoError(t, err)
@@ -3862,11 +3877,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/summary", nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
+	// We don't count the "skipped" device as it is pending migration and will not install the bootstrap package
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	var lhr listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "team_id", "0", "bootstrap_package", "pending")
-	require.Len(t, lhr.Hosts, len(noTeamDevices))
+	require.Len(t, lhr.Hosts, len(noTeamDevices)-1)
 
 	// set the default bm assignment to `team`
 	acResp := appConfigResponse{}
@@ -3894,7 +3910,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	mockErrorChain := []mdm.ErrorChain{
 		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},
@@ -3910,12 +3926,14 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 		cmd, err := d.device.Idle()
 		require.NoError(t, err)
+		gotBootstrapPackage := false
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 			// if the command is to install the bootstrap package
 			if manifest := fullCmd.Command.InstallEnterpriseApplication.Manifest; manifest != nil {
+				gotBootstrapPackage = true
 				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
 				require.NotNil(t, manifest)
 				require.Equal(t, "software-package", manifest.ManifestItems[0].Assets[0].Kind)
@@ -3942,6 +3960,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 			cmd, err = d.device.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
 		}
+		require.Equal(t, d.bootstrapResponse != "Skipped", gotBootstrapPackage)
 	}
 
 	for _, d := range noTeamDevices {
@@ -9770,6 +9789,10 @@ func (s *integrationMDMTestSuite) runWorker() {
 // runWorkerUntilDone runs queued jobs until there are no more pending jobs
 // this method handles the case when jobs could be queued asynchronously, such as during MDM enrollment
 func (s *integrationMDMTestSuite) runWorkerUntilDone() {
+	s.runWorkerUntilDoneWithChecks(false)
+}
+
+func (s *integrationMDMTestSuite) runWorkerUntilDoneWithChecks(failIfFailedJobs bool) {
 	err := s.worker.ProcessJobs(s.T().Context())
 	require.NoError(s.T(), err)
 
@@ -9785,6 +9808,15 @@ func (s *integrationMDMTestSuite) runWorkerUntilDone() {
 		err = s.worker.ProcessJobs(s.T().Context())
 		return err == nil && len(pending) == 0
 	}, 5*time.Second, 100*time.Millisecond, "jobs still pending after processing")
+
+	if failIfFailedJobs {
+		var failedJobs []*fleet.Job
+		t := s.T()
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(t.Context(), q, &failedJobs, "SELECT name, args, state, error FROM jobs WHERE state NOT IN ('queued', 'success')")
+		})
+		require.Empty(s.T(), failedJobs, "some jobs have failed: %s", spew.Sdump(failedJobs))
+	}
 }
 
 func (s *integrationMDMTestSuite) runDEPSchedule() {
@@ -11975,7 +12007,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			SelfService: true,
 			DisplayName: "",
 		})
-
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
@@ -13097,13 +13128,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			errApp.Name,
 			errApp.AdamID,
 			failedCmdUUID,
 			fleet.SoftwareInstallFailed,
+			mdmHost.Platform,
 		),
 		0,
 	)
@@ -13169,13 +13201,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			addedApp.Name,
 			addedApp.AdamID,
 			installCmdUUID,
 			fleet.SoftwareInstalled,
+			mdmHost.Platform,
 		),
 		0,
 	)
@@ -13368,7 +13401,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.JSONEq(
 				t,
 				fmt.Sprintf(
-					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,
@@ -13376,6 +13409,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					installCmdUUID,
 					fleet.SoftwareInstallPending,
 					install.deviceToken != "",
+					installHost.Platform,
 				),
 				string(*hostActivitiesResp.Activities[0].Details),
 			)
@@ -13425,7 +13459,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			s.lastActivityMatches(
 				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 				fmt.Sprintf(
-					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": null, "policy_name": null}`,
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,
@@ -13433,6 +13467,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					installCmdUUID,
 					fleet.SoftwareInstalled,
 					install.deviceToken != "",
+					installHost.Platform,
 				),
 				0,
 			)
@@ -14111,7 +14146,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			macOSApp.Name,
@@ -14119,6 +14154,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			cmdUUID,
 			fleet.SoftwareInstallPending,
 			false,
+			mdmHost.Platform,
 		),
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
@@ -14156,7 +14192,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			macOSApp.Name,
@@ -14166,6 +14202,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			false,
 			policy1Team1.ID,
 			policy1Team1.Name,
+			mdmHost.Platform,
 		),
 		0,
 		ptr.Bool(true),
@@ -14230,7 +14267,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			macOSApp.Name,
@@ -14238,6 +14275,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			cmdUUID,
 			fleet.SoftwareInstallPending,
 			false,
+			mdmHost2.Platform,
 		),
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
@@ -14272,9 +14310,10 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "host_platform": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s"}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
+			mdmHost2.Platform,
 			macOSApp.Name,
 			macOSApp.AdamID,
 			cmdUUID,
@@ -16918,7 +16957,6 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	}
 	installerID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &swInstallerPayload1)
-	_ = installerID1
 	require.NoError(t, err)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
@@ -17138,6 +17176,36 @@ func (s *integrationMDMTestSuite) TestHostsCantTurnMDMOff() {
 	winHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	r := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", winHost.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForWindowsHostsMessage)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
+	t := s.T()
+	ctx := t.Context()
+
+	didCallAMAPIDelete := false
+	s.androidAPIClient.EnterprisesDevicesDeleteFunc = func(ctx context.Context, deviceName string) error {
+		didCallAMAPIDelete = true
+		return nil
+	}
+
+	enterpriseId, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	err = s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise: android.Enterprise{
+			ID:           enterpriseId,
+			EnterpriseID: "ultimate-fake",
+		},
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	})
+	require.NoError(t, err)
+
+	hostId := createAndroidHostWithStorage(t, s.ds, nil)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", hostId), nil, http.StatusNoContent)
+
+	// We can't verify the MDM status due to the async nature of the Android MDM flow.
+	require.True(t, didCallAMAPIDelete, "expected to call AMA EnterprisesDevicesDelete API")
 }
 
 func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger() {
@@ -17376,33 +17444,18 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 }
 
+// registerResetITunesData resets the iTunes data after tests in `t` complete.
+func (s *integrationMDMTestSuite) registerResetITunesData(t *testing.T) {
+	oldApps := s.appleITunesSrvData
+	t.Cleanup(func() { s.appleITunesSrvData = oldApps })
+}
+
 func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	t := s.T()
 	ctx := context.Background()
 
 	// Reset the iTunes data to what it was before this test
-	t.Cleanup(func() {
-		s.appleITunesSrvData = map[string]string{
-			// macos app
-			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-			// macos, ios, ipados app
-			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
-			// ipados app
-			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
-
-			"4": `{"bundleId": "d-4", "artworkUrl512": "https://example.com/images/4", "version": "4.0.0", "trackName": "App 4", "TrackID": 4}`,
-
-			// App with 0 licenses
-			"5": `{"bundleId": "e-5", "artworkUrl512": "https://example.com/images/5", "version": "5.0.0", "trackName": "App 5", "TrackID": 5}`,
-
-			// More macOS apps
-			"6":  `{"bundleId": "f-6", "artworkUrl512": "https://example.com/images/6", "version": "6.0.0", "trackName": "App 6", "TrackID": 6}`,
-			"7":  `{"bundleId": "g-7", "artworkUrl512": "https://example.com/images/7", "version": "7.0.0", "trackName": "App 7", "TrackID": 7}`,
-			"8":  `{"bundleId": "h-8", "artworkUrl512": "https://example.com/images/8", "version": "8.0.0", "trackName": "App 8", "TrackID": 8}`,
-			"9":  `{"bundleId": "i-9", "artworkUrl512": "https://example.com/images/9", "version": "9.0.0", "trackName": "App 9", "TrackID": 9}`,
-			"10": `{"bundleId": "j-10", "artworkUrl512": "https://example.com/images/10", "version": "10.0.0", "trackName": "App 10", "TrackID": 10}`,
-		}
-	})
+	s.registerResetITunesData(t)
 
 	// Set up 3 apps - macOS, iOS, and iPadOS
 	s.appleITunesSrvData = map[string]string{
@@ -17510,6 +17563,169 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 
 	// Refresh again. There are no version changes this time, so this is a no-op.
 	err = vpp.RefreshVersions(ctx, s.ds)
+	require.NoError(t, err)
+}
+
+func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
+	t := s.T()
+
+	// Reset the iTunes data to what it was before this test
+	s.registerResetITunesData(t)
+
+	// Set up app with adamID 1 with iOS, iPadOS, macOS (e.g. WhatsApp).
+	// Set up app with adamID 2 with iOS and iPadOS.
+	// Set up app with adamID 3 with iOS.
+	s.appleITunesSrvData = map[string]string{
+		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`,
+		"2": `{"bundleId": "d-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
+		"3": `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPhone5s-iPhone5s"] }`,
+	}
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	// Set up VPP token
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	// Get the token
+	var resp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+
+	// Associate team to the VPP token.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	var appResp getAppStoreAppsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
+		fmt.Sprint(team.ID))
+	require.NoError(t, appResp.Err)
+	require.Len(t, appResp.AppStoreApps, 6)
+
+	var (
+		allApps    = appResp.AppStoreApps
+		app1MacOS  *fleet.VPPApp
+		app1IOS    *fleet.VPPApp
+		app1IPadOS *fleet.VPPApp
+		app2IOS    *fleet.VPPApp
+		app2IPadOS *fleet.VPPApp
+		app3IOS    *fleet.VPPApp
+	)
+	for _, app := range appResp.AppStoreApps {
+		switch {
+		case app.AdamID == "1" && app.Platform == "darwin":
+			app1MacOS = app
+		case app.AdamID == "1" && app.Platform == "ios":
+			app1IOS = app
+		case app.AdamID == "1" && app.Platform == "ipados":
+			app1IPadOS = app
+		case app.AdamID == "2" && app.Platform == "ios":
+			app2IOS = app
+		case app.AdamID == "2" && app.Platform == "ipados":
+			app2IPadOS = app
+		case app.AdamID == "3" && app.Platform == "ios":
+			app3IOS = app
+		}
+	}
+	require.NotNil(t, app1MacOS)
+	require.NotNil(t, app1IOS)
+	require.NotNil(t, app1IPadOS)
+	require.NotNil(t, app2IOS)
+	require.NotNil(t, app2IPadOS)
+	require.NotNil(t, app3IOS)
+
+	// Add all apps (three adam IDs with different platforms) to the team.
+	for _, app := range allApps {
+		var addAppResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID:     &team.ID,
+			Platform:   app.Platform,
+			AppStoreID: app.AdamID,
+		}, http.StatusOK, &addAppResp)
+		switch {
+		case app.AdamID == "1" && app.Platform == "darwin":
+			app1MacOS.TitleID = addAppResp.TitleID
+		case app.AdamID == "1" && app.Platform == "ios":
+			app1IOS.TitleID = addAppResp.TitleID
+		case app.AdamID == "1" && app.Platform == "ipados":
+			app1IPadOS.TitleID = addAppResp.TitleID
+		case app.AdamID == "2" && app.Platform == "ios":
+			app2IOS.TitleID = addAppResp.TitleID
+		case app.AdamID == "2" && app.Platform == "ipados":
+			app2IPadOS.TitleID = addAppResp.TitleID
+		case app.AdamID == "3" && app.Platform == "ios":
+			app3IOS.TitleID = addAppResp.TitleID
+		}
+	}
+
+	// Check versions before refresh
+	for titleID, expectedVersion := range map[uint]string{
+		app1MacOS.TitleID:  "1.0.0",
+		app1IOS.TitleID:    "1.0.0",
+		app1IPadOS.TitleID: "1.0.0",
+		app2IOS.TitleID:    "2.0.0",
+		app2IPadOS.TitleID: "2.0.0",
+		app3IOS.TitleID:    "3.0.0",
+	} {
+		titleResponse := getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
+		require.NotNil(t, titleResponse.SoftwareTitle)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+	}
+
+	// "Update" the versions for Adam ID "1" and "2".
+	s.appleITunesSrvData["1"] = `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "9.9.9", "trackName": "App 1", "TrackID": 1, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`
+	s.appleITunesSrvData["2"] = `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "10.10.10", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`
+
+	err := vpp.RefreshVersions(t.Context(), s.ds)
+	require.NoError(t, err)
+
+	// Check versions after refresh
+	for titleID, expectedVersion := range map[uint]string{
+		app1MacOS.TitleID:  "9.9.9",
+		app1IOS.TitleID:    "9.9.9",
+		app1IPadOS.TitleID: "9.9.9",
+		app2IOS.TitleID:    "10.10.10",
+		app2IPadOS.TitleID: "10.10.10",
+		app3IOS.TitleID:    "3.0.0",
+	} {
+		titleResponse := getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
+		require.NotNil(t, titleResponse.SoftwareTitle)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+	}
+
+	// "Update" the version for Adam ID "3".
+	s.appleITunesSrvData["3"] = `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "11.11.11", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPhone5s-iPhone5s"] }`
+
+	err = vpp.RefreshVersions(t.Context(), s.ds)
+	require.NoError(t, err)
+
+	// Check versions after refresh
+	for titleID, expectedVersion := range map[uint]string{
+		app1MacOS.TitleID:  "9.9.9",
+		app1IOS.TitleID:    "9.9.9",
+		app1IPadOS.TitleID: "9.9.9",
+		app2IOS.TitleID:    "10.10.10",
+		app2IPadOS.TitleID: "10.10.10",
+		app3IOS.TitleID:    "11.11.11",
+	} {
+		titleResponse := getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
+		require.NotNil(t, titleResponse.SoftwareTitle)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+	}
+
+	// Refresh again. There are no version changes this time, so this is a no-op.
+	err = vpp.RefreshVersions(t.Context(), s.ds)
 	require.NoError(t, err)
 }
 
@@ -17643,7 +17859,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	s.setSkipWorkerJobs(t)
 
 	// get the All hosts label ID
-	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 1)
 	allHostsLblID := ls["All Hosts"]
@@ -17731,7 +17947,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	s.setSkipWorkerJobs(t)
 
 	// get the All hosts label ID
-	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 1)
 	allHostsLblID := ls["All Hosts"]
@@ -18617,6 +18833,20 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
 	require.ElementsMatch(t, []string{"Developer tools", "Communication"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
 
+	// test GitOps with Security and Utilities categories
+	s.DoJSON("POST",
+		batchURL,
+		batchAssociateAppStoreAppsRequest{
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: addedApp.AdamID, SelfService: true, Categories: []string{"Security", "Utilities"}},
+			},
+		}, http.StatusOK, &batchAssociateResponse,
+	)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
+	require.ElementsMatch(t, []string{"Security", "Utilities"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+
 	// empty out categories via gitops
 	s.DoJSON("POST",
 		batchURL,
@@ -19035,4 +19265,733 @@ func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 		// Attempt to get enterprise - should now return 404 since cron detected deletion
 		s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &getResp)
 	})
+}
+
+func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
+	t := s.T()
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	t1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "t1",
+	})
+	require.NoError(t, err)
+	t2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "t2",
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string, platform string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(t.Context(), &fleet.Host{
+			OsqueryHostID: ptr.String(t.Name() + name),
+			NodeKey:       ptr.String(t.Name() + name),
+			UUID:          uuid.New().String(),
+			Hostname:      fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:      platform,
+			TeamID:        teamID,
+
+			LabelUpdatedAt: time.Now().Add(-2 * time.Hour),
+		})
+		require.NoError(t, err)
+		return h
+	}
+	// Create host on team t1.
+	macOST1 := newHost("macOST1", "darwin", &t1.ID)
+	// Create host on team t2.
+	macOST2 := newHost("macOST2", "darwin", &t2.ID)
+	// Create host on "No team".
+	ubuntuHostNoTeam := newHost("linuxHostNoTeam", "ubuntu", nil)
+
+	// Mock live queries.
+	s.lq.On("QueriesForHost", macOST1.ID).Return(map[string]string{}, nil)
+	s.lq.On("QueriesForHost", macOST2.ID).Return(map[string]string{}, nil)
+	s.lq.On("QueriesForHost", ubuntuHostNoTeam.ID).Return(map[string]string{}, nil)
+
+	// Create label on team t1.
+	l1t1, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:                "l1t1",
+		Query:               "SELECT t1;",
+		TeamID:              &t1.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	// Create a label on team t2.
+	l2t2, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:                "l2t2",
+		Query:               "SELECT t2;",
+		TeamID:              &t2.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	// Create global label.
+	globalLabel, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:                "global",
+		Query:               "SELECT global;",
+		TeamID:              nil,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	// Set label membership for l2t2.
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(macOST2, map[uint]*bool{
+		l2t2.ID:        ptr.Bool(true),
+		globalLabel.ID: ptr.Bool(true),
+	}), http.StatusOK, &distributedResp)
+
+	// Set label membership for l1t1.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(macOST1, map[uint]*bool{
+		l1t1.ID:        ptr.Bool(true),
+		globalLabel.ID: ptr.Bool(true),
+	}), http.StatusOK, &distributedResp)
+
+	// Create an installer on t1 that references l1t1.
+	payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "install",
+		Filename:         "ruby.deb",
+		SelfService:      false,
+		TeamID:           &t1.ID,
+		LabelsIncludeAny: []string{l1t1.Name},
+		Platform:         "linux",
+	}
+	s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusOK, "")
+
+	// Create a VPP app on t1 that references l1t1.
+	_, err = s.ds.InsertVPPAppWithTeam(t.Context(), &fleet.VPPApp{
+		Name:             "App123 " + t.Name(),
+		BundleIdentifier: "bid_" + t.Name(),
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_test_vpp2",
+				Platform: fleet.MacOSPlatform,
+			},
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeIncludeAny,
+				ByName: map[string]fleet.LabelIdent{
+					l1t1.Name: {
+						LabelID:   l1t1.ID,
+						LabelName: l1t1.Name,
+					},
+				},
+			},
+		},
+	}, &t1.ID)
+	require.NoError(t, err)
+
+	// Create an Apple configuration profile, a Windows profile and a declaration on t1 that references l1t1.
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+		ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+			{DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"), LabelsIncludeAll: []string{l1t1.Name}},
+			{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{l1t1.Name}},
+			{DisplayName: "N3", Profile: declarationForTest("D1"), LabelsIncludeAll: []string{l1t1.Name}},
+		},
+	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+
+	// Create in-house app in team t1 that references l1t1.
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &t1.ID,
+		Filename:         "ipa_test2.ipa",
+		Version:          "1.0.0",
+		StorageID:        uuid.New().String(),
+		SelfService:      true,
+		LabelsIncludeAny: []string{l1t1.Name},
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	// Create a policy in t1 that references l1t1.
+	_, err = s.ds.NewTeamPolicy(t.Context(), t1.ID, nil, fleet.PolicyPayload{
+		Name:             "p1t1",
+		Query:            "SELECT 1;",
+		Platform:         "darwin",
+		LabelsIncludeAny: []string{l1t1.Name},
+	})
+	require.NoError(t, err)
+
+	// Create a query in t1 that references l1t1.
+	_, err = s.ds.NewQuery(
+		t.Context(),
+		&fleet.Query{
+			Name:    "TestQueryTeamPolicy",
+			Query:   "SELECT 2;",
+			Saved:   true,
+			Logging: fleet.LoggingSnapshot,
+			TeamID:  &t1.ID,
+			LabelsIncludeAny: []fleet.LabelIdent{
+				{
+					LabelID:   l1t1.ID,
+					LabelName: l1t1.Name,
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	// Delete team t1.
+	delResp := deleteTeamResponse{}
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), nil, http.StatusOK, &delResp)
+
+	// Check label l1t1 on t1 has been removed.
+	_, _, err = s.ds.Label(t.Context(), l1t1.ID, fleet.TeamFilter{})
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Make sure l2t2 in t2 is unaffected.
+	_, _, err = s.ds.Label(t.Context(), l2t2.ID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+
+	// Make sure label membership for l1t1 is gone.
+	hostLabels, err := s.ds.ListLabelsForHost(t.Context(), macOST1.ID)
+	require.NoError(t, err)
+	require.Len(t, hostLabels, 1)
+	require.Equal(t, globalLabel.ID, hostLabels[0].ID)
+
+	// Make sure label membership of macOST2 is unaffected.
+	hostLabels, err = s.ds.ListLabelsForHost(t.Context(), macOST2.ID)
+	require.NoError(t, err)
+	require.Len(t, hostLabels, 2)
+	sort.Slice(hostLabels, func(i, j int) bool {
+		return hostLabels[i].ID < hostLabels[j].ID
+	})
+	require.Equal(t, l2t2.ID, hostLabels[0].ID)
+	require.Equal(t, globalLabel.ID, hostLabels[1].ID)
+}
+
+func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
+	t := s.T()
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	t1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "t1",
+	})
+	require.NoError(t, err)
+	t2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "t2",
+	})
+	require.NoError(t, err)
+
+	// Create label on team t1.
+	l1t1, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:                "l1t1",
+		Query:               "SELECT t1;",
+		TeamID:              &t1.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	// Create label on team t2.
+	l2t2, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:                "l2t2",
+		Query:               "SELECT t2;",
+		TeamID:              &t2.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	// Create global label.
+	globalLabel, err := s.ds.NewLabel(t.Context(), &fleet.Label{
+		Name:   "global",
+		Query:  "SELECT global;",
+		TeamID: nil,
+	})
+	require.NoError(t, err)
+
+	t.Run("1. policy labels assignment checks", func(t *testing.T) {
+		// 1.A.1 Attempt to create global policy that references l1t1 (should fail).
+		var gpResp globalPolicyResponse
+		s.DoJSON("POST", "/api/latest/fleet/policies", globalPolicyRequest{
+			Name:             "All teams policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
+		}, http.StatusBadRequest, &gpResp)
+		gpResp = globalPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", globalPolicyRequest{
+			Name:             "All teams policy",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
+		}, http.StatusBadRequest, &gpResp)
+
+		// 1.A.2 Attempt to create a global policy with global labels (should succeed).
+		gpResp = globalPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", globalPolicyRequest{
+			Name:             "All teams policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}, http.StatusOK, &gpResp)
+		globalPolicyID := gpResp.Policy.ID
+		gpResp = globalPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", globalPolicyRequest{
+			Name:             "All teams policy 2",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name},
+		}, http.StatusOK, &gpResp)
+
+		// 1.A.3 Attempt to modify a global policy with team labels (should fail).
+		mgpr := &modifyGlobalPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				Name:             ptr.String("newName1"),
+				LabelsIncludeAny: []string{l1t1.Name},
+			},
+		}
+		patchPol1 := &modifyGlobalPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusBadRequest, patchPol1)
+		mgpr = &modifyGlobalPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				Name:             ptr.String("newName1"),
+				LabelsExcludeAny: []string{l1t1.Name},
+			},
+		}
+		patchPol1 = &modifyGlobalPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusBadRequest, patchPol1)
+
+		// 1.A.4 Attempt to modify a global policy with global labels (should succeed).
+		mgpr = &modifyGlobalPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				Name:             ptr.String("newName1"),
+				LabelsIncludeAny: []string{globalLabel.Name},
+			},
+		}
+		patchPol1 = &modifyGlobalPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
+		mgpr = &modifyGlobalPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				Name:             ptr.String("newName2"),
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{globalLabel.Name},
+			},
+		}
+		patchPol1 = &modifyGlobalPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
+
+		// 1.B.1 Attempt to create a team policy that references l2t2 (should fail).
+		tpResp := teamPolicyResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+			Name:             "t1 policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
+		}, http.StatusBadRequest, &tpResp)
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+			Name:             "t1 policy exclude",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
+		}, http.StatusBadRequest, &tpResp)
+
+		// 1.B.2 Attempt to create a team policy with a global label and same team label (should succeed).
+		tpResp = teamPolicyResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+			Name:             "t1 policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name, l1t1.Name},
+		}, http.StatusOK, &tpResp)
+		teamPolicyID := tpResp.Policy.ID
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
+			Name:             "t1 policy 2",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
+		}, http.StatusOK, &tpResp)
+
+		// 1.B.3 Attempt to edit a team policy to reference l2t2 (should fail; label is outside team).
+		mtplr := modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{l2t2.Name},
+			},
+		}, http.StatusBadRequest, &mtplr)
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{l2t2.Name},
+			},
+		}, http.StatusBadRequest, &mtplr)
+
+		// 1.B.3 Attempt to edit a team policy to reference a team label on the same team (should succeed).
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{l1t1.Name},
+			},
+		}, http.StatusOK, &mtplr)
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{l1t1.Name, globalLabel.Name},
+			},
+		}, http.StatusOK, &mtplr)
+
+		// 1.C.1 Attempt to create a "No team" policy that references l1t1 (should fail).
+		tpResp = teamPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
+			Name:             "no team policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
+		}, http.StatusBadRequest, &tpResp)
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
+			Name:             "no team policy exclude",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
+		}, http.StatusBadRequest, &tpResp)
+
+		// 1.B.2 Attempt to create a "No team" policy with a global label (should succeed).
+		tpResp = teamPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
+			Name:             "no team policy",
+			Query:            "SELECT 1;",
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}, http.StatusOK, &tpResp)
+		noTeamPolicyID := tpResp.Policy.ID
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", teamPolicyRequest{
+			Name:             "no team policy 2",
+			Query:            "SELECT 1;",
+			LabelsExcludeAny: []string{globalLabel.Name},
+		}, http.StatusOK, &tpResp)
+
+		// 1.B.3 Attempt to edit a "No team" policy with a team policy that references l2t2 (should fail).
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{l2t2.Name},
+			},
+		}, http.StatusBadRequest, &mtplr)
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{l2t2.Name},
+			},
+		}, http.StatusBadRequest, &mtplr)
+
+		// 1.B.3 Attempt to edit a team policy to reference a global label (should succeed).
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{globalLabel.Name},
+			},
+		}, http.StatusOK, &mtplr)
+		mtplr = modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), modifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				LabelsIncludeAny: []string{},
+				LabelsExcludeAny: []string{globalLabel.Name},
+			},
+		}, http.StatusOK, &mtplr)
+	})
+
+	t.Run("2. query labels assignment checks", func(t *testing.T) {
+		// 2.A.1 Attempt to create global query with team labels (should fail).
+		var createQueryResp createQueryResponse
+		reqQuery := &fleet.QueryPayload{
+			Name:             ptr.String("All teams query"),
+			Query:            ptr.String("SELECT 1;"),
+			LabelsIncludeAny: []string{l1t1.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+
+		// 2.A.2 Attempt to create global query with global label (should succeed).
+		createQueryResp = createQueryResponse{}
+		reqQuery = &fleet.QueryPayload{
+			Name:             ptr.String("All teams query"),
+			Query:            ptr.String("SELECT 1;"),
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		globalQueryID := createQueryResp.Query.ID
+
+		// 2.A.3 Attempt to edit global query with team label (should fail).
+		modifyQueryResp := modifyQueryResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), modifyQueryRequest{
+			QueryPayload: fleet.QueryPayload{
+				LabelsIncludeAny: []string{l1t1.Name},
+			},
+		}, http.StatusBadRequest, &modifyQueryResp)
+
+		// 2.A.4 Attempt to edit global query with global label (should succeed).
+		modifyQueryResp = modifyQueryResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), modifyQueryRequest{
+			QueryPayload: fleet.QueryPayload{
+				LabelsIncludeAny: []string{globalLabel.Name},
+			},
+		}, http.StatusOK, &modifyQueryResp)
+
+		// 2.B.1 Attempt to create a team query with a label of another team (should fail).
+		createQueryResp = createQueryResponse{}
+		reqQuery = &fleet.QueryPayload{
+			Name:             ptr.String("Team one query"),
+			Query:            ptr.String("SELECT 1;"),
+			LabelsIncludeAny: []string{l2t2.Name},
+
+			TeamID: &t1.ID,
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+
+		// 2.B.2 Attempt to create a team query with a label of the same team (should succeed).
+		createQueryResp = createQueryResponse{}
+		reqQuery = &fleet.QueryPayload{
+			Name:             ptr.String("Team one query"),
+			Query:            ptr.String("SELECT 1;"),
+			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
+
+			TeamID: &t1.ID,
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		team1LabelID := createQueryResp.Query.ID
+
+		// 2.A.3 Attempt to edit a team query with a label of another team (should fail).
+		modifyQueryResp = modifyQueryResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), modifyQueryRequest{
+			QueryPayload: fleet.QueryPayload{
+				LabelsIncludeAny: []string{l2t2.Name, globalLabel.Name},
+			},
+		}, http.StatusBadRequest, &modifyQueryResp)
+
+		// 2.A.4 Attempt to edit team query with a label of the same team (should succeed).
+		modifyQueryResp = modifyQueryResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), modifyQueryRequest{
+			QueryPayload: fleet.QueryPayload{
+				LabelsIncludeAny: []string{l1t1.Name},
+			},
+		}, http.StatusOK, &modifyQueryResp)
+	})
+
+	t.Run("3. configuration profiles assignment check", func(t *testing.T) {
+		// NOTE: Not testing the API endpoint POST /api/latest/fleet/mdm/profiles used by the UI
+		// because of time constraints (we haven't yet implemented test utilities for multipart uploads).
+
+		// Attempt to create a team profile with labels from another team (should fail).
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
+					LabelsIncludeAll: []string{l2t2.Name},
+				},
+			},
+		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"),
+					LabelsIncludeAll: []string{l2t2.Name},
+				},
+			},
+		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N3", Profile: declarationForTest("D1"),
+					LabelsIncludeAll: []string{l2t2.Name},
+				},
+			},
+		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+
+		// Attempt to create a profile with a label on the same team (should succeed).
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N3", Profile: declarationForTest("D1"),
+					LabelsIncludeAll: []string{l1t1.Name},
+				},
+			},
+		}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+
+		// Attempt to create a profile in "No team" with a label that belongs to a team (should fail).
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
+					LabelsIncludeAll: []string{l1t1.Name},
+				},
+			},
+		}, http.StatusBadRequest)
+
+		// Attempt to create a profile in "No team" with a global label (should succeed).
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+				{
+					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
+					LabelsIncludeAll: []string{globalLabel.Name},
+				},
+			},
+		}, http.StatusNoContent)
+	})
+
+	t.Run("4. software installers assignment check", func(t *testing.T) {
+		// Attempt to create a software installer with a label of another team (should fail).
+		payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			Filename:         "ruby.deb",
+			SelfService:      false,
+			TeamID:           &t1.ID,
+			LabelsIncludeAny: []string{l2t2.Name},
+			Platform:         "linux",
+		}
+		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusBadRequest, "")
+
+		// Attempt to create a software installer with a label on the same team (should succeed).
+		payloadRubyTm1 = &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			Filename:         "ruby.deb",
+			SelfService:      false,
+			TeamID:           &t1.ID,
+			LabelsIncludeAny: []string{l1t1.Name},
+			Platform:         "linux",
+		}
+		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusOK, "")
+		swTitleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+		// Attempt to edit a software installer with a label from another team (should fail).
+		updatePayload := &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:          swTitleID,
+			TeamID:           &t1.ID,
+			LabelsIncludeAny: []string{l2t2.Name},
+		}
+		s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "")
+
+		// Attempt to edit a software installer with a label on the same team (should succeed).
+		updatePayload = &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:          swTitleID,
+			TeamID:           &t1.ID,
+			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
+		}
+		s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+
+		// Attempt to create a software installer in "No team" with a team label (should fail).
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			Filename:         "dummy_installer.pkg",
+			Title:            "DummyApp",
+			TeamID:           nil,
+			LabelsExcludeAny: []string{l1t1.Name},
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "")
+
+		// Attempt to create a software installer in "No team" with a global label (should succeed).
+		payload = &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			Filename:         "dummy_installer.pkg",
+			Title:            "DummyApp",
+			TeamID:           nil,
+			LabelsExcludeAny: []string{globalLabel.Name},
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		swTitleID = getSoftwareTitleID(t, s.ds, payload.Title, "apps")
+
+		// Attempt to edit a software installer in "No team" with a team label (should fail).
+		updatePayload = &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:          swTitleID,
+			TeamID:           nil,
+			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
+		}
+		s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "")
+
+		// Attempt to edit a software installer in "No team" with a global label (should succeed).
+		updatePayload = &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:          swTitleID,
+			TeamID:           nil,
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}
+		s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+	})
+
+	t.Run("5. vpp apps assignment checks", func(t *testing.T) {
+		// Set up VPP token
+		orgName := "Fleet Device Management Inc."
+		token := "mycooltoken"
+		expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+		expDate := expTime.Format(fleet.VPPTimeFormat)
+		tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+		t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+		var validToken uploadVPPTokenResponse
+		s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+		// Get the token
+		var resp getVPPTokensResponse
+		s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+
+		// Associate team to the VPP token.
+		var resPatchVPP patchVPPTokensTeamsResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{t1.ID}}, http.StatusOK, &resPatchVPP)
+
+		// Attempt to add an app store app on a team with a label from another team (should fail).
+		var addAppResp addAppStoreAppResponse
+		addAppReq := &addAppStoreAppRequest{
+			TeamID:           &t1.ID,
+			AppStoreID:       "1",
+			SelfService:      true,
+			LabelsIncludeAny: []string{l2t2.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusBadRequest, &addAppResp)
+
+		// Attempt to add an app store app on a team with a label on the same team (should succeed).
+		addAppReq = &addAppStoreAppRequest{
+			TeamID:           &t1.ID,
+			AppStoreID:       "1",
+			SelfService:      true,
+			LabelsIncludeAny: []string{l1t1.Name},
+		}
+		addAppResp = addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
+
+		// Associate all teams token.
+		resPatchVPP = patchVPPTokensTeamsResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+
+		// Attempt to add an app store app to "No team" with a team label (should fail).
+		addAppResp = addAppStoreAppResponse{}
+		addAppReq = &addAppStoreAppRequest{
+			TeamID:           nil,
+			AppStoreID:       "1",
+			SelfService:      true,
+			LabelsIncludeAny: []string{l2t2.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusBadRequest, &addAppResp)
+
+		// Attempt to add an app store app to "No team" with a global label (should succeed).
+		addAppResp = addAppStoreAppResponse{}
+		addAppReq = &addAppStoreAppRequest{
+			TeamID:           nil,
+			AppStoreID:       "1",
+			SelfService:      true,
+			LabelsIncludeAny: []string{globalLabel.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
+	})
+
+	t.Run("6. in-house apps assignment checks", func(t *testing.T) {
+		// Attempt to create in-house app in team t1 that references l2t2 (should fail).
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           &t1.ID,
+			Filename:         "ipa_test2.ipa",
+			Version:          "1.0.0",
+			StorageID:        uuid.New().String(),
+			SelfService:      true,
+			LabelsIncludeAny: []string{l2t2.Name},
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "")
+
+		// Attempt to create in-house app in team t1 that references l1t1 (should succeed).
+		payload = &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           &t1.ID,
+			Filename:         "ipa_test2.ipa",
+			Version:          "1.0.0",
+			StorageID:        uuid.New().String(),
+			SelfService:      true,
+			LabelsIncludeAny: []string{l1t1.Name},
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// Not testing edit as this was tested in (4) above.
+		// This is used to populate the in house apps tables.
+	})
+
+	// Make sure we can delete the teams given all the entities created.
+	err = s.ds.DeleteTeam(t.Context(), t1.ID)
+	require.NoError(t, err)
+	err = s.ds.DeleteTeam(t.Context(), t2.ID)
+	require.NoError(t, err)
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
@@ -65,7 +64,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	}
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
-		return endpoint_utils.MailError{Message: err.Error()}
+		return MailError{Message: err.Error()}
 	}
 	return nil
 }

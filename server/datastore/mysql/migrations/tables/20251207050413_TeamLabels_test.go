@@ -48,10 +48,10 @@ func TestUp_20251207050413(t *testing.T) {
 		ID     uint
 		TeamID uint
 	}{
-		{ID: uint(idlA)},
-		{ID: uint(idlB)},
-		{ID: uint(idlC)},
-		{ID: uint(idlD), TeamID: uint(teamID)},
+		{ID: uint(idlA)},                       //nolint:gosec // dismiss G115
+		{ID: uint(idlB)},                       //nolint:gosec // dismiss G115
+		{ID: uint(idlC)},                       //nolint:gosec // dismiss G115
+		{ID: uint(idlD), TeamID: uint(teamID)}, //nolint:gosec // dismiss G115
 	}
 
 	for index, actual := range labels {

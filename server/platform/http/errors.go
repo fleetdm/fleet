@@ -341,14 +341,6 @@ func (e passwordResetRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
 }
 
-// OrderDirection defines the order direction for list queries.
-type OrderDirection int
-
-const (
-	OrderAscending OrderDirection = iota
-	OrderDescending
-)
-
 // ForbiddenErrorMessage is the error message that should be returned to
 // clients when an action is forbidden. It is intentionally vague to prevent
 // disclosing information that a client should not have access to.

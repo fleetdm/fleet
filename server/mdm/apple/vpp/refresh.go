@@ -2,6 +2,8 @@ package vpp
 
 import (
 	"context"
+	"maps"
+	"slices"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,24 +22,31 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore) error {
 		return nil
 	}
 
-	var adamIDs []string
-	appsByAdamID := make(map[string]*fleet.VPPApp)
+	// We use a map for applications that share the same Adam ID for their iOS/iPadOS/macOS apps.
+	appsByAdamID := make(map[string][]*fleet.VPPApp) // Adam ID -> one, two, or three `*fleet.VPPApp`s.
+	// Gathering adamIDs on a set to deduplicate them and send them to iTunes.
+	adamIDs := make(map[string]struct{})
 	for _, app := range apps {
-		adamIDs = append(adamIDs, app.AdamID)
-		appsByAdamID[app.AdamID] = app
-	}
+		adamIDs[app.AdamID] = struct{}{}
+		appsByAdamID[app.AdamID] = append(appsByAdamID[app.AdamID], app)
 
-	meta, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "software"})
+	}
+	adamIDsToQueryITunes := slices.Collect(maps.Keys(adamIDs))
+
+	meta, err := itunes.GetAssetMetadata(adamIDsToQueryITunes, &itunes.AssetMetadataFilter{Entity: "software"})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting VPP app metadata from iTunes API")
 	}
 
 	var appsToUpdate []*fleet.VPPApp
-	for _, adamID := range adamIDs {
+	for _, adamID := range adamIDsToQueryITunes {
 		if m, ok := meta[adamID]; ok {
-			if m.Version != appsByAdamID[adamID].LatestVersion {
-				appsByAdamID[adamID].LatestVersion = m.Version
-				appsToUpdate = append(appsToUpdate, appsByAdamID[adamID])
+			// Iterate all platforms for the Adam ID (iOS/iPadOS/macOS).
+			for _, app := range appsByAdamID[adamID] {
+				if m.Version != app.LatestVersion {
+					app.LatestVersion = m.Version
+					appsToUpdate = append(appsToUpdate, app)
+				}
 			}
 		}
 	}

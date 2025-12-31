@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -688,9 +689,9 @@ GROUP BY
 }
 
 // sqlJoinMDMAndroidProfilesStatus returns a SQL snippet that can be used to join a table derived from
-// host_mdm_android_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
-// it derives a boolean value for each status category. The value will be 1 if the host has any
-// profile in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
+// host_mdm_android_profiles and host_certificate_templates (grouped by host_uuid and status) and the hosts table.
+// For each host_uuid, it derives a boolean value for each status category. The value will be 1 if the host has any
+// profile or certificate template in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
 func sqlJoinMDMAndroidProfilesStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
 	// complicate usage in other queries (e.g., list hosts).
@@ -700,18 +701,45 @@ func sqlJoinMDMAndroidProfilesStatus() string {
 		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
 		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+
+		// Certificate template statuses
+		certPending    = fmt.Sprintf("'%s'", string(fleet.CertificateTemplatePending))
+		certDelivering = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateDelivering))
+		certDelivered  = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateDelivered))
+		certFailed     = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateFailed))
+		certVerified   = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateVerified))
 	)
 	return `
 	LEFT JOIN (
-		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
+		-- profile and certificate template statuses grouped by host uuid
+		-- boolean value will be 1 if host has any profile or certificate template with the given status
 		SELECT
 			host_uuid,
-			MAX( IF(status IS NULL OR status = ` + pending + `, 1, 0)) AS android_prof_pending,
-			MAX( IF(status = ` + failed + `, 1, 0)) AS android_prof_failed,
-			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verifying,
-			MAX( IF(status = ` + verified + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verified
-		FROM
-			host_mdm_android_profiles
+			MAX(prof_pending) AS android_prof_pending,
+			MAX(prof_failed) AS android_prof_failed,
+			MAX(prof_verifying) AS android_prof_verifying,
+			MAX(prof_verified) AS android_prof_verified
+		FROM (
+			-- Android profiles
+			SELECT
+				host_uuid,
+				IF(status IS NULL OR status = ` + pending + `, 1, 0) AS prof_pending,
+				IF(status = ` + failed + `, 1, 0) AS prof_failed,
+				IF(status = ` + verifying + ` AND operation_type = ` + install + `, 1, 0) AS prof_verifying,
+				IF(status = ` + verified + ` AND operation_type = ` + install + `, 1, 0) AS prof_verified
+			FROM
+				host_mdm_android_profiles
+			UNION ALL
+			-- Certificate templates (delivering and delivered count as pending)
+			SELECT
+				host_uuid,
+				IF(status IS NULL OR status IN (` + certPending + `, ` + certDelivering + `, ` + certDelivered + `), 1, 0) AS prof_pending,
+				IF(status = ` + certFailed + `, 1, 0) AS prof_failed,
+				0 AS prof_verifying,
+				IF(status = ` + certVerified + ` AND operation_type = ` + install + `, 1, 0) AS prof_verified
+			FROM
+				host_certificate_templates
+		) combined
 		GROUP BY
 			host_uuid) hmgp ON h.uuid = hmgp.host_uuid
 `
@@ -1645,9 +1673,9 @@ WHERE
 }
 
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
-// identified by adam_id and global_or_team_id is different from the existing one. This
+// identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error) {
 	const stmt = `
 SELECT
 	CAST(? AS JSON) != configuration AS has_changed
@@ -1664,7 +1692,7 @@ WHERE
 	}
 
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, globalOrTeamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// old config does not exist, so old one is changed if not empty
@@ -1675,24 +1703,12 @@ WHERE
 	return hasChanged, nil
 }
 
-// GetAndroidAppConfiguration retrieves the configuration for an Android app
-// identified by adam_id and global_or_team_id.
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
-	stmt := `
-		SELECT
-			id,
-			application_id,
-			team_id,
-			global_or_team_id,
-			configuration,
-			created_at,
-			updated_at
-		FROM android_app_configurations
-		WHERE application_id = ? AND global_or_team_id = ?
-	`
+// GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
+	stmt := `SELECT configuration FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`
 
-	var config fleet.AndroidAppConfiguration
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, globalOrTeamID)
+	var config json.RawMessage
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
@@ -1703,23 +1719,16 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	return &config, nil
 }
 
-func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
 	stmt := `
-	SELECT
-		aac.id,
-		aac.application_id,
-		aac.team_id,
-		aac.global_or_team_id,
-		aac.configuration,
-		aac.created_at,
-		aac.updated_at
+	SELECT aac.configuration
 	FROM android_app_configurations aac
 	JOIN vpp_apps_teams vat
 		ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id
 	WHERE vat.id = ?
 `
 
-	var config fleet.AndroidAppConfiguration
+	var config json.RawMessage
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1731,7 +1740,7 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 	return &config, nil
 }
 
-func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error) {
 	const bulkGetStmt = `
 	SELECT
 		application_id,
@@ -1744,12 +1753,15 @@ func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs
 		return nil, nil
 	}
 
-	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, globalOrTeamID)
+	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
 	}
 
-	var configs []*fleet.AndroidAppConfiguration
+	var configs []*struct {
+		ApplicationID string          `db:"application_id"`
+		Configuration json.RawMessage `db:"configuration"`
+	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
@@ -1762,55 +1774,41 @@ func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs
 	return m, nil
 }
 
-// InsertAndroidAppConfiguration creates a new Android app configuration entry.
-func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	stmt := `
-		INSERT INTO android_app_configurations
-		(application_id, team_id, global_or_team_id, configuration)
-		VALUES (?, ?, ?, ?)
-	`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.ApplicationID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
+func (ds *Datastore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error {
+	const stmt = `
+UPDATE
+	host_vpp_software_installs
+	JOIN hosts h ON
+		h.id = host_vpp_software_installs.host_id
+SET
+	verification_at = NULL,
+	verification_command_uuid = NULL,
+	associated_event_id = ?
+WHERE
+	h.uuid = ? AND
+	host_vpp_software_installs.adam_id = ? AND
+	host_vpp_software_installs.platform = ? AND
+	-- not removed or canceled
+	host_vpp_software_installs.removed = 0 AND
+	host_vpp_software_installs.canceled = 0 AND
+	-- only if successfull or pending install
+	host_vpp_software_installs.verification_failed_at IS NULL
+`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, fmt.Sprint(policyVersion), hostUUID, applicationID, fleet.AndroidPlatform)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert android app configuration")
+		return ctxerr.Wrap(ctx, err, "set android app install pending apply config")
 	}
-
-	return nil
-}
-
-// UpdateAndroidAppConfiguration updates an existing Android app configuration.
-func (ds *Datastore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	stmt := `
-		UPDATE android_app_configurations
-		SET configuration = ?, updated_at = CURRENT_TIMESTAMP(6)
-		WHERE application_id = ? AND global_or_team_id = ?
-	`
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, config.Configuration, config.ApplicationID, config.GlobalOrTeamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update android app configuration")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update android app configuration rows affected")
-	}
-
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
-	}
-
 	return nil
 }
 
 // DeleteAndroidAppConfiguration removes an Android app configuration.
-func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, globalOrTeamID uint) error {
+func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, teamID uint) error {
 	stmt := `
 		DELETE FROM android_app_configurations
 		WHERE application_id = ? AND global_or_team_id = ?
 	`
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, globalOrTeamID)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete android app configuration")
 	}
@@ -1828,20 +1826,10 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID st
 }
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
-func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, appID string, config json.RawMessage) error {
+func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config json.RawMessage) error {
 	err := fleet.ValidateAndroidAppConfiguration(config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
-	}
-
-	var tid *uint
-	var globalOrTeamID uint
-	if teamID != nil {
-		globalOrTeamID = *teamID
-
-		if *teamID > 0 {
-			tid = teamID
-		}
 	}
 
 	stmt := `
@@ -1852,9 +1840,46 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 			configuration = VALUES(configuration)
 	`
 
-	_, err = tx.ExecContext(ctx, stmt, appID, tid, globalOrTeamID, config)
+	_, err = tx.ExecContext(ctx, stmt, appID, ptr.UintOrNilIfZero(teamID), teamID, config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
 	}
 	return nil
+}
+
+func (ds *Datastore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+	h.id AS id, h.uuid AS uuid
+FROM
+	hosts h
+	JOIN android_devices ad ON ad.host_id = h.id
+WHERE
+	h.id IN (?) AND
+	h.platform = 'android'
+`
+
+	stmt, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+
+	var rows []struct {
+		ID   uint   `db:"id"`
+		UUID string `db:"uuid"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
+	}
+
+	results := make(map[string]uint, len(rows))
+	for _, r := range rows {
+		results[r.UUID] = r.ID
+	}
+
+	return results, nil
 }

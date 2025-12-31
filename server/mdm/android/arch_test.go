@@ -7,33 +7,36 @@ import (
 	"github.com/fleetdm/fleet/v4/server/archtest"
 )
 
+const m = archtest.ModuleName
+
 // TestAllAndroidPackageDependencies checks that android packages are not dependent on other Fleet packages
 // to maintain decoupling and modularity.
 // If coupling is necessary, it should be done in the main server/fleet, server/service, or other package.
 func TestAllAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android...").
+	archtest.NewPackageTest(t, m+"/server/mdm/android...").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		// Ignoring tests, as they may import the mysql datastore package (we decided not to
-		// isolate the datastore layer):
-		// https://github.com/fleetdm/fleet/pull/29853#pullrequestreview-2936461467
-		// WithTests().
-		IgnoreXTests("github.com/fleetdm/fleet/v4/server/fleet"). // ignore fleet_test package
-		IgnorePackages(
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql...",
-			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // dependency on Jira and Zendesk
-			"github.com/fleetdm/fleet/v4/server/service/middleware/auth",
-			"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck",
-			"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils",
-			"github.com/fleetdm/fleet/v4/server/service/middleware/log",
-			"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit",
-			"github.com/fleetdm/fleet/v4/server/mdm/android/tests...", // Android functionality moved to main datastore
-			"github.com/fleetdm/fleet/v4/server/mdm/android/service",  // Activities module
-		).
 		ShouldNotDependOn(
-			"github.com/fleetdm/fleet/v4/server/service...",
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql...",
-		)
+			m+"/server/service...",
+			m+"/server/datastore/mysql...",
+		).
+		IgnoreRecursively(
+			m+"/server/mdm/android/tests",
+		).
+		IgnoreDeps(
+			// Android packages
+			m+"/server/mdm/android...",
+			// Other/infra packages
+			m+"/server/datastore/mysql/common_mysql",
+			m+"/server/service/externalsvc", // dependency on Jira and Zendesk
+			m+"/server/service/middleware/auth",
+			m+"/server/service/middleware/authzcheck",
+			m+"/server/service/middleware/endpoint_utils",
+			m+"/server/service/middleware/log",
+			m+"/server/service/middleware/ratelimit",
+			m+"/server/service/modules/activities",
+		).
+		Check()
 }
 
 // TestAndroidPackageDependencies checks that android package is NOT dependent on ANY other Fleet packages
@@ -41,7 +44,8 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 // If coupling is necessary, it should be done in the main server/fleet or another package.
 func TestAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android").
+	archtest.NewPackageTest(t, m+"/server/mdm/android").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn("github.com/fleetdm/fleet/v4/...")
+		ShouldNotDependOn(m + "/...").
+		Check()
 }

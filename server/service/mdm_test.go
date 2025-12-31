@@ -676,9 +676,6 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		return fleet.DiskEncryptionConfig{}, nil
 	}
-	ds.GetMDMProfileSummaryFromHostCertificateTemplatesFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-		return &fleet.MDMProfilesSummary{}, nil
-	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
@@ -1626,7 +1623,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 				{Name: "N2", Contents: mobileconfigForTest("N1", "I2")},
 			},
-			`The name provided for the profile must match the profile PayloadDisplayName: "N1"`,
+			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
 		},
 		{
 			"duplicate macOS profile identifier",
@@ -2350,12 +2347,25 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 	var labelID uint
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		m := map[string]uint{}
-		for _, label := range labels {
+		for _, label := range names {
 			if label != "baddy" {
 				labelID++
 				m[label] = labelID
+			}
+		}
+		return m, nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		m := map[string]*fleet.Label{}
+		for _, name := range names {
+			if name != "baddy" {
+				labelID++
+				m[name] = &fleet.Label{
+					ID:   labelID,
+					Name: name,
+				}
 			}
 		}
 		return m, nil

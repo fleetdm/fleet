@@ -62,8 +62,6 @@ out:
 }
 
 // vitalErrorData represents the structure of vital fleetd error data.
-// This is used to extract metadata from error chains without depending
-// on the fleet package.
 type vitalErrorData struct {
 	ErrorSource         string         `json:"error_source"`
 	ErrorSourceVersion  string         `json:"error_source_version"`

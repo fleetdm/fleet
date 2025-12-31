@@ -30,7 +30,7 @@ object ApiClient {
 
     private lateinit var dataStore: DataStore<Preferences>
     private val API_KEY = stringPreferencesKey("api_key")
-    private val BASE_URL_KEY = stringPreferencesKey("base_url")
+    private val SERVER_URL_KEY = stringPreferencesKey("server_url")
     private val ENROLL_SECRET = stringPreferencesKey("enroll_secret")
     private val HARDWARE_UUID = stringPreferencesKey("hardware_uuid")
     private val COMPUTER_NAME = stringPreferencesKey("computer_name")
@@ -50,27 +50,9 @@ object ApiClient {
         }
     }
 
-    suspend fun setBaseUrl(url: String) {
-        dataStore.edit { preferences ->
-            preferences[BASE_URL_KEY] = url
-        }
-    }
-
-    val apiKeyFlow: Flow<String?>
-        get() = dataStore.data.map { preferences ->
-            preferences[API_KEY]?.let { encrypted ->
-                try {
-                    KeystoreManager.decrypt(encrypted)
-                } catch (e: Exception) {
-                    Log.e("ApiClient", "Failed to decrypt API key", e)
-                    null
-                }
-            }
-        }
-
     val baseUrlFlow: Flow<String?>
         get() = dataStore.data.map { preferences ->
-            preferences[BASE_URL_KEY]
+            preferences[SERVER_URL_KEY]
         }
 
     suspend fun getApiKey(): String? {
@@ -83,7 +65,7 @@ object ApiClient {
         }
     }
 
-    suspend fun getBaseUrl(): String? = dataStore.data.first()[BASE_URL_KEY]
+    suspend fun getBaseUrl(): String? = dataStore.data.first()[SERVER_URL_KEY]
 
     private suspend fun <R, T> makeRequest(
         endpoint: String,
@@ -205,12 +187,12 @@ object ApiClient {
         )
     }
 
-    suspend fun setEnrollmentCredentials(enrollSecret: String, hardwareUUID: String, computerName: String, baseUrl: String) {
+    suspend fun setEnrollmentCredentials(enrollSecret: String, hardwareUUID: String, computerName: String, serverUrl: String) {
         dataStore.edit { preferences ->
             preferences[ENROLL_SECRET] = enrollSecret
             preferences[HARDWARE_UUID] = hardwareUUID
             preferences[COMPUTER_NAME] = computerName
-            preferences[BASE_URL_KEY] = baseUrl
+            preferences[SERVER_URL_KEY] = serverUrl
         }
     }
 
@@ -248,10 +230,19 @@ object ApiClient {
         )
     }
 
-    suspend fun updateCertificateStatus(certificateId: Int, status: String, detail: String? = null): Result<Unit> = makeRequest(
+    suspend fun updateCertificateStatus(
+        certificateId: Int,
+        status: UpdateCertificateStatusStatus,
+        operationType: UpdateCertificateStatusOperation,
+        detail: String? = null,
+    ): Result<Unit> = makeRequest(
         endpoint = "/api/fleetd/certificates/$certificateId/status",
         method = "PUT",
-        body = UpdateCertificateStatusRequest(status = status, detail = detail),
+        body = UpdateCertificateStatusRequest(
+            status = status,
+            operationType = operationType,
+            detail = detail,
+        ),
         bodySerializer = UpdateCertificateStatusRequest.serializer(),
         responseSerializer = UpdateCertificateStatusResponse.serializer(),
     ).fold(
@@ -275,7 +266,7 @@ object ApiClient {
         val enrollSecret = prefs[ENROLL_SECRET]
         val hardwareUUID = prefs[HARDWARE_UUID]
         val computerName = prefs[COMPUTER_NAME]
-        val baseUrl = prefs[BASE_URL_KEY]
+        val baseUrl = prefs[SERVER_URL_KEY]
 
         if (enrollSecret == null || hardwareUUID == null || computerName == null || baseUrl == null) {
             return null
@@ -428,10 +419,30 @@ private data class GetCertificateTemplateRequest(
 @Serializable
 data class UpdateCertificateStatusRequest(
     @SerialName("status")
-    val status: String,
+    val status: UpdateCertificateStatusStatus,
+    @SerialName("operation_type")
+    val operationType: UpdateCertificateStatusOperation,
     @SerialName("detail")
     val detail: String? = null,
 )
+
+@Serializable
+enum class UpdateCertificateStatusStatus {
+    @SerialName("verified")
+    VERIFIED,
+
+    @SerialName("failed")
+    FAILED,
+}
+
+@Serializable
+enum class UpdateCertificateStatusOperation {
+    @SerialName("install")
+    INSTALL,
+
+    @SerialName("remove")
+    REMOVE,
+}
 
 @Serializable
 private data class UpdateCertificateStatusResponse(

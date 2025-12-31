@@ -268,7 +268,7 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
 	// break the profile by deleting the label
-	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name))
+	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
 	require.NoError(t, err)
@@ -5390,6 +5390,16 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.Zero(t, sum.Failed)
 	require.Zero(t, sum.Installed)
 	require.EqualValues(t, 1, sum.Pending)
+
+	// Mark the host as if it skipped the bootstrap package installation
+	err = ds.RecordSkippedHostBootstrapPackage(ctx, host.UUID)
+	require.NoError(t, err)
+
+	sum, err = ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
+	require.NoError(t, err)
+	require.Zero(t, sum.Failed)
+	require.Zero(t, sum.Installed)
+	require.Zero(t, sum.Pending)
 }
 
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
@@ -8011,9 +8021,14 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 
 	checkDevice := func(t *testing.T, teamID uint, key string, wantVersion string) {
 		checkExpectedVersion(t, getConfigSettings(teamID, key), wantVersion)
-		gotSettings, err := ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey[key].SerialNumber)
+		platform, gotSettings, err := ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey[key].SerialNumber)
 		require.NoError(t, err)
 		checkExpectedVersion(t, gotSettings, wantVersion)
+		if key == "macos" {
+			require.Equal(t, "darwin", platform)
+		} else {
+			require.Equal(t, platform, key)
+		}
 	}
 
 	// empty global settings to start
@@ -8110,7 +8125,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	})
 
 	// non-DEP host should return not found
-	_, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), "non-dep-serial")
+	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), "non-dep-serial")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// deleted DEP host should return not found
@@ -8118,7 +8133,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 		_, err := q.ExecContext(context.Background(), "UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?", hostIDsByKey["macos"])
 		return err
 	})
-	_, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
+	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 

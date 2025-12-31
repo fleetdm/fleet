@@ -987,7 +987,6 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
-			// TODO(MHJ): Move this datastore method to shared space, for when windows renewal is being worked on.
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
@@ -1573,7 +1572,7 @@ func cronHostVitalsLabelMembership(
 	// so we'll filter them later.
 	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
 		PerPage: 0, // No limit.
-	})
+	}, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list labels")
 	}

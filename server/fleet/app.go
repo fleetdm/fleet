@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -1237,14 +1236,11 @@ const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 // SecureframeTransparencyURL is the URL used for the "About Fleet" link in Fleet Desktop when the Secureframe partnership config value is enabled
 const SecureframeTransparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
 
-// OrderDirection is an alias for platform_http.OrderDirection.
-type OrderDirection = platform_http.OrderDirection
+type OrderDirection int
 
 const (
-	// OrderAscending is an alias for platform_http.OrderAscending.
-	OrderAscending = platform_http.OrderAscending
-	// OrderDescending is an alias for platform_http.OrderDescending.
-	OrderDescending = platform_http.OrderDescending
+	OrderAscending OrderDirection = iota
+	OrderDescending
 
 	// PerPageUnlimited is the value to pass to PerPage when we want
 	// "unlimited". If we ever find this limit to be too low, congratulations on

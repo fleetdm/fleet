@@ -218,7 +218,8 @@
     "enabled_and_configured": true,
     "macos_updates": {
       "minimum_version": "15.1",
-      "deadline": "2024-12-31"
+      "deadline": "2024-12-31",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "18.1",

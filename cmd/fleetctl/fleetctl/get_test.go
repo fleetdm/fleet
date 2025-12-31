@@ -1072,7 +1072,7 @@ spec:
 func TestGetLabels(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
 				ID:          32,
@@ -1110,6 +1110,7 @@ spec:
   name: label1
   platform: windows
   query: select 1;
+  team_id: null
 ---
 apiVersion: v1
 kind: label
@@ -1121,9 +1122,10 @@ spec:
   name: label2
   platform: linux
   query: select 42;
+  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
-{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null,"team_id":null}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null,"team_id":null}}
 `
 
 	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "labels"}))
@@ -1134,7 +1136,7 @@ spec:
 func TestGetLabel(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+	ds.GetLabelSpecFunc = func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 		if name != "label1" {
 			return nil, nil
 		}
@@ -1158,8 +1160,9 @@ spec:
   name: label1
   platform: windows
   query: select 1;
+  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null,"team_id":null}}
 `
 
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "label", "label1"}))
@@ -2464,14 +2467,20 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -3093,13 +3102,13 @@ func TestGetMDMCommands(t *testing.T) {
 	var noHostErr error
 	var expectIdentifier bool
 	var expectRequestType bool
-	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, error) {
+	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 		if empty || listErr != nil {
-			return nil, nil, listErr
+			return nil, nil, nil, listErr
 		}
 
 		if noHostErr != nil {
-			return nil, nil, errors.New(fleet.HostIdentiferNotFound)
+			return nil, nil, nil, errors.New(fleet.HostIdentiferNotFound)
 		}
 
 		if expectIdentifier {
@@ -3135,7 +3144,7 @@ func TestGetMDMCommands(t *testing.T) {
 				Status:      "200",
 				Hostname:    "host2",
 			},
-		}, nil, nil
+		}, nil, nil, nil
 	}
 
 	listErr = io.ErrUnexpectedEOF

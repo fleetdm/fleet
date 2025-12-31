@@ -1,6 +1,6 @@
 /** software/titles/:id */
 
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
@@ -10,10 +10,7 @@ import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
-import {
-  ISoftwareTitleDetails,
-  isIpadOrIphoneSoftwareSource,
-} from "interfaces/software";
+import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
@@ -32,7 +29,6 @@ import TeamsHeader from "components/TeamsHeader";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareSummaryCard from "./SoftwareSummaryCard";
 import SoftwareInstallerCard from "./SoftwareInstallerCard";
-import { getInstallerCardInfo } from "./helpers";
 
 const baseClass = "software-title-details-page";
 
@@ -77,6 +73,12 @@ const SoftwareTitleDetailsPage = ({
     includeNoTeam: true,
   });
 
+  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
+  // as it automatically opens from adding flow of custom software in gitOps mode
+  const [showViewYamlModal, setShowViewYamlModal] = useState(
+    autoOpenGitOpsYamlModal || false
+  );
+
   const {
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
@@ -104,6 +106,10 @@ const SoftwareTitleDetailsPage = ({
 
   const isAvailableForInstall =
     !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
+
+  const onToggleViewYaml = () => {
+    setShowViewYamlModal(!showViewYamlModal);
+  };
 
   const onDeleteInstaller = useCallback(() => {
     if (softwareTitle?.versions?.length) {
@@ -140,43 +146,16 @@ const SoftwareTitleDetailsPage = ({
       return null;
     }
 
-    const {
-      softwareTitleName,
-      softwareDisplayName,
-      softwarePackage,
-      name,
-      version,
-      addedTimestamp,
-      status,
-      isSelfService,
-      isScriptPackage,
-      source,
-    } = getInstallerCardInfo(title);
-
-    const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
-
     return (
       <SoftwareInstallerCard
-        softwareTitleName={softwareTitleName}
-        softwareDisplayName={softwareDisplayName}
-        isScriptPackage={isScriptPackage}
-        isIosOrIpadosApp={isIosOrIpadosApp}
-        softwareInstaller={softwarePackage}
-        name={name}
-        version={version}
-        iconUrl={title.icon_url}
-        displayName={title.display_name}
-        addedTimestamp={addedTimestamp}
-        status={status}
-        isSelfService={isSelfService}
+        softwareTitle={title}
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
         teamIdForApi={teamIdForApi}
         onDelete={onDeleteInstaller}
-        refetchSoftwareTitle={refetchSoftwareTitle}
         isLoading={isSoftwareTitleLoading}
-        router={router}
-        gitOpsYamlParam={autoOpenGitOpsYamlModal}
+        onToggleViewYaml={onToggleViewYaml}
+        showViewYamlModal={showViewYamlModal}
       />
     );
   };
@@ -184,18 +163,14 @@ const SoftwareTitleDetailsPage = ({
   const renderSoftwareSummaryCard = (title: ISoftwareTitleDetails) => {
     return (
       <SoftwareSummaryCard
-        title={title}
+        softwareTitle={title}
         softwareId={softwareId}
         teamId={teamIdForApi}
         isAvailableForInstall={isAvailableForInstall}
         isLoading={isSoftwareTitleLoading}
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
-        softwareInstaller={
-          isAvailableForInstall
-            ? getInstallerCardInfo(title).softwarePackage
-            : undefined
-        }
+        onToggleViewYaml={onToggleViewYaml}
       />
     );
   };

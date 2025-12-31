@@ -32,8 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
-	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
-	activity_service "github.com/fleetdm/fleet/v4/server/activity/service"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -256,12 +254,6 @@ the way that the Fleet server works.
 				initFatal(err, "initializing datastore")
 			}
 			ds = mds
-
-			// Initialize activity bounded context service using shared connections
-			activitySvc, err := activity_bootstrap.NewService(dbConns.Primary, dbConns.Replica)
-			if err != nil {
-				initFatal(err, "initializing activity service")
-			}
 
 			if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
@@ -768,6 +760,21 @@ the way that the Fleet server works.
 			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
+
+			activitiesModule := activities.NewActivityModule(ds, logger)
+			androidSvc, err := android_service.NewService(
+				ctx,
+				logger,
+				ds,
+				config.License.Key,
+				config.Server.PrivateKey,
+				ds,
+				activitiesModule,
+			)
+			if err != nil {
+				initFatal(err, "initializing android service")
+			}
+
 			svc, err := service.NewService(
 				ctx,
 				ds,
@@ -796,22 +803,10 @@ the way that the Fleet server works.
 				digiCertService,
 				conditionalAccessMicrosoftProxy,
 				redis_key_value.New(redisPool),
+				androidSvc,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
-			}
-			activitiesModule := activities.NewActivityModule(ds, logger)
-			androidSvc, err := android_service.NewService(
-				ctx,
-				logger,
-				ds,
-				config.License.Key,
-				config.Server.PrivateKey,
-				ds,
-				activitiesModule,
-			)
-			if err != nil {
-				initFatal(err, "initializing android service")
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
@@ -1264,7 +1259,6 @@ the way that the Fleet server works.
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
 					[]endpoint_utils.HandlerRoutesFunc{
 						android_service.GetRoutes(svc, androidSvc),
-						activity_service.GetRoutes(svc, activitySvc),
 					}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)

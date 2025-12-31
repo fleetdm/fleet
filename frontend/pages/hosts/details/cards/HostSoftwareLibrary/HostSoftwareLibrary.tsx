@@ -665,6 +665,7 @@ const HostSoftwareLibrary = ({
               selectedVPPInstallDetails.display_name ||
               selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,
+            platform,
           }}
           hostSoftware={selectedVPPInstallDetails}
           onCancel={() => setSelectedVPPInstallDetails(null)}

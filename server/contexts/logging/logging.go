@@ -14,8 +14,6 @@ import (
 )
 
 // UserEmailer provides the user's email for logging purposes.
-// This interface allows the logging package to remain decoupled from
-// the viewer package while still being able to log user information.
 type UserEmailer interface {
 	Email() string
 }

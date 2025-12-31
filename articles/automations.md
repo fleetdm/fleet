@@ -38,7 +38,7 @@ Then in the UI:
 1. Navigate to the **Queries** page, select the relevant team, and click **Manage automations**
 2. In the modal that opens, confirm that you see "Log destination: Webhook", and when you hover over
    "Webhook", you see "Each time a query runs, the data is sent via webhook to:
-   <target_result_url>"
+   [target_result_url]"
 3. Select the queries that you want to send data to this webhook
 4. Click **Save**
 

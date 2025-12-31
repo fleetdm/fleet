@@ -244,7 +244,8 @@ const EditQueryForm = ({
     isFetching: isFetchingLabels,
   } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => labelsAPI.summary(),
+    // All-teams queries can only be assigned global labels
+    () => labelsAPI.summary(currentTeamId, true),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -398,6 +399,7 @@ const EditQueryForm = ({
   const renderAuthor = (): JSX.Element | null => {
     return storedQuery ? (
       <DataSet
+        className={`${baseClass}__author`}
         title="Author"
         value={
           <>

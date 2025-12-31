@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -28,6 +29,9 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
 		WHERE certificate_templates.id = ?
 	`, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
 	}
 
@@ -158,6 +162,9 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		) VALUES (?, ?, ?, ?)
 	`, certificateTemplate.Name, certificateTemplate.TeamID, certificateTemplate.CertificateAuthorityID, certificateTemplate.SubjectName)
 	if err != nil {
+		if IsDuplicate(err) {
+			return nil, ctxerr.Wrap(ctx, alreadyExists("CertificateTemplate", certificateTemplate.Name), "inserting certificate_template")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "inserting certificate_template")
 	}
 
@@ -197,12 +204,10 @@ func (ds *Datastore) DeleteCertificateTemplate(ctx context.Context, id uint) err
 	return nil
 }
 
-func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) error {
+func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certificateTemplates []*fleet.CertificateTemplate) ([]uint, error) {
 	if len(certificateTemplates) == 0 {
-		return nil
+		return nil, nil
 	}
-
-	const argsCountInsertCertificate = 4
 
 	const sqlInsertCertificate = `
 		INSERT INTO certificate_templates (
@@ -210,32 +215,35 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 			team_id,
 			certificate_authority_id,
 			subject_name
-		) VALUES %s
+		) VALUES (?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			team_id = VALUES(team_id)
 	`
 
-	var placeholders strings.Builder
-	args := make([]interface{}, 0, len(certificateTemplates)*argsCountInsertCertificate)
-
+	teamsModifiedSet := make(map[uint]struct{})
 	for _, cert := range certificateTemplates {
-		args = append(args, cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName)
-		placeholders.WriteString("(?,?,?,?),")
+		result, err := ds.writer(ctx).ExecContext(ctx, sqlInsertCertificate, cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "upserting certificate_template")
+		}
+
+		if insertOnDuplicateDidInsertOrUpdate(result) {
+			teamsModifiedSet[cert.TeamID] = struct{}{}
+		}
 	}
 
-	stmt := fmt.Sprintf(sqlInsertCertificate, strings.TrimSuffix(placeholders.String(), ","))
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "upserting certificate_templates")
+	teamsModified := make([]uint, 0, len(teamsModifiedSet))
+	for teamID := range teamsModifiedSet {
+		teamsModified = append(teamsModified, teamID)
 	}
 
-	return nil
+	return teamsModified, nil
 }
 
-func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error {
+func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error) {
 	if len(certificateTemplateIDs) == 0 {
-		return nil
+		return false, nil
 	}
 
 	const sqlDeleteCertificateTemplates = `
@@ -252,11 +260,13 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 
 	stmt := fmt.Sprintf(sqlDeleteCertificateTemplates, strings.TrimSuffix(placeholders.String(), ","))
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting certificate_templates")
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "deleting certificate_templates")
 	}
 
-	return nil
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected > 0, nil
 }
 
 func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
@@ -266,13 +276,12 @@ func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID s
 
 	stmt := `
 SELECT
-	ct.name,
-	hct.status,
-	hct.detail,
-	hct.operation_type
-FROM host_certificate_templates hct
-	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
-WHERE hct.host_uuid = ?`
+	name,
+	status,
+	detail,
+	operation_type
+FROM host_certificate_templates
+WHERE host_uuid = ?`
 
 	var hTemplates []fleet.HostCertificateTemplate
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hTemplates, stmt, hostUUID); err != nil {
@@ -295,16 +304,19 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 			certificate_template_id,
 			fleet_challenge,
 			status,
-			operation_type
+			operation_type,
+			name
 		)
 		SELECT
 			hosts.uuid,
-			?,
+			ct.id,
 			NULL,
 			'%s',
-			'%s'
+			'%s',
+			ct.name
 		FROM hosts
 		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
+		INNER JOIN certificate_templates ct ON ct.id = ?
 		WHERE
 			(hosts.team_id = ? OR (? = 0 AND hosts.team_id IS NULL)) AND
 			hosts.platform = '%s' AND
@@ -331,13 +343,15 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 			host_uuid,
 			certificate_template_id,
 			status,
-			operation_type
+			operation_type,
+			name
 		)
 		SELECT
 			?,
 			id,
 			'%s',
-			'%s'
+			'%s',
+			name
 		FROM certificate_templates
 		WHERE team_id = ?
 		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
@@ -347,62 +361,4 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
 	}
 	return result.RowsAffected()
-}
-
-func (ds *Datastore) GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	var stmt string
-	var args []interface{}
-
-	if teamID != nil {
-		stmt = `
-SELECT
-	hct.status AS status,
-	COUNT(DISTINCT hct.host_uuid) AS n
-FROM host_certificate_templates hct
-INNER JOIN certificate_templates ct ON hct.certificate_template_id = ct.id
-WHERE ct.team_id = ?
-GROUP BY hct.status`
-		args = append(args, *teamID)
-	} else {
-		stmt = `
-SELECT
-	hct.status AS status,
-	COUNT(DISTINCT hct.host_uuid) AS n
-FROM host_certificate_templates hct
-GROUP BY hct.status`
-	}
-
-	var dest []struct {
-		Count  uint   `db:"n"`
-		Status string `db:"status"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
-		return nil, err
-	}
-
-	byStatus := make(map[string]uint)
-	for _, s := range dest {
-		if _, ok := byStatus[s.Status]; ok {
-			return nil, fmt.Errorf("duplicate status %s found", s.Status)
-		}
-		byStatus[s.Status] = s.Count
-	}
-
-	var res fleet.MDMProfilesSummary
-	for s, c := range byStatus {
-		switch fleet.CertificateTemplateStatus(s) {
-		case fleet.CertificateTemplateFailed:
-			res.Failed = c
-		case fleet.CertificateTemplatePending, fleet.CertificateTemplateDelivering, fleet.CertificateTemplateDelivered:
-			// All in-progress states count as pending
-			res.Pending += c
-		case fleet.CertificateTemplateVerified:
-			res.Verified = c
-		default:
-			return nil, fmt.Errorf("unknown status %s", s)
-		}
-	}
-
-	return &res, nil
 }

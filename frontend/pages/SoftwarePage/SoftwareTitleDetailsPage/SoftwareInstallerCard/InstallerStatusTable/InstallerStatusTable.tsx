@@ -17,6 +17,7 @@ interface IInstallerStatusTableProps {
   status: ISoftwarePackageStatus | ISoftwareAppStoreAppStatus;
   isLoading?: boolean;
   isScriptPackage?: boolean;
+  isAndroidPlayStoreApp?: boolean;
 }
 
 const InstallerStatusTable = ({
@@ -26,6 +27,7 @@ const InstallerStatusTable = ({
   status,
   isLoading = false,
   isScriptPackage = false,
+  isAndroidPlayStoreApp = false,
 }: IInstallerStatusTableProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -34,6 +36,7 @@ const InstallerStatusTable = ({
     softwareId,
     teamId,
     isScriptPackage,
+    isAndroidPlayStoreApp,
   });
 
   return (
