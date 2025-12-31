@@ -153,7 +153,7 @@ func gitopsCommand() *cli.Command {
 			allFleetSecrets := make(map[string]string)
 
 			allLblChanges := make(map[uint][]labelChange) // teamID -> label changes
-			var builtInLabelNames []string
+			builtInLabelNames := make(map[string]any)
 
 			// We need the list of built-in labels for showing contextual errors in case the user
 			// decides to reference a built-in label.
@@ -163,7 +163,7 @@ func gitopsCommand() *cli.Command {
 			}
 			for _, l := range globalLabels {
 				if l.LabelType == fleet.LabelTypeBuiltIn {
-					builtInLabelNames = append(builtInLabelNames, l.Name)
+					builtInLabelNames[l.Name] = nil
 				}
 			}
 
@@ -219,7 +219,6 @@ func gitopsCommand() *cli.Command {
 				if _, ok := allLblChanges[teamID]; ok {
 					continue
 				}
-
 				var existingLabels []*fleet.LabelSpec
 				if teamID == 0 {
 					existingLabels = globalLabels
@@ -243,6 +242,10 @@ func gitopsCommand() *cli.Command {
 			// fail if scripts are supplied on no-team and global config is missing
 			if noTeamPresent && !globalConfigLoaded {
 				return errors.New("global config must be provided alongside no-team.yml")
+			}
+
+			if err := validateLabelChanges(allLblChanges); err != nil {
+				return err
 			}
 
 			for _, configFile := range configs {
@@ -281,10 +284,16 @@ func gitopsCommand() *cli.Command {
 
 				// The validity of a label is based on the label existence (either the label is going to be added or
 				// the label stayed the same). We look at both global label changes and team-specific label changes
-				// because of scoping rules; a team resource can reference a global label.
+				// because of scoping rules (a team resource can reference a global label).
 				var searchSpace []labelChange
 				searchSpace = append(searchSpace, allLblChanges[0]...)
 				searchSpace = append(searchSpace, allLblChanges[teamID]...)
+				validLabelNames := make(map[string]any)
+				for _, label := range searchSpace {
+					if label.Op == "+" || label.Op == "=" {
+						validLabelNames[label.Name] = nil
+					}
+				}
 
 				// Check if any used labels are not in the proposed labels list.
 				// If there are, we'll bail out with helpful error messages.
@@ -292,13 +301,10 @@ func gitopsCommand() *cli.Command {
 				builtInLabelsUsed := false
 
 				for labelUsed := range labelsUsed {
-					isValid := slices.ContainsFunc(searchSpace, func(ch labelChange) bool {
-						return ch.Name == labelUsed && (ch.Op == "+" || ch.Op == "=")
-					})
-					if isValid {
+					if _, ok := validLabelNames[labelUsed]; ok {
 						continue
 					}
-					if slices.Contains(builtInLabelNames, labelUsed) {
+					if _, ok := builtInLabelNames[labelUsed]; ok {
 						logf(
 							"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
 							labelUsed,
@@ -306,7 +312,6 @@ func gitopsCommand() *cli.Command {
 						builtInLabelsUsed = true
 						continue
 					}
-
 					for _, labelUser := range labelsUsed[labelUsed] {
 						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
 					}
@@ -507,6 +512,31 @@ func gitopsCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// Validates that there is no funny business around label changes, like trying to add the same label on multiple teams,
+// or deleting the same label multiple times, etc.
+func validateLabelChanges(allChanges map[uint][]labelChange) error {
+	deleteOps := make(map[string]string)
+	addOps := make(map[string]string)
+
+	for _, teamChanges := range allChanges {
+		for _, change := range teamChanges {
+			switch change.Op {
+			case "-":
+				if prevFile, ok := deleteOps[change.Name]; ok {
+					return fmt.Errorf("can't delete label %q from %s, as it is already being deleted in %s", change.Name, change.FileName, prevFile)
+				}
+				deleteOps[change.Name] = change.FileName
+			case "+":
+				if prevFile, ok := addOps[change.Name]; ok {
+					return fmt.Errorf("can't add label %q to %s, as it is already being added in %s", change.Name, change.FileName, prevFile)
+				}
+				addOps[change.Name] = change.FileName
+			}
+		}
+	}
+	return nil
 }
 
 // Returns a list of label operations to be executed for either a global config file or a team config file,
