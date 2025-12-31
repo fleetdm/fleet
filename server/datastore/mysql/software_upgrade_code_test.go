@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -161,4 +162,151 @@ func TestUpdateSoftwareTitlesUpgradeCode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestUpgradeCodeDuplicateEntryError tests the scenario from GitHub issue #37494:
+// Two titles with different names but the same upgrade_code. When reconciliation
+// tries to update one title's upgrade_code, it conflicts with the other title's
+// unique_identifier (which is based on upgrade_code when set).
+//
+// Scenario:
+// 1. Title A: "Visual Studio 2022" exists with upgrade_code="{guid}"
+// 2. Title B: "Visual Studio Community 2022" exists with upgrade_code=""
+// 3. Host reports "Visual Studio Community 2022" with upgrade_code="{guid}"
+// 4. Name matching finds Title B, but upgrade_code conflicts with Title A
+// 5. Fix: Redirect mapping to Title A, software gets linked to Title A
+func TestUpgradeCodeDuplicateEntryError(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	// Create a host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host-duplicate-uc",
+		Platform:        "windows",
+		OsqueryHostID:   ptr.String("test-host-duplicate-uc"),
+		NodeKey:         ptr.String("test-host-duplicate-uc"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	upgradeCode := "{EB6B8302-C06E-4BEC-ADAC-932C68A3A98D}"
+	emptyUc := ""
+
+	// Create Title A with upgrade_code set (simulates Host A already checked in)
+	resultA, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO software_titles (name, source, upgrade_code)
+		VALUES (?, ?, ?)`,
+		"Visual Studio 2022", "programs", upgradeCode,
+	)
+	require.NoError(t, err)
+	titleAID, _ := resultA.LastInsertId()
+
+	// Create Title B with empty upgrade_code (simulates pre-existing title)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO software_titles (name, source, upgrade_code)
+		VALUES (?, ?, ?)`,
+		"Visual Studio Community 2022", "programs", emptyUc,
+	)
+	require.NoError(t, err)
+
+	// Host reports software with Title B's name but same upgrade_code as Title A
+	incomingSoftware := []fleet.Software{
+		{
+			Name:        "Visual Studio Community 2022",
+			Version:     "17.0.0",
+			Source:      "programs",
+			UpgradeCode: &upgradeCode,
+		},
+	}
+
+	// This should NOT error - the fix redirects the software to Title A
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, incomingSoftware)
+	require.NoError(t, err)
+
+	// Verify the software was linked to Title A (the one with matching upgrade_code)
+	var softwareEntries []struct {
+		ID      uint   `db:"id"`
+		Name    string `db:"name"`
+		TitleID *uint  `db:"title_id"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &softwareEntries, `
+		SELECT s.id, s.name, s.title_id
+		FROM software s
+		WHERE s.name = 'Visual Studio Community 2022' AND s.source = 'programs'
+	`)
+	require.NoError(t, err)
+	require.Len(t, softwareEntries, 1)
+	require.NotNil(t, softwareEntries[0].TitleID)
+	assert.Equal(t, uint(titleAID), *softwareEntries[0].TitleID,
+		"Software should be linked to Title A (the one with matching upgrade_code)")
+}
+
+// TestUpgradeCodeCaseSensitivityWithExistingUpgradeCode tests that case differences
+// in software names are handled correctly when matching with existing titles.
+//
+// Scenario:
+// 1. Title "QEMU Guest Agent" exists with upgrade_code="{guid}" (from earlier ingestion)
+// 2. Host reports "QEMU guest agent" (different case) with same upgrade_code
+// 3. Case-insensitive matching finds the existing title
+// 4. Software is linked to the existing title
+func TestUpgradeCodeCaseSensitivityWithExistingUpgradeCode(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	// Create a host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host-case-with-uc",
+		Platform:        "windows",
+		OsqueryHostID:   ptr.String("test-host-case-with-uc"),
+		NodeKey:         ptr.String("test-host-case-with-uc"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	upgradeCode := "{EB6B8302-C06E-4BEC-ADAC-932C68A3A98D}"
+
+	// Create title with upgrade_code already set and different casing
+	result, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO software_titles (name, source, upgrade_code)
+		VALUES (?, ?, ?)`,
+		"QEMU Guest Agent", "programs", upgradeCode,
+	)
+	require.NoError(t, err)
+	titleID, _ := result.LastInsertId()
+
+	// Host reports software with different casing but same upgrade_code
+	incomingSoftware := []fleet.Software{
+		{
+			Name:        "QEMU guest agent", // lowercase
+			Version:     "107.0.1",
+			Source:      "programs",
+			UpgradeCode: &upgradeCode,
+		},
+	}
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, incomingSoftware)
+	require.NoError(t, err)
+
+	// Verify the software was linked to the existing title (not orphaned)
+	var softwareEntries []struct {
+		ID      uint   `db:"id"`
+		Name    string `db:"name"`
+		TitleID *uint  `db:"title_id"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &softwareEntries, `
+		SELECT s.id, s.name, s.title_id
+		FROM software s
+		WHERE s.name LIKE '%QEMU%' AND s.source = 'programs'
+	`)
+	require.NoError(t, err)
+	require.Len(t, softwareEntries, 1)
+
+	// Software should be linked to the existing title despite case difference
+	require.NotNil(t, softwareEntries[0].TitleID, "Software should have title_id set")
+	assert.Equal(t, uint(titleID), *softwareEntries[0].TitleID,
+		"Software should be linked to existing title")
 }

@@ -57,6 +57,8 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftwareMultipleSameBundleID", testUpdateHostSoftwareMultipleSameBundleID},
 		{"UpdateHostSoftwareMultipleChecksumsPerBundleID", testUpdateHostSoftwareMultipleChecksumsPerBundleID},
 		{"UpdateHostSoftwareLongNameTruncation", testUpdateHostSoftwareLongNameTruncation},
+		{"UpdateHostSoftwareCaseSensitivityTitleDuplication", testUpdateHostSoftwareCaseSensitivityTitleDuplication},
+		{"UpdateHostSoftwareUpgradeCodeReconciliation", testUpdateHostSoftwareUpgradeCodeReconciliation},
 		{"UpdateHostBundleIDRenameOnlyNoNewSoftware", testUpdateHostBundleIDRenameOnlyNoNewSoftware},
 		{"UpdateHostBundleIDRenameWithNewSoftware", testUpdateHostBundleIDRenameWithNewSoftware},
 		{"UpdateHostBrowserExtensions", testUpdateHostBrowserExtensions},
@@ -2385,6 +2387,136 @@ func testUpdateHostSoftwareLongNameTruncation(t *testing.T, ds *Datastore) {
 
 	// Both macOS apps have different checksums but map to the same title
 	// The test successfully demonstrates the "multiple checksums to same title" scenario
+}
+
+// testUpdateHostSoftwareCaseSensitivityTitleDuplication tests that software titles
+// are correctly matched regardless of case differences in the software name.
+//
+// Scenario:
+// 1. Host A reports software with name "FooApp" and upgrade_code=”
+// 2. Host B reports the same software with name "fooapp" (different case) and upgrade_code='{guid}'
+// 3. Case-insensitive matching finds the existing title
+// 4. The existing title's upgrade_code is updated (no duplicate created)
+//
+// Related to: https://github.com/fleetdm/fleet/issues/37494
+func testUpdateHostSoftwareCaseSensitivityTitleDuplication(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hostA := test.NewHost(t, ds, "case-host-a", "", "casekeya", "caseuuida", time.Now())
+	hostB := test.NewHost(t, ds, "case-host-b", "", "casekeyb", "caseuuidb", time.Now())
+
+	upgradeCode := "{12345678-1234-1234-1234-123456789ABC}"
+
+	// Host A reports software with original casing and empty upgrade_code
+	swHostA := []fleet.Software{
+		{Name: "FooApp", Version: "1.0", Source: "programs", UpgradeCode: ptr.String("")},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, hostA.ID, swHostA)
+	require.NoError(t, err)
+
+	// Verify title was created with original casing
+	var titlesBefore []fleet.SoftwareTitleSummary
+	err = ds.writer(ctx).SelectContext(ctx, &titlesBefore,
+		`SELECT id, name, source, upgrade_code FROM software_titles WHERE name = 'FooApp' AND source = 'programs'`)
+	require.NoError(t, err)
+	require.Len(t, titlesBefore, 1, "Should have exactly one title for FooApp")
+	originalTitleID := titlesBefore[0].ID
+
+	// Host B reports the SAME software but with different casing and a non-empty upgrade_code
+	// This simulates osquery returning the name with different casing on different hosts
+	swHostB := []fleet.Software{
+		{Name: "fooapp", Version: "1.0", Source: "programs", UpgradeCode: ptr.String(upgradeCode)},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, hostB.ID, swHostB)
+	require.NoError(t, err)
+
+	// Check how many titles exist for this software (case-insensitive search)
+	var titlesAfter []struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		Source      string  `db:"source"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &titlesAfter,
+		`SELECT id, name, source, upgrade_code FROM software_titles WHERE LOWER(name) = 'fooapp' AND source = 'programs'`)
+	require.NoError(t, err)
+
+	// Should have exactly 1 title (no duplicate created due to case-insensitive matching)
+	require.Len(t, titlesAfter, 1, "Should have exactly one title (case-insensitive matching)")
+
+	// Verify the title kept the original name and had its upgrade_code updated
+	require.Equal(t, originalTitleID, titlesAfter[0].ID, "Should be the same title ID")
+	require.Equal(t, "FooApp", titlesAfter[0].Name, "Title should keep original casing")
+	require.NotNil(t, titlesAfter[0].UpgradeCode)
+	require.Equal(t, upgradeCode, *titlesAfter[0].UpgradeCode, "Title's upgrade_code should be updated")
+}
+
+// testUpdateHostSoftwareUpgradeCodeReconciliation tests that when a host reports
+// software with an upgrade_code, the existing title's upgrade_code is updated
+// (not a new title created).
+//
+// Scenario (from customer data):
+//  1. Host A reports "Chef Cookbooks - Windows" v1.0 with empty upgrade_code
+//     → Title created with upgrade_code=""
+//  2. Host B reports "Chef Cookbooks - Windows" v2.0 with upgrade_code="{guid}"
+//     → Expected: Title's upgrade_code updated to "{guid}"
+//     → Bug: A new title created with upgrade_code="{guid}"
+//
+// Related to: https://github.com/fleetdm/fleet/issues/37494
+func testUpdateHostSoftwareUpgradeCodeReconciliation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hostA := test.NewHost(t, ds, "reconcile-host-a", "", "reconcilekeya", "reconcileuuida", time.Now())
+	hostB := test.NewHost(t, ds, "reconcile-host-b", "", "reconcilekeyb", "reconcileuuidb", time.Now())
+
+	upgradeCode := "{FB9C576D-97C3-49E8-8119-93AC9758CD4C}"
+
+	// Host A reports software v1.0 with empty upgrade_code
+	swHostA := []fleet.Software{
+		{Name: "Chef Cookbooks - Windows", Version: "1.0", Source: "programs", UpgradeCode: ptr.String("")},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, hostA.ID, swHostA)
+	require.NoError(t, err)
+
+	// Verify title was created with empty upgrade_code
+	var titlesBefore []struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		Source      string  `db:"source"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &titlesBefore,
+		`SELECT id, name, source, upgrade_code FROM software_titles WHERE name = 'Chef Cookbooks - Windows' AND source = 'programs'`)
+	require.NoError(t, err)
+	require.Len(t, titlesBefore, 1, "Should have exactly one title")
+	require.NotNil(t, titlesBefore[0].UpgradeCode)
+	require.Empty(t, *titlesBefore[0].UpgradeCode, "Title should have empty upgrade_code initially")
+	originalTitleID := titlesBefore[0].ID
+
+	// Host B reports same software but v2.0 with non-empty upgrade_code
+	// This creates a NEW checksum (different version + upgrade_code affects checksum)
+	swHostB := []fleet.Software{
+		{Name: "Chef Cookbooks - Windows", Version: "2.0", Source: "programs", UpgradeCode: ptr.String(upgradeCode)},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, hostB.ID, swHostB)
+	require.NoError(t, err)
+
+	// Check how many titles exist now
+	var titlesAfter []struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		Source      string  `db:"source"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &titlesAfter,
+		`SELECT id, name, source, upgrade_code FROM software_titles WHERE name = 'Chef Cookbooks - Windows' AND source = 'programs'`)
+	require.NoError(t, err)
+
+	// EXPECTED: Should have exactly 1 title, with upgrade_code updated
+	require.Len(t, titlesAfter, 1, "Should have exactly one title (no duplicate created)")
+	require.Equal(t, originalTitleID, titlesAfter[0].ID, "Should be the same title")
+	require.NotNil(t, titlesAfter[0].UpgradeCode)
+	require.Equal(t, upgradeCode, *titlesAfter[0].UpgradeCode, "Title's upgrade_code should have been updated")
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
