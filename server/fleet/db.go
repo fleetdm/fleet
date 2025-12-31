@@ -1,7 +1,7 @@
 package fleet
 
 import (
-	"github.com/fleetdm/fleet/v4/server/platform/db"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -25,5 +25,5 @@ type DBReader interface {
 	Rebind(string) string
 }
 
-// DBReadTx is an alias for db.DBReadTx.
-type DBReadTx = db.DBReadTx
+// DBReadTx is an alias for common_mysql.DBReadTx.
+type DBReadTx = common_mysql.DBReadTx

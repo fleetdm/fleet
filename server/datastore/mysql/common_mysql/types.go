@@ -1,4 +1,4 @@
-package db
+package common_mysql
 
 import "github.com/jmoiron/sqlx"
 
