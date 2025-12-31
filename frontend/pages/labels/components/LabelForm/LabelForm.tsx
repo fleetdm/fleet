@@ -33,11 +33,19 @@ const generateDescriptionHelpText = (immutableFields: string[]) => {
   const SUFFIX =
     "are immutable. To make changes, delete this label and create a new one.";
 
-  return immutableFields.length === 1
-    ? `Label ${immutableFields[0]} ${SUFFIX}`
-    : `Label ${immutableFields
-        .slice(0, -1)
-        .join(", ")} and ${immutableFields.slice(-1)} ${SUFFIX}`;
+  if (immutableFields.length === 1) {
+    return `Label ${immutableFields[0]} ${SUFFIX}`;
+  }
+
+  if (immutableFields.length === 2) {
+    // No comma for two items: "queries and platforms"
+    return `Label ${immutableFields[0]} and ${immutableFields[1]} ${SUFFIX}`;
+  }
+
+  // 3+ items: Oxford comma before "and"
+  const allButLast = immutableFields.slice(0, -1).join(", ");
+  const last = immutableFields.slice(-1);
+  return `Label ${allButLast}, and ${last} ${SUFFIX}`;
 };
 
 const LabelForm = ({
