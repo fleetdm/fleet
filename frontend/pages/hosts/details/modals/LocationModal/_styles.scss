@@ -3,8 +3,9 @@
     @include vertical-modal-layout;
   }
 
-  dd,
-  dt {
+  &__location,
+  &__message {
+    display: flex;
     align-items: baseline;
     gap: $pad-small;
   }

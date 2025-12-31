@@ -28,13 +28,8 @@ describe("LocationModal", () => {
     // Location name (city, country)
     expect(screen.getByText("Minneapolis, US")).toBeVisible();
 
-    // Last updated text when detailsUpdatedAt is not provided
-    expect(
-      screen.getByText(/Last reported location : unavailable/i)
-    ).toBeVisible();
-
     // Google Maps link built from coordinates (lat,lng)
-    const link = screen.getByRole("link", { name: /Google Maps/i });
+    const link = screen.getByRole("link", { name: /Open in Google Maps/i });
     expect(link).toBeVisible();
     expect(link).toHaveAttribute(
       "href",
@@ -42,18 +37,21 @@ describe("LocationModal", () => {
     );
   });
 
-  it("renders LastUpdatedText when detailsUpdatedAt is provided", () => {
+  it("renders LastUpdatedText when detailsUpdatedAt is 2 days ago", () => {
+    const currentDate = new Date();
+    currentDate.setDate(currentDate.getDate() - 2);
+    const twoDaysAgo = currentDate.toISOString();
+
     render(
       <LocationModal
         hostGeolocation={createMockHostGeolocation()}
-        detailsUpdatedAt="2025-01-01T12:00:00Z"
+        detailsUpdatedAt={twoDaysAgo}
         onExit={noop}
         onClickLock={noop}
       />
     );
 
-    // Only assert the prefix text; LastUpdatedText handles the timestamp formatting
-    expect(screen.getByText(/Last reported location/i)).toBeVisible();
+    expect(screen.getByText(/Updated 2 days ago/i)).toBeInTheDocument();
   });
 
   it("shows iOS unlocked message when iOS host is unlocked", () => {
@@ -119,11 +117,8 @@ describe("LocationModal", () => {
       />
     );
 
-    expect(
-      screen.getByText(
-        /Location not available. Please close this modal and select/i
-      )
-    ).toBeVisible();
+    expect(screen.getByText(/Location not available/i)).toBeVisible();
+    expect(screen.getByText(/Close this modal/i)).toBeVisible();
     expect(screen.getByText("Refetch")).toBeVisible();
   });
 
@@ -137,8 +132,7 @@ describe("LocationModal", () => {
       />
     );
 
-    // iOS default branch should return null when hasLocation = true,
-    // so we render the standard location content.
+    // With a location present, the standard content renders
     expect(screen.getByText("Minneapolis, US")).toBeVisible();
   });
 

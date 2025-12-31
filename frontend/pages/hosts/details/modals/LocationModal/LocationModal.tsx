@@ -7,7 +7,6 @@ import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
-import DataSet from "components/DataSet";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
@@ -27,54 +26,55 @@ const getLocationMessage = (
   iosOrIpadosDetails: IIosOrIpadosDetails | undefined,
   hasLocation: boolean
 ): JSX.Element | null => {
-  const contentClass = `${baseClass}__content`;
   const FETCH_LATEST_LOCATION_MESSAGE = (
+    <div>
+      Close this modal and select <strong>Refetch</strong> to fetch new
+      location.
+    </div>
+  );
+  const IOS_LOCKING_MESSAGE = (
     <>
-      Please close this modal and select <strong>Refetch</strong> to fetch the
-      latest location.
+      To view location, Apple requires that iOS hosts are locked (Lost Mode)
+      first.
     </>
   );
 
-  if (iosOrIpadosDetails?.isIosOrIpadosHost) {
-    switch (iosOrIpadosDetails?.hostMdmDeviceStatus) {
-      case "unlocked":
-        return (
-          <div className={contentClass}>
-            To view location, Apple requires that iOS hosts are locked (Lost
-            Mode) first.
-          </div>
-        );
-      case "locking":
-        return (
-          <div className={contentClass}>
-            <p>
-              To view location, Apple requires that iOS hosts are locked (Lost
-              Mode) first.
-            </p>
-            <p>
-              Lock is pending. Host will lock the next time it checks in to
-              Fleet.
-            </p>
-          </div>
-        );
-      case "locating":
-        return (
-          <div className={contentClass}>
-            Location is pending. Host will share location the next time it
-            checks in to Fleet.
-          </div>
-        );
-      default:
-        return (
-          <div className={contentClass}>
-            {!hasLocation ? "Location not available. " : ""}
-            {FETCH_LATEST_LOCATION_MESSAGE}
-          </div>
-        );
-    }
+  if (!iosOrIpadosDetails?.isIosOrIpadosHost) {
+    return FETCH_LATEST_LOCATION_MESSAGE;
   }
 
-  return FETCH_LATEST_LOCATION_MESSAGE;
+  const { hostMdmDeviceStatus } = iosOrIpadosDetails;
+
+  switch (hostMdmDeviceStatus) {
+    case "unlocked":
+      return <div>{IOS_LOCKING_MESSAGE}</div>;
+
+    case "locking":
+      return (
+        <div>
+          <p>{IOS_LOCKING_MESSAGE}</p>
+          <p>
+            Lock is pending. Host will lock the next time it checks in to Fleet.
+          </p>
+        </div>
+      );
+
+    case "locating":
+      return (
+        <div>
+          Location is pending. Host will share location the next time it checks
+          in to Fleet.
+        </div>
+      );
+
+    default:
+      return (
+        <div>
+          {!hasLocation ? "Location not available. " : ""}
+          {FETCH_LATEST_LOCATION_MESSAGE}
+        </div>
+      );
+  }
 };
 
 const buildGoogleMapsLinkFromGeo = (loc: IGeoLocation): string | null => {
@@ -120,44 +120,39 @@ const LocationModal = ({
     ? buildGoogleMapsLinkFromGeo(hostGeolocation)
     : null;
 
-  const lastUpdatedAt = detailsUpdatedAt ? (
+  // Only show last updated at for non-iOS/iPadOS hosts and for iOS/iPadOS hosts
+  // when "locked" and location is available
+  const shouldShowLastUpdatedAt =
+    !iosOrIpadosDetails?.isIosOrIpadosHost ||
+    (iosOrIpadosDetails?.isIosOrIpadosHost &&
+      iosOrIpadosDetails?.hostMdmDeviceStatus === "locked" &&
+      hostGeolocation !== null &&
+      detailsUpdatedAt);
+  const renderLastUpdatedAt = () => (
     <LastUpdatedText
       lastUpdatedAt={detailsUpdatedAt}
       customTooltipText="The last time location data was updated."
     />
-  ) : (
-    ": unavailable"
   );
-
   const renderContent = () => {
-    if (!hostGeolocation) {
-      return null;
-    }
-
     return (
       <div className={`${baseClass}__content`}>
-        <div className={`${baseClass}__updated-at`}>
-          <DataSet
-            title={<>Last reported location {lastUpdatedAt}</>}
-            value={
-              <>
-                {getCityCountryLocation(hostGeolocation)}{" "}
-                {googleMapsUrl && (
-                  <div className={`${baseClass}__link`}>
-                    <CustomLink
-                      url={googleMapsUrl}
-                      text="Google Maps"
-                      newTab
-                      multiline
-                    />
-                  </div>
-                )}
-              </>
-            }
-          />
+        <div className={`${baseClass}__location`}>
+          {hostGeolocation && getCityCountryLocation(hostGeolocation)}{" "}
+          {googleMapsUrl && (
+            <div className={`${baseClass}__link`}>
+              <CustomLink
+                url={googleMapsUrl}
+                text="Open in Google Maps"
+                newTab
+                multiline
+              />
+            </div>
+          )}
         </div>
         <div className={`${baseClass}__message`}>
           {getLocationMessage(iosOrIpadosDetails, Boolean(hostGeolocation))}
+          {shouldShowLastUpdatedAt && renderLastUpdatedAt()}
         </div>
       </div>
     );
