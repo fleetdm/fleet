@@ -123,13 +123,11 @@ type fleetEndpointer struct {
 	svc fleet.Service
 }
 
-func (e *fleetEndpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
-	svc interface{},
-) (platform_http.Errorer, error) {
+func (e *fleetEndpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any, svc any) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(fleet.Service))
 }
 
-func (e *fleetEndpointer) Service() interface{} {
+func (e *fleetEndpointer) Service() any {
 	return e.svc
 }
 
