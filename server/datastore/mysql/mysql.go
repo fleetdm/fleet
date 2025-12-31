@@ -834,11 +834,15 @@ func sanitizeColumn(col string) string {
 
 // appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
 func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
-	return common_mysql.AppendListOptions(sql, opts)
+	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
 // appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
+// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
 func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.DefaultPerPage
+	}
 	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
 }
 

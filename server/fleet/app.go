@@ -1284,10 +1284,18 @@ func (l ListOptions) UsesCursorPagination() bool {
 	return l.After != "" && l.OrderKey != ""
 }
 
+// DefaultPerPage is the default limit for list queries when no limit is specified.
+const DefaultPerPage = 1000000
+
 // Interface methods for common_mysql.ListOptions
 
-func (l ListOptions) GetPage() uint                { return l.Page }
-func (l ListOptions) GetPerPage() uint             { return l.PerPage }
+func (l ListOptions) GetPage() uint { return l.Page }
+func (l ListOptions) GetPerPage() uint {
+	if l.PerPage == 0 {
+		return DefaultPerPage
+	}
+	return l.PerPage
+}
 func (l ListOptions) GetOrderKey() string          { return l.OrderKey }
 func (l ListOptions) IsDescending() bool           { return l.OrderDirection == OrderDescending }
 func (l ListOptions) GetCursorValue() string       { return l.After }

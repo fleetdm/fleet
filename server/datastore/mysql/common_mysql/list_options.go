@@ -7,9 +7,6 @@ import (
 	"strings"
 )
 
-// DefaultSelectLimit is the default limit for SELECT queries when no limit is specified.
-const DefaultSelectLimit = 1000000
-
 // columnCharsRegexp matches characters that are not allowed in column names.
 var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 
@@ -94,20 +91,13 @@ func AppendListOptionsWithParams(sql string, params []any, opts ListOptions) (st
 		}
 	}
 
-	// If caller doesn't supply a limit apply a default limit to ensure
-	// that an unbounded query with many results doesn't consume too much memory
-	perPage := opts.GetPerPage()
-	if perPage == 0 {
-		perPage = DefaultSelectLimit
-	}
-
-	limit := perPage
+	limit := opts.GetPerPage()
 	if opts.WantsPaginationInfo() {
 		limit++
 	}
 	sql = fmt.Sprintf("%s LIMIT %d", sql, limit)
 
-	offset := perPage * page
+	offset := opts.GetPerPage() * page
 	if offset > 0 {
 		sql = fmt.Sprintf("%s OFFSET %d", sql, offset)
 	}
