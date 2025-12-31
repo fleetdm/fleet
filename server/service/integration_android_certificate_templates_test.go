@@ -750,7 +750,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	caID, _ := s.createTestCertificateAuthority(t, ctx)
 
 	// Create certificate templates for Team A
-	certTemplateA1Name := t.Name() + "-TeamA-Cert1"
+	certTemplateA1Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamA-Cert1"
 	var createCertResp createCertificateTemplateResponse
 	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
 		Name:                   certTemplateA1Name,
@@ -760,7 +760,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	}, http.StatusOK, &createCertResp)
 	certTemplateA1ID := createCertResp.ID
 
-	certTemplateA2Name := t.Name() + "-TeamA-Cert2"
+	certTemplateA2Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamA-Cert2"
 	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
 		Name:                   certTemplateA2Name,
 		TeamID:                 teamAID,
@@ -770,7 +770,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	certTemplateA2ID := createCertResp.ID
 
 	// Create certificate templates for Team B
-	certTemplateB1Name := t.Name() + "-TeamB-Cert1"
+	certTemplateB1Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamB-Cert1"
 	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
 		Name:                   certTemplateB1Name,
 		TeamID:                 teamBID,
@@ -870,7 +870,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 
 		// Create certificate templates for team E
 		for i := range testCases {
-			name := fmt.Sprintf("%s-Cert-%s-%s", t.Name(), testCases[i].status, testCases[i].operation)
+			name := fmt.Sprintf("%s-Cert-%s-%s", strings.ReplaceAll(t.Name(), "/", "-"), testCases[i].status, testCases[i].operation)
 			s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
 				Name:                   name,
 				TeamID:                 teamEID,
