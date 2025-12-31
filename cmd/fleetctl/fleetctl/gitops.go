@@ -26,9 +26,9 @@ type LabelUsage struct {
 }
 
 // Specifies a CRUD label operation
-type labelOpType struct {
+type labelChange struct {
 	Name   string // The globally unique label name
-	Op     string // What operation to perform on the label. +:add, -:remove
+	Op     string // What operation to perform on the label. +:add, -:remove, =:no-op
 	TeamID uint   // The team this label belongs to, 0 means the label is global.
 }
 
@@ -151,7 +151,7 @@ func gitopsCommand() *cli.Command {
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
 
-			var lblOps []labelOpType
+			var lblChanges []labelChange
 			var builtInLabelNames []string
 
 			// Parsed a config and filename pair
@@ -242,11 +242,11 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				ops, err := computeLabelOperations(teamID, existingLabels, config.Labels)
+				localLblChanges, err := computeLabelChanges(teamID, existingLabels, config.Labels)
 				if err != nil {
 					return err
 				}
-				lblOps = append(lblOps, ops...)
+				lblChanges = append(lblChanges, localLblChanges...)
 
 				// Gather stats on where labels are used in this gitops config,
 				// so we can bail if any of the referenced labels don't exist
@@ -264,8 +264,8 @@ func gitopsCommand() *cli.Command {
 
 				for labelUsed := range labelsUsed {
 					// The valid labels are based on whatever is going to be added or stayed the same
-					if slices.IndexFunc(lblOps, func(op labelOpType) bool {
-						return op.Name == labelUsed && (op.Op == "+" || op.Op == "=")
+					if slices.IndexFunc(lblChanges, func(ch labelChange) bool {
+						return ch.Name == labelUsed && (ch.Op == "+" || ch.Op == "=")
 					}) == -1 {
 						if slices.Index(builtInLabelNames, labelUsed) != -1 {
 							logf(
@@ -470,17 +470,17 @@ func gitopsCommand() *cli.Command {
 
 // Returns a list of label operations to be executed for either a global config file or a team config file,
 // along with a set of valid label names for the given scope.
-func computeLabelOperations(
+func computeLabelChanges(
 	teamID uint,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
-) ([]labelOpType, error) {
-	var labelOperations []labelOpType
+) ([]labelChange, error) {
+	var labelOperations []labelChange
 
 	// If the 'labels:' section is specified and empty, then all existing labels are to be deleted or moved to another team.
 	if specifiedLabels == nil {
 		for _, l := range existingLabels {
-			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "-", TeamID: teamID})
+			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "-", TeamID: teamID})
 		}
 		return labelOperations, nil
 	}
@@ -489,7 +489,7 @@ func computeLabelOperations(
 	// some ref validation down the pipe-line.
 	if len(specifiedLabels) == 0 {
 		for _, l := range existingLabels {
-			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "=", TeamID: teamID})
+			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "=", TeamID: teamID})
 		}
 		return labelOperations, nil
 	}
@@ -497,14 +497,14 @@ func computeLabelOperations(
 	// If not, figure out what needs to be done by comparing the list to the existing global labels.
 	for _, l := range existingLabels {
 		if !slices.ContainsFunc(specifiedLabels, func(other *fleet.LabelSpec) bool { return l.Name == other.Name }) {
-			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "-", TeamID: teamID})
+			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "-", TeamID: teamID})
 		} else {
-			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "=", TeamID: teamID})
+			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "=", TeamID: teamID})
 		}
 	}
 	for _, l := range specifiedLabels {
 		if !slices.ContainsFunc(existingLabels, func(other *fleet.LabelSpec) bool { return l.Name == other.Name }) {
-			labelOperations = append(labelOperations, labelOpType{Name: l.Name, Op: "+", TeamID: teamID})
+			labelOperations = append(labelOperations, labelChange{Name: l.Name, Op: "+", TeamID: teamID})
 		}
 	}
 	return labelOperations, nil
