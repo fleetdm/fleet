@@ -140,6 +140,7 @@ const DynamicLabelForm = ({
               onLoad={onLoad}
               wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
               wrapEnabled
+              enableCopy={isEditing}
             />
             <PlatformField
               platform={platform}

@@ -108,15 +108,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 			return errCannotSetAside // generic error here because label may not be visible to the user
 		}
 
-		if hasGlobalWriteRole() {
-			continue
-		}
-
-		if hasWriteRoleAnywhere() && label.AuthorID != nil && *label.AuthorID == user.ID {
-			continue
-		}
-
-		if hasWriteRoleOnTeam(*label.TeamID) {
+		if hasGlobalWriteRole() || hasWriteRoleOnTeam(*label.TeamID) {
 			continue
 		}
 
@@ -361,21 +353,9 @@ func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label f
 					return ctxerr.Wrap(ctx, err, "build host team membership check IN statement")
 				}
 
-				rows, err := tx.QueryContext(ctx, hostTeamCheckSql, args...)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "execute host team membership check query")
-				}
-
-				rows.Next()
 				var hostCountOnWrongTeam int
-				if err := rows.Scan(&hostCountOnWrongTeam); err != nil {
-					return ctxerr.Wrap(ctx, err, "check host team membership")
-				}
-				if err := rows.Err(); err != nil {
-					return ctxerr.Wrap(ctx, err, "check host team membership")
-				}
-				if err := rows.Close(); err != nil { //nolint:sqlclosecheck
-					return ctxerr.Wrap(ctx, err, "close result set for host team membership")
+				if err := tx.QueryRowxContext(ctx, hostTeamCheckSql, args...).Scan(&hostCountOnWrongTeam); err != nil {
+					return ctxerr.Wrap(ctx, err, "execute host team membership check query")
 				}
 				if hostCountOnWrongTeam > 0 {
 					return ctxerr.Wrap(ctx, errors.New("supplied hosts are on a different team than the label"))
@@ -495,6 +475,12 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 		FROM labels l`, filter)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query for getting label specs")
+	}
+	// Normally, we want to show all available labels for e.g. applying to a resource, but for specs it's
+	// better to show only the labels on a given team when a filter is applied. Doing this query hack rather
+	// than editing the applyLabelTeamFilter implementation to avoid adding a flag that's only set here.
+	if filter.TeamID != nil && *filter.TeamID > 0 {
+		query += " AND l.team_id IS NOT NULL"
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &specs, query, params...); err != nil {
@@ -699,7 +685,7 @@ func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.Tea
 	stmt := fmt.Sprintf(`
 		SELECT
 		       l.*, teams.name team_name,
-		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
+		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE lm.label_id = l.id AND %s) AS host_count
 		FROM labels l LEFT JOIN teams ON teams.id = l.team_id
 		WHERE l.id = ?
 	`, ds.whereFilterHostsByTeams(teamFilter, "h"))

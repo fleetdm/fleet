@@ -26,6 +26,9 @@ func verifyLabelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeam
 	if len(labelNames) == 0 {
 		return nil
 	}
+	if user == nil {
+		return ctxerr.New(ctx, "Authentication required")
+	}
 
 	// Remove duplicate names.
 	seen := make(map[string]struct{})

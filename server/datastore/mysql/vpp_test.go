@@ -2595,7 +2595,7 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
 		require.True(t, err == nil || fleet.IsNotFound(err))
 		if config != nil {
-			a.Configuration = config.Configuration
+			a.Configuration = *config
 			assigned[a.VPPAppID] = a
 		}
 	}
@@ -2620,9 +2620,17 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	for _, a := range assigned {
 		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
 		require.True(t, err == nil || fleet.IsNotFound(err))
+		byAppTeamIdConfig, byAppTeamIdErr := ds.GetAndroidAppConfigurationByAppTeamID(ctx, a.AppTeamID)
+
 		if config != nil {
-			a.Configuration = config.Configuration
+			a.Configuration = *config
 			assigned[a.VPPAppID] = a
+
+			require.NoError(t, byAppTeamIdErr)
+			require.JSONEq(t, string(*config), string(*byAppTeamIdConfig))
+		} else {
+			require.Nil(t, byAppTeamIdConfig)
+			require.True(t, fleet.IsNotFound(byAppTeamIdErr))
 		}
 	}
 
