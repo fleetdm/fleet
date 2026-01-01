@@ -135,7 +135,7 @@ describe("LabelForm", () => {
 
     expect(
       screen.getByText(
-        "Label teams, queries and platforms are immutable. To make changes, delete this label and create a new one."
+        "Label teams, queries, and platforms are immutable. To make changes, delete this label and create a new one."
       )
     ).toBeInTheDocument();
   });
