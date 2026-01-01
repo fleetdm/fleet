@@ -67,3 +67,14 @@ func CertificateTemplateStatusToMDMDeliveryStatus(s CertificateTemplateStatus) M
 		return MDMDeliveryPending
 	}
 }
+
+// HostCertificateTemplatesForDelivery contains the result of preparing certificate templates
+// for delivery to a host. It includes both the templates being transitioned to delivering
+// status and the templates that are already installed (verified/delivered).
+type HostCertificateTemplatesForDelivery struct {
+	// DeliveringTemplateIDs are the certificate template IDs that were transitioned
+	// from pending to delivering status in this operation.
+	DeliveringTemplateIDs []uint
+	// OtherTemplateIDs are other certificate template IDs.
+	OtherTemplateIDs []uint
+}

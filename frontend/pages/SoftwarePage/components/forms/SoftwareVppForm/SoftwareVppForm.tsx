@@ -154,7 +154,7 @@ const SoftwareVppForm = ({
   );
 
   const [formValidation, setFormValidation] = useState<IFormValidation>({
-    isValid: !!softwareVppForEdit, // Disables submit before VPP to add is selected
+    isValid: false, // Disables submit before VPP to add is selected and before edit VPP is edited
   });
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
@@ -184,6 +184,7 @@ const SoftwareVppForm = ({
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSelectCategory = ({
@@ -217,6 +218,7 @@ const SoftwareVppForm = ({
   const onToggleAutomaticInstall = (value: boolean) => {
     const newData = { ...formData, automaticInstall: value };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSelectTargetType = (value: string) => {
@@ -228,6 +230,7 @@ const SoftwareVppForm = ({
   const onSelectCustomTargetOption = (value: string) => {
     const newData = { ...formData, customTarget: value };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {

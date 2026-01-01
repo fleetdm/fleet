@@ -4,11 +4,7 @@ import { http, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
 import { ICertificate } from "services/entities/certificates";
 import mockServer from "test/mock-server";
-import {
-  renderWithSetup,
-  baseUrl,
-  createCustomRenderer,
-} from "test/test-utils";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import AddCertModal from "./AddCertificateModal";
 import { INVALID_NAME_MSG, NAME_TOO_LONG_MSG, USED_NAME_MSG } from "./helpers";
@@ -49,9 +45,15 @@ const mockExistingCerts: ICertificate[] = [
 ];
 
 describe("AddCertModal", () => {
-  it("renders the modal with all form fields", async () => {
+  beforeEach(() => {
     mockServer.use(getCAsHandler);
     mockServer.use(createCertHandler);
+  });
+  afterEach(() => {
+    mockServer.resetHandlers();
+  });
+
+  it("renders the modal with all form fields", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -72,7 +74,7 @@ describe("AddCertModal", () => {
     expect(screen.getByText("Certificate authority (CA)")).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(
-        "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/O=Your Organization"
+        "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Create")).toBeInTheDocument();
@@ -80,8 +82,6 @@ describe("AddCertModal", () => {
   });
 
   it("disables Create button when Name field is empty", async () => {
-    mockServer.use(getCAsHandler);
-    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -103,14 +103,12 @@ describe("AddCertModal", () => {
     await user.hover(createButton);
     await waitFor(() => {
       expect(
-        screen.getByText("Complete all required fields to save")
+        screen.getByText("Complete all fields to save.")
       ).toBeInTheDocument();
     });
   });
 
   it("shows error for Name with invalid characters and disables Create button", async () => {
-    mockServer.use(getCAsHandler);
-    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -138,8 +136,6 @@ describe("AddCertModal", () => {
   });
 
   it("shows error for Name that already exists and disables Create button", async () => {
-    mockServer.use(getCAsHandler);
-    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -167,8 +163,6 @@ describe("AddCertModal", () => {
   });
 
   it("shows error for Name with more than 255 characters and disables Create button", async () => {
-    mockServer.use(getCAsHandler);
-    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -197,8 +191,6 @@ describe("AddCertModal", () => {
   });
 
   it("disables Create button when Certificate authority is not selected", async () => {
-    mockServer.use(getCAsHandler);
-    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -218,7 +210,7 @@ describe("AddCertModal", () => {
     await user.type(nameInput, "Valid Name");
 
     const subjectNameInput = screen.getByPlaceholderText(
-      "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/O=Your Organization"
+      "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
     );
     await user.type(subjectNameInput, "/CN=test/O=Org");
 
@@ -227,8 +219,6 @@ describe("AddCertModal", () => {
   });
 
   it("disables Create button when Subject name is empty", async () => {
-    mockServer.use(getCAsHandler);
-    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -263,8 +253,6 @@ describe("AddCertModal", () => {
   });
 
   it("full flow is okay when all fields are valid", async () => {
-    mockServer.use(getCAsHandler);
-    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -285,7 +273,7 @@ describe("AddCertModal", () => {
     await user.type(nameInput, "Valid Name");
 
     const subjectNameInput = screen.getByPlaceholderText(
-      "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/O=Your Organization"
+      "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
     );
     await user.type(subjectNameInput, "/CN=test/O=Org");
 
@@ -307,8 +295,6 @@ describe("AddCertModal", () => {
   });
 
   it("calls onExit when Cancel button is clicked", async () => {
-    mockServer.use(getCAsHandler);
-    mockServer.use(createCertHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
     });

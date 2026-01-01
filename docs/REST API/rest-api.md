@@ -511,6 +511,10 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 | per_page        | integer | query | Results per page.                                                                                                             |
 | order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
+| activity_type | string | query | Indicates the activity `type` to filter by. See available activity types in the [Audit logs docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md).
+| start_created_at | string | query | Filters to include only activities that happened after this date. If not specified, set to the earliest possible date.
+| end_created_at | string | query | Filters to include only activities that happened before this date. If not specified, set to now. |
 
 #### Example
 
@@ -591,6 +595,8 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [Update certificate authority (CA)](#update-certificate-authority-ca)
 - [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Get certificate authority (CA)](#get-certificate-authority-ca)
+- [List certificate templates](#list-certificate-templates)
+- [Get certificate template](#get-certificate-template)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Delete certificate template](#delete-certificate-template)
 - [Request certificate](#request-certificate)
@@ -729,7 +735,7 @@ Add a certificate template to deploy a certificate to all hosts on the team. Fle
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
 | name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
-| team_id      | string  | query | _Available in Fleet Premium_. The ID of the team to add profiles to. |
+| team_id      | string  | body | _Available in Fleet Premium_. The ID of the team to add profiles to. |
 | certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
 | subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
 
@@ -892,6 +898,119 @@ Get details of the certificate authority.
     "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+}
+```
+
+### List certificate templates
+
+List certificate added to Fleet. Currently, they can only be added via GitOps.
+
+`GET /api/v1/fleet/certificates`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                                    |
+| ----------| ------- | ---- | -------------------------------------------------------------- |
+| team      | string  | query | _Available in Fleet Premium_. The team ID to filter profiles. |
+| page      | integer | query | Page number of the results to fetch.                          |
+| per_page  | integer | query | Results per page.                                             |
+
+#### Request headers
+
+This endpoint accepts the node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with a Bearer token.
+
+The `Authorization` header must be formatted as follows:
+
+```
+Authorization: Node key <node_key>
+```
+
+#### Example
+
+`GET /api/v1/fleet/certificates/`
+
+##### Request headers
+
+```http
+Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificates": [
+    {
+      "id": 1,
+      "name": "wifi-certificate",
+      "certificate_authority_id": "1",
+      "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+      "created_at": "2025-11-04T00:00:00Z",
+    },
+    {
+      "id": 2,
+      "name": "vpn-certificate",
+      "certificate_authority_id": "1",
+      "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+      "created_at": "2025-11-04T00:00:00Z",
+    }  
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get certificate template
+
+Get details of the certificate added to Fleet.
+
+`GET /api/v1/fleet/certificates/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | path | **Required**. The ID of the certificate. |
+| host_id   | integer | query | ID of the host. If included, variables in `subject_name` will be replaced with host's values. |
+
+#### Request headers
+
+This endpoint accepts the node key from Fleet's Android agent for authentication in addition to [default authentication](#retrieve-your-api-token) with a Bearer token.
+
+The `Authorization` header must be formatted as follows:
+
+```
+Authorization: Node key <node_key>
+```
+
+#### Example
+
+`GET /api/v1/fleet/certificates/1`
+
+##### Request headers
+
+```http
+Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authority_id": 2,
+  "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
+  "created_at": "2025-11-04T00:00:00Z",
+  "id": 1,
+  "name": "wifi-certificate",
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 }
 ```
 
@@ -1317,8 +1436,12 @@ None.
     "sso_server_url": ""
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true
+    "microsoft_entra_tenant_id": "",
+    "microsoft_entra_connection_configured": false,
+    "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
+    "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
+    "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1336,6 +1459,7 @@ None.
   "mdm": {
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
+    "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
@@ -1556,6 +1680,7 @@ Modifies the Fleet's configuration with the supplied information.
 | integrations             | object  | body  | See [integrations](#integrations).                                                                                           |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
+| conditional_access       | object  | body  | See [conditional_access](#conditional-access).    |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
@@ -1623,7 +1748,11 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
-    "microsoft_entra_connection_configured": true
+    "microsoft_entra_connection_configured": true,
+    "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
+    "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
+    "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1646,6 +1775,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enabled_and_configured": false,
     "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
+    "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
@@ -2195,11 +2325,38 @@ _Available in Fleet Premium._
 }
 ```
 
+#### conditional_access
+
+_Available in Fleet Premium._
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------- |
+| okta_idp_id                         | string  | The IdP ID found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
+| okta_assertion_consumer_service_url | string  | The assertion consumer service URL found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
+| okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
+| okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
+
+When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
+
+##### Example request body
+
+```json
+{
+  "conditional_access": {
+    "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
+    "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
+    "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+  }
+}
+```
+
 #### mdm
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
+| enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -2334,6 +2491,7 @@ _Available in Fleet Premium._
 {
   "mdm": {
     "windows_enabled_and_configured": false,
+    "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "macos_updates": {
@@ -6912,7 +7070,7 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
+| platform | string  | query | Filters software titles available for install by platforms. Options are `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, and `"android"`. Defaults to `"macos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=macos,ios,android`). |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6985,7 +7143,7 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |   Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, or `"ipados"`. Defaults to `"macos"`. |
+| platform | string  | query | Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, or `"android"`. Defaults to `"macos"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
@@ -7236,6 +7394,7 @@ The possible `status` values for Windows hosts are listed in [Microsoft's OMA DM
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
 | command_uuid              | string | query | The unique identifier of the command.                                     |
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only results for the specified host. |
 
 #### Example
 
@@ -7280,9 +7439,13 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | body | The host's `hostname`, `uuid`, or `hardware_serial`. |
-| request_type              | string  | body | The request type to filter commands by. |
-| command_status            | string | body | Valid options are 'ran', 'pending', or 'failed'. Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Windows commands have a '200' and 'Pending' `status` respectively. Apple commands that 'failed' have a 'Failed' `status`. Windows commands that 'failed' have any `status` other than 'Pending' or '200' ('ran').|
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. |
+| request_type              | string  | query | The request type to filter commands by. |
+| command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
+
+> Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
+> 
+> Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
 
 #### Example
 
@@ -7294,7 +7457,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
-  "count": 2,
+  "count": null,
   "results": [
     {
       "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
@@ -10521,6 +10684,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
+Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
+
 #### Example
 
 `POST /api/v1/fleet/software/package`
@@ -10622,6 +10787,8 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+
+Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
 #### Example
 
@@ -10864,7 +11031,7 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 
 _Available in Fleet Premium._
 
-Add app store apps from the Apple App Store or the Google Play store.
+Add Apple App Store or Google Play store app. Apple apps must be added in Apple Business Manager (ABM) before adding them to Fleet.
 
 `POST /api/v1/fleet/software/app_store_apps`
 
@@ -10879,6 +11046,7 @@ Add app store apps from the Apple App Store or the Google Play store.
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10915,7 +11083,8 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 _Available in Fleet Premium._
 
-Modify an Apple app store (VPP) or a Google Play app's options.
+Modify an Apple App Store (VPP) or a Google Play app's options.
+
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
@@ -10929,6 +11098,7 @@ Modify an Apple app store (VPP) or a Google Play app's options.
 | categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -11117,6 +11287,8 @@ Add Fleet-maintained app so it's available for install.
 | automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
 #### Example
 
@@ -12033,7 +12205,7 @@ _Available in Fleet Premium_
 | jira            | array  | See [`integrations.jira`](#integrations-jira2).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk2).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar2). |
-| conditional_access_enabled | boolean | **Available in Fleet Premium for managed cloud customers.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config. |
+| conditional_access_enabled | boolean | **Available in Fleet Premium.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra or Okta connected and configured in global config. |
 
 <br/>
 
