@@ -1675,7 +1675,7 @@ WHERE
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error) {
 	const stmt = `
 SELECT
 	CAST(? AS JSON) != configuration AS has_changed
@@ -1692,7 +1692,7 @@ WHERE
 	}
 
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, globalOrTeamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// old config does not exist, so old one is changed if not empty
@@ -1703,24 +1703,12 @@ WHERE
 	return hasChanged, nil
 }
 
-// GetAndroidAppConfiguration retrieves the configuration for an Android app
-// identified by adam_id and global_or_team_id.
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
-	stmt := `
-		SELECT
-			id,
-			application_id,
-			team_id,
-			global_or_team_id,
-			configuration,
-			created_at,
-			updated_at
-		FROM android_app_configurations
-		WHERE application_id = ? AND global_or_team_id = ?
-	`
+// GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
+	stmt := `SELECT configuration FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`
 
-	var config fleet.AndroidAppConfiguration
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, globalOrTeamID)
+	var config json.RawMessage
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
@@ -1731,23 +1719,16 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	return &config, nil
 }
 
-func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
 	stmt := `
-	SELECT
-		aac.id,
-		aac.application_id,
-		aac.team_id,
-		aac.global_or_team_id,
-		aac.configuration,
-		aac.created_at,
-		aac.updated_at
+	SELECT aac.configuration
 	FROM android_app_configurations aac
 	JOIN vpp_apps_teams vat
 		ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id
 	WHERE vat.id = ?
 `
 
-	var config fleet.AndroidAppConfiguration
+	var config json.RawMessage
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1759,7 +1740,7 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 	return &config, nil
 }
 
-func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error) {
 	const bulkGetStmt = `
 	SELECT
 		application_id,
@@ -1772,12 +1753,15 @@ func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs
 		return nil, nil
 	}
 
-	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, globalOrTeamID)
+	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
 	}
 
-	var configs []*fleet.AndroidAppConfiguration
+	var configs []*struct {
+		ApplicationID string          `db:"application_id"`
+		Configuration json.RawMessage `db:"configuration"`
+	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
@@ -1817,55 +1801,14 @@ WHERE
 	return nil
 }
 
-// InsertAndroidAppConfiguration creates a new Android app configuration entry.
-func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	stmt := `
-		INSERT INTO android_app_configurations
-		(application_id, team_id, global_or_team_id, configuration)
-		VALUES (?, ?, ?, ?)
-	`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.ApplicationID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert android app configuration")
-	}
-
-	return nil
-}
-
-// UpdateAndroidAppConfiguration updates an existing Android app configuration.
-func (ds *Datastore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	stmt := `
-		UPDATE android_app_configurations
-		SET configuration = ?, updated_at = CURRENT_TIMESTAMP(6)
-		WHERE application_id = ? AND global_or_team_id = ?
-	`
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, config.Configuration, config.ApplicationID, config.GlobalOrTeamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update android app configuration")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update android app configuration rows affected")
-	}
-
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
-	}
-
-	return nil
-}
-
 // DeleteAndroidAppConfiguration removes an Android app configuration.
-func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, globalOrTeamID uint) error {
+func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, teamID uint) error {
 	stmt := `
 		DELETE FROM android_app_configurations
 		WHERE application_id = ? AND global_or_team_id = ?
 	`
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, globalOrTeamID)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete android app configuration")
 	}
@@ -1883,7 +1826,7 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID st
 }
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
-func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, appID string, config json.RawMessage) error {
+func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config json.RawMessage) error {
 	err := fleet.ValidateAndroidAppConfiguration(config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
@@ -1897,7 +1840,7 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 			configuration = VALUES(configuration)
 	`
 
-	_, err = tx.ExecContext(ctx, stmt, appID, teamID, ptr.ValOrZero(teamID), config)
+	_, err = tx.ExecContext(ctx, stmt, appID, ptr.UintOrNilIfZero(teamID), teamID, config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
 	}

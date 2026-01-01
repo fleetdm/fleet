@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.2.2.7",
+      "version": "2025.2.2.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';"
       },
-      "installer_url": "https://redirector.gvt1.com/edgedl/android/studio/install/2025.2.2.7/android-studio-2025.2.2.7-mac_arm.dmg",
+      "installer_url": "https://redirector.gvt1.com/edgedl/android/studio/install/2025.2.2.8/android-studio-2025.2.2.8-mac_arm.dmg",
       "install_script_ref": "e127dcf4",
       "uninstall_script_ref": "a577fec1",
-      "sha256": "de459f66de957c1ad360c1776808350ed714a4ef4f6c1eaae7b607d5850afc78",
+      "sha256": "2e6c6eb3e911b42d08a3340bae6ad8759ddc894b4c3199272252f2343535496f",
       "default_categories": [
         "Developer tools"
       ]

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "18.6.0",
+      "version": "18.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'gravitational.teleport.connect';"
       },
-      "installer_url": "https://cdn.teleport.dev/Teleport%20Connect-18.6.0.dmg",
+      "installer_url": "https://cdn.teleport.dev/Teleport%20Connect-18.6.2.dmg",
       "install_script_ref": "b62b433a",
       "uninstall_script_ref": "b6540188",
-      "sha256": "0c5cdafb0f6a3f1675cf252c6f86341fdec5cf4475a7e300f2eb2ce90adfa187",
+      "sha256": "cf5cd54819239b4ec8f6409c5a39ef601147807a67c775ebe22b7ca966084e87",
       "default_categories": [
         "Productivity"
       ]

@@ -38,6 +38,7 @@ import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
+import decodeBase64Utf8 from "../helpers";
 
 interface IGetStatusMessageProps {
   isMyDevicePage?: boolean;
@@ -295,8 +296,8 @@ export const VppInstallDetailsModal = ({
     }
     return {
       ...results,
-      payload: atob(results.payload),
-      result: atob(results.result),
+      payload: results.payload ? decodeBase64Utf8(results.payload) : "",
+      result: results.result ? decodeBase64Utf8(results.result) : "",
     };
   };
 
