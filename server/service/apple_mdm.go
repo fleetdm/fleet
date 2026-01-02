@@ -4204,6 +4204,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	return nil
 }
 
+// nowFunc is to be used in tests.
+var nowFunc = time.Now
+
 // getCurrentLocalTimeInHostTimeZone returns the current time of the given IANA time zone string.
 func getCurrentLocalTimeInHostTimeZone(ctx context.Context, timeZone string) (time.Time, error) {
 	loc, err := time.LoadLocation(timeZone)
@@ -4212,7 +4215,7 @@ func getCurrentLocalTimeInHostTimeZone(ctx context.Context, timeZone string) (ti
 	}
 
 	// Convert now to the specified location using the In() method
-	localTime := time.Now().In(loc)
+	localTime := nowFunc().In(loc)
 	return localTime, nil
 }
 

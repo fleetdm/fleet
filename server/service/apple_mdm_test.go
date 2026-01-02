@@ -6251,8 +6251,132 @@ func customProfileForValidation(value string) string {
 	return fmt.Sprintf(customProfileValidationMobileconfig, value)
 }
 
+func TestParseHHMM(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantHour int
+		wantMin  int
+		wantErr  bool
+	}{
+		{"00:00", 0, 0, false},
+		{"09:30", 9, 30, false},
+		{"23:59", 23, 59, false},
+		{"12:05", 12, 5, false},
+		{"invalid", 0, 0, true},
+		{"12", 0, 0, true},
+		{"12:60", 0, 0, true},
+		{"24:00", 0, 0, true},
+		{"-01:00", 0, 0, true},
+		{"12:xx", 0, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			h, m, err := parseHHMM(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("parseHHMM(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+			if err == nil && (h != tt.wantHour || m != tt.wantMin) {
+				t.Fatalf("parseHHMM(%q) = %d:%d, want %02d:%02d", tt.input, h, m, tt.wantHour, tt.wantMin)
+			}
+		})
+	}
+}
+
+func TestGetCurrentLocalTimeInHostTimeZone(t *testing.T) {
+	// Save original and restore after test
+	originalMock := nowFunc
+	defer func() { nowFunc = originalMock }()
+
+	// Fix "now" to a known UTC time: 2026-01-02 14:30:00 UTC
+	fixedNow := time.Date(2026, 1, 2, 14, 30, 0, 0, time.UTC)
+	nowFunc = func() time.Time {
+		return fixedNow
+	}
+
+	tests := []struct {
+		name     string
+		timezone string
+		wantHour int
+		wantMin  int
+		wantErr  bool
+	}{
+		{"UTC", "UTC", 14, 30, false},
+		{"New York", "America/New_York", 9, 30, false},       // EST = UTC-5
+		{"Los Angeles", "America/Los_Angeles", 6, 30, false}, // PST = UTC-8
+		{"London", "Europe/London", 14, 30, false},           // GMT in winter
+		{"Tokyo", "Asia/Tokyo", 23, 30, false},               // JST = UTC+9
+		{"Invalid TZ", "Invalid/Timezone", 0, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getCurrentLocalTimeInHostTimeZone(context.Background(), tt.timezone)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("getCurrentLocalTimeInHostTimeZone(%q) error = %v, wantErr %v", tt.timezone, err, tt.wantErr)
+			}
+			if err == nil {
+				if got.Hour() != tt.wantHour || got.Minute() != tt.wantMin {
+					t.Fatalf("getCurrentLocalTimeInHostTimeZone(%q) = %02d:%02d, want %02d:%02d",
+						tt.timezone, got.Hour(), got.Minute(), tt.wantHour, tt.wantMin)
+				}
+			}
+		})
+	}
+}
+
 func TestIsTimezoneInWindow(t *testing.T) {
-	ok, err := isTimezoneInWindow(t.Context(), "Australia/Hobart", "00:00", "23:59")
-	require.NoError(t, err)
-	require.True(t, ok)
+	// Save original and restore after test
+	originalMock := nowFunc
+	defer func() { nowFunc = originalMock }()
+
+	// Helper to set a fixed UTC time, which will be converted to local time
+	setMockUTCNow := func(year, month, day, hour, min int) {
+		nowFunc = func() time.Time {
+			return time.Date(year, time.Month(month), day, hour, min, 0, 0, time.UTC)
+		}
+	}
+
+	tests := []struct {
+		name         string
+		mockUTCHour  int
+		mockUTCMin   int
+		timezone     string
+		start        string
+		end          string
+		wantInWindow bool
+		wantErr      bool
+	}{
+		// Normal window (no midnight cross)
+		{name: "normal inside", mockUTCHour: 14, mockUTCMin: 0, timezone: "America/New_York", start: "08:00", end: "17:00", wantInWindow: true, wantErr: false},  // 09:00 EST
+		{name: "normal before", mockUTCHour: 12, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: false, wantErr: false}, // 07:00 EST
+		{name: "normal at start", mockUTCHour: 14, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: true, wantErr: false},
+		{name: "normal at end", mockUTCHour: 22, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: true, wantErr: false}, // 17:00 EST
+
+		// Midnight-crossing window
+		{name: "too early", mockUTCHour: 4, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: false, wantErr: false},              // 20:00 PST
+		{name: "crossing late night", mockUTCHour: 7, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: true, wantErr: false},     // 23:00 PST
+		{name: "crossing early morning", mockUTCHour: 12, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: true, wantErr: false}, // 04:00 PST
+		{name: "crossing outside", mockUTCHour: 16, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: false, wantErr: false},      // 08:00 PST
+
+		// Edge cases
+		{name: "full day", mockUTCHour: 12, mockUTCMin: 0, timezone: "UTC", start: "00:00", end: "23:59", wantInWindow: true, wantErr: false},
+		{name: "single minute", mockUTCHour: 10, mockUTCMin: 5, timezone: "UTC", start: "10:05", end: "10:05", wantInWindow: true, wantErr: false},
+		{name: "invalid start", mockUTCHour: 12, mockUTCMin: 0, timezone: "UTC", start: "25:00", end: "17:00", wantInWindow: false, wantErr: true},
+		{name: "invalid timezone", mockUTCHour: 12, mockUTCMin: 0, timezone: "Invalid/TZ", start: "09:00", end: "17:00", wantInWindow: false, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setMockUTCNow(2026, 1, 2, tt.mockUTCHour, tt.mockUTCMin)
+
+			got, err := isTimezoneInWindow(context.Background(), tt.timezone, tt.start, tt.end)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("isTimezoneInWindow(%q, %s-%s) error = %v, wantErr %v", tt.timezone, tt.start, tt.end, err, tt.wantErr)
+			}
+			if got != tt.wantInWindow {
+				t.Fatalf("isTimezoneInWindow(%q, %s-%s) = %v, want %v", tt.timezone, tt.start, tt.end, got, tt.wantInWindow)
+			}
+		})
+	}
 }

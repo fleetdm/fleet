@@ -184,10 +184,11 @@ func TestHosts(t *testing.T) {
 		{"UpdateHostIssues", testUpdateHostIssues},
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
 		{"GetHostEmails", testGetHostEmails},
-		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
+		{"GetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
-		{"TestMaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
+		{"MaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
+		{"HostTimeZone", testHostTimeZone},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -12194,4 +12195,65 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 		err := ds.MaybeAssociateHostWithScimUser(ctx, host.ID)
 		require.NoError(t, err)
 	})
+}
+
+func testHostTimeZone(t *testing.T, ds *Datastore) {
+	uuid := uuid.NewString()
+	host, err := ds.NewHost(t.Context(), &fleet.Host{
+		NodeKey:  ptr.String(uuid),
+		UUID:     uuid,
+		Hostname: uuid,
+	})
+	require.NoError(t, err)
+	require.Nil(t, host.TimeZone)
+	host, err = ds.Host(t.Context(), host.ID)
+	require.NoError(t, err)
+	require.Nil(t, host.TimeZone)
+	timeZone := "Asia/Tokyo"
+	host.TimeZone = &timeZone
+	err = ds.UpdateHost(t.Context(), host)
+	require.NoError(t, err)
+	host, err = ds.Host(t.Context(), host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, host.TimeZone)
+	require.Equal(t, timeZone, *host.TimeZone)
+	hosts, err := ds.ListHosts(t.Context(), fleet.TeamFilter{
+		User: test.UserAdmin,
+	}, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: uuid,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.NotNil(t, hosts[0].TimeZone)
+	require.Equal(t, timeZone, *hosts[0].TimeZone)
+	host, err = ds.LoadHostByNodeKey(t.Context(), *host.NodeKey)
+	require.NoError(t, err)
+	require.NotNil(t, host.TimeZone)
+	require.Equal(t, timeZone, *host.TimeZone)
+	host, err = ds.HostByIdentifier(t.Context(), uuid)
+	require.NoError(t, err)
+	require.NotNil(t, host.TimeZone)
+	require.Equal(t, timeZone, *host.TimeZone)
+
+	l1s := &fleet.LabelSpec{
+		Name:                "foobar",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts:               []string{host.Hostname},
+	}
+	err = ds.ApplyLabelSpecs(t.Context(), []*fleet.LabelSpec{l1s})
+	require.NoError(t, err)
+	l1, err := ds.LabelByName(t.Context(), l1s.Name, fleet.TeamFilter{
+		User: test.UserAdmin,
+	})
+	require.NoError(t, err)
+	hosts, err = ds.ListHostsInLabel(t.Context(), fleet.TeamFilter{
+		User: test.UserAdmin,
+	}, l1.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.NotNil(t, hosts[0].TimeZone)
+	require.Equal(t, timeZone, *hosts[0].TimeZone)
 }

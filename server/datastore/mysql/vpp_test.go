@@ -45,6 +45,7 @@ func TestVPP(t *testing.T) {
 		{"AndroidVPPAppStatus", testAndroidVPPAppStatus},
 		{"GetVPPAppInstallStatusByCommandUUID", testGetVPPAppInstallStatusByCommandUUID},
 		{"AndroidAppConfigs", testAndroidAppConfigs},
+		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
 	}
 
 	for _, c := range cases {
@@ -2642,4 +2643,190 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	// Delete all
 	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{}, nil)
 	require.NoError(t, err)
+}
+
+func testMapAdamIDsPendingInstallVerification(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// Create VPP token for the team
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create iOS host.
+	iOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ios-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iOSHost, false)
+
+	// Create iPadOS host.
+	iPadOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ipados-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IPadOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPadOSHost, false)
+
+	// Create iOS VPP app on the team.
+	iOSVPPApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+			AdamID:   "adam_vpp_1",
+			Platform: fleet.IOSPlatform,
+		}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}
+	va1, err := ds.InsertVPPAppWithTeam(ctx, iOSVPPApp, &tm.ID)
+	require.NoError(t, err)
+	iOSVPPApp1 := va1.AdamID
+
+	// Create iPadOS VPP app on the team.
+	iPadOSVPPApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+			AdamID:   "adam_vpp_1", // iOS/iPadOS apps usually share Adam ID
+			Platform: fleet.IPadOSPlatform,
+		}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}
+	va2, err := ds.InsertVPPAppWithTeam(ctx, iPadOSVPPApp, &tm.ID)
+	require.NoError(t, err)
+	iPadOSVPPApp1 := va2.AdamID
+
+	t.Run("ios_host_happy_path", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Should get no pending Adam IDs.
+		adamIDs, err := ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+
+		// Issue installation of VPP app on iOSHost.
+		vpp1CmdUUID := createVPPAppInstallRequest(t, ds, iOSHost, iOSVPPApp1, user)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), iOSHost.ID, "")
+		require.NoError(t, err)
+
+		// Should get adam_vpp_1 as pending installation.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		createVPPAppInstallResult(t, ds, iOSHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+		// Should get adam_vpp_1 as pending installation.
+		// The installation command was acknowledged but the installation was not verified.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		// Mark the installation as verified.
+		err = ds.SetVPPInstallAsVerified(ctx, iOSHost.ID, vpp1CmdUUID, uuid.NewString())
+		require.NoError(t, err)
+
+		// Should not get pending Adam IDs anymore (installation succeeded).
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+	})
+
+	t.Run("ipados_host_cancel_install", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Should get no pending Adam IDs.
+		adamIDs, err := ds.MapAdamIDsPendingInstallVerification(ctx, iPadOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+
+		// Issue installation of VPP app on iPadOSHost.
+		installCmdUUID := createVPPAppInstallRequest(t, ds, iPadOSHost, iPadOSVPPApp1, user)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, "")
+		require.NoError(t, err)
+
+		// Should get adam_vpp_1 as pending installation.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iPadOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, installCmdUUID)
+		require.NoError(t, err)
+
+		// Should get adam_vpp_1 as pending installation.
+		// The installation command was canceled.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iPadOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+	})
+
+	t.Run("ios_host_failed_install", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Create another iOS VPP app on the team.
+		iOSVPPApp := &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_vpp_2",
+				Platform: fleet.IOSPlatform,
+			}},
+			Name:             "vpp2",
+			BundleIdentifier: "com.app.vpp2",
+			LatestVersion:    "2.0.0",
+		}
+		va1, err := ds.InsertVPPAppWithTeam(ctx, iOSVPPApp, &tm.ID)
+		require.NoError(t, err)
+		iOSVPPApp2 := va1.AdamID
+
+		// Should get no pending Adam IDs.
+		adamIDs, err := ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+
+		// Issue installation of VPP app on iOSHost.
+		vpp1CmdUUID := createVPPAppInstallRequest(t, ds, iOSHost, iOSVPPApp2, user)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), iOSHost.ID, "")
+		require.NoError(t, err)
+
+		// Should get adam_vpp_1 as pending installation.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_2")
+
+		createVPPAppInstallResult(t, ds, iOSHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+		// Should get adam_vpp_1 as pending installation.
+		// The installation command was acknowledged but the installation was not verified.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_2")
+
+		// Mark the installation as verified.
+		err = ds.SetVPPInstallAsVerified(ctx, iOSHost.ID, vpp1CmdUUID, uuid.NewString())
+		require.NoError(t, err)
+
+		// Should not get pending Adam IDs anymore (installation verified).
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+	})
 }
