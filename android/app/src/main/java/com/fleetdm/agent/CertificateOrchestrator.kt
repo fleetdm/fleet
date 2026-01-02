@@ -59,13 +59,11 @@ class CertificateOrchestrator(
     private val certificateStorageMutex = Mutex()
 
     fun installedCertsFlow(context: Context): Flow<CertificateStateMap> = context.prefDataStore.data.map { preferences ->
-        try {
-            val jsonStr = preferences[INSTALLED_CERTIFICATES_KEY]
-            json.decodeFromString(jsonStr!!)
-        } catch (e: Exception) {
-            Log.d("installedCertsFlow", e.toString())
-            emptyMap()
-        }
+        preferences[INSTALLED_CERTIFICATES_KEY]?.let { jsonStr ->
+            runCatching { json.decodeFromString<CertificateStateMap>(jsonStr) }
+                .onFailure { Log.d(TAG, "Failed to parse installed certificates: $it") }
+                .getOrNull()
+        } ?: emptyMap()
     }
 
     /**

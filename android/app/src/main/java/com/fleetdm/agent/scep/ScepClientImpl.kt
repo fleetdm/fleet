@@ -1,6 +1,5 @@
 package com.fleetdm.agent.scep
 
-import android.util.Log
 import com.fleetdm.agent.GetCertificateTemplateResponse
 import org.bouncycastle.asn1.DERPrintableString
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
@@ -34,7 +33,6 @@ import kotlinx.coroutines.withContext
 class ScepClientImpl : ScepClient {
 
     companion object {
-        private const val TAG = "fleet-ScepClientImpl"
         private const val SCEP_PROFILE = "NDESCA" // Network Device Enrollment Service CA
         private const val SELF_SIGNED_CERT_VALIDITY_DAYS = 100L
 

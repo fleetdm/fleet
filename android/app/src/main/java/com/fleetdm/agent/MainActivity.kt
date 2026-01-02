@@ -143,7 +143,8 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
                     if (++versionClicks >= CLICKS_TO_DEBUG) {
                         onNavigateToDebug()
                     } else if (versionClicks == 1) {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            ?: error("ClipboardManager not available")
                         clipboard.setPrimaryClip(ClipData.newPlainText("", "Fleet Android Agent: ${BuildConfig.VERSION_NAME}"))
                         Toast.makeText(context, "Fleet Agent version copied", Toast.LENGTH_SHORT).show()
                     }
@@ -157,9 +158,11 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
 fun DebugScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
 
-    val restrictionsManager = context.getSystemService(RESTRICTIONS_SERVICE) as RestrictionsManager
+    val restrictionsManager = context.getSystemService(RestrictionsManager::class.java)
+        ?: error("RestrictionsManager not available")
     val appRestrictions = restrictionsManager.applicationRestrictions
-    val dpm = context.getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    val dpm = context.getSystemService(DevicePolicyManager::class.java)
+        ?: error("DevicePolicyManager not available")
 
     val orchestrator = remember { AgentApplication.getCertificateOrchestrator(context) }
     val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
