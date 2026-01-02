@@ -47,13 +47,55 @@ type HostDetailResponse struct {
 }
 
 func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
+	var adeEnrollment bool
+	ac, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
+		hdep, err := svc.GetHostDEPAssignment(ctx, &host.Host)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, err
+		}
+		adeEnrollment = hdep.IsDEPAssignedToFleet()
+	}
+
+	// For ADE-enrolled iDevices, we get geolocation data via the MDM protocol
+	// and store it in Fleet.
+	var geoLoc *fleet.GeoLocation
+	if adeEnrollment && (host.Platform == "ipados" || host.Platform == "ios") {
+		var err error
+		geoLoc, err = svc.GetHostLocationData(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, err
+		}
+	} else {
+		// For other types of hosts, use the MaxMind geoIP data (if it's enabled)
+		geoLoc = svc.LookupGeoIP(ctx, host.PublicIP)
+	}
+
 	return &HostDetailResponse{
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
 		DisplayName: host.DisplayName(),
-		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
+		Geolocation: geoLoc,
 	}, nil
+}
+
+func (svc *Service) GetHostLocationData(ctx context.Context, hostID uint) (*fleet.GeoLocation, error) {
+	var ret fleet.GeoLocation
+
+	locData, err := svc.ds.GetHostLocationData(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host location data")
+	}
+
+	ret.Geometry = &fleet.Geometry{
+		Coordinates: []float64{locData.Longitude, locData.Latitude},
+	}
+
+	return &ret, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

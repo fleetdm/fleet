@@ -1444,7 +1444,19 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference")
 			}
+
 			status.LockMDMCommand = cmd
+
+			// for ADE enrolled iDevices, we don't advance to "locked" until we have location data
+			_, err = ds.GetHostLocationData(ctx, host.ID)
+			if fleet.IsNotFound(err) {
+				return status, nil
+			}
+
+			if err != nil {
+				return nil, err
+			}
+
 			status.LockMDMCommandResult = cmdRes
 		}
 

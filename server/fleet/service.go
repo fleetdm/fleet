@@ -805,6 +805,8 @@ type Service interface {
 	// Geolocation
 
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
+	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
+	GetHostLocationData(ctx context.Context, hostID uint) (*GeoLocation, error)
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Software Installers
