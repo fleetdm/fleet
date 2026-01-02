@@ -18,7 +18,7 @@ import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
   pageIndex: number;
-  pageSize?: number;
+  pageSize: number;
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
