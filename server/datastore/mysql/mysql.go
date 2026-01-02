@@ -44,7 +44,6 @@ import (
 var _ activities.ActivityStore = (*Datastore)(nil)
 
 const (
-	defaultSelectLimit   = 1000000
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
 
 	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
@@ -810,7 +809,7 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	// to insure that an unbounded query with many results doesn't consume too
 	// much memory or hang
 	if perPage == 0 {
-		perPage = defaultSelectLimit
+		perPage = fleet.DefaultPerPage
 	}
 
 	offset := perPage * opts.Page

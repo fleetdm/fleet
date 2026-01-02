@@ -51,6 +51,15 @@ type DBConnections struct {
 	Options *DBOptions
 }
 
+// DBReadTx provides a minimal interface for read-only transactions that exposes
+// only the methods required for reads.
+type DBReadTx interface {
+	sqlx.QueryerContext
+	sqlx.PreparerContext
+
+	Rebind(string) string
+}
+
 func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
 	driverName := "mysql"
 
