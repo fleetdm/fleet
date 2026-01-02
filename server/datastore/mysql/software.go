@@ -1272,7 +1272,7 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 		}
 
 		switch {
-		case existingTitleSummary.UpgradeCode == nil:
+		case existingTitleSummary.UpgradeCode == nil || *existingTitleSummary.UpgradeCode == "":
 			// Check for conflict: does another title already have this upgrade_code?
 			if conflictingTitle, hasConflict := titlesWithUpgradeCodes[*sw.UpgradeCode]; hasConflict && conflictingTitle.ID != existingTitleSummary.ID {
 				// Redirect mapping to the title that already has this upgrade_code
@@ -1288,32 +1288,18 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 				incomingChecksumsToExistingTitleSummaries[swChecksum] = conflictingTitle
 				continue
 			}
-			level.Warn(ds.logger).Log(
-				"msg", "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
-				"title_id", existingTitleSummary.ID,
-				"title_name", existingTitleSummary.Name,
-				"source", existingTitleSummary.Source,
-				"incoming_upgrade_code", *sw.UpgradeCode,
-			)
-			existingTitlesToUpgradeCodePtrsToWrite[existingTitleSummary.ID] = oldAndNewUpgradeCodePtrs{old: existingTitleSummary.UpgradeCode, new: sw.UpgradeCode}
-		case *existingTitleSummary.UpgradeCode == "":
-			// Check for conflict: does another title already have this upgrade_code?
-			if conflictingTitle, hasConflict := titlesWithUpgradeCodes[*sw.UpgradeCode]; hasConflict && conflictingTitle.ID != existingTitleSummary.ID {
-				// Redirect mapping to the title that already has this upgrade_code
-				level.Info(ds.logger).Log(
-					"msg", "redirecting software to existing title with matching upgrade_code",
-					"software_name", sw.Name,
-					"matched_title_id", existingTitleSummary.ID,
-					"matched_title_name", existingTitleSummary.Name,
-					"redirect_to_title_id", conflictingTitle.ID,
-					"redirect_to_title_name", conflictingTitle.Name,
-					"upgrade_code", *sw.UpgradeCode,
+			// Log warning only for NULL upgrade_code case (shouldn't happen for programs source)
+			if existingTitleSummary.UpgradeCode == nil {
+				level.Warn(ds.logger).Log(
+					"msg", "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
+					"title_id", existingTitleSummary.ID,
+					"title_name", existingTitleSummary.Name,
+					"source", existingTitleSummary.Source,
+					"incoming_upgrade_code", *sw.UpgradeCode,
 				)
-				incomingChecksumsToExistingTitleSummaries[swChecksum] = conflictingTitle
-				continue
 			}
 			existingTitlesToUpgradeCodePtrsToWrite[existingTitleSummary.ID] = oldAndNewUpgradeCodePtrs{old: existingTitleSummary.UpgradeCode, new: sw.UpgradeCode}
-		case existingTitleSummary.UpgradeCode != nil && *existingTitleSummary.UpgradeCode != "" && *sw.UpgradeCode != *existingTitleSummary.UpgradeCode:
+		case *sw.UpgradeCode != *existingTitleSummary.UpgradeCode:
 			// don't update this title
 			level.Warn(ds.logger).Log(
 				"msg", "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconsistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",

@@ -2452,17 +2452,15 @@ func testUpdateHostSoftwareCaseSensitivityTitleDuplication(t *testing.T, ds *Dat
 }
 
 // testUpdateHostSoftwareUpgradeCodeReconciliation tests that when a host reports
-// software with an upgrade_code, the existing title's upgrade_code is updated
-// (not a new title created).
+// software with an upgrade_code, the existing title's upgrade_code is updated.
 //
-// Scenario (from customer data):
+// Scenario:
 //  1. Host A reports "Chef Cookbooks - Windows" v1.0 with empty upgrade_code
 //     → Title created with upgrade_code=""
 //  2. Host B reports "Chef Cookbooks - Windows" v2.0 with upgrade_code="{guid}"
 //     → Expected: Title's upgrade_code updated to "{guid}"
-//     → Bug: A new title created with upgrade_code="{guid}"
-//
-// Related to: https://github.com/fleetdm/fleet/issues/37494
+//  3. Host A reports "Chef Cookbooks - Windows" v2.0 with empty upgrade_code
+//     → Expected: Title's upgrade_code remains "{guid}" (not cleared)
 func testUpdateHostSoftwareUpgradeCodeReconciliation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2517,6 +2515,31 @@ func testUpdateHostSoftwareUpgradeCodeReconciliation(t *testing.T, ds *Datastore
 	require.Equal(t, originalTitleID, titlesAfter[0].ID, "Should be the same title")
 	require.NotNil(t, titlesAfter[0].UpgradeCode)
 	require.Equal(t, upgradeCode, *titlesAfter[0].UpgradeCode, "Title's upgrade_code should have been updated")
+
+	// Step 3: Host A reports v2.0 with empty upgrade_code
+	// The title's upgrade_code should NOT be cleared
+	swHostAv2 := []fleet.Software{
+		{Name: "Chef Cookbooks - Windows", Version: "2.0", Source: "programs", UpgradeCode: ptr.String("")},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, hostA.ID, swHostAv2)
+	require.NoError(t, err)
+
+	// Verify title's upgrade_code was NOT cleared
+	var titlesAfterStep3 []struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		Source      string  `db:"source"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &titlesAfterStep3,
+		`SELECT id, name, source, upgrade_code FROM software_titles WHERE name = 'Chef Cookbooks - Windows' AND source = 'programs'`)
+	require.NoError(t, err)
+
+	// EXPECTED: Still one title, upgrade_code should remain "{guid}"
+	require.Len(t, titlesAfterStep3, 1, "Should still have exactly one title")
+	require.Equal(t, originalTitleID, titlesAfterStep3[0].ID, "Should be the same title")
+	require.NotNil(t, titlesAfterStep3[0].UpgradeCode)
+	require.Equal(t, upgradeCode, *titlesAfterStep3[0].UpgradeCode, "Title's upgrade_code should NOT have been cleared")
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
