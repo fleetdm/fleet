@@ -1,8 +1,7 @@
 package com.fleetdm.agent.scep
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.fail
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /**
@@ -43,90 +42,102 @@ class ScepConfigTest {
         assertEquals("SHA512withRSA", config.signatureAlgorithm)
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun `blank url throws exception`() {
-        ScepConfig(
-            url = "",
-            challenge = "secret",
-            alias = "cert",
-            subject = "CN=Test",
+    @Test
+    fun `blank required fields throw exception`() {
+        data class TestCase(
+            val name: String,
+            val url: String = "https://scep.example.com",
+            val challenge: String = "secret",
+            val alias: String = "cert",
+            val subject: String = "CN=Test",
         )
-    }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun `blank challenge throws exception`() {
-        ScepConfig(
-            url = "https://scep.example.com",
-            challenge = "",
-            alias = "cert",
-            subject = "CN=Test",
+        val testCases = listOf(
+            TestCase(name = "blank url", url = ""),
+            TestCase(name = "blank challenge", challenge = ""),
+            TestCase(name = "blank alias", alias = ""),
+            TestCase(name = "blank subject", subject = ""),
         )
-    }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun `blank alias throws exception`() {
-        ScepConfig(
-            url = "https://scep.example.com",
-            challenge = "secret",
-            alias = "",
-            subject = "CN=Test",
-        )
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun `blank subject throws exception`() {
-        ScepConfig(
-            url = "https://scep.example.com",
-            challenge = "secret",
-            alias = "cert",
-            subject = "",
-        )
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun `key length below 2048 throws exception`() {
-        ScepConfig(
-            url = "https://scep.example.com",
-            challenge = "secret",
-            alias = "cert",
-            subject = "CN=Test",
-            keyLength = 1024,
-        )
+        testCases.forEach { case ->
+            assertThrows("${case.name} should throw", IllegalArgumentException::class.java) {
+                ScepConfig(
+                    url = case.url,
+                    challenge = case.challenge,
+                    alias = case.alias,
+                    subject = case.subject,
+                )
+            }
+        }
     }
 
     @Test
-    fun `minimum key length 2048 is accepted`() {
-        val config = ScepConfig(
-            url = "https://scep.example.com",
-            challenge = "secret",
-            alias = "cert",
-            subject = "CN=Test",
-            keyLength = 2048,
+    fun `key length validation`() {
+        data class TestCase(val keyLength: Int, val shouldSucceed: Boolean)
+
+        val testCases = listOf(
+            TestCase(keyLength = 1024, shouldSucceed = false),
+            TestCase(keyLength = 2047, shouldSucceed = false),
+            TestCase(keyLength = 2048, shouldSucceed = true),
+            TestCase(keyLength = 3072, shouldSucceed = true),
+            TestCase(keyLength = 4096, shouldSucceed = true),
         )
 
-        assertEquals(2048, config.keyLength)
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun `url without scheme throws exception`() {
-        ScepConfig(
-            url = "scep.example.com",
-            challenge = "secret",
-            alias = "cert",
-            subject = "CN=Test",
-        )
+        testCases.forEach { case ->
+            if (case.shouldSucceed) {
+                val config = ScepConfig(
+                    url = "https://scep.example.com",
+                    challenge = "secret",
+                    alias = "cert",
+                    subject = "CN=Test",
+                    keyLength = case.keyLength,
+                )
+                assertEquals("keyLength ${case.keyLength}", case.keyLength, config.keyLength)
+            } else {
+                assertThrows("keyLength ${case.keyLength} should throw", IllegalArgumentException::class.java) {
+                    ScepConfig(
+                        url = "https://scep.example.com",
+                        challenge = "secret",
+                        alias = "cert",
+                        subject = "CN=Test",
+                        keyLength = case.keyLength,
+                    )
+                }
+            }
+        }
     }
 
     @Test
-    fun `http url is accepted`() {
-        val config = ScepConfig(
-            url = "http://scep.example.com",
-            challenge = "secret",
-            alias = "cert",
-            subject = "CN=Test",
+    fun `url scheme validation`() {
+        data class TestCase(val url: String, val shouldSucceed: Boolean)
+
+        val testCases = listOf(
+            TestCase(url = "https://scep.example.com", shouldSucceed = true),
+            TestCase(url = "http://scep.example.com", shouldSucceed = true),
+            TestCase(url = "scep.example.com", shouldSucceed = false),
+            TestCase(url = "ftp://scep.example.com", shouldSucceed = false),
         )
 
-        assertEquals("http://scep.example.com", config.url)
+        testCases.forEach { case ->
+            if (case.shouldSucceed) {
+                val config = ScepConfig(
+                    url = case.url,
+                    challenge = "secret",
+                    alias = "cert",
+                    subject = "CN=Test",
+                )
+                assertEquals("url ${case.url}", case.url, config.url)
+            } else {
+                assertThrows("url ${case.url} should throw", IllegalArgumentException::class.java) {
+                    ScepConfig(
+                        url = case.url,
+                        challenge = "secret",
+                        alias = "cert",
+                        subject = "CN=Test",
+                    )
+                }
+            }
+        }
     }
 
     @Test

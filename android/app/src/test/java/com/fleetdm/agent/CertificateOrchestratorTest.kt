@@ -4,6 +4,11 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.fleetdm.agent.scep.MockScepClient
+import com.fleetdm.agent.testutil.FakeCertificateApiClient
+import com.fleetdm.agent.testutil.FakeDeviceKeystoreManager
+import com.fleetdm.agent.testutil.MockCertificateInstaller
+import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
+import com.fleetdm.agent.testutil.UpdateStatusCall
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -11,14 +16,11 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import java.security.PrivateKey
-import java.security.cert.Certificate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -74,51 +76,6 @@ class CertificateOrchestratorTest {
         fakeDeviceKeystoreManager.reset()
     }
 
-    // ========== Fake API Client for Testing ==========
-
-    data class UpdateStatusCall(
-        val certificateId: Int,
-        val status: UpdateCertificateStatusStatus,
-        val operationType: UpdateCertificateStatusOperation,
-        val detail: String?,
-    )
-
-    class FakeCertificateApiClient : CertificateApiClient {
-        var getCertificateTemplateHandler: (Int) -> Result<GetCertificateTemplateResponse> = {
-            Result.failure(Exception("getCertificateTemplate not configured"))
-        }
-        var updateCertificateStatusHandler: (UpdateStatusCall) -> Result<Unit> = { Result.success(Unit) }
-
-        private val _updateStatusCalls = mutableListOf<UpdateStatusCall>()
-        val updateStatusCalls: List<UpdateStatusCall> get() = _updateStatusCalls.toList()
-
-        private val _getCertificateTemplateCalls = mutableListOf<Int>()
-        val getCertificateTemplateCalls: List<Int> get() = _getCertificateTemplateCalls.toList()
-
-        override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
-            _getCertificateTemplateCalls.add(certificateId)
-            return getCertificateTemplateHandler(certificateId)
-        }
-
-        override suspend fun updateCertificateStatus(
-            certificateId: Int,
-            status: UpdateCertificateStatusStatus,
-            operationType: UpdateCertificateStatusOperation,
-            detail: String?,
-        ): Result<Unit> {
-            val call = UpdateStatusCall(certificateId, status, operationType, detail)
-            _updateStatusCalls.add(call)
-            return updateCertificateStatusHandler(call)
-        }
-
-        fun reset() {
-            getCertificateTemplateHandler = { Result.failure(Exception("getCertificateTemplate not configured")) }
-            updateCertificateStatusHandler = { Result.success(Unit) }
-            _updateStatusCalls.clear()
-            _getCertificateTemplateCalls.clear()
-        }
-    }
-
     // ========== Helper Functions ==========
 
     private suspend fun clearDataStore() {
@@ -153,57 +110,6 @@ class CertificateOrchestratorTest {
 
             val jsonString = json.encodeToString(updated)
             preferences[stringPreferencesKey("installed_certificates")] = jsonString
-        }
-    }
-
-    // ========== Mock Certificate Installer ==========
-
-    class MockCertificateInstaller : CertificateEnrollmentHandler.CertificateInstaller {
-        var shouldSucceed = true
-        var wasInstallCalled = false
-        var capturedAlias: String? = null
-        val installedCertificates = mutableSetOf<String>()
-
-        override fun installCertificate(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>): Boolean {
-            wasInstallCalled = true
-            capturedAlias = alias
-            if (shouldSucceed) {
-                installedCertificates.add(alias)
-            }
-            return shouldSucceed
-        }
-
-        fun hasKeyPair(alias: String): Boolean = installedCertificates.contains(alias)
-
-        fun reset() {
-            shouldSucceed = true
-            wasInstallCalled = false
-            capturedAlias = null
-            installedCertificates.clear()
-        }
-    }
-
-    // ========== Fake Device Keystore Manager ==========
-
-    class FakeDeviceKeystoreManager : DeviceKeystoreManager {
-        val installedCerts = mutableSetOf<String>()
-        var removeKeyPairShouldSucceed = true
-
-        override fun hasKeyPair(alias: String): Boolean = alias in installedCerts
-
-        override fun removeKeyPair(alias: String): Boolean {
-            if (!removeKeyPairShouldSucceed) return false
-            installedCerts.remove(alias)
-            return true
-        }
-
-        fun installCert(alias: String) {
-            installedCerts.add(alias)
-        }
-
-        fun reset() {
-            installedCerts.clear()
-            removeKeyPairShouldSucceed = true
         }
     }
 
@@ -333,7 +239,7 @@ class CertificateOrchestratorTest {
         val alias = "missing-cert"
 
         storeTestCertificateInDataStore(certificateId, alias)
-        // Don't add to mockInstaller.installedCertificates
+        // Note: Certificate is in DataStore but not installed in keystore
 
         // Note: isCertificateInstalled() uses real DevicePolicyManager, not mockInstaller
         // So this test verifies DataStore logic only. The keystore check will return false
@@ -533,7 +439,7 @@ class CertificateOrchestratorTest {
         // We'll test this by verifying the storeCertificateInstallation call happens
         // after a successful mock enrollment via the handler directly
 
-        val template = createMockTemplate(123, "test-cert")
+        val template = TestCertificateTemplateFactory.create(id = 123, name = "test-cert")
 
         // Create handler with mock client and installer
         val handler = CertificateEnrollmentHandler(
@@ -562,7 +468,7 @@ class CertificateOrchestratorTest {
         // Arrange: Make SCEP enrollment fail
         mockScepClient.shouldThrowEnrollmentException = true
 
-        val template = createMockTemplate(456, "failing-cert")
+        val template = TestCertificateTemplateFactory.create(id = 456, name = "failing-cert")
 
         val handler = CertificateEnrollmentHandler(
             scepClient = mockScepClient,
@@ -584,7 +490,7 @@ class CertificateOrchestratorTest {
     fun `enrollment with custom installer uses provided installer`() = runTest {
         // This test verifies the dependency injection pattern works
         val customInstaller = MockCertificateInstaller()
-        val template = createMockTemplate(789, "custom-cert")
+        val template = TestCertificateTemplateFactory.create(id = 789, name = "custom-cert")
 
         val handler = CertificateEnrollmentHandler(
             scepClient = mockScepClient,
@@ -682,6 +588,43 @@ class CertificateOrchestratorTest {
         listOf(2, 4, 6, 8, 10).forEach { id ->
             assertFalse("Certificate $id should not exist", stored.containsKey(id))
         }
+    }
+
+    @Test
+    fun `cleanupRemovedCertificates reports failure when keystore removal fails`() = runTest {
+        // Arrange: Store a cert in DataStore and keystore
+        val certificateId = 123
+        val alias = "test-cert"
+        storeTestCertificateInDataStore(certificateId, alias, CertificateStatus.INSTALLED)
+        fakeDeviceKeystoreManager.installCert(alias)
+
+        // Configure keystore removal to fail
+        fakeDeviceKeystoreManager.removeKeyPairShouldSucceed = false
+
+        val hostCertificates = listOf(
+            HostCertificate(id = certificateId, status = "verified", operation = "remove", uuid = "uuid-1"),
+        )
+
+        // Act
+        val results = orchestrator.cleanupRemovedCertificates(context, hostCertificates)
+
+        // Assert: Result should indicate failure
+        assertEquals(1, results.size)
+        assertTrue("Should return failure", results[certificateId] is CleanupResult.Failure)
+        val failure = results[certificateId] as CleanupResult.Failure
+        assertFalse("Should not retry", failure.shouldRetry)
+
+        // Assert: API was called to report failure
+        assertEquals(1, fakeApiClient.updateStatusCalls.size)
+        assertEquals(UpdateCertificateStatusStatus.FAILED, fakeApiClient.updateStatusCalls[0].status)
+        assertEquals(UpdateCertificateStatusOperation.REMOVE, fakeApiClient.updateStatusCalls[0].operationType)
+
+        // Assert: Certificate should still be in keystore (removal failed)
+        assertTrue("Cert should still be in keystore", fakeDeviceKeystoreManager.hasKeyPair(alias))
+
+        // Assert: DataStore state should remain INSTALLED (not changed to REMOVED)
+        val stored = getStoredCertificates()
+        assertEquals(CertificateStatus.INSTALLED, stored[certificateId]?.status)
     }
 
     @Test
@@ -1236,26 +1179,4 @@ class CertificateOrchestratorTest {
         assertEquals(CertificateStatus.REMOVED_UNREPORTED, getStoredCertificates()[2]?.status)
     }
 
-    // ========== Helper Methods for Tests ==========
-
-    private fun createMockTemplate(
-        id: Int,
-        name: String,
-        url: String = "https://scep.example.com/scep",
-        challenge: String = "test-challenge",
-    ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
-        id = id,
-        name = name,
-        certificateAuthorityId = 123,
-        certificateAuthorityName = "Test CA",
-        createdAt = "2024-01-01T00:00:00Z",
-        subjectName = "CN=$name,O=FleetDM",
-        certificateAuthorityType = "SCEP",
-        status = "active",
-        scepChallenge = challenge,
-        fleetChallenge = "fleet-secret",
-        keyLength = 2048,
-        signatureAlgorithm = "SHA256withRSA",
-        url = url,
-    )
 }

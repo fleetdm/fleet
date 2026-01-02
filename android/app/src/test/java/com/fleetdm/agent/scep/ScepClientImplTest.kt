@@ -1,7 +1,6 @@
 package com.fleetdm.agent.scep
 
-import com.fleetdm.agent.GetCertificateTemplateResponse
-import org.junit.Assert.assertNotNull
+import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
@@ -25,7 +24,7 @@ class ScepClientImplTest {
 
     @Test
     fun `enroll with malformed URL throws ScepNetworkException`() = runTest {
-        val template = createCertificateTemplate(url = "http://[invalid")
+        val template = TestCertificateTemplateFactory.create(url = "http://[invalid")
 
         try {
             scepClient.enroll(template)
@@ -37,7 +36,7 @@ class ScepClientImplTest {
 
     @Test
     fun `enroll with invalid subject throws ScepCsrException`() = runTest {
-        val template = createCertificateTemplate(subjectName = "invalid-subject-format")
+        val template = TestCertificateTemplateFactory.create(subjectName = "invalid-subject-format")
 
         try {
             scepClient.enroll(template)
@@ -49,7 +48,7 @@ class ScepClientImplTest {
 
     @Test
     fun `enroll with unreachable server throws ScepNetworkException`() = runTest {
-        val template = createCertificateTemplate(
+        val template = TestCertificateTemplateFactory.create(
             url = "https://invalid-scep-server-that-does-not-exist.example.com/scep",
         )
 
@@ -60,27 +59,6 @@ class ScepClientImplTest {
             assertTrue(e.message?.contains("Failed to communicate") == true)
         }
     }
-
-    // Helper function
-    private fun createCertificateTemplate(
-        url: String = "https://scep.example.com/cgi-bin/pkiclient.exe",
-        subjectName: String = "CN=Test,O=Example",
-        scepChallenge: String = "secret",
-    ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
-        id = 1,
-        name = "test-cert",
-        certificateAuthorityId = 123,
-        certificateAuthorityName = "Test CA",
-        createdAt = "2024-01-01T00:00:00Z",
-        subjectName = subjectName,
-        certificateAuthorityType = "SCEP",
-        status = "active",
-        scepChallenge = scepChallenge,
-        fleetChallenge = "fleet-secret",
-        keyLength = 2048,
-        signatureAlgorithm = "SHA256withRSA",
-        url = url,
-    )
 
     // Note: Testing successful enrollment requires a mock SCEP server or extensive mocking
     // of jScep's Client class. Integration tests should be used for this scenario.

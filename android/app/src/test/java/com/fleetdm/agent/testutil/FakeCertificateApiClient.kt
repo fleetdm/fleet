@@ -1,0 +1,56 @@
+package com.fleetdm.agent.testutil
+
+import com.fleetdm.agent.CertificateApiClient
+import com.fleetdm.agent.GetCertificateTemplateResponse
+import com.fleetdm.agent.UpdateCertificateStatusOperation
+import com.fleetdm.agent.UpdateCertificateStatusStatus
+
+/**
+ * Represents a captured call to updateCertificateStatus for test assertions.
+ */
+data class UpdateStatusCall(
+    val certificateId: Int,
+    val status: UpdateCertificateStatusStatus,
+    val operationType: UpdateCertificateStatusOperation,
+    val detail: String?,
+)
+
+/**
+ * Fake implementation of CertificateApiClient for testing.
+ * Provides configurable handlers and captures calls for assertions.
+ */
+class FakeCertificateApiClient : CertificateApiClient {
+    var getCertificateTemplateHandler: (Int) -> Result<GetCertificateTemplateResponse> = {
+        Result.failure(Exception("getCertificateTemplate not configured"))
+    }
+    var updateCertificateStatusHandler: (UpdateStatusCall) -> Result<Unit> = { Result.success(Unit) }
+
+    private val _updateStatusCalls = mutableListOf<UpdateStatusCall>()
+    val updateStatusCalls: List<UpdateStatusCall> get() = _updateStatusCalls.toList()
+
+    private val _getCertificateTemplateCalls = mutableListOf<Int>()
+    val getCertificateTemplateCalls: List<Int> get() = _getCertificateTemplateCalls.toList()
+
+    override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
+        _getCertificateTemplateCalls.add(certificateId)
+        return getCertificateTemplateHandler(certificateId)
+    }
+
+    override suspend fun updateCertificateStatus(
+        certificateId: Int,
+        status: UpdateCertificateStatusStatus,
+        operationType: UpdateCertificateStatusOperation,
+        detail: String?,
+    ): Result<Unit> {
+        val call = UpdateStatusCall(certificateId, status, operationType, detail)
+        _updateStatusCalls.add(call)
+        return updateCertificateStatusHandler(call)
+    }
+
+    fun reset() {
+        getCertificateTemplateHandler = { Result.failure(Exception("getCertificateTemplate not configured")) }
+        updateCertificateStatusHandler = { Result.success(Unit) }
+        _updateStatusCalls.clear()
+        _getCertificateTemplateCalls.clear()
+    }
+}
