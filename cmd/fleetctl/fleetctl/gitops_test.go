@@ -296,6 +296,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 	setupDefaultTeamConfigMocks(ds)
@@ -646,6 +649,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
 	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
@@ -1245,6 +1251,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 	}
 
 	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return nil, nil
 	}
 
@@ -4521,6 +4531,9 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
 
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
@@ -4742,36 +4755,36 @@ func TestComputeLabelChanges(t *testing.T) {
 
 func TestComputeLabelMoves(t *testing.T) {
 	t.Run("valid move between teams", func(t *testing.T) {
-		allChanges := map[uint][]spec.LabelChange{
-			1: { // Team 1 deletes "move-me"
+		allChanges := map[string][]spec.LabelChange{
+			"team1": { // Team 1 deletes "move-me"
 				{Name: "move-me", Op: "-", TeamName: "team1", FileName: "t1.yml"},
 			},
-			2: { // Team 2 adds "move-me"
+			"team2": { // Team 2 adds "move-me"
 				{Name: "move-me", Op: "+", TeamName: "team2", FileName: "t2.yml"},
 			},
 		}
 
 		moves, err := computeLabelMoves(allChanges)
 		require.NoError(t, err)
-		require.Len(t, moves[2], 1)
-		require.Equal(t, "move-me", moves[2][0].Name)
-		require.Equal(t, "team1", moves[2][0].FromTeamName)
-		require.Equal(t, "team2", moves[2][0].ToTeamName)
+		require.Len(t, moves["team2"], 1)
+		require.Equal(t, "move-me", moves["team2"][0].Name)
+		require.Equal(t, "team1", moves["team2"][0].FromTeamName)
+		require.Equal(t, "team2", moves["team2"][0].ToTeamName)
 	})
 
 	t.Run("conflict: duplicate delete", func(t *testing.T) {
-		allChanges := map[uint][]spec.LabelChange{
-			1: {{Name: "conflict", Op: "-", FileName: "file1.yml"}},
-			2: {{Name: "conflict", Op: "-", FileName: "file2.yml"}},
+		allChanges := map[string][]spec.LabelChange{
+			"team1": {{Name: "conflict", Op: "-", FileName: "file1.yml"}},
+			"team2": {{Name: "conflict", Op: "-", FileName: "file2.yml"}},
 		}
 		_, err := computeLabelMoves(allChanges)
 		require.ErrorContains(t, err, `already being deleted in "file1.yml"`)
 	})
 
 	t.Run("conflict: duplicate add", func(t *testing.T) {
-		allChanges := map[uint][]spec.LabelChange{
-			1: {{Name: "conflict", Op: "+", FileName: "file1.yml"}},
-			2: {{Name: "conflict", Op: "+", FileName: "file2.yml"}},
+		allChanges := map[string][]spec.LabelChange{
+			"team1": {{Name: "conflict", Op: "+", FileName: "file1.yml"}},
+			"team2": {{Name: "conflict", Op: "+", FileName: "file2.yml"}},
 		}
 		_, err := computeLabelMoves(allChanges)
 		require.ErrorContains(t, err, `already being added in "file1.yml"`)

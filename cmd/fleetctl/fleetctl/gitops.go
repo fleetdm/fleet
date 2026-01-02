@@ -144,11 +144,9 @@ func gitopsCommand() *cli.Command {
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
 
-			labelChanges := make(map[uint][]spec.LabelChange) // teamID -> label changes
-			builtInLabelNames := make(map[string]any)
-
 			// We need the list of built-in labels for showing contextual errors in case the user
 			// decides to reference a built-in label.
+			builtInLabelNames := make(map[string]any)
 			globalLabels, err := fleetClient.GetLabels(0)
 			if err != nil {
 				return fmt.Errorf("getting global labels: %w", err)
@@ -158,6 +156,23 @@ func gitopsCommand() *cli.Command {
 					builtInLabelNames[l.Name] = nil
 				}
 			}
+
+			// We don't have access to the TeamID at this point in the time, and we need it down the pipeline to get
+			// the labels from existing teams
+			teamIDLookup := make(map[string]*uint)
+			teamIDLookup[spec.GlobalTeamName] = ptr.Uint(0)
+			if appConfig.License.IsPremium() {
+				teams, err := fleetClient.ListTeams("")
+				if err != nil {
+					return fmt.Errorf("getting teams: %w", err)
+				}
+				for _, tm := range teams {
+					teamIDLookup[tm.Name] = &tm.ID
+				}
+			}
+
+			// Used for keeping track of all label changes in this run.
+			labelChanges := make(map[string][]spec.LabelChange) // team name -> label changes
 
 			// Parsed a config and filename pair
 			type ConfigFile struct {
@@ -205,27 +220,24 @@ func gitopsCommand() *cli.Command {
 				// We want to compute label changes early ... this will allow us to detect any monkey business around
 				// labels like trying to add the same label on different teams; labels can also move from one
 				// team to another, so we need the complete list of changes to plan the label movements.
-				var teamID uint
-				teamName := "global"
-				if config.TeamID != nil {
-					teamID = *config.TeamID
-				}
-				if config.TeamName != nil {
-					teamName = *config.TeamName
-				}
+				teamName := config.CoercedTeamName()
+				teamID := teamIDLookup[teamName]
 
-				if _, ok := labelChanges[teamID]; ok {
+				if _, ok := labelChanges[teamName]; ok {
 					continue
 				}
+
 				var existingLabels []*fleet.LabelSpec
-				if teamID == 0 {
-					existingLabels = globalLabels
-				} else {
-					if existingLabels, err = fleetClient.GetLabels(teamID); err != nil {
-						return fmt.Errorf("getting team '%s' labels: %w", flFilename, err)
+				if teamID != nil {
+					if *teamID == 0 {
+						existingLabels = globalLabels
+					} else {
+						if existingLabels, err = fleetClient.GetLabels(*teamID); err != nil {
+							return fmt.Errorf("getting team '%s' labels: %w", teamName, err)
+						}
 					}
 				}
-				labelChanges[teamID] = computeLabelChanges(
+				labelChanges[teamName] = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
@@ -247,11 +259,6 @@ func gitopsCommand() *cli.Command {
 				config := configFile.Config
 				flFilename := configFile.Filename
 				isGlobalConfig := configFile.IsGlobalConfig
-
-				var teamID uint
-				if config.TeamID != nil {
-					teamID = *config.TeamID
-				}
 
 				if isGlobalConfig {
 					if noTeamControls.Set() && config.Controls.Set() {
@@ -281,14 +288,26 @@ func gitopsCommand() *cli.Command {
 				// the label stayed the same). We look at both global label changes and team-specific label changes
 				// because of scoping rules (a team resource can reference a global label).
 				validLabelNames := make(map[string]any)
-				for _, label := range labelChanges[0] {
-					if label.Op == "+" || label.Op == "=" {
-						validLabelNames[label.Name] = nil
+				if _, ok := labelChanges[spec.GlobalTeamName]; ok {
+					for _, label := range labelChanges[spec.GlobalTeamName] {
+						if label.Op == "+" || label.Op == "=" {
+							validLabelNames[label.Name] = nil
+						}
+					}
+				} else {
+					// We are applying a stand-alone team config file, so no changes for the global labels were
+					// computed.
+					for _, l := range globalLabels {
+						if l.LabelType != fleet.LabelTypeBuiltIn {
+							validLabelNames[l.Name] = nil
+						}
 					}
 				}
-				for _, label := range labelChanges[teamID] {
-					if label.Op == "+" || label.Op == "=" {
-						validLabelNames[label.Name] = nil
+				if config.CoercedTeamName() != spec.GlobalTeamName {
+					for _, label := range labelChanges[config.CoercedTeamName()] {
+						if label.Op == "+" || label.Op == "=" {
+							validLabelNames[label.Name] = nil
+						}
 					}
 				}
 
@@ -321,7 +340,8 @@ func gitopsCommand() *cli.Command {
 					return errors.New("Please update your settings to not refer to built-in labels.")
 				}
 
-				labelChangesSummary := spec.NewLabelChangesSummary(labelChanges[teamID], labelMoves[teamID])
+				teamName := config.CoercedTeamName()
+				labelChangesSummary := spec.NewLabelChangesSummary(labelChanges[teamName], labelMoves[teamName])
 				config.LabelChangesSummary = labelChangesSummary
 
 				// Delete labels at the end of the run to avoid issues with resource contention
@@ -550,7 +570,7 @@ func gitopsCommand() *cli.Command {
 // like trying to add the same label on multiple teams or deleting the same label multiple times.
 // A label is moved when it is deleted from one team and added to another, the moves are stored in
 // a teamID -> label names map.
-func computeLabelMoves(allChanges map[uint][]spec.LabelChange) (map[uint][]spec.LabelMovement, error) {
+func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]spec.LabelMovement, error) {
 	deleteOps := make(map[string]spec.LabelChange) // label name -> file name
 	addOps := make(map[string]spec.LabelChange)    // label name -> file name
 
@@ -574,12 +594,12 @@ func computeLabelMoves(allChanges map[uint][]spec.LabelChange) (map[uint][]spec.
 	}
 
 	// A label is moved if it is added ('+') to a team AND deleted ('-') from any other team
-	moves := make(map[uint][]spec.LabelMovement)
-	for teamID, teamChanges := range allChanges {
+	moves := make(map[string][]spec.LabelMovement)
+	for teamName, teamChanges := range allChanges {
 		for _, ch := range teamChanges {
 			if ch.Op == "+" {
 				if prevCh, isDeletedElsewhere := deleteOps[ch.Name]; isDeletedElsewhere {
-					moves[teamID] = append(moves[teamID], spec.LabelMovement{
+					moves[teamName] = append(moves[teamName], spec.LabelMovement{
 						Name:         ch.Name,
 						FromTeamName: prevCh.TeamName,
 						ToTeamName:   ch.TeamName,

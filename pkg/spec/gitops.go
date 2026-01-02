@@ -19,6 +19,8 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+const GlobalTeamName = "global"
+
 // LabelChangesSummary carries extra context of the labels operations for a config.
 type LabelChangesSummary struct {
 	LabelsToUpdate  []string
@@ -328,11 +330,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	// Get the labels. If `labels:` is specified but no labels are listed, this will
 	// set Labels as nil.  If `labels:` isn't present at all, it will be set as an
 	// empty array.
-	_, ok := top["labels"]
-	if !ok || !result.IsGlobal() {
-		if ok && !result.IsGlobal() {
-			logFn("[!] 'labels' is only supported in global settings.  This key will be ignored.\n")
-		}
+	if _, ok := top["labels"]; !ok {
 		result.Labels = make([]*fleet.LabelSpec, 0)
 	} else {
 		multiError = parseLabels(top, result, baseDir, filePath, multiError)
@@ -379,6 +377,13 @@ func (g *GitOps) IsNoTeam() bool {
 
 func isNoTeam(teamName string) bool {
 	return strings.EqualFold(teamName, noTeam)
+}
+
+func (g *GitOps) CoercedTeamName() string {
+	if g.global() {
+		return GlobalTeamName
+	}
+	return *g.TeamName
 }
 
 const noTeam = "No team"

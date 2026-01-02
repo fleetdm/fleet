@@ -17,6 +17,16 @@ func (c *Client) ApplyLabels(
 	req := applyLabelSpecsRequest{TeamID: teamID, Specs: specs, NamesToMove: moves}
 	verb, path := "POST", "/api/latest/fleet/spec/labels"
 	var responseBody applyLabelSpecsResponse
+
+	if teamID != nil {
+		return c.authenticatedRequestWithQuery(
+			req,
+			verb,
+			path,
+			&responseBody,
+			fmt.Sprintf("team_id=%d", *teamID),
+		)
+	}
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 

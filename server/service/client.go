@@ -2164,6 +2164,7 @@ func (c *Client) DoGitOps(
 	}
 
 	if !incoming.IsNoTeam() {
+
 		// Common controls settings between org and team settings
 		// Put in default values for macos_settings
 		if incoming.Controls.MacOSSettings != nil {
@@ -2339,6 +2340,15 @@ func (c *Client) DoGitOps(
 			for _, teamID = range teamIDsByName {
 				incoming.TeamID = &teamID
 			}
+
+			// Apply team labels after any possible new teams are created
+			if incoming.Labels == nil || len(incoming.Labels) > 0 {
+				err := c.doGitOpsLabels(incoming, logFn, dryRun)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			teamSoftwareInstallers = teamsSoftwareInstallers[*incoming.TeamName]
 			teamVPPApps = teamsVPPApps[*incoming.TeamName]
 			teamScripts = teamsScripts[*incoming.TeamName]
