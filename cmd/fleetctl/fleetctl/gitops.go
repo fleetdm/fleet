@@ -190,13 +190,14 @@ func gitopsCommand() *cli.Command {
 				}
 				configFile := ConfigFile{Config: config, Filename: flFilename, IsGlobalConfig: isGlobalConfig}
 
+				if !isGlobalConfig && !appConfig.License.IsPremium() {
+					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
+					continue
+				}
 				if isGlobalConfig {
 					// If it's a global file, put it at the beginning
 					// of the array so it gets processed first
 					configs = append([]ConfigFile{configFile}, configs...)
-				} else if !appConfig.License.IsPremium() {
-					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
-					continue
 				} else {
 					configs = append(configs, configFile)
 				}
@@ -324,13 +325,15 @@ func gitopsCommand() *cli.Command {
 				config.LabelChangesSummary = labelChangesSummary
 
 				// Delete labels at the end of the run to avoid issues with resource contention
-				for _, l := range labelChangesSummary.LabelsToRemove {
-					allPostOps = append(allPostOps, func() error {
-						if err := fleetClient.DeleteLabel(l); err != nil {
-							return err
-						}
-						return nil
-					})
+				if !flDryRun {
+					for _, l := range labelChangesSummary.LabelsToRemove {
+						allPostOps = append(allPostOps, func() error {
+							if err := fleetClient.DeleteLabel(l); err != nil {
+								return err
+							}
+							return nil
+						})
+					}
 				}
 
 				// Special handling for tokens is required because they link to teams (by
@@ -637,7 +640,7 @@ func computeLabelChanges(
 	}
 
 	// Any names remaining in the map are new labels.
-	for lblName, _ := range specifiedMap {
+	for lblName := range specifiedMap {
 		change := spec.LabelChange{Name: lblName, Op: "+", TeamName: teamName, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}

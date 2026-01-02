@@ -2655,7 +2655,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 
 func (c *Client) doGitOpsLabels(
 	config *spec.GitOps,
-	logFn func(format string, args ...interface{}),
+	logFn func(format string, args ...any),
 	dryRun bool,
 ) error {
 	toDelete := config.LabelChangesSummary.LabelsToRemove
@@ -2682,7 +2682,6 @@ func (c *Client) doGitOpsLabels(
 	for _, l := range toDelete {
 		logFn("[-] deleting label '%s'\n", l)
 	}
-
 	namesToMove := make([]string, 0, len(toMove))
 	for _, l := range toMove {
 		namesToMove = append(namesToMove, l.Name)
