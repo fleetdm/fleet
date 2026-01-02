@@ -38,7 +38,7 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
 		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
-		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
+		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "sthc")
 		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
 		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
 		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
@@ -621,7 +621,7 @@ func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tm
 	if teamID != nil {
 		teamFilter = fmt.Sprintf("shc.team_id = %d", *teamID)
 	} else {
-		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "shc")
+		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "shc")
 	}
 
 	selectVersionsStmt := `
@@ -836,7 +836,10 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
 	for _, t := range []*string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
 		if t == nil {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
+			if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
+				return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
+			}
+			continue
 		}
 		duration, err := time.Parse("15:04", *t)
 		if err != nil {
@@ -847,16 +850,24 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 		}
 	}
 
+	var startTime, endTime string
+	if config.AutoUpdateStartTime != nil {
+		startTime = *config.AutoUpdateStartTime
+	}
+	if config.AutoUpdateEndTime != nil {
+		endTime = *config.AutoUpdateEndTime
+	}
+
 	stmt := `
 INSERT INTO software_update_schedules
 	(title_id, team_id, enabled, start_time, end_time)
 VALUES (?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
 	enabled = VALUES(enabled),
-	start_time = VALUES(start_time),
-	end_time = VALUES(end_time)
+	start_time = IF(VALUES(start_time) = '', start_time, VALUES(start_time)),
+	end_time = IF(VALUES(end_time) = '', end_time, VALUES(end_time))
 `
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, config.AutoUpdateStartTime, config.AutoUpdateEndTime)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}

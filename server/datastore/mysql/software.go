@@ -2398,7 +2398,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 
 	// filter by teams
 	if tmFilter != nil {
-		q = q.Where(goqu.L(ds.whereFilterGlobalOrTeamIDByTeams(*tmFilter, "shc")))
+		q = q.Where(goqu.L(ds.whereFilterTeamWithGlobalStats(*tmFilter, "shc")))
 	}
 
 	sql, args, err := q.ToSQL()

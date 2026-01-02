@@ -2728,14 +2728,15 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Disable auto-update.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   ptr.Bool(false),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
+		AutoUpdateStartTime: nil,
+		AutoUpdateEndTime:   nil,
 	})
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.False(t, *titleResult.AutoUpdateEnabled)
+	// Note that the times should not have changed.
 	require.NotNil(t, titleResult.AutoUpdateStartTime)
 	require.Equal(t, startTime, *titleResult.AutoUpdateStartTime)
 	require.NotNil(t, titleResult.AutoUpdateEndTime)

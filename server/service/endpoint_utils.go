@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/kit/endpoint"
@@ -21,7 +22,31 @@ import (
 )
 
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
-	return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody)
+	return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody, fleetQueryDecoder)
+}
+
+// fleetQueryDecoder handles fleet-specific query parameter decoding, such as
+// converting the order_direction string to the fleet.OrderDirection int type.
+func fleetQueryDecoder(queryTagName, queryVal string, field reflect.Value) (bool, error) {
+	// Only handle int fields for order_direction
+	if field.Kind() != reflect.Int {
+		return false, nil
+	}
+	switch queryTagName {
+	case "order_direction", "inherited_order_direction":
+		var direction int
+		switch queryVal {
+		case "desc":
+			direction = int(fleet.OrderDescending)
+		case "asc":
+			direction = int(fleet.OrderAscending)
+		default:
+			return false, &fleet.BadRequestError{Message: "unknown order_direction: " + queryVal}
+		}
+		field.SetInt(int64(direction))
+		return true, nil
+	}
+	return false, nil
 }
 
 // A value that implements bodyDecoder takes control of decoding the request body.
@@ -100,7 +125,7 @@ type endpointer struct {
 
 func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
 	svc interface{},
-) (fleet.Errorer, error) {
+) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(fleet.Service))
 }
 

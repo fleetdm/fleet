@@ -1842,6 +1842,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
             host_mdm_apple_bootstrap_packages hmabp ON hmabp.host_uuid = hh.uuid
         LEFT JOIN
             nano_command_results ncr ON ncr.command_uuid = hmabp.command_uuid
+        LEFT JOIN
+            host_dep_assignments hda ON hda.host_id = hh.id
         WHERE
 	      hh.id = h.id AND hmdm.installed_from_dep = 1`
 
@@ -1852,7 +1854,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 	case fleet.MDMBootstrapPackageFailed:
 		subquery += ` AND ncr.status = 'Error'`
 	case fleet.MDMBootstrapPackagePending:
-		subquery += ` AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
+		// Pending hosts exclude those that were skipped due to migration or will be skipped due to migration
+		subquery += ` AND (hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
 	case fleet.MDMBootstrapPackageInstalled:
 		subquery += ` AND ncr.status = 'Acknowledged'`
 	}

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.4.230579",
+      "version": "1.4.333103",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.inkscape.Inkscape';"
       },
-      "installer_url": "https://media.inkscape.org/dl/resources/file/Inkscape-1.4.230579_arm64.dmg",
+      "installer_url": "https://media.inkscape.org/dl/resources/file/Inkscape-1.4.333103_arm64.dmg",
       "install_script_ref": "8643654c",
       "uninstall_script_ref": "ffff534b",
-      "sha256": "118e9e23190eea1265592a8b2053f5fb67e13a55b9311b2ab284df7008a896b4",
+      "sha256": "4fdf98784a4023faa3adcd65414891bcd4ca359feb2bf2e178d01dddf656f78a",
       "default_categories": [
         "Productivity"
       ]

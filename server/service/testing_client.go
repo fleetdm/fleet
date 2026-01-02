@@ -160,11 +160,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return nil
 	})
 
-	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := ts.ds.DeleteLabel(ctx, lbl.Name)
+			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
 			require.NoError(t, err)
 		}
 	}

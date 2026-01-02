@@ -4,11 +4,7 @@ With Fleet, you can integrate with Okta to enforce conditional access on macOS h
 
 When a host fails a policy in Fleet, IT and Security teams can block access to third-party apps until the issue is resolved.
 
-<!--
-## Infrastructure requirements
-
-> TODO
--->
+Conditional access with Okta requires changing the Fleet infrastructure (new redirect). Instructions are coming soon.
 
 ## Step 1: Deploy user scope profile
 
@@ -55,11 +51,7 @@ Once Okta is configured in settings, head to **Policies**. Select the team that 
 
 You can delete conditional access configuration on Fleet's side from **Settings** > **Integrations** > **Conditional access** > **Okta** and clicking the delete button.
 
-To fully disable conditional access, you will also need to disable it on the Okta side. 
-
-<!--
-> TODO steps to disable
--->
+To fully disable conditional access, you will also need to disable it on the Okta side. Instructions are coming soon.
 
 
 <meta name="articleTitle" value="Conditional access: Okta">

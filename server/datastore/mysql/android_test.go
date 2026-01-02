@@ -54,9 +54,7 @@ func TestAndroid(t *testing.T) {
 		{"UpdateAndroidAppConfiguration", testUpdateAndroidAppConfiguration},
 		{"DeleteAndroidAppConfiguration", testDeleteAndroidAppConfiguration},
 		{"GetAndroidAppConfiguration_NotFound", testGetAndroidAppConfigurationNotFound},
-		{"UpdateAndroidAppConfiguration_NotFound", testUpdateAndroidAppConfigurationNotFound},
 		{"DeleteAndroidAppConfiguration_NotFound", testDeleteAndroidAppConfigurationNotFound},
-		{"InsertAndroidAppConfiguration_Duplicate", testInsertAndroidAppConfigurationDuplicate},
 		{"AndroidAppConfiguration_CascadeDeleteTeam", testAndroidAppConfigurationCascadeDeleteTeam},
 		{"AndroidAppConfiguration_GlobalVsTeam", testAndroidAppConfigurationGlobalVsTeam},
 		{"AddDeleteAndroidAppWithConfiguration", testAddDeleteAndroidAppWithConfiguration},
@@ -1152,7 +1150,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}, profs)
 
 	// make host[0] a member of only one of the labels
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAll1.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblIncAll1, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
@@ -1167,7 +1165,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}, profs)
 
 	// make host[0] a member of the other label
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAll2.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblIncAll2, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// now p4 is applicable to host 0
@@ -1203,7 +1201,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}, profs)
 
 	// make host[0] a member of one of the labels
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAny1.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblIncAny1, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// now p5 is applicable to host 0
@@ -1261,7 +1259,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}, profs)
 
 	// make host[0] a member of one of the exclude labels
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblExclAny2.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny2, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	// p6 is not applicable anymore
@@ -1493,7 +1491,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	}, profs)
 
 	// Make host 0 a member of labelExclAny2 which excludes everything except p1 for it
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblExclAny2.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny2, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
@@ -1510,7 +1508,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	// Make hosts 0 and 1 members of labelExclAny1 which excludes everything except p5 for host p1. Android doesn't
 	// currently support dynamic labels but this ensures the datastore processes it right if somehow an Android host
 	// becomes a member of one
-	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblExclAny1.ID, []uint{hosts[0].ID, hosts[1].ID}, fleet.TeamFilter{})
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny1, []uint{hosts[0].ID, hosts[1].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
@@ -2345,86 +2343,60 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	appID := "com.example.testapp"
 	setupTestApp(t, ds, appID)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"key": "value"}}`),
-	}
+	configuration := json.RawMessage(`{"managedConfiguration": {"key": "value"}}`)
 
 	// Insert configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
 
 	// Get configuration
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
 	require.NotNil(t, retrieved)
-	require.Equal(t, appID, retrieved.ApplicationID)
-	require.Nil(t, retrieved.TeamID)
-	require.Equal(t, uint(0), retrieved.GlobalOrTeamID)
-	require.JSONEq(t, string(config.Configuration), string(retrieved.Configuration))
-	require.NotZero(t, retrieved.ID)
-	require.NotZero(t, retrieved.CreatedAt)
-	require.NotZero(t, retrieved.UpdatedAt)
+	require.JSONEq(t, string(configuration), string(*retrieved))
 
 	// test bulk-get configuration
 	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID}, 0)
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(retrieved.Configuration), string(configsByAppID[appID]))
+	require.Equal(t, string(*retrieved), string(configsByAppID[appID]))
 
 	// bulk-get configuration returns any known app config, ignores others
 	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID, "no-such-app"}, 0)
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(retrieved.Configuration), string(configsByAppID[appID]))
+	require.Equal(t, string(*retrieved), string(configsByAppID[appID]))
 }
 
 func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	appID := "com.example.updateapp"
 	setupTestApp(t, ds, appID)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"key": "value1"}}`),
-	}
+	configuration := json.RawMessage(`{"managedConfiguration": {"key": "value1"}}`)
 
 	// Insert initial configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
 
 	// Update configuration
-	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value2"}, "workProfileWidgets": true}`)
-	config.Configuration = newConfig
-	err = ds.UpdateAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
+	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value2"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, newConfig))
 
 	// Verify update
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
-	require.JSONEq(t, string(newConfig), string(retrieved.Configuration))
+	require.JSONEq(t, string(newConfig), string(*retrieved))
 }
 
 func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	appID := "com.example.deleteapp"
 	setupTestApp(t, ds, appID)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
-	}
+	configuration := json.RawMessage(`{"managedConfiguration": {}}`)
 
 	// Insert configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
 
 	// Verify it exists
-	_, err = ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
+	_, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
 
 	// Delete configuration
@@ -2443,43 +2415,10 @@ func testGetAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
 	require.ErrorContains(t, err, "not found")
 }
 
-func testUpdateAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  "nonexistent.app",
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{}`),
-	}
-
-	err := ds.UpdateAndroidAppConfiguration(testCtx(), config)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "not found")
-}
-
 func testDeleteAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
 	err := ds.DeleteAndroidAppConfiguration(testCtx(), "nonexistent.app", 0)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "not found")
-}
-
-func testInsertAndroidAppConfigurationDuplicate(t *testing.T, ds *Datastore) {
-	appID := "com.example.duplicateapp"
-	setupTestApp(t, ds, appID)
-
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
-	}
-
-	// Insert first time - should succeed
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
-
-	// Insert duplicate - should fail due to unique constraint
-	err = ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "Duplicate")
 }
 
 func testAndroidAppConfigurationCascadeDeleteTeam(t *testing.T, ds *Datastore) {
@@ -2487,19 +2426,13 @@ func testAndroidAppConfigurationCascadeDeleteTeam(t *testing.T, ds *Datastore) {
 	setupTestApp(t, ds, appID)
 	teamID := setupTestTeam(t, ds)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         ptr.Uint(teamID),
-		GlobalOrTeamID: teamID,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
-	}
+	configuration := json.RawMessage(`{"managedConfiguration": {}}`)
 
 	// Insert configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), teamID, appID, configuration))
 
 	// Verify it exists
-	_, err = ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
+	_, err := ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
 	require.NoError(t, err)
 
 	// Delete the team
@@ -2518,39 +2451,22 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	teamID := setupTestTeam(t, ds)
 
 	// Insert global configuration
-	globalConfig := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"env": "global"}}`),
-	}
-	err := ds.InsertAndroidAppConfiguration(testCtx(), globalConfig)
-	require.NoError(t, err)
+	globalConfiguration := json.RawMessage(`{"managedConfiguration": {"env": "global"}}`)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, globalConfiguration))
 
 	// Insert team configuration
-	teamConfig := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         ptr.Uint(teamID),
-		GlobalOrTeamID: teamID,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"env": "team"}}`),
-	}
-	err = ds.InsertAndroidAppConfiguration(testCtx(), teamConfig)
-	require.NoError(t, err)
+	teamConfiguration := json.RawMessage(`{"managedConfiguration": {"env": "team"}}`)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), teamID, appID, teamConfiguration))
 
 	// Verify global configuration
 	retrievedGlobal, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(retrievedGlobal.Configuration))
-	require.Nil(t, retrievedGlobal.TeamID)
-	require.Equal(t, uint(0), retrievedGlobal.GlobalOrTeamID)
+	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(*retrievedGlobal))
 
 	// Verify team configuration
 	retrievedTeam, err := ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(retrievedTeam.Configuration))
-	require.NotNil(t, retrievedTeam.TeamID)
-	require.Equal(t, teamID, *retrievedTeam.TeamID)
-	require.Equal(t, teamID, retrievedTeam.GlobalOrTeamID)
+	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(*retrievedTeam))
 }
 
 func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
@@ -2627,14 +2543,8 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	appID := "com.example.testapp"
 	setupTestApp(t, ds, appID)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"a": 1}}`),
-	}
-	err := ds.InsertAndroidAppConfiguration(ctx, config)
-	require.NoError(t, err)
+	configuration := json.RawMessage(`{"managedConfiguration": {"a": 1}}`)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
 
 	cases := []struct {
 		desc         string
