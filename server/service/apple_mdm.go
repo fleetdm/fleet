@@ -3604,6 +3604,20 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 	return nil, nil
 }
 
+func (svc *MDMAppleCheckinAndCommandService) runCommandHandlers(ctx context.Context, cmdName string, result fleet.MDMCommandResults) error {
+	handlers, ok := svc.commandHandlers[cmdName]
+	if ok {
+		for _, f := range handlers {
+			if err := f(ctx, result); err != nil {
+				// TODO: should we run as many as we can? if so we have to collect into a multierror
+				return ctxerr.Wrapf(ctx, err, "%s handler failed", cmdName)
+			}
+		}
+	}
+
+	return nil
+}
+
 // CommandAndReportResults handles MDM [Commands and Queries][1].
 //
 // This method is executed after the request has been handled by nanomdm.
@@ -3703,11 +3717,46 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
-	case "DeviceLock", "EraseDevice", "EnableLostMode", "DisableLostMode":
+	case "DeviceLock", "EraseDevice":
 		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID, requestType,
+				cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
+		}
+
+	case fleet.DisableLostModeCmdName:
+
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+
+			host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "DisableLostMode: get host by identifier")
+			}
+
+			if err := svc.ds.DeleteHostLocationData(r.Context, host.ID); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "DisableLostMode: delete host location data")
+			}
+
+			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID, requestType,
+				cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
+		}
+
+	case fleet.EnableLostModeCmdName:
+
+		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+
+			err := svc.commander.DeviceLocation(r.Context, []string{cmdResult.Identifier()}, uuid.NewString())
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "EnableLostMode: enqueue DeviceLocation command")
+			}
+
 			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID, requestType,
 				cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
 		}
@@ -3789,6 +3838,23 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		for _, f := range svc.commandHandlers["InstalledApplicationList"] {
 			if err := f(r.Context, res); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "InstalledApplicationList handler failed")
+			}
+		}
+
+	case fleet.DeviceLocationCmdName:
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
+			host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "device location command result: get host by identifier")
+			}
+
+			res, err := NewDeviceLocationResult(cmdResult, host.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "build device location command result")
+			}
+			err = svc.runCommandHandlers(r.Context, fleet.DeviceLocationCmdName, res)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "DeviceLocation: calling handlers")
 			}
 		}
 	}
@@ -4228,6 +4294,29 @@ func NewInstalledApplicationListResultsHandler(
 			"InstalledApplicationList handler: removing host mdm command",
 		)
 	}
+}
+
+type deviceLocationResult struct {
+	raw       []byte
+	uuid      string
+	hostID    uint
+	latitude  float64 `plist:"Latitude"`
+	longitude float64 `plist:"Longitude"`
+	hostUUID  string
+}
+
+func (i *deviceLocationResult) Raw() []byte        { return i.raw }
+func (i *deviceLocationResult) UUID() string       { return i.uuid }
+func (i *deviceLocationResult) HostUUID() string   { return i.hostUUID }
+func (i *deviceLocationResult) HostID() uint       { return i.hostID }
+func (i *deviceLocationResult) Latitude() float64  { return i.latitude }
+func (i *deviceLocationResult) Longitude() float64 { return i.longitude }
+
+type DeviceLocationResult interface {
+	fleet.MDMCommandResults
+	HostID() uint
+	Latitude() float64
+	Longitude() float64
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,
