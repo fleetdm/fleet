@@ -949,7 +949,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
-						name:         title.Name,
+						name:         strings.ToLower(title.Name), // lowercase for case-insensitive dedup matching MySQL collation
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
@@ -1014,8 +1014,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							titleBundleID = *title.BundleIdentifier
 						}
 						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
-						// For others, match by name
-						nameMatches := titleSummary.Name == title.Name
+						// For others, match by name (case-insensitive to match MySQL collation)
+						nameMatches := strings.EqualFold(titleSummary.Name, title.Name)
 						// TODO - similarly match if UpgradeCodes match?
 						if bundleID != "" && titleBundleID != "" {
 							// Both have bundle_identifier - match by bundle_identifier instead of name
