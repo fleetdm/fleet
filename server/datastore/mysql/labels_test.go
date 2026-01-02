@@ -3057,25 +3057,30 @@ func testUpdateLabelMembershipForTransferredHost(t *testing.T, ds *Datastore) {
 func testSetAsideLabels(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// Create teams
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_setaside"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_setaside"})
 	require.NoError(t, err)
 
-	// Create users with different roles; users don't need to be persisted for this to work, hence the IDs
-	globalAdmin := fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
-	globalMaintainer := fleet.User{ID: 2, GlobalRole: ptr.String(fleet.RoleMaintainer)}
-	globalGitOps := fleet.User{ID: 3, GlobalRole: ptr.String(fleet.RoleGitOps)}
-	globalObserver := fleet.User{ID: 4, GlobalRole: ptr.String(fleet.RoleObserver)}
-	team1Admin := fleet.User{ID: 5, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin}}}
-	team1Maintainer := fleet.User{ID: 6, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
-	team1GitOps := fleet.User{ID: 7, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleGitOps}}}
-	team1Observer := fleet.User{ID: 8, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}
-	multiTeamUser := fleet.User{ID: 9, Teams: []fleet.UserTeam{
+	i := 0
+	newUser := func(u fleet.User) *fleet.User {
+		i++
+		u.Name = fmt.Sprintf("SetAsideUser%d", i)
+		u.Email = fmt.Sprintf("%s@example.com", u.Name)
+		u.Password = []byte("foobar")
+		persisted, err := ds.NewUser(ctx, &u)
+		require.NoError(t, err)
+		return persisted
+	}
+
+	// Create users that are reused across tests
+	globalAdmin := newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)})
+	team1Admin := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin}}})
+	team1Maintainer := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}})
+	multiTeamUser := newUser(fleet.User{Teams: []fleet.UserTeam{
 		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
-		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin},
-	}}
+		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleMaintainer},
+	}})
 
 	type labelSpec struct {
 		name     string
@@ -3088,7 +3093,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 		labels       []labelSpec // labels to create for this test
 		notOnTeamID  *uint       // team ID being applied to
 		labelNames   []string    // names to pass to SetAsideLabels (if nil, uses labels[*].name)
-		user         fleet.User
+		user         *fleet.User
 		expectError  bool
 		verifyRename bool // if true, verify labels were renamed with appropriate suffix
 	}
@@ -3113,21 +3118,21 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			name:        "global maintainer can set aside global labels",
 			labels:      []labelSpec{{name: "global-setaside-2", teamID: nil, authorID: nil}},
 			notOnTeamID: &team1.ID,
-			user:        globalMaintainer,
+			user:        newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)}),
 			expectError: false,
 		},
 		{
 			name:        "global gitops can set aside global labels",
 			labels:      []labelSpec{{name: "global-setaside-3", teamID: nil, authorID: nil}},
 			notOnTeamID: &team1.ID,
-			user:        globalGitOps,
+			user:        newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)}),
 			expectError: false,
 		},
 		{
 			name:        "global observer cannot set aside global labels",
 			labels:      []labelSpec{{name: "global-setaside-4", teamID: nil, authorID: nil}},
 			notOnTeamID: &team1.ID,
-			user:        globalObserver,
+			user:        newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}),
 			expectError: true,
 		},
 		{
@@ -3148,19 +3153,26 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			name:        "team gitops can set aside their own team's labels",
 			labels:      []labelSpec{{name: "team1-setaside-3", teamID: &team1.ID, authorID: nil}},
 			notOnTeamID: &team2.ID,
-			user:        team1GitOps,
+			user:        newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleGitOps}}}),
 			expectError: false,
 		},
 		{
 			name:        "team observer cannot set aside team labels",
 			labels:      []labelSpec{{name: "team1-setaside-4", teamID: &team1.ID, authorID: nil}},
 			notOnTeamID: &team2.ID,
-			user:        team1Observer,
+			user:        newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}),
 			expectError: true,
 		},
 		{
 			name:        "cannot set aside labels from the same team we're applying to",
 			labels:      []labelSpec{{name: "team1-setaside-5", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        team1Admin,
+			expectError: true,
+		},
+		{
+			name:        "team admin cannot set aside labels when applying to the same team, even if that user authored",
+			labels:      []labelSpec{{name: "team1-setaside-6", teamID: &team1.ID, authorID: &team1Admin.ID}},
 			notOnTeamID: &team1.ID,
 			user:        team1Admin,
 			expectError: true,
@@ -3190,8 +3202,21 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			name:        "multi-team user can set aside labels from teams they have write access to",
 			labels:      []labelSpec{{name: "team2-setaside-1", teamID: &team2.ID, authorID: nil}},
 			notOnTeamID: &team1.ID,
-			user:        multiTeamUser,
+			user: newUser(fleet.User{Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
+				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin},
+			}}),
 			expectError: false,
+		},
+		{
+			name:        "multi-team user cannot set aside labels from teams they don't have write access to",
+			labels:      []labelSpec{{name: "team2-setaside-2", teamID: &team2.ID, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user: newUser(fleet.User{Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
+				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleObserver},
+			}}),
+			expectError: true,
 		},
 		{
 			name:        "non-existent label should fail",
@@ -3202,20 +3227,13 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			expectError: true,
 		},
 		{
-			name:        "team label gets renamed with __team_{team_id} suffix",
-			labels:      []labelSpec{{name: "team2-setaside-2", teamID: &team2.ID, authorID: nil}},
-			notOnTeamID: &team1.ID,
-			user:        globalAdmin,
-			expectError: false,
-		},
-		{
 			name: "multiple labels can be set aside at once",
 			labels: []labelSpec{
-				{name: "multi-setaside-1", teamID: nil, authorID: nil},
-				{name: "multi-setaside-2", teamID: nil, authorID: nil},
+				{name: "multi-setaside-1", teamID: nil, authorID: &multiTeamUser.ID},
+				{name: "multi-setaside-2", teamID: &team2.ID, authorID: nil},
 			},
 			notOnTeamID: &team1.ID,
-			user:        globalAdmin,
+			user:        multiTeamUser,
 			expectError: false,
 		},
 	}
@@ -3224,7 +3242,17 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create labels for this test case
 			var createdLabels []*fleet.Label
+			var expectedLabelNames []string
 			for _, spec := range tc.labels {
+				// Build expected renamed name based on label's team ID
+				var expectedSuffix string
+				if spec.teamID == nil {
+					expectedSuffix = "__team_0"
+				} else {
+					expectedSuffix = fmt.Sprintf("__team_%d", *spec.teamID)
+				}
+				expectedLabelNames = append(expectedLabelNames, spec.name+expectedSuffix)
+
 				label, err := ds.NewLabel(ctx, &fleet.Label{
 					Name:                spec.name,
 					Query:               "SELECT 1",
@@ -3236,16 +3264,15 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 				createdLabels = append(createdLabels, label)
 			}
 
-			// Determine label names to use
+			// Determine label names to use, and which to expect
 			labelNames := tc.labelNames
 			if labelNames == nil {
-				for _, l := range createdLabels {
-					labelNames = append(labelNames, l.Name)
+				for _, spec := range tc.labels {
+					labelNames = append(labelNames, spec.name)
 				}
 			}
 
-			// Call SetAsideLabels
-			err := ds.SetAsideLabels(ctx, tc.notOnTeamID, labelNames, tc.user)
+			err := ds.SetAsideLabels(ctx, tc.notOnTeamID, labelNames, *tc.user)
 
 			if tc.expectError {
 				require.Error(t, err)
@@ -3253,26 +3280,16 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			}
 			require.NoError(t, err)
 
-			// Verify renames
-			for i, label := range createdLabels {
-				// Original name should not exist
-				_, err := ds.LabelByName(ctx, label.Name, fleet.TeamFilter{User: &globalAdmin})
-				require.Error(t, err, "label %q should have been renamed", label.Name)
-				require.True(t, fleet.IsNotFound(err))
+			// Original name should not exist
+			oldLabels, _ := ds.LabelsByName(ctx, labelNames, fleet.TeamFilter{User: globalAdmin})
+			require.Empty(t, oldLabels)
 
-				// Build expected renamed name based on label's team ID
-				var expectedSuffix string
-				if tc.labels[i].teamID == nil {
-					expectedSuffix = "__team_0"
-				} else {
-					expectedSuffix = fmt.Sprintf("__team_%d", *tc.labels[i].teamID)
-				}
-				expectedName := label.Name + expectedSuffix
-
-				// Verify renamed label exists with same ID
-				renamedLabel, err := ds.LabelByName(ctx, expectedName, fleet.TeamFilter{User: &globalAdmin})
-				require.NoError(t, err, "renamed label %q should exist", expectedName)
-				require.Equal(t, label.ID, renamedLabel.ID)
+			// All renamed labels should exist
+			renamedLabels, _ := ds.LabelsByName(ctx, expectedLabelNames, fleet.TeamFilter{User: globalAdmin})
+			require.Len(t, renamedLabels, len(expectedLabelNames))
+			for _, expected := range expectedLabelNames {
+				_, ok := renamedLabels[expected]
+				require.Truef(t, ok, "Missing renamed label %s", expected)
 			}
 		})
 	}
