@@ -35,8 +35,10 @@ import DataSet from "components/DataSet";
 import CardHeader from "components/CardHeader";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Icon from "components/Icon/Icon";
+import Button from "components/buttons/Button";
 
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
 interface IVitalsProps {
   vitalsData: { [key: string]: any };
@@ -44,6 +46,7 @@ interface IVitalsProps {
   mdm?: IHostMdmData;
   osVersionRequirement?: IAppleDeviceUpdates;
   className?: string;
+  toggleLocationModal?: () => void;
 }
 
 const baseClass = "vitals-card";
@@ -111,6 +114,7 @@ const Vitals = ({
   mdm,
   osVersionRequirement,
   className,
+  toggleLocationModal,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
@@ -243,14 +247,18 @@ const Vitals = ({
   const renderGeolocation = () => {
     const geolocation = vitalsData.geolocation;
 
-    if (!geolocation) {
+    if (!isIosOrIpadosHost && !geolocation) {
       return null;
     }
 
-    const location = [geolocation?.city_name, geolocation?.country_iso]
-      .filter(Boolean)
-      .join(", ");
-    return <DataSet title="Location" value={location} />;
+    const geoLocationButton = (
+      <Button variant="text-link" onClick={toggleLocationModal}>
+        {isIosOrIpadosHost
+          ? "Show location"
+          : getCityCountryLocation(geolocation)}
+      </Button>
+    );
+    return <DataSet title="Location" value={geoLocationButton} />;
   };
 
   const renderBattery = () => {

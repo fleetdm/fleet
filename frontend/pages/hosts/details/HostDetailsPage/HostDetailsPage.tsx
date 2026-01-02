@@ -136,6 +136,7 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
+import LocationModal from "../modals/LocationModal";
 
 const baseClass = "host-details";
 
@@ -223,6 +224,10 @@ const HostDetailsPage = ({
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+  // Undefined used to return to true after closing the lock modal
+  const [showLocationModal, setShowLocationModal] = useState<
+    boolean | undefined
+  >(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -698,6 +703,10 @@ const HostDetailsPage = ({
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
   }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
+
+  const toggleLocationModal = useCallback(() => {
+    setShowLocationModal(!showLocationModal);
+  }, [showLocationModal, setShowLocationModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -1316,6 +1325,7 @@ Observer plus must be checked against host's team id  */
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
+                  toggleLocationModal={toggleLocationModal}
                 />
                 {showActivityCard && (
                   <ActivityCard
@@ -1609,7 +1619,10 @@ Observer plus must be checked against host's team id  */
               platform={host.platform}
               hostName={host.display_name}
               onSuccess={() => setHostMdmDeviceState("locking")}
-              onClose={() => setShowLockHostModal(false)}
+              onClose={() => {
+                setShowLockHostModal(false);
+                showLocationModal === undefined && setShowLocationModal(true);
+              }}
             />
           )}
           {showUnlockHostModal && (
@@ -1661,6 +1674,21 @@ Observer plus must be checked against host's team id  */
             onUpdate={onUpdateEndUser}
             isUpdating={isUpdating}
             onExit={() => setShowUpdateEndUserModal(false)}
+          />
+        )}
+        {showLocationModal && (
+          <LocationModal
+            hostGeolocation={host.geolocation}
+            onExit={toggleLocationModal}
+            iosOrIpadosDetails={{
+              isIosOrIpadosHost,
+              hostMdmDeviceStatus,
+            }}
+            onClickLock={() => {
+              setShowLockHostModal(true);
+              setShowLocationModal(undefined);
+            }}
+            detailsUpdatedAt={host.detail_updated_at}
           />
         )}
       </>
