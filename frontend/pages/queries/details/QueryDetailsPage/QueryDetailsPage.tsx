@@ -250,19 +250,23 @@ const QueryDetailsPage = ({
       isTeamMaintainerOrTeamAdmin;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
-    const backToQueriesPath = () => {
-      return (
-        filteredQueriesPath ||
-        getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
-          team_id: currentTeamId,
-        })
-      );
+    const backPath = () => {
+      if (filteredQueriesPath) return filteredQueriesPath;
+
+      if (hostId) return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId));
+
+      return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
+        team_id: currentTeamId,
+      });
     };
 
     return (
       <>
         <div className={`${baseClass}__header-links`}>
-          <BackButton text="Back to queries" path={backToQueriesPath()} />
+          <BackButton
+            text={hostId ? "Back to host details" : "Back to queries"}
+            path={backPath()}
+          />
         </div>
         {!isLoading && !isApiError && (
           <>
@@ -329,6 +333,7 @@ const QueryDetailsPage = ({
                         router.push(
                           getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
                             team_id: currentTeamId,
+                            host_id: hostId,
                           })
                         );
                     }}
