@@ -52,7 +52,16 @@ func TestLabelsAuth(t *testing.T) {
 		return nil, nil, ctxerr.Wrap(ctx, notFoundErr{"label", fleet.ErrorWithUUID{}})
 	}
 	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{ID: 2, Name: name}, nil // for deletes, TODO add cases for authorship/team differences
+		// For team label tests
+		if name == "team1-label" {
+			teamID := uint(1)
+			return &fleet.Label{ID: 3, Name: name, TeamID: &teamID}, nil
+		}
+		if name == "team2-label" {
+			teamID := uint(2)
+			return &fleet.Label{ID: 4, Name: name, TeamID: &teamID}, nil
+		}
+		return &fleet.Label{ID: 2, Name: name}, nil
 	}
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 		return nil, nil
@@ -118,7 +127,24 @@ func TestLabelsAuth(t *testing.T) {
 	otherLabel, _, err := svc.NewLabel(viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleMaintainer)}}), fleet.LabelPayload{Name: "Other label", Query: "SELECT 0"})
 	require.NoError(t, err)
 
-	// TODO create other-team label
+	// Create team labels for testing team-specific permissions
+	team1ID := uint(1)
+	team2ID := uint(2)
+
+	// Update LabelFunc to handle team labels
+	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		switch id {
+		case uint(1):
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id, AuthorID: &filter.User.ID}}, nil, nil
+		case uint(2):
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id}}, nil, nil
+		case uint(3): // team1 label
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id, TeamID: &team1ID}}, nil, nil
+		case uint(4): // team2 label
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id, TeamID: &team2ID}}, nil, nil
+		}
+		return nil, nil, ctxerr.Wrap(ctx, notFoundErr{"label", fleet.ErrorWithUUID{}})
+	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -167,7 +193,45 @@ func TestLabelsAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err)
 			}
 
-			// TODO add team label permissions
+			// Test team label permissions
+			// Team1 label (ID 3) - team maintainers on team1 should be able to access
+			_, _, err = svc.GetLabel(ctx, 3) // team1 label
+			if tt.user.GlobalRole != nil {
+				// Global users can read all labels
+				checkAuthErr(t, tt.shouldFailGlobalRead, err)
+			} else {
+				// Team users - check if they have access to team1
+				hasTeam1Access := false
+				for _, team := range tt.user.Teams {
+					if team.ID == 1 {
+						hasTeam1Access = true
+						break
+					}
+				}
+				if hasTeam1Access {
+					checkAuthErr(t, tt.shouldFailGlobalRead, err)
+				}
+			}
+
+			// Test deleting team labels - team maintainer on team1 should be able to delete team1 labels
+			err = svc.DeleteLabel(ctx, "team1-label")
+			if tt.user.GlobalRole != nil {
+				checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			} else {
+				// Team users can only delete labels on their teams if they have write access
+				hasTeam1WriteAccess := false
+				for _, team := range tt.user.Teams {
+					if team.ID == 1 && (team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer || team.Role == fleet.RoleGitOps) {
+						hasTeam1WriteAccess = true
+						break
+					}
+				}
+				if hasTeam1WriteAccess {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+				}
+			}
 		})
 	}
 }
