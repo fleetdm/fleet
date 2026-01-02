@@ -32,6 +32,9 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -57,10 +60,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
@@ -70,6 +75,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
+	"github.com/go-kit/kit/endpoint"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
@@ -1241,6 +1247,26 @@ the way that the Fleet server works.
 				}
 			}
 
+			// Bootstrap activity bounded context
+			legacyAuthorizer, err := authz.NewAuthorizer()
+			if err != nil {
+				initFatal(err, "initializing activity authorizer")
+			}
+			activityAuthorizer := &authorizerAdapter{authorizer: legacyAuthorizer}
+			activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
+			_, activityRoutesFn := activity_bootstrap.New(
+				dbConns.Primary,
+				dbConns.Replica,
+				activityAuthorizer,
+				activityUserProvider,
+				logger,
+			)
+			// Create auth middleware for activity bounded context
+			activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+				return auth.AuthenticatedUser(svc, next)
+			}
+			activityRoutes := activityRoutesFn(activityAuthMiddleware)
+
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
@@ -1257,7 +1283,7 @@ the way that the Fleet server works.
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
-					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
+					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1620,6 +1646,16 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
 	return serveCmd
+}
+
+// authorizerAdapter adapts the legacy authz.Authorizer to the platform_authz.Authorizer interface.
+// This allows bounded contexts to use a clean interface while leveraging the existing OPA-based authorization.
+type authorizerAdapter struct {
+	authorizer *authz.Authorizer
+}
+
+func (a *authorizerAdapter) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action string) error {
+	return a.authorizer.Authorize(ctx, subject, action)
 }
 
 func printDatabaseNotInitializedError() {
