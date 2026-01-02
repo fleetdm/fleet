@@ -19,13 +19,16 @@ func TestActivityRootPackageDependencies(t *testing.T) {
 		Check()
 }
 
-// TestActivityInternalTypesDependencies ensures the types package has NO Fleet dependencies.
-// This is the core type definitions and must be completely independent.
+// TestActivityInternalTypesDependencies ensures the types package only depends on the api package.
+// The api package is the public interface owned by this bounded context.
 func TestActivityInternalTypesDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, m+"/server/activity/internal/types").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		ShouldNotDependOn(m + "/...").
+		IgnoreDeps(
+			m + "/server/activity/api",
+		).
 		Check()
 }
 
@@ -36,7 +39,8 @@ func TestActivityInternalMySQLDependencies(t *testing.T) {
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		ShouldNotDependOn(m+"/...").
 		IgnoreDeps(
-			// Activity packages
+			// Activity packages (api is the public interface)
+			m+"/server/activity/api",
 			m+"/server/activity/internal/types",
 			// Platform/infra packages (allowed)
 			m+"/server/platform/http",
@@ -55,8 +59,9 @@ func TestActivityInternalServiceDependencies(t *testing.T) {
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		ShouldNotDependOn(m+"/...").
 		IgnoreDeps(
-			// Activity packages
+			// Activity packages (api is the public interface)
 			m+"/server/activity",
+			m+"/server/activity/api",
 			m+"/server/activity/internal/types",
 			// Platform/infra packages (allowed)
 			m+"/server/platform/authz",

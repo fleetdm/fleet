@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -26,13 +27,13 @@ func (m *mockAuthorizer) Authorize(ctx context.Context, subject platform_authz.A
 }
 
 type mockDatastore struct {
-	activities []*types.Activity
-	meta       *types.PaginationMetadata
+	activities []*api.Activity
+	meta       *api.PaginationMetadata
 	err        error
 	lastOpt    types.ListOptions
 }
 
-func (m *mockDatastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*types.Activity, *types.PaginationMetadata, error) {
+func (m *mockDatastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	m.lastOpt = opt
 	return m.activities, m.meta, m.err
 }
@@ -84,7 +85,7 @@ func testListActivitiesAuthorizationDenied(t *testing.T) {
 		log.NewNopLogger(),
 	)
 
-	activities, meta, err := svc.ListActivities(ctx, types.ListOptions{})
+	activities, meta, err := svc.ListActivities(ctx, api.ListOptions{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "forbidden")
 	assert.Nil(t, activities)
@@ -96,11 +97,11 @@ func testListActivitiesBasic(t *testing.T) {
 
 	details := json.RawMessage(`{"key": "value"}`)
 	mockDS := &mockDatastore{
-		activities: []*types.Activity{
+		activities: []*api.Activity{
 			{ID: 1, Type: "test_activity", Details: &details},
 			{ID: 2, Type: "another_activity"},
 		},
-		meta: &types.PaginationMetadata{HasNextResults: true},
+		meta: &api.PaginationMetadata{HasNextResults: true},
 	}
 
 	svc := NewService(
@@ -110,7 +111,7 @@ func testListActivitiesBasic(t *testing.T) {
 		log.NewNopLogger(),
 	)
 
-	activities, meta, err := svc.ListActivities(ctx, types.ListOptions{
+	activities, meta, err := svc.ListActivities(ctx, api.ListOptions{
 		PerPage: 10,
 		Page:    0,
 	})
@@ -131,7 +132,7 @@ func testListActivitiesWithUserEnrichment(t *testing.T) {
 	userIDTwo := uint(200)
 
 	mockDS := &mockDatastore{
-		activities: []*types.Activity{
+		activities: []*api.Activity{
 			{ID: 1, Type: "test_activity", ActorID: &userIDOne},
 			{ID: 2, Type: "another_activity", ActorID: &userIDTwo},
 			{ID: 3, Type: "system_activity"}, // No actor
@@ -152,7 +153,7 @@ func testListActivitiesWithUserEnrichment(t *testing.T) {
 		log.NewNopLogger(),
 	)
 
-	activities, _, err := svc.ListActivities(ctx, types.ListOptions{})
+	activities, _, err := svc.ListActivities(ctx, api.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 
@@ -182,7 +183,7 @@ func testListActivitiesWithMatchQuery(t *testing.T) {
 	ctx := t.Context()
 
 	mockDS := &mockDatastore{
-		activities: []*types.Activity{
+		activities: []*api.Activity{
 			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(100)},
 		},
 	}
@@ -201,7 +202,7 @@ func testListActivitiesWithMatchQuery(t *testing.T) {
 		log.NewNopLogger(),
 	)
 
-	_, _, err := svc.ListActivities(ctx, types.ListOptions{
+	_, _, err := svc.ListActivities(ctx, api.ListOptions{
 		MatchQuery: "john",
 	})
 	require.NoError(t, err)
@@ -227,7 +228,7 @@ func testListActivitiesDatastoreError(t *testing.T) {
 		log.NewNopLogger(),
 	)
 
-	activities, meta, err := svc.ListActivities(ctx, types.ListOptions{})
+	activities, meta, err := svc.ListActivities(ctx, api.ListOptions{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "database error")
 	assert.Nil(t, activities)
@@ -239,7 +240,7 @@ func testListActivitiesUserEnrichmentError(t *testing.T) {
 
 	userID := uint(100)
 	mockDS := &mockDatastore{
-		activities: []*types.Activity{
+		activities: []*api.Activity{
 			{ID: 1, Type: "test_activity", ActorID: &userID},
 		},
 	}
@@ -256,7 +257,7 @@ func testListActivitiesUserEnrichmentError(t *testing.T) {
 	)
 
 	// User enrichment errors are logged but don't fail the request
-	activities, _, err := svc.ListActivities(ctx, types.ListOptions{})
+	activities, _, err := svc.ListActivities(ctx, api.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 
@@ -269,7 +270,7 @@ func testListActivitiesSearchUsersError(t *testing.T) {
 	ctx := t.Context()
 
 	mockDS := &mockDatastore{
-		activities: []*types.Activity{
+		activities: []*api.Activity{
 			{ID: 1, Type: "test_activity"},
 		},
 	}
@@ -286,7 +287,7 @@ func testListActivitiesSearchUsersError(t *testing.T) {
 	)
 
 	// Search errors are logged but don't fail the request
-	activities, _, err := svc.ListActivities(ctx, types.ListOptions{
+	activities, _, err := svc.ListActivities(ctx, api.ListOptions{
 		MatchQuery: "john",
 	})
 	require.NoError(t, err)

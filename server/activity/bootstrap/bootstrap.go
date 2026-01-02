@@ -4,9 +4,9 @@ package bootstrap
 
 import (
 	"github.com/fleetdm/fleet/v4/server/activity"
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/service"
-	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/kit/endpoint"
@@ -28,18 +28,18 @@ type AuthMiddleware = func(endpoint.Endpoint) endpoint.Endpoint
 //   - logger: logger for the service
 //
 // Returns:
-//   - types.Service: the activity service implementation
+//   - api.Service: the public activity service interface for external consumers
 //   - func(AuthMiddleware) eu.HandlerRoutesFunc: function to create routes with auth middleware
 func New(
 	primary, replica *sqlx.DB,
 	authorizer platform_authz.Authorizer,
 	userProvider activity.UserProvider,
 	logger kitlog.Logger,
-) (types.Service, func(authMiddleware AuthMiddleware) eu.HandlerRoutesFunc) {
+) (api.Service, func(authMiddleware AuthMiddleware) eu.HandlerRoutesFunc) {
 	// Create the datastore
 	ds := mysql.NewDatastore(primary, replica)
 
-	// Create the service
+	// Create the service (implements api.Service)
 	svc := service.NewService(authorizer, ds, userProvider, logger)
 
 	// Return the service and a function that creates route handlers with auth middleware

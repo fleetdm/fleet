@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -11,13 +11,13 @@ import (
 )
 
 // GetRoutes returns a function that registers activity routes on the router.
-func GetRoutes(svc types.Service, authMiddleware AuthMiddleware) eu.HandlerRoutesFunc {
+func GetRoutes(svc api.Service, authMiddleware AuthMiddleware) eu.HandlerRoutesFunc {
 	return func(r *mux.Router, opts []kithttp.ServerOption) {
 		attachFleetAPIRoutes(r, svc, authMiddleware, opts)
 	}
 }
 
-func attachFleetAPIRoutes(r *mux.Router, svc types.Service, authMiddleware AuthMiddleware, opts []kithttp.ServerOption) {
+func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware AuthMiddleware, opts []kithttp.ServerOption) {
 	// User-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, authMiddleware, opts, r, apiVersions()...)
 
@@ -31,23 +31,23 @@ func apiVersions() []string {
 // Request and response types
 
 type listActivitiesRequest struct {
-	ListOptions    types.ListOptions `url:"list_options"`
-	Query          string            `query:"query,optional"`
-	ActivityType   string            `query:"activity_type,optional"`
-	StartCreatedAt string            `query:"start_created_at,optional"`
-	EndCreatedAt   string            `query:"end_created_at,optional"`
+	ListOptions    api.ListOptions `url:"list_options"`
+	Query          string          `query:"query,optional"`
+	ActivityType   string          `query:"activity_type,optional"`
+	StartCreatedAt string          `query:"start_created_at,optional"`
+	EndCreatedAt   string          `query:"end_created_at,optional"`
 }
 
 type listActivitiesResponse struct {
-	Meta       *types.PaginationMetadata `json:"meta"`
-	Activities []*types.Activity         `json:"activities"`
-	Err        error                     `json:"error,omitempty"`
+	Meta       *api.PaginationMetadata `json:"meta"`
+	Activities []*api.Activity         `json:"activities"`
+	Err        error                   `json:"error,omitempty"`
 }
 
 func (r listActivitiesResponse) Error() error { return r.Err }
 
 // listActivitiesEndpoint handles GET /api/_version_/fleet/activities
-func listActivitiesEndpoint(ctx context.Context, request any, svc types.Service) platform_http.Errorer {
+func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*listActivitiesRequest)
 
 	// Build list options with activity-specific filters

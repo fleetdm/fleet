@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
@@ -56,7 +56,7 @@ func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (
 }
 
 // listOptionsFromRequest parses list options from query parameters.
-func listOptionsFromRequest(r *http.Request) (types.ListOptions, error) {
+func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 	var err error
 
 	pageString := r.URL.Query().Get("page")
@@ -68,10 +68,10 @@ func listOptionsFromRequest(r *http.Request) (types.ListOptions, error) {
 	if pageString != "" {
 		page, err = strconv.Atoi(pageString)
 		if err != nil {
-			return types.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "non-int page value"})
+			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "non-int page value"})
 		}
 		if page < 0 {
-			return types.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "negative page value"})
+			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "negative page value"})
 		}
 	}
 
@@ -79,10 +79,10 @@ func listOptionsFromRequest(r *http.Request) (types.ListOptions, error) {
 	if perPageString != "" {
 		perPage, err = strconv.Atoi(perPageString)
 		if err != nil {
-			return types.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "non-int per_page value"})
+			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "non-int per_page value"})
 		}
 		if perPage <= 0 {
-			return types.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "invalid per_page value"})
+			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "invalid per_page value"})
 		}
 	}
 
@@ -92,7 +92,7 @@ func listOptionsFromRequest(r *http.Request) (types.ListOptions, error) {
 	}
 
 	if orderKey == "" && orderDirectionString != "" {
-		return types.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "order_key must be specified with order_direction"})
+		return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "order_key must be specified with order_direction"})
 	}
 
 	var orderDirection string
@@ -102,10 +102,10 @@ func listOptionsFromRequest(r *http.Request) (types.ListOptions, error) {
 	case "asc", "":
 		orderDirection = "asc"
 	default:
-		return types.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "unknown order_direction: " + orderDirectionString})
+		return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "unknown order_direction: " + orderDirectionString})
 	}
 
-	return types.ListOptions{
+	return api.ListOptions{
 		Page:           uint(page),    //nolint:gosec // dismiss G115
 		PerPage:        uint(perPage), //nolint:gosec // dismiss G115
 		OrderKey:       orderKey,
@@ -114,25 +114,25 @@ func listOptionsFromRequest(r *http.Request) (types.ListOptions, error) {
 }
 
 // handlerFunc is the handler function type for Activity service endpoints.
-type handlerFunc func(ctx context.Context, request any, svc types.Service) platform_http.Errorer
+type handlerFunc func(ctx context.Context, request any, svc api.Service) platform_http.Errorer
 
 // Compile-time check to ensure endpointer implements Endpointer.
 var _ eu.Endpointer[handlerFunc] = &endpointer{}
 
 type endpointer struct {
-	svc types.Service
+	svc api.Service
 }
 
 func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any,
 	svc any) (platform_http.Errorer, error) {
-	return f(ctx, request, svc.(types.Service)), nil
+	return f(ctx, request, svc.(api.Service)), nil
 }
 
 func (e *endpointer) Service() any {
 	return e.svc
 }
 
-func newUserAuthenticatedEndpointer(svc types.Service, authMiddleware AuthMiddleware, opts []kithttp.ServerOption, r *mux.Router,
+func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware AuthMiddleware, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
@@ -147,11 +147,9 @@ func newUserAuthenticatedEndpointer(svc types.Service, authMiddleware AuthMiddle
 	}
 }
 
-// fillListOptions sets default values and IncludeMetadata for list options.
-func fillListOptions(opt *types.ListOptions) {
-	// Always include metadata for activities
-	opt.IncludeMetadata = true
-
+// fillListOptions sets default values for list options.
+// Note: IncludeMetadata is set internally by the service layer.
+func fillListOptions(opt *api.ListOptions) {
 	// Default ordering by created_at descending (newest first) if not specified
 	if opt.OrderKey == "" {
 		opt.OrderKey = "created_at"

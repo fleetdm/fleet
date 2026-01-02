@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
@@ -30,11 +31,17 @@ func NewService(authz platform_authz.Authorizer, store types.Datastore, users ac
 	}
 }
 
-// Ensure Service implements types.Service
-var _ types.Service = (*Service)(nil)
+// Ensure Service implements api.Service
+var _ api.Service = (*Service)(nil)
 
 // ListActivities returns a slice of activities for the whole organization.
-func (s *Service) ListActivities(ctx context.Context, opt types.ListOptions) ([]*types.Activity, *types.PaginationMetadata, error) {
+func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	// Convert public options to internal options (which include internal fields)
+	internalOpt := types.ListOptions{
+		ListOptions:     opt,
+		IncludeMetadata: true, // Always include metadata for activity listing
+	}
+
 	// Authorization: use authz package with local authorization subject
 	if err := s.authz.Authorize(ctx, &activityAuthzSubject{}, actionRead); err != nil {
 		return nil, nil, err
@@ -48,11 +55,11 @@ func (s *Service) ListActivities(ctx context.Context, opt types.ListOptions) ([]
 			// Log but don't fail - we can still search activity table fields
 			level.Debug(s.logger).Log("msg", "failed to search users for activity query", "err", err)
 		} else {
-			opt.MatchingUserIDs = userIDs
+			internalOpt.MatchingUserIDs = userIDs
 		}
 	}
 
-	activities, meta, err := s.store.ListActivities(ctx, opt)
+	activities, meta, err := s.store.ListActivities(ctx, internalOpt)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list activities")
 	}
@@ -68,7 +75,7 @@ func (s *Service) ListActivities(ctx context.Context, opt types.ListOptions) ([]
 
 // enrichWithUserData adds user data (gravatar, email, name, api_only) to activities by fetching via ACL.
 // This matches the legacy behavior in server/datastore/mysql/activities.go ListActivities.
-func (s *Service) enrichWithUserData(ctx context.Context, activities []*types.Activity) error {
+func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Activity) error {
 	// Collect unique user IDs and build lookup of activity indices per user
 	lookup := make(map[uint][]int)
 	for idx, a := range activities {

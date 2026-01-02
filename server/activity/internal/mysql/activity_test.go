@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	activityapi "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
@@ -51,8 +52,8 @@ func testListActivitiesBasic(t *testing.T, ds *Datastore) {
 	}
 
 	activities, meta, err := ds.ListActivities(ctx, types.ListOptions{
+		ListOptions:     activityapi.ListOptions{PerPage: 100},
 		IncludeMetadata: true,
-		PerPage:         100,
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
@@ -84,22 +85,22 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// List all activities
-	activities, _, err := ds.ListActivities(ctx, types.ListOptions{PerPage: 100})
+	activities, _, err := ds.ListActivities(ctx, types.ListOptions{ListOptions: activityapi.ListOptions{PerPage: 100}})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 
 	// List non-streamed activities
 	nonStreamed, _, err := ds.ListActivities(ctx, types.ListOptions{
-		PerPage:  100,
-		Streamed: ptr.Bool(false),
+		ListOptions: activityapi.ListOptions{PerPage: 100},
+		Streamed:    ptr.Bool(false),
 	})
 	require.NoError(t, err)
 	assert.Len(t, nonStreamed, 2)
 
 	// List streamed activities
 	streamed, _, err := ds.ListActivities(ctx, types.ListOptions{
-		PerPage:  100,
-		Streamed: ptr.Bool(true),
+		ListOptions: activityapi.ListOptions{PerPage: 100},
+		Streamed:    ptr.Bool(true),
 	})
 	require.NoError(t, err)
 	assert.Len(t, streamed, 1)
@@ -116,7 +117,7 @@ func testListActivitiesPaginationMetadata(t *testing.T, ds *Datastore) {
 	}
 
 	// Test HasNextResults
-	activities, meta, err := ds.ListActivities(ctx, types.ListOptions{PerPage: 2, IncludeMetadata: true})
+	activities, meta, err := ds.ListActivities(ctx, types.ListOptions{ListOptions: activityapi.ListOptions{PerPage: 2}, IncludeMetadata: true})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	require.NotNil(t, meta)
@@ -124,7 +125,7 @@ func testListActivitiesPaginationMetadata(t *testing.T, ds *Datastore) {
 	assert.False(t, meta.HasPreviousResults)
 
 	// Test HasPreviousResults
-	activities, meta, err = ds.ListActivities(ctx, types.ListOptions{PerPage: 2, Page: 1, IncludeMetadata: true})
+	activities, meta, err = ds.ListActivities(ctx, types.ListOptions{ListOptions: activityapi.ListOptions{PerPage: 2, Page: 1}, IncludeMetadata: true})
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 	require.NotNil(t, meta)
@@ -132,7 +133,7 @@ func testListActivitiesPaginationMetadata(t *testing.T, ds *Datastore) {
 	assert.True(t, meta.HasPreviousResults)
 
 	// Test no extra results
-	activities, meta, err = ds.ListActivities(ctx, types.ListOptions{PerPage: 100, IncludeMetadata: true})
+	activities, meta, err = ds.ListActivities(ctx, types.ListOptions{ListOptions: activityapi.ListOptions{PerPage: 100}, IncludeMetadata: true})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 	require.NotNil(t, meta)
@@ -151,8 +152,7 @@ func testListActivitiesActivityTypeFilter(t *testing.T, ds *Datastore) {
 
 	// Filter by type - should find 2
 	activities, _, err := ds.ListActivities(ctx, types.ListOptions{
-		PerPage:      100,
-		ActivityType: "edited_script",
+		ListOptions: activityapi.ListOptions{PerPage: 100, ActivityType: "edited_script"},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
@@ -162,16 +162,14 @@ func testListActivitiesActivityTypeFilter(t *testing.T, ds *Datastore) {
 
 	// Filter by different type - should find 1
 	activities, _, err = ds.ListActivities(ctx, types.ListOptions{
-		PerPage:      100,
-		ActivityType: "mdm_enrolled",
+		ListOptions: activityapi.ListOptions{PerPage: 100, ActivityType: "mdm_enrolled"},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 
 	// Filter by non-existent type - should find 0
 	activities, _, err = ds.ListActivities(ctx, types.ListOptions{
-		PerPage:      100,
-		ActivityType: "non_existent",
+		ListOptions: activityapi.ListOptions{PerPage: 100, ActivityType: "non_existent"},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 0)
@@ -195,25 +193,25 @@ func testListActivitiesDateRangeFilter(t *testing.T, ds *Datastore) {
 
 	// From 36 hours ago to now (should get 2 activities: -24h and now)
 	activities, _, err := ds.ListActivities(ctx, types.ListOptions{
-		PerPage:        100,
-		StartCreatedAt: now.Add(-36 * time.Hour).Format(time.RFC3339),
+		ListOptions: activityapi.ListOptions{PerPage: 100, StartCreatedAt: now.Add(-36 * time.Hour).Format(time.RFC3339)},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 
 	// From 72 hours ago to 12 hours ago (should get 2 activities: -48h and -24h)
 	activities, _, err = ds.ListActivities(ctx, types.ListOptions{
-		PerPage:        100,
-		StartCreatedAt: now.Add(-72 * time.Hour).Format(time.RFC3339),
-		EndCreatedAt:   now.Add(-12 * time.Hour).Format(time.RFC3339),
+		ListOptions: activityapi.ListOptions{
+			PerPage:        100,
+			StartCreatedAt: now.Add(-72 * time.Hour).Format(time.RFC3339),
+			EndCreatedAt:   now.Add(-12 * time.Hour).Format(time.RFC3339),
+		},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 
 	// Only end date (should get 3 activities: -48h, -24h, now)
 	activities, _, err = ds.ListActivities(ctx, types.ListOptions{
-		PerPage:      100,
-		EndCreatedAt: now.Add(1 * time.Hour).Format(time.RFC3339),
+		ListOptions: activityapi.ListOptions{PerPage: 100, EndCreatedAt: now.Add(1 * time.Hour).Format(time.RFC3339)},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
@@ -232,33 +230,29 @@ func testListActivitiesMatchQuery(t *testing.T, ds *Datastore) {
 
 	// Search by user_name in activity table (prefix match)
 	activities, _, err := ds.ListActivities(ctx, types.ListOptions{
-		PerPage:    100,
-		MatchQuery: "john",
+		ListOptions: activityapi.ListOptions{PerPage: 100, MatchQuery: "john"},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 
 	// Search by user_email in activity table (prefix match)
 	activities, _, err = ds.ListActivities(ctx, types.ListOptions{
-		PerPage:    100,
-		MatchQuery: "jane@",
+		ListOptions: activityapi.ListOptions{PerPage: 100, MatchQuery: "jane@"},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 
 	// Search with no match
 	activities, _, err = ds.ListActivities(ctx, types.ListOptions{
-		PerPage:    100,
-		MatchQuery: "nomatch",
+		ListOptions: activityapi.ListOptions{PerPage: 100, MatchQuery: "nomatch"},
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 0)
 
 	// Search with MatchingUserIDs (simulates user table search done by service layer)
 	activities, _, err = ds.ListActivities(ctx, types.ListOptions{
-		PerPage:         100,
-		MatchQuery:      "nomatch",      // Won't match activity table
-		MatchingUserIDs: []uint{userID}, // But matches via user IDs
+		ListOptions:     activityapi.ListOptions{PerPage: 100, MatchQuery: "nomatch"}, // Won't match activity table
+		MatchingUserIDs: []uint{userID},                                               // But matches via user IDs
 	})
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)

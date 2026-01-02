@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/gorilla/mux"
@@ -16,16 +16,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockService is a mock implementation of types.Service for handler tests
+// mockService is a mock implementation of api.Service for handler tests
 type mockService struct {
-	activities     []*types.Activity
-	meta           *types.PaginationMetadata
+	activities     []*api.Activity
+	meta           *api.PaginationMetadata
 	err            error
-	lastOpt        types.ListOptions
+	lastOpt        api.ListOptions
 	listCallsCount int
 }
 
-func (m *mockService) ListActivities(ctx context.Context, opt types.ListOptions) ([]*types.Activity, *types.PaginationMetadata, error) {
+func (m *mockService) ListActivities(ctx context.Context, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	// Mark authorization as checked (authzcheck middleware requires this)
 	if authzCtx, ok := authz_ctx.FromContext(ctx); ok {
 		authzCtx.SetChecked()
@@ -36,7 +36,7 @@ func (m *mockService) ListActivities(ctx context.Context, opt types.ListOptions)
 	return m.activities, m.meta, m.err
 }
 
-func setupTestRouter(svc types.Service) *mux.Router {
+func setupTestRouter(svc api.Service) *mux.Router {
 	r := mux.NewRouter()
 
 	// Create a pass-through auth middleware for testing
@@ -65,11 +65,11 @@ func TestHandlerListActivities(t *testing.T) {
 func testHandlerListActivitiesBasic(t *testing.T) {
 	details := json.RawMessage(`{"key": "value"}`)
 	mockSvc := &mockService{
-		activities: []*types.Activity{
+		activities: []*api.Activity{
 			{ID: 1, Type: "test_activity", Details: &details},
 			{ID: 2, Type: "another_activity"},
 		},
-		meta: &types.PaginationMetadata{HasNextResults: true},
+		meta: &api.PaginationMetadata{HasNextResults: true},
 	}
 
 	r := setupTestRouter(mockSvc)
@@ -92,13 +92,12 @@ func testHandlerListActivitiesBasic(t *testing.T) {
 	// Verify defaults were applied
 	assert.Equal(t, "created_at", mockSvc.lastOpt.OrderKey)
 	assert.Equal(t, "desc", mockSvc.lastOpt.OrderDirection)
-	assert.True(t, mockSvc.lastOpt.IncludeMetadata)
 }
 
 func testHandlerListActivitiesQueryParams(t *testing.T) {
 	mockSvc := &mockService{
-		activities: []*types.Activity{},
-		meta:       &types.PaginationMetadata{},
+		activities: []*api.Activity{},
+		meta:       &api.PaginationMetadata{},
 	}
 
 	r := setupTestRouter(mockSvc)
@@ -148,8 +147,8 @@ func testHandlerListActivitiesServiceError(t *testing.T) {
 
 func TestHandlerAPIVersions(t *testing.T) {
 	mockSvc := &mockService{
-		activities: []*types.Activity{},
-		meta:       &types.PaginationMetadata{},
+		activities: []*api.Activity{},
+		meta:       &api.PaginationMetadata{},
 	}
 
 	r := setupTestRouter(mockSvc)

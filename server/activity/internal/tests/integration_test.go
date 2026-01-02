@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/service"
-	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
@@ -198,8 +198,8 @@ func (s *integrationTestSuite) insertActivityWithTime(userID uint, activityType 
 // Response types for decoding
 
 type listActivitiesResponse struct {
-	Activities []*types.Activity         `json:"activities"`
-	Meta       *types.PaginationMetadata `json:"meta"`
+	Activities []*api.Activity         `json:"activities"`
+	Meta       *api.PaginationMetadata `json:"meta"`
 }
 
 // Integration tests

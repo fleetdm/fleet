@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -32,8 +33,8 @@ func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {
 var _ types.Datastore = (*Datastore)(nil)
 
 // ListActivities returns a slice of activities performed across the organization.
-func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*types.Activity, *types.PaginationMetadata, error) {
-	activities := []*types.Activity{}
+func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	activities := []*api.Activity{}
 
 	activitiesQ := `
 		SELECT
@@ -111,9 +112,9 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 	}
 
 	// Build pagination metadata
-	var meta *types.PaginationMetadata
+	var meta *api.PaginationMetadata
 	if opt.IncludeMetadata {
-		meta = &types.PaginationMetadata{
+		meta = &api.PaginationMetadata{
 			HasPreviousResults: opt.Page > 0,
 		}
 		if uint(len(activities)) > opt.PerPage && opt.PerPage > 0 {
@@ -127,7 +128,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 
 // fetchActivityDetails fetches details for activities in a separate query
 // to avoid MySQL sort buffer issues with large JSON entries.
-func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*types.Activity) error {
+func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api.Activity) error {
 	ids := make([]uint, 0, len(activities))
 	for _, a := range activities {
 		ids = append(ids, a.ID)
