@@ -307,7 +307,7 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Global admin should see all labels (global + team labels)
+	// Global admin should see all labels (global + team labels), including the All Hosts label
 	labels, err = db.SearchLabels(context.Background(), filter, "foo")
 	require.NoError(t, err)
 	assert.Len(t, labels, 5) // foo, foo-bar, All Hosts, team1-foo, team2-foo
@@ -354,8 +354,7 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	// Team user trying to access another team's labels should fail
 	team1UserTeam2Filter := fleet.TeamFilter{User: team1User, TeamID: &team2.ID}
 	_, err = db.SearchLabels(context.Background(), team1UserTeam2Filter, "foo")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "inaccessible team")
+	require.ErrorContains(t, err, errInaccessibleTeam.Error()) // not ErrorIs due to UserError wrapping
 }
 
 func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
