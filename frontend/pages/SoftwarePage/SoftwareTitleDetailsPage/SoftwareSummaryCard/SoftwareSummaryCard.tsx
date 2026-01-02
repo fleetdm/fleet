@@ -115,8 +115,7 @@ const SoftwareSummaryCard = ({
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
 
   const canEditAutoUpdateConfig =
-    softwareTitle.app_store_app && isIosOrIpadosApp;
-  canManageSoftware;
+    softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
