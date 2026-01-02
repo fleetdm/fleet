@@ -37,9 +37,11 @@ var _ api.Service = (*Service)(nil)
 // ListActivities returns a slice of activities for the whole organization.
 func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	// Convert public options to internal options (which include internal fields)
+	// Don't include metadata for cursor-based pagination (when After is set)
+	includeMetadata := opt.After == ""
 	internalOpt := types.ListOptions{
 		ListOptions:     opt,
-		IncludeMetadata: true, // Always include metadata for activity listing
+		IncludeMetadata: includeMetadata,
 	}
 
 	// Authorization: use authz package with local authorization subject

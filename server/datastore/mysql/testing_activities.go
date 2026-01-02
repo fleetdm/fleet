@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/go-kit/log"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,7 +58,7 @@ func CreateMySQLDSWithActivities(t *testing.T) *DatastoreWithActivities {
 		activityDB,
 		activityDB,
 		&testAuthorizer{},
-		&testUserProvider{},
+		&testUserProvider{db: activityDB},
 		log.NewNopLogger(),
 	)
 
@@ -70,16 +71,30 @@ func CreateMySQLDSWithActivities(t *testing.T) *DatastoreWithActivities {
 // ListActivities returns activities using the activity bounded context.
 // This replaces calls to ds.ListActivities in tests.
 func (d *DatastoreWithActivities) ListActivities(ctx context.Context, opts fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	// Convert OrderDirection to string
+	orderDir := "asc"
+	if opts.OrderDirection == fleet.OrderDescending {
+		orderDir = "desc"
+	}
+
+	// Apply default PerPage like legacy datastore
+	perPage := opts.PerPage
+	if perPage == 0 {
+		perPage = fleet.DefaultPerPage
+	}
+
 	// Convert legacy options to API options
 	apiOpts := activityapi.ListOptions{
 		Page:           opts.Page,
-		PerPage:        opts.PerPage,
+		PerPage:        perPage,
+		After:          opts.After,
 		OrderKey:       opts.OrderKey,
-		OrderDirection: string(opts.OrderDirection),
+		OrderDirection: orderDir,
 		ActivityType:   opts.ActivityType,
 		StartCreatedAt: opts.StartCreatedAt,
 		EndCreatedAt:   opts.EndCreatedAt,
 		MatchQuery:     opts.MatchQuery,
+		Streamed:       opts.Streamed,
 	}
 
 	// Call activity service
@@ -126,13 +141,44 @@ func (a *testAuthorizer) Authorize(ctx context.Context, subject platform_authz.A
 	return nil
 }
 
-// testUserProvider is a simple user provider that returns empty results for tests.
-type testUserProvider struct{}
+// testUserProvider queries users from the database for activity enrichment.
+type testUserProvider struct {
+	db *sqlx.DB
+}
 
 func (p *testUserProvider) ListUsers(ctx context.Context, ids []uint) ([]*activity.User, error) {
-	return nil, nil
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	query, args, err := sqlx.In(`
+		SELECT id, name, email, gravatar_url AS gravatar, api_only AS apionly
+		FROM users
+		WHERE id IN (?)
+	`, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	var users []*activity.User
+	if err := sqlx.SelectContext(ctx, p.db, &users, query, args...); err != nil {
+		return nil, err
+	}
+	return users, nil
 }
 
 func (p *testUserProvider) SearchUsers(ctx context.Context, query string) ([]uint, error) {
-	return nil, nil
+	if query == "" {
+		return nil, nil
+	}
+
+	var ids []uint
+	err := sqlx.SelectContext(ctx, p.db, &ids, `
+		SELECT id FROM users
+		WHERE name LIKE ? OR email LIKE ?
+	`, query+"%", query+"%")
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
 }

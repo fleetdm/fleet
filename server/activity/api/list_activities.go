@@ -43,6 +43,7 @@ type ListOptions struct {
 	// Pagination
 	Page    uint
 	PerPage uint
+	After   string // Cursor-based pagination: start after this value (used with OrderKey)
 
 	// Sorting
 	OrderKey       string // Field to order by (e.g., "created_at", "id")
@@ -53,6 +54,7 @@ type ListOptions struct {
 	StartCreatedAt string // ISO date string, filter activities created after this time
 	EndCreatedAt   string // ISO date string, filter activities created before this time
 	MatchQuery     string // Search query for actor name and email
+	Streamed       *bool  // Filter by streamed status (nil = all, true = streamed only, false = not streamed only)
 }
 
 // PaginationMetadata contains pagination information for list responses.

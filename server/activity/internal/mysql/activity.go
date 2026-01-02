@@ -173,7 +173,7 @@ func (a *listOptsAdapter) GetPage() uint                { return a.opt.Page }
 func (a *listOptsAdapter) GetPerPage() uint             { return a.opt.PerPage }
 func (a *listOptsAdapter) GetOrderKey() string          { return a.opt.OrderKey }
 func (a *listOptsAdapter) IsDescending() bool           { return a.opt.OrderDirection == "desc" }
-func (a *listOptsAdapter) GetCursorValue() string       { return "" } // Not used for activities list
+func (a *listOptsAdapter) GetCursorValue() string       { return a.opt.After }
 func (a *listOptsAdapter) WantsPaginationInfo() bool    { return a.opt.IncludeMetadata }
 func (a *listOptsAdapter) GetSecondaryOrderKey() string { return "" }
 func (a *listOptsAdapter) IsSecondaryDescending() bool  { return false }

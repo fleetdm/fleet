@@ -14,7 +14,6 @@ type ListOptions struct {
 
 	// Internal fields - set programmatically by service, not from query params
 	IncludeMetadata bool
-	Streamed        *bool
 	MatchingUserIDs []uint // User IDs matching MatchQuery (populated by service via ACL)
 }
 

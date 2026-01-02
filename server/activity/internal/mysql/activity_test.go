@@ -91,16 +91,14 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 
 	// List non-streamed activities
 	nonStreamed, _, err := ds.ListActivities(ctx, types.ListOptions{
-		ListOptions: activityapi.ListOptions{PerPage: 100},
-		Streamed:    ptr.Bool(false),
+		ListOptions: activityapi.ListOptions{PerPage: 100, Streamed: ptr.Bool(false)},
 	})
 	require.NoError(t, err)
 	assert.Len(t, nonStreamed, 2)
 
 	// List streamed activities
 	streamed, _, err := ds.ListActivities(ctx, types.ListOptions{
-		ListOptions: activityapi.ListOptions{PerPage: 100},
-		Streamed:    ptr.Bool(true),
+		ListOptions: activityapi.ListOptions{PerPage: 100, Streamed: ptr.Bool(true)},
 	})
 	require.NoError(t, err)
 	assert.Len(t, streamed, 1)

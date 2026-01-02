@@ -14,6 +14,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
+	activityapi "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -1448,6 +1449,7 @@ func newActivitiesStreamingSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	activitySvc activityapi.ListActivitiesService,
 	logger kitlog.Logger,
 	auditLogger fleet.JSONLogger,
 ) (*schedule.Schedule, error) {
@@ -1462,7 +1464,7 @@ func newActivitiesStreamingSchedule(
 		schedule.WithJob(
 			"cron_activities_streaming",
 			func(ctx context.Context) error {
-				return cronActivitiesStreaming(ctx, ds, logger, auditLogger)
+				return cronActivitiesStreaming(ctx, ds, activitySvc, logger, auditLogger)
 			},
 		),
 	)
@@ -1474,20 +1476,19 @@ var ActivitiesToStreamBatchCount uint = 500
 func cronActivitiesStreaming(
 	ctx context.Context,
 	ds fleet.Datastore,
+	activitySvc activityapi.ListActivitiesService,
 	logger kitlog.Logger,
 	auditLogger fleet.JSONLogger,
 ) error {
 	page := uint(0)
 	for {
 		// (1) Get batch of activities that haven't been streamed.
-		activitiesToStream, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "id",
-				OrderDirection: fleet.OrderAscending,
-				PerPage:        ActivitiesToStreamBatchCount,
-				Page:           page,
-			},
-			Streamed: ptr.Bool(false),
+		activitiesToStream, _, err := activitySvc.ListActivities(ctx, activityapi.ListOptions{
+			OrderKey:       "id",
+			OrderDirection: "asc",
+			PerPage:        ActivitiesToStreamBatchCount,
+			Page:           page,
+			Streamed:       ptr.Bool(false),
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list activities")

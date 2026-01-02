@@ -1159,13 +1159,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			if license.IsPremium() && config.Activity.EnableAuditLog {
-				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)
-				}); err != nil {
-					initFatal(err, "failed to register activities streaming schedule")
-				}
-			}
+			// Note: Activity streaming schedule is registered after activity service is created (see below)
 
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(
@@ -1254,7 +1248,7 @@ the way that the Fleet server works.
 			}
 			activityAuthorizer := &authorizerAdapter{authorizer: legacyAuthorizer}
 			activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
-			_, activityRoutesFn := activity_bootstrap.New(
+			activitySvc, activityRoutesFn := activity_bootstrap.New(
 				dbConns.Primary,
 				dbConns.Replica,
 				activityAuthorizer,
@@ -1266,6 +1260,15 @@ the way that the Fleet server works.
 				return auth.AuthenticatedUser(svc, next)
 			}
 			activityRoutes := activityRoutesFn(activityAuthMiddleware)
+
+			// Register activity streaming schedule now that activity service is available
+			if license.IsPremium() && config.Activity.EnableAuditLog {
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newActivitiesStreamingSchedule(ctx, instanceID, ds, activitySvc, logger, auditLogger)
+				}); err != nil {
+					initFatal(err, "failed to register activities streaming schedule")
+				}
+			}
 
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
