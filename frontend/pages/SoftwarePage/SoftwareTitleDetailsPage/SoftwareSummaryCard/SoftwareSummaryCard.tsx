@@ -109,10 +109,10 @@ const SoftwareSummaryCard = ({
   } = meta;
 
   const canEditAppearance = canManageSoftware;
-
   const canEditSoftware = canManageSoftware;
-
   const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
+  /** Installer modals require a specific team; hidden from "All Teams" */
+  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
 
   const canEditAutoUpdateConfig =
     softwareTitle.app_store_app && isIosOrIpadosApp;
@@ -167,32 +167,29 @@ const SoftwareSummaryCard = ({
           />
         )}
       </Card>
-      {showEditIconModal &&
-        typeof teamId === "number" &&
-        teamId >= 0 &&
-        softwareInstaller && (
-          <EditIconModal
-            softwareId={softwareId}
-            teamIdForApi={teamId}
-            software={softwareInstaller}
-            onExit={() => setShowEditIconModal(false)}
-            refetchSoftwareTitle={refetchSoftwareTitle}
-            iconUploadedAt={iconUploadedAt}
-            setIconUploadedAt={setIconUploadedAt}
-            installerType={installerType}
-            previewInfo={{
-              name: softwareTitle.display_name || softwareTitle.name,
-              titleName: softwareTitle.name,
-              type: formatSoftwareType(softwareTitle),
-              source: softwareTitle.source,
-              currentIconUrl: softwareTitle.icon_url,
-              versions: softwareTitle.versions?.length ?? 0,
-              countsUpdatedAt: softwareTitle.counts_updated_at,
-              selfServiceVersion: softwareInstaller.version,
-            }}
-          />
-        )}
-      {showEditSoftwareModal && softwareInstaller && teamId && (
+      {showEditIconModal && hasValidTeamId && softwareInstaller && (
+        <EditIconModal
+          softwareId={softwareId}
+          teamIdForApi={teamId}
+          software={softwareInstaller}
+          onExit={() => setShowEditIconModal(false)}
+          refetchSoftwareTitle={refetchSoftwareTitle}
+          iconUploadedAt={iconUploadedAt}
+          setIconUploadedAt={setIconUploadedAt}
+          installerType={installerType}
+          previewInfo={{
+            name: softwareTitle.display_name || softwareTitle.name,
+            titleName: softwareTitle.name,
+            type: formatSoftwareType(softwareTitle),
+            source: softwareTitle.source,
+            currentIconUrl: softwareTitle.icon_url,
+            versions: softwareTitle.versions?.length ?? 0,
+            countsUpdatedAt: softwareTitle.counts_updated_at,
+            selfServiceVersion: softwareInstaller.version,
+          }}
+        />
+      )}
+      {showEditSoftwareModal && hasValidTeamId && softwareInstaller && (
         <EditSoftwareModal
           router={router}
           softwareId={softwareId}
@@ -208,7 +205,7 @@ const SoftwareSummaryCard = ({
           source={softwareTitle.source}
         />
       )}
-      {showEditConfigurationModal && softwareInstaller && teamId && (
+      {showEditConfigurationModal && hasValidTeamId && softwareInstaller && (
         <EditConfigurationModal
           softwareInstaller={softwareInstaller as IAppStoreApp}
           softwareId={softwareId}

@@ -2347,9 +2347,9 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 	var labelID uint
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		m := map[string]uint{}
-		for _, label := range labels {
+		for _, label := range names {
 			if label != "baddy" {
 				labelID++
 				m[label] = labelID
@@ -2357,7 +2357,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		}
 		return m, nil
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		m := map[string]*fleet.Label{}
 		for _, name := range names {
 			if name != "baddy" {

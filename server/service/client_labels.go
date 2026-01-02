@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -8,6 +9,7 @@ import (
 
 // ApplyLabels sends the list of Labels to be applied (upserted) to the
 // Fleet instance.
+// TODO gitops allow specifying by team
 func (c *Client) ApplyLabels(specs []*fleet.LabelSpec) error {
 	req := applyLabelSpecsRequest{Specs: specs}
 	verb, path := "POST", "/api/latest/fleet/spec/labels"
@@ -24,10 +26,10 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 }
 
 // GetLabels retrieves the list of all LabelSpecs.
-func (c *Client) GetLabels() ([]*fleet.LabelSpec, error) {
+func (c *Client) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/latest/fleet/spec/labels"
 	var responseBody getLabelSpecsResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("team_id=%d", teamID))
 	return responseBody.Specs, err
 }
 

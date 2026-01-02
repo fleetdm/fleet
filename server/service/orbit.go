@@ -21,7 +21,6 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 )
@@ -65,7 +64,7 @@ func (r EnrollOrbitResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	enc.SetIndent("", "  ")
 
 	if err := enc.Encode(r); err != nil {
-		endpoint_utils.EncodeError(ctx, newOsqueryError(fmt.Sprintf("orbit enroll failed: %s", err)), w)
+		encodeError(ctx, newOsqueryError(fmt.Sprintf("orbit enroll failed: %s", err)), w)
 	}
 }
 
@@ -612,7 +611,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 
 		// Enroll reference arg is not used in the release device task, passing empty string.
 		if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
-			host.UUID, host.Platform, host.TeamID, "", false, bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
+			host.UUID, host.Platform, host.TeamID, "", false, false, bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
 		}
 	}

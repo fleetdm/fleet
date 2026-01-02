@@ -888,7 +888,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		tmID = &teamID
 	}
 
-	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
+	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -963,12 +963,12 @@ func validateDeclarationFleetVariables(contents string) error {
 	return nil
 }
 
-func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
+func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string, teamID uint) (map[string]fleet.ConfigurationProfileLabel, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
 
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{User: authz.UserFromContext(ctx), TeamID: &teamID})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
 	}
@@ -997,8 +997,8 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 	return profLabels, nil
 }
 
-func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
-	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames)
+func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string, teamID uint) ([]fleet.ConfigurationProfileLabel, error) {
+	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
 	}
@@ -1793,7 +1793,7 @@ func (r mdmAppleEnrollResponse) HijackRender(ctx context.Context, w http.Respons
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
 		if err := json.NewEncoder(w).Encode(r.SoftwareUpdateRequired); err != nil {
-			endpoint_utils.EncodeError(ctx, ctxerr.New(ctx, "failed to encode software update required"), w)
+			encodeError(ctx, ctxerr.New(ctx, "failed to encode software update required"), w)
 		}
 		return
 	}
@@ -3446,7 +3446,8 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	enqueueSetupExperienceItems := false
 
 	if m.AwaitingConfiguration {
-		if info.MigrationInProgress {
+		// Note that Setup Experience is only skipped for macOS during DEP migration. iOS and iPadOS will still get VPP apps
+		if info.MigrationInProgress && info.Platform == "darwin" {
 			svc.logger.Log("info", "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
 		} else {
 			enqueueSetupExperienceItems = true
@@ -3520,6 +3521,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		EnrollReference:         acctUUID,
 		HasSetupExperienceItems: hasSetupExpItems,
 		UserEnrollmentID:        m.EnrollmentID,
+		FromMDMMigration:        info.MigrationInProgress || (info.DEPAssignedToFleet && !m.AwaitingConfiguration),
 	})
 }
 

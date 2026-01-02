@@ -121,7 +121,7 @@ const EditSoftwareModal = ({
 
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
     }

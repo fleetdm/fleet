@@ -38,7 +38,7 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
 		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
-		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
+		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "sthc")
 		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
 		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
 		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
@@ -621,7 +621,7 @@ func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tm
 	if teamID != nil {
 		teamFilter = fmt.Sprintf("shc.team_id = %d", *teamID)
 	} else {
-		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "shc")
+		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "shc")
 	}
 
 	selectVersionsStmt := `

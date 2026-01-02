@@ -53,13 +53,25 @@ const teamBatchSummariesHandler = http.get(
       });
     }
     if (status === "scheduled") {
+      // For "almost 10 years", using 9 years and 10 months from now
+      const now = new Date();
+      const almostTenYearsFromNow = new Date(
+        now.getFullYear() + 9, // years from now
+        now.getMonth() + 10, // months from now
+        now.getDate(),
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds()
+      ).toISOString();
+
       return HttpResponse.json({
         batch_executions: [
           createMockBatchScriptSummary({
             script_name: "Test Script 1",
             status: "scheduled",
             finished_at: null,
-            not_before: "9999-01-01T10:11:00.000Z",
+            not_before: almostTenYearsFromNow,
           }),
         ],
         meta: { has_next_results: false, has_previous_results: false },
@@ -198,7 +210,7 @@ describe("ScriptBatchProgress", () => {
     await waitFor(() => {
       expect(screen.getByText("Test Script 1")).toBeInTheDocument();
       expect(screen.getByText(/Will start/)).toBeInTheDocument();
-      expect(screen.getByText(/in (about|over) \d+ years/)).toBeInTheDocument();
+      expect(screen.getByText(/in almost 10 years/)).toBeInTheDocument();
     });
   });
 

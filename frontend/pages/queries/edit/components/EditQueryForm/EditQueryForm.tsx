@@ -84,6 +84,7 @@ interface IEditQueryFormProps {
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
   currentTeamId?: number;
+  currentTeamName?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
   isStoredQueryLoading: boolean;
@@ -120,6 +121,7 @@ const EditQueryForm = ({
   queryIdForEdit,
   apiTeamIdForQuery,
   currentTeamId,
+  currentTeamName,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
@@ -173,6 +175,7 @@ const EditQueryForm = ({
     isAnyTeamObserverPlus,
     config,
     isPremiumTier,
+    isFreeTier,
   } = useContext(AppContext);
 
   const savedQueryMode = !!queryIdForEdit;
@@ -244,7 +247,8 @@ const EditQueryForm = ({
     isFetching: isFetchingLabels,
   } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => labelsAPI.summary(),
+    // All-teams queries can only be assigned global labels
+    () => labelsAPI.summary(currentTeamId, true),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -562,6 +566,30 @@ const EditQueryForm = ({
     return null;
   };
 
+  const renderQueryTeam = (isEditing = false) => {
+    if (isFreeTier) return null;
+
+    if (currentTeamName) {
+      if (isEditing) {
+        return (
+          <p>
+            Editing query for <strong>{currentTeamName}</strong> team.
+          </p>
+        );
+      }
+      return (
+        <p>
+          Creating a new query for <strong>{currentTeamName}</strong> team.
+        </p>
+      );
+    }
+
+    if (isEditing) {
+      return <p>Editing global query.</p>;
+    }
+    return <p>Creating a new global query.</p>;
+  };
+
   // Observers and observer+ of existing query
   const renderNonEditableForm = (
     <form className={`${baseClass}`}>
@@ -571,6 +599,7 @@ const EditQueryForm = ({
         </h1>
         {renderAuthor()}
       </div>
+      {renderQueryTeam()}
       <PageDescription
         className={`${baseClass}__query-description no-hover`}
         content={lastEditedQueryDescription}
@@ -694,9 +723,9 @@ const EditQueryForm = ({
         <form className={baseClass} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
             {renderName()}
-
             {savedQueryMode && renderAuthor()}
           </div>
+          {renderQueryTeam(true)}
           {renderDescription()}
           <SQLEditor
             value={lastEditedQueryBody}
@@ -944,6 +973,7 @@ const EditQueryForm = ({
               ...updateQueryData,
               team_id: apiTeamIdForQuery,
             }}
+            hostId={hostId}
             onExit={toggleSaveAsNewQueryModal}
           />
         )}

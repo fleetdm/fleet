@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-json-experiment/json"
@@ -21,13 +22,14 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		func(w http.ResponseWriter, response interface{}) error {
 			return json.MarshalWrite(w, response, jsontext.WithIndent("  "))
 		},
+		nil, // no domain-specific error encoder
 	)
 }
 
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
 		return json.UnmarshalRead(body, req)
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 }
 
 // handlerFunc is the handler function type for Android service endpoints.
@@ -40,12 +42,12 @@ type endpointer struct {
 	svc android.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
-	svc interface{}) (fleet.Errorer, error) {
+func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any,
+	svc any) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(android.Service)), nil
 }
 
-func (e *endpointer) Service() interface{} {
+func (e *endpointer) Service() any {
 	return e.svc
 }
 
