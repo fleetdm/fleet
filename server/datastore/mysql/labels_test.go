@@ -3063,7 +3063,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_setaside"})
 	require.NoError(t, err)
 
-	// Create users with different roles
+	// Create users with different roles; users don't need to be persisted for this to work, hence the IDs
 	globalAdmin := fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
 	globalMaintainer := fleet.User{ID: 2, GlobalRole: ptr.String(fleet.RoleMaintainer)}
 	globalGitOps := fleet.User{ID: 3, GlobalRole: ptr.String(fleet.RoleGitOps)}
@@ -3077,122 +3077,208 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin},
 	}}
 
-	// Helper to create labels
-	createLabel := func(name string, teamID *uint, authorID *uint) *fleet.Label {
-		label, err := ds.NewLabel(ctx, &fleet.Label{
-			Name:                name,
-			Query:               "SELECT 1",
-			TeamID:              teamID,
-			AuthorID:            authorID,
-			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-		})
-		require.NoError(t, err)
-		return label
+	type labelSpec struct {
+		name     string
+		teamID   *uint
+		authorID *uint
 	}
 
-	// Test 1: Empty names list should be a no-op
-	err = ds.SetAsideLabels(ctx, nil, []string{}, globalAdmin)
-	require.NoError(t, err)
+	type testCase struct {
+		name         string
+		labels       []labelSpec // labels to create for this test
+		notOnTeamID  *uint       // team ID being applied to
+		labelNames   []string    // names to pass to SetAsideLabels (if nil, uses labels[*].name)
+		user         fleet.User
+		expectError  bool
+		verifyRename bool // if true, verify labels were renamed with appropriate suffix
+	}
 
-	// Test 2: Global admin can set aside global labels when applying to a team
-	globalLabel1 := createLabel("global-setaside-1", nil, nil)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{globalLabel1.Name}, globalAdmin)
-	require.NoError(t, err)
-	// Verify label was renamed
-	_, err = ds.LabelByName(ctx, globalLabel1.Name, fleet.TeamFilter{User: &globalAdmin})
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
-	// Original label should be renamed with __team_0 suffix
-	renamedLabel, err := ds.LabelByName(ctx, globalLabel1.Name+"__team_0", fleet.TeamFilter{User: &globalAdmin})
-	require.NoError(t, err)
-	require.Equal(t, globalLabel1.ID, renamedLabel.ID)
+	cases := []testCase{
+		{
+			name:        "empty names list is a no-op",
+			labels:      nil,
+			notOnTeamID: nil,
+			labelNames:  []string{},
+			user:        globalAdmin,
+			expectError: false,
+		},
+		{
+			name:         "global admin can set aside global labels when applying to a team",
+			labels:       []labelSpec{{name: "global-setaside-1", teamID: nil, authorID: nil}},
+			notOnTeamID:  &team1.ID,
+			user:         globalAdmin,
+			expectError:  false,
+			verifyRename: true,
+		},
+		{
+			name:        "global maintainer can set aside global labels",
+			labels:      []labelSpec{{name: "global-setaside-2", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        globalMaintainer,
+			expectError: false,
+		},
+		{
+			name:        "global gitops can set aside global labels",
+			labels:      []labelSpec{{name: "global-setaside-3", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        globalGitOps,
+			expectError: false,
+		},
+		{
+			name:        "global observer cannot set aside global labels",
+			labels:      []labelSpec{{name: "global-setaside-4", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        globalObserver,
+			expectError: true,
+		},
+		{
+			name:        "team admin can set aside their own team's labels",
+			labels:      []labelSpec{{name: "team1-setaside-1", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        team1Admin,
+			expectError: false,
+		},
+		{
+			name:        "team maintainer can set aside their own team's labels",
+			labels:      []labelSpec{{name: "team1-setaside-2", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        team1Maintainer,
+			expectError: false,
+		},
+		{
+			name:        "team gitops can set aside their own team's labels",
+			labels:      []labelSpec{{name: "team1-setaside-3", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        team1GitOps,
+			expectError: false,
+		},
+		{
+			name:        "team observer cannot set aside team labels",
+			labels:      []labelSpec{{name: "team1-setaside-4", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        team1Observer,
+			expectError: true,
+		},
+		{
+			name:        "cannot set aside labels from the same team we're applying to",
+			labels:      []labelSpec{{name: "team1-setaside-5", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        team1Admin,
+			expectError: true,
+		},
+		{
+			name:        "cannot set aside global labels when applying to global",
+			labels:      []labelSpec{{name: "global-setaside-5", teamID: nil, authorID: nil}},
+			notOnTeamID: nil,
+			user:        globalAdmin,
+			expectError: true,
+		},
+		{
+			name:        "team user with write role can set aside their authored global labels",
+			labels:      []labelSpec{{name: "global-authored-setaside", teamID: nil, authorID: &team1Maintainer.ID}},
+			notOnTeamID: &team1.ID,
+			user:        team1Maintainer,
+			expectError: false,
+		},
+		{
+			name:        "team user cannot set aside non-authored global labels",
+			labels:      []labelSpec{{name: "global-nonauthored-setaside", teamID: nil, authorID: &globalAdmin.ID}},
+			notOnTeamID: &team1.ID,
+			user:        team1Maintainer,
+			expectError: true,
+		},
+		{
+			name:        "multi-team user can set aside labels from teams they have write access to",
+			labels:      []labelSpec{{name: "team2-setaside-1", teamID: &team2.ID, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        multiTeamUser,
+			expectError: false,
+		},
+		{
+			name:        "non-existent label should fail",
+			labels:      nil,
+			notOnTeamID: &team1.ID,
+			labelNames:  []string{"nonexistent-label"},
+			user:        globalAdmin,
+			expectError: true,
+		},
+		{
+			name:         "team label gets renamed with __team_{team_id} suffix",
+			labels:       []labelSpec{{name: "team2-setaside-2", teamID: &team2.ID, authorID: nil}},
+			notOnTeamID:  &team1.ID,
+			user:         globalAdmin,
+			expectError:  false,
+			verifyRename: true,
+		},
+		{
+			name: "multiple labels can be set aside at once",
+			labels: []labelSpec{
+				{name: "multi-setaside-1", teamID: nil, authorID: nil},
+				{name: "multi-setaside-2", teamID: nil, authorID: nil},
+			},
+			notOnTeamID:  &team1.ID,
+			user:         globalAdmin,
+			expectError:  false,
+			verifyRename: true,
+		},
+	}
 
-	// Test 3: Global maintainer can set aside global labels
-	globalLabel2 := createLabel("global-setaside-2", nil, nil)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{globalLabel2.Name}, globalMaintainer)
-	require.NoError(t, err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create labels for this test case
+			var createdLabels []*fleet.Label
+			for _, spec := range tc.labels {
+				label, err := ds.NewLabel(ctx, &fleet.Label{
+					Name:                spec.name,
+					Query:               "SELECT 1",
+					TeamID:              spec.teamID,
+					AuthorID:            spec.authorID,
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				})
+				require.NoError(t, err)
+				createdLabels = append(createdLabels, label)
+			}
 
-	// Test 4: Global gitops can set aside global labels
-	globalLabel3 := createLabel("global-setaside-3", nil, nil)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{globalLabel3.Name}, globalGitOps)
-	require.NoError(t, err)
+			// Determine label names to use
+			labelNames := tc.labelNames
+			if labelNames == nil {
+				for _, l := range createdLabels {
+					labelNames = append(labelNames, l.Name)
+				}
+			}
 
-	// Test 5: Global observer cannot set aside global labels
-	globalLabel4 := createLabel("global-setaside-4", nil, nil)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{globalLabel4.Name}, globalObserver)
-	require.Error(t, err)
+			// Call SetAsideLabels
+			err := ds.SetAsideLabels(ctx, tc.notOnTeamID, labelNames, tc.user)
 
-	// Test 6: Team admin can set aside their own team's labels
-	team1Label1 := createLabel("team1-setaside-1", &team1.ID, nil)
-	err = ds.SetAsideLabels(ctx, &team2.ID, []string{team1Label1.Name}, team1Admin)
-	require.NoError(t, err)
+			if tc.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 
-	// Test 7: Team maintainer can set aside their own team's labels
-	team1Label2 := createLabel("team1-setaside-2", &team1.ID, nil)
-	err = ds.SetAsideLabels(ctx, &team2.ID, []string{team1Label2.Name}, team1Maintainer)
-	require.NoError(t, err)
+			// Verify renames if requested
+			if tc.verifyRename {
+				for i, label := range createdLabels {
+					// Original name should not exist
+					_, err := ds.LabelByName(ctx, label.Name, fleet.TeamFilter{User: &globalAdmin})
+					require.Error(t, err, "label %q should have been renamed", label.Name)
+					require.True(t, fleet.IsNotFound(err))
 
-	// Test 8: Team gitops can set aside their own team's labels
-	team1Label3 := createLabel("team1-setaside-3", &team1.ID, nil)
-	err = ds.SetAsideLabels(ctx, &team2.ID, []string{team1Label3.Name}, team1GitOps)
-	require.NoError(t, err)
+					// Build expected renamed name based on label's team ID
+					var expectedSuffix string
+					if tc.labels[i].teamID == nil {
+						expectedSuffix = "__team_0"
+					} else {
+						expectedSuffix = fmt.Sprintf("__team_%d", *tc.labels[i].teamID)
+					}
+					expectedName := label.Name + expectedSuffix
 
-	// Test 9: Team observer cannot set aside team labels
-	team1Label4 := createLabel("team1-setaside-4", &team1.ID, nil)
-	err = ds.SetAsideLabels(ctx, &team2.ID, []string{team1Label4.Name}, team1Observer)
-	require.Error(t, err)
-
-	// Test 10: Cannot set aside labels from the same team we're applying to
-	team1Label5 := createLabel("team1-setaside-5", &team1.ID, nil)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{team1Label5.Name}, team1Admin)
-	require.Error(t, err)
-
-	// Test 11: Cannot set aside global labels when applying to global (notOnTeamID = nil)
-	globalLabel5 := createLabel("global-setaside-5", nil, nil)
-	err = ds.SetAsideLabels(ctx, nil, []string{globalLabel5.Name}, globalAdmin)
-	require.Error(t, err)
-
-	// Test 12: Team user with write role can set aside their authored global labels
-	authoredGlobalLabel := createLabel("global-authored-setaside", nil, &team1Maintainer.ID)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{authoredGlobalLabel.Name}, team1Maintainer)
-	require.NoError(t, err)
-
-	// Test 13: Team user cannot set aside non-authored global labels
-	nonAuthoredGlobalLabel := createLabel("global-nonauthored-setaside", nil, &globalAdmin.ID)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{nonAuthoredGlobalLabel.Name}, team1Maintainer)
-	require.Error(t, err)
-
-	// Test 14: Multi-team user can set aside labels from teams they have write access to
-	team2Label1 := createLabel("team2-setaside-1", &team2.ID, nil)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{team2Label1.Name}, multiTeamUser)
-	require.NoError(t, err)
-
-	// Test 15: Non-existent label should fail
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{"nonexistent-label"}, globalAdmin)
-	require.Error(t, err)
-
-	// Test 16: Team label gets renamed with __team_{team_id} suffix
-	team2Label2 := createLabel("team2-setaside-2", &team2.ID, nil)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{team2Label2.Name}, globalAdmin)
-	require.NoError(t, err)
-	// Original name should not exist
-	_, err = ds.LabelByName(ctx, team2Label2.Name, fleet.TeamFilter{User: &globalAdmin})
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
-	// Should be renamed with team ID suffix
-	expectedName := fmt.Sprintf("%s__team_%d", team2Label2.Name, team2.ID)
-	renamedTeamLabel, err := ds.LabelByName(ctx, expectedName, fleet.TeamFilter{User: &globalAdmin})
-	require.NoError(t, err)
-	require.Equal(t, team2Label2.ID, renamedTeamLabel.ID)
-
-	// Test 17: Multiple labels can be set aside at once
-	multiLabel1 := createLabel("multi-setaside-1", nil, nil)
-	multiLabel2 := createLabel("multi-setaside-2", nil, nil)
-	err = ds.SetAsideLabels(ctx, &team1.ID, []string{multiLabel1.Name, multiLabel2.Name}, globalAdmin)
-	require.NoError(t, err)
-	// Both should be renamed
-	_, err = ds.LabelByName(ctx, multiLabel1.Name, fleet.TeamFilter{User: &globalAdmin})
-	require.Error(t, err)
-	_, err = ds.LabelByName(ctx, multiLabel2.Name, fleet.TeamFilter{User: &globalAdmin})
-	require.Error(t, err)
+					// Verify renamed label exists with same ID
+					renamedLabel, err := ds.LabelByName(ctx, expectedName, fleet.TeamFilter{User: &globalAdmin})
+					require.NoError(t, err, "renamed label %q should exist", expectedName)
+					require.Equal(t, label.ID, renamedLabel.ID)
+				}
+			}
+		})
+	}
 }
