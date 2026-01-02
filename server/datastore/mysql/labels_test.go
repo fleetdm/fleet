@@ -3103,12 +3103,11 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			expectError: false,
 		},
 		{
-			name:         "global admin can set aside global labels when applying to a team",
-			labels:       []labelSpec{{name: "global-setaside-1", teamID: nil, authorID: nil}},
-			notOnTeamID:  &team1.ID,
-			user:         globalAdmin,
-			expectError:  false,
-			verifyRename: true,
+			name:        "global admin can set aside global labels when applying to a team",
+			labels:      []labelSpec{{name: "global-setaside-1", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        globalAdmin,
+			expectError: false,
 		},
 		{
 			name:        "global maintainer can set aside global labels",
@@ -3203,12 +3202,11 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			expectError: true,
 		},
 		{
-			name:         "team label gets renamed with __team_{team_id} suffix",
-			labels:       []labelSpec{{name: "team2-setaside-2", teamID: &team2.ID, authorID: nil}},
-			notOnTeamID:  &team1.ID,
-			user:         globalAdmin,
-			expectError:  false,
-			verifyRename: true,
+			name:        "team label gets renamed with __team_{team_id} suffix",
+			labels:      []labelSpec{{name: "team2-setaside-2", teamID: &team2.ID, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        globalAdmin,
+			expectError: false,
 		},
 		{
 			name: "multiple labels can be set aside at once",
@@ -3216,10 +3214,9 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 				{name: "multi-setaside-1", teamID: nil, authorID: nil},
 				{name: "multi-setaside-2", teamID: nil, authorID: nil},
 			},
-			notOnTeamID:  &team1.ID,
-			user:         globalAdmin,
-			expectError:  false,
-			verifyRename: true,
+			notOnTeamID: &team1.ID,
+			user:        globalAdmin,
+			expectError: false,
 		},
 	}
 
@@ -3256,28 +3253,26 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			}
 			require.NoError(t, err)
 
-			// Verify renames if requested
-			if tc.verifyRename {
-				for i, label := range createdLabels {
-					// Original name should not exist
-					_, err := ds.LabelByName(ctx, label.Name, fleet.TeamFilter{User: &globalAdmin})
-					require.Error(t, err, "label %q should have been renamed", label.Name)
-					require.True(t, fleet.IsNotFound(err))
+			// Verify renames
+			for i, label := range createdLabels {
+				// Original name should not exist
+				_, err := ds.LabelByName(ctx, label.Name, fleet.TeamFilter{User: &globalAdmin})
+				require.Error(t, err, "label %q should have been renamed", label.Name)
+				require.True(t, fleet.IsNotFound(err))
 
-					// Build expected renamed name based on label's team ID
-					var expectedSuffix string
-					if tc.labels[i].teamID == nil {
-						expectedSuffix = "__team_0"
-					} else {
-						expectedSuffix = fmt.Sprintf("__team_%d", *tc.labels[i].teamID)
-					}
-					expectedName := label.Name + expectedSuffix
-
-					// Verify renamed label exists with same ID
-					renamedLabel, err := ds.LabelByName(ctx, expectedName, fleet.TeamFilter{User: &globalAdmin})
-					require.NoError(t, err, "renamed label %q should exist", expectedName)
-					require.Equal(t, label.ID, renamedLabel.ID)
+				// Build expected renamed name based on label's team ID
+				var expectedSuffix string
+				if tc.labels[i].teamID == nil {
+					expectedSuffix = "__team_0"
+				} else {
+					expectedSuffix = fmt.Sprintf("__team_%d", *tc.labels[i].teamID)
 				}
+				expectedName := label.Name + expectedSuffix
+
+				// Verify renamed label exists with same ID
+				renamedLabel, err := ds.LabelByName(ctx, expectedName, fleet.TeamFilter{User: &globalAdmin})
+				require.NoError(t, err, "renamed label %q should exist", expectedName)
+				require.Equal(t, label.ID, renamedLabel.ID)
 			}
 		})
 	}
