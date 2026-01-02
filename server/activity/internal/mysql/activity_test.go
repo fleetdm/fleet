@@ -111,7 +111,7 @@ func testListActivitiesPaginationMetadata(t *testing.T, ds *Datastore) {
 	userID := insertTestUser(t, ds, "testuser", "test@example.com")
 
 	// Create 3 activities
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		insertTestActivity(t, ds, userID, fmt.Sprintf("test_%d", i), map[string]any{})
 	}
 
@@ -269,7 +269,9 @@ func testListActivitiesMatchQuery(t *testing.T, ds *Datastore) {
 func setupTestDatastore(t *testing.T) *Datastore {
 	t.Helper()
 
-	testName, opts := testing_utils.ProcessOptions(t, nil)
+	testName, opts := testing_utils.ProcessOptions(t, &testing_utils.DatastoreTestOptions{
+		UniqueTestName: "activity_mysql_" + t.Name(),
+	})
 
 	// Load schema
 	_, thisFile, _, _ := runtime.Caller(0)
