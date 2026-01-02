@@ -44,7 +44,7 @@ func New(
 
 	// Return the service and a function that creates route handlers with auth middleware
 	routesFn := func(authMiddleware AuthMiddleware) eu.HandlerRoutesFunc {
-		return service.GetRoutes(svc, service.AuthMiddleware(authMiddleware))
+		return service.GetRoutes(svc, authMiddleware)
 	}
 
 	return svc, routesFn

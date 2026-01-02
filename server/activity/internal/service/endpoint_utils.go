@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -45,8 +44,7 @@ func makeDecoder(iface any) kithttp.DecodeRequestFunc {
 
 // parseCustomTags handles custom URL tag values for activity requests.
 func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (bool, error) {
-	switch urlTagValue {
-	case "list_options":
+	if urlTagValue == "list_options" {
 		opts, err := listOptionsFromRequest(r)
 		if err != nil {
 			return false, err
@@ -159,10 +157,4 @@ func fillListOptions(opt *types.ListOptions) {
 		opt.OrderKey = "created_at"
 		opt.OrderDirection = "desc"
 	}
-}
-
-// trimListOptionsQuery trims the query value from ListOptions if it was passed
-// (activities don't support query filtering).
-func trimListOptionsQuery(r *http.Request) string {
-	return strings.TrimSpace(r.URL.Query().Get("query"))
 }
