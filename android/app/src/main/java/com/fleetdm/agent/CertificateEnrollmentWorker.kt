@@ -80,9 +80,13 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                     Log.i(TAG, "Certificate $certificateId enrolled successfully: ${result.alias}")
                     hasSuccess = true
                 }
+                is CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed -> {
+                    Log.d(TAG, "Certificate $certificateId previously failed permanently: ${result.alias}")
+                    // Treat as handled - no retry needed
+                }
                 is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
                     Log.e(TAG, "Certificate $certificateId enrollment failed: ${result.reason}", result.exception)
-                    if (shouldRetry(result.reason)) {
+                    if (result.isRetryable) {
                         hasTransientFailure = true
                     } else {
                         hasPermanentFailure = true
@@ -123,12 +127,5 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
         const val WORK_NAME = "certificate_enrollment"
         private const val TAG = "fleet-CertificateEnrollmentWorker"
         private const val MAX_RETRY_ATTEMPTS = 5
-
-        private fun shouldRetry(reason: String): Boolean {
-            // Retry on network/API failures, not on invalid config
-            return reason.contains("network", ignoreCase = true) ||
-                reason.contains("Failed to fetch", ignoreCase = true) ||
-                reason.contains("timeout", ignoreCase = true)
-        }
     }
 }

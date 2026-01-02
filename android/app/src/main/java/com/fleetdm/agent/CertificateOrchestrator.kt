@@ -633,7 +633,7 @@ class CertificateOrchestrator(
         // Skip enrollment if already marked as permanently failed (max retries exceeded),
         // unless the uuid changed (server wants a fresh install).
         if (storedState?.status == CertificateStatus.FAILED && storedState.uuid == uuid) {
-            return CertificateEnrollmentHandler.EnrollmentResult.Success(storedState.alias)
+            return CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed(storedState.alias)
         }
 
         // Fetch certificate template from API (only if not already installed)
@@ -643,6 +643,7 @@ class CertificateOrchestrator(
             return CertificateEnrollmentHandler.EnrollmentResult.Failure(
                 reason = "Failed to fetch certificate template: ${error.message}",
                 exception = error as? Exception,
+                isRetryable = true,
             )
         }
 
@@ -706,6 +707,9 @@ class CertificateOrchestrator(
                         Log.e(TAG, "Failed to update certificate status to failed for ID $certificateId: ${error.message}", error)
                     }
                 }
+            }
+            is CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed -> {
+                // Not reachable - handleEnrollment never returns PermanentlyFailed
             }
         }
 

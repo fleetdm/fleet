@@ -130,8 +130,9 @@ object ApiClient : CertificateApiClient {
                 readTimeout = 15000
 
                 if (body != null && method != "GET") {
+                    requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
                     doOutput = true
-                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer!!)
+                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
                     outputStream.use { it.write(bodyJson.toByteArray()) }
                 }
             }

@@ -263,6 +263,7 @@ class CertificateOrchestratorTest {
             val storedUuid: String,
             val requestedUuid: String,
             val expectApiCall: Boolean,
+            val expectPermanentlyFailed: Boolean = false,
         )
 
         val testCases = listOf(
@@ -305,6 +306,7 @@ class CertificateOrchestratorTest {
                 storedUuid = "uuid-1",
                 requestedUuid = "uuid-1",
                 expectApiCall = false,
+                expectPermanentlyFailed = true,
             ),
         )
 
@@ -350,10 +352,17 @@ class CertificateOrchestratorTest {
                     "${case.name}: should skip API call",
                     fakeApiClient.getCertificateTemplateCalls.isEmpty(),
                 )
-                assertTrue(
-                    "${case.name}: should return success",
-                    results[123] is CertificateEnrollmentHandler.EnrollmentResult.Success,
-                )
+                if (case.expectPermanentlyFailed) {
+                    assertTrue(
+                        "${case.name}: should return permanently failed",
+                        results[123] is CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed,
+                    )
+                } else {
+                    assertTrue(
+                        "${case.name}: should return success",
+                        results[123] is CertificateEnrollmentHandler.EnrollmentResult.Success,
+                    )
+                }
             }
         }
     }

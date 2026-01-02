@@ -88,8 +88,9 @@ class CertificateEnrollmentHandlerTest {
         // Verify certificate installer was NOT called since enrollment failed
         assertFalse(mockInstaller.wasInstallCalled)
 
-        // Verify failure result
+        // Verify failure result - enrollment failures are not retryable
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        assertFalse((result as CertificateEnrollmentHandler.EnrollmentResult.Failure).isRetryable)
     }
 
     @Test
@@ -103,8 +104,9 @@ class CertificateEnrollmentHandlerTest {
         // Verify certificate installer was NOT called
         assertFalse(mockInstaller.wasInstallCalled)
 
-        // Verify failure result
+        // Verify failure result - network failures are retryable
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        assertTrue((result as CertificateEnrollmentHandler.EnrollmentResult.Failure).isRetryable)
     }
 
     @Test
@@ -115,9 +117,10 @@ class CertificateEnrollmentHandlerTest {
 
         val result = handler.handleEnrollment(template)
 
-        // Verify enrollment succeeded but installation failed
+        // Verify enrollment succeeded but installation failed - installation failures are not retryable
         assertTrue(mockInstaller.wasInstallCalled)
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        assertFalse((result as CertificateEnrollmentHandler.EnrollmentResult.Failure).isRetryable)
     }
 
     @Test
