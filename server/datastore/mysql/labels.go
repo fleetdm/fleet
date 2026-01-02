@@ -346,8 +346,7 @@ func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label f
 		// Split hostIds into batches to avoid parameter limit in MySQL.
 		for _, hostIds := range batchHostIds(hostIds) {
 			if label.TeamID != nil { // team labels can only be applied to hosts on that team
-				hostTeamCheckSql := `SELECT COUNT(id) FROM hosts WHERE team_id != ? AND id IN (` +
-					strings.TrimRight(strings.Repeat("?,", len(hostIds)), ",") + ")"
+				hostTeamCheckSql := `SELECT COUNT(id) FROM hosts WHERE (team_id != ? OR team_id IS NULL) AND id IN (?)`
 				hostTeamCheckSql, args, err := sqlx.In(hostTeamCheckSql, label.TeamID, hostIds)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build host team membership check IN statement")
