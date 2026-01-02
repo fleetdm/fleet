@@ -6,4 +6,9 @@
       justify-content: center;
     }
   }
+
+  &__filter-dropdowns {
+    display: flex;
+    gap: $gap-table-elements;
+  }
 }
