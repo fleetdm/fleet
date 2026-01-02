@@ -19,6 +19,14 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+// LabelChange is used for keeping track of label operations
+type LabelChange struct {
+	Name     string // The globally unique label name
+	Op       string // What operation to perform on the label. +:add, -:remove, =:no-op
+	TeamID   uint   // The team this label belongs to, 0 means the label is global.
+	FileName string // The filename that contains the label changes
+}
+
 type ParseTypeError struct {
 	Filename string   // The name of the file being parsed
 	Keys     []string // The complete path to the field

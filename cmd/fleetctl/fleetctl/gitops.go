@@ -25,14 +25,6 @@ type LabelUsage struct {
 	Type string
 }
 
-// Used for keeping track of label operations
-type labelChange struct {
-	Name     string // The globally unique label name
-	Op       string // What operation to perform on the label. +:add, -:remove, =:no-op
-	TeamID   uint   // The team this label belongs to, 0 means the label is global.
-	FileName string // The filename that contains the label changes
-}
-
 func gitopsCommand() *cli.Command {
 	var (
 		flFilenames             cli.StringSlice
@@ -152,7 +144,7 @@ func gitopsCommand() *cli.Command {
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
 
-			allLblChanges := make(map[uint][]labelChange) // teamID -> label changes
+			allLblChanges := make(map[uint][]spec.LabelChange) // teamID -> label changes
 			builtInLabelNames := make(map[string]any)
 
 			// We need the list of built-in labels for showing contextual errors in case the user
@@ -520,7 +512,7 @@ func gitopsCommand() *cli.Command {
 // like trying to add the same label on multiple teams or deleting the same label multiple times.
 // A label is moved when it is deleted from one team and added to another, the moves are stored in
 // a teamID -> label names map.
-func computeLabelMoves(allChanges map[uint][]labelChange) (map[uint][]string, error) {
+func computeLabelMoves(allChanges map[uint][]spec.LabelChange) (map[uint][]string, error) {
 	deleteOps := make(map[string]string) // label name -> file name
 	addOps := make(map[string]string)    // label name -> file name
 
@@ -565,8 +557,8 @@ func computeLabelChanges(
 	teamID uint,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
-) ([]labelChange, error) {
-	var labelOperations []labelChange
+) ([]spec.LabelChange, error) {
+	var labelOperations []spec.LabelChange
 
 	var regularLabels []*fleet.LabelSpec
 	for _, l := range existingLabels {
@@ -583,7 +575,7 @@ func computeLabelChanges(
 			op = "-"
 		}
 		for _, l := range regularLabels {
-			change := labelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
+			change := spec.LabelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
 			labelOperations = append(labelOperations, change)
 		}
 		return labelOperations, nil
@@ -602,13 +594,13 @@ func computeLabelChanges(
 		}
 		// Remove from the map to track which specified labels are to be added.
 		delete(specifiedMap, l.Name)
-		change := labelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
+		change := spec.LabelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}
 
 	// Any names remaining in the map are new labels.
 	for lblName, _ := range specifiedMap {
-		change := labelChange{Name: lblName, Op: "+", TeamID: teamID, FileName: filename}
+		change := spec.LabelChange{Name: lblName, Op: "+", TeamID: teamID, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}
 
