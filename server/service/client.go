@@ -559,7 +559,7 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, errors.New("Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
 				}
 			}
-			if err := c.ApplyLabels(specs.Labels); err != nil {
+			if err := c.ApplyLabels(specs.Labels, nil, nil); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
 			logfn(appliedFormat, numberWithPluralization(len(specs.Labels), "label", "labels"))
@@ -2704,7 +2704,7 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 		logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
 	}
 
-	err = c.ApplyLabels(config.Labels)
+	err = c.ApplyLabels(config.Labels, nil, nil)
 	if err != nil {
 		return nil, err
 	}
