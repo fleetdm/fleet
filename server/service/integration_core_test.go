@@ -7962,8 +7962,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusNotFound, &applyResp)
 
-	activitiesBeforeInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesBeforeInsert := s.listActivities()
 
 	// valid templates - test team name (not team ID)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -7984,8 +7983,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &applyResp)
 
 	// Only one activity per team
-	activitiesAfterInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesAfterInsert := s.listActivities()
 	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
@@ -8117,8 +8115,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
 
-	activitiesBeforeNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesBeforeNoTeam := s.listActivities()
 
 	// certificate templates for "No team"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8145,8 +8142,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &applyResp)
 
 	// Only one activity was created for "No team"
-	activitiesAfterNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesAfterNoTeam := s.listActivities()
 	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),

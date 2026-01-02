@@ -1342,10 +1342,10 @@ func TestDeleteHost(t *testing.T) {
 }
 
 func TestDeleteHostCreatesActivity(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysql.CreateMySQLDSWithActivities(t)
 	defer ds.Close()
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds.Datastore, nil, nil)
 
 	// Create a user for the deletion
 	user := &fleet.User{
@@ -1400,10 +1400,10 @@ func TestDeleteHostCreatesActivity(t *testing.T) {
 }
 
 func TestDeleteHostsCreatesActivities(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysql.CreateMySQLDSWithActivities(t)
 	defer ds.Close()
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds.Datastore, nil, nil)
 
 	// Create a user for the deletion
 	user := &fleet.User{
@@ -1471,10 +1471,10 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 }
 
 func TestCleanupExpiredHostsActivities(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysql.CreateMySQLDSWithActivities(t)
 	defer ds.Close()
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds.Datastore, nil, nil)
 
 	// Set global host expiry
 	const globalExpiryWindow = 10
