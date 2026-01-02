@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -2670,47 +2669,30 @@ func (c *Client) doGitOpsLabels(
 	logFn func(format string, args ...interface{}),
 	dryRun bool,
 ) ([]string, error) {
-	persistedLabels, err := c.GetLabels(0) // TODO handle per-team
-	if err != nil {
-		return nil, err
-	}
-	var numUpdates int
-	var labelsToDelete []string
-	for _, persistedLabel := range persistedLabels {
-		if persistedLabel.LabelType == fleet.LabelTypeBuiltIn {
-			continue
-		}
-		if slices.IndexFunc(config.Labels, func(configLabel *fleet.LabelSpec) bool { return configLabel.Name == persistedLabel.Name }) == -1 {
-			labelsToDelete = append(labelsToDelete, persistedLabel.Name)
-		} else {
-			numUpdates++
-		}
-	}
-	numNew := len(config.Labels) - numUpdates
+	toDelete := config.LabelChangesSummary.LabelsToRemove
+	nToAdd := len(config.LabelChangesSummary.LabelsToAdd)
+	nToUpdate := len(config.LabelChangesSummary.LabelsToUpdate)
+
 	if dryRun {
-		for _, labelToDelete := range labelsToDelete {
+		for _, labelToDelete := range toDelete {
 			logFn("[-] would've deleted label '%s'\n", labelToDelete)
 		}
-		if numNew > 0 {
-			logFn("[+] would've created %s\n", numberWithPluralization(numNew, "label", "labels"))
+		if nToAdd > 0 {
+			logFn("[+] would've created %s\n", numberWithPluralization(nToAdd, "label", "labels"))
 		}
-		if numUpdates > 0 {
-			logFn("[+] would've updated %s\n", numberWithPluralization(numUpdates, "label", "labels"))
+		if nToUpdate > 0 {
+			logFn("[+] would've updated %s\n", numberWithPluralization(nToUpdate, "label", "labels"))
 		}
 		return nil, nil
 	}
 
-	if dryRun {
-		logFn("[+] would've applied %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
-	} else {
-		logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
-	}
+	logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), nToAdd, nToUpdate)
 
-	err = c.ApplyLabels(config.Labels, nil, nil)
+	err := c.ApplyLabels(config.Labels, config.TeamID, config.LabelChangesSummary.LabelsToMove)
 	if err != nil {
 		return nil, err
 	}
-	return labelsToDelete, nil
+	return toDelete, nil
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
