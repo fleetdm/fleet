@@ -1332,12 +1332,10 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 
 	// Verify it's deleted
 	_, err = db.LabelByName(ctx, team1Label.Name, fleet.TeamFilter{User: adminUser})
-	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Team user cannot delete label from another team (not found because not visible)
 	err = db.DeleteLabel(ctx, team2Label.Name, fleet.TeamFilter{User: team1User})
-	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Verify team2 label still exists

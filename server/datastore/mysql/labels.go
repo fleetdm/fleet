@@ -608,7 +608,7 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var labelID uint
 
-		query, params, err := applyLabelTeamFilter(`select id FROM labels WHERE name = ?`, filter, name)
+		query, params, err := applyLabelTeamFilter(`select l.id FROM labels l WHERE l.name = ?`, filter, name)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting label id to delete")
 		}
