@@ -20,9 +20,8 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.i(TAG, "Device boot completed. Triggering certificate enrollment.")
-
             context?.let {
+                Log.i(TAG, "Device boot completed. Triggering certificate enrollment.")
                 // Trigger immediate certificate enrollment on boot
                 val workRequest = OneTimeWorkRequestBuilder<CertificateEnrollmentWorker>()
                     .setBackoffCriteria(
@@ -45,7 +44,7 @@ class BootReceiver : BroadcastReceiver() {
                     )
 
                 Log.d(TAG, "Scheduled certificate enrollment after boot")
-            }
+            } ?: Log.w(TAG, "Device boot completed but context is null, cannot schedule enrollment")
         }
     }
 }

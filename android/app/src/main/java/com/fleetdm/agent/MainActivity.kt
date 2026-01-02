@@ -169,20 +169,13 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
     val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.let { "****" + it.takeLast(4) } }
     val hostCertificates = remember { orchestrator.getHostCertificates(context) }
     val permissionsList = remember {
-        val grantedPermissions = mutableListOf<String>()
-        val packageInfo: PackageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
-        packageInfo.requestedPermissions?.let {
-            for (i in it.indices) {
-                if ((
-                        packageInfo.requestedPermissionsFlags?.get(i)
-                            ?.and(PackageInfo.REQUESTED_PERMISSION_GRANTED)
-                        ) != 0
-                ) {
-                    grantedPermissions.add(it[i])
-                }
-            }
-        }
-        grantedPermissions.toList()
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+        val permissions = packageInfo.requestedPermissions ?: return@remember emptyList()
+        val flags = packageInfo.requestedPermissionsFlags ?: return@remember emptyList()
+
+        permissions.zip(flags.toList())
+            .filter { (_, flag) -> flag and PackageInfo.REQUESTED_PERMISSION_GRANTED != 0 }
+            .map { (permission, _) -> permission }
     }
     val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
     val baseUrl by ApiClient.baseUrlFlow.collectAsStateWithLifecycle(initialValue = null)

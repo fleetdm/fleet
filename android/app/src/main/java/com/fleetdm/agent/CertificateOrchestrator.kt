@@ -130,6 +130,7 @@ class CertificateOrchestrator(
             ?: CertificateState(alias = alias, status = CertificateStatus.RETRY, retries = 0)
 
         if (existingInfo.status != CertificateStatus.RETRY) {
+            Log.d(TAG, "markCertificateFailure: skipping cert $certificateId, status is ${existingInfo.status}")
             return existingInfo
         }
 
@@ -707,7 +708,7 @@ class CertificateOrchestrator(
                 }
             }
             is CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed -> {
-                // Not reachable - handleEnrollment never returns PermanentlyFailed
+                // No action needed - already in terminal state
             }
         }
 

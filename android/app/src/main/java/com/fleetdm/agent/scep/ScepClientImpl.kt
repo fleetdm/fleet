@@ -46,8 +46,6 @@ class ScepClientImpl : ScepClient {
 
     override suspend fun enroll(config: GetCertificateTemplateResponse, scepUrl: String): ScepResult = withContext(Dispatchers.IO) {
         try {
-            // Log calls removed to avoid test failures on JVM (use logcat in Android Studio)
-
             // Step 1: Generate key pair
             val keyPair = generateKeyPair(config.keyLength)
 
