@@ -1,6 +1,6 @@
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import java.io.FileInputStream
 import java.util.Properties
-import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 // ==================== PLUGINS ====================
 
@@ -21,11 +21,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.fleetdm.agent.private.victor2"
+        applicationId = "com.fleetdm.agent"
         minSdk = 33
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.11.0"
+        versionCode = 4
+        versionName = "1.0.1"
 
         buildConfigField("String", "INFO_URL", "\"https://fleetdm.com/better\"")
 
