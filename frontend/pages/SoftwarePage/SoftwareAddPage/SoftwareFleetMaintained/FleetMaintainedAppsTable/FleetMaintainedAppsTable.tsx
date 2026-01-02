@@ -15,8 +15,12 @@ import TableCount from "components/TableContainer/TableCount";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
-import FmaStatusSelect from "./FmaFilterSelect";
-import { FmaStatusValue } from "./FmaFilterSelect/FmaFilterSelect";
+import {
+  FmaStatusFilter,
+  FmaPlatformFilter,
+  FmaPlatformValue,
+  FmaStatusValue,
+} from "./FmaFilters/FmaFilters";
 
 import { generateTableConfig } from "./FleetMaintainedAppsTableConfig";
 
@@ -98,6 +102,7 @@ const FleetMaintainedAppsTable = ({
   currentPage,
 }: IFleetMaintainedAppsTableProps) => {
   const [status, setStatus] = useState<FmaStatusValue>("all");
+  const [platform, setPlatform] = useState<FmaPlatformValue>("all");
 
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -121,13 +126,20 @@ const FleetMaintainedAppsTable = ({
   );
 
   const generateNewQueryParams = useCallback(
-    (newTableQuery: ITableQueryData, changedParam: string) => {
+    (
+      newTableQuery: ITableQueryData,
+      changedParam: string,
+      nextPlatform: FmaPlatformValue,
+      nextStatus: FmaStatusValue
+    ) => {
       const newQueryParam: Record<string, string | number | undefined> = {
         query: newTableQuery.searchQuery,
         team_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        platform: nextPlatform === "all" ? undefined : nextPlatform,
+        status: nextStatus === "all" ? undefined : nextStatus,
       };
 
       return newQueryParam;
@@ -151,12 +163,23 @@ const FleetMaintainedAppsTable = ({
       const newRoute = getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
         routeTemplate: "",
-        queryParams: generateNewQueryParams(newTableQuery, changedParam),
+        queryParams: generateNewQueryParams(
+          newTableQuery,
+          changedParam,
+          platform,
+          status
+        ),
       });
 
       router.replace(newRoute);
     },
-    [determineQueryParamChange, generateNewQueryParams, router]
+    [
+      determineQueryParamChange,
+      generateNewQueryParams,
+      router,
+      platform,
+      status,
+    ]
   );
 
   const tableHeadersConfig = useMemo(() => {
@@ -170,20 +193,97 @@ const FleetMaintainedAppsTable = ({
   const combinedAppsByPlatform =
     (data && combineAppsByPlatform(data.fleet_maintained_apps ?? [])) ?? [];
 
-  const renderCount = () => {
-    if (!combinedAppsByPlatform) return null;
+  const filteredApps = combinedAppsByPlatform.filter((app) => {
+    const macAdded = !!app.macos?.software_title_id;
+    const winAdded = !!app.windows?.software_title_id;
 
-    return <TableCount name="items" count={combinedAppsByPlatform.length} />;
+    const macAvailable = !!app.macos && !app.macos.software_title_id;
+    const winAvailable = !!app.windows && !app.windows.software_title_id;
+
+    // platform filter
+    if (platform === "macos" && !app.macos) return false;
+    if (platform === "windows" && !app.windows) return false;
+
+    // status filter
+    if (status === "all") {
+      return true;
+    }
+
+    if (status === "added") {
+      if (platform === "macos") return macAdded;
+      if (platform === "windows") return winAdded;
+      return macAdded || winAdded;
+    }
+
+    if (status === "available") {
+      if (platform === "macos") return macAvailable;
+      if (platform === "windows") return winAvailable;
+      return macAvailable || winAvailable;
+    }
+
+    return true;
+  });
+
+  const renderCount = () => {
+    if (!filteredApps) return null;
+
+    return <TableCount name="items" count={filteredApps.length} />;
   };
 
   const handleFmaStatusDropdownChange = (newStatus: FmaStatusValue) => {
     setStatus(newStatus);
-    // hook into routing / query here if needed
+
+    const newRoute = getNextLocationPath({
+      pathPrefix: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
+      routeTemplate: "",
+      queryParams: generateNewQueryParams(
+        {
+          searchQuery: query,
+          sortDirection: orderDirection,
+          sortHeader: orderKey,
+          pageIndex: currentPage,
+          pageSize: perPage,
+        },
+        "status",
+        platform,
+        newStatus
+      ),
+    });
+
+    router.replace(newRoute);
+  };
+
+  const handleFmaPlatformDropdownChange = (newPlatform: FmaPlatformValue) => {
+    setPlatform(newPlatform);
+
+    const newRoute = getNextLocationPath({
+      pathPrefix: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
+      routeTemplate: "",
+      queryParams: generateNewQueryParams(
+        {
+          searchQuery: query,
+          sortDirection: orderDirection,
+          sortHeader: orderKey,
+          pageIndex: currentPage,
+          pageSize: perPage,
+        },
+        "platform",
+        newPlatform,
+        status
+      ),
+    });
+
+    router.replace(newRoute);
   };
 
   const renderCustomControls = () => (
     <div className={`${baseClass}__filter-dropdowns`}>
-      <FmaStatusSelect
+      <FmaPlatformFilter
+        value={platform}
+        onChange={handleFmaPlatformDropdownChange}
+        className={`${baseClass}__platform-filter`}
+      />
+      <FmaStatusFilter
         value={status}
         onChange={handleFmaStatusDropdownChange}
         className={`${baseClass}__status-filter`}
@@ -195,7 +295,7 @@ const FleetMaintainedAppsTable = ({
     <TableContainer<IRowProps>
       className={baseClass}
       columnConfigs={tableHeadersConfig}
-      data={combinedAppsByPlatform}
+      data={filteredApps}
       isLoading={isLoading}
       resultsTitle="items"
       emptyComponent={EmptyFleetAppsTable}
@@ -213,6 +313,7 @@ const FleetMaintainedAppsTable = ({
       onQueryChange={onQueryChange}
       renderCount={renderCount}
       customControl={renderCustomControls}
+      stackControls
     />
   );
 };
