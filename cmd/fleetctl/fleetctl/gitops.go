@@ -205,8 +205,12 @@ func gitopsCommand() *cli.Command {
 				// labels like trying to add the same label on different teams; labels can also move from one
 				// team to another, so we need the complete list of changes to plan the label movements.
 				var teamID uint
+				teamName := "global"
 				if config.TeamID != nil {
 					teamID = *config.TeamID
+				}
+				if config.TeamName != nil {
+					teamName = *config.TeamName
 				}
 
 				if _, ok := labelChanges[teamID]; ok {
@@ -222,7 +226,7 @@ func gitopsCommand() *cli.Command {
 				}
 				labelChanges[teamID] = computeLabelChanges(
 					flFilename,
-					teamID,
+					teamName,
 					existingLabels,
 					config.Labels,
 				)
@@ -316,7 +320,18 @@ func gitopsCommand() *cli.Command {
 					return errors.New("Please update your settings to not refer to built-in labels.")
 				}
 
-				config.LabelChangesSummary = spec.NewLabelChangesSummary(labelChanges[teamID], labelMoves[teamID])
+				labelChangesSummary := spec.NewLabelChangesSummary(labelChanges[teamID], labelMoves[teamID])
+				config.LabelChangesSummary = labelChangesSummary
+
+				// Delete labels at the end of the run to avoid issues with resource contention
+				for _, l := range labelChangesSummary.LabelsToRemove {
+					allPostOps = append(allPostOps, func() error {
+						if err := fleetClient.DeleteLabel(l); err != nil {
+							return err
+						}
+						return nil
+					})
+				}
 
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
@@ -399,7 +414,7 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				assumptions, postOps, err := fleetClient.DoGitOps(
+				assumptions, err := fleetClient.DoGitOps(
 					c.Context,
 					config,
 					flFilename,
@@ -420,7 +435,6 @@ func gitopsCommand() *cli.Command {
 				} else {
 					teamDryRunAssumptions = assumptions
 				}
-				allPostOps = append(allPostOps, postOps...)
 			}
 
 			// if there were assignments to tokens, and some of the teams were missing at that time, submit a separate patch request to set them now.
@@ -440,7 +454,7 @@ func gitopsCommand() *cli.Command {
 			for _, teamWithApps := range missingVPPTeamsWithApps {
 				_, _ = fmt.Fprintf(c.App.Writer, ReapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
 				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
-				_, postOps, err := fleetClient.DoGitOps(
+				_, err := fleetClient.DoGitOps(
 					c.Context,
 					teamWithApps.config,
 					teamWithApps.filename,
@@ -456,7 +470,6 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				allPostOps = append(allPostOps, postOps...)
 			}
 
 			if flDeleteOtherTeams && appConfig.License.IsPremium() { // skip team deletion for non-premium users
@@ -493,7 +506,7 @@ func gitopsCommand() *cli.Command {
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
-				_, postOps, err := fleetClient.DoGitOps(
+				_, err := fleetClient.DoGitOps(
 					c.Context,
 					defaultNoTeamConfig,
 					"no-team.yml",
@@ -509,13 +522,13 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-
-				allPostOps = append(allPostOps, postOps...)
 			}
 
-			for _, postOp := range allPostOps {
-				if err := postOp(); err != nil {
-					return err
+			if !flDryRun {
+				for _, postOp := range allPostOps {
+					if err := postOp(); err != nil {
+						return err
+					}
 				}
 			}
 
@@ -534,36 +547,40 @@ func gitopsCommand() *cli.Command {
 // like trying to add the same label on multiple teams or deleting the same label multiple times.
 // A label is moved when it is deleted from one team and added to another, the moves are stored in
 // a teamID -> label names map.
-func computeLabelMoves(allChanges map[uint][]spec.LabelChange) (map[uint][]string, error) {
-	deleteOps := make(map[string]string) // label name -> file name
-	addOps := make(map[string]string)    // label name -> file name
+func computeLabelMoves(allChanges map[uint][]spec.LabelChange) (map[uint][]spec.LabelMovement, error) {
+	deleteOps := make(map[string]spec.LabelChange) // label name -> file name
+	addOps := make(map[string]spec.LabelChange)    // label name -> file name
 
 	for _, teamChanges := range allChanges {
 		for _, change := range teamChanges {
 			switch change.Op {
 			case "-":
-				if prevFile, ok := deleteOps[change.Name]; ok {
+				if prevCh, ok := deleteOps[change.Name]; ok {
 					errMsg := "can't delete label %q from %q, as it is already being deleted in %q"
-					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevFile)
+					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
 				}
-				deleteOps[change.Name] = change.FileName
+				deleteOps[change.Name] = change
 			case "+":
-				if prevFile, ok := addOps[change.Name]; ok {
+				if prevCh, ok := addOps[change.Name]; ok {
 					errMsg := "can't add label %q to %q, as it is already being added in %q"
-					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevFile)
+					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
 				}
-				addOps[change.Name] = change.FileName
+				addOps[change.Name] = change
 			}
 		}
 	}
 
-	moves := make(map[uint][]string)
+	// A label is moved if it is added ('+') to a team AND deleted ('-') from any other team
+	moves := make(map[uint][]spec.LabelMovement)
 	for teamID, teamChanges := range allChanges {
-		for _, change := range teamChanges {
-			// A label is moved if it is added ('+') to this team AND deleted ('-') from any team
-			if change.Op == "+" {
-				if _, isDeletedElsewhere := deleteOps[change.Name]; isDeletedElsewhere {
-					moves[teamID] = append(moves[teamID], change.Name)
+		for _, ch := range teamChanges {
+			if ch.Op == "+" {
+				if prevCh, isDeletedElsewhere := deleteOps[ch.Name]; isDeletedElsewhere {
+					moves[teamID] = append(moves[teamID], spec.LabelMovement{
+						Name:         ch.Name,
+						FromTeamName: prevCh.TeamName,
+						ToTeamName:   ch.TeamName,
+					})
 				}
 			}
 		}
@@ -575,7 +592,7 @@ func computeLabelMoves(allChanges map[uint][]spec.LabelChange) (map[uint][]strin
 // Returns a list of label changes to be applied for either a global config file or a team config file.
 func computeLabelChanges(
 	filename string,
-	teamID uint,
+	teamName string,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
 ) []spec.LabelChange {
@@ -596,7 +613,7 @@ func computeLabelChanges(
 			op = "-"
 		}
 		for _, l := range regularLabels {
-			change := spec.LabelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
+			change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
 			labelOperations = append(labelOperations, change)
 		}
 		return labelOperations
@@ -615,13 +632,13 @@ func computeLabelChanges(
 		}
 		// Remove from the map to track which specified labels are to be added.
 		delete(specifiedMap, l.Name)
-		change := spec.LabelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
+		change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}
 
 	// Any names remaining in the map are new labels.
 	for lblName, _ := range specifiedMap {
-		change := spec.LabelChange{Name: lblName, Op: "+", TeamID: teamID, FileName: filename}
+		change := spec.LabelChange{Name: lblName, Op: "+", TeamName: teamName, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}
 

@@ -1835,7 +1835,7 @@ func (c *Client) DoGitOps(
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
 	iconSettings *fleet.IconGitOpsSettings,
-) (*fleet.TeamSpecsDryRunAssumptions, []func() error, error) {
+) (*fleet.TeamSpecsDryRunAssumptions, error) {
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
 	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
@@ -1851,8 +1851,6 @@ func (c *Client) DoGitOps(
 	}
 	var mdmAppConfig map[string]interface{}
 	var team map[string]interface{}
-
-	var postOps []func() error
 
 	var eulaPath string
 
@@ -1875,26 +1873,17 @@ func (c *Client) DoGitOps(
 		// OrgSettings so that they are not applied as part of the AppConfig.
 		groupedCAs, err := fleet.ValidateCertificateAuthoritiesSpec(incoming.OrgSettings["certificate_authorities"])
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid certificate_authorities: %w", err)
+			return nil, fmt.Errorf("invalid certificate_authorities: %w", err)
 		}
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
 		// Labels
 		if incoming.Labels == nil || len(incoming.Labels) > 0 {
-			labelsToDelete, err := c.doGitOpsLabels(incoming, logFn, dryRun)
+			err := c.doGitOpsLabels(incoming, logFn, dryRun)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
-			postOps = append(postOps, func() error {
-				for _, labelToDelete := range labelsToDelete {
-					logFn("[-] deleting label '%s'\n", labelToDelete)
-					if err := c.DeleteLabel(labelToDelete); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
 		}
 
 		// Features
@@ -1906,7 +1895,7 @@ func (c *Client) DoGitOps(
 		}
 		features, ok = features.(map[string]any)
 		if !ok {
-			return nil, nil, errors.New("org_settings.features config is not a map")
+			return nil, errors.New("org_settings.features config is not a map")
 		}
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
@@ -1920,7 +1909,7 @@ func (c *Client) DoGitOps(
 		}
 		integrations, ok = integrations.(map[string]interface{})
 		if !ok {
-			return nil, nil, errors.New("org_settings.integrations config is not a map")
+			return nil, errors.New("org_settings.integrations config is not a map")
 		}
 		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
 			integrations.(map[string]interface{})["jira"] = []interface{}{}
@@ -1936,13 +1925,13 @@ func (c *Client) DoGitOps(
 		}
 		// ensure that legacy certificate authorities are not set in integrations
 		if _, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; ok {
-			return nil, nil, errors.New("org_settings.integrations.ndes_scep_proxy is not supported, please use org_settings.certificate_authorities.ndes_scep_proxy instead")
+			return nil, errors.New("org_settings.integrations.ndes_scep_proxy is not supported, please use org_settings.certificate_authorities.ndes_scep_proxy instead")
 		}
 		if _, ok := integrations.(map[string]interface{})["digicert"]; ok {
-			return nil, nil, errors.New("org_settings.integrations.digicert is not supported, please use org_settings.certificate_authorities.digicert instead")
+			return nil, errors.New("org_settings.integrations.digicert is not supported, please use org_settings.certificate_authorities.digicert instead")
 		}
 		if _, ok := integrations.(map[string]interface{})["custom_scep_proxy"]; ok {
-			return nil, nil, errors.New("org_settings.integrations.custom_scep_proxy is not supported, please use org_settings.certificate_authorities.custom_scep_proxy instead")
+			return nil, errors.New("org_settings.integrations.custom_scep_proxy is not supported, please use org_settings.certificate_authorities.custom_scep_proxy instead")
 		}
 
 		// Ensure webhooks settings exists
@@ -1997,7 +1986,7 @@ func (c *Client) DoGitOps(
 		}
 		mdmAppConfig, ok = mdmConfig.(map[string]interface{})
 		if !ok {
-			return nil, nil, errors.New("org_settings.mdm config is not a map")
+			return nil, errors.New("org_settings.mdm config is not a map")
 		}
 
 		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
@@ -2080,7 +2069,7 @@ func (c *Client) DoGitOps(
 			}
 			err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 		}
 
@@ -2135,7 +2124,7 @@ func (c *Client) DoGitOps(
 		}
 		features, ok = features.(map[string]any)
 		if !ok {
-			return nil, nil, fmt.Errorf("Team %s features config is not a map", *incoming.TeamName)
+			return nil, fmt.Errorf("Team %s features config is not a map", *incoming.TeamName)
 		}
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
@@ -2149,7 +2138,7 @@ func (c *Client) DoGitOps(
 		team["integrations"] = integrations
 		_, ok = integrations.(map[string]interface{})
 		if !ok {
-			return nil, nil, errors.New("team_settings.integrations config is not a map")
+			return nil, errors.New("team_settings.integrations config is not a map")
 		}
 
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
@@ -2157,7 +2146,7 @@ func (c *Client) DoGitOps(
 		} else {
 			_, ok = googleCal.(map[string]interface{})
 			if !ok {
-				return nil, nil, errors.New("team_settings.integrations.google_calendar config is not a map")
+				return nil, errors.New("team_settings.integrations.google_calendar config is not a map")
 			}
 		}
 
@@ -2166,7 +2155,7 @@ func (c *Client) DoGitOps(
 		} else {
 			_, ok = conditionalAccessEnabled.(bool)
 			if !ok {
-				return nil, nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
+				return nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
 			}
 		}
 
@@ -2286,7 +2275,7 @@ func (c *Client) DoGitOps(
 			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
 		}
 		if !enableDiskEncryption && requireBitLockerPIN {
-			return nil, nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
+			return nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
 		}
 
 		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
@@ -2296,7 +2285,7 @@ func (c *Client) DoGitOps(
 			team["gitops_filename"] = filename
 			rawTeam, err := json.Marshal(team)
 			if err != nil {
-				return nil, nil, fmt.Errorf("error marshalling team spec: %w", err)
+				return nil, fmt.Errorf("error marshalling team spec: %w", err)
 			}
 			group.Teams = []json.RawMessage{rawTeam}
 			group.TeamsDryRunAssumptions = teamDryRunAssumptions
@@ -2312,7 +2301,7 @@ func (c *Client) DoGitOps(
 		ExpandEnvConfigProfiles: true,
 	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var teamSoftwareInstallers []fleet.SoftwarePackageResponse
@@ -2322,7 +2311,7 @@ func (c *Client) DoGitOps(
 	if incoming.TeamName != nil {
 		if !incoming.IsNoTeam() {
 			if len(teamIDsByName) != 1 {
-				return nil, nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
+				return nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
 			}
 			teamID, ok := teamIDsByName[*incoming.TeamName]
 			if ok && teamID == 0 {
@@ -2343,9 +2332,9 @@ func (c *Client) DoGitOps(
 							*incoming.TeamName)
 					}
 
-					return nil, postOps, nil
+					return nil, nil
 				}
-				return nil, nil, fmt.Errorf("team %s not created", *incoming.TeamName)
+				return nil, fmt.Errorf("team %s not created", *incoming.TeamName)
 			}
 			for _, teamID = range teamIDsByName {
 				incoming.TeamID = &teamID
@@ -2356,11 +2345,11 @@ func (c *Client) DoGitOps(
 		} else {
 			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSetupAndSoftware(incoming, baseDir, appConfig, logFn, dryRun)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			// Apply webhook settings for "No Team"
 			if err := c.doGitOpsNoTeamWebhookSettings(incoming, appConfig, logFn, dryRun); err != nil {
-				return nil, nil, fmt.Errorf("applying no team webhook settings: %w", err)
+				return nil, fmt.Errorf("applying no team webhook settings: %w", err)
 			}
 			teamSoftwareInstallers = noTeamSoftwareInstallers
 			teamVPPApps = noTeamVPPApps
@@ -2370,7 +2359,7 @@ func (c *Client) DoGitOps(
 
 	err = c.doGitOpsPolicies(incoming, teamSoftwareInstallers, teamVPPApps, teamScripts, logFn, dryRun)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Apply Android certificates if present
@@ -2378,9 +2367,9 @@ func (c *Client) DoGitOps(
 	if err != nil {
 		var gitOpsErr *gitOpsValidationError
 		if errors.As(err, &gitOpsErr) {
-			return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
+			return nil, gitOpsErr.WithFileContext(baseDir, filename)
 		}
-		return nil, nil, err
+		return nil, err
 	}
 
 	// apply icon changes from software installers and VPP apps
@@ -2394,7 +2383,7 @@ func (c *Client) DoGitOps(
 			)
 		} else {
 			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			logFn(
 				"[+] set icons on %s and deleted icons on %s\n",
@@ -2410,11 +2399,11 @@ func (c *Client) DoGitOps(
 	if !incoming.IsNoTeam() {
 		err = c.doGitOpsQueries(incoming, logFn, dryRun)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	return teamAssumptions, postOps, nil
+	return teamAssumptions, nil
 }
 
 func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges, concurrentUploads int, concurrentUpdates int) error {
@@ -2668,8 +2657,9 @@ func (c *Client) doGitOpsLabels(
 	config *spec.GitOps,
 	logFn func(format string, args ...interface{}),
 	dryRun bool,
-) ([]string, error) {
+) error {
 	toDelete := config.LabelChangesSummary.LabelsToRemove
+	toMove := config.LabelChangesSummary.LabelsMovements
 	nToAdd := len(config.LabelChangesSummary.LabelsToAdd)
 	nToUpdate := len(config.LabelChangesSummary.LabelsToUpdate)
 
@@ -2683,16 +2673,23 @@ func (c *Client) doGitOpsLabels(
 		if nToUpdate > 0 {
 			logFn("[+] would've updated %s\n", numberWithPluralization(nToUpdate, "label", "labels"))
 		}
-		return nil, nil
+		for _, l := range toMove {
+			logFn("[-] would've moved label %q from team %q to team %q\n", l.Name, l.FromTeamName, l.ToTeamName)
+		}
+		return nil
 	}
 
+	for _, l := range toDelete {
+		logFn("[-] deleting label '%s'\n", l)
+	}
+
+	namesToMove := make([]string, 0, len(toMove))
+	for _, l := range toMove {
+		namesToMove = append(namesToMove, l.Name)
+		logFn("[-] moving label %q from team %q to team %q\n", l.Name, l.FromTeamName, l.ToTeamName)
+	}
 	logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), nToAdd, nToUpdate)
-
-	err := c.ApplyLabels(config.Labels, config.TeamID, config.LabelChangesSummary.LabelsToMove)
-	if err != nil {
-		return nil, err
-	}
-	return toDelete, nil
+	return c.ApplyLabels(config.Labels, config.TeamID, namesToMove)
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
