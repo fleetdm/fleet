@@ -3285,49 +3285,6 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusConflict, &tpResp)
 }
 
-func (s *integrationTestSuite) TestListActivities() {
-	t := s.T()
-
-	ctx := context.Background()
-	u := s.users["admin1@example.com"]
-
-	prevActivities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-
-	timestamp := time.Now()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
-	require.NoError(t, err)
-
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
-	require.NoError(t, err)
-
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{}, nil, timestamp)
-	require.NoError(t, err)
-
-	lenPage := len(prevActivities) + 2
-
-	var listResp listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id")
-	require.Len(t, listResp.Activities, lenPage)
-	require.NotNil(t, listResp.Meta)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack{}.ActivityName(), listResp.Activities[lenPage-2].Type)
-	assert.Equal(t, fleet.ActivityTypeDeletedPack{}.ActivityName(), listResp.Activities[lenPage-1].Type)
-
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id", "page", "1")
-	require.Len(t, listResp.Activities, 1)
-	assert.Equal(t, fleet.ActivityTypeEditedPack{}.ActivityName(), listResp.Activities[0].Type)
-
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "id", "order_direction", "desc")
-	require.Len(t, listResp.Activities, 1)
-	assert.Equal(t, fleet.ActivityTypeEditedPack{}.ActivityName(), listResp.Activities[0].Type)
-
-	listResp = listActivitiesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "a.id", "after", "0")
-	require.Len(t, listResp.Activities, 1)
-	require.Nil(t, listResp.Meta)
-}
-
 func (s *integrationTestSuite) TestListGetCarves() {
 	t := s.T()
 
