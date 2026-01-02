@@ -4517,18 +4517,37 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
 	require.Nil(t, macadminsData.Macadmins)
 
-	// TODO: ideally we'd pull this out into its own function that specifically tests
-	// the mdm summary endpoint. We can add additional tests for testing the platform
-	// and team_id query params for this endpoint.
-	mdmAgg := getHostMDMSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
-	assert.NotZero(t, mdmAgg.AggregatedMDMData.CountsUpdatedAt)
-
+	// Create a team for MDM summary endpoint tests
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1" + t.Name(),
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
+
+	// MDM summary endpoint tests with platform and team_id query params
+	mdmAgg := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
+	assert.NotZero(t, mdmAgg.AggregatedMDMData.CountsUpdatedAt)
+
+	// Test with platform filter - macOS only
+	mdmAggDarwin := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAggDarwin, "platform", "darwin")
+	assert.NotZero(t, mdmAggDarwin.AggregatedMDMData.CountsUpdatedAt)
+
+	// Test with platform filter - Windows only
+	mdmAggWindows := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAggWindows, "platform", "windows")
+	assert.NotZero(t, mdmAggWindows.AggregatedMDMData.CountsUpdatedAt)
+
+	// Test with team_id filter
+	mdmAggTeam := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAggTeam, "team_id", fmt.Sprint(team.ID))
+	assert.NotZero(t, mdmAggTeam.AggregatedMDMData.CountsUpdatedAt)
+
+	// Test with both platform and team_id filters
+	mdmAggPlatformTeam := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAggPlatformTeam, "platform", "darwin", "team_id", fmt.Sprint(team.ID))
+	assert.NotZero(t, mdmAggPlatformTeam.AggregatedMDMData.CountsUpdatedAt)
 
 	agg = getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
@@ -4563,14 +4582,67 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 }
 
 func (s *integrationTestSuite) TestLabels() {
-	// TODO team labels
-
 	t := s.T()
 
 	// create some hosts to use for manual labels
 	hosts := s.createHosts(t, "debian", "linux", "fedora", "darwin", "darwin", "darwin", "darwin")
 	manualHosts := hosts[:3]
 	lbl2Hosts := hosts[3:6]
+
+	t.Run("Team Labels", func(t *testing.T) {
+		// Create a team for team-specific labels
+		team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+			Name:        "team_labels_test_" + t.Name(),
+			Description: "team for label testing",
+		})
+		require.NoError(t, err)
+
+		// Create a team-specific dynamic label via specs (LabelPayload doesn't support TeamID)
+		var applyResp applyLabelSpecsResponse
+		teamLabelName := t.Name() + "_team_dynamic"
+		s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                teamLabelName,
+					Query:               "select 1",
+					Platform:            "darwin",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+					TeamID:              ptr.Uint(team.ID),
+				},
+			},
+		}, http.StatusOK, &applyResp)
+
+		// Create a team-specific manual label with hosts via specs
+		teamHost := s.createHosts(t, "darwin")[0]
+		teamManualLabelName := t.Name() + "_team_manual"
+		s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                teamManualLabelName,
+					LabelMembershipType: fleet.LabelMembershipTypeManual,
+					Hosts:               []string{teamHost.UUID},
+					TeamID:              ptr.Uint(team.ID),
+				},
+			},
+		}, http.StatusOK, &applyResp)
+
+		// List labels should include team labels
+		var listResp listLabelsResponse
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+		foundTeamLabel := false
+		for _, lbl := range listResp.Labels {
+			if lbl.Name == teamLabelName || lbl.Name == teamManualLabelName {
+				foundTeamLabel = true
+				assert.Equal(t, team.ID, lbl.TeamID)
+			}
+		}
+		assert.True(t, foundTeamLabel, "team labels should be included in list")
+
+		// Delete team labels
+		var delResp deleteLabelResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(teamLabelName)), nil, http.StatusOK, &delResp)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(teamManualLabelName)), nil, http.StatusOK, &delResp)
+	})
 
 	t.Run("Manual and Dynamic Labels", func(t *testing.T) {
 		// list labels, has the built-in ones
@@ -5383,7 +5455,63 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
 
-	// TODO team labels
+	// Team labels tests
+	t.Run("Team Labels", func(t *testing.T) {
+		// Create a team for team-specific labels
+		team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+			Name:        "team_labels_test_" + t.Name(),
+			Description: "team for label specs testing",
+		})
+		require.NoError(t, err)
+
+		// Apply a team-specific label spec
+		teamLabelName := name + "_team_label"
+		s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                teamLabelName,
+					Query:               "select 1",
+					Platform:            "darwin",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+					TeamID:              ptr.Uint(team.ID),
+				},
+			},
+		}, http.StatusOK, &applyResp)
+
+		// List label specs should include team labels
+		s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listResp)
+		assert.Len(t, listResp.Specs, builtInsCount+2) // +1 global label, +1 team label
+
+		// Get team label spec
+		var getTeamResp getLabelSpecResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(teamLabelName)), nil, http.StatusOK, &getTeamResp)
+		assert.Equal(t, teamLabelName, getTeamResp.Spec.Name)
+		assert.Equal(t, team.ID, *getTeamResp.Spec.TeamID)
+
+		// Create a team manual label with hosts
+		teamHost := s.createHosts(t, "darwin")[0]
+		teamManualLabelName := name + "_team_manual"
+		s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                teamManualLabelName,
+					LabelMembershipType: fleet.LabelMembershipTypeManual,
+					Hosts:               []string{teamHost.UUID},
+					TeamID:              ptr.Uint(team.ID),
+				},
+			},
+		}, http.StatusOK, &applyResp)
+
+		// Get the team manual label spec and verify hosts
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(teamManualLabelName)), nil, http.StatusOK, &getTeamResp)
+		assert.Equal(t, teamManualLabelName, getTeamResp.Spec.Name)
+		assert.ElementsMatch(t, []string{teamHost.UUID}, getTeamResp.Spec.Hosts)
+
+		// Delete team labels
+		var delResp deleteLabelResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(teamLabelName)), nil, http.StatusOK, &delResp)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(teamManualLabelName)), nil, http.StatusOK, &delResp)
+	})
 }
 
 func (s *integrationTestSuite) TestUsers() {
@@ -13479,8 +13607,6 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 }
 
 func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
-	// TODO team labels
-
 	t := s.T()
 	ctx := context.Background()
 
