@@ -25,7 +25,7 @@ type LabelUsage struct {
 	Type string
 }
 
-// Specifies a CRUD label operation
+// Used for keeping track of label operations
 type labelChange struct {
 	Name     string // The globally unique label name
 	Op       string // What operation to perform on the label. +:add, -:remove, =:no-op
@@ -209,13 +209,14 @@ func gitopsCommand() *cli.Command {
 					configs = append(configs, configFile)
 				}
 
-				// We want to compute label changes early ... this will allow us to detect any funky business,
-				// like trying to add the same label on different teams; labels can also move from one
-				// team to another, so we need the complete list of changes to plan how the changes will be applied.
-				teamID := uint(0)
+				// We want to compute label changes early ... this will allow us to detect any monkey business around
+				// labels like trying to add the same label on different teams; labels can also move from one
+				// team to another, so we need the complete list of changes to plan the label movements.
+				var teamID uint
 				if config.TeamID != nil {
 					teamID = *config.TeamID
 				}
+
 				if _, ok := allLblChanges[teamID]; ok {
 					continue
 				}
@@ -244,7 +245,8 @@ func gitopsCommand() *cli.Command {
 				return errors.New("global config must be provided alongside no-team.yml")
 			}
 
-			if err := validateLabelChanges(allLblChanges); err != nil {
+			_, err = computeLabelMoves(allLblChanges)
+			if err != nil {
 				return err
 			}
 
@@ -253,7 +255,7 @@ func gitopsCommand() *cli.Command {
 				flFilename := configFile.Filename
 				isGlobalConfig := configFile.IsGlobalConfig
 
-				teamID := uint(0)
+				var teamID uint
 				if config.TeamID != nil {
 					teamID = *config.TeamID
 				}
@@ -282,14 +284,16 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 
-				// The validity of a label is based on the label existence (either the label is going to be added or
+				// The validity of a label is based on their existence (either the label is going to be added or
 				// the label stayed the same). We look at both global label changes and team-specific label changes
 				// because of scoping rules (a team resource can reference a global label).
-				var searchSpace []labelChange
-				searchSpace = append(searchSpace, allLblChanges[0]...)
-				searchSpace = append(searchSpace, allLblChanges[teamID]...)
 				validLabelNames := make(map[string]any)
-				for _, label := range searchSpace {
+				for _, label := range allLblChanges[0] {
+					if label.Op == "+" || label.Op == "=" {
+						validLabelNames[label.Name] = nil
+					}
+				}
+				for _, label := range allLblChanges[teamID] {
 					if label.Op == "+" || label.Op == "=" {
 						validLabelNames[label.Name] = nil
 					}
@@ -446,8 +450,7 @@ func gitopsCommand() *cli.Command {
 			for _, teamWithApps := range missingVPPTeamsWithApps {
 				_, _ = fmt.Fprintf(c.App.Writer, ReapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
 				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
-				_, postOps, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig,
-					teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &iconSettings)
+				_, postOps, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &iconSettings)
 				if err != nil {
 					return err
 				}
@@ -488,8 +491,7 @@ func gitopsCommand() *cli.Command {
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
-				_, postOps, err := fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
-					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{}, &iconSettings)
+				_, postOps, err := fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig, map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{}, &iconSettings)
 				if err != nil {
 					return err
 				}
@@ -514,29 +516,46 @@ func gitopsCommand() *cli.Command {
 	}
 }
 
-// Validates that there is no funny business around label changes, like trying to add the same label on multiple teams,
-// or deleting the same label multiple times, etc.
-func validateLabelChanges(allChanges map[uint][]labelChange) error {
-	deleteOps := make(map[string]string)
-	addOps := make(map[string]string)
+// Computes label moves and validates that there is no funny business around label changes,
+// like trying to add the same label on multiple teams or deleting the same label multiple times.
+// A label is moved when it is deleted from one team and added to another, the moves are stored in
+// a teamID -> label names map.
+func computeLabelMoves(allChanges map[uint][]labelChange) (map[uint][]string, error) {
+	deleteOps := make(map[string]string) // label name -> file name
+	addOps := make(map[string]string)    // label name -> file name
 
 	for _, teamChanges := range allChanges {
 		for _, change := range teamChanges {
 			switch change.Op {
 			case "-":
 				if prevFile, ok := deleteOps[change.Name]; ok {
-					return fmt.Errorf("can't delete label %q from %s, as it is already being deleted in %s", change.Name, change.FileName, prevFile)
+					errMsg := "can't delete label %q from %s, as it is already being deleted in %s"
+					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevFile)
 				}
 				deleteOps[change.Name] = change.FileName
 			case "+":
 				if prevFile, ok := addOps[change.Name]; ok {
-					return fmt.Errorf("can't add label %q to %s, as it is already being added in %s", change.Name, change.FileName, prevFile)
+					errMsg := "can't add label %q to %s, as it is already being added in %s"
+					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevFile)
 				}
 				addOps[change.Name] = change.FileName
 			}
 		}
 	}
-	return nil
+
+	moves := make(map[uint][]string)
+	for teamID, teamChanges := range allChanges {
+		for _, change := range teamChanges {
+			// A label is moved if it is added ('+') to this team AND deleted ('-') from any team
+			if change.Op == "+" {
+				if _, isDeletedElsewhere := deleteOps[change.Name]; isDeletedElsewhere {
+					moves[teamID] = append(moves[teamID], change.Name)
+				}
+			}
+		}
+	}
+
+	return moves, nil
 }
 
 // Returns a list of label operations to be executed for either a global config file or a team config file,
