@@ -61,6 +61,19 @@ func main() {
 }
 
 func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
+	// validate categories before writing any files
+	if err := validateCategories(ctx, app); err != nil {
+		// Make the validation failure very obvious on stderr.
+		fmt.Fprintf(
+			os.Stderr,
+			"maintained-apps: fatal error processing %s: %v\n",
+			app.Slug,
+			err,
+		)
+		// Wrap so callers still see a proper error.
+		return ctxerr.Wrap(ctx, err, "validating categories")
+	}
+
 	if err := updateAppsListFile(ctx, app); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating apps list file")
 	}
@@ -99,6 +112,38 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		}
 	}
 
+	return nil
+}
+
+// Match types in frontend/interfaces/software.ts
+var allowedCategories = map[string]struct{}{
+	"Browsers":        {},
+	"Communication":   {},
+	"Developer Tools": {},
+	"Productivity":    {},
+	"Security":        {},
+	"Utilities":       {},
+}
+
+func allowedCategoriesString() string {
+	cats := make([]string, 0, len(allowedCategories))
+	for c := range allowedCategories {
+		cats = append(cats, c)
+	}
+	slices.Sort(cats)
+	return strings.Join(cats, ", ")
+}
+
+// validateCategories ensures every category on the app is one of the supported values.
+func validateCategories(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
+	for _, c := range app.DefaultCategories {
+		if _, ok := allowedCategories[c]; !ok {
+			return ctxerr.New(ctx, fmt.Sprintf(
+				"invalid category %q for slug %s (allowed: %s)",
+				c, app.Slug, allowedCategoriesString(),
+			))
+		}
+	}
 	return nil
 }
 
