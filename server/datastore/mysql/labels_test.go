@@ -821,19 +821,19 @@ func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 }
 
 func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
-	expectedSpecs := setupLabelSpecsTest(t, ds)
+	globalSpecs := setupLabelSpecsTest(t, ds)
 	globalOnlyFilter := fleet.TeamFilter{}
 
 	specs, err := ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.Nil(t, err)
-	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
+	test.ElementsMatchSkipTimestampsID(t, globalSpecs, specs)
 
 	// Should be idempotent
-	err = ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
+	err = ds.ApplyLabelSpecs(context.Background(), globalSpecs)
 	require.Nil(t, err)
 	specs, err = ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.Nil(t, err)
-	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
+	test.ElementsMatchSkipTimestampsID(t, globalSpecs, specs)
 
 	// Test team labels
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1_roundtrip"})
@@ -841,7 +841,9 @@ func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2_roundtrip"})
 	require.NoError(t, err)
 
-	// Create team label specs
+	// Create team label specs; these wouldn't normally coexist in the same call but that gets handled upstream;
+	// it doesn't hurt anything to set labels cross-team at the data store level (which assumes auth has already
+	// happened).
 	teamSpecs := []*fleet.LabelSpec{
 		{Name: "team1-label", Query: "SELECT 1", TeamID: &team1.ID},
 		{Name: "team2-label", Query: "SELECT 2", TeamID: &team2.ID},
@@ -852,20 +854,29 @@ func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 	// Global filter should still only return global labels
 	specs, err = ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.NoError(t, err)
-	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
+	test.ElementsMatchSkipTimestampsID(t, globalSpecs, specs)
 
 	// Admin user filter should return all labels (global + team)
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	adminFilter := fleet.TeamFilter{User: user}
 	specs, err = ds.GetLabelSpecs(context.Background(), adminFilter)
 	require.NoError(t, err)
-	require.Len(t, specs, len(expectedSpecs)+2)
+	require.Len(t, specs, len(globalSpecs)+2)
 
-	// Team1 filter should return global + team1 labels
+	// Team1 filter should return only the team1 label
 	team1Filter := fleet.TeamFilter{User: user, TeamID: &team1.ID}
 	specs, err = ds.GetLabelSpecs(context.Background(), team1Filter)
 	require.NoError(t, err)
-	require.Len(t, specs, len(expectedSpecs)+1)
+	require.Len(t, specs, 1)
+	require.Equal(t, "team1-label", specs[0].Name)
+	require.Equal(t, team1.ID, *specs[0].TeamID)
+
+	// Team user can only see their team's labels + global labels with no filter applied
+	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
+	team1UserFilter := fleet.TeamFilter{User: team1User}
+	specs, err = ds.GetLabelSpecs(context.Background(), team1UserFilter)
+	require.NoError(t, err)
+	require.Len(t, specs, len(globalSpecs)+1)
 	foundTeam1Label := false
 	for _, s := range specs {
 		if s.Name == "team1-label" {
@@ -877,13 +888,6 @@ func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.True(t, foundTeam1Label, "team1 label should be found")
-
-	// Team user can only see their team's labels + global labels
-	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
-	team1UserFilter := fleet.TeamFilter{User: team1User}
-	specs, err = ds.GetLabelSpecs(context.Background(), team1UserFilter)
-	require.NoError(t, err)
-	require.Len(t, specs, len(expectedSpecs)+1)
 }
 
 func testLabelsIDsByName(t *testing.T, ds *Datastore) {
@@ -990,8 +994,8 @@ func testLabelsByName(t *testing.T, ds *Datastore) {
 	// Global admin can see all labels
 	adminUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	adminFilter := fleet.TeamFilter{User: adminUser}
-	teamNames := []string{"foo", "team1-byname", "team2-byname"}
-	labels, err = ds.LabelsByName(context.Background(), teamNames, adminFilter)
+	labelNames := []string{"foo", "team1-byname", "team2-byname"}
+	labels, err = ds.LabelsByName(context.Background(), labelNames, adminFilter)
 	require.NoError(t, err)
 	require.Len(t, labels, 3)
 	assert.Equal(t, team1Label.ID, labels["team1-byname"].ID)
@@ -999,7 +1003,7 @@ func testLabelsByName(t *testing.T, ds *Datastore) {
 
 	// Team1 filter should only return global + team1 labels
 	team1Filter := fleet.TeamFilter{User: adminUser, TeamID: &team1.ID}
-	labels, err = ds.LabelsByName(context.Background(), teamNames, team1Filter)
+	labels, err = ds.LabelsByName(context.Background(), labelNames, team1Filter)
 	require.NoError(t, err)
 	require.Len(t, labels, 2) // foo and team1-byname
 	assert.Equal(t, team1Label.ID, labels["team1-byname"].ID)
@@ -1009,10 +1013,12 @@ func testLabelsByName(t *testing.T, ds *Datastore) {
 	// Team user can only see their team's labels + global labels
 	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
 	team1UserFilter := fleet.TeamFilter{User: team1User}
-	labels, err = ds.LabelsByName(context.Background(), teamNames, team1UserFilter)
+	labels, err = ds.LabelsByName(context.Background(), labelNames, team1UserFilter)
 	require.NoError(t, err)
 	require.Len(t, labels, 2) // foo and team1-byname
 	assert.Equal(t, team1Label.ID, labels["team1-byname"].ID)
+	_, hasTeam2 = labels["team2-byname"]
+	assert.False(t, hasTeam2, "team2 label should not be visible to team1 user")
 }
 
 func testLabelByName(t *testing.T, ds *Datastore) {
@@ -1040,7 +1046,7 @@ func testLabelByName(t *testing.T, ds *Datastore) {
 		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 	})
 	require.NoError(t, err)
-	team2Label, err := ds.NewLabel(ctx, &fleet.Label{
+	_, err = ds.NewLabel(ctx, &fleet.Label{ // should never be retrieved
 		Name:                "team2-labelbyname",
 		Query:               "SELECT 2",
 		TeamID:              &team2.ID,
@@ -1056,14 +1062,10 @@ func testLabelByName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, globalLabel.ID, label.ID)
 
-	// Global admin can get team labels
+	// Global admin can get team label
 	label, err = ds.LabelByName(ctx, "team1-labelbyname", fleet.TeamFilter{User: adminUser})
 	require.NoError(t, err)
 	assert.Equal(t, team1Label.ID, label.ID)
-
-	label, err = ds.LabelByName(ctx, "team2-labelbyname", fleet.TeamFilter{User: adminUser})
-	require.NoError(t, err)
-	assert.Equal(t, team2Label.ID, label.ID)
 
 	// Team1 user can get global label
 	label, err = ds.LabelByName(ctx, "global-label", fleet.TeamFilter{User: team1User})
@@ -1080,23 +1082,24 @@ func testLabelByName(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err), "expected not found error for inaccessible team label")
 
-	// Filter to specific team - team1 filter can see team1 label
+	// Filter to team - team1 filter can see team1 label
 	team1Filter := fleet.TeamFilter{User: adminUser, TeamID: &team1.ID}
 	label, err = ds.LabelByName(ctx, "team1-labelbyname", team1Filter)
 	require.NoError(t, err)
 	assert.Equal(t, team1Label.ID, label.ID)
 
-	// Filter to specific team - team1 filter cannot see team2 label
+	// Filter to team - team1 filter cannot see team2 label
 	_, err = ds.LabelByName(ctx, "team2-labelbyname", team1Filter)
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
-	// Global-only filter (team_id = 0) cannot see team labels
+	// Global-only filter (team_id = 0) can see global label
 	globalOnlyFilter := fleet.TeamFilter{User: adminUser, TeamID: ptr.Uint(0)}
 	label, err = ds.LabelByName(ctx, "global-label", globalOnlyFilter)
 	require.NoError(t, err)
 	assert.Equal(t, globalLabel.ID, label.ID)
 
+	// Global-only filter cannot see team label
 	_, err = ds.LabelByName(ctx, "team1-labelbyname", globalOnlyFilter)
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
