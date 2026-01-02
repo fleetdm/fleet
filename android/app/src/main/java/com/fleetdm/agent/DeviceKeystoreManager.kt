@@ -30,7 +30,8 @@ class AndroidDeviceKeystoreManager(private val context: Context) : DeviceKeystor
     }
 
     private val dpm: DevicePolicyManager by lazy {
-        context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        context.getSystemService(DevicePolicyManager::class.java)
+            ?: error("DevicePolicyManager not available")
     }
 
     override fun hasKeyPair(alias: String): Boolean = try {

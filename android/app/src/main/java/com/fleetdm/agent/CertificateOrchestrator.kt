@@ -73,7 +73,8 @@ class CertificateOrchestrator(
      * @return List of certificate templates, or null if none configured
      */
     fun getHostCertificates(context: Context): List<HostCertificate>? {
-        val restrictionsManager = context.getSystemService(Context.RESTRICTIONS_SERVICE) as android.content.RestrictionsManager
+        val restrictionsManager = context.getSystemService(android.content.RestrictionsManager::class.java)
+            ?: return null
         val appRestrictions = restrictionsManager.applicationRestrictions
 
         val certRequestList = appRestrictions.getParcelableArray("certificate_templates", Bundle::class.java)?.toList()
@@ -749,7 +750,8 @@ class CertificateOrchestrator(
         }
 
         override fun installCertificate(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>): Boolean {
-            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val dpm = context.getSystemService(DevicePolicyManager::class.java)
+                ?: error("DevicePolicyManager not available")
 
             // The admin component is null because the caller is a DELEGATED application,
             // not the Device Policy Controller itself. The DPM recognizes the delegation
