@@ -638,7 +638,7 @@ class CertificateOrchestrator(
 
         // Fetch certificate template from API (only if not already installed)
         val templateResult = apiClient.getCertificateTemplate(certificateId)
-        val template = templateResult.getOrElse { error ->
+        val (template, scepUrl) = templateResult.getOrElse { error ->
             Log.e(TAG, "Failed to fetch certificate template for ID $certificateId: ${error.message}", error)
             return CertificateEnrollmentHandler.EnrollmentResult.Failure(
                 reason = "Failed to fetch certificate template: ${error.message}",
@@ -667,7 +667,7 @@ class CertificateOrchestrator(
 
         // Step 5: Perform enrollment
         Log.d(TAG, "Starting SCEP enrollment for certificate: ${template.name}: $template")
-        val result = handler.handleEnrollment(template)
+        val result = handler.handleEnrollment(template, scepUrl)
 
         when (result) {
             is CertificateEnrollmentHandler.EnrollmentResult.Success -> {

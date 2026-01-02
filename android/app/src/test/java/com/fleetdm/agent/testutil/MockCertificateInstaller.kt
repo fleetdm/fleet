@@ -15,11 +15,7 @@ class MockCertificateInstaller : CertificateEnrollmentHandler.CertificateInstall
     var capturedPrivateKey: PrivateKey? = null
     var capturedCertificateChain: Array<Certificate>? = null
 
-    override fun installCertificate(
-        alias: String,
-        privateKey: PrivateKey,
-        certificateChain: Array<Certificate>,
-    ): Boolean {
+    override fun installCertificate(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>): Boolean {
         wasInstallCalled = true
         capturedAlias = alias
         capturedPrivateKey = privateKey

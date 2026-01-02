@@ -24,10 +24,11 @@ class ScepClientImplTest {
 
     @Test
     fun `enroll with malformed URL throws ScepNetworkException`() = runTest {
-        val template = TestCertificateTemplateFactory.create(url = "http://[invalid")
+        val template = TestCertificateTemplateFactory.create()
+        val malformedUrl = "http://[invalid"
 
         try {
-            scepClient.enroll(template)
+            scepClient.enroll(template, malformedUrl)
             fail("Expected ScepNetworkException to be thrown")
         } catch (e: ScepNetworkException) {
             assertTrue(e.message?.contains("Invalid SCEP URL") == true)
@@ -39,7 +40,7 @@ class ScepClientImplTest {
         val template = TestCertificateTemplateFactory.create(subjectName = "invalid-subject-format")
 
         try {
-            scepClient.enroll(template)
+            scepClient.enroll(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
             fail("Expected ScepCsrException to be thrown")
         } catch (e: ScepCsrException) {
             assertTrue(e.message?.contains("Invalid X.500 subject name") == true)
@@ -48,12 +49,11 @@ class ScepClientImplTest {
 
     @Test
     fun `enroll with unreachable server throws ScepNetworkException`() = runTest {
-        val template = TestCertificateTemplateFactory.create(
-            url = "https://invalid-scep-server-that-does-not-exist.example.com/scep",
-        )
+        val template = TestCertificateTemplateFactory.create()
+        val unreachableUrl = "https://invalid-scep-server-that-does-not-exist.example.com/scep"
 
         try {
-            scepClient.enroll(template)
+            scepClient.enroll(template, unreachableUrl)
             fail("Expected ScepNetworkException to be thrown")
         } catch (e: ScepNetworkException) {
             assertTrue(e.message?.contains("Failed to communicate") == true)

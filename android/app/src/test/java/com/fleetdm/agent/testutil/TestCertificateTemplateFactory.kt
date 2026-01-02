@@ -8,6 +8,8 @@ import com.fleetdm.agent.GetCertificateTemplateResponse
  */
 object TestCertificateTemplateFactory {
 
+    const val DEFAULT_SCEP_URL = "https://scep.example.com/test"
+
     fun create(
         id: Int = 1,
         name: String = "test-cert",
@@ -21,7 +23,6 @@ object TestCertificateTemplateFactory {
         fleetChallenge: String = "fleet-secret",
         keyLength: Int = 2048,
         signatureAlgorithm: String = "SHA256withRSA",
-        url: String = "https://scep.example.com/cgi-bin/pkiclient.exe",
     ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
         id = id,
         name = name,
@@ -35,6 +36,5 @@ object TestCertificateTemplateFactory {
         fleetChallenge = fleetChallenge,
         keyLength = keyLength,
         signatureAlgorithm = signatureAlgorithm,
-        url = url,
     )
 }

@@ -26,11 +26,16 @@ import kotlinx.serialization.json.JsonElement
 val Context.prefDataStore: DataStore<Preferences> by preferencesDataStore(name = "pref_datastore")
 
 /**
+ * Result of fetching a certificate template, including the computed SCEP URL.
+ */
+data class CertificateTemplateResult(val template: GetCertificateTemplateResponse, val scepUrl: String)
+
+/**
  * Interface for certificate-related API operations.
  * Used by CertificateOrchestrator for dependency injection and testability.
  */
 interface CertificateApiClient {
-    suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse>
+    suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult>
     suspend fun updateCertificateStatus(
         certificateId: Int,
         status: UpdateCertificateStatusStatus,
@@ -212,7 +217,7 @@ object ApiClient : CertificateApiClient {
         }
     }
 
-    override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
+    override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> {
         val nodeKeyResult = getNodeKeyOrEnroll()
         val orbitNodeKey = nodeKeyResult.getOrElse { error ->
             return Result.failure(error)
@@ -228,16 +233,13 @@ object ApiClient : CertificateApiClient {
             responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
         ).fold(
             onSuccess = { wrapper ->
-                val res = wrapper.certificate
-                Log.i(TAG, "successfully retrieved certificate template ${res.id}: ${res.name}")
-                Result.success(
-                    res.apply {
-                        setUrl(
-                            serverUrl = credentials.baseUrl,
-                            hostUUID = credentials.hardwareUUID,
-                        )
-                    },
+                val template = wrapper.certificate
+                Log.i(TAG, "successfully retrieved certificate template ${template.id}: ${template.name}")
+                val scepUrl = template.buildScepUrl(
+                    serverUrl = credentials.baseUrl,
+                    hostUUID = credentials.hardwareUUID,
                 )
+                Result.success(CertificateTemplateResult(template, scepUrl))
             },
             onFailure = { throwable ->
                 Log.e(TAG, "failed to get certificate template $certificateId")
@@ -501,21 +503,20 @@ data class GetCertificateTemplateResponse(
     val status: String,
 
     @SerialName("scep_challenge")
-    val scepChallenge: String? = "",
+    val scepChallenge: String? = null,
 
     @SerialName("fleet_challenge")
-    val fleetChallenge: String? = "",
+    val fleetChallenge: String? = null,
 
     @Transient
     val keyLength: Int = 2048,
 
     @Transient
     val signatureAlgorithm: String = "SHA256withRSA",
+)
 
-    @Transient
-    var url: String? = null,
-) {
-    fun setUrl(serverUrl: String, hostUUID: String) {
-        url = "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"
-    }
-}
+/**
+ * Builds the SCEP proxy URL for this certificate template.
+ */
+fun GetCertificateTemplateResponse.buildScepUrl(serverUrl: String, hostUUID: String): String =
+    "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"

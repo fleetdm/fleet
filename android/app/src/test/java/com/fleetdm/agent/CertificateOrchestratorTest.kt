@@ -457,7 +457,7 @@ class CertificateOrchestratorTest {
         )
 
         // Act: Perform enrollment
-        val result = handler.handleEnrollment(template)
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Assert: Enrollment succeeded
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Success)
@@ -485,7 +485,7 @@ class CertificateOrchestratorTest {
         )
 
         // Act
-        val result = handler.handleEnrollment(template)
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Assert: Enrollment failed
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
@@ -507,7 +507,7 @@ class CertificateOrchestratorTest {
         )
 
         // Act
-        handler.handleEnrollment(template)
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Assert: Custom installer was used
         assertTrue(customInstaller.wasInstallCalled)
@@ -895,15 +895,18 @@ class CertificateOrchestratorTest {
         fakeApiClient.getCertificateTemplateHandler = { certId ->
             if (certId == 20) {
                 Result.success(
-                    GetCertificateTemplateResponse(
-                        id = 20,
-                        name = "cert-1",
-                        certificateAuthorityId = 1,
-                        certificateAuthorityName = "TestCA",
-                        createdAt = "2025-01-01T00:00:00Z",
-                        subjectName = "CN=test",
-                        certificateAuthorityType = "custom_scep_proxy",
-                        status = "delivered",
+                    CertificateTemplateResult(
+                        template = GetCertificateTemplateResponse(
+                            id = 20,
+                            name = "cert-1",
+                            certificateAuthorityId = 1,
+                            certificateAuthorityName = "TestCA",
+                            createdAt = "2025-01-01T00:00:00Z",
+                            subjectName = "CN=test",
+                            certificateAuthorityType = "custom_scep_proxy",
+                            status = "delivered",
+                        ),
+                        scepUrl = TestCertificateTemplateFactory.DEFAULT_SCEP_URL,
                     ),
                 )
             } else {
@@ -1187,5 +1190,4 @@ class CertificateOrchestratorTest {
         assertEquals(CertificateStatus.INSTALLED, getStoredCertificates()[1]?.status)
         assertEquals(CertificateStatus.REMOVED_UNREPORTED, getStoredCertificates()[2]?.status)
     }
-
 }

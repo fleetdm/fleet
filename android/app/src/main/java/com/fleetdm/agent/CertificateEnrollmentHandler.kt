@@ -35,9 +35,9 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
     /**
      * Main enrollment flow: parse config, enroll via SCEP, install certificate.
      */
-    suspend fun handleEnrollment(config: GetCertificateTemplateResponse): EnrollmentResult = try {
+    suspend fun handleEnrollment(config: GetCertificateTemplateResponse, scepUrl: String): EnrollmentResult = try {
         // Perform SCEP enrollment
-        val result = scepClient.enroll(config)
+        val result = scepClient.enroll(config, scepUrl)
 
         // Install certificate
         val installed = certificateInstaller.installCertificate(

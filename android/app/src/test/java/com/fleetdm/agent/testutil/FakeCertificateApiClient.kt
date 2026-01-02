@@ -1,7 +1,7 @@
 package com.fleetdm.agent.testutil
 
 import com.fleetdm.agent.CertificateApiClient
-import com.fleetdm.agent.GetCertificateTemplateResponse
+import com.fleetdm.agent.CertificateTemplateResult
 import com.fleetdm.agent.UpdateCertificateStatusOperation
 import com.fleetdm.agent.UpdateCertificateStatusStatus
 
@@ -20,7 +20,7 @@ data class UpdateStatusCall(
  * Provides configurable handlers and captures calls for assertions.
  */
 class FakeCertificateApiClient : CertificateApiClient {
-    var getCertificateTemplateHandler: (Int) -> Result<GetCertificateTemplateResponse> = {
+    var getCertificateTemplateHandler: (Int) -> Result<CertificateTemplateResult> = {
         Result.failure(Exception("getCertificateTemplate not configured"))
     }
     var updateCertificateStatusHandler: (UpdateStatusCall) -> Result<Unit> = { Result.success(Unit) }
@@ -31,7 +31,7 @@ class FakeCertificateApiClient : CertificateApiClient {
     private val _getCertificateTemplateCalls = mutableListOf<Int>()
     val getCertificateTemplateCalls: List<Int> get() = _getCertificateTemplateCalls.toList()
 
-    override suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
+    override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> {
         _getCertificateTemplateCalls.add(certificateId)
         return getCertificateTemplateHandler(certificateId)
     }

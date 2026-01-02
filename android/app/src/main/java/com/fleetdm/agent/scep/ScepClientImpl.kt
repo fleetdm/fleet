@@ -33,9 +33,8 @@ import kotlinx.coroutines.withContext
  */
 class ScepClientImpl : ScepClient {
 
-    val TAG = "ScepClientImpl"
-
     companion object {
+        private const val TAG = "fleet-ScepClientImpl"
         private const val SCEP_PROFILE = "NDESCA" // Network Device Enrollment Service CA
         private const val SELF_SIGNED_CERT_VALIDITY_DAYS = 100L
 
@@ -47,7 +46,7 @@ class ScepClientImpl : ScepClient {
         }
     }
 
-    override suspend fun enroll(config: GetCertificateTemplateResponse): ScepResult = withContext(Dispatchers.IO) {
+    override suspend fun enroll(config: GetCertificateTemplateResponse, scepUrl: String): ScepResult = withContext(Dispatchers.IO) {
         try {
             // Log calls removed to avoid test failures on JVM (use logcat in Android Studio)
 
@@ -70,9 +69,9 @@ class ScepClientImpl : ScepClient {
 
             // Step 4: Create SCEP client
             val server = try {
-                URL(config.url)
+                URL(scepUrl)
             } catch (e: Exception) {
-                throw ScepNetworkException("Invalid SCEP URL: ${config.url}", e)
+                throw ScepNetworkException("Invalid SCEP URL: $scepUrl", e)
             }
 
             // OptimisticCertificateVerifier is used intentionally because:
