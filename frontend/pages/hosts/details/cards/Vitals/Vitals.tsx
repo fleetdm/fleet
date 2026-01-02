@@ -247,8 +247,7 @@ const Vitals = ({
   const renderGeolocation = () => {
     const geolocation = vitalsData.geolocation;
 
-    // This section is hidden only if non-ipados non-ios and no geolocation
-    if (!geolocation && !isIosOrIpadosHost) {
+    if (!isIosOrIpadosHost && !geolocation) {
       return null;
     }
 

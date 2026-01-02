@@ -32,7 +32,7 @@ const getLocationMessage = (
       location.
     </>
   );
-  const IOS_LOCKING_MESSAGE = (
+  const IOS_LOCK_REQUIRED_MESSAGE = (
     <>
       To view location, Apple requires that iOS hosts are locked (Lost Mode)
       first.
@@ -47,12 +47,12 @@ const getLocationMessage = (
 
   switch (hostMdmDeviceStatus) {
     case "unlocked":
-      return <div>{IOS_LOCKING_MESSAGE}</div>;
+      return <div>{IOS_LOCK_REQUIRED_MESSAGE}</div>;
 
     case "locking":
       return (
         <div>
-          <p>{IOS_LOCKING_MESSAGE}</p>
+          <p>{IOS_LOCK_REQUIRED_MESSAGE}</p>
           <p>
             Lock is pending. Host will lock the next time it checks in to Fleet.
           </p>
@@ -120,20 +120,22 @@ const LocationModal = ({
     ? buildGoogleMapsLinkFromGeo(hostGeolocation)
     : null;
 
-  // Only show last updated at for non-iOS/iPadOS hosts and for iOS/iPadOS hosts
-  // when "locked" and location is available
+  const isIosOrIpadosHost = iosOrIpadosDetails?.isIosOrIpadosHost || false;
+  const isIosLockedWithLocationAvail =
+    iosOrIpadosDetails?.isIosOrIpadosHost &&
+    iosOrIpadosDetails?.hostMdmDeviceStatus === "locked" &&
+    hostGeolocation !== null;
+
   const shouldShowLastUpdatedAt =
-    !iosOrIpadosDetails?.isIosOrIpadosHost ||
-    (iosOrIpadosDetails?.isIosOrIpadosHost &&
-      iosOrIpadosDetails?.hostMdmDeviceStatus === "locked" &&
-      hostGeolocation !== null &&
-      detailsUpdatedAt);
+    !isIosOrIpadosHost || isIosLockedWithLocationAvail;
+
   const renderLastUpdatedAt = () => (
     <LastUpdatedText
       lastUpdatedAt={detailsUpdatedAt}
       customTooltipText="The last time location data was updated."
     />
   );
+
   const renderContent = () => {
     return (
       <>
