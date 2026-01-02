@@ -4044,8 +4044,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		installedVersion, ok := installedVersionByNameBundleIdentifierAndSource[softwareTitle.Name+bundleIdentifier+softwareTitle.Source]
 		if !ok {
+			// There are some cases where InstalledApplicationList skips the software from the list
+			// when the update is ocurring. It seems the software is probably being skipped because
+			// it's on a temporary state of installation/replacement.
 			level.Debug(logger).Log(
-				"msg", "software title not installed on device, skipping from update",
+				"msg", "software title not installed on device or currently in the process of updating, skipping from update",
 				"name", softwareTitle.Name,
 				"bundle_identifier", bundleIdentifier,
 				"source", softwareTitle.Source,
@@ -4107,7 +4110,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	)
 
 	// 3. Filter out software that already has a pending installation (update).
-	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstall(ctx, host.ID)
+	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
 	}
