@@ -144,7 +144,7 @@ func gitopsCommand() *cli.Command {
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
 
-			allLblChanges := make(map[uint][]spec.LabelChange) // teamID -> label changes
+			labelChanges := make(map[uint][]spec.LabelChange) // teamID -> label changes
 			builtInLabelNames := make(map[string]any)
 
 			// We need the list of built-in labels for showing contextual errors in case the user
@@ -209,7 +209,7 @@ func gitopsCommand() *cli.Command {
 					teamID = *config.TeamID
 				}
 
-				if _, ok := allLblChanges[teamID]; ok {
+				if _, ok := labelChanges[teamID]; ok {
 					continue
 				}
 				var existingLabels []*fleet.LabelSpec
@@ -220,16 +220,12 @@ func gitopsCommand() *cli.Command {
 						return fmt.Errorf("getting team '%s' labels: %w", flFilename, err)
 					}
 				}
-				localLblChanges, err := computeLabelChanges(
+				labelChanges[teamID] = computeLabelChanges(
 					flFilename,
 					teamID,
 					existingLabels,
 					config.Labels,
 				)
-				if err != nil {
-					return err
-				}
-				allLblChanges[teamID] = localLblChanges
 			}
 
 			// fail if scripts are supplied on no-team and global config is missing
@@ -237,7 +233,7 @@ func gitopsCommand() *cli.Command {
 				return errors.New("global config must be provided alongside no-team.yml")
 			}
 
-			_, err = computeLabelMoves(allLblChanges)
+			labelMoves, err := computeLabelMoves(labelChanges)
 			if err != nil {
 				return err
 			}
@@ -280,12 +276,12 @@ func gitopsCommand() *cli.Command {
 				// the label stayed the same). We look at both global label changes and team-specific label changes
 				// because of scoping rules (a team resource can reference a global label).
 				validLabelNames := make(map[string]any)
-				for _, label := range allLblChanges[0] {
+				for _, label := range labelChanges[0] {
 					if label.Op == "+" || label.Op == "=" {
 						validLabelNames[label.Name] = nil
 					}
 				}
-				for _, label := range allLblChanges[teamID] {
+				for _, label := range labelChanges[teamID] {
 					if label.Op == "+" || label.Op == "=" {
 						validLabelNames[label.Name] = nil
 					}
@@ -319,6 +315,8 @@ func gitopsCommand() *cli.Command {
 				if builtInLabelsUsed {
 					return errors.New("Please update your settings to not refer to built-in labels.")
 				}
+
+				config.LabelChangesSummary = spec.NewLabelChangesSummary(labelChanges[teamID], labelMoves[teamID])
 
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
@@ -442,7 +440,19 @@ func gitopsCommand() *cli.Command {
 			for _, teamWithApps := range missingVPPTeamsWithApps {
 				_, _ = fmt.Fprintf(c.App.Writer, ReapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
 				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
-				_, postOps, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &iconSettings)
+				_, postOps, err := fleetClient.DoGitOps(
+					c.Context,
+					teamWithApps.config,
+					teamWithApps.filename,
+					logf,
+					flDryRun,
+					teamDryRunAssumptions,
+					appConfig,
+					teamsSoftwareInstallers,
+					teamsVPPApps,
+					teamsScripts,
+					&iconSettings,
+				)
 				if err != nil {
 					return err
 				}
@@ -483,7 +493,19 @@ func gitopsCommand() *cli.Command {
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
-				_, postOps, err := fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig, map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{}, &iconSettings)
+				_, postOps, err := fleetClient.DoGitOps(
+					c.Context,
+					defaultNoTeamConfig,
+					"no-team.yml",
+					logf,
+					flDryRun,
+					nil,
+					appConfig,
+					map[string][]fleet.SoftwarePackageResponse{},
+					map[string][]fleet.VPPAppResponse{},
+					map[string][]fleet.ScriptResponse{},
+					&iconSettings,
+				)
 				if err != nil {
 					return err
 				}
@@ -521,13 +543,13 @@ func computeLabelMoves(allChanges map[uint][]spec.LabelChange) (map[uint][]strin
 			switch change.Op {
 			case "-":
 				if prevFile, ok := deleteOps[change.Name]; ok {
-					errMsg := "can't delete label %q from %s, as it is already being deleted in %s"
+					errMsg := "can't delete label %q from %q, as it is already being deleted in %q"
 					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevFile)
 				}
 				deleteOps[change.Name] = change.FileName
 			case "+":
 				if prevFile, ok := addOps[change.Name]; ok {
-					errMsg := "can't add label %q to %s, as it is already being added in %s"
+					errMsg := "can't add label %q to %q, as it is already being added in %q"
 					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevFile)
 				}
 				addOps[change.Name] = change.FileName
@@ -550,17 +572,16 @@ func computeLabelMoves(allChanges map[uint][]spec.LabelChange) (map[uint][]strin
 	return moves, nil
 }
 
-// Returns a list of label operations to be executed for either a global config file or a team config file,
-// along with a set of valid label names for the given scope.
+// Returns a list of label changes to be applied for either a global config file or a team config file.
 func computeLabelChanges(
 	filename string,
 	teamID uint,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
-) ([]spec.LabelChange, error) {
+) []spec.LabelChange {
+	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
 
-	var regularLabels []*fleet.LabelSpec
 	for _, l := range existingLabels {
 		if l.LabelType == fleet.LabelTypeRegular {
 			regularLabels = append(regularLabels, l)
@@ -578,7 +599,7 @@ func computeLabelChanges(
 			change := spec.LabelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
 			labelOperations = append(labelOperations, change)
 		}
-		return labelOperations, nil
+		return labelOperations
 	}
 
 	specifiedMap := make(map[string]any, len(specifiedLabels))
@@ -604,7 +625,7 @@ func computeLabelChanges(
 		labelOperations = append(labelOperations, change)
 	}
 
-	return labelOperations, nil
+	return labelOperations
 }
 
 // Given a set of referenced labels and info about who is using them, update a provided usage map.

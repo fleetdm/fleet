@@ -19,12 +19,37 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// LabelChange is used for keeping track of label operations
+// LabelChangesSummary carries extra context of the labels operations for a config.
+type LabelChangesSummary struct {
+	LabelsToUpdate []string
+	LabelsToAdd    []string
+	LabelsToRemove []string
+	LabelsToMove   []string
+}
+
+func NewLabelChangesSummary(changes []LabelChange, moves []string) LabelChangesSummary {
+	r := LabelChangesSummary{
+		LabelsToMove: moves,
+	}
+	for _, change := range changes {
+		switch change.Op {
+		case "+":
+			r.LabelsToAdd = append(r.LabelsToAdd, change.Name)
+		case "-":
+			r.LabelsToRemove = append(r.LabelsToRemove, change.Name)
+		case "=":
+			r.LabelsToUpdate = append(r.LabelsToUpdate, change.Name)
+		}
+	}
+	return r
+}
+
+// LabelChange used for keeping track of label operations
 type LabelChange struct {
 	Name     string // The globally unique label name
 	Op       string // What operation to perform on the label. +:add, -:remove, =:no-op
-	TeamID   uint   // The team this label belongs to, 0 means the label is global.
-	FileName string // The filename that contains the label changes
+	TeamID   uint   // The team this label belongs to, 0 means the label is global. TODO: Do we need this?
+	FileName string // The filename that contains the label change
 }
 
 type ParseTypeError struct {
@@ -204,7 +229,10 @@ type GitOps struct {
 	Controls     GitOpsControls
 	Policies     []*GitOpsPolicySpec
 	Queries      []*fleet.QuerySpec
-	Labels       []*fleet.LabelSpec
+
+	Labels              []*fleet.LabelSpec
+	LabelChangesSummary LabelChangesSummary
+
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
