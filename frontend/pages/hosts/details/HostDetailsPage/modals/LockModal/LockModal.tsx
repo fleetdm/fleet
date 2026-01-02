@@ -27,7 +27,7 @@ const IosOrIpadLockPreview = () => {
       <h3>End user experience</h3>
       <p>
         Instead of &quot;Fleet&quot;, the message will show the{" "}
-        <b>Organization Name</b> that you configured in{" "}
+        <b>Organization name</b> that you configured in{" "}
         <Link to={PATHS.ADMIN_ORGANIZATION_INFO}>Organization settings</Link>.
       </p>
       <img src={IphoneLockPreview} alt="iPhone with a lock screen message" />
@@ -69,17 +69,19 @@ const LockModal = ({
 
   const renderDescription = () => {
     if (isIPadOrIPhone(platform)) {
-      // if (true) {
       return (
-        <p>
-          This will enable{" "}
-          <CustomLink
-            url="https://fleetdm.com/learn-more-about/managed-lost-mode"
-            newTab
-            text="Lost Mode"
-          />
-          . It can only be unlocked through Fleet.
-        </p>
+        <>
+          <p>
+            This enables what Apple calls{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/managed-lost-mode"
+              newTab
+              text="Lost Mode"
+            />
+            .
+          </p>
+          <p> It can only be unlocked through Fleet.</p>
+        </>
       );
     }
 
@@ -94,7 +96,7 @@ const LockModal = ({
   };
 
   return (
-    <Modal className={baseClass} title="Lock host" onExit={onClose}>
+    <Modal className={baseClass} title="Lock" onExit={onClose}>
       <>
         <div className={`${baseClass}__modal-content`}>
           <div className={`${baseClass}__description`}>
@@ -102,7 +104,7 @@ const LockModal = ({
           </div>
           <div className={`${baseClass}__confirm-message`}>
             <span>
-              <b>Please check to confirm:</b>
+              <b>Confirm:</b>
             </span>
             <Checkbox
               wrapperClassName={`${baseClass}__lock-checkbox`}
