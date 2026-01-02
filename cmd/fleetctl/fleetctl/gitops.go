@@ -568,6 +568,13 @@ func computeLabelChanges(
 ) ([]labelChange, error) {
 	var labelOperations []labelChange
 
+	var regularLabels []*fleet.LabelSpec
+	for _, l := range existingLabels {
+		if l.LabelType == fleet.LabelTypeRegular {
+			regularLabels = append(regularLabels, l)
+		}
+	}
+
 	// Handle the cases where the 'labels:' section is either nil (an empty 'labels:' section was specified,
 	// meaning remove-all) or an empty list (the 'labels:' section was not specified, so we do a no-op).
 	if len(specifiedLabels) == 0 {
@@ -575,7 +582,7 @@ func computeLabelChanges(
 		if specifiedLabels == nil {
 			op = "-"
 		}
-		for _, l := range existingLabels {
+		for _, l := range regularLabels {
 			change := labelChange{Name: l.Name, Op: op, TeamID: teamID, FileName: filename}
 			labelOperations = append(labelOperations, change)
 		}
@@ -588,7 +595,7 @@ func computeLabelChanges(
 	}
 
 	// Determine which existing labels to remove.
-	for _, l := range existingLabels {
+	for _, l := range regularLabels {
 		op := "-"
 		if _, ok := specifiedMap[l.Name]; ok {
 			op = "="
