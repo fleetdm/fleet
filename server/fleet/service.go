@@ -139,6 +139,10 @@ type Service interface {
 	// ListUsers returns all users.
 	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
 
+	// UsersByIDs returns users matching the provided IDs. More efficient than
+	// ListUsers when only specific users are needed.
+	UsersByIDs(ctx context.Context, ids []uint) ([]*User, error)
+
 	// ChangePassword validates the existing password, and sets the new  password. User is retrieved from the viewer
 	// context.
 	ChangePassword(ctx context.Context, oldPass, newPass string) error

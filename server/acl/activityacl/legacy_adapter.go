@@ -33,25 +33,16 @@ func (a *LegacyServiceAdapter) ListUsers(ctx context.Context, ids []uint) ([]*ac
 		return nil, nil
 	}
 
-	// Build a set for quick lookup
-	idSet := make(map[uint]bool, len(ids))
-	for _, id := range ids {
-		idSet[id] = true
-	}
-
-	// Fetch all users from legacy service
-	// TODO: This is inefficient - ideally we'd have a method to fetch by IDs
-	users, err := a.svc.ListUsers(ctx, fleet.UserListOptions{})
+	// Fetch only the requested users by their IDs
+	users, err := a.svc.UsersByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
 
-	// Filter to requested IDs and convert
-	result := make([]*activity.User, 0, len(ids))
+	// Convert to activity.User
+	result := make([]*activity.User, 0, len(users))
 	for _, u := range users {
-		if idSet[u.ID] {
-			result = append(result, convertUser(u))
-		}
+		result = append(result, convertUser(u))
 	}
 	return result, nil
 }

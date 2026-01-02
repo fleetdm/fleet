@@ -67,6 +67,8 @@ type AuthenticatedUserFunc func(ctx context.Context) (user *fleet.User, err erro
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
 
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+
 type ChangePasswordFunc func(ctx context.Context, oldPass string, newPass string) error
 
 type RequestPasswordResetFunc func(ctx context.Context, email string) (err error)
@@ -945,6 +947,9 @@ type Service struct {
 
 	ListUsersFunc        ListUsersFunc
 	ListUsersFuncInvoked bool
+
+	UsersByIDsFunc        UsersByIDsFunc
+	UsersByIDsFuncInvoked bool
 
 	ChangePasswordFunc        ChangePasswordFunc
 	ChangePasswordFuncInvoked bool
@@ -2324,6 +2329,13 @@ func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (use
 	s.ListUsersFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListUsersFunc(ctx, opt)
+}
+
+func (s *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+	s.mu.Lock()
+	s.UsersByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UsersByIDsFunc(ctx, ids)
 }
 
 func (s *Service) ChangePassword(ctx context.Context, oldPass string, newPass string) error {

@@ -153,6 +153,29 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 	return users, nil
 }
 
+// UsersByIDs returns users matching the provided IDs.
+func (ds *Datastore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build users by IDs query")
+	}
+
+	var users []*fleet.User
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select users by IDs")
+	}
+
+	if err := ds.loadTeamsForUsers(ctx, users); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load teams for users")
+	}
+
+	return users, nil
+}
+
 func (ds *Datastore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
 	return ds.findUser(ctx, "email", email)
 }

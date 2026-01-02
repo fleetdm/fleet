@@ -61,5 +61,7 @@ type ListOptions struct {
 type PaginationMetadata struct {
 	HasNextResults     bool `json:"has_next_results"`
 	HasPreviousResults bool `json:"has_previous_results"`
-	TotalResults       uint `json:"total_results,omitempty"`
+	// TotalResults is intentionally excluded from JSON serialization to match
+	// the legacy fleet.PaginationMetadata behavior. It's kept for internal use only.
+	TotalResults uint `json:"-"`
 }

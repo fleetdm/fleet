@@ -49,6 +49,8 @@ type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+
 type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
@@ -1748,6 +1750,9 @@ type DataStore struct {
 
 	ListUsersFunc        ListUsersFunc
 	ListUsersFuncInvoked bool
+
+	UsersByIDsFunc        UsersByIDsFunc
+	UsersByIDsFuncInvoked bool
 
 	UserByEmailFunc        UserByEmailFunc
 	UserByEmailFuncInvoked bool
@@ -4331,6 +4336,13 @@ func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	s.ListUsersFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListUsersFunc(ctx, opt)
+}
+
+func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+	s.mu.Lock()
+	s.UsersByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UsersByIDsFunc(ctx, ids)
 }
 
 func (s *DataStore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
