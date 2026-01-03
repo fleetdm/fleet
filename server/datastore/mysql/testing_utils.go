@@ -428,6 +428,13 @@ func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) erro
 	return fn(ds.primary)
 }
 
+// PrimaryDBForTest returns the primary database connection for test use.
+// Use this when tests need direct access to the underlying *sqlx.DB, such as
+// when bootstrapping bounded contexts that need shared database connections.
+func PrimaryDBForTest(ds *Datastore) *sqlx.DB {
+	return ds.primary
+}
+
 // EncryptWithPrivateKey encrypts data with the server private key associated
 // with the Datastore.
 func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, error) {

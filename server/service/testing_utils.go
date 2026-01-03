@@ -23,11 +23,15 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
@@ -45,14 +49,17 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -417,6 +424,10 @@ type TestServerOpts struct {
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+	// Check if this is a MySQL datastore (for activity routes setup)
+	// We need to store the original pointer before it might be wrapped by cached_mysql
+	mysqlDS, isMySQLDS := ds.(*mysql.Datastore)
+
 	if len(opts) > 0 && opts[0].EnableCachedDS {
 		ds = cached_mysql.New(ds)
 	}
@@ -425,6 +436,34 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		cfg = *opts[0].FleetConfig
 	}
 	svc, ctx := NewTestService(t, ds, cfg, opts...)
+
+	// Add activity routes for MySQL datastores using the same database connection
+	if isMySQLDS {
+		if len(opts) == 0 {
+			opts = []*TestServerOpts{{}}
+		}
+
+		// Get the primary DB connection from the existing datastore
+		activityDB := mysql.PrimaryDBForTest(mysqlDS)
+
+		legacyAuthorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		activityAuthorizer := &testAuthorizerAdapter{authorizer: legacyAuthorizer}
+		activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
+		logger := kitlog.NewLogfmtLogger(os.Stdout)
+		_, activityRoutesFn := activity_bootstrap.New(
+			activityDB,
+			activityDB, // Use same connection for primary and replica in tests
+			activityAuthorizer,
+			activityUserProvider,
+			logger,
+		)
+		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, next)
+		}
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
+	}
+
 	return RunServerForTestsWithServiceWithDS(t, ctx, ds, svc, opts...)
 }
 
@@ -1338,4 +1377,13 @@ func messageWithEnterpriseSpecificID(t *testing.T, notificationType android.Noti
 		},
 		Data: encodedData,
 	}
+}
+
+// testAuthorizerAdapter adapts the legacy authz.Authorizer to the platform_authz.Authorizer interface for tests.
+type testAuthorizerAdapter struct {
+	authorizer *authz.Authorizer
+}
+
+func (a *testAuthorizerAdapter) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action string) error {
+	return a.authorizer.Authorize(ctx, subject, action)
 }
