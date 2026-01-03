@@ -690,6 +690,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		}
 
 		// make sure we're only upserting labels on the team we specified; individual spec teams aren't used on writes
+		if spec.TeamID != nil {
+			return fleet.NewUserMessageError(
+				ctxerr.New(
+					ctx,
+					"When applying team label specs, provide the team label by URL query string parameter rather than within the JSON request body",
+				), http.StatusUnprocessableEntity)
+		}
 		spec.TeamID = teamID
 		regularSpecs = append(regularSpecs, spec)
 	}

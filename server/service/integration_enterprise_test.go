@@ -20,6 +20,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -853,6 +854,187 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam2Spec, http.StatusForbidden)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
+	t := s.T()
+
+	// Create teams for testing team labels
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	// Create hosts on different teams
+	teamHosts := s.createHosts(t, "darwin", "darwin")
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{teamHosts[0].ID})))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{teamHosts[1].ID})))
+
+	// Create team labels using datastore directly (LabelPayload doesn't support TeamID)
+	team1Label, err := s.ds.NewLabel(context.Background(), &fleet.Label{
+		Name:                t.Name() + "_team1_label",
+		Query:               "SELECT 1",
+		TeamID:              &team1.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	team1LabelID := team1Label.ID
+
+	// Create a team2 label using datastore
+	team2Label, err := s.ds.NewLabel(context.Background(), &fleet.Label{
+		Name:                "__team2_label",
+		Query:               "SELECT 2",
+		TeamID:              &team2.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	team2LabelID := team2Label.ID
+
+	// Get the team label via API
+	var getResp getLabelResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1LabelID), nil, http.StatusOK, &getResp)
+	require.Equal(t, team1LabelID, getResp.Label.ID)
+	require.NotNil(t, getResp.Label.TeamID)
+	require.Equal(t, team1.ID, *getResp.Label.TeamID)
+
+	// List labels should include team labels for admin
+	var listResp listLabelsResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+	foundTeamLabel := false
+	foundTeam2Label := false
+	for _, lbl := range listResp.Labels {
+		if lbl.ID == team1LabelID {
+			foundTeamLabel = true
+			require.NotNil(t, lbl.TeamID)
+			require.Equal(t, team1.ID, *lbl.TeamID)
+		}
+		if lbl.ID == team2LabelID {
+			foundTeam2Label = true
+			require.NotNil(t, lbl.TeamID)
+			require.Equal(t, team2.ID, *lbl.TeamID)
+		}
+	}
+	require.True(t, foundTeamLabel, "team label should be in list")
+	require.True(t, foundTeam2Label, "team 2 label should be in list")
+
+	// Filter to specific team
+	listResp = listLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(team1.ID))
+	foundTeamLabel = false
+	for _, lbl := range listResp.Labels {
+		if lbl.ID == team1LabelID {
+			foundTeamLabel = true
+		}
+		// Should not find team2 labels when filtering to team1
+		if lbl.TeamID != nil && *lbl.TeamID == team2.ID {
+			t.Fatal("should not find team2 labels when filtering to team1")
+		}
+	}
+	require.True(t, foundTeamLabel, "team1 label should be in filtered list")
+
+	// Filter to global only (team_id=0) should not include team labels
+	listResp = listLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "team_id", "0")
+	for _, lbl := range listResp.Labels {
+		require.Nil(t, lbl.TeamID, "global-only filter should not return team labels")
+	}
+
+	// Modify team label
+	var modResp modifyLabelResponse
+	newName := t.Name() + "_team1_label_modified"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", team1LabelID), &fleet.ModifyLabelPayload{
+		Name: &newName,
+	}, http.StatusOK, &modResp)
+	require.Equal(t, newName, modResp.Label.Name)
+
+	// Delete team labels
+	var delResp deleteLabelResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team1LabelID), nil, http.StatusOK, &delResp)
+
+	// Verify it's deleted
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1LabelID), nil, http.StatusNotFound, &getResp)
+
+	// Delete team2 label by name
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", team2Label.Name), nil, http.StatusOK, &delResp)
+
+	// Verify it's deleted
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team2LabelID), nil, http.StatusNotFound, &getResp)
+
+	/////// LABEL SPECS
+
+	// Apply a team label spec
+	teamLabelName := strings.ReplaceAll(t.Name(), "/", "_") + "_team1_label"
+	var applyResp applyLabelSpecsResponse
+	// make sure we fail loudly when we spec the request wrong
+	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                teamLabelName,
+				Query:               "select 1",
+				Platform:            "darwin",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				TeamID:              &team1.ID,
+			},
+		},
+	}, http.StatusUnprocessableEntity, &applyResp)
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/spec/labels?team_id=%d", team1.ID), applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                teamLabelName,
+				Query:               "select 1",
+				Platform:            "darwin",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// List label specs should include team label for admin
+	var specsResp getLabelSpecsResponse
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp)
+	foundTeamLabel = false
+
+	for _, spec := range specsResp.Specs {
+		if spec.Name == teamLabelName {
+			foundTeamLabel = true
+			require.NotNil(t, spec.TeamID)
+			require.Equal(t, team1.ID, *spec.TeamID)
+		}
+	}
+	require.True(t, foundTeamLabel, "team label spec should be in list")
+
+	// Get the specific team label spec
+	var getSpecResp getLabelSpecResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(teamLabelName)), nil, http.StatusOK, &getSpecResp)
+	require.Equal(t, teamLabelName, getSpecResp.Spec.Name)
+	require.NotNil(t, getSpecResp.Spec.TeamID)
+	require.Equal(t, team1.ID, *getSpecResp.Spec.TeamID)
+
+	// Filter specs to specific team
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp, "team_id", fmt.Sprint(team1.ID))
+	foundTeamLabel = false
+	for _, spec := range specsResp.Specs {
+		if spec.Name == teamLabelName {
+			foundTeamLabel = true
+		}
+		// Team2 labels should not be present
+		if spec.TeamID != nil && *spec.TeamID == team2.ID {
+			t.Fatal("should not find team2 labels when filtering to team1")
+		}
+	}
+	require.True(t, foundTeamLabel, "team1 label spec should be in filtered list")
+
+	// Filter specs to global only (team_id=0)
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp, "team_id", "0")
+	for _, spec := range specsResp.Specs {
+		require.Nil(t, spec.TeamID, "global-only filter should not return team labels")
+	}
+
+	// Clean up teams
+	require.NoError(t, s.ds.DeleteTeam(context.Background(), team1.ID))
+	require.NoError(t, s.ds.DeleteTeam(context.Background(), team2.ID))
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
