@@ -217,6 +217,15 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	return c
 }
 
+// UnderlyingDatastore returns the underlying datastore wrapped by the cache.
+// This is useful when you need access to the raw datastore for specific operations.
+func UnderlyingDatastore(ds fleet.Datastore) fleet.Datastore {
+	if c, ok := ds.(*cachedMysql); ok {
+		return c.Datastore
+	}
+	return ds
+}
+
 func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	ac, err := ds.Datastore.NewAppConfig(ctx, info)
 	if err != nil {

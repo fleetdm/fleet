@@ -459,7 +459,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 
 	// Add activity routes for MySQL datastores
-	if mysqlDS, ok := ds.(*mysql.Datastore); ok {
+	// Use UnderlyingDatastore to unwrap cached_mysql wrapper if present
+	underlyingDS := cached_mysql.UnderlyingDatastore(ds)
+	if mysqlDS, ok := underlyingDS.(*mysql.Datastore); ok {
 		if len(opts) == 0 {
 			opts = []*TestServerOpts{{}}
 		}
