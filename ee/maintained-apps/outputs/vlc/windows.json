@@ -5,10 +5,10 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'VLC media player' AND publisher = 'VideoLAN';"
       },
-      "installer_url": "https://artifacts.videolan.org/vlc/release-win64/vlc-3.0.23-win64.msi",
+      "installer_url": "https://download.videolan.org/pub/videolan/vlc/3.0.23/win64/vlc-3.0.23-win64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "9e6b767e",
-      "sha256": "16f23df4b01a6df95ac25ea728b223c0b10c5715a15cb77c3ffc8b9c926cfc70",
+      "sha256": "bc4b902a480b98a4a5479327a7f210f06369a59bf727649e320faba5b4ef1f5e",
       "default_categories": [
         "Productivity"
       ],
