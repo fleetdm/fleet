@@ -70,6 +70,7 @@ export interface ISoftwareInstallPolicy {
   name: string;
 }
 
+// Match allowedCategories in cmd/maintained-apps/main.go
 export type SoftwareCategory =
   | "Browsers"
   | "Communication"
