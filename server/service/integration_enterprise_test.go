@@ -1074,7 +1074,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	})
 	require.NoError(t, err)
 
-	// Helper function to get host labels
+	// Helper function to get host label names
 	getHostLabels := func(host *fleet.Host) []string {
 		var hostResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -1096,12 +1096,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	// Cannot add team1 label to team2 host (teamHosts[1] is on team2)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[1].ID), addLabelsToHostRequest{
 		Labels: []string{teamManualLabel.Name},
-	}, http.StatusUnprocessableEntity, &addLabelsToHostResp)
+	}, http.StatusBadRequest, &addLabelsToHostResp)
 
 	// Cannot add team1 label to global host
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), addLabelsToHostRequest{
 		Labels: []string{teamManualLabel.Name},
-	}, http.StatusUnprocessableEntity, &addLabelsToHostResp)
+	}, http.StatusBadRequest, &addLabelsToHostResp)
 
 	// Team admin can add their team's label to their team's host
 	// First remove the label added by admin
