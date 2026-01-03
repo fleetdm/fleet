@@ -10576,6 +10576,8 @@ install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
 pre_install_query"SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
 post_install_script"sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX"
 software="FalconSensor-6.44.pkg"
+labels_exclude_any="Engineering"
+labels_exclude_any="QA"
 ```
 
 ##### Default response
