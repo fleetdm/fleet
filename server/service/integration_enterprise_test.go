@@ -1032,6 +1032,101 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 		require.Nil(t, spec.TeamID, "global-only filter should not return team labels")
 	}
 
+	/////// TEAM MANUAL LABELS RESTRICTIONS
+
+	ctx := context.Background()
+
+	// Create a global host for testing restrictions
+	globalHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "_global_host"),
+		NodeKey:         ptr.String(t.Name() + "_global_host"),
+		UUID:            t.Name() + "_global_host",
+		Hostname:        t.Name() + "_global_host.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Create a team admin user for team1
+	teamAdminEmail := t.Name() + "_team_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team1,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	teamAdmin, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	// Create a team label (manual) on team1
+	teamManualLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                t.Name() + "_teamManualLabel1",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		TeamID:              &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// Helper function to get host labels
+	getHostLabels := func(host *fleet.Host) []string {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		labels := make([]string, 0, len(hostResp.Host.Labels))
+		for _, lbl := range hostResp.Host.Labels {
+			labels = append(labels, lbl.Name)
+		}
+		return labels
+	}
+
+	// Admin can add team label to team host (teamHosts[0] is on team1)
+	var addLabelsToHostResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[0].ID), addLabelsToHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+	team1HostLabels := getHostLabels(teamHosts[0])
+	require.Contains(t, team1HostLabels, teamManualLabel.Name)
+
+	// Cannot add team1 label to team2 host (teamHosts[1] is on team2)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[1].ID), addLabelsToHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusUnprocessableEntity, &addLabelsToHostResp)
+
+	// Cannot add team1 label to global host
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), addLabelsToHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusUnprocessableEntity, &addLabelsToHostResp)
+
+	// Team admin can add their team's label to their team's host
+	// First remove the label added by admin
+	var removeLabelsFromHostResp removeLabelsFromHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[0].ID), removeLabelsFromHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[0].ID), addLabelsToHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+	team1HostLabels = getHostLabels(teamHosts[0])
+	require.Contains(t, team1HostLabels, teamManualLabel.Name)
+
+	// Team admin can remove their team's label from their team's host
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[0].ID), removeLabelsFromHostRequest{
+		Labels: []string{teamManualLabel.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+	team1HostLabels = getHostLabels(teamHosts[0])
+	require.NotContains(t, team1HostLabels, teamManualLabel.Name)
+
+	// Reset token to admin
+	s.token = s.getTestAdminToken()
+
 	// Clean up teams
 	require.NoError(t, s.ds.DeleteTeam(context.Background(), team1.ID))
 	require.NoError(t, s.ds.DeleteTeam(context.Background(), team2.ID))

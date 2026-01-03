@@ -13773,64 +13773,6 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	teamHost2Labels = getHostLabels(teamHost2)
 	require.Empty(t, teamHost2Labels)
 
-	// Test team labels
-	// Create a team label (manual) on team1
-	teamManualLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
-		Name:                "teamManualLabel1",
-		LabelMembershipType: fleet.LabelMembershipTypeManual,
-		TeamID:              &team1.ID,
-	})
-	require.NoError(t, err)
-
-	// Create another team for testing cross-team restrictions
-	team2, err := s.ds.NewTeam(ctx, &fleet.Team{
-		Name: "team2_manual_labels",
-	})
-	require.NoError(t, err)
-	teamHost3 := newHostFunc("teamHost3", &team2.ID)
-
-	// Admin can add team label to team host
-	s.token = s.getTestAdminToken()
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
-		Labels: []string{teamManualLabel.Name},
-	}, http.StatusOK, &addLabelsToHostResp)
-	teamHost2Labels = getHostLabels(teamHost2)
-	require.Contains(t, teamHost2Labels, teamManualLabel.Name)
-
-	// Cannot add team1 label to team2 host (host is on wrong team)
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost3.ID), addLabelsToHostRequest{
-		Labels: []string{teamManualLabel.Name},
-	}, http.StatusUnprocessableEntity, &addLabelsToHostResp)
-
-	// Cannot add team1 label to global host
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
-		Labels: []string{teamManualLabel.Name},
-	}, http.StatusUnprocessableEntity, &addLabelsToHostResp)
-
-	// Team admin can add their team's label to their team's host
-	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
-	// First remove the label added by admin
-	s.token = s.getTestAdminToken()
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), removeLabelsFromHostRequest{
-		Labels: []string{teamManualLabel.Name},
-	}, http.StatusOK, &removeLabelsFromHostResp)
-
-	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
-		Labels: []string{teamManualLabel.Name},
-	}, http.StatusOK, &addLabelsToHostResp)
-	teamHost2Labels = getHostLabels(teamHost2)
-	require.Contains(t, teamHost2Labels, teamManualLabel.Name)
-
-	// Team admin can remove their team's label from their team's host
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), removeLabelsFromHostRequest{
-		Labels: []string{teamManualLabel.Name},
-	}, http.StatusOK, &removeLabelsFromHostResp)
-	teamHost2Labels = getHostLabels(teamHost2)
-	require.NotContains(t, teamHost2Labels, teamManualLabel.Name)
-
-	// Reset token to admin
-	s.token = s.getTestAdminToken()
 }
 
 func (s *integrationTestSuite) TestDebugDB() {
