@@ -17,8 +17,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// default number of items to include per page
-const defaultPerPage = 20
+// default number of items to include per page.
+// This matches the legacy default (1000000, effectively unlimited) when per_page is not specified.
+// When page is specified without per_page, a smaller default is used in listOptionsFromRequest.
+const defaultPerPage = 1000000
 
 // AuthMiddleware is a type alias for endpoint middleware functions.
 type AuthMiddleware = func(endpoint.Endpoint) endpoint.Endpoint
@@ -154,5 +156,9 @@ func fillListOptions(opt *api.ListOptions) {
 	if opt.OrderKey == "" {
 		opt.OrderKey = "created_at"
 		opt.OrderDirection = "desc"
+	}
+	// Default PerPage if not specified (matches legacy behavior)
+	if opt.PerPage == 0 {
+		opt.PerPage = defaultPerPage
 	}
 }

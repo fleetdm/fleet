@@ -424,10 +424,6 @@ type TestServerOpts struct {
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
-	// Check if this is a MySQL datastore (for activity routes setup)
-	// We need to store the original pointer before it might be wrapped by cached_mysql
-	mysqlDS, isMySQLDS := ds.(*mysql.Datastore)
-
 	if len(opts) > 0 && opts[0].EnableCachedDS {
 		ds = cached_mysql.New(ds)
 	}
@@ -436,33 +432,6 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		cfg = *opts[0].FleetConfig
 	}
 	svc, ctx := NewTestService(t, ds, cfg, opts...)
-
-	// Add activity routes for MySQL datastores using the same database connection
-	if isMySQLDS {
-		if len(opts) == 0 {
-			opts = []*TestServerOpts{{}}
-		}
-
-		// Get the primary DB connection from the existing datastore
-		activityDB := mysql.PrimaryDBForTest(mysqlDS)
-
-		legacyAuthorizer, err := authz.NewAuthorizer()
-		require.NoError(t, err)
-		activityAuthorizer := &testAuthorizerAdapter{authorizer: legacyAuthorizer}
-		activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
-		logger := kitlog.NewLogfmtLogger(os.Stdout)
-		_, activityRoutesFn := activity_bootstrap.New(
-			activityDB,
-			activityDB, // Use same connection for primary and replica in tests
-			activityAuthorizer,
-			activityUserProvider,
-			logger,
-		)
-		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-			return auth.AuthenticatedUser(svc, next)
-		}
-		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
-	}
 
 	return RunServerForTestsWithServiceWithDS(t, ctx, ds, svc, opts...)
 }
@@ -487,6 +456,31 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	if len(opts) > 0 {
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+	}
+
+	// Add activity routes for MySQL datastores
+	if mysqlDS, ok := ds.(*mysql.Datastore); ok {
+		if len(opts) == 0 {
+			opts = []*TestServerOpts{{}}
+		}
+		// Get the primary DB connection from the existing datastore
+		activityDB := mysql.PrimaryDBForTest(mysqlDS)
+
+		legacyAuthorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		activityAuthorizer := &testAuthorizerAdapter{authorizer: legacyAuthorizer}
+		activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
+		_, activityRoutesFn := activity_bootstrap.New(
+			activityDB,
+			activityDB, // Use same connection for primary and replica in tests
+			activityAuthorizer,
+			activityUserProvider,
+			logger,
+		)
+		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, next)
+		}
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
 	}
 
 	var mdmPusher nanomdm_push.Pusher
