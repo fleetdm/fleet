@@ -3089,13 +3089,12 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 	}
 
 	type testCase struct {
-		name         string
-		labels       []labelSpec // labels to create for this test
-		notOnTeamID  *uint       // team ID being applied to
-		labelNames   []string    // names to pass to SetAsideLabels (if nil, uses labels[*].name)
-		user         *fleet.User
-		expectError  bool
-		verifyRename bool // if true, verify labels were renamed with appropriate suffix
+		name        string
+		labels      []labelSpec // labels to create for this test
+		notOnTeamID *uint       // team ID being applied to
+		labelNames  []string    // names to pass to SetAsideLabels (if nil, uses labels[*].name)
+		user        *fleet.User
+		expectError bool
 	}
 
 	cases := []testCase{
@@ -3241,7 +3240,6 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create labels for this test case
-			var createdLabels []*fleet.Label
 			var expectedLabelNames []string
 			for _, spec := range tc.labels {
 				// Build expected renamed name based on label's team ID
@@ -3253,7 +3251,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 				}
 				expectedLabelNames = append(expectedLabelNames, spec.name+expectedSuffix)
 
-				label, err := ds.NewLabel(ctx, &fleet.Label{
+				_, err := ds.NewLabel(ctx, &fleet.Label{
 					Name:                spec.name,
 					Query:               "SELECT 1",
 					TeamID:              spec.teamID,
@@ -3261,7 +3259,6 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 				})
 				require.NoError(t, err)
-				createdLabels = append(createdLabels, label)
 			}
 
 			// Determine label names to use, and which to expect
