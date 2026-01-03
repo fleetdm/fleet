@@ -248,6 +248,13 @@ func TestLabelsAuth(t *testing.T) {
 
 			_, _, err = svc.ModifyLabel(ctx, otherLabel.ID, fleet.ModifyLabelPayload{})
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			// global label listing should work if you can read global labels
+			_, err = svc.GetLabelSpecs(ctx, ptr.Uint(0))
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, ptr.Uint(0), true)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 		})
 	}
 }
