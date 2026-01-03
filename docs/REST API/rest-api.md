@@ -10540,7 +10540,7 @@ _Available in Fleet Premium._
 
 Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1) to run on Windows or Linux hosts.
 
-You need to send a request of type `multipart/form-data`. Include the software file you want to add in the request.
+You need to send a request of type `multipart/form-data`.
 
 `POST /api/v1/fleet/software/package`
 
