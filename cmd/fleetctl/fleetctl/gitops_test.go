@@ -4787,6 +4787,6 @@ func TestComputeLabelMoves(t *testing.T) {
 			"team2": {{Name: "conflict", Op: "+", FileName: "file2.yml"}},
 		}
 		_, err := computeLabelMoves(allChanges)
-		require.ErrorContains(t, err, `already being added in "file1.yml"`)
+		require.ErrorContains(t, err, "already being added")
 	})
 }

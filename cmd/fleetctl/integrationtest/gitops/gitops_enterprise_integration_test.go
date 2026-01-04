@@ -2596,8 +2596,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos
 	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
 
-	test.CreateInsertGlobalVPPToken(t, s.DS)
-
 	type tmplParams struct {
 		Name    string
 		Queries string
