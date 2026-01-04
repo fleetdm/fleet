@@ -1,4 +1,4 @@
-package itunes
+package apple_apps
 
 import (
 	"net/http"
@@ -12,20 +12,20 @@ import (
 
 func TestGetBaseURL(t *testing.T) {
 	t.Run("Default URL", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_ITUNES_URL", "")
-		require.Equal(t, "https://itunes.apple.com/lookup", getBaseURL())
+		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "")
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone,ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
 	})
 
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
-		os.Setenv("FLEET_DEV_ITUNES_URL", customURL)
+		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL)
 		require.Equal(t, customURL, getBaseURL())
 	})
 }
 
 func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 	server := httptest.NewServer(handler)
-	os.Setenv("FLEET_DEV_ITUNES_URL", server.URL)
+	os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", server.URL)
 	t.Cleanup(server.Close)
 }
 

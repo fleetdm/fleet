@@ -7,7 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 )
 
 // RefreshVersions updatest the LatestVersion fields for the VPP apps stored in Fleet.
@@ -33,7 +33,7 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore) error {
 	}
 	adamIDsToQueryITunes := slices.Collect(maps.Keys(adamIDs))
 
-	meta, err := itunes.GetAssetMetadata(adamIDsToQueryITunes, &itunes.AssetMetadataFilter{Entity: "software"})
+	meta, err := apple_apps.GetMetadata(adamIDsToQueryITunes)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting VPP app metadata from iTunes API")
 	}
