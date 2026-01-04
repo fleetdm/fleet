@@ -569,7 +569,7 @@ func gitopsCommand() *cli.Command {
 // Computes label moves and validates that there is no funny business around label changes,
 // like trying to add the same label on multiple teams or deleting the same label multiple times.
 // A label is moved when it is deleted from one team and added to another, the moves are stored in
-// a teamID -> label names map.
+// a team name -> label names map.
 func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]spec.LabelMovement, error) {
 	deleteOps := make(map[string]spec.LabelChange) // label name -> file name
 	addOps := make(map[string]spec.LabelChange)    // label name -> file name
