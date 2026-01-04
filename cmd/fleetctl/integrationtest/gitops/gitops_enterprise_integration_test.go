@@ -2569,7 +2569,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos
 	var cfgPaths []*os.File
 	var reposDir []string
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		user := s.createGitOpsUser(t)
 		users = append(users, user)
 
