@@ -2283,6 +2283,10 @@ func (svc *Service) softwareBatchUpload(
 
 				installer.Platform = p.MaintainedApp.Platform
 				installer.Source = p.MaintainedApp.Source()
+				if installer.Source == "programs" && p.MaintainedApp.UpgradeCode != "" {
+					installer.UpgradeCode = p.MaintainedApp.UpgradeCode
+				}
+
 				installer.Extension = extension
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
 				installer.StorageID = p.MaintainedApp.SHA256

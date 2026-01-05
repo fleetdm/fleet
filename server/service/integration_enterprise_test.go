@@ -18408,6 +18408,43 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	require.Equal(t, len(hSWRes.Software), 1)
 	sw0 := hSWRes.Software[0]
 	require.Equal(t, warpUpgradeCode, *sw0.UpgradeCode)
+
+	// nuke the title so we can try this with a batch upload
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM software_titles WHERE upgrade_code = ?", warpUpgradeCode)
+		return err
+	})
+
+	// Use the batch endpoint (GitOps) to add the Windows FMA
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+	}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+
+	// Verify the upgrade code was correctly set on the software installer
+	var installerUpgradeCode *string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerUpgradeCode, "SELECT upgrade_code FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+	require.NotNil(t, installerUpgradeCode)
+	require.Equal(t, warpUpgradeCode, *installerUpgradeCode)
+
+	// Also verify the software title has the upgrade code
+	var afterBatch listSoftwareTitlesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &afterBatch,
+		"per_page", "1",
+		"available_for_install", "true",
+		"team_id", "0",
+	)
+	require.Len(t, afterBatch.SoftwareTitles, 1)
+	require.Equal(t, warpUpgradeCode, *afterBatch.SoftwareTitles[0].UpgradeCode)
 }
 
 func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {
