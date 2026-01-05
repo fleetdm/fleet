@@ -487,6 +487,27 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 			host.HostIssues.CriticalVulnerabilitiesCount = &zero
 		}
 	}
+
+	if opt.PopulateDeviceStatus {
+		statusMap, err := svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch")
+		}
+
+		for _, host := range hosts {
+			if host != nil {
+				if status, ok := statusMap[host.ID]; ok {
+					host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
+					host.MDM.PendingAction = ptr.String(string(status.PendingAction()))
+				} else {
+					// Host has no MDM actions, set defaults
+					host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
+					host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
+				}
+			}
+		}
+	}
+
 	return hosts, nil
 }
 

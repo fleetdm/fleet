@@ -2105,6 +2105,14 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts[0].Labels, 2)
 	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
 	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
+
+	// With "populate_device_status" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_device_status", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *resp.Hosts[0].MDM.DeviceStatus)
+	require.Equal(t, string(fleet.PendingActionNone), *resp.Hosts[0].MDM.PendingAction)
 }
 
 func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths() {
@@ -5285,6 +5293,15 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
+	assert.Equal(t, string(hostsJson), string(labelsJson))
+
+	// Do request with populate_device_status, since it's an additional feature
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "populate_device_status", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "populate_device_status", "true")
+
+	// Converting to formatted JSON for easier diffs
+	hostsJson, _ = json.MarshalIndent(hostsResp, "", "  ")
+	labelsJson, _ = json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
 }
 
@@ -15425,4 +15442,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
+}
+
+func (s *integrationTestSuite) TestDevieStatusMappingForHostsEndpoints() {
 }
