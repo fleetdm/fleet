@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -4676,3 +4677,58 @@ software:
 		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
 	})
 }
+
+func TestAppStoreAppAutoUpdateFieldsParsing(t *testing.T) {
+    tmpfile, err := os.CreateTemp("", "gitops-appstoreapp-*.yml")
+    require.NoError(t, err)
+    defer os.Remove(tmpfile.Name())
+
+    yaml := `
+name: Test Team
+team_settings: {
+  secrets: []
+}
+agent_options: {}
+queries: []
+policies: []
+software:
+  app_store_apps:
+    - app_store_id: "1234567890"
+      platform: "ios"
+      auto_update_enabled: true
+      auto_update_start_time: "01:00"
+      auto_update_end_time: "05:00"
+      self_service: false
+      labels_include_any: []
+      labels_exclude_any: []
+      categories: []
+      setup_experience: false
+      icon:
+        path: ""
+      display_name: "Test App"
+      configuration:
+        path: ""
+`
+    _, err = tmpfile.WriteString(yaml)
+    require.NoError(t, err)
+    require.NoError(t, tmpfile.Close())
+
+		appConfig := &fleet.EnrichedAppConfig{}
+		appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+    parsed, err := spec.GitOpsFromFile(tmpfile.Name(), "", appConfig, func(string, ...interface{}) {})
+    require.NoError(t, err)
+    require.NotNil(t, parsed)
+    require.NotNil(t, parsed.Software.AppStoreApps)
+    require.Len(t, parsed.Software.AppStoreApps, 1)
+    app := parsed.Software.AppStoreApps[0]
+    require.Equal(t, "1234567890", app.AppStoreID)
+    require.Equal(t, "ios", app.Platform)
+    require.NotNil(t, app.AutoUpdateEnabled)
+    require.True(t, *app.AutoUpdateEnabled)
+    require.NotNil(t, app.AutoUpdateStartTime)
+    require.Equal(t, "01:00", *app.AutoUpdateStartTime)
+    require.NotNil(t, app.AutoUpdateEndTime)
+    require.Equal(t, "05:00", *app.AutoUpdateEndTime)
+}
+
+// TODO: add test running the acutal gitops command

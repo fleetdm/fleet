@@ -382,6 +382,52 @@ func gitopsCommand() *cli.Command {
 					teamDryRunAssumptions = assumptions
 				}
 				allPostOps = append(allPostOps, postOps...)
+
+				if config.TeamID != nil && len(config.Software.AppStoreApps) > 0 {
+					teamID := *config.TeamID
+					_, err := fleetClient.GetTeam(teamID)
+					if err != nil {
+						return fmt.Errorf("could not find team %d: %w", teamID, err)
+					}
+
+					titles, err := fleetClient.ListSoftwareTitles(fmt.Sprintf("team_id=%d", teamID))
+					if err != nil {
+						return fmt.Errorf("could not list software titles for team: %w", err)
+					}
+					softwareTitleIDsByAppStoreAppID := make(map[string]uint)
+					for _, t := range titles {
+						// Q: seems like the presence of AppStoreApp indicates that it's a VPP app. Is that correct?
+						if t.AppStoreApp != nil && t.AppStoreApp.AppStoreID != "" {
+							key := fmt.Sprintf("%s|%s", t.AppStoreApp.AppStoreID, t.AppStoreApp.Platform)
+							softwareTitleIDsByAppStoreAppID[key] = t.ID
+						}
+					}
+
+					for _, app := range config.Software.AppStoreApps {
+						if app.Platform != "ios" && app.Platform != "ipados" {
+							continue
+						}
+						if app.AppStoreID == "" {
+							continue
+						}
+						if app.AutoUpdateEnabled == nil && app.AutoUpdateStartTime == nil && app.AutoUpdateEndTime == nil {
+							continue
+						}
+						key := fmt.Sprintf("%s|%s", app.AppStoreID, app.Platform)
+						titleID, ok := softwareTitleIDsByAppStoreAppID[key]
+						if !ok {
+							continue
+						}
+						cfg := fleet.SoftwareAutoUpdateConfig{}
+						if app.AutoUpdateEnabled != nil { cfg.AutoUpdateEnabled = app.AutoUpdateEnabled }
+						if app.AutoUpdateStartTime != nil { cfg.AutoUpdateStartTime = app.AutoUpdateStartTime }
+						if app.AutoUpdateEndTime != nil { cfg.AutoUpdateEndTime = app.AutoUpdateEndTime }
+						err := fleetClient.UpdateSoftwareTitleAutoUpdateConfig(titleID, teamID, cfg)
+						if err != nil {
+							return fmt.Errorf("failed to apply auto-update config for app_store_id %s: %w", app.AppStoreID, err)
+						}
+					}
+				}
 			}
 
 			// if there were assignments to tokens, and some of the teams were missing at that time, submit a separate patch request to set them now.
