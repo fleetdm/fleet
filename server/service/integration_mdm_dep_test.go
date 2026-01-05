@@ -436,6 +436,8 @@ type DEPEnrollTestOpts struct {
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, opts DEPEnrollTestOpts) {
 	ctx := context.Background()
 
+	isMigrating := device.MDMMigrationDeadline != nil
+
 	var isIphone bool
 	if device.DeviceFamily == "iPhone" {
 		isIphone = true
@@ -612,12 +614,15 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// not expected: account configuration, since enrollment_reference not set
 		require.Len(t, cmds, 2)
 	} else {
-		// expected commands: install fleetd, install bootstrap, install CA, install profiles
-		// (custom one, fleetd configuration, FileVault) (not expected: account
-		// configuration, since enrollment_reference not set)
+		// expected commands: install fleetd, install bootstrap(if not migrating),
+		// install CA, install profiles (custom one, fleetd configuration, FileVault)
+		// (not expected: account configuration, since enrollment_reference not set)
 		expectedCommands := 6
 		if opts.ManualAgentInstall {
 			expectedCommands--
+		}
+		if isMigrating {
+			expectedCommands-- // no bootstrap package during migration
 		}
 		assert.Len(t, cmds, expectedCommands)
 	}
@@ -716,13 +721,18 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 	require.Equal(t, 4, installProfileCount)
 	expectedInstallEnterpriseCount := 2
+	if isMigrating {
+		expectedInstallEnterpriseCount-- // no bootstrap package during migration
+	}
 	if opts.ManualAgentInstall {
 		expectedInstallEnterpriseCount--
-		require.NotNil(t, lastInstallEnterpriseApplication)
-		require.NotNil(t, lastInstallEnterpriseApplication.Manifest)
-		require.GreaterOrEqual(t, len(lastInstallEnterpriseApplication.Manifest.ManifestItems), 1)
-		require.Len(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets, 1)
-		assert.Contains(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+		if expectedInstallEnterpriseCount > 0 {
+			require.NotNil(t, lastInstallEnterpriseApplication)
+			require.NotNil(t, lastInstallEnterpriseApplication.Manifest)
+			require.GreaterOrEqual(t, len(lastInstallEnterpriseApplication.Manifest.ManifestItems), 1)
+			require.Len(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets, 1)
+			assert.Contains(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+		}
 	}
 	require.Equal(t, expectedInstallEnterpriseCount, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
