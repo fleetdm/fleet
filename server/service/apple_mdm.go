@@ -3760,6 +3760,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 			if !commandsPending {
 				cmdUUID := fleet.VerifySoftwareInstallCommandUUID()
+				// TODO(mna): this call is ok as-is, as it already asks only for managed apps
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.Identifier()}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
@@ -4209,6 +4210,7 @@ func NewInstalledApplicationListResultsHandler(
 					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
 				}
 			default:
+				// TODO(mna): should get managed apps only if iDevice BYOD
 				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")

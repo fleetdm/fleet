@@ -53,6 +53,7 @@ func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error
 func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verificationCommandUUID string) error {
 	level.Debug(v.Log).Log("msg", "verifying VPP installs", "host_uuid", hostUUID, "verification_command_uuid", verificationCommandUUID)
 	newListCmdUUID := fleet.VerifySoftwareInstallCommandUUID()
+	// TODO(mna): nothing to do here as we already ask for managed apps only
 	err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "sending installed application list command in verify")

@@ -1416,6 +1416,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 	if len(installedAppsUUIDs) > 0 {
+		// TODO(mna): send ManagedAppsOnly = true if BYOD iDevice
 		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
 		if turnedOffError != nil {
