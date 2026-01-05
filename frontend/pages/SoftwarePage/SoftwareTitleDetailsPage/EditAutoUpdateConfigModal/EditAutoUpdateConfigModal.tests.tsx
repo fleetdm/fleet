@@ -6,7 +6,7 @@ import {
   createMockAppStoreApp,
 } from "__mocks__/softwareMock";
 
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
@@ -15,7 +15,9 @@ import { ILabelSummary } from "interfaces/label";
 import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
 
-import EditAutoUpdateConfigModal from "./EditAutoUpdateConfigModal";
+import EditAutoUpdateConfigModal, {
+  ISoftwareAutoUpdateConfigFormData,
+} from "./EditAutoUpdateConfigModal";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -446,7 +448,44 @@ describe("Edit Auto Update Config Modal", () => {
   });
 
   describe("Submitting the form", () => {
-    it("Sends the correct payload when 'Enable auto updates' is unchecked", async () => {});
+    const requestSpy = jest.fn();
+    const submitHandler = http.patch(
+      baseUrl("/software/titles/*/app_store_app"),
+      async ({ request }) => {
+        const requestData = (await request.json()) as ISoftwareAutoUpdateConfigFormData;
+        requestSpy(requestData);
+        return HttpResponse.json({});
+      }
+    );
+    beforeEach(() => {
+      mockServer.use(submitHandler);
+      requestSpy.mockClear();
+    });
+    it.only("Sends the correct payload when 'Enable auto updates' is unchecked", async () => {
+      render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails()}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      const saveButton = screen.getByRole("button", {
+        name: "Save",
+      });
+      expect(saveButton).toBeEnabled();
+      await act(() => {
+        saveButton.click();
+      });
+      await waitFor(() => {
+        expect(requestSpy).toHaveBeenCalledWith({
+          auto_update_enabled: false,
+          labels_include_any: [],
+          labels_exclude_any: [],
+          team_id: 1,
+        });
+      });
+    });
     it("Sends the correct payload when 'Enable auto updates' is checked and a valid window is configured", async () => {});
     it("Sends the correct payload when 'All hosts' is selected as the target", async () => {});
     it("Sends the correct payload when specific labels are selected as the target", async () => {});
