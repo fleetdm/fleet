@@ -174,14 +174,14 @@ policies:
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
-  install_software:
+  install_
     package_path: ./firefox.package.yml
 - name: [Install software] Logic Pro
   platform: darwin
   description: This policy checks that Logic Pro is installed
   resolution: Install Logic Pro App Store app if not installed
   query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
-  install_software:
+  install_
     package_path: ./linux-firefox.deb.package.yml
     # app_store_id: "1487937127" (for App Store apps)
 ```
@@ -526,6 +526,7 @@ software:
         - Browsers
       self_service: true
       setup_experience: true
+      minimum_version: "latest"
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "1091189122"
@@ -535,6 +536,7 @@ software:
       categories:
         - Communication
       setup_experience: true
+      minimum_version: "latest"
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
@@ -551,9 +553,10 @@ software:
         - Communication
         - Productivity
       setup_experience: true
+      minimum_version: "latest"
 ```
 
-#### self_service, labels, categories, and setup_experience
+#### self_service, labels, categories, setup_experience, and minimum_version
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_any` targets hosts that have **any** of the specified labels. `labels_exclude_any` targets hosts that have **none** of the specified labels. Only one of these fields can be set. If neither is set, all hosts are targeted.
@@ -565,6 +568,7 @@ software:
   - `Security`: shown as **🔐 Security**
   - `Utilities`: shown as **🛠️ Utilities**
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `minimum_version` specifies the minimum software version to be installed if patch policy is enabled. The default for the patch policy when installing software will be disabled (default: `""`). Currently, if enabled, only "latest" is supported.
 
 ### packages
 
