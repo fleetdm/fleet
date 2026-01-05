@@ -426,7 +426,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	// These operations are idempotent due to INSERT IGNORE.
 	if len(incomingSoftwareByChecksum) > 0 {
 
-		err = ds.reconcileExistingTitleEmptyUpgradeCodes(ctx, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
+		err = ds.reconcileExistingTitleEmptyWindowsUpgradeCodes(ctx, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update software titles upgrade code")
 		}
@@ -695,7 +695,6 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing titles without bundle identifier")
 		}
 		for _, titleSummary := range existingTitleSummariesForNewSoftwareWithoutBundleIdentifier {
-			// TODO - need to factor upgrade_code in here?
 			checksums, ok := uniqueTitleStrToChecksums[UniqueSoftwareTitleStr(titleSummary.Name, titleSummary.Source, titleSummary.ExtensionFor)]
 			if ok {
 				// Map all checksums that correspond to this title
@@ -747,9 +746,15 @@ func BundleIdentifierOrName(bundleIdentifier, name string) string {
 	return name
 }
 
-// UniqueSoftwareTitleStr creates a unique string representation of the software title
+// UniqueSoftwareTitleStr creates a unique string representation of the software title.
+// Returns lowercase to ensure case-insensitive matching, since MySQL uses case-insensitive
+// collation (utf8mb4_unicode_ci) but Go map lookups are case-sensitive.
 func UniqueSoftwareTitleStr(values ...string) string {
-	return strings.Join(values, fleet.SoftwareFieldSeparator)
+	lowered := make([]string, len(values))
+	for i, v := range values {
+		lowered[i] = strings.ToLower(v)
+	}
+	return strings.Join(lowered, fleet.SoftwareFieldSeparator)
 }
 
 // delete host_software that is in current map, but not in incoming map.
@@ -944,7 +949,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
-						name:         title.Name,
+						name:         strings.ToLower(title.Name), // lowercase for case-insensitive dedup matching MySQL collation
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
@@ -1009,8 +1014,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							titleBundleID = *title.BundleIdentifier
 						}
 						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
-						// For others, match by name
-						nameMatches := titleSummary.Name == title.Name
+						// For others, match by name (case-insensitive to match MySQL collation)
+						nameMatches := strings.EqualFold(titleSummary.Name, title.Name)
 						// TODO - similarly match if UpgradeCodes match?
 						if bundleID != "" && titleBundleID != "" {
 							// Both have bundle_identifier - match by bundle_identifier instead of name
@@ -1154,11 +1159,59 @@ func (ds *Datastore) linkSoftwareToHost(
 	return insertedSoftware, nil
 }
 
-func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
+func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 	ctx context.Context,
 	incomingSoftwareByChecksum map[string]fleet.Software,
 	incomingChecksumsToExistingTitleSummaries map[string]fleet.SoftwareTitleSummary,
 ) error {
+	// Step 1: Collect all non-empty upgrade_codes from incoming software that might need updating
+	// (i.e., where the matched title has empty or NULL upgrade_code)
+	upgradeCodesToCheck := make(map[string]struct{})
+	for swChecksum, sw := range incomingSoftwareByChecksum {
+		if sw.UpgradeCode == nil || *sw.UpgradeCode == "" {
+			continue
+		}
+		existingTitleSummary, ok := incomingChecksumsToExistingTitleSummaries[swChecksum]
+		if !ok {
+			continue
+		}
+		if existingTitleSummary.UpgradeCode == nil || *existingTitleSummary.UpgradeCode == "" {
+			upgradeCodesToCheck[*sw.UpgradeCode] = struct{}{}
+		}
+	}
+
+	if len(upgradeCodesToCheck) == 0 {
+		return nil
+	}
+
+	// Step 2: Query for existing titles that already have these upgrade_codes
+	// This allows us to detect conflicts and redirect mappings instead of failing with duplicate entry error
+	titlesWithUpgradeCodes := make(map[string]fleet.SoftwareTitleSummary)
+	upgradeCodes := make([]string, 0, len(upgradeCodesToCheck))
+	for uc := range upgradeCodesToCheck {
+		upgradeCodes = append(upgradeCodes, uc)
+	}
+
+	stmt, args, err := sqlx.In(`
+		SELECT id, name, source, upgrade_code
+		FROM software_titles
+		WHERE upgrade_code IN (?) AND source = 'programs'
+	`, upgradeCodes)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select titles with upgrade_codes query")
+	}
+
+	var existingTitles []fleet.SoftwareTitleSummary
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingTitles, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "get existing titles with upgrade_codes")
+	}
+
+	for _, t := range existingTitles {
+		if t.UpgradeCode != nil {
+			titlesWithUpgradeCodes[*t.UpgradeCode] = t
+		}
+	}
+
 	existingTitlesToUpgradeCodePtrsToWrite := make(map[uint]oldAndNewUpgradeCodePtrs)
 
 	for swChecksum, sw := range incomingSoftwareByChecksum {
@@ -1173,18 +1226,34 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 		}
 
 		switch {
-		case existingTitleSummary.UpgradeCode == nil:
-			level.Warn(ds.logger).Log(
-				"msg", "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
-				"title_id", existingTitleSummary.ID,
-				"title_name", existingTitleSummary.Name,
-				"source", existingTitleSummary.Source,
-				"incoming_upgrade_code", *sw.UpgradeCode,
-			)
+		case existingTitleSummary.UpgradeCode == nil || *existingTitleSummary.UpgradeCode == "":
+			// Check for conflict: does another title already have this upgrade_code?
+			if conflictingTitle, hasConflict := titlesWithUpgradeCodes[*sw.UpgradeCode]; hasConflict && conflictingTitle.ID != existingTitleSummary.ID {
+				// Redirect mapping to the title that already has this upgrade_code
+				level.Info(ds.logger).Log(
+					"msg", "redirecting software to existing title with matching upgrade_code",
+					"software_name", sw.Name,
+					"matched_title_id", existingTitleSummary.ID,
+					"matched_title_name", existingTitleSummary.Name,
+					"redirect_to_title_id", conflictingTitle.ID,
+					"redirect_to_title_name", conflictingTitle.Name,
+					"upgrade_code", *sw.UpgradeCode,
+				)
+				incomingChecksumsToExistingTitleSummaries[swChecksum] = conflictingTitle
+				continue
+			}
+			// Log warning only for NULL upgrade_code case (shouldn't happen for programs source)
+			if existingTitleSummary.UpgradeCode == nil {
+				level.Warn(ds.logger).Log(
+					"msg", "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
+					"title_id", existingTitleSummary.ID,
+					"title_name", existingTitleSummary.Name,
+					"source", existingTitleSummary.Source,
+					"incoming_upgrade_code", *sw.UpgradeCode,
+				)
+			}
 			existingTitlesToUpgradeCodePtrsToWrite[existingTitleSummary.ID] = oldAndNewUpgradeCodePtrs{old: existingTitleSummary.UpgradeCode, new: sw.UpgradeCode}
-		case *existingTitleSummary.UpgradeCode == "":
-			existingTitlesToUpgradeCodePtrsToWrite[existingTitleSummary.ID] = oldAndNewUpgradeCodePtrs{old: existingTitleSummary.UpgradeCode, new: sw.UpgradeCode}
-		case existingTitleSummary.UpgradeCode != nil && *existingTitleSummary.UpgradeCode != "" && *sw.UpgradeCode != *existingTitleSummary.UpgradeCode:
+		case *sw.UpgradeCode != *existingTitleSummary.UpgradeCode:
 			// don't update this title
 			level.Warn(ds.logger).Log(
 				"msg", "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconsistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
