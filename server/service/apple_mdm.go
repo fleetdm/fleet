@@ -3760,7 +3760,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 			if !commandsPending {
 				cmdUUID := fleet.VerifySoftwareInstallCommandUUID()
-				// TODO(mna): this call is ok as-is, as it already asks only for managed apps
+				// for app verification, we always request only managed apps
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.Identifier()}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
