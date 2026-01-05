@@ -4,8 +4,10 @@
 # This script compares the PR branch with the base branch to find:
 # 1. New apps added to apps.json
 # 2. Apps with changed manifest files
+#
+# This script always exits successfully (0) when no changes are detected.
+# It only exits with error (1) for critical failures like missing jq.
 
-# Use set -e but allow commands to fail gracefully with || true
 set -uo pipefail
 
 # Get repository root
@@ -19,11 +21,22 @@ BASE_BRANCH="${GITHUB_BASE_REF:-main}"
 # Use origin/ prefix for remote branch reference
 BASE_BRANCH_REF="origin/${BASE_BRANCH}"
 
-# Check if jq is available
+# Ensure GITHUB_OUTPUT exists
+GITHUB_OUTPUT="${GITHUB_OUTPUT:-${REPO_ROOT}/.github_output}"
+
+# Function to safely set outputs and exit
+safe_exit() {
+    local has_changes="${1:-false}"
+    local changed_apps="${2:-[]}"
+    echo "CHANGED_APPS=${changed_apps}" >> "$GITHUB_OUTPUT"
+    echo "HAS_CHANGES=${has_changes}" >> "$GITHUB_OUTPUT"
+    exit 0
+}
+
+# Check if jq is available - this is a critical failure
 if ! command -v jq &> /dev/null; then
     echo "Error: jq is required but not installed" >&2
-    echo "CHANGED_APPS=[]" >> "$GITHUB_OUTPUT"
-    echo "HAS_CHANGES=false" >> "$GITHUB_OUTPUT"
+    safe_exit "false" "[]"
     exit 1
 fi
 
@@ -112,8 +125,8 @@ if git show "${MERGE_BASE}:ee/maintained-apps/outputs/apps.json" &>/dev/null; th
 fi
 
 if [ -z "$BASE_SLUGS" ]; then
-    echo "Warning: Could not find apps.json in base branch, treating all current apps as new"
-    # If we can't get base slugs, only use manifest changes
+    echo "Warning: Could not find apps.json in base branch, only checking manifest file changes"
+    # If we can't get base slugs, only use manifest changes (don't assume all apps are new)
     NEW_SLUGS=""
 else
     # Find new slugs in apps.json
@@ -123,12 +136,10 @@ fi
 # Combine all changed slugs (from manifest changes and new apps)
 ALL_CHANGED_SLUGS=$(printf '%s\n' "$CHANGED_MANIFEST_SLUGS" "$NEW_SLUGS" | grep -v '^$' | sort -u || echo "")
 
-# Output results
+# Output results - always exit successfully
 if [ -z "$ALL_CHANGED_SLUGS" ]; then
     echo "No changed apps detected."
-    echo "CHANGED_APPS=[]" >> "$GITHUB_OUTPUT"
-    echo "HAS_CHANGES=false" >> "$GITHUB_OUTPUT"
-    exit 0
+    safe_exit "false" "[]"
 fi
 
 echo "Detected changed apps:"
@@ -141,5 +152,6 @@ CHANGED_APPS_JSON=$(echo "$ALL_CHANGED_SLUGS" | jq -R -s -c 'split("\n") | map(s
 
 echo "CHANGED_APPS=$CHANGED_APPS_JSON" >> "$GITHUB_OUTPUT"
 echo "HAS_CHANGES=true" >> "$GITHUB_OUTPUT"
+exit 0
 
 
