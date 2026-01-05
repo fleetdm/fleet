@@ -210,6 +210,9 @@ describe("Edit Auto Update Config Modal", () => {
         endTimeField = screen.getByLabelText("Latest start time");
         expect(endTimeField).toBeInTheDocument();
         expect(endTimeField).toHaveValue("12:00");
+
+        const saveButton = screen.getByRole("button", { name: "Save" });
+        expect(saveButton).toBeDisabled();
       });
 
       it("Requires end time to be HH:MM format", async () => {
@@ -250,6 +253,11 @@ describe("Edit Auto Update Config Modal", () => {
         startTimeField = screen.getByLabelText("Earliest start time");
         expect(startTimeField).toBeInTheDocument();
         expect(startTimeField).toHaveValue("12:00");
+
+        const saveButton = screen.getByRole("button", {
+          name: "Save",
+        });
+        expect(saveButton).toBeDisabled();
       });
 
       it("Requires both start and end times to be set", async () => {
@@ -296,6 +304,8 @@ describe("Edit Auto Update Config Modal", () => {
         expect(
           screen.queryByText("Latest start time is required")
         ).not.toBeInTheDocument();
+        expect(saveButton).toBeDisabled();
+
         // Clear both
         await user.clear(startTimeField);
         await user.clear(endTimeField);
@@ -308,6 +318,7 @@ describe("Edit Auto Update Config Modal", () => {
         expect(
           screen.getByLabelText("Latest start time is required")
         ).toBeInTheDocument();
+        expect(saveButton).toBeDisabled();
 
         await user.type(startTimeField, "10:00");
         await user.type(endTimeField, "12:30");
@@ -319,6 +330,7 @@ describe("Edit Auto Update Config Modal", () => {
         expect(
           screen.queryByLabelText("Latest start time is required")
         ).not.toBeInTheDocument();
+        expect(saveButton).toBeEnabled();
       });
 
       it("Requires window to be at least one hour", async () => {
@@ -353,6 +365,10 @@ describe("Edit Auto Update Config Modal", () => {
           "Update window must be at least 60 minutes long"
         );
         expect(error).toBeInTheDocument();
+        const saveButton = screen.getByRole("button", {
+          name: "Save",
+        });
+        expect(saveButton).toBeDisabled();
       });
     });
   });
@@ -377,7 +393,9 @@ describe("Edit Auto Update Config Modal", () => {
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
             app_store_app: createMockAppStoreApp({
-              labels_include_any: [{ name: "Fresh", id: 2 }],
+              labels_include_any: [
+                { name: mockLabels[1].name, id: mockLabels[1].id },
+              ],
             }),
           })}
           teamId={1}
@@ -389,10 +407,41 @@ describe("Edit Auto Update Config Modal", () => {
       expect(screen.getByLabelText("Custom")).toBeInTheDocument();
       expect(screen.getByLabelText("All hosts")).not.toBeChecked();
       expect(screen.getByLabelText("Custom")).toBeChecked();
-      expect(screen.getByLabelText("Fresh")).toBeInTheDocument();
-      expect(screen.getByLabelText("Fresh")).toBeChecked();
-      expect(screen.getByLabelText("Fun")).toBeInTheDocument();
-      expect(screen.getByLabelText("Fun")).not.toBeChecked();
+      expect(screen.getByLabelText(mockLabels[1].name)).toBeInTheDocument();
+      expect(screen.getByLabelText(mockLabels[1].name)).toBeChecked();
+      expect(screen.getByLabelText(mockLabels[0].name)).toBeInTheDocument();
+      expect(screen.getByLabelText(mockLabels[0].name)).not.toBeChecked();
+      const saveButton = screen.getByRole("button", {
+        name: "Save",
+      });
+      expect(saveButton).toBeEnabled();
+    });
+
+    it("Requires at least one label to be selected if 'Custom' is selected", async () => {
+      const { user } = render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails({
+            app_store_app: createMockAppStoreApp({
+              labels_include_any: [
+                { name: mockLabels[1].name, id: mockLabels[1].id },
+              ],
+            }),
+          })}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      const customOption = screen.getByLabelText("Custom");
+      expect(customOption).toBeChecked();
+      const labelOption = screen.getByLabelText(mockLabels[1].name);
+      expect(labelOption).toBeChecked();
+      await user.click(labelOption);
+      expect(labelOption).not.toBeChecked();
+      const saveButton = screen.getByRole("button", {
+        name: "Save",
+      });
+      expect(saveButton).toBeDisabled();
     });
   });
 
