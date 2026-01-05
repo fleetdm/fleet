@@ -149,7 +149,8 @@ func gitopsCommand() *cli.Command {
 			// Get all labels ... this is used to both populate the proposedLabelNames list and check if
 			// we reference a built-in label (which is not allowed).
 			storedLabelNames := make(map[fleet.LabelType]map[string]interface{}) // label type -> label name set
-			labels, err := fleetClient.GetLabels()
+			// TODO gitops get labels for other teams instead of global-only
+			labels, err := fleetClient.GetLabels(0)
 			if err != nil {
 				return fmt.Errorf("getting labels: %w", err)
 			}
@@ -222,6 +223,8 @@ func gitopsCommand() *cli.Command {
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
 					}
+
+					// TODO GitOps move this to have team-specific and global names
 
 					// If config.Labels is nil, it means we plan on deleting all existing labels.
 					if config.Labels == nil {

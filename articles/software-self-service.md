@@ -52,7 +52,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 
 You can also download the configuration profile (`.mobileconfig`) and change values in code editor. If you want to change the icon, use iMazing Profile Editor and follow the steps above.
 
-Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/Fleet-self-service.mobileconfig).
+Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/configuration-profiles/fleet-self-service.mobileconfig).
 ## IT admin experience
 
 How to view, update, install, or uninstall self-service software:

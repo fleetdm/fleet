@@ -8,6 +8,7 @@ describe("HQRTable component", () => {
   it("Renders results normally when they are present", () => {
     const testData: IHQRTable[] = [
       {
+        queryId: 1,
         queryName: "testQuery0",
         queryDescription: "testDescription0",
         hostName: "testHost0",
@@ -50,6 +51,7 @@ describe("HQRTable component", () => {
   it("Renders the 'collecting results' empty state when results have never been collected.", () => {
     const testData: IHQRTable[] = [
       {
+        queryId: 1,
         queryName: "testQuery0",
         queryDescription: "testDescription0",
         hostName: "testHost0",
@@ -71,6 +73,7 @@ describe("HQRTable component", () => {
   it("Renders the 'report clipped' empty state when reporting for this query has been paused and there are no existing results.", () => {
     const testData: IHQRTable[] = [
       {
+        queryId: 1,
         queryName: "testQuery0",
         queryDescription: "testDescription0",
         hostName: "testHost0",
@@ -92,6 +95,7 @@ describe("HQRTable component", () => {
   it("Renders the 'nothing to report' empty state when the query has run and there are no results.", () => {
     const testData: IHQRTable[] = [
       {
+        queryId: 1,
         queryName: "testQuery0",
         queryDescription: "testDescription0",
         hostName: "testHost0",

@@ -751,7 +751,7 @@ const EditIconModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Edit software"
+      title="Edit appearance"
       onExit={onExitEditIconModal}
     >
       <>

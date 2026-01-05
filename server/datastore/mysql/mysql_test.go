@@ -1032,7 +1032,7 @@ func Test_buildWildcardMatchPhrase(t *testing.T) {
 	}
 }
 
-func TestWhereFilterGlobalOrTeamIDByTeams(t *testing.T) {
+func TestWhereFilterTeamWithGlobalStats(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -1243,7 +1243,7 @@ func TestWhereFilterGlobalOrTeamIDByTeams(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ds := &Datastore{logger: log.NewNopLogger()}
-			sql := ds.whereFilterGlobalOrTeamIDByTeams(tt.filter, "hosts")
+			sql := ds.whereFilterTeamWithGlobalStats(tt.filter, "hosts")
 			assert.Equal(t, tt.expected, sql)
 		})
 	}
