@@ -134,9 +134,9 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 	var configByAppID map[string]json.RawMessage
-	if config != nil && config.Configuration != nil {
+	if config != nil {
 		configByAppID = map[string]json.RawMessage{
-			applicationID: config.Configuration,
+			applicationID: *config,
 		}
 	}
 

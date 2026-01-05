@@ -1010,13 +1010,6 @@
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
-      "name": "Microsoft Teams",
-      "slug": "microsoft-teams/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Teams",
-      "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
-    },
-    {
       "name": "Microsoft Word",
       "slug": "microsoft-word/darwin",
       "platform": "darwin",

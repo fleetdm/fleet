@@ -162,6 +162,9 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		) VALUES (?, ?, ?, ?)
 	`, certificateTemplate.Name, certificateTemplate.TeamID, certificateTemplate.CertificateAuthorityID, certificateTemplate.SubjectName)
 	if err != nil {
+		if IsDuplicate(err) {
+			return nil, ctxerr.Wrap(ctx, alreadyExists("CertificateTemplate", certificateTemplate.Name), "inserting certificate_template")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "inserting certificate_template")
 	}
 

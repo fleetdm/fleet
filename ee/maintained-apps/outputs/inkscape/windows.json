@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape';"
       },
-      "installer_url": "https://media.inkscape.org/dl/resources/file/inkscape-signed.msi",
+      "installer_url": "https://media.inkscape.org/dl/resources/file/inkscape-1.4.3.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "57fe5f4f",
       "sha256": "d80842f349bec6505129e48a56495c6f337884693e5a18e505dbbc5d7afc2266",
