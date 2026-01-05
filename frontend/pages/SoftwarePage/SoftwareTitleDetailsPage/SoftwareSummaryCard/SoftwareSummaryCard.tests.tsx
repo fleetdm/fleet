@@ -15,18 +15,27 @@ import SoftwareSummaryCard from "./SoftwareSummaryCard";
 
 const router = createMockRouter();
 
+// Mock the SoftwareIcon component since it makes API calls.
+// We'll just check that it's called with the correct URL.
+const mockSoftwareIcon = jest.fn();
 jest.mock("../../components/icons/SoftwareIcon", () => {
   return {
     __esModule: true,
-    default: () => {
+    default: ({ url }: { url: string }) => {
+      mockSoftwareIcon({ url });
       return <div />;
     },
   };
 });
 
 describe("Software Summary Card", () => {
+  beforeEach(() => {
+    mockSoftwareIcon.mockClear();
+  });
   it("Shows the correct basic info about a software title", async () => {
-    const softwareTitle = createMockSoftwareTitle();
+    const softwareTitle = createMockSoftwareTitle({
+      icon_url: "https://example.com/icon.png",
+    });
     defaultRender(
       <SoftwareSummaryCard
         softwareTitle={softwareTitle}
@@ -39,8 +48,12 @@ describe("Software Summary Card", () => {
     // Get the text with aria label "software display name"
     const displayNameElement = screen.getByLabelText("software display name");
     expect(displayNameElement).toHaveTextContent(softwareTitle.name);
-    // Check for type "Applicaiton (macOS)"
+    // Check for type "Application (macOS)"
     expect(screen.getByText("Application (macOS)")).toBeInTheDocument();
+    // Check that the icon component is called with the correct URL.
+    expect(mockSoftwareIcon).toHaveBeenCalledWith({
+      url: "https://example.com/icon.png",
+    });
   });
 
   describe("Actions dropdown", () => {
