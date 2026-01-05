@@ -1052,6 +1052,13 @@
       "description": "NordVPN is a VPN client for secure internet access and private browsing."
     },
     {
+      "name": "Notepad++",
+      "slug": "notepad++/windows",
+      "platform": "windows",
+      "unique_identifier": "Notepad++",
+      "description": "Notepad++ is a text editor for Windows."
+    },
+    {
       "name": "Notion Calendar",
       "slug": "notion-calendar/darwin",
       "platform": "darwin",
