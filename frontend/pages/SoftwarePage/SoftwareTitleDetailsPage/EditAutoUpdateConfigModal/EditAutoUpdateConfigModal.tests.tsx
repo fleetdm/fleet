@@ -308,15 +308,94 @@ describe("Edit Auto Update Config Modal", () => {
         expect(
           screen.getByLabelText("Latest start time is required")
         ).toBeInTheDocument();
+
+        await user.type(startTimeField, "10:00");
+        await user.type(endTimeField, "12:30");
+        await user.click(endTimeField);
+        // Verify that no validation messages are shown
+        expect(
+          screen.queryByLabelText("Earliest start time is required")
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByLabelText("Latest start time is required")
+        ).not.toBeInTheDocument();
       });
 
-      it("Requires window to be at least one hour", async () => {});
+      it("Requires window to be at least one hour", async () => {
+        const { user } = render(
+          <EditAutoUpdateConfigModal
+            softwareTitle={createMockSoftwareTitleDetails()}
+            teamId={1}
+            refetchSoftwareTitle={jest.fn()}
+            onExit={jest.fn()}
+          />
+        );
+        // Verify that "Enable auto updates" checkbox is not checked.
+        const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
+          name: "Enable auto updates",
+        });
+        expect(enableAutoUpdatesCheckbox).not.toBeChecked();
+        // Click the checkbox to enable auto updates.
+        await user.click(enableAutoUpdatesCheckbox);
+        await waitFor(() => {
+          expect(enableAutoUpdatesCheckbox).toBeChecked();
+        });
+        const startTimeField = screen.getByLabelText("Earliest start time");
+        const endTimeField = screen.getByLabelText("Latest start time");
+        expect(startTimeField).toBeInTheDocument();
+        expect(endTimeField).toBeInTheDocument();
+        await user.type(startTimeField, "12:00");
+        await user.click(endTimeField);
+        await user.type(endTimeField, "12:59");
+        await user.click(startTimeField);
+        // Verify that validation message is shown
+        const error = screen.getByText(
+          "Update window must be at least 60 minutes long"
+        );
+        expect(error).toBeInTheDocument();
+      });
     });
   });
+
   describe("Target options", () => {
-    it("Shows 'All hosts' if no labels are configured for the title", async () => {});
-    it("Shows label options if labels are configured for the title", async () => {});
+    it("Shows 'All hosts' if no labels are configured for the title", async () => {
+      render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails()}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+      expect(screen.getByLabelText("All hosts")).toBeChecked();
+      expect(screen.getByLabelText("Custom")).not.toBeChecked();
+    });
+    it("Shows label options if labels are configured for the title", async () => {
+      render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails({
+            app_store_app: createMockAppStoreApp({
+              labels_include_any: [{ name: "Fresh", id: 2 }],
+            }),
+          })}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+      expect(screen.getByLabelText("All hosts")).not.toBeChecked();
+      expect(screen.getByLabelText("Custom")).toBeChecked();
+      expect(screen.getByLabelText("Fresh")).toBeInTheDocument();
+      expect(screen.getByLabelText("Fresh")).toBeChecked();
+      expect(screen.getByLabelText("Fun")).toBeInTheDocument();
+      expect(screen.getByLabelText("Fun")).not.toBeChecked();
+    });
   });
+
   describe("Submitting the form", () => {
     it("Sends the correct payload when 'Enable auto updates' is unchecked", async () => {});
     it("Sends the correct payload when 'Enable auto updates' is checked and a valid window is configured", async () => {});
