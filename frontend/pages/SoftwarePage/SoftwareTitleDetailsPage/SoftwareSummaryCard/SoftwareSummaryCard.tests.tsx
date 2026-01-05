@@ -57,8 +57,6 @@ describe("Software Summary Card", () => {
   });
 
   describe("Actions dropdown", () => {
-    let user: UserEvent;
-
     const render = createCustomRenderer({
       context: {
         app: {
@@ -74,11 +72,8 @@ describe("Software Summary Card", () => {
       },
     });
 
-    /**
-     * Shared helper function to open the actions dropdown and retrieve all visible options
-     * @returns Array of action option text labels
-     */
-    const getDropdownOptions = async (): Promise<string[]> => {
+    // Shared helper function to open the actions dropdown and retrieve all visible options.
+    const getDropdownOptions = async (user: UserEvent): Promise<string[]> => {
       const actionsButton = screen.getByText("Actions");
       expect(actionsButton).toBeInTheDocument();
 
@@ -90,7 +85,7 @@ describe("Software Summary Card", () => {
     };
 
     it("displays Edit appearance and Edit software options for standard software packages", async () => {
-      const result = render(
+      const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             software_package: createMockSoftwarePackage(),
@@ -103,8 +98,7 @@ describe("Software Summary Card", () => {
         />
       );
 
-      user = result.user;
-      const options = await getDropdownOptions();
+      const options = await getDropdownOptions(user);
 
       expect(options).toContain("Edit appearance");
       expect(options).toContain("Edit software");
@@ -113,7 +107,7 @@ describe("Software Summary Card", () => {
     });
 
     it("displays Edit appearance, Edit software, and Schedule auto updates for iOS/iPadOS apps", async () => {
-      const result = render(
+      const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "ios_apps",
@@ -127,9 +121,7 @@ describe("Software Summary Card", () => {
         />
       );
 
-      user = result.user;
-
-      const options = await getDropdownOptions();
+      const options = await getDropdownOptions(user);
 
       expect(options).toContain("Edit appearance");
       expect(options).toContain("Edit software");
@@ -138,7 +130,7 @@ describe("Software Summary Card", () => {
     });
 
     it("displays Edit appearance and Edit configuration (but not Edit software) for Android apps", async () => {
-      const result = render(
+      const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "android_apps",
@@ -153,9 +145,7 @@ describe("Software Summary Card", () => {
         />
       );
 
-      user = result.user;
-
-      const options = await getDropdownOptions();
+      const options = await getDropdownOptions(user);
 
       expect(options).toContain("Edit appearance");
       expect(options).toContain("Edit configuration");
