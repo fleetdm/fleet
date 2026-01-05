@@ -1418,6 +1418,25 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
 			})
 		}
+
+		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refetch host: get host mdm")
+		}
+
+		hostLoc, err := svc.ds.GetHostLocationData(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
+		}
+
+		if hostMDM.EnrollmentStatus() == "On (automatic)" && hostLoc != nil {
+			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
+			}
+
+		}
+
 		// Add commands to the database to track the commands sent
 		err = svc.ds.AddHostMDMCommands(ctx, hostMDMCommands)
 		if err != nil {
