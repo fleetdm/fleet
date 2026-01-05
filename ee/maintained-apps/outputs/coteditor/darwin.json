@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.2.0",
+      "version": "6.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor';"
       },
-      "installer_url": "https://github.com/coteditor/CotEditor/releases/download/6.2.0/CotEditor_6.2.0.dmg",
+      "installer_url": "https://github.com/coteditor/CotEditor/releases/download/6.2.1/CotEditor_6.2.1.dmg",
       "install_script_ref": "949948f8",
       "uninstall_script_ref": "940847e4",
-      "sha256": "c6d166734864ae07b1a6e476686206d2eee1077ac3774f99e97a1e27af54bde6",
+      "sha256": "a5648737c08c5d80cd898a505b2cc1c357980f24b853c361c0e4d9d0ee98606d",
       "default_categories": [
         "Developer tools"
       ]

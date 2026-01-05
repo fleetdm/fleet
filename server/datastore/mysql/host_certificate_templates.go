@@ -109,6 +109,36 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 	return &result, nil
 }
 
+// GetHostCertificateTemplateRecord returns the host_certificate_templates record directly without
+// requiring the parent certificate_template to exist. Used for status updates on orphaned records.
+func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error) {
+	const stmt = `
+		SELECT
+			id,
+			name,
+			host_uuid,
+			certificate_template_id,
+			fleet_challenge,
+			status,
+			operation_type,
+			detail,
+			created_at,
+			updated_at
+		FROM host_certificate_templates
+		WHERE host_uuid = ? AND certificate_template_id = ?
+	`
+
+	var result fleet.HostCertificateTemplate
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, hostUUID, certificateTemplateID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostCertificateTemplate"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host certificate template record")
+	}
+
+	return &result, nil
+}
+
 // BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records
 func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
 	if len(hostCertTemplates) == 0 {
@@ -171,6 +201,18 @@ func (ds *Datastore) DeleteHostCertificateTemplates(ctx context.Context, hostCer
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host_certificate_templates")
+	}
+
+	return nil
+}
+
+// DeleteHostCertificateTemplate deletes a single host_certificate_template record
+// identified by host_uuid and certificate_template_id.
+func (ds *Datastore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error {
+	const stmt = `DELETE FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, certificateTemplateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_certificate_template")
 	}
 
 	return nil
@@ -426,4 +468,35 @@ func (ds *Datastore) RevertStaleCertificateTemplates(
 		return 0, ctxerr.Wrap(ctx, err, "revert stale certificate templates")
 	}
 	return result.RowsAffected()
+}
+
+// SetHostCertificateTemplatesToPendingRemove prepares certificate templates for removal.
+// For a given certificate template ID, it deletes any rows with status=pending and
+// updates all other rows to status=pending, operation_type=remove.
+func (ds *Datastore) SetHostCertificateTemplatesToPendingRemove(
+	ctx context.Context,
+	certificateTemplateID uint,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete rows with status=pending
+		deleteStmt := fmt.Sprintf(`
+			DELETE FROM host_certificate_templates
+			WHERE certificate_template_id = ? AND status = '%s'
+		`, fleet.CertificateTemplatePending)
+		if _, err := tx.ExecContext(ctx, deleteStmt, certificateTemplateID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending host certificate templates")
+		}
+
+		// Update all remaining rows to status=pending, operation_type=remove
+		updateStmt := fmt.Sprintf(`
+			UPDATE host_certificate_templates
+			SET status = '%s', operation_type = '%s'
+			WHERE certificate_template_id = ?
+		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove)
+		if _, err := tx.ExecContext(ctx, updateStmt, certificateTemplateID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host certificate templates to pending remove")
+		}
+
+		return nil
+	})
 }

@@ -10,11 +10,6 @@ When creating software, handoffs between teams or contributors are one of the mo
 For a high-level view of where each category and stage stands today, see the [🧭 Product maturity assessment](https://fleetdm.com/handbook/company/product-maturity-assessment).
 
 
-## Product roadmap
-
-Fleet team members can read [Fleet's high-level product goals for the current quarter](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing) (confidential Google Sheet).
-
-
 ## What are product groups?
 
 Fleet organizes product development efforts into separate, cross-functional product groups that include product designers, developers, and quality engineers.  These product groups are organized by business goal, and designed to operate in parallel.
@@ -362,7 +357,7 @@ Anyone in the product group can initiate an air guitar session.
 
 #### T-shirt sizing (capacity planning)
 
-T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. Sometimes, T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting.
+T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting. That way, we can [plan releases](https://github.com/orgs/fleetdm/projects/87) weeks in advance.
 
 [Estimation points](https://fleetdm.com/handbook/company/communications#estimation-points) are used if a task has already gone through drafting.
 
@@ -596,7 +591,7 @@ Then, it's the product group Product Designer's responsibility to decide if it's
 
 When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Production Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
-If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "New requests" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
+If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "📨 Inbox" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
 
 For bugs that may require fixes from a partner (e.g. osquery, Apple, Microsoft, etc.), a Fleet issue is always filed. For Apple and Microsoft bugs, the Product Designer should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
 
@@ -903,7 +898,7 @@ On the order form, customer promises are represented as [customer request](https
 - Review each proposed customer promise on the order form.
 - For each customer request, create user stories and [T-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) them.
   - If necessary, the EM takes up to 1 business day to gather information necessary to T-shirt size.
-- Review the [release planning roadmap](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
+- Review the [release planning project](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
 - Decide which Fleet release can be targeted for each customer promise.
 - Update the order form to reflect targeted date of each release.
 
@@ -934,8 +929,7 @@ Start off cross-platform for every option, setting, and feature. If we **prove**
 
 Fleet product groups employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
 
-New tickets are estimated, specified, and prioritized on the roadmap:
-- [Roadmap](https://github.com/orgs/fleetdm/projects/67/views/4)
+New tickets are estimated, specified, and prioritized on the [drafting board](https://github.com/orgs/fleetdm/projects/67).
 
 
 ### Scrum items

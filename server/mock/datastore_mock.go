@@ -139,29 +139,33 @@ type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) err
 
 type ApplyLabelSpecsWithAuthorFunc func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error
 
-type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
+type SetAsideLabelsFunc func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error
 
-type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
+type GetLabelSpecsFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error)
+
+type GetLabelSpecFunc func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error)
 
 type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
-type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
+type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type UpdateLabelMembershipByHostCriteriaFunc func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error)
 
 type NewLabelFunc func(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
-type DeleteLabelFunc func(ctx context.Context, name string) error
+type DeleteLabelFunc func(ctx context.Context, name string, filter fleet.TeamFilter) error
 
-type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
+type LabelByNameFunc func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error)
 
-type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
+type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
-type LabelsSummaryFunc func(ctx context.Context) ([]*fleet.LabelSummary, error)
+type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error)
+
+type LabelsSummaryFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error)
 
 type GetEnrollmentIDsWithPendingMDMAppleCommandsFunc func(ctx context.Context) ([]string, error)
 
@@ -171,13 +175,11 @@ type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, 
 
 type ListHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type ListUniqueHostsInLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error)
-
 type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
-type LabelIDsByNameFunc func(ctx context.Context, labels []string) (map[string]uint, error)
+type LabelIDsByNameFunc func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error)
 
-type LabelsByNameFunc func(ctx context.Context, names []string) (map[string]*fleet.Label, error)
+type LabelsByNameFunc func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error)
 
 type AsyncBatchInsertLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
 
@@ -452,6 +454,10 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
+
+type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error
+
+type ListSoftwareAutoUpdateSchedulesFunc func(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error)
 
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
 
@@ -980,6 +986,8 @@ type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string
 type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error)
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
+
+type RecordSkippedHostBootstrapPackageFunc func(ctx context.Context, hostUUID string) error
 
 type GetHostBootstrapPackageCommandFunc func(ctx context.Context, hostUUID string) (string, error)
 
@@ -1553,21 +1561,17 @@ type ListAndroidEnrolledDevicesForReconcileFunc func(ctx context.Context) ([]*an
 
 type InsertAndroidSetupExperienceSoftwareInstallFunc func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error
 
-type GetAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error)
+type GetAndroidAppConfigurationFunc func(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
 
-type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error)
+type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
 
-type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
+type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
 
 type SetAndroidAppInstallPendingApplyConfigFunc func(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error
 
-type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
+type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
 
-type InsertAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
-
-type UpdateAndroidAppConfigurationFunc func(ctx context.Context, config *fleet.AndroidAppConfiguration) error
-
-type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, globalOrTeamID uint) error
+type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, teamID uint) error
 
 type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
@@ -1681,9 +1685,13 @@ type ListCertificateTemplatesForHostsFunc func(ctx context.Context, hostUUIDs []
 
 type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error)
 
+type GetHostCertificateTemplateRecordFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error)
+
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
+
+type DeleteHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) error
 
 type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
 
@@ -1692,6 +1700,8 @@ type GetAndTransitionCertificateTemplatesToDeliveringFunc func(ctx context.Conte
 type TransitionCertificateTemplatesToDeliveredFunc func(ctx context.Context, hostUUID string, challenges map[uint]string) error
 
 type RevertHostCertificateTemplatesToPendingFunc func(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
+
+type SetHostCertificateTemplatesToPendingRemoveFunc func(ctx context.Context, certificateTemplateID uint) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -1876,6 +1886,9 @@ type DataStore struct {
 	ApplyLabelSpecsWithAuthorFunc        ApplyLabelSpecsWithAuthorFunc
 	ApplyLabelSpecsWithAuthorFuncInvoked bool
 
+	SetAsideLabelsFunc        SetAsideLabelsFunc
+	SetAsideLabelsFuncInvoked bool
+
 	GetLabelSpecsFunc        GetLabelSpecsFunc
 	GetLabelSpecsFuncInvoked bool
 
@@ -1903,6 +1916,9 @@ type DataStore struct {
 	DeleteLabelFunc        DeleteLabelFunc
 	DeleteLabelFuncInvoked bool
 
+	LabelByNameFunc        LabelByNameFunc
+	LabelByNameFuncInvoked bool
+
 	LabelFunc        LabelFunc
 	LabelFuncInvoked bool
 
@@ -1923,9 +1939,6 @@ type DataStore struct {
 
 	ListHostsInLabelFunc        ListHostsInLabelFunc
 	ListHostsInLabelFuncInvoked bool
-
-	ListUniqueHostsInLabelsFunc        ListUniqueHostsInLabelsFunc
-	ListUniqueHostsInLabelsFuncInvoked bool
 
 	SearchLabelsFunc        SearchLabelsFunc
 	SearchLabelsFuncInvoked bool
@@ -2346,6 +2359,12 @@ type DataStore struct {
 
 	UpdateSoftwareTitleNameFunc        UpdateSoftwareTitleNameFunc
 	UpdateSoftwareTitleNameFuncInvoked bool
+
+	UpdateSoftwareTitleAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
+	UpdateSoftwareTitleAutoUpdateConfigFuncInvoked bool
+
+	ListSoftwareAutoUpdateSchedulesFunc        ListSoftwareAutoUpdateSchedulesFunc
+	ListSoftwareAutoUpdateSchedulesFuncInvoked bool
 
 	InsertSoftwareInstallRequestFunc        InsertSoftwareInstallRequestFunc
 	InsertSoftwareInstallRequestFuncInvoked bool
@@ -3138,6 +3157,9 @@ type DataStore struct {
 
 	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
 	RecordHostBootstrapPackageFuncInvoked bool
+
+	RecordSkippedHostBootstrapPackageFunc        RecordSkippedHostBootstrapPackageFunc
+	RecordSkippedHostBootstrapPackageFuncInvoked bool
 
 	GetHostBootstrapPackageCommandFunc        GetHostBootstrapPackageCommandFunc
 	GetHostBootstrapPackageCommandFuncInvoked bool
@@ -4012,12 +4034,6 @@ type DataStore struct {
 	BulkGetAndroidAppConfigurationsFunc        BulkGetAndroidAppConfigurationsFunc
 	BulkGetAndroidAppConfigurationsFuncInvoked bool
 
-	InsertAndroidAppConfigurationFunc        InsertAndroidAppConfigurationFunc
-	InsertAndroidAppConfigurationFuncInvoked bool
-
-	UpdateAndroidAppConfigurationFunc        UpdateAndroidAppConfigurationFunc
-	UpdateAndroidAppConfigurationFuncInvoked bool
-
 	DeleteAndroidAppConfigurationFunc        DeleteAndroidAppConfigurationFunc
 	DeleteAndroidAppConfigurationFuncInvoked bool
 
@@ -4189,11 +4205,17 @@ type DataStore struct {
 	GetCertificateTemplateForHostFunc        GetCertificateTemplateForHostFunc
 	GetCertificateTemplateForHostFuncInvoked bool
 
+	GetHostCertificateTemplateRecordFunc        GetHostCertificateTemplateRecordFunc
+	GetHostCertificateTemplateRecordFuncInvoked bool
+
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
 	BulkInsertHostCertificateTemplatesFuncInvoked bool
 
 	DeleteHostCertificateTemplatesFunc        DeleteHostCertificateTemplatesFunc
 	DeleteHostCertificateTemplatesFuncInvoked bool
+
+	DeleteHostCertificateTemplateFunc        DeleteHostCertificateTemplateFunc
+	DeleteHostCertificateTemplateFuncInvoked bool
 
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc        ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked bool
@@ -4206,6 +4228,9 @@ type DataStore struct {
 
 	RevertHostCertificateTemplatesToPendingFunc        RevertHostCertificateTemplatesToPendingFunc
 	RevertHostCertificateTemplatesToPendingFuncInvoked bool
+
+	SetHostCertificateTemplatesToPendingRemoveFunc        SetHostCertificateTemplatesToPendingRemoveFunc
+	SetHostCertificateTemplatesToPendingRemoveFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -4628,18 +4653,25 @@ func (s *DataStore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*flee
 	return s.ApplyLabelSpecsWithAuthorFunc(ctx, specs, authorId)
 }
 
-func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
+func (s *DataStore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	s.mu.Lock()
+	s.SetAsideLabelsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAsideLabelsFunc(ctx, notOnTeamID, names, user)
+}
+
+func (s *DataStore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecsFunc(ctx)
+	return s.GetLabelSpecsFunc(ctx, filter)
 }
 
-func (s *DataStore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+func (s *DataStore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecFunc(ctx, name)
+	return s.GetLabelSpecFunc(ctx, filter, name)
 }
 
 func (s *DataStore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
@@ -4656,11 +4688,11 @@ func (s *DataStore) RemoveLabelsFromHost(ctx context.Context, hostID uint, label
 	return s.RemoveLabelsFromHostFunc(ctx, hostID, labelIDs)
 }
 
-func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIds, teamFilter)
+	return s.UpdateLabelMembershipByHostIDsFunc(ctx, label, hostIds, teamFilter)
 }
 
 func (s *DataStore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
@@ -4677,39 +4709,46 @@ func (s *DataStore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 	return s.NewLabelFunc(ctx, label, opts...)
 }
 
-func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	s.mu.Lock()
 	s.SaveLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveLabelFunc(ctx, label, teamFilter)
 }
 
-func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
+func (s *DataStore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
 	s.mu.Lock()
 	s.DeleteLabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteLabelFunc(ctx, name)
+	return s.DeleteLabelFunc(ctx, name, filter)
 }
 
-func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+func (s *DataStore) LabelByName(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+	s.mu.Lock()
+	s.LabelByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.LabelByNameFunc(ctx, name, filter)
+}
+
+func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	s.mu.Lock()
 	s.LabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.LabelFunc(ctx, lid, teamFilter)
 }
 
-func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 	s.mu.Lock()
 	s.ListLabelsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListLabelsFunc(ctx, filter, opt)
+	return s.ListLabelsFunc(ctx, filter, opt, includeHostCounts)
 }
 
-func (s *DataStore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
+func (s *DataStore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
 	s.mu.Lock()
 	s.LabelsSummaryFuncInvoked = true
 	s.mu.Unlock()
-	return s.LabelsSummaryFunc(ctx)
+	return s.LabelsSummaryFunc(ctx, filter)
 }
 
 func (s *DataStore) GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error) {
@@ -4740,13 +4779,6 @@ func (s *DataStore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilte
 	return s.ListHostsInLabelFunc(ctx, filter, lid, opt)
 }
 
-func (s *DataStore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
-	s.mu.Lock()
-	s.ListUniqueHostsInLabelsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListUniqueHostsInLabelsFunc(ctx, filter, labels)
-}
-
 func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	s.mu.Lock()
 	s.SearchLabelsFuncInvoked = true
@@ -4754,18 +4786,18 @@ func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, q
 	return s.SearchLabelsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error) {
+func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error) {
 	s.mu.Lock()
 	s.LabelIDsByNameFuncInvoked = true
 	s.mu.Unlock()
-	return s.LabelIDsByNameFunc(ctx, labels)
+	return s.LabelIDsByNameFunc(ctx, labels, filter)
 }
 
-func (s *DataStore) LabelsByName(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+func (s *DataStore) LabelsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 	s.mu.Lock()
 	s.LabelsByNameFuncInvoked = true
 	s.mu.Unlock()
-	return s.LabelsByNameFunc(ctx, names)
+	return s.LabelsByNameFunc(ctx, names, filter)
 }
 
 func (s *DataStore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
@@ -5725,6 +5757,20 @@ func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name s
 	s.UpdateSoftwareTitleNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateSoftwareTitleNameFunc(ctx, id, name)
+}
+
+func (s *DataStore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
+	s.mu.Lock()
+	s.UpdateSoftwareTitleAutoUpdateConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
+}
+
+func (s *DataStore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+	s.mu.Lock()
+	s.ListSoftwareAutoUpdateSchedulesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareAutoUpdateSchedulesFunc(ctx, teamID, optionalFilter...)
 }
 
 func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -7573,6 +7619,13 @@ func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID 
 	s.RecordHostBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
 	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) RecordSkippedHostBootstrapPackage(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.RecordSkippedHostBootstrapPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordSkippedHostBootstrapPackageFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error) {
@@ -9577,25 +9630,25 @@ func (s *DataStore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Cont
 	return s.InsertAndroidSetupExperienceSoftwareInstallFunc(ctx, payload)
 }
 
-func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
 	s.mu.Lock()
 	s.GetAndroidAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAndroidAppConfigurationFunc(ctx, adamID, globalOrTeamID)
+	return s.GetAndroidAppConfigurationFunc(ctx, applicationID, teamID)
 }
 
-func (s *DataStore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*fleet.AndroidAppConfiguration, error) {
+func (s *DataStore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
 	s.mu.Lock()
 	s.GetAndroidAppConfigurationByAppTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidAppConfigurationByAppTeamIDFunc(ctx, vppAppTeamID)
 }
 
-func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error) {
+func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error) {
 	s.mu.Lock()
 	s.HasAndroidAppConfigurationChangedFuncInvoked = true
 	s.mu.Unlock()
-	return s.HasAndroidAppConfigurationChangedFunc(ctx, applicationID, globalOrTeamID, newConfig)
+	return s.HasAndroidAppConfigurationChangedFunc(ctx, applicationID, teamID, newConfig)
 }
 
 func (s *DataStore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error {
@@ -9605,32 +9658,18 @@ func (s *DataStore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, 
 	return s.SetAndroidAppInstallPendingApplyConfigFunc(ctx, hostUUID, applicationID, policyVersion)
 }
 
-func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
+func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error) {
 	s.mu.Lock()
 	s.BulkGetAndroidAppConfigurationsFuncInvoked = true
 	s.mu.Unlock()
-	return s.BulkGetAndroidAppConfigurationsFunc(ctx, appIDs, globalOrTeamID)
+	return s.BulkGetAndroidAppConfigurationsFunc(ctx, appIDs, teamID)
 }
 
-func (s *DataStore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	s.mu.Lock()
-	s.InsertAndroidAppConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertAndroidAppConfigurationFunc(ctx, config)
-}
-
-func (s *DataStore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	s.mu.Lock()
-	s.UpdateAndroidAppConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateAndroidAppConfigurationFunc(ctx, config)
-}
-
-func (s *DataStore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error {
+func (s *DataStore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error {
 	s.mu.Lock()
 	s.DeleteAndroidAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteAndroidAppConfigurationFunc(ctx, adamID, globalOrTeamID)
+	return s.DeleteAndroidAppConfigurationFunc(ctx, adamID, teamID)
 }
 
 func (s *DataStore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
@@ -10025,6 +10064,13 @@ func (s *DataStore) GetCertificateTemplateForHost(ctx context.Context, hostUUID 
 	return s.GetCertificateTemplateForHostFunc(ctx, hostUUID, certificateTemplateID)
 }
 
+func (s *DataStore) GetHostCertificateTemplateRecord(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error) {
+	s.mu.Lock()
+	s.GetHostCertificateTemplateRecordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCertificateTemplateRecordFunc(ctx, hostUUID, certificateTemplateID)
+}
+
 func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
 	s.mu.Lock()
 	s.BulkInsertHostCertificateTemplatesFuncInvoked = true
@@ -10037,6 +10083,13 @@ func (s *DataStore) DeleteHostCertificateTemplates(ctx context.Context, hostCert
 	s.DeleteHostCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostCertificateTemplatesFunc(ctx, hostCertTemplates)
+}
+
+func (s *DataStore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error {
+	s.mu.Lock()
+	s.DeleteHostCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID)
 }
 
 func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
@@ -10065,6 +10118,13 @@ func (s *DataStore) RevertHostCertificateTemplatesToPending(ctx context.Context,
 	s.RevertHostCertificateTemplatesToPendingFuncInvoked = true
 	s.mu.Unlock()
 	return s.RevertHostCertificateTemplatesToPendingFunc(ctx, hostUUID, certificateTemplateIDs)
+}
+
+func (s *DataStore) SetHostCertificateTemplatesToPendingRemove(ctx context.Context, certificateTemplateID uint) error {
+	s.mu.Lock()
+	s.SetHostCertificateTemplatesToPendingRemoveFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostCertificateTemplatesToPendingRemoveFunc(ctx, certificateTemplateID)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

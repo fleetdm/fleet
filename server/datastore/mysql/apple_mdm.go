@@ -4129,13 +4129,15 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
               COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
-              COUNT(IF(ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
+              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
           FROM
               hosts h
           LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON
               hmabp.host_uuid = h.uuid
           LEFT JOIN nano_command_results ncr ON
               ncr.command_uuid  = hmabp.command_uuid
+		  LEFT JOIN host_dep_assignments hda ON
+		      hda.host_id = h.id
           JOIN host_mdm hm ON
               hm.host_id = h.id
           WHERE
@@ -4148,16 +4150,23 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
 	return &bp, nil
 }
 
+func (ds *Datastore) RecordSkippedHostBootstrapPackage(ctx context.Context, hostUUID string) error {
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (host_uuid, command_uuid, skipped) VALUES (?, NULL, 1)
+        ON DUPLICATE KEY UPDATE skipped = 1, command_uuid = NULL`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	return ctxerr.Wrap(ctx, err, "record skipped bootstrap package")
+}
+
 func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
-	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?)
-        ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid, skipped) VALUES (?, ?, 0)
+        ON DUPLICATE KEY UPDATE command_uuid = command_uuid, skipped = 0`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, commandUUID, hostUUID)
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
 }
 
 func (ds *Datastore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error) {
 	var cmdUUID string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmdUUID, `SELECT command_uuid FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmdUUID, `SELECT command_uuid FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ? AND skipped=0`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ctxerr.Wrap(ctx, notFound("HostMDMBootstrapPackage").WithName(hostUUID))
@@ -4194,7 +4203,7 @@ JOIN host_mdm hm ON
 JOIN mdm_apple_bootstrap_packages mabs ON
 		COALESCE(h.team_id, 0) = mabs.team_id
 WHERE
-    h.id = ? AND hm.installed_from_dep = 1`
+    h.id = ? AND hm.installed_from_dep = 1 AND hmabp.skipped = 0`
 
 	args := []interface{}{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
 

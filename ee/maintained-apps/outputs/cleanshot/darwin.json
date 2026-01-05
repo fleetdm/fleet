@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.8.6",
+      "version": "4.8.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app';"
       },
-      "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-4.8.6.dmg",
+      "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-4.8.7.dmg",
       "install_script_ref": "97a089b9",
       "uninstall_script_ref": "010750cf",
-      "sha256": "e971326cd8241a29d011baf2de33d0f41fed3d92cb97b5554f7209283f174aa9",
+      "sha256": "f2c58b691777e6acb1ba766e57195892634c1c3bbf79048a3d94cc4d5d8402ba",
       "default_categories": [
         "Productivity"
       ]

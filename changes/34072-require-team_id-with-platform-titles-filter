@@ -1,1 +1,0 @@
-- Improved request validation by returning an informative error when trying to filter `software_titles` with `platform` without a `team_id`

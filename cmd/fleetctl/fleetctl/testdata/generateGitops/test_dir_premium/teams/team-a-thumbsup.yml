@@ -46,6 +46,7 @@ controls:
   windows_updates:
     deadline_days: 95
     grace_period_days: 92
+labels:
 name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
