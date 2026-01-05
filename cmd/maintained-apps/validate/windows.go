@@ -25,7 +25,7 @@ func postApplicationInstall(_ kitlog.Logger, _ string) error {
 	return nil
 }
 
-// normalizeVersion normalizes version strings for comparison...
+// normalizeVersion normalizes version strings for comparison
 // Handles cases like "11.2.1495.0" vs "11.2.1495" by padding with zeros
 func normalizeVersion(version string) string {
 	parts := strings.Split(version, ".")
