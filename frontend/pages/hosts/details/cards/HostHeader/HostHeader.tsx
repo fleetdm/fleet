@@ -9,11 +9,10 @@ import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWith
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
-import host from "interfaces/host";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 const baseClass = "host-header";
 
