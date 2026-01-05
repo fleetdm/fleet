@@ -667,9 +667,9 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 > Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find a solution quickly.
 
 - **Customer success meetings**
-The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the :help-customers Slack channel requesting an invitation to the 'CSE Schedule' Google calendar.
+The on-call developer is encouraged to attend some of the customer success meetings during the week. If oncall workload allows, pick 1–2 customer meetings to attend during the on-call week. See the [CSE calendar](https://calendar.google.com/calendar/u/0/embed?src=c_8f3e6225545624b0b056c3078ad9871dc66f9068f3d6f1c79f198994a625cd46@group.calendar.google.com) to find meetings that fit your schedule. Add yourself as an attendee to the meeting and let the call organizer know you will be shadowing the call.
 
-This has a dual purpose of providing more context for how our customers use Fleet. The developer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
+The primary goal is to learn more about how our customers use Fleet. If there are technical questions you can assist with, feel free to participate in the call.
 
 - **Documentation for contributors**
 Fleet's documentation for contributors can be found in the [Fleet GitHub repo](https://github.com/fleetdm/fleet/tree/main/docs/Contributing).
