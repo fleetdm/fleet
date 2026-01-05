@@ -4210,8 +4210,13 @@ func NewInstalledApplicationListResultsHandler(
 					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
 				}
 			default:
-				// TODO(mna): should get managed apps only if iDevice BYOD
-				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
+				hostMDM, err := ds.GetHostMDMCheckinInfo(ctx, installedAppResult.HostUUID())
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get host mdm checkin info to refetch apps")
+				}
+
+				isBYOD := !hostMDM.InstalledFromDEP
+				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), isBYOD)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
 				}
