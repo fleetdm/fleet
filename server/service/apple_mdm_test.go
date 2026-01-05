@@ -6331,9 +6331,9 @@ func TestIsTimezoneInWindow(t *testing.T) {
 	defer func() { nowFunc = originalMock }()
 
 	// Helper to set a fixed UTC time, which will be converted to local time
-	setMockUTCNow := func(year, month, day, hour, min int) {
+	setMockUTCNow := func(year, month, day, hour, min_ int) {
 		nowFunc = func() time.Time {
-			return time.Date(year, time.Month(month), day, hour, min, 0, 0, time.UTC)
+			return time.Date(year, time.Month(month), day, hour, min_, 0, 0, time.UTC)
 		}
 	}
 
