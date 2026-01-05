@@ -225,7 +225,7 @@ func authenticatedOrbitHost(
 }
 
 func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
-	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
+	if onk, ok := r.(interface{ orbitHostNodeKey() string }); ok {
 		return onk.orbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")
