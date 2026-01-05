@@ -3947,9 +3947,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	)
 
 	// Create map of installed software title versions by name, bundle identifier and source.
-	installedVersionByNameBundleIdentifierAndSource := make(map[string]string, len(softwares))
+	installedVersionByBundleIdentifierAndSource := make(map[string]string, len(softwares))
 	for _, software := range softwares {
-		installedVersionByNameBundleIdentifierAndSource[software.Name+software.BundleIdentifier+software.Source] = software.Version
+		installedVersionByBundleIdentifierAndSource[software.BundleIdentifier+software.Source] = software.Version
 	}
 
 	// 1. Filter out software that is not within the configured update window in the host timezone.
@@ -4042,7 +4042,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		if softwareTitle.BundleIdentifier != nil {
 			bundleIdentifier = *softwareTitle.BundleIdentifier
 		}
-		installedVersion, ok := installedVersionByNameBundleIdentifierAndSource[softwareTitle.Name+bundleIdentifier+softwareTitle.Source]
+		installedVersion, ok := installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source]
 		if !ok {
 			// There are some cases where InstalledApplicationList skips the software from the list
 			// when the update is ocurring. It seems the software is probably being skipped because
@@ -4156,7 +4156,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			"team_id", host.TeamID,
 			"adam_id", softwareTitle.AppStoreApp.AdamID,
 			"latest_version", softwareTitle.AppStoreApp.LatestVersion,
-			"installed_version", installedVersionByNameBundleIdentifierAndSource[softwareTitle.Name+bundleIdentifier+softwareTitle.Source],
+			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
 		)
 
 		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
