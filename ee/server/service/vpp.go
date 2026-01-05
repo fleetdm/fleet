@@ -237,7 +237,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var appStoreApps []*fleet.VPPApp
 
 	if len(incomingAppleApps) > 0 {
-		apps, err := getVPPAppsMetadata(ctx, incomingAppleApps)
+		apps, err := getVPPAppsMetadata(ctx, incomingAppleApps, vppToken, svc.ds)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
@@ -389,7 +389,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		adamIDs = append(adamIDs, a.AdamID)
 	}
 
-	metadata, err := apple_apps.GetMetadata(adamIDs, vppToken, "TODO")
+	metadata, err := apple_apps.GetMetadata(adamIDs, vppToken, apple_apps.GetAppMetadataBearerToken(svc.ds))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
@@ -408,7 +408,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 			continue
 		}
 
-		for _, app := range toVPPApps(m) {
+		for _, app := range apple_apps.ToVPPApps(m) {
 			if appFleet, ok := assignedApps[app.VPPAppID]; ok {
 				// Then this is already assigned, so filter it out.
 				app.SelfService = appFleet.SelfService
@@ -435,56 +435,6 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 	})
 
 	return apps, nil
-}
-
-func toVPPApps(app apple_apps.Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
-	// length 1 because watchOS/tvOS/visionOS exist and we don't support them, so using the length of the DeviceFamilies
-	// slice would give us extra empty entries
-	platforms := make(map[fleet.InstallableDevicePlatform]fleet.VPPApp, 1)
-	for _, device := range app.Attributes.DeviceFamilies {
-		var data apple_apps.PlatformData
-		var platform fleet.InstallableDevicePlatform
-
-		// It is rare that a single app supports all platforms, but it is possible.
-		// Skipping the "appletvos" platform right now as we don't support tvOS;
-		// see https://github.com/DIYgod/RSSHub/blob/master/lib/routes/apple/apps.ts for mapping info
-		switch device {
-		case "iphone":
-			data, ok := app.Attributes.Platforms["ios"]
-			if !ok {
-				continue
-			}
-			platform = fleet.IOSPlatform
-		case "ipad":
-			data, ok := app.Attributes.Platforms["ios"]
-			if !ok {
-				continue
-			}
-			platform = fleet.IPadOSPlatform
-		case "mac":
-			data, ok := app.Attributes.Platforms["ios"]
-			if !ok {
-				continue
-			}
-			platform = fleet.MacOSPlatform
-		default:
-			continue
-		}
-
-		platforms[platform] = fleet.VPPApp{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   app.ID,
-					Platform: platform,
-				},
-			},
-			BundleIdentifier: data.BundleID,
-			IconURL:          data.IconURL(),
-			Name:             app.Attributes.Name,
-			LatestVersion:    data.LatestVersionInfo.DisplayVersion,
-		}
-	}
-	return platforms
 }
 
 var androidApplicationID = regexp.MustCompile(`^([A-Za-z]{1}[A-Za-z\d_]*\.)+[A-Za-z][A-Za-z\d_]*$`)
@@ -605,7 +555,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		asset := assets[0]
 
-		assetMetadata, err := apple_apps.GetMetadata([]string{asset.AdamID}, vppToken, "TODO")
+		assetMetadata, err := apple_apps.GetMetadata([]string{asset.AdamID}, vppToken, apple_apps.GetAppMetadataBearerToken(svc.ds))
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 		}
@@ -615,7 +565,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		// Configuration is an Android only feature
 		appID.Configuration = nil
 
-		platforms := toVPPApps(assetMD)
+		platforms := apple_apps.ToVPPApps(assetMD)
 		appFromApple, ok := platforms[appID.Platform]
 		if !ok {
 			return 0, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("%s isn't available for %s", assetMD.Attributes.Name, appID.Platform))
@@ -711,7 +661,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	return addedApp.TitleID, nil
 }
 
-func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.VPPApp, error) {
+func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken string, ds fleet.Datastore) ([]*fleet.VPPApp, error) {
 	var apps []*fleet.VPPApp
 
 	// Map of adamID to platform, then to whether it's available as self-service
@@ -746,14 +696,14 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	for adamID := range adamIDMap {
 		adamIDs = append(adamIDs, adamID)
 	}
-	assetMetadata, err := apple_apps.GetMetadata(adamIDs)
+	assetMetadata, err := apple_apps.GetMetadata(adamIDs, vppToken, apple_apps.GetAppMetadataBearerToken(ds))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
 
 	for adamID, metadata := range assetMetadata {
-		platforms := toVPPApps(metadata.SupportedDevices)
-		for platform := range platforms {
+		platforms := apple_apps.ToVPPApps(metadata)
+		for platform, retrievedApp := range platforms {
 			if props, ok := adamIDMap[adamID][platform]; ok {
 				app := &fleet.VPPApp{
 					VPPAppTeam: fleet.VPPAppTeam{
@@ -769,10 +719,10 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 						CategoryIDs:        props.CategoryIDs,
 						DisplayName:        props.DisplayName,
 					},
-					BundleIdentifier: metadata.BundleID,
-					IconURL:          metadata.ArtworkURL,
-					Name:             metadata.TrackName,
-					LatestVersion:    metadata.Version,
+					BundleIdentifier: retrievedApp.BundleIdentifier,
+					IconURL:          retrievedApp.IconURL,
+					Name:             retrievedApp.Name,
+					LatestVersion:    retrievedApp.LatestVersion,
 				}
 				apps = append(apps, app)
 			} else {

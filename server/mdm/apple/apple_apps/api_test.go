@@ -81,7 +81,7 @@ func TestDoRetries(t *testing.T) {
 			start := time.Now()
 			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_ITUNES_URL"), nil)
 			require.NoError(t, err)
-			err = do[any](req, nil)
+			err = do(req, "vppToken", "bearerToken", nil)
 			require.NoError(t, err)
 			require.Equal(t, tt.wantCalls, calls)
 			require.WithinRange(t, time.Now(), start, start.Add(time.Duration(tt.wantCalls)*time.Second))

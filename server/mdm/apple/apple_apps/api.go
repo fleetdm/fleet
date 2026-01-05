@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type Metadata struct {
@@ -55,6 +56,10 @@ type ArtData struct {
 	TemplateURL string `json:"url"`
 }
 
+type metadataResp struct {
+	Data []Metadata `json:"data"`
+}
+
 // client is a package-level client (similar to http.DefaultClient) so it can
 // be reused instead of created as needed, as the internal Transport typically
 // has internal state (cached connections, etc) and it's safe for concurrent
@@ -77,10 +82,7 @@ func GetMetadata(adamIDs []string, vppToken string, bearerToken string) (map[str
 		return nil, fmt.Errorf("creating request to VPP app details endpoint: %w", err)
 	}
 
-	var bodyResp struct {
-		Data []Metadata `json:"data"`
-	}
-
+	var bodyResp metadataResp
 	if err = do(req, vppToken, bearerToken, &bodyResp); err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
@@ -93,7 +95,7 @@ func GetMetadata(adamIDs []string, vppToken string, bearerToken string) (map[str
 	return metadata, nil
 }
 
-func do[T any](req *http.Request, vppToken string, bearerToken string, dest *T) error {
+func do(req *http.Request, vppToken string, bearerToken string, dest *metadataResp) error {
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
 	req.Header.Add("Cookie", fmt.Sprintf("itvt=%s", vppToken))
 
@@ -134,6 +136,59 @@ func do[T any](req *http.Request, vppToken string, bearerToken string, dest *T) 
 	return nil
 }
 
+func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
+	// length 1 because watchOS/tvOS/visionOS exist and we don't support them, so using the length of the DeviceFamilies
+	// slice would give us extra empty entries
+	platforms := make(map[fleet.InstallableDevicePlatform]fleet.VPPApp, 1)
+	for _, device := range app.Attributes.DeviceFamilies {
+		var (
+			data     PlatformData
+			ok       bool
+			platform fleet.InstallableDevicePlatform
+		)
+
+		// It is rare that a single app supports all platforms, but it is possible.
+		// Skipping the "appletvos" platform right now as we don't support tvOS;
+		// see https://github.com/DIYgod/RSSHub/blob/master/lib/routes/apple/apps.ts for mapping info
+		switch device {
+		case "iphone":
+			data, ok = app.Attributes.Platforms["ios"]
+			if !ok {
+				continue
+			}
+			platform = fleet.IOSPlatform
+		case "ipad":
+			data, ok = app.Attributes.Platforms["ios"]
+			if !ok {
+				continue
+			}
+			platform = fleet.IPadOSPlatform
+		case "mac":
+			data, ok = app.Attributes.Platforms["ios"]
+			if !ok {
+				continue
+			}
+			platform = fleet.MacOSPlatform
+		default:
+			continue
+		}
+
+		platforms[platform] = fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   app.ID,
+					Platform: platform,
+				},
+			},
+			BundleIdentifier: data.BundleID,
+			IconURL:          data.IconURL(),
+			Name:             app.Attributes.Name,
+			LatestVersion:    data.LatestVersionInfo.DisplayVersion,
+		}
+	}
+	return platforms
+}
+
 func getBaseURL() string {
 	// Use https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone,ipad,mac&extend[apps]=latestVersionInfo to access Apple directly
 	devURL := os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
@@ -141,4 +196,8 @@ func getBaseURL() string {
 		return devURL
 	}
 	return "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo"
+}
+
+func GetAppMetadataBearerToken(ds any) string {
+	return "TODO"
 }
