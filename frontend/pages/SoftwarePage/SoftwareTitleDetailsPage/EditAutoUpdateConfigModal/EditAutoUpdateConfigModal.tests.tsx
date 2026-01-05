@@ -1,7 +1,6 @@
 import React from "react";
 
 import {
-  createMockSoftwareTitle,
   createMockSoftwareTitleDetails,
   createMockAppStoreApp,
 } from "__mocks__/softwareMock";
@@ -9,11 +8,10 @@ import {
 import { act, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import { createCustomRenderer } from "test/test-utils";
 import { ILabelSummary } from "interfaces/label";
 
 import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
 
 import EditAutoUpdateConfigModal, {
   ISoftwareAutoUpdateConfigFormData,
@@ -461,7 +459,7 @@ describe("Edit Auto Update Config Modal", () => {
       mockServer.use(submitHandler);
       requestSpy.mockClear();
     });
-    it.only("Sends the correct payload when 'Enable auto updates' is unchecked", async () => {
+    it("Sends the correct payload when 'Enable auto updates' is unchecked", async () => {
       render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails()}
@@ -486,8 +484,110 @@ describe("Edit Auto Update Config Modal", () => {
         });
       });
     });
-    it("Sends the correct payload when 'Enable auto updates' is checked and a valid window is configured", async () => {});
-    it("Sends the correct payload when 'All hosts' is selected as the target", async () => {});
-    it("Sends the correct payload when specific labels are selected as the target", async () => {});
+
+    it("Sends the correct payload when 'Enable auto updates' is checked and a valid window is configured", async () => {
+      const { user } = render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails()}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
+        name: "Enable auto updates",
+      });
+      await act(() => {
+        enableAutoUpdatesCheckbox.click();
+      });
+      await waitFor(() => {
+        expect(enableAutoUpdatesCheckbox).toBeChecked();
+      });
+      const startTimeField = screen.getByLabelText("Earliest start time");
+      const endTimeField = screen.getByLabelText("Latest start time");
+      await user.type(startTimeField, "02:00");
+      await user.type(endTimeField, "04:00");
+      const saveButton = screen.getByRole("button", {
+        name: "Save",
+      });
+      expect(saveButton).toBeEnabled();
+      await act(() => {
+        saveButton.click();
+      });
+      await waitFor(() => {
+        expect(requestSpy).toHaveBeenCalledWith({
+          auto_update_enabled: true,
+          auto_update_start_time: "02:00",
+          auto_update_end_time: "04:00",
+          labels_include_any: [],
+          labels_exclude_any: [],
+          team_id: 1,
+        });
+      });
+    });
+
+    it("Sends the correct payload when 'All hosts' is selected as the target", async () => {
+      const { user } = render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails({
+            app_store_app: createMockAppStoreApp({
+              labels_include_any: [
+                { name: mockLabels[1].name, id: mockLabels[1].id },
+              ],
+            }),
+          })}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      const allHostsRadio = screen.getByLabelText("All hosts");
+      expect(allHostsRadio).toBeInTheDocument();
+      await user.click(allHostsRadio);
+      const saveButton = screen.getByRole("button", {
+        name: "Save",
+      });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+      await waitFor(() => {
+        expect(requestSpy).toHaveBeenCalledWith({
+          auto_update_enabled: false,
+          labels_include_any: [],
+          labels_exclude_any: [],
+          team_id: 1,
+        });
+      });
+    });
+
+    it("Sends the correct payload when specific labels are selected as the target", async () => {
+      const { user } = render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails({
+            app_store_app: createMockAppStoreApp({
+              labels_include_any: [
+                { name: mockLabels[1].name, id: mockLabels[1].id },
+              ],
+            }),
+          })}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      const saveButton = screen.getByRole("button", {
+        name: "Save",
+      });
+      expect(saveButton).toBeEnabled();
+      await act(() => {
+        user.click(saveButton);
+      });
+      await waitFor(() => {
+        expect(requestSpy).toHaveBeenCalledWith({
+          auto_update_enabled: false,
+          labels_include_any: [mockLabels[1].name],
+          team_id: 1,
+        });
+      });
+    });
   });
 });
