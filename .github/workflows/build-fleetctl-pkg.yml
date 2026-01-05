@@ -1,27 +1,26 @@
 name: Build fleetctl macOS package
 
 # This workflow builds a signed and notarized macOS .pkg installer for fleetctl
-# as part of the Fleet release process. The package is uploaded as a release asset.
+# for manual testing purposes only.
+#
+# NOTE: For production releases, the goreleaser workflow (.github/workflows/goreleaser-fleet.yaml)
+# handles building and uploading the fleetctl package automatically when a fleet-* tag is pushed.
+# This workflow is kept for manual testing only.
 #
 # TESTING:
-# To test without affecting production, use workflow_dispatch with test_mode enabled:
+# To test the package build process:
 # 1. Go to Actions → Build fleetctl macOS package → Run workflow
 # 2. Select your branch (e.g., main or feature branch)
-# 3. Check "Test mode - will skip release upload if enabled"
-# 4. The package will be built, signed, and uploaded as an artifact (not to releases)
+# 3. Test mode defaults to true (recommended) - package will be built and uploaded as an artifact
+# 4. To test release upload, set test_mode to false (use with caution)
 
 on:
-  push:
-    tags:
-      - "fleet-*"
-    branches:
-      - "allenhouchins-create-fleetctl-pkg"  # Auto-test on commits to this branch
-  workflow_dispatch: # Manual trigger for testing
+  workflow_dispatch: # Manual trigger for testing only
     inputs:
       test_mode:
-        description: 'Test mode - will skip release upload if enabled'
+        description: 'Test mode - will skip release upload if enabled (recommended: true)'
         type: boolean
-        default: false
+        default: true
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -53,26 +52,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract version from tag
+      - name: Extract version
         id: extract_version
         run: |
-          TAG_NAME="${{ github.ref_name }}"
-          # Remove 'fleet-' prefix to get version (or use branch name for branch commits/manual triggers)
-          if [[ "$TAG_NAME" == fleet-* ]]; then
-            VERSION="${TAG_NAME#fleet-}"
-            IS_TEST_MODE="false"
+          REF_NAME="${{ github.ref_name }}"
+          
+          # Check if running from a tag (for testing tag-based workflows)
+          if [[ "${{ github.ref }}" == refs/tags/* ]] && [[ "$REF_NAME" == fleet-* ]]; then
+            # Extract version from tag (e.g., fleet-v4.10.0 -> v4.10.0)
+            VERSION="${REF_NAME#fleet-}"
+            TAG_NAME="$REF_NAME"
           else
-            # For branch commits or manual triggers on branches, use a test version and enable test mode
+            # For branch-based manual triggers, use a test version
             VERSION="test-$(date +%Y%m%d-%H%M%S)"
             TAG_NAME="fleet-${VERSION}"
-            IS_TEST_MODE="true"
           fi
           
-          # Manual trigger can override test mode
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.test_mode }}" = "true" ]; then
-            IS_TEST_MODE="true"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.test_mode }}" = "false" ]; then
+          # Determine test mode based on input (defaults to true for safety)
+          if [ "${{ github.event.inputs.test_mode }}" = "false" ]; then
             IS_TEST_MODE="false"
+          else
+            # Default to test mode (true) for safety
+            IS_TEST_MODE="true"
           fi
           
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -81,6 +82,8 @@ jobs:
           echo "Fleet version: $VERSION"
           if [ "$IS_TEST_MODE" = "true" ]; then
             echo "⚠️  TEST MODE: Package will be built but NOT uploaded to release"
+          else
+            echo "⚠️  PRODUCTION MODE: Package will be uploaded to release $TAG_NAME"
           fi
 
       - name: Set up Go
@@ -103,7 +106,7 @@ jobs:
           # Build fleetctl for macOS (universal binary - both amd64 and arm64)
           VERSION="${{ steps.extract_version.outputs.version }}"
           
-          # Extract branch name from ref, handling both tags and branches
+          # Extract branch or tag name from ref
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             BRANCH_NAME="${{ steps.extract_version.outputs.tag_name }}"
           else
@@ -300,7 +303,7 @@ jobs:
           INTERVAL=10   # Check every 10 seconds
           
           while [ $ELAPSED -lt $MAX_WAIT ]; do
-            if gh release view "$TAG_NAME" --repo fleetdm/fleet &>/dev/null; then
+            if gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
               echo "Release found"
               break
             fi
@@ -315,10 +318,10 @@ jobs:
           fi
           
           echo "Uploading $PACKAGE_NAME to release $TAG_NAME"
-          gh release upload "$TAG_NAME" "$PACKAGE_NAME" --repo fleetdm/fleet || {
+          gh release upload "$TAG_NAME" "$PACKAGE_NAME" --repo "${{ github.repository }}" || {
             echo "Upload failed, retrying once..."
             sleep 5
-            gh release upload "$TAG_NAME" "$PACKAGE_NAME" --repo fleetdm/fleet
+            gh release upload "$TAG_NAME" "$PACKAGE_NAME" --repo "${{ github.repository }}"
           }
 
       - name: Upload package artifact (test mode only)
