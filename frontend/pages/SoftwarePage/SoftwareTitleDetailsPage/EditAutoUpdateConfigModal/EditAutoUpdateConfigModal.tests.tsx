@@ -58,7 +58,6 @@ describe("Edit Auto Update Config Modal", () => {
         isOnGlobalTeam: true,
         isPremiumTier: true,
         isSandboxMode: false,
-        // config: createMockConfig(),
       },
     },
   });
@@ -99,7 +98,7 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
-      // Verify that "Enable auto updates" checkbox is not checked.
+      // Verify that "Enable auto updates" checkbox is checked.
       const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
         name: "Enable auto updates",
       });
@@ -122,7 +121,6 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
-      // Verify that "Enable auto updates" checkbox is not checked.
       const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
         name: "Enable auto updates",
       });
@@ -131,7 +129,7 @@ describe("Edit Auto Update Config Modal", () => {
       await user.click(enableAutoUpdatesCheckbox);
       await waitFor(() => {
         expect(enableAutoUpdatesCheckbox).toBeChecked();
-        // Verify that the maintenance window fields are shown.
+        // Verify that the maintenance window fields are shown (but empty).
         const startTimeField = screen.getByLabelText("Earliest start time");
         const endTimeField = screen.getByLabelText("Latest start time");
         expect(startTimeField).toBeInTheDocument();
@@ -154,16 +152,15 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
-      // Verify that "Enable auto updates" checkbox is not checked.
       const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
         name: "Enable auto updates",
       });
       expect(enableAutoUpdatesCheckbox).toBeChecked();
-      // Click the checkbox to enable auto updates.
+      // Click the checkbox to disable auto updates.
       await user.click(enableAutoUpdatesCheckbox);
       await waitFor(() => {
         expect(enableAutoUpdatesCheckbox).not.toBeChecked();
-        // Verify that the maintenance window fields are shown.
+        // Verify that the maintenance window fields are not shown.
         const startTimeField = screen.queryByText("Earliest start time");
         const endTimeField = screen.queryByText("Latest start time");
         expect(startTimeField).not.toBeInTheDocument();
@@ -181,7 +178,6 @@ describe("Edit Auto Update Config Modal", () => {
             onExit={jest.fn()}
           />
         );
-        // Verify that "Enable auto updates" checkbox is not checked.
         const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
           name: "Enable auto updates",
         });
@@ -195,9 +191,9 @@ describe("Edit Auto Update Config Modal", () => {
         let endTimeField = screen.getByLabelText("Latest start time");
         expect(startTimeField).toBeInTheDocument();
         expect(endTimeField).toBeInTheDocument();
-        // Enter invalid start time
+        // Enter invalid start time.
         await user.type(startTimeField, "19:99");
-        // Move focus to trigger validation
+        // Move focus to trigger validation.
         await user.click(endTimeField);
         await user.type(endTimeField, "12:00");
         // Verify that validation message is shown
@@ -224,12 +220,10 @@ describe("Edit Auto Update Config Modal", () => {
             onExit={jest.fn()}
           />
         );
-        // Verify that "Enable auto updates" checkbox is not checked.
         const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
           name: "Enable auto updates",
         });
         expect(enableAutoUpdatesCheckbox).not.toBeChecked();
-        // Click the checkbox to enable auto updates.
         await user.click(enableAutoUpdatesCheckbox);
         await waitFor(() => {
           expect(enableAutoUpdatesCheckbox).toBeChecked();
@@ -238,18 +232,18 @@ describe("Edit Auto Update Config Modal", () => {
         const endTimeField = screen.getByLabelText("Latest start time");
         expect(startTimeField).toBeInTheDocument();
         expect(endTimeField).toBeInTheDocument();
-        // Enter invalid start time
+        // Enter invalid end time.
         await user.type(endTimeField, "19:99");
         // Move focus to trigger validation
         await user.click(startTimeField);
         await user.type(startTimeField, "12:00");
-        // Verify that validation message is shown
+        // Verify that validation message is shown.
         const errorField = screen.getByLabelText(
           "Use HH:MM format (24-hour clock)"
         );
         expect(errorField).toBeInTheDocument();
         expect(errorField).toHaveValue("19:99");
-        // Veryfy that end time is still present with valid label.
+        // Veryfy that start time is still present with valid label.
         startTimeField = screen.getByLabelText("Earliest start time");
         expect(startTimeField).toBeInTheDocument();
         expect(startTimeField).toHaveValue("12:00");
@@ -269,12 +263,10 @@ describe("Edit Auto Update Config Modal", () => {
             onExit={jest.fn()}
           />
         );
-        // Verify that "Enable auto updates" checkbox is not checked.
         const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
           name: "Enable auto updates",
         });
         expect(enableAutoUpdatesCheckbox).not.toBeChecked();
-        // Click the checkbox to enable auto updates.
         await user.click(enableAutoUpdatesCheckbox);
         await waitFor(() => {
           expect(enableAutoUpdatesCheckbox).toBeChecked();
@@ -285,19 +277,21 @@ describe("Edit Auto Update Config Modal", () => {
 
         expect(startTimeField).toBeInTheDocument();
         expect(endTimeField).toBeInTheDocument();
-        // Enter only start time
+        // Enter only start time.
         await user.type(startTimeField, "10:00");
-        // Click Save button to trigger validation
+        // Click Save button to trigger validation.
         await user.click(saveButton);
-        // Verify that validation message is shown for end time
+        // Verify that validation message is shown for end time.
         expect(
           screen.getByLabelText("Latest start time is required")
         ).toBeInTheDocument();
-        // Now enter only end time
+        // Now enter only end time.
         await user.clear(startTimeField);
         await user.type(endTimeField, "12:00");
-        // Click Save button to trigger validation
+        // Click Save button to trigger validation.
         await user.click(saveButton);
+        // Verify that validation message is shown for start time
+        // but the end-time validation message is cleared.
         expect(
           screen.getByLabelText("Earliest start time is required")
         ).toBeInTheDocument();
@@ -309,9 +303,9 @@ describe("Edit Auto Update Config Modal", () => {
         // Clear both
         await user.clear(startTimeField);
         await user.clear(endTimeField);
-        // Click Save button to trigger validation
+        // Click Save button to trigger validation.
         await user.click(saveButton);
-        // Verify that validation message is shown for start time
+        // Verify that validation message is shown for both times.
         expect(
           screen.getByLabelText("Earliest start time is required")
         ).toBeInTheDocument();
@@ -319,11 +313,11 @@ describe("Edit Auto Update Config Modal", () => {
           screen.getByLabelText("Latest start time is required")
         ).toBeInTheDocument();
         expect(saveButton).toBeDisabled();
-
+        // Fill both with valid values.
         await user.type(startTimeField, "10:00");
         await user.type(endTimeField, "12:30");
         await user.click(endTimeField);
-        // Verify that no validation messages are shown
+        // Verify that no validation messages are shown.
         expect(
           screen.queryByLabelText("Earliest start time is required")
         ).not.toBeInTheDocument();
@@ -342,12 +336,10 @@ describe("Edit Auto Update Config Modal", () => {
             onExit={jest.fn()}
           />
         );
-        // Verify that "Enable auto updates" checkbox is not checked.
         const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
           name: "Enable auto updates",
         });
         expect(enableAutoUpdatesCheckbox).not.toBeChecked();
-        // Click the checkbox to enable auto updates.
         await user.click(enableAutoUpdatesCheckbox);
         await waitFor(() => {
           expect(enableAutoUpdatesCheckbox).toBeChecked();
@@ -356,11 +348,12 @@ describe("Edit Auto Update Config Modal", () => {
         const endTimeField = screen.getByLabelText("Latest start time");
         expect(startTimeField).toBeInTheDocument();
         expect(endTimeField).toBeInTheDocument();
+        // Set a 59-minute window.
         await user.type(startTimeField, "12:00");
         await user.click(endTimeField);
         await user.type(endTimeField, "12:59");
         await user.click(startTimeField);
-        // Verify that validation message is shown
+        // Verify that validation message is shown.
         const error = screen.getByText(
           "Update window must be at least 60 minutes long"
         );
