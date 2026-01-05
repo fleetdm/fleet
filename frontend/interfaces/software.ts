@@ -191,6 +191,9 @@ export interface ISoftwareTitleDetails {
   counts_updated_at?: string;
   bundle_identifier?: string;
   versions_count?: number;
+  auto_update_enabled?: boolean;
+  auto_update_start_time?: string;
+  auto_update_end_time?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -771,6 +774,9 @@ export const hasHostSoftwareAppLastInstall = (
 
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
+
+export const isIpadOrIphoneSoftware = (platform: string) =>
+  ["ios", "ipados"].includes(platform);
 
 export const isAndroidSoftwareSource = (source: string) =>
   source === "android_apps";
