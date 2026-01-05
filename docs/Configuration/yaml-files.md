@@ -174,14 +174,14 @@ policies:
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
-  install_
+  install_software:
     package_path: ./firefox.package.yml
 - name: [Install software] Logic Pro
   platform: darwin
   description: This policy checks that Logic Pro is installed
   resolution: Install Logic Pro App Store app if not installed
   query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
-  install_
+  install_software:
     package_path: ./linux-firefox.deb.package.yml
     # app_store_id: "1487937127" (for App Store apps)
 ```
