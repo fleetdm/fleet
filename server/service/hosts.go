@@ -3204,7 +3204,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 		})
 		return nil, &fleet.BadRequestError{
 			Message: fmt.Sprintf(
-				"Couldn't %s labels. Labels not found: %s. All labels must exist.",
+				"Couldn't %s labels. Labels not found: %s. All labels must exist and be either global or on the same team as the host.",
 				action,
 				strings.Join(labelsNotFound, ", "),
 			),

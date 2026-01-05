@@ -346,8 +346,7 @@ func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label f
 		// Split hostIds into batches to avoid parameter limit in MySQL.
 		for _, hostIds := range batchHostIds(hostIds) {
 			if label.TeamID != nil { // team labels can only be applied to hosts on that team
-				hostTeamCheckSql := `SELECT COUNT(id) FROM hosts WHERE team_id != ? AND id IN (` +
-					strings.TrimRight(strings.Repeat("?,", len(hostIds)), ",") + ")"
+				hostTeamCheckSql := `SELECT COUNT(id) FROM hosts WHERE (team_id != ? OR team_id IS NULL) AND id IN (?)`
 				hostTeamCheckSql, args, err := sqlx.In(hostTeamCheckSql, label.TeamID, hostIds)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build host team membership check IN statement")
@@ -502,7 +501,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 func (ds *Datastore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	query, params, err := applyLabelTeamFilter(`
-SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type
+SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type, l.team_id
 FROM labels l
 WHERE l.name = ?`, filter, name)
 	if err != nil {
@@ -608,7 +607,7 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var labelID uint
 
-		query, params, err := applyLabelTeamFilter(`select id FROM labels WHERE name = ?`, filter, name)
+		query, params, err := applyLabelTeamFilter(`select l.id FROM labels l WHERE l.name = ?`, filter, name)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting label id to delete")
 		}
