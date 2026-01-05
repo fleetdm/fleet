@@ -7,22 +7,11 @@ import {
   createMockAppStoreAppAndroid,
 } from "__mocks__/softwareMock";
 
-import {
-  getByText,
-  render as defaultRender,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { render as defaultRender, screen } from "@testing-library/react";
 import { UserEvent } from "@testing-library/user-event";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
 
 import SoftwareSummaryCard from "./SoftwareSummaryCard";
-
-const baseUrl = (path: string) => {
-  return `/api/latest/fleet${path}`;
-};
 
 const router = createMockRouter();
 
