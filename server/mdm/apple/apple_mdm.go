@@ -1405,25 +1405,38 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	commandUUID := uuid.NewString()
 
 	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3*len(devices))
-	installedAppsUUIDs := make([]string, 0, len(devices))
+	installedAppsUUIDs := struct {
+		ManagedOnly []string
+		All         []string
+	}{}
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
-			installedAppsUUIDs = append(installedAppsUUIDs, device.UUID)
+			if isBYODDevice := !device.InstalledFromDEP; isBYODDevice {
+				installedAppsUUIDs.ManagedOnly = append(installedAppsUUIDs.ManagedOnly, device.UUID)
+			} else {
+				installedAppsUUIDs.All = append(installedAppsUUIDs.All, device.UUID)
+			}
 			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
 				HostID:      device.HostID,
 				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 			})
 		}
 	}
-	if len(installedAppsUUIDs) > 0 {
-		// TODO(mna): send ManagedAppsOnly = true if BYOD iDevice
-		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
-		if turnedOffError != nil {
-			return turnedOffError
-		}
-		if err != nil && !turnedOff {
-			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+	if len(installedAppsUUIDs.ManagedOnly)+len(installedAppsUUIDs.All) > 0 {
+		for i, uuids := range [][]string{installedAppsUUIDs.ManagedOnly, installedAppsUUIDs.All} {
+			managedOnly := i == 0
+			if len(uuids) == 0 {
+				continue
+			}
+
+			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+			turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
+			if turnedOffError != nil {
+				return turnedOffError
+			}
+			if err != nil && !turnedOff {
+				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+			}
 		}
 	}
 
