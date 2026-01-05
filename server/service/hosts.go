@@ -363,6 +363,15 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 		return nil, err
 	}
 
+	statusMap := map[uint]*fleet.HostLockWipeStatus{}
+	if opt.PopulateDeviceStatus {
+		// We query the MDM lock/wipe status for all hosts in a batch to optimize performance.
+		statusMap, err = svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch")
+		}
+	}
+
 	// Create an iterator to return one host at a time, hydrated with extra details as needed.
 	hostIterator := func() iter.Seq2[*fleet.Host, error] {
 		return func(yield func(*fleet.Host, error) bool) {
@@ -398,7 +407,17 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 						return
 					}
 					host.Users = hu
+				}
 
+				if opt.PopulateDeviceStatus {
+					if status, ok := statusMap[host.ID]; ok {
+						host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
+						host.MDM.PendingAction = ptr.String(string(status.PendingAction()))
+					} else {
+						// Host has no MDM actions, set defaults
+						host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
+						host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
+					}
 				}
 
 				if !yield(host, nil) {
@@ -3203,7 +3222,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 		})
 		return nil, &fleet.BadRequestError{
 			Message: fmt.Sprintf(
-				"Couldn't %s labels. Labels not found: %s. All labels must exist.",
+				"Couldn't %s labels. Labels not found: %s. All labels must exist and be either global or on the same team as the host.",
 				action,
 				strings.Join(labelsNotFound, ", "),
 			),

@@ -2796,7 +2796,11 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		limit := 1000
 		for hostPlatform, table := range hostProfileTables {
 			if limit == 0 {
-				level.Debug(ds.logger).Log("msg", "Skipping check of %s certificates on %s hosts to renew - limit exceeded by prior platform", hostCertType, hostPlatform)
+				level.Debug(ds.logger).Log(
+					"msg", "skipping check of certificates hosts to renew, limit exceeded by prior platform",
+					"host_cert_type", hostCertType,
+					"host_platform", hostPlatform,
+				)
 				continue
 			}
 			// This will trigger a resend next time profiles are checked
@@ -2837,7 +2841,11 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}
 			if len(hostCertsToRenew) == 0 {
-				level.Debug(ds.logger).Log("msg", "No %s certificates on %s hosts to renew", hostCertType, hostPlatform)
+				level.Debug(ds.logger).Log(
+					"msg", "No certificates on hosts to renew",
+					"host_cert_type", hostCertType,
+					"host_platform", hostPlatform,
+				)
 				continue
 			}
 			limit -= len(hostCertsToRenew)

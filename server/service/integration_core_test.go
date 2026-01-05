@@ -2105,6 +2105,14 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts[0].Labels, 2)
 	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
 	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
+
+	// With "populate_device_status" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_device_status", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *resp.Hosts[0].MDM.DeviceStatus)
+	require.Equal(t, string(fleet.PendingActionNone), *resp.Hosts[0].MDM.PendingAction)
 }
 
 func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths() {
@@ -4563,8 +4571,6 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 }
 
 func (s *integrationTestSuite) TestLabels() {
-	// TODO team labels
-
 	t := s.T()
 
 	// create some hosts to use for manual labels
@@ -5288,6 +5294,15 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
+
+	// Do request with populate_device_status, since it's an additional feature
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "populate_device_status", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "populate_device_status", "true")
+
+	// Converting to formatted JSON for easier diffs
+	hostsJson, _ = json.MarshalIndent(hostsResp, "", "  ")
+	labelsJson, _ = json.MarshalIndent(labelsResp, "", "  ")
+	assert.Equal(t, string(hostsJson), string(labelsJson))
 }
 
 func (s *integrationTestSuite) TestLabelSpecs() {
@@ -5382,8 +5397,6 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
-
-	// TODO team labels
 }
 
 func (s *integrationTestSuite) TestUsers() {
@@ -13479,8 +13492,6 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 }
 
 func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
-	// TODO team labels
-
 	t := s.T()
 	ctx := context.Background()
 
@@ -13610,13 +13621,13 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 		Labels: []string{"manualLabel2", "does not exist"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\". All labels must exist")
 	// Multiple inexistent labels should fail to be added.
 	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
 		Labels: []string{"manualLabel2", "does not exist", "does not exist 2"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist")
 	// A dynamic non-builtin label should fail to be added.
 	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
 		Labels: []string{dynamicLabel1.Name},
@@ -13641,13 +13652,13 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 		Labels: []string{manualLabel2.Name, "does not exist"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\". All labels must exist")
 	// Multiple inexistent labels should fail to be deleted.
 	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
 		Labels: []string{manualLabel2.Name, "does not exist", "does not exist 2"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist")
 	// Multiple dynamic labels should fail to be deleted.
 	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
 		Labels: []string{manualLabel2.Name, dynamicLabel1.Name, "All Hosts"},
@@ -13778,6 +13789,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	}, http.StatusOK, &removeLabelsFromHostResp)
 	teamHost2Labels = getHostLabels(teamHost2)
 	require.Empty(t, teamHost2Labels)
+
 }
 
 func (s *integrationTestSuite) TestDebugDB() {
@@ -15430,4 +15442,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
+}
+
+func (s *integrationTestSuite) TestDevieStatusMappingForHostsEndpoints() {
 }
