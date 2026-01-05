@@ -100,8 +100,8 @@ WHERE
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
 	}
-	if config != nil && config.Configuration != nil {
-		app.Configuration = config.Configuration
+	if config != nil {
+		app.Configuration = *config
 	}
 
 	if teamID != nil {
@@ -522,7 +522,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			}
 
 			if toAdd.Configuration != nil {
-				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, teamID, toAdd.AdamID, toAdd.Configuration); err != nil {
+				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), toAdd.AdamID, toAdd.Configuration); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 				}
 			}
@@ -662,7 +662,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		}
 
 		if app.Configuration != nil && app.Platform == fleet.AndroidPlatform {
-			if err := ds.updateAndroidAppConfigurationTx(ctx, tx, teamID, app.AdamID, app.Configuration); err != nil {
+			if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 			}
 		}

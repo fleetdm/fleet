@@ -3221,22 +3221,22 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 }`
 }
 
-type ActivityTypeCreatedCertificate struct {
+type ActivityTypeAddedCertificate struct {
 	Name     string  `json:"name"`
 	TeamID   *uint   `json:"team_id"`
 	TeamName *string `json:"team_name"`
 }
 
-func (a ActivityTypeCreatedCertificate) ActivityName() string {
-	return "created_certificate"
+func (a ActivityTypeAddedCertificate) ActivityName() string {
+	return "added_certificate"
 }
 
-func (a ActivityTypeCreatedCertificate) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when an user creates a Certificate Template.`,
+func (a ActivityTypeAddedCertificate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user adds a Certificate Template.`,
 		`This activity contains the following fields:
 - "name": Name of the certificate.
-- "team_id": The ID of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.
-- "team_name": The name of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team where the certificate was added, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was added, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "certificate_name": "WiFi cert",
   "team_id": 123,
   "team_name": "Mobile devices"
