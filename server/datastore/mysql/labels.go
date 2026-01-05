@@ -26,6 +26,33 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		return nil
 	}
 
+	// Helper function to check if user has a write role on a specific team
+	hasWriteRoleOnTeam := func(teamID uint) bool {
+		for _, team := range user.Teams {
+			if team.ID == teamID &&
+				(team.Role == fleet.RoleAdmin ||
+					team.Role == fleet.RoleMaintainer ||
+					team.Role == fleet.RoleGitOps) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Helper function to check if user has a global write role (admin, maintainer, or gitops)
+	hasGlobalWriteRole := func() bool {
+		if user.GlobalRole == nil {
+			return false
+		}
+		return *user.GlobalRole == fleet.RoleAdmin ||
+			*user.GlobalRole == fleet.RoleMaintainer ||
+			*user.GlobalRole == fleet.RoleGitOps
+	}
+
+	if !hasGlobalWriteRole() && (notOnTeamID == nil || !hasWriteRoleOnTeam(*notOnTeamID)) {
+		return ctxerr.New(ctx, "you cannot edit labels on the specified team")
+	}
+
 	type existingLabel struct {
 		ID       uint  `db:"id"`
 		AuthorID *uint `db:"author_id"`
@@ -50,35 +77,12 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		return errCannotSetAside
 	}
 
-	// Helper function to check if user has a global write role (admin, maintainer, or gitops)
-	hasGlobalWriteRole := func() bool {
-		if user.GlobalRole == nil {
-			return false
-		}
-		return *user.GlobalRole == fleet.RoleAdmin ||
-			*user.GlobalRole == fleet.RoleMaintainer ||
-			*user.GlobalRole == fleet.RoleGitOps
-	}
-
 	// Helper function to check if user has a write role on any team
 	hasWriteRoleAnywhere := func() bool {
 		for _, team := range user.Teams {
 			if team.Role == fleet.RoleAdmin ||
 				team.Role == fleet.RoleMaintainer ||
 				team.Role == fleet.RoleGitOps {
-				return true
-			}
-		}
-		return false
-	}
-
-	// Helper function to check if user has a write role on a specific team
-	hasWriteRoleOnTeam := func(teamID uint) bool {
-		for _, team := range user.Teams {
-			if team.ID == teamID &&
-				(team.Role == fleet.RoleAdmin ||
-					team.Role == fleet.RoleMaintainer ||
-					team.Role == fleet.RoleGitOps) {
 				return true
 			}
 		}

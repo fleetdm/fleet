@@ -3077,7 +3077,11 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 	globalAdmin := newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)})
 	team1Admin := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin}}})
 	team1Maintainer := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}})
-	multiTeamUser := newUser(fleet.User{Teams: []fleet.UserTeam{
+	multiTeamAdmin := newUser(fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin},
+		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin},
+	}})
+	multiTeamMaintainer := newUser(fleet.User{Teams: []fleet.UserTeam{
 		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
 		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleMaintainer},
 	}})
@@ -3135,24 +3139,34 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			expectError: true,
 		},
 		{
-			name:        "team admin can set aside their own team's labels",
+			name:        "team admin can't set aside their own team's labels if they can't edit the not-on team",
 			labels:      []labelSpec{{name: "team1-setaside-1", teamID: &team1.ID, authorID: nil}},
 			notOnTeamID: &team2.ID,
 			user:        team1Admin,
+			expectError: true,
+		},
+		{
+			name:        "team admin can set aside their own team's labels if they can also edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-admin", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        multiTeamAdmin,
 			expectError: false,
 		},
 		{
-			name:        "team maintainer can set aside their own team's labels",
-			labels:      []labelSpec{{name: "team1-setaside-2", teamID: &team1.ID, authorID: nil}},
+			name:        "team maintainer can set aside their own team's labels if they can also edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-maintain", teamID: &team1.ID, authorID: nil}},
 			notOnTeamID: &team2.ID,
-			user:        team1Maintainer,
+			user:        multiTeamMaintainer,
 			expectError: false,
 		},
 		{
-			name:        "team gitops can set aside their own team's labels",
-			labels:      []labelSpec{{name: "team1-setaside-3", teamID: &team1.ID, authorID: nil}},
+			name:        "team gitops can set aside their own team's labels if they can also edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-gitops", teamID: &team1.ID, authorID: nil}},
 			notOnTeamID: &team2.ID,
-			user:        newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleGitOps}}}),
+			user: newUser(fleet.User{Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleGitOps},
+				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleGitOps},
+			}}),
 			expectError: false,
 		},
 		{
@@ -3228,11 +3242,11 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 		{
 			name: "multiple labels can be set aside at once",
 			labels: []labelSpec{
-				{name: "multi-setaside-1", teamID: nil, authorID: &multiTeamUser.ID},
+				{name: "multi-setaside-1", teamID: nil, authorID: &multiTeamMaintainer.ID},
 				{name: "multi-setaside-2", teamID: &team2.ID, authorID: nil},
 			},
 			notOnTeamID: &team1.ID,
-			user:        multiTeamUser,
+			user:        multiTeamMaintainer,
 			expectError: false,
 		},
 	}
