@@ -426,7 +426,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	// These operations are idempotent due to INSERT IGNORE.
 	if len(incomingSoftwareByChecksum) > 0 {
 
-		err = ds.reconcileExistingTitleEmptyUpgradeCodes(ctx, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
+		err = ds.reconcileExistingTitleEmptyWindowsUpgradeCodes(ctx, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update software titles upgrade code")
 		}
@@ -1207,7 +1207,7 @@ func (ds *Datastore) linkSoftwareToHost(
 	return insertedSoftware, nil
 }
 
-func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
+func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 	ctx context.Context,
 	incomingSoftwareByChecksum map[string]fleet.Software,
 	incomingChecksumsToExistingTitleSummaries map[string]fleet.SoftwareTitleSummary,
@@ -1228,33 +1228,35 @@ func (ds *Datastore) reconcileExistingTitleEmptyUpgradeCodes(
 		}
 	}
 
+	if len(upgradeCodesToCheck) == 0 {
+		return nil
+	}
+
 	// Step 2: Query for existing titles that already have these upgrade_codes
 	// This allows us to detect conflicts and redirect mappings instead of failing with duplicate entry error
 	titlesWithUpgradeCodes := make(map[string]fleet.SoftwareTitleSummary)
-	if len(upgradeCodesToCheck) > 0 {
-		upgradeCodes := make([]string, 0, len(upgradeCodesToCheck))
-		for uc := range upgradeCodesToCheck {
-			upgradeCodes = append(upgradeCodes, uc)
-		}
+	upgradeCodes := make([]string, 0, len(upgradeCodesToCheck))
+	for uc := range upgradeCodesToCheck {
+		upgradeCodes = append(upgradeCodes, uc)
+	}
 
-		stmt, args, err := sqlx.In(`
-			SELECT id, name, source, upgrade_code
-			FROM software_titles
-			WHERE upgrade_code IN (?) AND source = 'programs'
-		`, upgradeCodes)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build select titles with upgrade_codes query")
-		}
+	stmt, args, err := sqlx.In(`
+		SELECT id, name, source, upgrade_code
+		FROM software_titles
+		WHERE upgrade_code IN (?) AND source = 'programs'
+	`, upgradeCodes)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select titles with upgrade_codes query")
+	}
 
-		var existingTitles []fleet.SoftwareTitleSummary
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingTitles, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "get existing titles with upgrade_codes")
-		}
+	var existingTitles []fleet.SoftwareTitleSummary
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingTitles, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "get existing titles with upgrade_codes")
+	}
 
-		for _, t := range existingTitles {
-			if t.UpgradeCode != nil {
-				titlesWithUpgradeCodes[*t.UpgradeCode] = t
-			}
+	for _, t := range existingTitles {
+		if t.UpgradeCode != nil {
+			titlesWithUpgradeCodes[*t.UpgradeCode] = t
 		}
 	}
 

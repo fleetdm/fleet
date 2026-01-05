@@ -150,7 +150,7 @@ func testReconcileEmptyUpgradeCodes(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 			}
 
-			err := ds.reconcileExistingTitleEmptyUpgradeCodes(ctx, tc.incomingSwChecksumToSw, tc.incomingSwChecksumToMatchingTitle)
+			err := ds.reconcileExistingTitleEmptyWindowsUpgradeCodes(ctx, tc.incomingSwChecksumToSw, tc.incomingSwChecksumToMatchingTitle)
 			require.NoError(t, err)
 
 			for titleID, expectedUpgradeCode := range tc.expectedUpdates {
