@@ -57,7 +57,9 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, err
 		}
-		adeEnrollment = hdep.IsDEPAssignedToFleet()
+		if hdep != nil {
+			adeEnrollment = hdep.IsDEPAssignedToFleet()
+		}
 	}
 
 	// For ADE-enrolled iDevices, we get geolocation data via the MDM protocol
