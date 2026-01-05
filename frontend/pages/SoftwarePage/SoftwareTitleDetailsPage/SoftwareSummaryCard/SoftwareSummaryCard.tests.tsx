@@ -25,7 +25,6 @@ jest.mock("../../components/icons/SoftwareIcon", () => {
 });
 
 describe("Software Summary Card", () => {
-  // beforeAll(() => {});
   it("Shows the correct basic info about a software title", async () => {
     const softwareTitle = createMockSoftwareTitle();
     defaultRender(
