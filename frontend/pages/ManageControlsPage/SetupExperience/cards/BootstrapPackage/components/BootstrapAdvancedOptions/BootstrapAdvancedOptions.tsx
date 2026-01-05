@@ -26,9 +26,11 @@ const BootstrapAdvancedOptions = ({
 }: IBootstrapAdvancedOptionsProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       await mdmAPI.updateSetupExperienceSettings({
         team_id: currentTeamId,
@@ -38,6 +40,7 @@ const BootstrapAdvancedOptions = ({
     } catch {
       renderFlash("error", "Something went wrong. Please try again.");
     }
+    setIsSaving(false);
   };
 
   const tooltip = (
@@ -77,8 +80,9 @@ const BootstrapAdvancedOptions = ({
                   </TooltipWrapper>
                 </Checkbox>
                 <Button
-                  disabled={gitopsDisable || disableInstallManually}
+                  disabled={gitopsDisable || disableInstallManually || isSaving}
                   type="submit"
+                  isLoading={isSaving}
                 >
                   Save
                 </Button>
