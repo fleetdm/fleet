@@ -591,7 +591,7 @@ Then, it's the product group Product Designer's responsibility to decide if it's
 
 When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Production Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
-If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "New requests" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
+If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "📨 Inbox" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
 
 For bugs that may require fixes from a partner (e.g. osquery, Apple, Microsoft, etc.), a Fleet issue is always filed. For Apple and Microsoft bugs, the Product Designer should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
 
