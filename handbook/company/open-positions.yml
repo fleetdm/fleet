@@ -217,28 +217,28 @@
       - ➕ Bonus: Cybersecurity or IT background.
 
 
-- jobTitle: 🔎 Quality Analyst
-  department: Engineering
-  hiringManagerName: George Karr
-  hiringManagerGithubUsername: georgekarrv
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/george-karr-4977b441/
-  onTargetEarnings: '$60,000 - $100,000'
-  responsibilities: |
-      - 🧪 Manually test Fleet releases across all supported platforms (macOS, Windows, Linux, iOS, Android) to confirm key workflows and device management features work as expected.
-      - 🚀 Perform smoke tests and regression tests before and after releases to validate functionality, stability, and performance.
-      - 🐞 Reproduce new bug reports to confirm behavior, gather logs, and assist engineers in isolating root causes.
-      - 🔍 Identify, reproduce, and document issues found during testing and work closely with QA Engineers and Software Engineers to verify fixes.
-      - 📋 Create, maintain, and improve detailed test plans, checklists, and test cases to ensure consistent coverage across product areas and devices.
-      - 🤝 Collaborate with QA Engineers, Software Engineers, and Product Designers to ensure new features meet quality standards and user expectations.
-      - 📱 Validate user experiences and device enrollment flows on multiple operating systems, ensuring reliability and consistency for IT admins and end users.
-      - 🧭 Support end-to-end validation of new MDM and device management capabilities as they are developed.
-  experience: |
-      - 💼 1–3 years’ experience in software testing or quality assurance, ideally in a SaaS or device management environment.
-      - 🧠 Familiarity with device management concepts and tools (e.g., MDM, Intune, Jamf, or Fleet).
-      - 🧾 Strong attention to detail with the ability to write clear, reproducible bug reports and test documentation.
-      - 💬 Excellent collaboration and communication skills for cross-functional teamwork with engineers and QA teammates.
-      - 🔄 Comfortable regularly repeating structured manual testing processes, regression testing, and feature validation.
-      - ➕ Bonus: Hands-on experience testing across multiple operating systems and devices (macOS, Windows, Android, iOS, iPadOS).
+# - jobTitle: 🔎 Quality Analyst
+#   department: Engineering
+#   hiringManagerName: George Karr
+#   hiringManagerGithubUsername: georgekarrv
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/george-karr-4977b441/
+#   onTargetEarnings: '$60,000 - $100,000'
+#   responsibilities: |
+#       - 🧪 Manually test Fleet releases across all supported platforms (macOS, Windows, Linux, iOS, Android) to confirm key workflows and device management features work as expected.
+#       - 🚀 Perform smoke tests and regression tests before and after releases to validate functionality, stability, and performance.
+#       - 🐞 Reproduce new bug reports to confirm behavior, gather logs, and assist engineers in isolating root causes.
+#       - 🔍 Identify, reproduce, and document issues found during testing and work closely with QA Engineers and Software Engineers to verify fixes.
+#       - 📋 Create, maintain, and improve detailed test plans, checklists, and test cases to ensure consistent coverage across product areas and devices.
+#       - 🤝 Collaborate with QA Engineers, Software Engineers, and Product Designers to ensure new features meet quality standards and user expectations.
+#       - 📱 Validate user experiences and device enrollment flows on multiple operating systems, ensuring reliability and consistency for IT admins and end users.
+#       - 🧭 Support end-to-end validation of new MDM and device management capabilities as they are developed.
+#   experience: |
+#       - 💼 1–3 years’ experience in software testing or quality assurance, ideally in a SaaS or device management environment.
+#       - 🧠 Familiarity with device management concepts and tools (e.g., MDM, Intune, Jamf, or Fleet).
+#       - 🧾 Strong attention to detail with the ability to write clear, reproducible bug reports and test documentation.
+#       - 💬 Excellent collaboration and communication skills for cross-functional teamwork with engineers and QA teammates.
+#       - 🔄 Comfortable regularly repeating structured manual testing processes, regression testing, and feature validation.
+#       - ➕ Bonus: Hands-on experience testing across multiple operating systems and devices (macOS, Windows, Android, iOS, iPadOS).
 
 
 #- jobTitle: 💻 IT Support Administrator
