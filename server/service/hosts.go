@@ -1340,15 +1340,21 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			// Nothing to do.
 			return nil
 		}
+
 		err = svc.verifyMDMConfiguredAndConnected(ctx, host)
 		if err != nil {
 			return err
 		}
+
 		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3)
 		cmdUUID := uuid.NewString()
 		if doAppRefetch {
-			// TODO(mna): if BYOD iDevice, use ManagedAppsOnly = true
-			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, false)
+			hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host MDM info")
+			}
+			isBYOD := !hostMDM.InstalledFromDep
+			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, isBYOD)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
 			}
@@ -1357,6 +1363,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 			})
 		}
+
 		if doCertsRefetch {
 			if err := svc.mdmAppleCommander.CertificateList(ctx, []string{host.UUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch certs with MDM")
@@ -1366,6 +1373,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
 			})
 		}
+
 		if doDeviceInfoRefetch {
 			// DeviceInformation is last because the refetch response clears the refetch_requested flag
 			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID)
@@ -1377,6 +1385,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
 			})
 		}
+
 		// Add commands to the database to track the commands sent
 		err = svc.ds.AddHostMDMCommands(ctx, hostMDMCommands)
 		if err != nil {
