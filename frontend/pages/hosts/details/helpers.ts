@@ -89,7 +89,7 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
   wiped: "wiped",
   wipe: "wiping",
-  location: "locating",
+  location: "locking",
 };
 
 const deviceUpdatingStates = ["unlocking", "locking", "wiping"] as const;
