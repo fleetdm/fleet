@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 )
@@ -184,7 +185,12 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		}
 	}
 
-	tmpl := template.Must(template.New("").Parse(`
+	// Escape & characters in case of using CloudFront signed URL
+	var funcMap = map[string]any{
+		"xml": mobileconfig.XMLEscapeString,
+	}
+
+	tmpl := template.Must(template.New("").Funcs(funcMap).Parse(`
 <plist version="1.0">
   <dict>
     <key>items</key>
@@ -196,7 +202,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
             <key>kind</key>
             <string>software-package</string>
             <key>url</key>
-            <string>{{ .URL }}</string>
+            <string>{{ .URL | xml }}</string>
           </dict>
           <dict>
             <key>kind</key>

@@ -259,5 +259,6 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 
 	manifest := readManifest(res)
 	require.NotNil(t, manifest)
-	require.Contains(t, string(manifest), signURL)
+	escapedURL := `https://example.cloudfront.net/software-installers/storage_id?Expires=1766462733&amp;Signature=some_signature&amp;Key-Pair-Id=ABC123XYZ`
+	require.Contains(t, string(manifest), escapedURL)
 }
