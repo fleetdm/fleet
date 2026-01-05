@@ -374,6 +374,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nordpass: Nordpass,
   nordvpn: NordVpn,
   "notepad++": Notepad,
+  "notepad++": Notepad,
   "notion calendar": NotionCalendar,
   notion: Notion,
   nova: Nova,
