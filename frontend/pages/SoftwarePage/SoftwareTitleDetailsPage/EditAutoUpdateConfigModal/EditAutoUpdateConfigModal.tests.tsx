@@ -8,7 +8,7 @@ import {
 
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { userEvent } from "@testing-library/user-event";
+import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { ILabelSummary } from "interfaces/label";
 
@@ -43,6 +43,10 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 });
 
 describe("Edit Auto Update Config Modal", () => {
+  beforeEach(() => {
+    mockServer.use(labelSummariesHandler);
+  });
+
   const render = createCustomRenderer({
     withBackendMock: true,
     context: {
@@ -132,6 +136,8 @@ describe("Edit Auto Update Config Modal", () => {
         const endTimeField = screen.getByLabelText("Latest start time");
         expect(startTimeField).toBeInTheDocument();
         expect(endTimeField).toBeInTheDocument();
+        expect(startTimeField).toHaveValue("");
+        expect(endTimeField).toHaveValue("");
       });
     });
 
@@ -166,9 +172,144 @@ describe("Edit Auto Update Config Modal", () => {
     });
 
     describe("Maintenance window validation", () => {
-      it("Requires start time to be HH:MM format", async () => {});
-      it("Requires end time to be HH:MM format", async () => {});
-      it("Requires both start and end times to be set", async () => {});
+      it("Requires start time to be HH:MM format", async () => {
+        const { user } = render(
+          <EditAutoUpdateConfigModal
+            softwareTitle={createMockSoftwareTitleDetails()}
+            teamId={1}
+            refetchSoftwareTitle={jest.fn()}
+            onExit={jest.fn()}
+          />
+        );
+        // Verify that "Enable auto updates" checkbox is not checked.
+        const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
+          name: "Enable auto updates",
+        });
+        expect(enableAutoUpdatesCheckbox).not.toBeChecked();
+        // Click the checkbox to enable auto updates.
+        await user.click(enableAutoUpdatesCheckbox);
+        await waitFor(() => {
+          expect(enableAutoUpdatesCheckbox).toBeChecked();
+        });
+        const startTimeField = screen.getByLabelText("Earliest start time");
+        let endTimeField = screen.getByLabelText("Latest start time");
+        expect(startTimeField).toBeInTheDocument();
+        expect(endTimeField).toBeInTheDocument();
+        // Enter invalid start time
+        await user.type(startTimeField, "19:99");
+        // Move focus to trigger validation
+        await user.click(endTimeField);
+        await user.type(endTimeField, "12:00");
+        // Verify that validation message is shown
+        const errorField = screen.getByLabelText(
+          "Use HH:MM format (24-hour clock)"
+        );
+        expect(errorField).toBeInTheDocument();
+        expect(errorField).toHaveValue("19:99");
+        // Veryfy that end time is still present with valid label.
+        endTimeField = screen.getByLabelText("Latest start time");
+        expect(endTimeField).toBeInTheDocument();
+        expect(endTimeField).toHaveValue("12:00");
+      });
+
+      it("Requires end time to be HH:MM format", async () => {
+        const { user } = render(
+          <EditAutoUpdateConfigModal
+            softwareTitle={createMockSoftwareTitleDetails()}
+            teamId={1}
+            refetchSoftwareTitle={jest.fn()}
+            onExit={jest.fn()}
+          />
+        );
+        // Verify that "Enable auto updates" checkbox is not checked.
+        const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
+          name: "Enable auto updates",
+        });
+        expect(enableAutoUpdatesCheckbox).not.toBeChecked();
+        // Click the checkbox to enable auto updates.
+        await user.click(enableAutoUpdatesCheckbox);
+        await waitFor(() => {
+          expect(enableAutoUpdatesCheckbox).toBeChecked();
+        });
+        let startTimeField = screen.getByLabelText("Earliest start time");
+        const endTimeField = screen.getByLabelText("Latest start time");
+        expect(startTimeField).toBeInTheDocument();
+        expect(endTimeField).toBeInTheDocument();
+        // Enter invalid start time
+        await user.type(endTimeField, "19:99");
+        // Move focus to trigger validation
+        await user.click(startTimeField);
+        await user.type(startTimeField, "12:00");
+        // Verify that validation message is shown
+        const errorField = screen.getByLabelText(
+          "Use HH:MM format (24-hour clock)"
+        );
+        expect(errorField).toBeInTheDocument();
+        expect(errorField).toHaveValue("19:99");
+        // Veryfy that end time is still present with valid label.
+        startTimeField = screen.getByLabelText("Earliest start time");
+        expect(startTimeField).toBeInTheDocument();
+        expect(startTimeField).toHaveValue("12:00");
+      });
+
+      it("Requires both start and end times to be set", async () => {
+        const { user } = render(
+          <EditAutoUpdateConfigModal
+            softwareTitle={createMockSoftwareTitleDetails()}
+            teamId={1}
+            refetchSoftwareTitle={jest.fn()}
+            onExit={jest.fn()}
+          />
+        );
+        // Verify that "Enable auto updates" checkbox is not checked.
+        const enableAutoUpdatesCheckbox = screen.getByRole("checkbox", {
+          name: "Enable auto updates",
+        });
+        expect(enableAutoUpdatesCheckbox).not.toBeChecked();
+        // Click the checkbox to enable auto updates.
+        await user.click(enableAutoUpdatesCheckbox);
+        await waitFor(() => {
+          expect(enableAutoUpdatesCheckbox).toBeChecked();
+        });
+        const startTimeField = screen.getByLabelText("Earliest start time");
+        const endTimeField = screen.getByLabelText("Latest start time");
+        const saveButton = screen.getByRole("button", { name: "Save" });
+
+        expect(startTimeField).toBeInTheDocument();
+        expect(endTimeField).toBeInTheDocument();
+        // Enter only start time
+        await user.type(startTimeField, "10:00");
+        // Click Save button to trigger validation
+        await user.click(saveButton);
+        // Verify that validation message is shown for end time
+        expect(
+          screen.getByLabelText("Latest start time is required")
+        ).toBeInTheDocument();
+        // Now enter only end time
+        await user.clear(startTimeField);
+        await user.type(endTimeField, "12:00");
+        // Click Save button to trigger validation
+        await user.click(saveButton);
+        expect(
+          screen.getByLabelText("Earliest start time is required")
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByText("Latest start time is required")
+        ).not.toBeInTheDocument();
+        // Clear both
+        await user.clear(startTimeField);
+        await user.clear(endTimeField);
+        // Click Save button to trigger validation
+        await user.click(saveButton);
+        // Verify that validation message is shown for start time
+        expect(
+          screen.getByLabelText("Earliest start time is required")
+        ).toBeInTheDocument();
+        expect(
+          screen.getByLabelText("Latest start time is required")
+        ).toBeInTheDocument();
+      });
+
       it("Requires window to be at least one hour", async () => {});
     });
   });
