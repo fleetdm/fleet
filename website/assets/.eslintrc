@@ -68,7 +68,7 @@
     "AdCampaign": false,
     "MicrosoftComplianceTenant": false,
     "AndroidEnterprise": false,
-    "InstanceUsingVpp": false
+    "FleetInstanceUsingVpp": false
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }

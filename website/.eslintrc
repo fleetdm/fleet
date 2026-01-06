@@ -54,7 +54,7 @@
     "MicrosoftComplianceTenant": true,
     "AndroidEnterprise": true,
     "RenderProofOfValue": true,
-    "InstanceUsingVpp": true
+    "FleetInstanceUsingVpp": true
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },
