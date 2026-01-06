@@ -4926,10 +4926,14 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, titleIDMap map[string]uint) (bool, error) {
 		return false, nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		// Set TitleID on each app to simulate what the real datastore does
+		for _, app := range apps {
+			app.TitleID = 100 // Use consistent title ID for testing
+		}
 		return nil
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
@@ -4969,6 +4973,12 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		if savedTeam != nil {
+			return []*fleet.Team{savedTeam}, nil
+		}
 		return nil, nil
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {

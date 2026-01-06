@@ -81,48 +81,60 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			// add all possible Apple platforms, we'll remove the ones that this app doesn't support later
 			payloadsWithPlatform = append(payloadsWithPlatform,
 				fleet.VPPBatchPayloadWithPlatform{
-					AppStoreID:         payload.AppStoreID,
-					SelfService:        payload.SelfService,
-					InstallDuringSetup: payload.InstallDuringSetup,
-					Platform:           fleet.MacOSPlatform,
-					LabelsExcludeAny:   payload.LabelsExcludeAny,
-					LabelsIncludeAny:   payload.LabelsIncludeAny,
-					Categories:         payload.Categories,
-					DisplayName:        payload.DisplayName,
+					AppStoreID:          payload.AppStoreID,
+					SelfService:         payload.SelfService,
+					InstallDuringSetup:  payload.InstallDuringSetup,
+					Platform:            fleet.MacOSPlatform,
+					LabelsExcludeAny:    payload.LabelsExcludeAny,
+					LabelsIncludeAny:    payload.LabelsIncludeAny,
+					Categories:          payload.Categories,
+					DisplayName:         payload.DisplayName,
+					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
+					AutoUpdateStartTime: payload.AutoUpdateStartTime,
+					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 				},
 				fleet.VPPBatchPayloadWithPlatform{
-					AppStoreID:         payload.AppStoreID,
-					SelfService:        payload.SelfService,
-					InstallDuringSetup: payload.InstallDuringSetup,
-					Platform:           fleet.IOSPlatform,
-					LabelsExcludeAny:   payload.LabelsExcludeAny,
-					LabelsIncludeAny:   payload.LabelsIncludeAny,
-					Categories:         payload.Categories,
-					DisplayName:        payload.DisplayName,
+					AppStoreID:          payload.AppStoreID,
+					SelfService:         payload.SelfService,
+					InstallDuringSetup:  payload.InstallDuringSetup,
+					Platform:            fleet.IOSPlatform,
+					LabelsExcludeAny:    payload.LabelsExcludeAny,
+					LabelsIncludeAny:    payload.LabelsIncludeAny,
+					Categories:          payload.Categories,
+					DisplayName:         payload.DisplayName,
+					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
+					AutoUpdateStartTime: payload.AutoUpdateStartTime,
+					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 				},
 				fleet.VPPBatchPayloadWithPlatform{
-					AppStoreID:         payload.AppStoreID,
-					SelfService:        payload.SelfService,
-					InstallDuringSetup: payload.InstallDuringSetup,
-					Platform:           fleet.IPadOSPlatform,
-					LabelsExcludeAny:   payload.LabelsExcludeAny,
-					LabelsIncludeAny:   payload.LabelsIncludeAny,
-					Categories:         payload.Categories,
-					DisplayName:        payload.DisplayName,
+					AppStoreID:          payload.AppStoreID,
+					SelfService:         payload.SelfService,
+					InstallDuringSetup:  payload.InstallDuringSetup,
+					Platform:            fleet.IPadOSPlatform,
+					LabelsExcludeAny:    payload.LabelsExcludeAny,
+					LabelsIncludeAny:    payload.LabelsIncludeAny,
+					Categories:          payload.Categories,
+					DisplayName:         payload.DisplayName,
+					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
+					AutoUpdateStartTime: payload.AutoUpdateStartTime,
+					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 				},
 			)
 		}
 
 		payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
-			AppStoreID:         payload.AppStoreID,
-			SelfService:        payload.SelfService,
-			InstallDuringSetup: payload.InstallDuringSetup,
-			Platform:           payload.Platform,
-			LabelsExcludeAny:   payload.LabelsExcludeAny,
-			LabelsIncludeAny:   payload.LabelsIncludeAny,
-			Categories:         payload.Categories,
-			DisplayName:        payload.DisplayName,
-			Configuration:      payload.Configuration,
+			AppStoreID:          payload.AppStoreID,
+			SelfService:         payload.SelfService,
+			InstallDuringSetup:  payload.InstallDuringSetup,
+			Platform:            payload.Platform,
+			LabelsExcludeAny:    payload.LabelsExcludeAny,
+			LabelsIncludeAny:    payload.LabelsIncludeAny,
+			Categories:          payload.Categories,
+			DisplayName:         payload.DisplayName,
+			Configuration:       payload.Configuration,
+			AutoUpdateEnabled:   payload.AutoUpdateEnabled,
+			AutoUpdateStartTime: payload.AutoUpdateStartTime,
+			AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 		})
 
 	}
@@ -177,11 +189,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					AdamID:   payload.AppStoreID,
 					Platform: payload.Platform,
 				},
-				SelfService:        payload.SelfService,
-				InstallDuringSetup: payload.InstallDuringSetup,
-				ValidatedLabels:    validatedLabels,
-				CategoryIDs:        catIDs,
-				DisplayName:        ptr.String(payload.DisplayName),
+				SelfService:         payload.SelfService,
+				InstallDuringSetup:  payload.InstallDuringSetup,
+				ValidatedLabels:     validatedLabels,
+				CategoryIDs:         catIDs,
+				DisplayName:         ptr.String(payload.DisplayName),
+				AutoUpdateEnabled:   payload.AutoUpdateEnabled,
+				AutoUpdateStartTime: payload.AutoUpdateStartTime,
+				AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 			}
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
@@ -305,11 +320,35 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, ctxerr.Wrap(ctx, err, "set team vpp assets")
 	}
 
-	// Do cleanup here because this is API call 2 of 2 for setting software from GitOps
+	// Compute team ID for use in subsequent operations
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
 	}
+
+	// Apply auto-update config for iOS/iPadOS VPP apps
+	for _, app := range allPlatformApps {
+		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
+			continue
+		}
+		if app.AutoUpdateEnabled == nil && app.AutoUpdateStartTime == nil && app.AutoUpdateEndTime == nil {
+			continue
+		}
+		titleID, ok := appStoreIDToTitleID[app.VPPAppID.String()]
+		if !ok {
+			continue
+		}
+		cfg := fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   app.AutoUpdateEnabled,
+			AutoUpdateStartTime: app.AutoUpdateStartTime,
+			AutoUpdateEndTime:   app.AutoUpdateEndTime,
+		}
+		if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tmID, cfg); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "updating auto-update config for vpp app")
+		}
+	}
+
+	// Do cleanup here because this is API call 2 of 2 for setting software from GitOps
 	if err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, tmID); err != nil {
 		return nil, err // returned error already includes context that we could include here
 	}

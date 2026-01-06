@@ -888,16 +888,19 @@ func (c *Client) ApplyGroup(
 				}
 
 				payload := fleet.VPPBatchPayload{
-					AppStoreID:         app.AppStoreID,
-					SelfService:        app.SelfService,
-					InstallDuringSetup: installDuringSetup,
-					LabelsExcludeAny:   app.LabelsExcludeAny,
-					LabelsIncludeAny:   app.LabelsIncludeAny,
-					Categories:         app.Categories,
-					DisplayName:        app.DisplayName,
-					IconPath:           app.Icon.Path,
-					IconHash:           iconHash,
-					Platform:           fleet.InstallableDevicePlatform(app.Platform),
+					AppStoreID:          app.AppStoreID,
+					SelfService:         app.SelfService,
+					InstallDuringSetup:  installDuringSetup,
+					LabelsExcludeAny:    app.LabelsExcludeAny,
+					LabelsIncludeAny:    app.LabelsIncludeAny,
+					Categories:          app.Categories,
+					DisplayName:         app.DisplayName,
+					IconPath:            app.Icon.Path,
+					IconHash:            iconHash,
+					Platform:            fleet.InstallableDevicePlatform(app.Platform),
+					AutoUpdateEnabled:   app.AutoUpdateEnabled,
+					AutoUpdateStartTime: app.AutoUpdateStartTime,
+					AutoUpdateEndTime:   app.AutoUpdateEndTime,
 				}
 				if androidConfig != nil {
 					payload.Configuration = androidConfig
@@ -2543,13 +2546,16 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 			}
 
 			payload := fleet.VPPBatchPayload{
-				AppStoreID:         vppApp.AppStoreID,
-				SelfService:        vppApp.SelfService,
-				InstallDuringSetup: &installDuringSetup,
-				DisplayName:        vppApp.DisplayName,
-				IconPath:           vppApp.Icon.Path,
-				IconHash:           iconHash,
-				Platform:           fleet.InstallableDevicePlatform(vppApp.Platform),
+				AppStoreID:          vppApp.AppStoreID,
+				SelfService:         vppApp.SelfService,
+				InstallDuringSetup:  &installDuringSetup,
+				DisplayName:         vppApp.DisplayName,
+				IconPath:            vppApp.Icon.Path,
+				IconHash:            iconHash,
+				Platform:            fleet.InstallableDevicePlatform(vppApp.Platform),
+				AutoUpdateEnabled:   vppApp.AutoUpdateEnabled,
+				AutoUpdateStartTime: vppApp.AutoUpdateStartTime,
+				AutoUpdateEndTime:   vppApp.AutoUpdateEndTime,
 			}
 			if androidConfig != nil {
 				payload.Configuration = androidConfig
