@@ -48,12 +48,7 @@ const PlatformField = ({
           />
         </div>
       ) : (
-        <FormField
-          label="Platform"
-          name="platform"
-          helpText="Label platforms are immutable. To change the platform, delete this
-              label and create a new one."
-        >
+        <FormField label="Platform" name="platform">
           <>
             <p>{platform ? PLATFORM_STRINGS[platform] : "All platforms"}</p>
           </>

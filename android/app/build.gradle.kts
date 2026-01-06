@@ -1,3 +1,4 @@
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -23,8 +24,8 @@ android {
         applicationId = "com.fleetdm.agent"
         minSdk = 33
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.0"
+        versionCode = 4
+        versionName = "1.0.1"
 
         buildConfigField("String", "INFO_URL", "\"https://fleetdm.com/better\"")
 
@@ -66,6 +67,12 @@ android {
                         systemProperty("runIntegrationTests", "true")
                         systemProperty("scep.url", project.property("scep.url").toString())
                         systemProperty("scep.challenge", project.property("scep.challenge").toString())
+                    }
+
+                    // Enable jacoco coverage for Robolectric tests
+                    extensions.configure<JacocoTaskExtension> {
+                        isIncludeNoLocationClasses = true
+                        excludes = listOf("jdk.internal.*")
                     }
                 }
             }
