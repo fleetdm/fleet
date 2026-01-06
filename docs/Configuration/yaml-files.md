@@ -174,7 +174,7 @@ policies:
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
-  install_software:
+  install_:
     package_path: ./firefox.package.yml
 - name: [Install software] Logic Pro
   platform: darwin
@@ -526,6 +526,7 @@ software:
         - Browsers
       self_service: true
       setup_experience: true
+      pin_version: false
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "1091189122"
@@ -535,6 +536,7 @@ software:
       categories:
         - Communication
       setup_experience: true
+      pin_version: false
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
@@ -551,6 +553,7 @@ software:
         - Communication
         - Productivity
       setup_experience: true
+      pin_version: false
 ```
 
 #### self_service, labels, categories, and setup_experience
@@ -565,6 +568,7 @@ software:
   - `Security`: shown as **🔐 Security**
   - `Utilities`: shown as **🛠️ Utilities**
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `pin_version` specifies whether a software should be updated or "pinned" to it's current version.
 
 ### packages
 
