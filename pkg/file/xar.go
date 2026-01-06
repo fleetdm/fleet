@@ -29,10 +29,12 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -333,6 +335,8 @@ var idTranslations = map[string]string{
 	"corp.sap.privileges.pkg": "corp.sap.privileges",
 }
 
+var rxMicrosoftAutoUpdateBundleID = regexp.MustCompile(`^com\.microsoft\.autoupdate\d+$`)
+
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
 func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
 	var appVersion string
@@ -369,6 +373,7 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 	for id := range packageIDSet {
 		packageIDs = append(packageIDs, id)
 	}
+	fmt.Println(">>>>> found package IDs:", packageIDs)
 
 	// look in all the bundle versions for one that has a `path` attribute
 	// that is not nested, this is generally the case for packages that distribute
@@ -379,6 +384,7 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 			potentialBundles = append(potentialBundles, versions.Bundles...)
 		}
 	}
+	spew.Dump(potentialBundles)
 
 	// Prefer paths that refer to Applications for name, bundle ID, etc.
 	slices.SortFunc(potentialBundles, func(a distributionBundle, b distributionBundle) int {
@@ -396,7 +402,11 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 			identifier = bundle.ID
 			name = strings.TrimSuffix(base, ".app")
 			appVersion = bundle.CFBundleShortVersionString
-			break
+
+			// if the found bundle is microsoft auto-update, keep looking for a better match
+			if !rxMicrosoftAutoUpdateBundleID.MatchString(identifier) {
+				break
+			}
 		}
 	}
 
