@@ -4197,7 +4197,7 @@ _Available in Fleet Premium_
 
 ### Turn off host's MDM
 
-Turns off MDM for the specified macOS, iOS, or iPadOS host.
+Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
 
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
