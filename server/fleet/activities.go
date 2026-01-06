@@ -2396,7 +2396,7 @@ type ActivityInstalledAppStoreApp struct {
 	PolicyName          *string `json:"policy_name"`
 	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"-"`
-	FromAutoUpdate      bool    `json:"-"`
+	FromAutoUpdate      bool    `json:"from_auto_update"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
