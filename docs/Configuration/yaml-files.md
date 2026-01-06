@@ -526,7 +526,6 @@ software:
         - Browsers
       self_service: true
       setup_experience: true
-      pin_version: false
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "1091189122"
@@ -536,7 +535,6 @@ software:
       categories:
         - Communication
       setup_experience: true
-      pin_version: false
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
@@ -553,10 +551,10 @@ software:
         - Communication
         - Productivity
       setup_experience: true
-      pin_version: false
+      pin_version: true
 ```
 
-#### self_service, labels, categories, setup_experience, and pin_version
+#### self_service, labels, categories, and setup_experience
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_any` targets hosts that have **any** of the specified labels. `labels_exclude_any` targets hosts that have **none** of the specified labels. Only one of these fields can be set. If neither is set, all hosts are targeted.
@@ -568,7 +566,6 @@ software:
   - `Security`: shown as **🔐 Security**
   - `Utilities`: shown as **🛠️ Utilities**
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
-- `pin_version` specifies whether a software should be updated or "pinned" to current version (default: `false`).
 
 ### packages
 
@@ -618,17 +615,13 @@ To add the same App Store app for multiple platforms, specify the `app_store_id`
 ### fleet_maintained_apps
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
-
-Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
-
-The below fields are all optional.
-
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+- `pin_version` specifies whether an app should be "pinned" to the current version in your Fleet library (default: `false`). If not specified, on every GitOps run the app will be updated to the latest available version in [Fleet's software catalog](https://fleetdm.com/software-catalog).
 
-The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
+If the below fields are omitted, they default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
 - `install_script.path` specifies the command Fleet will run on hosts to install software.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
