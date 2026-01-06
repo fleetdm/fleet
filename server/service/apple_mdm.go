@@ -3947,7 +3947,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		"count", len(softwaresWithAutoUpdateSchedule),
 	)
 
-	// Create map of installed software title versions by name, bundle identifier and source.
+	// Create map of installed software title versions by bundle identifier and source.
 	installedVersionByBundleIdentifierAndSource := make(map[string]string, len(softwares))
 	for _, software := range softwares {
 		installedVersionByBundleIdentifierAndSource[software.BundleIdentifier+software.Source] = software.Version
