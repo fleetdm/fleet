@@ -1424,7 +1424,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		}
 
 		adeData, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "refetch host: get host DEP assignment")
 		}
 
