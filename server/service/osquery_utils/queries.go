@@ -2003,12 +2003,16 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			}
 			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
 			var cdhashSHA256 string
-			if hash, ok := row["cdhash_sha256"]; ok {
-				cdhashSHA256 = hash
+			if cdHash, ok := row["cdhash_sha256"]; ok {
+				cdhashSHA256 = cdHash
+			}
+			var binarySHA256 string
+			if binHash, ok := row["binary_sha256"]; ok {
+				binarySHA256 = binHash
 			}
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, binarySHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			sPaths[key] = struct{}{}
 		}

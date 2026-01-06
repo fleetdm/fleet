@@ -11682,7 +11682,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 		NodeKey:         ptr.String(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
-		Platform:        "darwin",
+		Platform:        "windows",
 	})
 	require.NoError(t, err)
 
