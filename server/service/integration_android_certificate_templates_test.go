@@ -695,8 +695,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Create two teams with different certificate templates

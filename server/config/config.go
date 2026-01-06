@@ -772,14 +772,11 @@ type AndroidAgentConfig struct {
 // Validate checks that the AndroidAgentConfig is valid.
 // Both package and signing_sha256 must be set together, or both must be empty.
 func (c AndroidAgentConfig) Validate(initFatal func(err error, msg string)) {
-	pkg := strings.TrimSpace(c.Package)
-	sha256 := strings.TrimSpace(c.SigningSHA256)
-
-	if pkg != "" && sha256 == "" {
+	if c.Package != "" && c.SigningSHA256 == "" {
 		initFatal(errors.New("mdm.android_agent.signing_sha256 must be set when mdm.android_agent.package is set"),
 			"Android agent configuration")
 	}
-	if sha256 != "" && pkg == "" {
+	if c.SigningSHA256 != "" && c.Package == "" {
 		initFatal(errors.New("mdm.android_agent.package must be set when mdm.android_agent.signing_sha256 is set"),
 			"Android agent configuration")
 	}
