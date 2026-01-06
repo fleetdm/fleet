@@ -229,7 +229,7 @@ const SoftwareDetailsSummary = ({
         )}
         <dl className={`${baseClass}__info`}>
           <div className={`${baseClass}__title-actions`}>
-            <h1>
+            <h1 aria-label="software display name">
               {isRollingArch ? (
                 // wrap a tooltip around the "rolling" suffix
                 <>
