@@ -1045,6 +1045,13 @@
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
+      "name": "Nextcloud",
+      "slug": "nextcloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nextcloud.desktopclient",
+      "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
+    },
+    {
       "name": "NordPass",
       "slug": "nordpass/darwin",
       "platform": "darwin",
