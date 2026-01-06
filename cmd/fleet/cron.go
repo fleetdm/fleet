@@ -1572,7 +1572,7 @@ func cronHostVitalsLabelMembership(
 	// so we'll filter them later.
 	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
 		PerPage: 0, // No limit.
-	})
+	}, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list labels")
 	}

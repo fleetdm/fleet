@@ -249,6 +249,31 @@ type SoftwareTitleSummary struct {
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
+// Configuration for auto-updates for a software title.
+// Supported for VPP-apps only.
+// Only applicable when viewing a title in the context of a team.
+type SoftwareAutoUpdateConfig struct {
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEnabled *bool `json:"auto_update_enabled,omitempty" db:"auto_update_enabled"`
+	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty" db:"auto_update_start_time"`
+	// AutoUpdateEndTime is the end of the maintenance window for the software title.
+	// If the end time is less than the start time, the window wraps to the next day.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty" db:"auto_update_end_time"`
+}
+
+type SoftwareAutoUpdateSchedule struct {
+	TitleID uint `json:"title_id" db:"title_id"`
+	TeamID  uint `json:"team_id" db:"team_id"`
+	SoftwareAutoUpdateConfig
+}
+
+type SoftwareAutoUpdateScheduleFilter struct {
+	Enabled *bool
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
@@ -299,6 +324,7 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	SoftwareAutoUpdateConfig
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -384,6 +410,7 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	SoftwareAutoUpdateConfig
 }
 
 type SoftwareTitleListOptions struct {

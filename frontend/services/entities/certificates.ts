@@ -65,7 +65,7 @@ export interface IGetCertsResponse {
   certificates: ICertificate[];
 }
 
-export interface ICreateCert {
+export interface IAddCert {
   name: string;
   certAuthorityId: number;
   subjectName: string;
@@ -121,7 +121,7 @@ export default {
       queryString ? CERTIFICATES.concat(`?${queryString}`) : CERTIFICATES
     );
   },
-  createCert: ({ name, certAuthorityId, subjectName, teamId }: ICreateCert) => {
+  addCert: ({ name, certAuthorityId, subjectName, teamId }: IAddCert) => {
     const { CERTIFICATES } = endpoints;
     const requestBody = {
       name,

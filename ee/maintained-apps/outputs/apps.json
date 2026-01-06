@@ -570,9 +570,9 @@
     },
     {
       "name": "Docker Desktop",
-      "slug": "docker/darwin",
+      "slug": "docker-desktop/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.docker.docker",
+      "unique_identifier": "com.electron.dockerdesktop",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
@@ -1010,13 +1010,6 @@
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
-      "name": "Microsoft Teams",
-      "slug": "microsoft-teams/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Teams",
-      "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
-    },
-    {
       "name": "Microsoft Word",
       "slug": "microsoft-word/darwin",
       "platform": "darwin",
@@ -1066,6 +1059,13 @@
       "description": "NordVPN is a VPN client for secure internet access and private browsing."
     },
     {
+      "name": "Notepad++",
+      "slug": "notepad++/windows",
+      "platform": "windows",
+      "unique_identifier": "Notepad++",
+      "description": "Notepad++ is a text editor for Windows."
+    },
+    {
       "name": "Notion Calendar",
       "slug": "notion-calendar/darwin",
       "platform": "darwin",
@@ -1108,11 +1108,25 @@
       "description": "OBS is open-source software for live streaming and screen recording."
     },
     {
+      "name": "OBS",
+      "slug": "obs/windows",
+      "platform": "windows",
+      "unique_identifier": "OBS Studio",
+      "description": "OBS is open-source software for live streaming and screen recording."
+    },
+    {
       "name": "Obsidian",
       "slug": "obsidian/darwin",
       "platform": "darwin",
       "unique_identifier": "md.obsidian",
       "description": "Obsidian is a knowledge base that works on top of a local folder of plain text Markdown files."
+    },
+    {
+      "name": "Okta Verify",
+      "slug": "okta-verify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.okta.mobile",
+      "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
       "name": "OmniGraffle",
@@ -1360,6 +1374,13 @@
       "description": "SourceTree is a graphical client for Git version control."
     },
     {
+      "name": "Sourcetree",
+      "slug": "sourcetree/windows",
+      "platform": "windows",
+      "unique_identifier": "Sourcetree Enterprise",
+      "description": "SourceTree is a graphical client for Git version control."
+    },
+    {
       "name": "Splashtop Business",
       "slug": "splashtop-business/darwin",
       "platform": "darwin",
@@ -1378,6 +1399,13 @@
       "slug": "spotify/darwin",
       "platform": "darwin",
       "unique_identifier": "com.spotify.client",
+      "description": "Spotify is a music streaming app."
+    },
+    {
+      "name": "Spotify",
+      "slug": "spotify/windows",
+      "platform": "windows",
+      "unique_identifier": "Spotify",
       "description": "Spotify is a music streaming app."
     },
     {
