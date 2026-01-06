@@ -43,7 +43,8 @@ const baseClass = "software-install-details-modal";
 
 export type IPackageInstallDetails = {
   host_display_name?: string;
-  install_uuid?: string; // not actually optional
+  install_uuid?: string; // Apple app store installs
+  command_uuid?: string; // Android play store installs
 };
 
 export const renderContactOption = (url?: string) => (
@@ -224,7 +225,8 @@ export const SoftwareInstallDetailsModal = ({
   contactUrl,
 }: ISoftwareInstallDetailsProps) => {
   // will always be present
-  const installUUID = detailsFromProps.install_uuid ?? "";
+  const installUUID =
+    (detailsFromProps.install_uuid || detailsFromProps.command_uuid) ?? "";
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
   const toggleInstallDetails = () => {
