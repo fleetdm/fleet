@@ -19,7 +19,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-const GlobalTeamName = "global"
+const LabelAPIGlobalTeamName = "global"
 
 // LabelChangesSummary carries extra context of the labels operations for a config.
 type LabelChangesSummary struct {
@@ -381,7 +381,7 @@ func isNoTeam(teamName string) bool {
 
 func (g *GitOps) CoercedTeamName() string {
 	if g.global() {
-		return GlobalTeamName
+		return LabelAPIGlobalTeamName
 	}
 	return *g.TeamName
 }

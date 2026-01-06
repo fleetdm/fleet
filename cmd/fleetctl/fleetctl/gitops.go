@@ -160,7 +160,7 @@ func gitopsCommand() *cli.Command {
 			// We don't have access to the TeamID at this point in the time, and we need it down the pipeline to get
 			// the labels from existing teams
 			teamIDLookup := make(map[string]*uint)
-			teamIDLookup[spec.GlobalTeamName] = ptr.Uint(0)
+			teamIDLookup[spec.LabelAPIGlobalTeamName] = ptr.Uint(0)
 			if appConfig.License.IsPremium() {
 				teams, err := fleetClient.ListTeams("")
 				if err != nil {
@@ -287,11 +287,11 @@ func gitopsCommand() *cli.Command {
 				// The validity of a label is based on their existence (either the label is going to be added or
 				// the label stayed the same). We look at both global label changes and team-specific label changes
 				// because of scoping rules (a team resource can reference a global label).
-				validLabelNames := make(map[string]any)
-				if _, ok := labelChanges[spec.GlobalTeamName]; ok {
-					for _, label := range labelChanges[spec.GlobalTeamName] {
+				validLabelNames := make(map[string]struct{})
+				if globalLabelChanges, ok := labelChanges[spec.LabelAPIGlobalTeamName]; ok {
+					for _, label := range globalLabelChanges {
 						if label.Op == "+" || label.Op == "=" {
-							validLabelNames[label.Name] = nil
+							validLabelNames[label.Name] = struct{}{}
 						}
 					}
 				} else {
@@ -299,14 +299,14 @@ func gitopsCommand() *cli.Command {
 					// computed.
 					for _, l := range globalLabels {
 						if l.LabelType != fleet.LabelTypeBuiltIn {
-							validLabelNames[l.Name] = nil
+							validLabelNames[l.Name] = struct{}{}
 						}
 					}
 				}
-				if config.CoercedTeamName() != spec.GlobalTeamName {
+				if config.CoercedTeamName() != spec.LabelAPIGlobalTeamName {
 					for _, label := range labelChanges[config.CoercedTeamName()] {
 						if label.Op == "+" || label.Op == "=" {
-							validLabelNames[label.Name] = nil
+							validLabelNames[label.Name] = struct{}{}
 						}
 					}
 				}
@@ -328,8 +328,8 @@ func gitopsCommand() *cli.Command {
 						builtInLabelsUsed = true
 						continue
 					}
-					for _, labelUser := range labelsUsed[labelUsed] {
-						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
+					for _, labelUsed := range labelsUsed[labelUsed] {
+						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUsed.Type, labelUsed.Name)
 					}
 					unknownLabelsUsed = true
 				}
@@ -642,9 +642,9 @@ func computeLabelChanges(
 		return labelOperations
 	}
 
-	specifiedMap := make(map[string]any, len(specifiedLabels))
+	specifiedMap := make(map[string]struct{}, len(specifiedLabels))
 	for _, l := range specifiedLabels {
-		specifiedMap[l.Name] = nil
+		specifiedMap[l.Name] = struct{}{}
 	}
 
 	// Determine which existing labels to remove.
