@@ -1,5 +1,7 @@
 package fleet
 
+import "time"
+
 // AndroidCertificateTemplateProfileID Used by the front-end for determining the displaying logic.
 const AndroidCertificateTemplateProfileID = "fleet-host-certificate-template"
 
@@ -15,6 +17,9 @@ type HostCertificateTemplate struct {
 	UUID                  string                    `db:"uuid"`
 	CreatedAt             string                    `db:"created_at"`
 	UpdatedAt             string                    `db:"updated_at"`
+	NotValidBefore        *time.Time                `db:"not_valid_before"` // for future use
+	NotValidAfter         *time.Time                `db:"not_valid_after"`
+	Serial                *string                   `db:"serial"` // for future use
 }
 
 // ToHostMDMProfile maps a HostCertificateTemplate to a HostMDMProfile, suitable for use in the MDM API
