@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"debug/buildinfo"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
@@ -85,8 +87,10 @@ func macos() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			if !c.Bool("verbose") {
-				zlog.Logger = zerolog.Nop()
+			if c.Bool("verbose") {
+				zerolog.SetGlobalLevel(zerolog.DebugLevel)
+			} else {
+				zerolog.SetGlobalLevel(zerolog.InfoLevel)
 			}
 			return createMacOSApp(c.String("version"), c.String("authority"), c.Bool("notarize"))
 		},
@@ -189,6 +193,20 @@ func createMacOSApp(version, authority string, notarize bool) error {
 	}
 	if err := os.Remove(armBinaryPath); err != nil {
 		return fmt.Errorf("remove arm64 binary: %w", err)
+	}
+
+	// Check that executable is not dirty (see #35006).
+	info, err := buildinfo.ReadFile(binaryPath)
+	if err != nil {
+		return fmt.Errorf("failed to read build info of %q: %w", binaryPath, err)
+	}
+	if strings.Contains(info.Main.Version, "dirty") {
+		gitStatus, err := exec.Command("git", "status").Output()
+		if err != nil {
+			zlog.Info().Str("command", "git status").Err(err).Msg("Failed to execute")
+		}
+		zlog.Info().Str("output", string(gitStatus)).Msg("git status")
+		return fmt.Errorf("detected dirty executable: %+v", info.Main)
 	}
 
 	if authority != "" {

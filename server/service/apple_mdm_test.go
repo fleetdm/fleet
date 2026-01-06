@@ -2693,8 +2693,9 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	contents2 := []byte("test-content-2")
 	contents4 := []byte("test-content-4")
 	contents5 := []byte("test-contents-5")
+	contents7 := []byte("test-contents-7")
 
-	p1, p2, p3, p4, p5, p6 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
+	p1, p2, p3, p4, p5, p6, p7 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
 	baseProfilesToInstall := []*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
 		{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
@@ -2702,6 +2703,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		{ProfileUUID: p4, ProfileIdentifier: "com.add.profile.four", HostUUID: hostUUID2, Scope: fleet.PayloadScopeSystem},
 		{ProfileUUID: p5, ProfileIdentifier: "com.add.profile.five", HostUUID: hostUUID1, Scope: fleet.PayloadScopeUser},
 		{ProfileUUID: p5, ProfileIdentifier: "com.add.profile.five", HostUUID: hostUUID2, Scope: fleet.PayloadScopeUser},
+		{ProfileUUID: p7, ProfileIdentifier: "com.add.profile.seven", HostUUID: hostUUID1, Scope: fleet.PayloadScopeUser},
+		{ProfileUUID: p7, ProfileIdentifier: "com.add.profile.seven", HostUUID: hostUUID2, Scope: fleet.PayloadScopeUser, HostPlatform: "ios"},
 	}
 	baseProfilesToRemove := []*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: p3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
@@ -2714,13 +2717,14 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	}
 
 	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
-		require.ElementsMatch(t, []string{p1, p2, p4, p5}, profileUUIDs)
+		require.ElementsMatch(t, []string{p1, p2, p4, p5, p7}, profileUUIDs)
 		// only those profiles that are to be installed
 		return map[string]mobileconfig.Mobileconfig{
 			p1: contents1,
 			p2: contents2,
 			p4: contents4,
 			p5: contents5,
+			p7: contents7,
 		}, nil
 	}
 
@@ -2762,19 +2766,19 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			// the p7 library doesn't support concurrent calls to Parse
 			mu.Lock()
-			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+			pk7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
 			mu.Unlock()
 			require.NoError(t, err)
 
-			if !bytes.Equal(p7.Content, expectedContents1) && !bytes.Equal(p7.Content, contents2) &&
-				!bytes.Equal(p7.Content, contents4) && !bytes.Equal(p7.Content, contents5) {
+			if !bytes.Equal(pk7.Content, expectedContents1) && !bytes.Equal(pk7.Content, contents2) &&
+				!bytes.Equal(pk7.Content, contents4) && !bytes.Equal(pk7.Content, contents5) && !bytes.Equal(pk7.Content, contents7) {
 				require.Failf(t, "profile contents don't match", "expected to contain %s, %s or %s but got %s",
-					expectedContents1, contents2, contents4, p7.Content)
+					expectedContents1, contents2, contents4, pk7.Content)
 			}
 
 			// may be called for a single host or both
 			if len(id) == 2 {
-				if bytes.Equal(p7.Content, contents5) {
+				if bytes.Equal(pk7.Content, contents5) || bytes.Equal(pk7.Content, contents7) {
 					require.ElementsMatch(t, []string{hostUUID1UserEnrollment, hostUUID2}, id)
 				} else {
 					require.ElementsMatch(t, []string{hostUUID1, hostUUID2}, id)
@@ -2855,7 +2859,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			copies[i] = &copyp
 
 			// Host with no user enrollment, so install fails
-			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+			if p.HostUUID == hostUUID2 && (p.ProfileUUID == p5 || p.ProfileUUID == p7) {
 				continue
 			}
 
@@ -2957,6 +2961,23 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			},
 			// Note that host2 has no user enrollment so the profile is not marked for removal
 			// from it
+			{
+				ProfileUUID:       p7,
+				ProfileIdentifier: "com.add.profile.seven",
+				HostUUID:          hostUUID1,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeUser,
+			},
+			{
+				ProfileUUID:       p7,
+				ProfileIdentifier: "com.add.profile.seven",
+				HostUUID:          hostUUID2,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryFailed,
+				Detail:            "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts.",
+				Scope:             fleet.PayloadScopeUser,
+			},
 		}, copies)
 		return nil
 	}
@@ -3057,7 +3078,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
 			failedCount++
 
-			require.Len(t, payload, 5) // the 5 install ops
+			require.Len(t, payload, 6) // the 6 install ops
 			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
 					ProfileUUID:       p1,
@@ -3096,6 +3117,15 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				{
 					ProfileUUID:       p5,
 					ProfileIdentifier: "com.add.profile.five",
+					HostUUID:          hostUUID1,
+					OperationType:     fleet.MDMOperationTypeInstall,
+					Status:            nil,
+					CommandUUID:       "",
+					Scope:             fleet.PayloadScopeUser,
+				},
+				{
+					ProfileUUID:       p7,
+					ProfileIdentifier: "com.add.profile.seven",
 					HostUUID:          hostUUID1,
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            nil,
@@ -3145,7 +3175,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			copies[i] = &copyp
 
 			// Host with no user enrollment, so install fails
-			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+			if p.HostUUID == hostUUID2 && (p.ProfileUUID == p5 || p.ProfileUUID == p7) {
 				continue
 			}
 
@@ -3216,6 +3246,23 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryFailed,
 				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+				Scope:             fleet.PayloadScopeUser,
+			},
+			{
+				ProfileUUID:       p7,
+				ProfileIdentifier: "com.add.profile.seven",
+				HostUUID:          hostUUID1,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeUser,
+			},
+			{
+				ProfileUUID:       p7,
+				ProfileIdentifier: "com.add.profile.seven",
+				HostUUID:          hostUUID2,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryFailed,
+				Detail:            "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts.",
 				Scope:             fleet.PayloadScopeUser,
 			},
 		}, copies)
@@ -3329,22 +3376,25 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		originalContents2 := contents2
 		originalContents4 := contents4
 		originalContents5 := contents5
+		originalContents7 := contents7
 		contents1 = []byte(badContents)
 		contents2 = []byte(badContents)
 		contents4 = []byte(badContents)
 		contents5 = []byte(badContents)
+		contents7 = []byte(badContents)
 		t.Cleanup(func() {
 			contents1 = originalContents1
 			contents2 = originalContents2
 			contents4 = originalContents4
 			contents5 = originalContents5
+			contents7 = originalContents7
 		})
 
 		profilesToInstall, _, _ := ds.ListMDMAppleProfilesToInstallAndRemoveFunc(ctx)
 		hostUUIDs = make([]string, 0, len(profilesToInstall))
 		for _, p := range profilesToInstall {
 			// This host will error before this point - should not be updated by the variable failure
-			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+			if p.HostUUID == hostUUID2 && (p.ProfileUUID == p5 || p.ProfileUUID == p7) {
 				continue
 			}
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
@@ -3353,7 +3403,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
-		require.Equal(t, 4, failedCount, "number of profiles with bad content")
+		require.Equal(t, 5, failedCount, "number of profiles with bad content")
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -5368,7 +5418,6 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 					require.Nil(t, sur)
 				}
 			})
-
 		})
 	}
 

@@ -1,0 +1,2 @@
+Fixed duplicate entry error when updating upgrade_code during software ingestion
+Fixed case sensitivity mismatches causing duplicate titles during software ingestion

@@ -4,6 +4,7 @@ import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -240,15 +241,12 @@ const PlatformWrapper = ({
         {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
             Run this command with the{" "}
-            <a
+            <CustomLink
               className={`${baseClass}__command-line-tool`}
-              href="https://fleetdm.com/learn-more-about/installing-fleetctl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Fleet command-line tool
-            </a>
-            :
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/installing-fleetctl`}
+              text="Fleet command-line tool"
+              newTab
+            />
           </span>
         )}
       </>
