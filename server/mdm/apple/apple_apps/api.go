@@ -29,7 +29,7 @@ type Attributes struct {
 type PlatformData struct {
 	Artwork           ArtData `json:"artwork"`
 	BundleID          string  `json:"bundleId"`
-	ExternalVersionID string  `json:"externalVersionId"`
+	ExternalVersionID uint    `json:"externalVersionId"`
 	LatestVersionInfo LatestVersionInfo
 }
 
@@ -73,7 +73,7 @@ func GetMetadata(adamIDs []string, vppToken string, bearerToken string) (map[str
 		return nil, fmt.Errorf("parsing base VPP app details URL: %w", err)
 	}
 
-	query := url.Values{}
+	query := reqURL.Query()
 	query.Add("ids", strings.Join(adamIDs, ","))
 	reqURL.RawQuery = query.Encode()
 
@@ -101,13 +101,13 @@ func do(req *http.Request, vppToken string, bearerToken string, dest *metadataRe
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("making request to Apple iTunes endpoint: %w", err)
+		return fmt.Errorf("making request to VPP app details endpoint: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("reading response body from Apple iTunes endpoint: %w", err)
+		return fmt.Errorf("reading response body from VPP app details endpoint: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -164,7 +164,7 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 			}
 			platform = fleet.IPadOSPlatform
 		case "mac":
-			data, ok = app.Attributes.Platforms["ios"]
+			data, ok = app.Attributes.Platforms["osx"]
 			if !ok {
 				continue
 			}
@@ -190,8 +190,10 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 }
 
 func getBaseURL() string {
-	// Use https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone,ipad,mac&extend[apps]=latestVersionInfo to access Apple directly
 	devURL := os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
+	if devURL == "apple" {
+		return "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo"
+	}
 	if devURL != "" {
 		return devURL
 	}
@@ -199,5 +201,10 @@ func getBaseURL() string {
 }
 
 func GetAppMetadataBearerToken(ds any) string {
-	return "TODO"
+	token := os.Getenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN")
+	if token != "" {
+		return token
+	}
+
+	return "" // this will fail downstream
 }

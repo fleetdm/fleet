@@ -42,7 +42,7 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore) error {
 		return ctxerr.Wrap(ctx, err, "getting all VPP tokens")
 	}
 
-	var retrievedApps map[string]map[fleet.InstallableDevicePlatform]fleet.VPPApp
+	retrievedApps := make(map[string]map[fleet.InstallableDevicePlatform]fleet.VPPApp)
 	var appsToUpdate []*fleet.VPPApp
 
 	for _, vppToken := range vppTokens {
