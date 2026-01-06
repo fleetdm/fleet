@@ -546,7 +546,7 @@ publish() {
         if [ "$announce_only" = "false" ]; then
             helm repo update fleet
             local_chart_version=`cat charts/fleet/Chart.yaml | grep "^version" | awk '{print $2}'`
-            published_chart_match=`helm repo search fleet/fleet | grep fleet | awk '{print $2}' | grep $local_chart_version`
+            published_chart_match=`helm search repo fleet/fleet -l | grep fleet | awk '{print $2}' | grep $local_chart_version`
             if [[ "$published_chart_match" != "" ]]; then
                 echo "Chart matches already published version please increment"
                 echo "Check released versions with 'helm repo search fleet/fleet -l'"
