@@ -2403,7 +2403,7 @@ labels:
 
 	teamOneFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	err = os.WriteFile(teamOneFile.Name(), []byte(fmt.Sprintf(
+	err = os.WriteFile(teamOneFile.Name(), fmt.Appendf(nil,
 		`
 controls:
 software:
@@ -2422,7 +2422,7 @@ labels:
     query: SELECT 3 
 `,
 		teamOneName,
-	)), 0o644,
+	), 0o644,
 	)
 	require.NoError(t, err)
 
@@ -2440,7 +2440,7 @@ labels:
 	require.True(t, maps.Equal(expected, got))
 
 	// Try removing one label from teamOne
-	err = os.WriteFile(teamOneFile.Name(), []byte(fmt.Sprintf(
+	err = os.WriteFile(teamOneFile.Name(), fmt.Appendf(nil,
 		`
 controls:
 software:
@@ -2456,7 +2456,7 @@ labels:
     query: SELECT 2 
 `,
 		teamOneName,
-	)), 0o644,
+	), 0o644,
 	)
 	require.NoError(t, err)
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name()}))
@@ -2489,7 +2489,7 @@ labels:
 `), 0o644)
 	require.NoError(t, err)
 
-	os.WriteFile(teamOneFile.Name(), []byte(fmt.Sprintf(
+	os.WriteFile(teamOneFile.Name(), fmt.Appendf(nil,
 
 		`
 controls:
@@ -2509,14 +2509,14 @@ labels:
     query: SELECT 1
 `,
 		teamOneName,
-	)), 0o644,
+	), 0o644,
 	)
 	require.NoError(t, err)
 
 	teamTwoName := uuid.NewString()
 	teamTwoFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	err = os.WriteFile(teamTwoFile.Name(), []byte(fmt.Sprintf(`
+	err = os.WriteFile(teamTwoFile.Name(), fmt.Appendf(nil, `
 controls:
 software:
 queries:
@@ -2529,7 +2529,7 @@ labels:
   - name: team-one-label-one
     label_membership_type: dynamic
     query: SELECT 2 
-`, teamTwoName)), 0o644)
+`, teamTwoName), 0o644)
 
 	require.NoError(t, err)
 
