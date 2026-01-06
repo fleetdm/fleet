@@ -9,3 +9,14 @@ examples: |-
   ```
   SELECT network_name FROM wifi_networks WHERE security_type='Open' AND captive_portal='1';
   ```
+
+  Discover last connected times for WiFi Networks
+  
+  ```
+  SELECT network_name,last_connected,last_connected_automatic,last_connected_manual
+  FROM wifi_networks
+  ORDER BY 
+  COALESCE(last_connected, 0) 
+  DESC
+  LIMIT 10;
+  ```
