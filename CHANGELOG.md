@@ -45,6 +45,15 @@ Modified the automatic enrollment profile verification logic to only verify with
 - Fixed an issue where GitOps would fail if $FLEET_SECRET contained XML characters in XML files, due to not escaping the value.
 - Updated query behind `fleetctl get mdm-commands` to correctly get completed Windows MDM commands.
 
+## Fleet 4.78.1 (Jan 06, 2026)
+
+### Bug fixes
+
+- Fixed duplicate entry error when updating upgrade_code during software ingestion
+- Fixed case sensitivity mismatches causing duplicate titles during software ingestion
+- Added missing upgrade code persistence when adding Windows software to Fleet via GitOps
+- Fixed a bug where iOS and iPadOS hosts enrolling via ABM MDM Migration would not have VPP apps installed
+
 ## Fleet 4.78.0 (Dec 19, 2025)
 
 ### IT Admins
