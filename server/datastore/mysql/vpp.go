@@ -1059,6 +1059,7 @@ VALUES
 	(?, ?, ?, ?, 'vpp_app_install', ?,
 		JSON_OBJECT(
 			'self_service', ?,
+			'from_auto_update', ?,
 			'associated_event_id', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
@@ -1097,6 +1098,7 @@ VALUES
 			opts.IsFleetInitiated(),
 			commandUUID,
 			opts.SelfService,
+			opts.ForScheduledUpdates,
 			associatedEventID,
 			userID,
 		)
@@ -2434,4 +2436,16 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 	}
 
 	return appStoreAppChanges{}, nil
+}
+
+func (ds *Datastore) IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error) {
+	stmt := `SELECT COUNT(*) > 0 FROM host_vpp_software_installs WHERE command_uuid = ? AND fleet_initiated = 1
+`
+
+	var isFleetInitiated bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &isFleetInitiated, stmt, commandUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if vpp install is fleet initiated")
+	}
+
+	return isFleetInitiated, nil
 }

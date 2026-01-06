@@ -2396,6 +2396,7 @@ type ActivityInstalledAppStoreApp struct {
 	PolicyName          *string `json:"policy_name"`
 	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"-"`
+	FromAutoUpdate      bool    `json:"-"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -2407,7 +2408,7 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 }
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
-	return a.PolicyID != nil || a.FromSetupExperience
+	return a.PolicyID != nil || a.FromSetupExperience || a.FromAutoUpdate
 }
 
 func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
