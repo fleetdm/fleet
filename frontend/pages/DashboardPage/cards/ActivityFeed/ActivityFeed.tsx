@@ -105,7 +105,7 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null); // Also includes Android Play Store installs
+  ] = useState<IActivityDetails | null>(null);
   const [
     scriptPackageDetails,
     setScriptPackageDetails,
@@ -258,9 +258,8 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        isAndroid(details?.host_platform || "")
-          ? setPackageInstallDetails({ ...details }) // Android Play Store installs
-          : setVppInstallDetails({ ...details }); // Apple VPP installs
+        // Both Apple VPP and Android Play Store use command-based installs with command_uuid
+        setVppInstallDetails({ ...details });
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:

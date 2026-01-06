@@ -1,4 +1,5 @@
-/** This modal is only used for VPP apps and their related installations.
+/** This modal is used for both Apple App Store (VPP) apps and Android Play Store apps and their related installations.
+ * Both use MDM command-based installs with command_uuid.
  * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
  *  we use SoftwareIpaInstallDetailsModal with the command_uuid. */
 

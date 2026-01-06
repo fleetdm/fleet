@@ -2,9 +2,8 @@
  * we use SoftwareScriptDetailsModal
  * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
  * we use SoftwareIpaInstallDetailsModal with the command_uuid
- * For VPP iOS/iPadOS packages, we use VppInstallDetailsModal
- * For Android Google Play Store apps, we also use THIS modal
- * For all other apps, we use THIS modal */
+ * For VPP iOS/iPadOS packages and Android Google Play Store apps, we use VppInstallDetailsModal
+ * For all other software packages, we use THIS modal */
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
