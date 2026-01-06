@@ -2364,7 +2364,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabels() {
 	// -----------------------------------------------------------------
 	// First, let's validate that we can add labels to the global scope
 	// -----------------------------------------------------------------
-	_, err = globalFile.WriteString(`
+	err = os.WriteFile(globalFile.Name(), []byte(`
 agent_options:
 controls:
 org_settings:
@@ -2379,7 +2379,7 @@ labels:
   - name: global-label-two
     label_membership_type: dynamic
     query: SELECT 1
-`)
+`), 0o644)
 	require.NoError(t, err)
 
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "--dry-run"}))
@@ -2403,9 +2403,8 @@ labels:
 
 	teamOneFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamOneFile.WriteString(
-		fmt.Sprintf(
-			`
+	err = os.WriteFile(teamOneFile.Name(), []byte(fmt.Sprintf(
+		`
 controls:
 software:
 queries:
@@ -2422,8 +2421,8 @@ labels:
     label_membership_type: dynamic
     query: SELECT 3 
 `,
-			teamOneName,
-		),
+		teamOneName,
+	)), 0o644,
 	)
 	require.NoError(t, err)
 
@@ -2441,9 +2440,8 @@ labels:
 	require.True(t, maps.Equal(expected, got))
 
 	// Try removing one label from teamOne
-	_, err = teamOneFile.WriteString(
-		fmt.Sprintf(
-			`
+	err = os.WriteFile(teamOneFile.Name(), []byte(fmt.Sprintf(
+		`
 controls:
 software:
 queries:
@@ -2457,8 +2455,8 @@ labels:
     label_membership_type: dynamic
     query: SELECT 2 
 `,
-			teamOneName,
-		),
+		teamOneName,
+	)), 0o644,
 	)
 	require.NoError(t, err)
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name()}))
@@ -2475,7 +2473,7 @@ labels:
 	// ------------------------------------------------
 	// Finally, let's validate that we can move labels around
 	// ------------------------------------------------
-	_, err = globalFile.WriteString(`
+	err = os.WriteFile(globalFile.Name(), []byte(`
 agent_options:
 controls:
 org_settings:
@@ -2488,12 +2486,12 @@ labels:
     label_membership_type: dynamic
     query: SELECT 1
 
-`)
+`), 0o644)
 	require.NoError(t, err)
 
-	_, err = teamOneFile.WriteString(
-		fmt.Sprintf(
-			`
+	os.WriteFile(teamOneFile.Name(), []byte(fmt.Sprintf(
+
+		`
 controls:
 software:
 queries:
@@ -2510,17 +2508,15 @@ labels:
     label_membership_type: dynamic
     query: SELECT 1
 `,
-			teamOneName,
-		),
+		teamOneName,
+	)), 0o644,
 	)
 	require.NoError(t, err)
 
 	teamTwoName := uuid.NewString()
 	teamTwoFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamTwoFile.WriteString(
-		fmt.Sprintf(
-			`
+	err = os.WriteFile(teamTwoFile.Name(), []byte(fmt.Sprintf(`
 controls:
 software:
 queries:
@@ -2533,10 +2529,8 @@ labels:
   - name: team-one-label-one
     label_membership_type: dynamic
     query: SELECT 2 
-`,
-			teamTwoName,
-		),
-	)
+`, teamTwoName)), 0o644)
+
 	require.NoError(t, err)
 
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name(), "--dry-run"}))
