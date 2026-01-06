@@ -26,6 +26,7 @@ class MockScepClient : ScepClient {
     var shouldThrowCertificateException = false
     var enrollmentDelay = 0L
     var capturedConfig: GetCertificateTemplateResponse? = null
+    var capturedScepUrl: String? = null
 
     init {
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
@@ -33,8 +34,9 @@ class MockScepClient : ScepClient {
         }
     }
 
-    override suspend fun enroll(config: GetCertificateTemplateResponse): ScepResult {
+    override suspend fun enroll(config: GetCertificateTemplateResponse, scepUrl: String): ScepResult {
         capturedConfig = config
+        capturedScepUrl = scepUrl
 
         if (enrollmentDelay > 0) {
             kotlinx.coroutines.delay(enrollmentDelay)
@@ -92,5 +94,6 @@ class MockScepClient : ScepClient {
         shouldThrowCertificateException = false
         enrollmentDelay = 0L
         capturedConfig = null
+        capturedScepUrl = null
     }
 }
