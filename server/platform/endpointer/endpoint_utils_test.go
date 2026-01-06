@@ -1,4 +1,4 @@
-package endpoint_utils
+package endpointer
 
 import (
 	"context"
