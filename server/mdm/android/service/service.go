@@ -925,6 +925,7 @@ func buildFleetAgentAppPolicy(packageName, sha256Fingerprint string, managedConf
 				RoleType: "COMPANION_APP",
 			},
 		},
+		AutoUpdateMode: "AUTO_UPDATE_HIGH_PRIORITY",
 	}, nil
 }
 
@@ -1009,9 +1010,19 @@ func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string
 
 	var certificateTemplateIDs []android.AgentCertificateTemplate
 	for _, ct := range certTemplates {
-		certificateTemplateIDs = append(certificateTemplateIDs, android.AgentCertificateTemplate{
+		template := android.AgentCertificateTemplate{
 			ID: ct.CertificateTemplateID,
-		})
+		}
+		if ct.Status != nil {
+			template.Status = string(*ct.Status)
+		}
+		if ct.OperationType != nil {
+			template.Operation = string(*ct.OperationType)
+		}
+		if ct.UUID != nil {
+			template.UUID = *ct.UUID
+		}
+		certificateTemplateIDs = append(certificateTemplateIDs, template)
 	}
 
 	return &android.AgentManagedConfiguration{
@@ -1238,8 +1249,8 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		return secrets, nil
 	}
 
-	// Helper to build config for a single host
-	buildHostConfig := func(hostUUID string, templateIDs []uint) (*android.AgentManagedConfiguration, error) {
+	// Helper to build config for a single host using pre-fetched certificate templates
+	buildHostConfig := func(hostUUID string, templates []fleet.HostCertificateTemplateForDelivery) (*android.AgentManagedConfiguration, error) {
 		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
@@ -1253,11 +1264,13 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
 		}
 
-		// Build certificate template IDs list
 		var certificateTemplateIDs []android.AgentCertificateTemplate
-		for _, templateID := range templateIDs {
+		for _, ct := range templates {
 			certificateTemplateIDs = append(certificateTemplateIDs, android.AgentCertificateTemplate{
-				ID: templateID,
+				ID:        ct.CertificateTemplateID,
+				Status:    string(ct.Status),
+				Operation: string(ct.OperationType),
+				UUID:      ct.UUID,
 			})
 		}
 
@@ -1285,7 +1298,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			}
 			// Send config without new certificates (needed for new host enrollment)
 			// There should be no other certificates either, but including them just in case.
-			config, err := buildHostConfig(hostUUID, certTemplates.OtherTemplateIDs)
+			config, err := buildHostConfig(hostUUID, certTemplates.Templates)
 			if err != nil {
 				level.Error(svc.logger).Log("msg", "failed to build host config without certs", "host_uuid", hostUUID, "err", err)
 				return ctxerr.Wrapf(ctx, err, "build host config without certs for host %s", hostUUID)
@@ -1299,7 +1312,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		}
 
 		// Step 2: Build and send config to AMAPI with ALL certificate templates
-		config, err := buildHostConfig(hostUUID, append(certTemplates.DeliveringTemplateIDs, certTemplates.OtherTemplateIDs...))
+		config, err := buildHostConfig(hostUUID, certTemplates.Templates)
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
 			return ctxerr.Wrapf(ctx, err, "build host config for %s", hostUUID)

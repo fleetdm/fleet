@@ -911,13 +911,16 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	require.Equal(t, fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host1.Host.UUID), capturedPolicyName)
 	require.Len(t, capturedPolicies, 1)
 
-	// Verify the managed configuration contains certificate template IDs
+	// Verify the managed configuration contains certificate template IDs with status and operation
 	var managedConfig android.AgentManagedConfiguration
 	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
 	require.NoError(t, err)
 	require.Len(t, managedConfig.CertificateTemplateIDs, 2)
 	for _, certTemplate := range managedConfig.CertificateTemplateIDs {
 		require.Contains(t, certificateTemplateIDs, certTemplate.ID)
+		// When sent to API, templates are in "delivering" status (transition to "delivered" happens after API success)
+		require.EqualValues(t, fleet.CertificateTemplateDelivering, certTemplate.Status)
+		require.EqualValues(t, fleet.MDMOperationTypeInstall, certTemplate.Operation)
 	}
 
 	// Verify that host_certificate_template records were created with pending status
@@ -1195,14 +1198,22 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 	require.Len(t, managedConfig.CertificateTemplateIDs, 5,
 		"Agent config should include all certificate templates (verified, delivered, delivering, failed, and pending)")
 
-	// Verify all certificate template IDs are present
-	templateIDs := make(map[uint]bool)
+	// Verify all certificate template IDs are present with correct status and operation
+	templatesByID := make(map[uint]android.AgentCertificateTemplate)
 	for _, tmpl := range managedConfig.CertificateTemplateIDs {
-		templateIDs[tmpl.ID] = true
+		templatesByID[tmpl.ID] = tmpl
 	}
-	require.True(t, templateIDs[verifiedCert.ID], "Verified certificate should be in the config")
-	require.True(t, templateIDs[deliveredCert.ID], "Delivered certificate should be in the config")
-	require.True(t, templateIDs[deliveringCert.ID], "Delivering certificate should be in the config")
-	require.True(t, templateIDs[failedCert.ID], "Failed certificate should be in the config")
-	require.True(t, templateIDs[pendingCert.ID], "Pending certificate should be in the config")
+
+	assertCertTemplate := func(certID uint, expectedStatus fleet.CertificateTemplateStatus, expectedOp fleet.MDMOperationType) {
+		require.Contains(t, templatesByID, certID)
+		require.EqualValues(t, expectedStatus, templatesByID[certID].Status)
+		require.EqualValues(t, expectedOp, templatesByID[certID].Operation)
+	}
+
+	assertCertTemplate(verifiedCert.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(deliveredCert.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(deliveringCert.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(failedCert.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall)
+	// Pending certificate transitions to delivering before the API call
+	assertCertTemplate(pendingCert.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall)
 }

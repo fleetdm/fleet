@@ -37,7 +37,7 @@ export const generateFormValidations = (
         {
           name: "required",
           isValid: (formData: IAddCertFormData) => {
-            return formData.name.length > 0;
+            return formData.name.trim().length > 0;
           },
         },
         {
