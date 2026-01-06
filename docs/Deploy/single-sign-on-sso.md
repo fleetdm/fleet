@@ -132,7 +132,7 @@ IdPs generally requires the following information:
 
 - Assertion Consumer Service - This is the call-back URL that the identity provider will use to send security assertions to Fleet. Use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring end user authentication, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
 
-- Entity ID - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration. In the previous examples, we used `fleet`.
+- Entity ID - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration. In the other examples, we used `fleet`.
 
 - Name ID Format - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IdP setup to something like `email` or `EmailAddress`.
 
@@ -148,7 +148,7 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 - **Identity provider name** - A human-readable name of the IdP. This is rendered on the login page.
 
-- **Entity ID** - A URI that identifies your Fleet instance as the issuer of authorization requests (e.g., `fleet.example.com`). This must match the Entity ID configured with the IdP.
+- **Entity ID** - A URI that identifies your Fleet instance as the issuer of authorization requests (e.g., `fleet`). This must match the Entity ID configured with the IdP.
 
 - **Metadata URL** - Obtain this value from your IdP. and is used by Fleet to
   issue authorization requests to the IdP.
