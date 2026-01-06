@@ -344,9 +344,10 @@ func gitopsCommand() *cli.Command {
 				labelChangesSummary := spec.NewLabelChangesSummary(labelChanges[teamName], labelMoves[teamName])
 				config.LabelChangesSummary = labelChangesSummary
 
-				// Delete labels at the end of the run to avoid issues with resource contention
+				// Delete labels at the end of the run to avoid issues with resource contention.
 				if !flDryRun {
-					for _, l := range labelChangesSummary.LabelsToRemove {
+					for _, name := range labelChangesSummary.LabelsToRemove {
+						l := name // rebind for closure
 						allPostOps = append(allPostOps, func() error {
 							if err := fleetClient.DeleteLabel(l); err != nil {
 								return err
