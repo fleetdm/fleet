@@ -806,6 +806,7 @@ type Service interface {
 
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
 	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
+	// Note: It is a public method because of how the calling methods are set up. It assumes that auth has been done in the caller.
 	GetHostLocationData(ctx context.Context, hostID uint) (*GeoLocation, error)
 
 	////////////////////////////////////////////////////////////////////////////////
