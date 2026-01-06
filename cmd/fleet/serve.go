@@ -1319,7 +1319,15 @@ the way that the Fleet server works.
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
-				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
+				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
+					ds,
+					commander,
+					vppInstaller,
+					license.IsPremium(),
+					logger,
+					redis_key_value.New(redisPool),
+				)
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
 

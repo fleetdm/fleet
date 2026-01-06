@@ -499,7 +499,8 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 				if exists {
 					return ctxerr.Wrap(ctx, fleet.ConflictError{
 						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-							conflictingTitle, teamName)}, "vpp app conflicts with existing software installer")
+							conflictingTitle, teamName),
+					}, "vpp app conflicts with existing software installer")
 				}
 			}
 
@@ -563,7 +564,8 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 }
 
 func (ds *Datastore) checkConflictingSoftwareInstallerForVPPApp(
-	ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
+	ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID,
+) (exists bool, title string, err error) {
 	const stmt = `
 SELECT
 	st.name
@@ -1137,6 +1139,33 @@ func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) 
 	}
 
 	return adamMap, nil
+}
+
+func (ds *Datastore) MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error) {
+	var adamIDsList []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIDsList, `SELECT hvsi.adam_id
+		FROM host_vpp_software_installs hvsi
+		JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
+		WHERE hvsi.host_id = ?
+			AND hvsi.canceled = 0
+			AND (
+				nvq.status IS NULL -- install command not acknowledged yet
+				OR
+				(
+					-- install command acknowledged but still waiting for verification
+					-- completed/failed installation.
+					nvq.status = 'Acknowledged'
+					AND hvsi.verification_at IS NULL
+					AND hvsi.verification_failed_at IS NULL
+				)
+			)`, hostID); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list pending VPP install verifications")
+	}
+	adamIDs = make(map[string]struct{})
+	for _, id := range adamIDsList {
+		adamIDs[id] = struct{}{}
+	}
+	return adamIDs, nil
 }
 
 func (ds *Datastore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -1976,7 +2005,6 @@ func (s softwareType) getInstallMappingTableName() string {
 }
 
 func (ds *Datastore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error {
-
 	stmt := `
 UPDATE %s
 SET verification_command_uuid = ?
@@ -2166,7 +2194,8 @@ func (ds *Datastore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context
 }
 
 func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext,
-	hostID uint, hostPlatform string) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	hostID uint, hostPlatform string,
+) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
 	const loadFailedCmdsStmt = `
 SELECT
 	command_uuid
@@ -2357,7 +2386,6 @@ type appStoreAppChanges struct {
 }
 
 func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam, existingApp fleet.VPPAppTeam, isExistingApp bool) (appStoreAppChanges, error) {
-
 	var categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged bool
 
 	if isExistingApp {
