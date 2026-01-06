@@ -306,8 +306,6 @@ func NewDeviceLocationResultsHandler(
 			return ctxerr.New(ctx, "unexpected results type")
 		}
 
-		fmt.Printf("deviceLocResult.Raw(): %v\n", deviceLocResult.Raw())
-
 		err := ds.InsertHostLocationData(ctx, fleet.HostLocationData{
 			HostID:    deviceLocResult.HostID(),
 			Latitude:  deviceLocResult.Latitude(),
