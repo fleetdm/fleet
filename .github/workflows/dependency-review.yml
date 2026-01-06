@@ -31,4 +31,4 @@ jobs:
           # Unanswered issue opened 3 years ago: https://github.com/valyala/fastjson/issues/88).
           # For a safe use of their fastjson, you really have to call Validate* first and then Parse*, otherwise it accepts a lot of invalid JSON strings.
           # There was a PR to address this, but it's still open and uncommented by the owner: https://github.com/valyala/fastjson/pull/68.
-          deny-packages: 'pkg:golang/github/valyala/fastjson, pkg:golang/github/valyala/fasttemplate'
+          deny-packages: 'pkg:golang/github.com/valyala/fastjson, pkg:golang/github.com/valyala/fasttemplate'
