@@ -1,10 +1,12 @@
-# Demand gen/marketing operations
+# Marketing operations
 
 Drive efficient, scalable pipeline growth by building and optimizing the systems, processes, and campaigns that attract, nurture, and convert high-quality leads into revenue—enabling the sales team to focus on closing while we focus on filling the funnel.
 
-##  Go to market model
 
-Our go-to-market approach is built on a foundation of end-to-end visibility. We want to track touchpoints from first engagement through closed revenue, connecting marketing activity to pipeline and revenue. This means instrumenting our campaigns, content, and channels with consistent attribution, maintaining clean data flow between our marketing automation and CRM systems, and building reporting that ties spend and effort directly to outcomes. The goal isn't data for data's sake—it's to create a feedback loop where we can see what's working, double down on high-performing channels, cut what isn't delivering, and continuously refine our targeting, messaging, and timing. Every campaign we run should make us smarter about the next one.
+##  Go-to-market model
+
+Our go-to-market (GTM) approach is built on a foundation of end-to-end visibility. We want to track touchpoints from first engagement through closed revenue, connecting marketing activity to pipeline and revenue. This means instrumenting our campaigns, content, and channels with consistent attribution, maintaining clean data flow between our marketing automation and CRM systems, and building reporting that ties spend and effort directly to outcomes. The goal isn't data for data's sake—it's to create a feedback loop where we can see what's working, double down on high-performing channels, cut what isn't delivering, and continuously refine our targeting, messaging, and timing. Every campaign we run should make us smarter about the next one.
+
 
 ### Key processes/resources (see below)
 
@@ -12,6 +14,7 @@ Our go-to-market approach is built on a foundation of end-to-end visibility. We 
 2. [GTM Model](#GTM-model)
 3. [Attribution framework (aka Lead Source)](#Attribution-framework-(aka-Lead-Source))  
 4. [Unified Campaign member status framework](#Unified-campaign-member-status-framework)
+
 
 ## Conversion rates
 
@@ -23,13 +26,17 @@ There are several key comparisons that we want to understand:
 - **Stage to Stage**:tbd/todo  
 - **Stage to stage cycle time**: tbd/todo
 
+
 ## GTM model
-We can build a reverse funnel hsing the conversion rates and an estimated ASP which will indicate the business demand for top of funnel leads/contacts, and opportunities in order to attain future revenue targets. 
+
+We can build a reverse funnel using the conversion rates and an estimated ASP, which will indicate the business demand for top-of-funnel leads/contacts and opportunities in order to attain future revenue targets. 
 See our current model in google docs [link](link to google docs) <Tbd/todo>
+
 
 ## Attribution framework (aka Lead Source)
 
-### **1\. Introduction**
+
+### 1\. Introduction
 
 To scale demand generation effectively, we need to have a trusted source of data about what works in generating new leads, opportunities, pipeline, and business. 
 
@@ -43,16 +50,20 @@ This framework solves three core problems:
 
 This outlines a simple, scalable, and non-negotiable system for tracking all lead-generating activities at Fleet.
 
-### **First-touch  vs. converting-touch**
+
+### First-touch  vs. converting-touch
 
 This framework is **not** just for the Original Lead/Contact Source field.   
 It should be applied to **two separate, critical moments** in the customer journey.
 
-#### **🌎 First-touch: Original lead/contact source  			🟢**
+
+#### 🌎 First-touch: Original lead/contact source
 
 * **What it is:** The "birth certificate" of a contact. It is the very first marketing or sales touch that brought this person into our database.  
 * **The rule:** This field is **set once and is locked forever**. It should *never* be overwritten.  
 * **It answers:** "Which of our channels are best at generating *net-new names* and filling the top of our funnel?"
+
+
 #### **🏁 Most recent/converting-touch: Opportunity creation source 🟡**
 
 * **What it is:** The "final push." It is the specific campaign that caused a known lead or contact to convert into a sales-qualified opportunity (i.e., they booked a demo or engaged with sales).  
