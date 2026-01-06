@@ -123,10 +123,10 @@ for system in $SYSTEMS; do
        ORBIT_BINARY_PATH=$orbit_target \
        go run ./orbit/tools/build/build.go
     elif [ $system == "windows" ]; then
-        ORBIT_VERSION=$ORBIT_VERSION make orbit-windows
+        CGO_ENABLED=0 ORBIT_VERSION=$ORBIT_VERSION make orbit-windows
         mv orbit.exe orbit-windows.exe
     elif [ $system == "windows-arm64" ]; then
-        ORBIT_VERSION=$ORBIT_VERSION make orbit-windows-arm64
+        CGO_ENABLED=0 ORBIT_VERSION=$ORBIT_VERSION make orbit-windows-arm64
         mv orbit.exe orbit-windows-arm64.exe
     else
       race_value=false
