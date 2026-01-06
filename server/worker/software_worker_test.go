@@ -65,6 +65,12 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 			},
 		}, nil
 	}
+	ds.SetHostCertificateTemplatesToPendingRemoveForHostFunc = func(ctx context.Context, hostUUID string) error {
+		return nil
+	}
+	ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+		return 0, nil
+	}
 	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 		return []string{"com.example.teamapp"}, nil
 	}

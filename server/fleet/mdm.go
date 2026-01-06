@@ -1126,6 +1126,7 @@ func (p InstallableDevicePlatform) IsApplePlatform() bool {
 type AppleDevicesToRefetch struct {
 	HostID              uint                   `db:"host_id"`
 	UUID                string                 `db:"uuid"`
+	InstalledFromDEP    bool                   `db:"installed_from_dep"`
 	CommandsAlreadySent MDMCommandsAlreadySent `db:"commands_already_sent"`
 }
 

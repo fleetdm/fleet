@@ -18,6 +18,7 @@ import (
 // MaxSoftwareInstallerSize is the maximum size allowed for software
 // installers. This is enforced by the endpoints that upload installers.
 const MaxSoftwareInstallerSize = 3000 * units.MiB
+const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -27,7 +28,7 @@ type SoftwareInstallerStore interface {
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, fileID string) (string, error)
+	Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 }
 
 // SoftwareInstallDetails contains all of the information
@@ -524,6 +525,36 @@ type UploadSoftwareInstallerPayload struct {
 	AddedAutomaticInstallPolicy *Policy
 }
 
+func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
+	if p.BundleIdentifier != "" {
+		return p.BundleIdentifier
+	}
+	if p.Source == "programs" && p.UpgradeCode != "" {
+		return p.UpgradeCode
+	}
+	return p.Title
+}
+
+// GetBundleIdentifierForDB returns a pointer to the bundle identifier if it's
+// non-empty (after trimming whitespace), or nil otherwise. This is used when
+// inserting into the database where NULL is preferred over empty string.
+func (p UploadSoftwareInstallerPayload) GetBundleIdentifierForDB() *string {
+	if strings.TrimSpace(p.BundleIdentifier) != "" {
+		return &p.BundleIdentifier
+	}
+	return nil
+}
+
+// GetUpgradeCodeForDB returns a pointer to the upgrade code if the source is
+// "programs", or nil otherwise. This is used when inserting into the database
+// where NULL is preferred for non-Windows installers.
+func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
+	if p.Source != "programs" {
+		return nil
+	}
+	return &p.UpgradeCode
+}
+
 type ExistingSoftwareInstaller struct {
 	InstallerID      uint    `db:"installer_id"`
 	TeamID           *uint   `db:"team_id"`
@@ -1009,13 +1040,16 @@ type HostSoftwareInstallOptions struct {
 	SelfService        bool
 	PolicyID           *uint
 	ForSetupExperience bool
+	// ForScheduledUpdates means the install request is for iOS/iPadOS
+	// scheduled updates, which means it was Fleet-initiated.
+	ForScheduledUpdates bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
 // Software installs initiated via a policy are fleet-initiated (and we also
 // make sure SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && o.PolicyID != nil
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

@@ -1017,6 +1017,9 @@ func TestListHosts(t *testing.T) {
 			{ID: 1},
 		}, nil
 	}
+	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
+	}
 
 	userContext := test.UserContext(ctx, test.UserAdmin)
 	hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
@@ -1063,7 +1066,7 @@ func TestStreamHosts(t *testing.T) {
 		hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
 			return func(yield func(*fleet.HostResponse, error) bool) {
 				for i := 1; i <= 3; i++ {
-					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(i)}}
+					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(i)}} // nolint:gosec
 					if !yield(host, nil) {
 						return
 					}
@@ -1287,7 +1290,7 @@ func TestGetHostSummary(t *testing.T) {
 			Platforms:        []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
 		}, nil
 	}
-	ds.LabelsSummaryFunc = func(ctx context.Context) ([]*fleet.LabelSummary, error) {
+	ds.LabelsSummaryFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
 		return []*fleet.LabelSummary{{ID: 1, Name: "All hosts", Description: "All hosts enrolled in Fleet", LabelType: fleet.LabelTypeBuiltIn}, {ID: 10, Name: "Other label", Description: "Not a builtin label", LabelType: fleet.LabelTypeRegular}}, nil
 	}
 
@@ -3788,5 +3791,291 @@ func TestDeleteHostDeviceIDPMapping(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Create test hosts
+	host1 := &fleet.Host{
+		ID:       1,
+		UUID:     "uuid1",
+		Hostname: "host1",
+		Platform: "darwin",
+		MDM:      fleet.MDMHostData{},
+	}
+	host2 := &fleet.Host{
+		ID:       2,
+		UUID:     "uuid2",
+		Hostname: "host2",
+		Platform: "windows",
+		MDM:      fleet.MDMHostData{},
+	}
+	host3 := &fleet.Host{
+		ID:       3,
+		UUID:     "uuid3",
+		Hostname: "host3",
+		Platform: "darwin",
+		MDM:      fleet.MDMHostData{},
+	}
+	host4 := &fleet.Host{
+		ID:       4,
+		UUID:     "uuid4",
+		Hostname: "host4-no-mdm",
+		Platform: "darwin",
+		// No MDM info
+	}
+
+	mockHosts := []*fleet.Host{host1, host2, host3, host4}
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return mockHosts, nil
+	}
+
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+
+	// Test scenarios
+	t.Run("no populating device status", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			// Return empty map - no MDM actions for any host
+			return make(map[uint]*fleet.HostLockWipeStatus), nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: false})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+		require.False(t, ds.GetHostsLockWipeStatusBatchFuncInvoked)
+
+		// All hosts have no MDM actions (empty statusMap), so device_status and pending_action should be nil
+		for _, h := range hosts {
+			require.NotNil(t, h.MDM) // MDM is a struct, not a pointer
+			require.Nil(t, h.MDM.DeviceStatus)
+			require.Nil(t, h.MDM.PendingAction)
+		}
+	})
+
+	t.Run("no MDM actions", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			// Return empty map - no MDM actions for any host
+			return make(map[uint]*fleet.HostLockWipeStatus), nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+		require.True(t, ds.GetHostsLockWipeStatusBatchFuncInvoked)
+
+		// All hosts have no MDM actions (empty statusMap), so device_status and pending_action should be mapped to default
+		for _, h := range hosts {
+			require.NotNil(t, h.MDM) // MDM is a struct, not a pointer
+			require.Equal(t, string(fleet.DeviceStatusUnlocked), *h.MDM.DeviceStatus)
+			require.Equal(t, string(fleet.PendingActionNone), *h.MDM.PendingAction)
+		}
+	})
+
+	t.Run("lock pending", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+			// Host 1 has pending lock command
+			statusMap[1] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "darwin",
+				LockMDMCommand:    &fleet.MDMCommand{CommandUUID: "lock-cmd-1"},
+				// No result yet, so it's pending
+			}
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 1 should show pending lock
+		require.NotNil(t, hosts[0].MDM)
+		require.NotNil(t, hosts[0].MDM.DeviceStatus)
+		require.NotNil(t, hosts[0].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionLock), *hosts[0].MDM.PendingAction)
+	})
+
+	t.Run("lock acknowledged", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+			// Host 1 has acknowledged lock command
+			statusMap[1] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "darwin",
+				LockMDMCommand:    &fleet.MDMCommand{CommandUUID: "lock-cmd-1"},
+				LockMDMCommandResult: &fleet.MDMCommandResult{
+					Status: fleet.MDMAppleStatusAcknowledged,
+				},
+			}
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 1 should show locked with NO pending action
+		require.NotNil(t, hosts[0].MDM)
+		require.NotNil(t, hosts[0].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[0].MDM.DeviceStatus)
+		require.NotNil(t, hosts[0].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[0].MDM.PendingAction)
+	})
+
+	t.Run("wipe pending", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+			// Host 2 (Windows) has pending wipe command
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				WipeMDMCommand:    &fleet.MDMCommand{CommandUUID: "wipe-cmd-2"},
+				// No result yet, so it's pending
+			}
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 2 should show pending wipe
+		require.NotNil(t, hosts[1].MDM)
+		require.NotNil(t, hosts[1].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionWipe), *hosts[1].MDM.PendingAction)
+	})
+
+	t.Run("wipe acknowledged", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+			// Host 2 (Windows) has acknowledged wipe command
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				WipeMDMCommand:    &fleet.MDMCommand{CommandUUID: "wipe-cmd-2"},
+				WipeMDMCommandResult: &fleet.MDMCommandResult{
+					Status: "200", // Windows success status
+				},
+			}
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 2 should show wiped
+		require.NotNil(t, hosts[1].MDM)
+		require.NotNil(t, hosts[1].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.DeviceStatusWiped), *hosts[1].MDM.DeviceStatus)
+		require.NotNil(t, hosts[1].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[1].MDM.PendingAction)
+	})
+
+	t.Run("multiple hosts with different states", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+
+			// Host 1: locked
+			statusMap[1] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "darwin",
+				LockMDMCommand:    &fleet.MDMCommand{CommandUUID: "lock-cmd-1"},
+				LockMDMCommandResult: &fleet.MDMCommandResult{
+					Status: fleet.MDMAppleStatusAcknowledged,
+				},
+			}
+
+			// Host 2: pending wipe
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				WipeMDMCommand:    &fleet.MDMCommand{CommandUUID: "wipe-cmd-2"},
+			}
+
+			// Host 3: no actions (unlocked)
+			statusMap[3] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "darwin",
+			}
+
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 1: locked
+		require.NotNil(t, hosts[0].MDM)
+		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[0].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[0].MDM.PendingAction)
+
+		// Host 2: pending wipe
+		require.NotNil(t, hosts[1].MDM)
+		require.Equal(t, string(fleet.PendingActionWipe), *hosts[1].MDM.PendingAction)
+
+		// Host 3: unlocked
+		require.NotNil(t, hosts[2].MDM)
+		require.Equal(t, string(fleet.DeviceStatusUnlocked), *hosts[2].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[2].MDM.PendingAction)
+	})
+
+	t.Run("script-based lock (Windows & Linux)", func(t *testing.T) {
+		var exitCode0 int64
+		var exitCode1 int64 = 1
+
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+
+			// Host 2: Windows with successful lock script
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				LockScript: &fleet.HostScriptResult{
+					ExecutionID: "script-exec-1",
+					ExitCode:    &exitCode0,
+				},
+			}
+
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 2 should show locked (via script)
+		require.NotNil(t, hosts[1].MDM)
+		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[1].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[1].MDM.PendingAction)
+
+		// Test with failed script
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				LockScript: &fleet.HostScriptResult{
+					ExecutionID: "script-exec-2",
+					ExitCode:    &exitCode1, // Failed
+				},
+			}
+
+			return statusMap, nil
+		}
+
+		hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		require.NoError(t, err)
+
+		// Failed script should show unlocked
+		require.NotNil(t, hosts[1].MDM)
+		require.Equal(t, string(fleet.DeviceStatusUnlocked), *hosts[1].MDM.DeviceStatus)
 	})
 }

@@ -73,7 +73,9 @@ jobs:
       - name: Check if there are changes
         id: check-changes
         run: |
-          if ("${{ steps.detect-changed.outputs.HAS_CHANGES }}" -eq "true") {
+          # Default to no changes if detection step failed or didn't set output
+          $hasChanges = "${{ steps.detect-changed.outputs.HAS_CHANGES }}"
+          if ($hasChanges -eq "true") {
             "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "Changed apps detected: ${{ steps.detect-changed.outputs.CHANGED_APPS }}"
           } else {

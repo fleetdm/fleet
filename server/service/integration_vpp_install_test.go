@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -936,7 +937,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	ssVppData := []SSVPPTestData{
 		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111)},
-		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)}}
+		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)},
+	}
 
 	for i, data := range ssVppData {
 		// Enroll device, add serial number to fake Apple server, and transfer to team
@@ -1240,8 +1242,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 
-	oldApps := s.appleITunesSrvData
-	t.Cleanup(func() { s.appleITunesSrvData = oldApps })
+	s.registerResetITunesData(t)
+
 	s.appleITunesSrvData = map[string]string{
 		"1": `{"bundleId": "com.example.dummy", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "DummyApp", "TrackID": 1}`,
 		"2": `{"bundleId": "com.example.noversion", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "NoVersion", "TrackID": 2}`,
@@ -1699,7 +1701,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	// update the app to have a label condition
 	clr := createLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
-		LabelPayload: fleet.LabelPayload{Name: "L1", HostIDs: []uint{}}}, http.StatusOK, &clr)
+		LabelPayload: fleet.LabelPayload{Name: "L1", HostIDs: []uint{}},
+	}, http.StatusOK, &clr)
 
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID: titleID, TeamID: nil, LabelsIncludeAny: []string{"L1"},
@@ -1713,10 +1716,41 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	// add the label to the host, so it can be installed
 	var addLabelsToHostResp addLabelsToHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", iosHost.ID), addLabelsToHostRequest{
-		Labels: []string{"L1"}}, http.StatusOK, &addLabelsToHostResp)
+		Labels: []string{"L1"},
+	}, http.StatusOK, &addLabelsToHostResp)
 
 	// self-install request is now accepted
 	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+}
+
+func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
+	// Test that the Fleet URL is used if cloudfrontsigner is nil
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	teamID := ptr.Uint(0)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	var titleResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &titleResp, "team_id", "0")
+	require.Len(t, titleResp.SoftwareTitles, 1)
+	require.Equal(t, "ipa_test", titleResp.SoftwareTitles[0].Name)
+	titleID := titleResp.SoftwareTitles[0].ID
+
+	readManifest := func(res *http.Response) []byte {
+		buf, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		return buf
+	}
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
+		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+
+	manifest := readManifest(res)
+	require.NotNil(t, manifest)
+	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app?team_id=%d", titleID, *teamID))
 }
 
 func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {
@@ -1759,4 +1793,930 @@ func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, ce
 		`, hostUUID, certHash)
 		return err
 	})
+}
+
+func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	// Create a team and a VPP token on it.
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+	s.setVPPTokenForTeam(team.ID)
+
+	// Add iOS VPP application.
+	iOSApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+
+	// Add iOS app to the team.
+	addAppResp := addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: iOSApp.AdamID,
+		Platform:   iOSApp.Platform,
+	}, http.StatusOK, &addAppResp)
+
+	// Enroll iOS device, transfer to team, and add serial number to fake Apple server (for VPP APIs).
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID}, TeamID: &team.ID}, http.StatusOK)
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+
+	// Get title ID of the VPP app.
+	var iOSAppTitleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &iOSAppTitleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, iOSApp.AdamID, "ios")
+	})
+	require.NotZero(t, iOSAppTitleID)
+
+	// Trigger install to the host
+	installResp := installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, iOSAppTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
+			// Acknowledge InstallApplication command
+			var fullCmd micromdm.CommandPayload
+			err := plist.Unmarshal(cmd.Raw, &fullCmd)
+			require.NoError(t, err)
+			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			t.Log("InstallApplication processed")
+		case "InstalledApplicationList":
+			// OK, could come from polling.
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	// Issue a refetch on the iOS host, and make sure the commands are queued.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+	commands, err := s.ds.GetHostMDMCommands(context.Background(), iosHost.ID)
+	require.NoError(t, err)
+	require.Len(t, commands, 4)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{
+		{HostID: iosHost.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: iosHost.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+		{HostID: iosHost.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+		{HostID: iosHost.ID, CommandType: fleet.VerifySoftwareInstallVPPPrefix},
+	}, commands)
+
+	s.runWorker()
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+CMD_LOOP:
+	for cmd != nil {
+		switch cmd.Command.RequestType {
+		case "CertificateList":
+			var fullCmd micromdm.CommandPayload
+			err := plist.Unmarshal(cmd.Raw, &fullCmd)
+			require.NoError(t, err)
+			cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
+			require.NoError(t, err)
+			t.Logf("CertificateList processed")
+		case "DeviceInformation":
+			var fullCmd micromdm.CommandPayload
+			err := plist.Unmarshal(cmd.Raw, &fullCmd)
+			require.NoError(t, err)
+			cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID, "iPhone 17", "iPhone")
+			require.NoError(t, err)
+			t.Log("DeviceInformation processed")
+		case "InstalledApplicationList":
+			var fullCmd micromdm.CommandPayload
+			err = plist.Unmarshal(cmd.Raw, &fullCmd)
+			require.NoError(t, err)
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{
+					{
+						Name:             "RandomApp",
+						BundleIdentifier: "com.example.randomapp",
+						Version:          "9.9.9",
+						Installed:        true,
+					},
+					{
+						Name:             "App 2",
+						BundleIdentifier: "b-2",
+						Version:          "1.0.0",
+						Installed:        true,
+					},
+				},
+			)
+			require.NoError(t, err)
+			t.Logf("InstalledApplicationList processed: %s", cmd.CommandUUID)
+			break CMD_LOOP
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	/*
+
+		processVPPInstallOnClient := func(mdmClient *mdmtest.TestAppleMDMClient, opts vppInstallOpts) string {
+			var installCmdUUID string
+
+			// Process the InstallApplication command
+			s.runWorker()
+			cmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+
+			app, ok := expectedAppsByBundleID[opts.bundleID]
+			require.Truef(t, ok, "unexpected bundle ID: %s", opts.bundleID)
+			for cmd != nil {
+				var fullCmd micromdm.CommandPayload
+				switch cmd.Command.RequestType {
+				case "InstallApplication":
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					installCmdUUID = cmd.CommandUUID
+					if opts.failOnInstall {
+						t.Logf("Failed command UUID: %s", installCmdUUID)
+						cmd, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
+						require.NoError(t, err)
+						continue
+					}
+
+					cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+					require.NoError(t, err)
+				case "InstalledApplicationList":
+					// If we are polling to verify the install, we should get an
+					// InstalledApplicationList command instead of an InstallApplication command.
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					_, err = mdmClient.AcknowledgeInstalledApplicationList(
+						mdmClient.UUID,
+						cmd.CommandUUID,
+						[]fleet.Software{
+							{
+								Name:             "RandomApp",
+								BundleIdentifier: "com.example.randomapp",
+								Version:          "9.9.9",
+								Installed:        false,
+							},
+							{
+								Name:             app.Name,
+								BundleIdentifier: app.BundleIdentifier,
+								Version:          app.LatestVersion,
+								Installed:        opts.appInstallVerified,
+							},
+						},
+					)
+					require.NoError(t, err)
+					return ""
+				default:
+					require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+				}
+			}
+
+			if opts.failOnInstall {
+				return installCmdUUID
+			}
+
+			if opts.appInstallTimeout {
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(context.Background(), "UPDATE nano_command_results SET updated_at = ? WHERE command_uuid = ?", time.Now().Add(-11*time.Minute), installCmdUUID)
+					return err
+				})
+			}
+
+			// Process the verification command (InstalledApplicationList)
+			s.runWorker()
+			// Check that there is now a verify command in flight
+			checkCommandsInFlight(1)
+			cmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				var fullCmd micromdm.CommandPayload
+				switch cmd.Command.RequestType {
+				case "InstalledApplicationList":
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					cmd, err = mdmClient.AcknowledgeInstalledApplicationList(
+						mdmClient.UUID,
+						cmd.CommandUUID,
+						[]fleet.Software{
+							{
+								Name:             "RandomApp",
+								BundleIdentifier: "com.example.randomapp",
+								Version:          "9.9.9",
+								Installed:        false,
+							},
+							{
+								Name:             app.Name,
+								BundleIdentifier: app.BundleIdentifier,
+								Version:          app.LatestVersion,
+								Installed:        opts.appInstallVerified,
+							},
+						},
+					)
+					require.NoError(t, err)
+				default:
+					require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+				}
+			}
+
+			return installCmdUUID
+		}
+
+		checkVPPApp := func(got *fleet.HostSoftwareWithInstaller, expected *fleet.VPPApp, expectedCmdUUID string, expectedStatus fleet.SoftwareInstallerStatus) {
+			require.Equal(t, expected.Name, got.Name)
+			require.NotNil(t, got.AppStoreApp)
+			require.Equal(t, expected.AdamID, got.AppStoreApp.AppStoreID)
+			require.Equal(t, ptr.String(expected.IconURL), got.IconUrl)
+			require.Empty(t, got.AppStoreApp.Name) // Name is only present for installer packages
+			require.Equal(t, expected.LatestVersion, got.AppStoreApp.Version)
+			require.NotNil(t, got.Status)
+			require.Equal(t, expectedStatus, *got.Status)
+			require.Equal(t, expectedCmdUUID, got.AppStoreApp.LastInstall.CommandUUID)
+			require.NotNil(t, got.AppStoreApp.LastInstall.InstalledAt)
+		}
+
+		// ================================
+		// Install command failed
+		// ================================
+
+		// Cancel any pending refetch requests
+		require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), mdmHost.ID, false))
+
+		// Trigger install to the host
+		installResp := installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+
+		// Check if the host is listed as pending
+		var listResp listHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", fmt.Sprint(team.ID),
+			"software_title_id", fmt.Sprint(errTitleID))
+		require.Len(t, listResp.Hosts, 1)
+		require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+		var countResp countHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		// Simulate failed installation on the host
+		opts := vppInstallOpts{
+			failOnInstall:      true,
+			appInstallVerified: false,
+			appInstallTimeout:  false,
+			bundleID:           addedApp.BundleIdentifier,
+		}
+		failedCmdUUID := processVPPInstallOnClient(mdmDevice, opts)
+
+		// We should have cleared out upcoming_activies since the install failed
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var count uint
+			err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
+			require.NoError(t, err)
+			require.Zero(t, count)
+			return nil
+		})
+
+		listResp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+			"software_title_id", fmt.Sprint(errTitleID))
+		require.Len(t, listResp.Hosts, 1)
+		require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+				mdmHost.ID,
+				mdmHost.DisplayName(),
+				errApp.Name,
+				errApp.AdamID,
+				failedCmdUUID,
+				fleet.SoftwareInstallFailed,
+				mdmHost.Platform,
+			),
+			0,
+		)
+
+		// No refetch requested since the install failed
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+		require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
+
+		// ================================================
+		// Successful install and immediate verification
+		// ================================================
+
+		// Trigger install to the host
+		installResp = installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		// Simulate successful installation on the host
+		opts.appInstallTimeout = false
+		opts.failOnInstall = false
+		opts.appInstallVerified = true
+		installCmdUUID := processVPPInstallOnClient(mdmDevice, opts)
+
+		listResp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Len(t, listResp.Hosts, 1)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+				mdmHost.ID,
+				mdmHost.DisplayName(),
+				addedApp.Name,
+				addedApp.AdamID,
+				installCmdUUID,
+				fleet.SoftwareInstalled,
+				mdmHost.Platform,
+			),
+			0,
+		)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+		require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
+
+		s.lq.On("QueriesForHost", mdmHost.ID).Return(map[string]string{fmt.Sprintf("%d", mdmHost.ID): "select 1 from osquery;"}, nil)
+
+		req := getDistributedQueriesRequest{NodeKey: *mdmHost.NodeKey}
+		var dqResp getDistributedQueriesResponse
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+		require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), mdmHost.ID, false))
+
+		// Check list host software
+		getHostSw := getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+		gotSW := getHostSw.Software
+		require.Len(t, gotSW, 2) // App 1 and App 2
+		got1, got2 := gotSW[0], gotSW[1]
+
+		checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstalled)
+		checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
+
+		// ================================================
+		// Successful install and delayed verification
+		// ================================================
+
+		// Trigger install to the host
+		installResp = installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		// Install is ACK, but not verified yet
+		opts.appInstallTimeout = false
+		opts.appInstallVerified = false
+		opts.failOnInstall = false
+		installCmdUUID = processVPPInstallOnClient(mdmDevice, opts)
+
+		// We should have 0 installed, because the verification is not done yet
+		listResp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Len(t, listResp.Hosts, 0)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 0, countResp.Count)
+
+		// We should instead have 1 pending
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+		gotSW = getHostSw.Software
+		require.Len(t, gotSW, 2) // App 1 and App 2
+		checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstallPending)
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Len(t, listResp.Hosts, 1)
+
+		// Install is ACK, but not verified yet
+		// Don't update the command UUID because we didn't trigger a new install command
+		// (the command UUID is the same as the one we got when we triggered the install)
+		processVPPInstallOnClient(mdmDevice, opts)
+
+		// We should have 0 installed, because the verification is not done yet
+		listResp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Len(t, listResp.Hosts, 0)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 0, countResp.Count)
+
+		// We should instead have 1 pending
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+		gotSW = getHostSw.Software
+		require.Len(t, gotSW, 2) // App 1 and App 2
+		checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstallPending)
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Len(t, listResp.Hosts, 1)
+
+		// Install is ACK, and now it's verified
+		// Don't update the command UUID because we didn't trigger a new install command
+		// (the command UUID is the same as the one we got when we triggered the install)
+		opts.appInstallVerified = true
+		processVPPInstallOnClient(mdmDevice, opts)
+
+		checkCommandsInFlight(0)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+		gotSW = getHostSw.Software
+		require.Len(t, gotSW, 2) // App 1 and App 2
+		checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstalled)
+
+		s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+				mdmHost.ID,
+				mdmHost.DisplayName(),
+				addedApp.Name,
+				addedApp.AdamID,
+				installCmdUUID,
+				fleet.SoftwareInstalled,
+				mdmHost.Platform,
+			),
+			0,
+		)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+		require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
+
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+		require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), mdmHost.ID, false))
+
+		// ========================================================
+		// Install command succeeds, but verification fails
+		// ========================================================
+
+		// Trigger install to the host
+		installResp = installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		opts.failOnInstall = false
+		opts.appInstallVerified = false
+		opts.appInstallTimeout = true
+		installCmdUUID = processVPPInstallOnClient(mdmDevice, opts)
+
+		listResp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Empty(t, listResp.Hosts)
+
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+				mdmHost.ID,
+				mdmHost.DisplayName(),
+				addedApp.Name,
+				addedApp.AdamID,
+				installCmdUUID,
+				fleet.SoftwareInstallFailed,
+				mdmHost.Platform,
+			),
+			0,
+		)
+
+		// No refetch requested since the install failed
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+		require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
+
+		// Check list host software
+		getHostSw = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+		gotSW = getHostSw.Software
+		require.Len(t, gotSW, 2) // App 1 and App 2
+		got1, got2 = gotSW[0], gotSW[1]
+		checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstallFailed)
+		checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
+
+		// ========================================================
+		// Mark installs as failed when MDM turned off on host
+		// ========================================================
+
+		// Trigger install to the host
+		installResp = installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		// Trigger install to the self-service device (its data shouldn't be changed)
+		installResp = installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", selfServiceHost.ID, macOSTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 2, countResp.Count)
+
+		// Trigger verification on other host
+		opts.failOnInstall = false
+		opts.appInstallVerified = false
+		opts.appInstallTimeout = false
+		processVPPInstallOnClient(selfServiceDevice, opts)
+
+		s.runWorker()
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusNoContent)
+
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			// We should have cleared out upcoming_activies when disabling MDM
+			var count int
+			err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
+			require.NoError(t, err)
+			require.Zero(t, count)
+
+			installCmdUUID = ""
+			// Get the UUID for the latest install
+			err = sqlx.GetContext(
+				context.Background(),
+				q,
+				&installCmdUUID,
+				"SELECT command_uuid FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ? ORDER BY verification_failed_at DESC",
+				mdmHost.ID,
+				addedApp.AdamID,
+			)
+			require.NotEmpty(t, installCmdUUID)
+			require.NoError(t, err)
+
+			count = 99999
+
+			// We also should have cleared out host_mdm_commands to avoid a deadlocked state
+			err = sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", mdmHost.ID, fleet.VerifySoftwareInstallVPPPrefix)
+			require.NoError(t, err)
+			require.Zero(t, count)
+
+			// The other host should have a verification command pending
+			err = sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", selfServiceHost.ID, fleet.VerifySoftwareInstallVPPPrefix)
+			require.NoError(t, err)
+			require.Equal(t, 1, count)
+
+			return nil
+		})
+
+		// Cancel the install for the other host, we don't need it anymore
+		var listUpcomingAct listHostUpcomingActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", selfServiceHost.ID), nil, http.StatusOK, &listUpcomingAct)
+		require.Len(t, listUpcomingAct.Activities, 1)
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", selfServiceHost.ID, listUpcomingAct.Activities[0].UUID), nil, http.StatusNoContent)
+
+		getHostSw = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+		gotSW = getHostSw.Software
+		require.Len(t, gotSW, 2) // App 1 and App 2
+		got1, got2 = gotSW[0], gotSW[1]
+		checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstallFailed)
+		checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
+
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 0, countResp.Count)
+
+		// ========================================================
+		// Mark installs as failed when MDM turned off globally
+		// ========================================================
+
+		// Re-enroll host in MDM
+		mdmDevice = enrollMacOSHostInMDMManually(t, mdmHost, s.ds, s.server.URL)
+		s.runWorker()
+		checkInstallFleetdCommandSent(t, mdmDevice, true)
+
+		// Trigger install to the host
+		installResp = installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
+
+		t.Cleanup(s.appleCoreCertsSetup)
+
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			// We should have cleared out upcoming_activies when disabling MDM
+			var count uint
+			err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
+			require.NoError(t, err)
+			require.Zero(t, count)
+
+			installCmdUUID = ""
+			// Get the UUID for the latest install
+			err = sqlx.GetContext(
+				context.Background(),
+				q,
+				&installCmdUUID,
+				"SELECT command_uuid FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ? ORDER BY verification_failed_at DESC",
+				mdmHost.ID,
+				addedApp.AdamID,
+			)
+			require.NoError(t, err)
+			require.NotEmpty(t, installCmdUUID)
+
+			return nil
+		})
+
+		getHostSw = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+		gotSW = getHostSw.Software
+		require.Len(t, gotSW, 2) // App 1 and App 2
+		got1, got2 = gotSW[0], gotSW[1]
+		checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstallFailed)
+		checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
+
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+		require.Equal(t, 0, countResp.Count)
+
+		// Re-enable MDM
+		s.appleCoreCertsSetup()
+
+		// ========================================================
+		// Test iOS VPP app installation
+		// ========================================================
+
+		// Enroll iOS device, add serial number to fake Apple server, and transfer to team
+		iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+		s.Do("POST", "/api/latest/fleet/hosts/transfer",
+			&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+		var iosTitleID uint
+		for _, sw := range listSw.SoftwareTitles {
+			if sw.Name == iOSApp.Name && sw.Source == "ios_apps" {
+				iosTitleID = sw.ID
+				break
+			}
+		}
+		require.NotZero(t, iosTitleID)
+
+		var ipadosTitleID uint
+		for _, sw := range listSw.SoftwareTitles {
+			if sw.Name == iPadOSApp.Name && sw.Source == "ipados_apps" {
+				ipadosTitleID = sw.ID
+				break
+			}
+		}
+		require.NotZero(t, ipadosTitleID)
+
+		// Trigger install to the iOS device
+		installResp = installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, iosTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+
+		// Verify pending status
+		countResp = countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
+		require.Equal(t, 1, countResp.Count)
+
+		// Before installation, we should have 0 refetch commands
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var count int
+			err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", iosHost.ID, fleet.RefetchAppsCommandUUIDPrefix)
+			require.NoError(t, err)
+			require.Zero(t, count)
+			return nil
+		})
+
+		// Simulate successful installation on iOS device
+		opts.appInstallTimeout = false
+		opts.appInstallVerified = true
+		opts.failOnInstall = false
+		opts.bundleID = iOSApp.BundleIdentifier
+		installCmdUUID = processVPPInstallOnClient(iosDevice, opts)
+
+		// Verify successful installation
+		listResp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
+		assert.Len(t, listResp.Hosts, 1)
+		assert.Equal(t, iosHost.ID, listResp.Hosts[0].ID)
+
+		// Verify activity log entry
+		s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+				iosHost.ID,
+				iosHost.DisplayName(),
+				iOSApp.Name,
+				iOSApp.AdamID,
+				installCmdUUID,
+				fleet.SoftwareInstalled,
+				iosHost.Platform,
+			),
+			0,
+		)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", iosHost.ID), nil, http.StatusOK, &hostResp)
+		require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
+
+		// Now we have a refetch apps command in flight to update the host software inventory
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var count int
+			err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ?", iosHost.ID)
+			require.NoError(t, err)
+			require.Equal(t, count, 1)
+			return nil
+		})
+
+		s.runWorker()
+		cmd, err := iosDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				require.True(t, strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix))
+				cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+					iosDevice.UUID,
+					cmd.CommandUUID,
+					[]fleet.Software{
+						{
+							Name:             "RandomApp",
+							BundleIdentifier: "com.example.randomapp",
+							Version:          "9.9.9",
+							Installed:        false,
+						},
+						{
+							Name:             iOSApp.Name,
+							BundleIdentifier: iOSApp.BundleIdentifier,
+							Version:          iOSApp.LatestVersion,
+							Installed:        true,
+						},
+					},
+				)
+				require.NoError(t, err)
+			default:
+				require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+			}
+		}
+
+		// we should also have the installed version, because we update host software inventory on verification
+		getHostSw = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", iosHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+		assert.Len(t, getHostSw.Software, 1)
+		assert.Equal(t, iosTitleID, getHostSw.Software[0].ID)
+		assert.NotNil(t, getHostSw.Software[0].AppStoreApp)
+		assert.Len(t, getHostSw.Software[0].InstalledVersions, 1)
+		assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+
+		// ========================================================
+		// Test iOS VPP app self service installation
+		// ========================================================
+
+		type SSVPPTestData struct {
+			host       *fleet.Host
+			app        *fleet.VPPApp
+			device     *mdmtest.TestAppleMDMClient
+			platform   string
+			titleID    uint
+			certSerial uint64
+		}
+		// Edit iOS app to enable self service
+		require.NotZero(t, iosTitleID)
+		require.NotZero(t, ipadosTitleID)
+
+		ssVppData := []SSVPPTestData{
+			{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111)},
+			{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)},
+		}
+
+		for i, data := range ssVppData {
+			// Enroll device, add serial number to fake Apple server, and transfer to team
+			data.host, data.device = s.createAppleMobileHostThenEnrollMDM(data.platform)
+			s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, data.device.SerialNumber)
+			s.Do("POST", "/api/latest/fleet/hosts/transfer",
+				&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+			// Refresh host to get UUID
+			data.host, err = s.ds.Host(context.Background(), data.host.ID)
+			require.NoError(t, err)
+
+			// Use certificate authentication
+			headers := map[string]string{
+				"X-Client-Cert-Serial": fmt.Sprintf("%d", data.certSerial),
+			}
+			s.addHostIdentityCertificate(data.host.UUID, data.certSerial)
+
+			// self-install without cert header (UUID auth fallback for iOS/iPadOS)
+			// With fallback auth, UUID auth succeeds for iOS/iPadOS devices, so we get 400 (bad title) instead of 401
+			res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusBadRequest)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "Software title is not available for install.")
+
+			// self-install a non-existing title (with cert header - same result)
+			res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusBadRequest, headers)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "Software title is not available for install.")
+
+			// self-install an existing title not available for self-install
+			res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusBadRequest, headers)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "Software title is not available through self-service")
+
+			// Enable self-service for vpp app
+			updateAppResp := updateAppStoreAppResponse{}
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", data.titleID),
+				&updateAppStoreAppRequest{TitleID: data.titleID, TeamID: &team.ID, SelfService: ptr.Bool(true)}, http.StatusOK, &updateAppResp)
+
+			// Install self-service app correctly
+			s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted, headers)
+
+			// Verify pending status
+			countResp = countHostsResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
+			require.Equal(t, 1, countResp.Count)
+
+			// Simulate successful installation on device
+			opts := vppInstallOpts{
+				appInstallTimeout:  false,
+				appInstallVerified: true,
+				failOnInstall:      false,
+				bundleID:           data.app.BundleIdentifier,
+			}
+			installCmdUUID = processVPPInstallOnClient(data.device, opts)
+
+			// Verify successful installation
+			listResp = listHostsResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
+			assert.Len(t, listResp.Hosts, 2-i)
+			assert.Equal(t, data.host.ID, listResp.Hosts[len(listResp.Hosts)-1].ID)
+
+			// Verify activity log entry
+			s.lastActivityMatches(
+				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+				fmt.Sprintf(
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": true, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+					data.host.ID,
+					data.host.DisplayName(),
+					data.app.Name,
+					data.app.AdamID,
+					installCmdUUID,
+					fleet.SoftwareInstalled,
+					data.host.Platform,
+				),
+				0,
+			)
+		}
+	*/
 }

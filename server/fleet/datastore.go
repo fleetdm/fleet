@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -190,21 +191,27 @@ type Datastore interface {
 	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
 	// ApplyLabelSpecs does the same as ApplyLabelSpecs, additionally allowing an author ID to be set for the labels.
 	ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*LabelSpec, authorId *uint) error
-	// GetLabelSpecs returns all of the stored LabelSpecs.
-	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
-	// GetLabelSpec returns the spec for the named label.
-	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
+	// SetAsideLabels moves a set of labels out of the way if those labels *aren't* on the specified team and *are*
+	// writable by the specified user
+	SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user User) error
+	// GetLabelSpecs returns all of the stored LabelSpecs that the user can see, optionally filtered to
+	// a specific team (or global-only); in this case the team filter does *not* include global
+	// labels if the user asks for a specific team
+	GetLabelSpecs(ctx context.Context, filter TeamFilter) ([]*LabelSpec, error)
+	// GetLabelSpec returns the spec for the named label, filtered by the provided team filter.
+	GetLabelSpec(ctx context.Context, filter TeamFilter, name string) (*LabelSpec, error)
 
-	// AddLabelsToHost adds the given label IDs membership to the host.
+	// AddLabelsToHost adds the given label IDs membership to the host, with the assumption that the label
+	// is available for the host (visibility checks are assumed to have been done prior to this call).
 	// If a host is already a member of the label then this will update the row's updated_at.
 	AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error
 	// RemoveLabelsFromHost removes the given label IDs membership from the host.
 	// If a host is already not a member of a label then such label will be ignored.
 	RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error
 
-	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
-	// IDs, applied in batches
-	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
+	// UpdateLabelMembershipByHostIDs updates the label membership for the given label with host
+	// IDs, applied in batches, then returns the updated label
+	UpdateLabelMembershipByHostIDs(ctx context.Context, label Label, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
 	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
 	// based on its host vitals criteria.
 	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
@@ -212,12 +219,13 @@ type Datastore interface {
 	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
 	// members of this label, or an error.
-	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*Label, []uint, error)
-	DeleteLabel(ctx context.Context, name string) error
+	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	DeleteLabel(ctx context.Context, name string, filter TeamFilter) error
+	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
 	// Label returns the label and an array of host IDs members of this label, or an error.
-	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*Label, []uint, error)
-	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
-	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
+	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions, includeHostCounts bool) ([]*Label, error)
+	LabelsSummary(ctx context.Context, filter TeamFilter) ([]*LabelSummary, error)
 
 	GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
 
@@ -231,16 +239,12 @@ type Datastore interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) ([]*Host, error)
 
-	// ListUniqueHostsInLabels returns a slice of all of the hosts in the given label IDs. A host will only appear once
-	// in the results even if it is in multiple of the provided labels.
-	ListUniqueHostsInLabels(ctx context.Context, filter TeamFilter, labels []uint) ([]*Host, error)
-
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
 	// LabelIDsByName retrieves the IDs associated with the given label names
-	LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error)
+	LabelIDsByName(ctx context.Context, labels []string, filter TeamFilter) (map[string]uint, error)
 	// LabelsByName retrieves the labels associated with the given label names
-	LabelsByName(ctx context.Context, names []string) (map[string]*Label, error)
+	LabelsByName(ctx context.Context, names []string, filter TeamFilter) (map[string]*Label, error)
 
 	// Methods used for async processing of host label query results.
 	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
@@ -374,7 +378,7 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
-	// GetHostMDMIdentifiers searches for hosts with identifiders matching the provided identifier.
+	// GetHostMDMIdentifiers searches for hosts with identifiers matching the provided identifier.
 	// It is intended as an optimization over existing host-by-identifier methods (e.g.,
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
 	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
@@ -593,6 +597,8 @@ type Datastore interface {
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
+	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
+	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
@@ -1445,6 +1451,9 @@ type Datastore interface {
 	// RecordHostBootstrapPackage records a command used to install a
 	// bootstrap package in a host.
 	RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error
+	// RecordSkippedHostBootstrapPackage records that a host skipped the
+	// installation of a bootstrap package.
+	RecordSkippedHostBootstrapPackage(ctx context.Context, hostUUID string) error
 	// GetHostBootstrapPackageCommand returns the MDM command uuid used to
 	// install a bootstrap package in a host.
 	GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error)
@@ -1937,6 +1946,10 @@ type Datastore interface {
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
 
+	// GetHostsLockWipeStatusBatch gets the lock/unlock and wipe status for multiple hosts in a single operation.
+	// Returns a map of host ID to HostLockWipeStatus.
+	GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*Host) (map[uint]*HostLockWipeStatus, error)
+
 	// LockHostViaScript sends a script to lock a host and updates the
 	// states in host_mdm_actions
 	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
@@ -2063,6 +2076,14 @@ type Datastore interface {
 
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
+
+	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
+	// on VPP installations for a host
+	//
+	// By pending verification it means that the installation command is not acknowledged, OR that the installation
+	// is acknowledged but not yet verified (installation is still ongoing on the device and/or Fleet hasn't verified
+	// the installation via InstalledApplicationList).
+	MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
 
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
@@ -2390,26 +2411,19 @@ type Datastore interface {
 	// VPP app install record for the setup experience flow.
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
-	// GetAndroidAppConfiguration retrieves the configuration for an Android app
-	// identified by adam_id and global_or_team_id.
-	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*AndroidAppConfiguration, error)
-	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, globalOrTeamID uint, newConfig json.RawMessage) (bool, error)
+	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
-	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error)
-
-	// InsertAndroidAppConfiguration creates a new Android app configuration entry.
-	InsertAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
-
-	// UpdateAndroidAppConfiguration updates an existing Android app configuration.
-	UpdateAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
-	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error
+	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
 
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
@@ -2600,6 +2614,10 @@ type Datastore interface {
 	// For a given certificate template ID, it deletes any rows with status=pending and
 	// updates all other rows to status=pending, operation_type=remove.
 	SetHostCertificateTemplatesToPendingRemove(ctx context.Context, certificateTemplateID uint) error
+
+	// SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
+	// for a specific host for removal.
+	SetHostCertificateTemplatesToPendingRemoveForHost(ctx context.Context, hostUUID string) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
@@ -2835,19 +2853,11 @@ type AlreadyExistsError interface {
 	IsExists() bool
 }
 
-// ForeignKeyError is returned when the operation fails due to foreign key constraints.
-type ForeignKeyError interface {
-	error
-	IsForeignKey() bool
-}
+// ForeignKeyError is an alias for platform_http.ForeignKeyError.
+type ForeignKeyError = platform_http.ForeignKeyError
 
-func IsForeignKey(err error) bool {
-	var fke ForeignKeyError
-	if errors.As(err, &fke) {
-		return fke.IsForeignKey()
-	}
-	return false
-}
+// IsForeignKey is an alias for platform_http.IsForeignKey.
+var IsForeignKey = platform_http.IsForeignKey
 
 type OptionalArg func() interface{}
 

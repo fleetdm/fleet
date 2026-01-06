@@ -30,10 +30,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
@@ -2105,6 +2105,14 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts[0].Labels, 2)
 	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
 	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
+
+	// With "populate_device_status" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_device_status", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *resp.Hosts[0].MDM.DeviceStatus)
+	require.Equal(t, string(fleet.PendingActionNone), *resp.Hosts[0].MDM.PendingAction)
 }
 
 func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths() {
@@ -3496,7 +3504,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.Equal(t, tm2.ID, *getResp.Host.TeamID)
 
 	// get all hosts label
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	labelID := lblIDs["All Hosts"]
 
@@ -5162,7 +5170,7 @@ func (s *integrationTestSuite) TestLabels() {
 func (s *integrationTestSuite) TestListHostsByLabel() {
 	t := s.T()
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblIDs, 1)
 	labelID := lblIDs["All Hosts"]
@@ -5285,6 +5293,15 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
+	assert.Equal(t, string(hostsJson), string(labelsJson))
+
+	// Do request with populate_device_status, since it's an additional feature
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "populate_device_status", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "populate_device_status", "true")
+
+	// Converting to formatted JSON for easier diffs
+	hostsJson, _ = json.MarshalIndent(hostsResp, "", "  ")
+	labelsJson, _ = json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
 }
 
@@ -8773,7 +8790,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	for name := range fleet.ReservedLabelNames() {
 		builtinNames = append(builtinNames, name)
 	}
-	lblMap, err := s.ds.LabelIDsByName(context.Background(), builtinNames)
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), builtinNames, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblMap, len(builtinNames))
 
@@ -8894,7 +8911,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblMap, 1)
 
@@ -9697,7 +9714,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 		{Name: t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual, Query: "select 1", Hosts: []string{hosts[2].Hostname}},
 	})
 	require.NoError(t, err)
-	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()})
+	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
 	customLabelID := lids[t.Name()]
@@ -10873,7 +10890,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	})
 	require.NoError(t, err)
 
-	var resp endpoint_utils.JsonError
+	var resp endpointer.JsonError
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
@@ -13531,7 +13548,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	host2 := newHostFunc("host2", nil)
 	teamHost2 := newHostFunc("teamHost2", &team1.ID)
 
-	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 1)
 	allHostsLabelID, ok := ls["All Hosts"]
@@ -13604,13 +13621,13 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 		Labels: []string{"manualLabel2", "does not exist"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\". All labels must exist")
 	// Multiple inexistent labels should fail to be added.
 	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
 		Labels: []string{"manualLabel2", "does not exist", "does not exist 2"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist")
 	// A dynamic non-builtin label should fail to be added.
 	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
 		Labels: []string{dynamicLabel1.Name},
@@ -13635,13 +13652,13 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 		Labels: []string{manualLabel2.Name, "does not exist"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\". All labels must exist")
 	// Multiple inexistent labels should fail to be deleted.
 	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
 		Labels: []string{manualLabel2.Name, "does not exist", "does not exist 2"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist")
 	// Multiple dynamic labels should fail to be deleted.
 	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
 		Labels: []string{manualLabel2.Name, dynamicLabel1.Name, "All Hosts"},
@@ -13772,6 +13789,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	}, http.StatusOK, &removeLabelsFromHostResp)
 	teamHost2Labels = getHostLabels(teamHost2)
 	require.Empty(t, teamHost2Labels)
+
 }
 
 func (s *integrationTestSuite) TestDebugDB() {
@@ -15145,7 +15163,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 		// Verified status - should be updated to pending/remove
 		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certificateTemplateID, "verified", "install", "challenge2", certTemplateName)
 		require.NoError(t, err)
-		// Failed status - should be updated to pending/remove
+		// Failed status - should be deleted (never successfully installed)
 		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID, "failed", "install", "challenge3", certTemplateName)
 		require.NoError(t, err)
 		return nil
@@ -15206,23 +15224,28 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK, &deleteResp)
 
 	// After deletion:
-	// - hostPending (pending/install) should have NO profile (record was deleted)
-	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
 	//   (kept for cron job to process removal from devices)
 
-	// Verify hostPending has no profile after deletion
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
 	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
 	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
 
-	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
 	for _, tc := range []struct {
 		host     *fleet.Host
 		hostName string
 	}{
 		{hostDelivered, "hostDelivered"},
 		{hostVerified, "hostVerified"},
-		{hostFailed, "hostFailed"},
 	} {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 		profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
@@ -15398,16 +15421,22 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	require.True(t, fleet.IsNotFound(err), "certificate template 2 should be deleted")
 
 	// After deletion:
-	// - hostPending (pending/install) should have NO profile (record was deleted)
-	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
 	//   (kept for cron job to process removal from devices)
 
-	// Verify hostPending has no profile after deletion
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
 	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName1)
 	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
 
-	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName2)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
 	for _, tc := range []struct {
 		host         *fleet.Host
 		hostName     string
@@ -15415,7 +15444,6 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	}{
 		{hostDelivered, "hostDelivered", certTemplateName1},
 		{hostVerified, "hostVerified", certTemplateName2},
-		{hostFailed, "hostFailed", certTemplateName2},
 	} {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 		profile := findProfile(getHostResp.Host.MDM.Profiles, tc.templateName)
@@ -15424,4 +15452,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
+}
+
+func (s *integrationTestSuite) TestDevieStatusMappingForHostsEndpoints() {
 }

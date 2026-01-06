@@ -1351,6 +1351,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
+	s.registerResetITunesData(t)
+
 	// Set up some additional VPP apps on the mock Apple servers
 	s.appleITunesSrvData["6"] = `{"bundleId": "f-6", "artworkUrl512": "https://example.com/images/6", "version": "6.0.0", "trackName": "App 6", "TrackID": 6}`
 	s.appleITunesSrvData["7"] = `{"bundleId": "g-7", "artworkUrl512": "https://example.com/images/7", "version": "7.0.0", "trackName": "App 7", "TrackID": 7}`
@@ -1387,11 +1389,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	}...)
 
 	t.Cleanup(func() {
-		delete(s.appleITunesSrvData, "6")
-		delete(s.appleITunesSrvData, "7")
-		delete(s.appleITunesSrvData, "8")
-		delete(s.appleITunesSrvData, "9")
-		delete(s.appleITunesSrvData, "10")
 		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
 	})
 
@@ -2241,17 +2238,25 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	for _, enableReleaseManually := range []bool{false, true} {
 		for _, enrollmentProfileFromDEPUsingPost := range []bool{false, true} {
-			for _, device := range devices {
-				t.Run(fmt.Sprintf("%sSetupExperience;enableReleaseManually=%t;EnrollmentProfileFromDEPUsingPost=%t", device.DeviceFamily, enableReleaseManually, enrollmentProfileFromDEPUsingPost), func(t *testing.T) {
-					s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
-						ABMOrg:                            abmOrgName,
-						EnableReleaseManually:             enableReleaseManually,
-						TeamID:                            &team.ID,
-						CustomProfileIdent:                "N1",
-						EnrollmentProfileFromDEPUsingPost: enrollmentProfileFromDEPUsingPost,
-						VppAppsToInstall:                  vppAppIDsByDeviceFamily[device.DeviceFamily],
+			for _, mdmMigrationDeadline := range []bool{false, true} {
+				for _, device := range devices {
+					t.Run(fmt.Sprintf("%sSetupExperience;enableReleaseManually=%t;EnrollmentProfileFromDEPUsingPost=%t;WithMDMMigrationDeadline=%t", device.DeviceFamily, enableReleaseManually, enrollmentProfileFromDEPUsingPost, mdmMigrationDeadline), func(t *testing.T) {
+						if mdmMigrationDeadline {
+							deadline := time.Now().Add(24 * time.Hour)
+							device.MDMMigrationDeadline = &deadline
+						} else {
+							device.MDMMigrationDeadline = nil
+						}
+						s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
+							ABMOrg:                            abmOrgName,
+							EnableReleaseManually:             enableReleaseManually,
+							TeamID:                            &team.ID,
+							CustomProfileIdent:                "N1",
+							EnrollmentProfileFromDEPUsingPost: enrollmentProfileFromDEPUsingPost,
+							VppAppsToInstall:                  vppAppIDsByDeviceFamily[device.DeviceFamily],
+						})
 					})
-				})
+				}
 			}
 		}
 	}

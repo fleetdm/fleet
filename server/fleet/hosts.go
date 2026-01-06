@@ -217,6 +217,9 @@ type HostListOptions struct {
 	// PopulateLabels adds the `Labels` array field to all host responses returned
 	PopulateLabels bool
 
+	// PopulateDeviceStatus adds the `MDM` field with the `device_status` & `pending_action` sub fields to all hosts returned
+	PopulateDeviceStatus bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 
@@ -314,6 +317,9 @@ type Host struct {
 	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
+	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
+	// CSV not exported to not break automations.
+	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
@@ -1055,6 +1061,11 @@ func IsLinux(hostPlatform string) bool {
 
 func IsApplePlatform(hostPlatform string) bool {
 	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
+// Return true if the platform is either iOS or iPadOS
+func IsAppleMobilePlatform(hostPlatform string) bool {
+	return hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
 func IsAndroidPlatform(hostPlatform string) bool {
