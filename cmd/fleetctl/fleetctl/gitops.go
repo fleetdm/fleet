@@ -396,7 +396,6 @@ func gitopsCommand() *cli.Command {
 					}
 					softwareTitleIDsByAppStoreAppID := make(map[string]uint)
 					for _, t := range titles {
-						// Q: seems like the presence of AppStoreApp indicates that it's a VPP app. Is that correct?
 						if t.AppStoreApp != nil && t.AppStoreApp.AppStoreID != "" {
 							key := fmt.Sprintf("%s|%s", t.AppStoreApp.AppStoreID, t.AppStoreApp.Platform)
 							softwareTitleIDsByAppStoreAppID[key] = t.ID

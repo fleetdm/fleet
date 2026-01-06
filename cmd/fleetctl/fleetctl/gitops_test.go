@@ -33,6 +33,7 @@ import (
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -4731,4 +4732,227 @@ software:
     require.Equal(t, "05:00", *app.AutoUpdateEndTime)
 }
 
-// TODO: add test running the acutal gitops command
+func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
+	// Start mock VPP servers to handle Apple VPP API calls
+	testing_utils.StartAndServeVPPServer(t)
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	// Create valid VPP token
+	tokExpire := time.Now().Add(time.Hour)
+	token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
+	require.NoError(t, err)
+
+	const teamName = "TeamAutoUpdate"
+	var savedTeam *fleet.Team
+	team := &fleet.Team{
+		ID:        1,
+		CreatedAt: time.Now(),
+		Name:      teamName,
+	}
+
+	// Track calls to UpdateSoftwareTitleAutoUpdateConfig
+	var autoUpdateCalls []struct {
+		titleID uint
+		teamID  uint
+		config  fleet.SoftwareAutoUpdateConfig
+	}
+
+	// Common mock setup
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		return nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == teamName && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = team.ID
+		savedTeam = newTeam
+		return newTeam, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return nil, nil, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		return false, nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Filename != nil && *savedTeam.Filename == filename {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == team.ID && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == team.ID && savedTeam != nil {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return &fleet.TeamConfig{}, nil
+	}
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		return nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		// Return a software title that matches the app_store_id we're testing (app_store_id "2" is defined in the mock VPP server)
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID: 100,
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID: "2",
+					Platform:   "ios",
+				},
+			},
+		}, 1, nil, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{
+			ID:        1,
+			OrgName:   "fleet",
+			Location:  "ca",
+			RenewDate: tokExpire,
+			Token:     string(token),
+		}, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
+	ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+		return &fleet.VPPAppStoreApp{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IOSPlatform,
+			},
+			VPPAppsTeamsID: team.ID,
+		}, nil
+	}
+	ds.InsertVPPAppWithTeamFunc = func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+		return app, nil
+	}
+	ds.UpdateSoftwareTitleAutoUpdateConfigFunc = func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
+		autoUpdateCalls = append(autoUpdateCalls, struct {
+			titleID uint
+			teamID  uint
+			config  fleet.SoftwareAutoUpdateConfig
+		}{titleID, teamID, config})
+		return nil
+	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
+
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+name: TeamAutoUpdate
+team_settings:
+  secrets:
+    - secret: test
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: "ios"
+      auto_update_enabled: true
+      auto_update_start_time: "01:00"
+      auto_update_end_time: "05:00"
+      self_service: false
+`)
+	require.NoError(t, err)
+
+	_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+
+	// Verify UpdateSoftwareTitleAutoUpdateConfig was called with the correct values
+	require.Len(t, autoUpdateCalls, 1, "UpdateSoftwareTitleAutoUpdateConfig should be called once")
+	assert.Equal(t, uint(100), autoUpdateCalls[0].titleID)
+	assert.Equal(t, team.ID, autoUpdateCalls[0].teamID)
+	require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEnabled)
+	assert.True(t, *autoUpdateCalls[0].config.AutoUpdateEnabled)
+	require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateStartTime)
+	assert.Equal(t, "01:00", *autoUpdateCalls[0].config.AutoUpdateStartTime)
+	require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEndTime)
+	assert.Equal(t, "05:00", *autoUpdateCalls[0].config.AutoUpdateEndTime)
+}
