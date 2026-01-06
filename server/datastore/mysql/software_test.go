@@ -1430,7 +1430,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software1
 	s1Paths := map[string]struct{}{}
 	for _, s := range software1 {
-		key := fmt.Sprintf("%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s1Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
@@ -1441,7 +1441,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software2
 	s2Paths := map[string]struct{}{}
 	for _, s := range software2 {
-		key := fmt.Sprintf("%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s2Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
