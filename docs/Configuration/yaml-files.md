@@ -539,7 +539,6 @@ software:
       setup_experience: true
   fleet_maintained_apps:
     - slug: slack/darwin
-      pin_version: "4.47.59"
       install_script:
         path: ../lib/software/slack-install-script.sh
       uninstall_script:
@@ -619,7 +618,7 @@ To add the same App Store app for multiple platforms, specify the `app_store_id`
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
-By default, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
+Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 
 The below fields are all optional.
 
@@ -627,7 +626,6 @@ The below fields are all optional.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
-- `pin_version` pins the version of the Fleet-maintained app. Currently, version can be set only to the version available in [Fleet's software catalog]([https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs](https://fleetdm.com/software-catalog)). If `pin_version` isn't specified, the app is updated to the version in the catalog on every GitOps run.
 
 The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
