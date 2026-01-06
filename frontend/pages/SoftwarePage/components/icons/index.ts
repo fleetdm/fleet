@@ -5,6 +5,7 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
 import CrashPlan from "./CrashPlan";
+import Nextcloud from "./Nextcloud";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
@@ -368,6 +369,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft word": Word,
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
+  nextcloud: Nextcloud,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
