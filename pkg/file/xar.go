@@ -34,7 +34,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -373,7 +372,6 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 	for id := range packageIDSet {
 		packageIDs = append(packageIDs, id)
 	}
-	fmt.Println(">>>>> found package IDs:", packageIDs)
 
 	// look in all the bundle versions for one that has a `path` attribute
 	// that is not nested, this is generally the case for packages that distribute
@@ -384,7 +382,6 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 			potentialBundles = append(potentialBundles, versions.Bundles...)
 		}
 	}
-	spew.Dump(potentialBundles)
 
 	// Prefer paths that refer to Applications for name, bundle ID, etc.
 	slices.SortFunc(potentialBundles, func(a distributionBundle, b distributionBundle) int {
