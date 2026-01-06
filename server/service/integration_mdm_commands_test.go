@@ -49,6 +49,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
 	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	// we should go straight to the lock action, since we don't get host location data
+	// during this flow for macOS hosts.
 	require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
 
 	// try locking the host while it is pending lock returns error
