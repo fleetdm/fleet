@@ -2,6 +2,7 @@
 
 - [Authentication](#authentication)
 - [Activities](#activities)
+- [Fleet's agent (fleetd)](#fleets-agent-fleetd)
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
 - [Hosts](#hosts)
@@ -1267,6 +1268,45 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
     "data": "aG9zdHMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..."
 }
 ```
+---
+
+## Fleet's agent (fleetd)
+
+### Download Fleet's agent (fleetd) installer
+
+Download a signed installer for Fleet's agent (fleetd). 
+
+`GET /api/v1/fleet/agent_installer/:platform?alt=media`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| platform   | integer | path | **Required**. The platform for the installer. Must be either `"macos"`, `"windows"`, or `"linux"`. |
+| alt             | integer | query | **Required**. Set to `"media"` to download the installer. |
+| team_id | integer | query | _Available in Fleet Premium._ If specified, the downloaded package will include the enroll secret for the selected team. Otherwise, hosts will enroll to "No team". |
+| include_fleet_desktop | boolean | query | If specified and set to `true`, Fleet Desktop will be included in the package. |
+| arm | boolean | query | If specified and set to `true`, package will be for Arm devices. If `platform` is not set to `"windows"` or `"linux"`, this parameter is ignored. |
+
+
+#### Example
+
+`GET /api/v1/fleet/agent_installer/macos?alt=media&include_fleet_desktop=true`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+> This endpoint returns auto-generated cached installers. If an installer has not yet been generated for the specified selection, it will respond with a `404` status.
+
 ---
 
 ## Fleet configuration
