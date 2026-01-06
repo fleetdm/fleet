@@ -15146,7 +15146,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 		// Verified status - should be updated to pending/remove
 		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certificateTemplateID, "verified", "install", "challenge2", certTemplateName)
 		require.NoError(t, err)
-		// Failed status - should be updated to pending/remove
+		// Failed status - should be deleted (never successfully installed)
 		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID, "failed", "install", "challenge3", certTemplateName)
 		require.NoError(t, err)
 		return nil
@@ -15207,23 +15207,28 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK, &deleteResp)
 
 	// After deletion:
-	// - hostPending (pending/install) should have NO profile (record was deleted)
-	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
 	//   (kept for cron job to process removal from devices)
 
-	// Verify hostPending has no profile after deletion
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
 	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
 	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
 
-	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
 	for _, tc := range []struct {
 		host     *fleet.Host
 		hostName string
 	}{
 		{hostDelivered, "hostDelivered"},
 		{hostVerified, "hostVerified"},
-		{hostFailed, "hostFailed"},
 	} {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 		profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
@@ -15399,16 +15404,22 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	require.True(t, fleet.IsNotFound(err), "certificate template 2 should be deleted")
 
 	// After deletion:
-	// - hostPending (pending/install) should have NO profile (record was deleted)
-	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
 	//   (kept for cron job to process removal from devices)
 
-	// Verify hostPending has no profile after deletion
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
 	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName1)
 	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
 
-	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName2)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
 	for _, tc := range []struct {
 		host         *fleet.Host
 		hostName     string
@@ -15416,7 +15427,6 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	}{
 		{hostDelivered, "hostDelivered", certTemplateName1},
 		{hostVerified, "hostVerified", certTemplateName2},
-		{hostFailed, "hostFailed", certTemplateName2},
 	} {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 		profile := findProfile(getHostResp.Host.MDM.Profiles, tc.templateName)

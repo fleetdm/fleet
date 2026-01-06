@@ -2597,6 +2597,10 @@ type Datastore interface {
 	// updates all other rows to status=pending, operation_type=remove.
 	SetHostCertificateTemplatesToPendingRemove(ctx context.Context, certificateTemplateID uint) error
 
+	// SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
+	// for a specific host for removal.
+	SetHostCertificateTemplatesToPendingRemoveForHost(ctx context.Context, hostUUID string) error
+
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 

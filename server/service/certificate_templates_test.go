@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,10 +97,7 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	})
 
 	t.Run("Name too long", func(t *testing.T) {
-		longName := string(make([]byte, 256))
-		for i := range longName {
-			longName = longName[:i] + "a" + longName[i+1:]
-		}
+		longName := strings.Repeat("a", 256)
 		_, err := svc.CreateCertificateTemplate(ctx, longName, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Certificate template name is too long")
@@ -356,10 +354,7 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 	})
 
 	t.Run("Name too long", func(t *testing.T) {
-		longName := string(make([]byte, 256))
-		for i := range longName {
-			longName = longName[:i] + "a" + longName[i+1:]
-		}
+		longName := strings.Repeat("a", 256)
 		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
 			{
 				Name:                   longName,
