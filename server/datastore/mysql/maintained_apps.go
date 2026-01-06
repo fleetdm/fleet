@@ -82,7 +82,7 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamI
 	var app fleet.MaintainedApp
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("MaintainedApp"), "no matching maintained app found")
+			return nil, ctxerr.Wrap(ctx, notFound("MaintainedApp").WithID(appID), "no matching maintained app found")
 		}
 
 		return nil, ctxerr.Wrap(ctx, err, "getting maintained app by id")
@@ -108,7 +108,7 @@ func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, te
 	var app fleet.MaintainedApp
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("MaintainedApp"), "no matching maintained app found")
+			return nil, ctxerr.Wrap(ctx, notFound("MaintainedApp").WithName(slug), "no matching maintained app found")
 		}
 
 		return nil, ctxerr.Wrap(ctx, err, "getting maintained app by slug")

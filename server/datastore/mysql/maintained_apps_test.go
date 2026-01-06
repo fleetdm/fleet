@@ -24,6 +24,8 @@ func TestMaintainedApps(t *testing.T) {
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
+		{"GetMaintainedAppByIDNotFound", testGetMaintainedAppByIDNotFound},
+		{"GetMaintainedAppBySlugNotFound", testGetMaintainedAppBySlugNotFound},
 	}
 
 	for _, c := range cases {
@@ -541,4 +543,24 @@ func testGetMaintainedAppBySlug(t *testing.T, ds *Datastore) {
 		UniqueIdentifier: "fleet.maintained1",
 		TitleID:          nil,
 	}, gotApp)
+}
+
+func testGetMaintainedAppByIDNotFound(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	_, err := ds.GetMaintainedAppByID(ctx, 9999, nil)
+	require.Error(t, err)
+
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Contains(t, err.Error(), "9999")
+}
+
+func testGetMaintainedAppBySlugNotFound(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	_, err := ds.GetMaintainedAppBySlug(ctx, "nonexistent/darwin", nil)
+	require.Error(t, err)
+
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Contains(t, err.Error(), "nonexistent/darwin")
 }
