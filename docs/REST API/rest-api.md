@@ -11197,7 +11197,7 @@ _Available in Fleet Premium._
 | ----            | ------- | ---- | --------------------------------------------     |
 | id   | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
-| alt             | string | query | **Required**. If specified and set to "media", downloads the specified software package. |
+| alt             | string | query | **Required**. If specified and set to `"media"`, downloads the specified software package. |
 
 #### Example
 
