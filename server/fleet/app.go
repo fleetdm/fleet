@@ -1587,6 +1587,14 @@ type KafkaRESTConfig struct {
 	ProxyHost   string `json:"proxyhost"`
 }
 
+// NatsConfig shadows config.NatsConfig only exposing a subset of fields
+type NatsConfig struct {
+	Server        string `json:"server"`
+	StatusSubject string `json:"status_subject"`
+	ResultSubject string `json:"result_subject"`
+	AuditSubject  string `json:"audit_subject"`
+}
+
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {

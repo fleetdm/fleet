@@ -570,9 +570,9 @@
     },
     {
       "name": "Docker Desktop",
-      "slug": "docker/darwin",
+      "slug": "docker-desktop/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.docker.docker",
+      "unique_identifier": "com.electron.dockerdesktop",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
@@ -1050,6 +1050,13 @@
       "platform": "darwin",
       "unique_identifier": "com.nordvpn.macos",
       "description": "NordVPN is a VPN client for secure internet access and private browsing."
+    },
+    {
+      "name": "Notepad++",
+      "slug": "notepad++/windows",
+      "platform": "windows",
+      "unique_identifier": "Notepad++",
+      "description": "Notepad++ is a text editor for Windows."
     },
     {
       "name": "Notion Calendar",

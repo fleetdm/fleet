@@ -5,6 +5,7 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
 import CrashPlan from "./CrashPlan";
+import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
@@ -372,6 +373,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
+  "notepad++": Notepad,
   "notion calendar": NotionCalendar,
   notion: Notion,
   nova: Nova,

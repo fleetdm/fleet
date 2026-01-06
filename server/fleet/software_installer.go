@@ -18,6 +18,7 @@ import (
 // MaxSoftwareInstallerSize is the maximum size allowed for software
 // installers. This is enforced by the endpoints that upload installers.
 const MaxSoftwareInstallerSize = 3000 * units.MiB
+const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -27,7 +28,7 @@ type SoftwareInstallerStore interface {
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, fileID string) (string, error)
+	Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 }
 
 // SoftwareInstallDetails contains all of the information
@@ -1039,13 +1040,16 @@ type HostSoftwareInstallOptions struct {
 	SelfService        bool
 	PolicyID           *uint
 	ForSetupExperience bool
+	// ForScheduledUpdates means the install request is for iOS/iPadOS
+	// scheduled updates, which means it was Fleet-initiated.
+	ForScheduledUpdates bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
 // Software installs initiated via a policy are fleet-initiated (and we also
 // make sure SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && o.PolicyID != nil
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

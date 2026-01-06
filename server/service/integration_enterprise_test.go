@@ -18784,6 +18784,43 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	require.Equal(t, len(hSWRes.Software), 1)
 	sw0 := hSWRes.Software[0]
 	require.Equal(t, warpUpgradeCode, *sw0.UpgradeCode)
+
+	// nuke the title so we can try this with a batch upload
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM software_titles WHERE upgrade_code = ?", warpUpgradeCode)
+		return err
+	})
+
+	// Use the batch endpoint (GitOps) to add the Windows FMA
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+	}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+
+	// Verify the upgrade code was correctly set on the software installer
+	var installerUpgradeCode *string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerUpgradeCode, "SELECT upgrade_code FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+	require.NotNil(t, installerUpgradeCode)
+	require.Equal(t, warpUpgradeCode, *installerUpgradeCode)
+
+	// Also verify the software title has the upgrade code
+	var afterBatch listSoftwareTitlesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &afterBatch,
+		"per_page", "1",
+		"available_for_install", "true",
+		"team_id", "0",
+	)
+	require.Len(t, afterBatch.SoftwareTitles, 1)
+	require.Equal(t, warpUpgradeCode, *afterBatch.SoftwareTitles[0].UpgradeCode)
 }
 
 func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {
@@ -23354,8 +23391,8 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 		// Verified status - should be updated to pending/remove
 		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certificateTemplateID2, "verified", "install", "challenge2", certTemplateName2)
 		require.NoError(t, err)
-		// Failed status - should be updated to pending/remove
-		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID2, "failed", "install", "challenge3", certTemplateName2)
+		// Failed status - should be deleted (never successfully installed)
+		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID2, "failed", "install", nil, certTemplateName2)
 		require.NoError(t, err)
 		return nil
 	})
@@ -23427,16 +23464,22 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 	require.True(t, fleet.IsNotFound(err), "certificate template 2 should be deleted")
 
 	// After team deletion:
-	// - hostPending (pending/install) should have NO profile (record was deleted)
-	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
 	//   (kept for cron job to process removal from devices)
 
-	// Verify hostPending has no profile after deletion
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
 	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName1)
 	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
 
-	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName2)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
 	for _, tc := range []struct {
 		host         *fleet.Host
 		hostName     string
@@ -23444,7 +23487,6 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 	}{
 		{hostDelivered, "hostDelivered", certTemplateName1},
 		{hostVerified, "hostVerified", certTemplateName2},
-		{hostFailed, "hostFailed", certTemplateName2},
 	} {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 		profile := findProfile(getHostResp.Host.MDM.Profiles, tc.templateName)
@@ -23488,6 +23530,8 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEndTime:   ptr.String("04:00"),
 	}, http.StatusOK, &titlesResp)
 
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_end_time":"04:00", "auto_update_start_time":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+
 	// Get the software title again.
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
 	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateEnabled)
@@ -23496,4 +23540,28 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	require.Equal(t, "02:00", *titlesResp.SoftwareTitle.AutoUpdateStartTime)
 	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateEndTime)
 	require.Equal(t, "04:00", *titlesResp.SoftwareTitle.AutoUpdateEndTime)
+
+	// Do an update without auto-update fields to check that it still includes the auto-update values.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
+		TeamID:      &teamID,
+		DisplayName: ptr.String("New Display Name"),
+	}, http.StatusOK, &titlesResp)
+
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_end_time":"04:00", "auto_update_start_time":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+
+	// Disable the auto-update config
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
+		TeamID:            &teamID,
+		AutoUpdateEnabled: ptr.Bool(false),
+	}, http.StatusOK, &titlesResp)
+
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+
+	// Do an update without auto-update fields to check that it still includes the auto-update values.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
+		TeamID:      &teamID,
+		DisplayName: ptr.String("Updated Display Name"),
+	}, http.StatusOK, &titlesResp)
+
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
 }

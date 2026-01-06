@@ -40,19 +40,27 @@ func (ds *Datastore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx
 	return hostUUIDs, nil
 }
 
-// ListCertificateTemplatesForHosts returns ALL certificate templates for the given host UUIDs
+// ListCertificateTemplatesForHosts returns ALL certificate templates for the given host UUIDs.
+// This includes:
+// 1. Templates matching the host's current team (for install operations)
+// 2. Templates marked for removal (which may be from a previous team after team transfer)
 func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error) {
 	if len(hostUUIDs) == 0 {
 		return nil, nil
 	}
 
-	query, args, err := sqlx.In(`
+	// Query 1: Templates matching host's current team
+	// Query 2: UNION with removal entries from host_certificate_templates
+	//          (these may reference templates from a different team after team transfer)
+	// UNION removes duplicates if a template appears in both result sets
+	query, args, err := sqlx.In(fmt.Sprintf(`
 		SELECT
 			hosts.uuid AS host_uuid,
 			certificate_templates.id AS certificate_template_id,
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
 			host_certificate_templates.operation_type AS operation_type,
+			COALESCE(BIN_TO_UUID(host_certificate_templates.uuid, true), '') AS uuid,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -63,8 +71,27 @@ func (ds *Datastore) ListCertificateTemplatesForHosts(ctx context.Context, hostU
 			AND host_certificate_templates.certificate_template_id = certificate_templates.id
 		WHERE
 			hosts.uuid IN (?)
-		ORDER BY hosts.uuid, certificate_templates.id
-	`, hostUUIDs)
+
+		UNION
+
+		SELECT
+			hct.host_uuid AS host_uuid,
+			hct.certificate_template_id AS certificate_template_id,
+			hct.fleet_challenge AS fleet_challenge,
+			hct.status AS status,
+			hct.operation_type AS operation_type,
+			COALESCE(BIN_TO_UUID(hct.uuid, true), '') AS uuid,
+			ca.type AS ca_type,
+			ca.name AS ca_name
+		FROM host_certificate_templates hct
+		INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
+		INNER JOIN certificate_authorities ca ON ca.id = ct.certificate_authority_id
+		WHERE
+			hct.host_uuid IN (?)
+			AND hct.operation_type = '%s'
+
+		ORDER BY host_uuid, certificate_template_id
+	`, fleet.MDMOperationTypeRemove), hostUUIDs, hostUUIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build query for certificate templates")
 	}
@@ -86,6 +113,7 @@ func (ds *Datastore) GetCertificateTemplateForHost(ctx context.Context, hostUUID
 			host_certificate_templates.fleet_challenge AS fleet_challenge,
 			host_certificate_templates.status AS status,
 			host_certificate_templates.operation_type AS operation_type,
+			COALESCE(BIN_TO_UUID(host_certificate_templates.uuid, true), '') AS uuid,
 			certificate_authorities.type AS ca_type,
 			certificate_authorities.name AS ca_name
 		FROM certificate_templates
@@ -122,6 +150,7 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 			status,
 			operation_type,
 			detail,
+			COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid,
 			created_at,
 			updated_at
 		FROM host_certificate_templates
@@ -154,7 +183,8 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 			fleet_challenge,
 			status,
 			operation_type,
-			name
+			name,
+			uuid
 		) VALUES %s
 	`
 
@@ -163,7 +193,7 @@ func (ds *Datastore) BulkInsertHostCertificateTemplates(ctx context.Context, hos
 
 	for _, hct := range hostCertTemplates {
 		args = append(args, hct.HostUUID, hct.CertificateTemplateID, hct.FleetChallenge, hct.Status, hct.OperationType, hct.Name)
-		placeholders.WriteString("(?,?,?,?,?,?),")
+		placeholders.WriteString("(?,?,?,?,?,?,UUID_TO_BIN(UUID(), true)),")
 	}
 
 	stmt := fmt.Sprintf(sqlInsert, strings.TrimSuffix(placeholders.String(), ","))
@@ -266,8 +296,8 @@ func (ds *Datastore) UpsertCertificateStatus(
 		}
 
 		insertStmt := `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name, uuid)
+			VALUES (?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true))`
 		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType, templateInfo.Name}
 
 		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
@@ -279,7 +309,7 @@ func (ds *Datastore) UpsertCertificateStatus(
 }
 
 // ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
-// certificate templates in 'pending' status ready for delivery.
+// certificate templates in 'pending' status ready for delivery (both install and remove operations).
 func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 	ctx context.Context,
 	offset int,
@@ -288,12 +318,10 @@ func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 	stmt := fmt.Sprintf(`
 		SELECT DISTINCT host_uuid
 		FROM host_certificate_templates
-		WHERE
-			status = '%s' AND
-			operation_type = '%s'
+		WHERE status = '%s'
 		ORDER BY host_uuid
 		LIMIT ? OFFSET ?
-	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
+	`, fleet.CertificateTemplatePending)
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, limit, offset); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host uuids with pending certificate templates")
@@ -302,7 +330,7 @@ func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 }
 
 // GetAndTransitionCertificateTemplatesToDelivering retrieves all certificate templates
-// with operation_type='install' for a host, transitions any pending ones to 'delivering' status,
+// for a host (both install and remove operations), transitions any pending ones to 'delivering' status,
 // and returns both the newly delivering template IDs and the existing (verified/delivered) ones.
 // This prevents concurrent cron runs from processing the same templates.
 func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
@@ -311,41 +339,59 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 ) (*fleet.HostCertificateTemplatesForDelivery, error) {
 	result := &fleet.HostCertificateTemplatesForDelivery{}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Select ALL templates with operation_type='install' for this host
+		// Select ALL templates (both install and remove) for this host
 		var rows []struct {
 			ID                    uint                            `db:"id"`
 			CertificateTemplateID uint                            `db:"certificate_template_id"`
 			Status                fleet.CertificateTemplateStatus `db:"status"`
+			OperationType         fleet.MDMOperationType          `db:"operation_type"`
+			UUID                  string                          `db:"uuid"`
 		}
-		selectStmt := fmt.Sprintf(`
-			SELECT id, certificate_template_id, status
+		const selectStmt = `
+			SELECT id, certificate_template_id, status, operation_type, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid
 			FROM host_certificate_templates
-			WHERE
-				host_uuid = ? AND
-				operation_type = '%s'
+			WHERE host_uuid = ?
 			FOR UPDATE
-		`, fleet.MDMOperationTypeInstall)
+		`
 		if err := sqlx.SelectContext(ctx, tx, &rows, selectStmt, hostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "select install templates")
+			return ctxerr.Wrap(ctx, err, "select templates")
 		}
 
 		if len(rows) == 0 {
 			return nil
 		}
 
-		// Separate templates by status
+		// Separate templates by status and build the Templates list
 		var pendingIDs []uint // primary key IDs for UPDATE (only pending ones need transitioning)
 		for _, r := range rows {
 			switch r.Status {
 			case fleet.CertificateTemplatePending:
 				pendingIDs = append(pendingIDs, r.ID)
 				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
+				// Status will be delivering after transition
+				result.Templates = append(result.Templates, fleet.HostCertificateTemplateForDelivery{
+					CertificateTemplateID: r.CertificateTemplateID,
+					Status:                fleet.CertificateTemplateDelivering,
+					OperationType:         r.OperationType,
+					UUID:                  r.UUID,
+				})
 			case fleet.CertificateTemplateDelivering:
 				// Already delivering (from a previous failed run), include in delivering list; should be very rare
 				result.DeliveringTemplateIDs = append(result.DeliveringTemplateIDs, r.CertificateTemplateID)
+				result.Templates = append(result.Templates, fleet.HostCertificateTemplateForDelivery{
+					CertificateTemplateID: r.CertificateTemplateID,
+					Status:                r.Status,
+					OperationType:         r.OperationType,
+					UUID:                  r.UUID,
+				})
 			default:
 				// delivered, verified, failed
-				result.OtherTemplateIDs = append(result.OtherTemplateIDs, r.CertificateTemplateID)
+				result.Templates = append(result.Templates, fleet.HostCertificateTemplateForDelivery{
+					CertificateTemplateID: r.CertificateTemplateID,
+					Status:                r.Status,
+					OperationType:         r.OperationType,
+					UUID:                  r.UUID,
+				})
 			}
 		}
 
@@ -471,30 +517,68 @@ func (ds *Datastore) RevertStaleCertificateTemplates(
 }
 
 // SetHostCertificateTemplatesToPendingRemove prepares certificate templates for removal.
-// For a given certificate template ID, it deletes any rows with status=pending and
-// updates all other rows to status=pending, operation_type=remove.
+// For a given certificate template ID, it deletes any rows with status in (pending, failed)
+// and operation_type=install, then updates rows with operation_type=install to pending remove.
+// Rows already in remove state are left unchanged (idempotent).
 func (ds *Datastore) SetHostCertificateTemplatesToPendingRemove(
 	ctx context.Context,
 	certificateTemplateID uint,
 ) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Delete rows with status=pending
+		// Delete rows with status in (pending, failed) and operation_type=install
+		// These certificates were never successfully installed on the device
 		deleteStmt := fmt.Sprintf(`
 			DELETE FROM host_certificate_templates
-			WHERE certificate_template_id = ? AND status = '%s'
-		`, fleet.CertificateTemplatePending)
+			WHERE certificate_template_id = ? AND status IN ('%s', '%s') AND operation_type = '%s'
+		`, fleet.CertificateTemplatePending, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall)
 		if _, err := tx.ExecContext(ctx, deleteStmt, certificateTemplateID); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete pending host certificate templates")
+			return ctxerr.Wrap(ctx, err, "delete pending/failed host certificate templates")
 		}
 
-		// Update all remaining rows to status=pending, operation_type=remove
+		// Update rows with operation_type=install to status=pending, operation_type=remove with new UUID
+		// Only generate new UUID when transitioning from install to remove
+		// Rows already in remove state are left unchanged (idempotent)
 		updateStmt := fmt.Sprintf(`
 			UPDATE host_certificate_templates
-			SET status = '%s', operation_type = '%s'
-			WHERE certificate_template_id = ?
-		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove)
+			SET status = '%s', operation_type = '%s', uuid = UUID_TO_BIN(UUID(), true)
+			WHERE certificate_template_id = ? AND operation_type = '%s'
+		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 		if _, err := tx.ExecContext(ctx, updateStmt, certificateTemplateID); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host certificate templates to pending remove")
+		}
+
+		return nil
+	})
+}
+
+// SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
+// for a specific host for removal. Used during team transfer to mark old team's templates
+// for removal before creating new pending templates for the new team.
+// Records with operation_type=remove are left unchanged (removal already in progress).
+func (ds *Datastore) SetHostCertificateTemplatesToPendingRemoveForHost(
+	ctx context.Context,
+	hostUUID string,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete rows with status in (pending, failed) and operation_type=install
+		// These certificates were never successfully installed on the device
+		deleteStmt := fmt.Sprintf(`
+			DELETE FROM host_certificate_templates
+			WHERE host_uuid = ? AND status IN ('%s', '%s') AND operation_type = '%s'
+		`, fleet.CertificateTemplatePending, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall)
+		if _, err := tx.ExecContext(ctx, deleteStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending/failed install host certificate templates for host")
+		}
+
+		// Update remaining install rows to status=pending, operation_type=remove with new UUID
+		// New UUID ensures the agent can distinguish this removal from previous operations
+		updateStmt := fmt.Sprintf(`
+			UPDATE host_certificate_templates
+			SET status = '%s', operation_type = '%s', uuid = UUID_TO_BIN(UUID(), true)
+			WHERE host_uuid = ? AND operation_type = '%s'
+		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
+		if _, err := tx.ExecContext(ctx, updateStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host certificate templates to pending remove for host")
 		}
 
 		return nil

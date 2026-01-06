@@ -1016,6 +1016,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hst.seen_time, h.created_at) as seen_time,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       h.last_restarted_at,
+      h.timezone,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
       %s

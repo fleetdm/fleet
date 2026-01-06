@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 // FleetErrorEncoder handles fleet-specific error encoding for MailError
 // and OsqueryError.
-func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *endpoint_utils.JsonError) bool {
+func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *endpointer.JsonError) bool {
 	switch e := err.(type) {
 	case MailError:
 		jsonErr.Message = "Mail Error"
@@ -97,14 +97,14 @@ func NewOsqueryError(message string, nodeInvalid bool) *OsqueryError {
 	}
 }
 
-// encodeError is a convenience function that calls endpoint_utils.EncodeError
+// encodeError is a convenience function that calls endpointer.EncodeError
 // with the FleetErrorEncoder. Use this for direct error encoding in handlers.
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
-	endpoint_utils.EncodeError(ctx, err, w, FleetErrorEncoder)
+	endpointer.EncodeError(ctx, err, w, FleetErrorEncoder)
 }
 
-// fleetErrorEncoder is an adapter that wraps endpoint_utils.EncodeError with
+// fleetErrorEncoder is an adapter that wraps endpointer.EncodeError with
 // FleetErrorEncoder for use as a kithttp.ErrorEncoder.
 func fleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
-	endpoint_utils.EncodeError(ctx, err, w, FleetErrorEncoder)
+	endpointer.EncodeError(ctx, err, w, FleetErrorEncoder)
 }
