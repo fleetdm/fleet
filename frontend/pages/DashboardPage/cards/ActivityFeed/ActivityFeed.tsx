@@ -258,9 +258,7 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        isAndroid(details?.host_platform || "")
-          ? setPackageInstallDetails({ ...details }) // Android Play Store installs
-          : setVppInstallDetails({ ...details }); // Apple VPP installs
+        setVppInstallDetails({ ...details }); // Apple VPP + Android installs
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
