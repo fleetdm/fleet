@@ -47,25 +47,27 @@ type HostDetailResponse struct {
 }
 
 func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
-	var adeEnrollment bool
-	ac, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
-		hdep, err := svc.GetHostDEPAssignment(ctx, &host.Host)
-		if err != nil && !fleet.IsNotFound(err) {
+	var isADEEnrolledIDevice bool
+	if host.Platform == "ipados" || host.Platform == "ios" {
+		ac, err := svc.AppConfigObfuscated(ctx)
+		if err != nil {
 			return nil, err
 		}
-		if hdep != nil {
-			adeEnrollment = hdep.IsDEPAssignedToFleet()
+		if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
+			hdep, err := svc.GetHostDEPAssignment(ctx, &host.Host)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, err
+			}
+			if hdep != nil {
+				isADEEnrolledIDevice = hdep.IsDEPAssignedToFleet()
+			}
 		}
 	}
 
 	// For ADE-enrolled iDevices, we get geolocation data via the MDM protocol
 	// and store it in Fleet.
 	var geoLoc *fleet.GeoLocation
-	if adeEnrollment && (host.Platform == "ipados" || host.Platform == "ios") {
+	if isADEEnrolledIDevice {
 		var err error
 		geoLoc, err = svc.GetHostLocationData(ctx, host.ID)
 		if err != nil && !fleet.IsNotFound(err) {
@@ -1421,17 +1423,17 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			})
 		}
 
-		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		adeData, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "refetch host: get host mdm")
+			return ctxerr.Wrap(ctx, err, "refetch host: get host DEP assignment")
 		}
 
-		hostLoc, err := svc.ds.GetHostLocationData(ctx, host.ID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
-		}
+		if adeData.IsDEPAssignedToFleet() {
+			_, err := svc.ds.GetHostLocationData(ctx, host.ID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
+			}
 
-		if hostMDM.EnrollmentStatus() == "On (automatic)" && hostLoc != nil {
 			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
