@@ -25,10 +25,10 @@ jobs:
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: 'Dependency Review'
-        uses: actions/dependency-review-action@da24556b548a50705dd671f47852072ea4c105d9 # v4.7.1
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
         with:
           # Re: fastjson, fasttemplate:
           # Unanswered issue opened 3 years ago: https://github.com/valyala/fastjson/issues/88).
           # For a safe use of their fastjson, you really have to call Validate* first and then Parse*, otherwise it accepts a lot of invalid JSON strings.
           # There was a PR to address this, but it's still open and uncommented by the owner: https://github.com/valyala/fastjson/pull/68.
-          deny-packages: 'pkg:golang/github.com/valyala/fastjson, pkg:golang/github.com/valyala/fasttemplate'
+          deny-packages: 'pkg:golang/github.com/valyala/fastjson,pkg:golang/github.com/valyala/fasttemplate'
