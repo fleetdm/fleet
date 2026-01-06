@@ -2169,7 +2169,7 @@ type Datastore interface {
 	// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
 	// is currently installed. Returns false if the command doesn't exist or app is not installed.
 	GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error)
-	// IsAutoUpdateVPPInstall determines whether a VPP install command was initiated by Fleet
+	// IsAutoUpdateVPPInstall determines whether a VPP install command was triggered by auto-update config
 	IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)

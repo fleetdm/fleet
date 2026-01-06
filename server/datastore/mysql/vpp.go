@@ -2439,13 +2439,16 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 }
 
 func (ds *Datastore) IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error) {
-	stmt := `SELECT COUNT(*) > 0 FROM host_vpp_software_installs WHERE command_uuid = ? AND fleet_initiated = 1
+	stmt := `
+SELECT COUNT(*) > 0
+FROM upcoming_activities
+WHERE execution_id = ?
+  AND activity_type = 'vpp_app_install'
+  AND JSON_EXTRACT(payload, '$.from_auto_update') = 1
 `
-
-	var isFleetInitiated bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &isFleetInitiated, stmt, commandUUID); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking if vpp install is fleet initiated")
+	var isAutoUpdate bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &isAutoUpdate, stmt, commandUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
 	}
-
-	return isFleetInitiated, nil
+	return isAutoUpdate, nil
 }
