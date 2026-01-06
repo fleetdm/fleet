@@ -100,6 +100,7 @@ func TestReconcileProfiles(t *testing.T) {
 					Package:       "com.fleetdm.agent",
 					SigningSHA256: "abc123def456",
 				},
+				Logger: kitlog.NewNopLogger(),
 			}
 
 			c.fn(t, ds, client, reconciler)

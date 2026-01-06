@@ -59,6 +59,7 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 		Enterprise:         enterprise,
 		Client:             client,
 		AndroidAgentConfig: androidAgentConfig,
+		Logger:             logger,
 	}
 	return reconciler.ReconcileProfiles(ctx)
 }
@@ -70,6 +71,7 @@ type profileReconciler struct {
 	Enterprise         *android.Enterprise
 	Client             androidmgmt.Client
 	AndroidAgentConfig config.AndroidAgentConfig
+	Logger             kitlog.Logger
 }
 
 func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (string, error) {
@@ -442,7 +444,7 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 
 		// Process this batch - BuildAndSendFleetAgentConfig handles the state transitions
 		svc := &Service{
-			logger:             kitlog.NewNopLogger(),
+			logger:             r.Logger,
 			ds:                 r.DS,
 			fleetDS:            r.DS,
 			androidAPIClient:   r.Client,
