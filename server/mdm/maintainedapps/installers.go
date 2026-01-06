@@ -18,7 +18,8 @@ import (
 const InstallerTimeout = 15 * time.Minute
 
 // DownloadInstaller downloads the maintained app installer located at the given URL.
-func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) (*fleet.TempFileReader, string, error) {
+// Custom HTTP headers can be provided for endpoints that require specific headers (e.g., User-Agent).
+func DownloadInstaller(ctx context.Context, installerURL string, headers map[string]string, client *http.Client) (*fleet.TempFileReader, string, error) {
 	// validate the URL before doing the request
 	_, err := url.ParseRequestURI(installerURL)
 	if err != nil {
@@ -31,6 +32,11 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
 	if err != nil {
 		return nil, "", ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
+	}
+
+	// Add custom headers if provided
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 
 	resp, err := client.Do(req)

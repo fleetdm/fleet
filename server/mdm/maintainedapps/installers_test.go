@@ -33,17 +33,17 @@ func TestInstallerFilenameExtraction(t *testing.T) {
 
 	// follow redirect and fall back to URL, after sanitization, when we don't have a content-disposition header
 	client := fleethttp.NewClient(fleethttp.WithTimeout(time.Second))
-	_, filename, err := DownloadInstaller(context.Background(), srv.URL+"/redirect", client)
+	_, filename, err := DownloadInstaller(context.Background(), srv.URL+"/redirect", nil, client)
 	require.NoError(t, err)
 	require.Equal(t, "redirected package.exe", filename)
 
 	// handle properly formatted content-disposition header
-	_, filename, err = DownloadInstaller(context.Background(), srv.URL+"/compliant", client)
+	_, filename, err = DownloadInstaller(context.Background(), srv.URL+"/compliant", nil, client)
 	require.NoError(t, err)
 	require.Equal(t, "compliant.msi", filename)
 
 	// handle non-compliant content-disposition header
-	_, filename, err = DownloadInstaller(context.Background(), srv.URL+"/not_compliant", client)
+	_, filename, err = DownloadInstaller(context.Background(), srv.URL+"/not_compliant", nil, client)
 	require.NoError(t, err)
 	require.Equal(t, "not_compliant.pkg", filename)
 }

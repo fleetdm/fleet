@@ -318,7 +318,7 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 	defer cancel()
 
 	level.Info(cfg.logger).Log("msg", "Downloading...")
-	installerTFR, filename, err := mdm_maintained_apps.DownloadInstaller(ctx, app.InstallerURL, http.DefaultClient)
+	installerTFR, filename, err := mdm_maintained_apps.DownloadInstaller(ctx, app.InstallerURL, app.Headers, http.DefaultClient)
 	if err != nil {
 		return nil, fmt.Errorf("downloading installer: %w", err)
 	}
