@@ -65,6 +65,7 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
   isWindows,
+  isChrome,
 } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
@@ -1099,6 +1100,10 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
+  const isChromeHost = isChrome(host.platform);
+
+  const isSupportedHostQueriesPlatform =
+    !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
     (isMacOSHost || isWindowsHost) &&
@@ -1311,7 +1316,10 @@ const HostDetailsPage = ({
                   queryReportsDisabled={
                     config?.server_settings?.query_reports_disabled
                   }
-                  canAddQuery={isAnyMaintainerAdminObserverPlus}
+                  canAddQuery={
+                    isAnyMaintainerAdminObserverPlus &&
+                    isSupportedHostQueriesPlatform
+                  }
                   onClickAddQuery={onClickAddQuery}
                 />
                 <UserCard
