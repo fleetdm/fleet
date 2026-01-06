@@ -5,11 +5,13 @@ import android.content.Context
 import android.content.RestrictionsManager
 import android.os.Build
 import android.util.Log
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,8 +23,20 @@ import kotlinx.coroutines.launch
  * Runs when the app process starts (triggered by broadcasts, not by user).
  */
 class AgentApplication : Application() {
+    /** Certificate orchestrator instance for the app */
+    lateinit var certificateOrchestrator: CertificateOrchestrator
+        private set
+
     companion object {
         private const val TAG = "fleet-app"
+
+        /**
+         * Gets the CertificateOrchestrator instance from the Application.
+         * @param context Any context (will use applicationContext)
+         * @return The shared CertificateOrchestrator instance
+         */
+        fun getCertificateOrchestrator(context: Context): CertificateOrchestrator =
+            (context.applicationContext as AgentApplication).certificateOrchestrator
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -30,7 +44,11 @@ class AgentApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "Fleet agent process started")
+
+        // Initialize dependencies
         ApiClient.initialize(this)
+        certificateOrchestrator = CertificateOrchestrator()
+
         refreshEnrollmentCredentials()
         schedulePeriodicCertificateEnrollment()
     }
@@ -55,13 +73,14 @@ class AgentApplication : Application() {
                         computerName = "${Build.BRAND} ${Build.MODEL}",
                     )
 
-                    // Trigger auto-enrollment if node key is missing
-                    // This also fetches initial orbit config
-                    val configResult = ApiClient.getOrbitConfig()
-                    configResult.onSuccess {
-                        Log.d(TAG, "Successfully enrolled and fetched initial orbit config")
-                    }.onFailure { error ->
-                        Log.w(TAG, "Auto-enrollment on startup failed: ${error.message}")
+                    // Only enroll if not already enrolled
+                    if (ApiClient.getApiKey() == null) {
+                        val configResult = ApiClient.getOrbitConfig()
+                        configResult.onSuccess {
+                            Log.d(TAG, "Successfully enrolled host with Fleet server")
+                        }.onFailure { error ->
+                            Log.w(TAG, "Host enrollment failed: ${error.message}")
+                        }
                     }
                 } else {
                     Log.d(TAG, "MDM enrollment credentials not available")
@@ -76,6 +95,10 @@ class AgentApplication : Application() {
         val workRequest = PeriodicWorkRequestBuilder<CertificateEnrollmentWorker>(
             15, // 15 minutes is the minimum
             TimeUnit.MINUTES,
+        ).setBackoffCriteria(
+            BackoffPolicy.EXPONENTIAL,
+            WorkRequest.MIN_BACKOFF_MILLIS,
+            TimeUnit.MILLISECONDS,
         ).setConstraints(
             Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
