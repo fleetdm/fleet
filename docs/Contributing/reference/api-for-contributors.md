@@ -4756,9 +4756,9 @@ _Available in Fleet Premium._
 | app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
-| app_store_apps.auto_update_enabled | boolean | body | Whether automatic updates are enabled for this iOS/iPadOS VPP app. |
-| app_store_apps.auto_update_start_time | string | body | The start time (in HH:MM format, UTC) of the window during which automatic updates can occur. |
-| app_store_apps.auto_update_end_time | string | body | The end time (in HH:MM format, UTC) of the window during which automatic updates can occur. |
+| app_store_apps.auto_update_enabled | boolean | body | **Optional**. Whether automatic updates are enabled for this iOS/iPadOS VPP app. |
+| app_store_apps.auto_update_start_time | string | body | **Optional**. The start time (in HH:MM format, UTC) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
+| app_store_apps.auto_update_end_time | string | body | **Optional**. The end time (in HH:MM format, UTC) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
 
 #### Example
 
