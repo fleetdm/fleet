@@ -1,4 +1,4 @@
-package foobar
+package main
 
 import (
 	"fmt"
