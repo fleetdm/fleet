@@ -41,7 +41,8 @@ object KeystoreManager {
             return keyGenerator.generateKey()
         }
 
-        return keyStore.getKey(KEY_ALIAS, null) as SecretKey
+        return keyStore.getKey(KEY_ALIAS, null) as? SecretKey
+            ?: error("Key $KEY_ALIAS exists but could not be retrieved")
     }
 
     fun encrypt(plaintext: String): String {

@@ -406,7 +406,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: true,
     });
     expect(result).toBe(
-      "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 
@@ -417,7 +417,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe(
-      "Software installed on this host. Built-in apps (e.g. Calculator) aren't included."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 

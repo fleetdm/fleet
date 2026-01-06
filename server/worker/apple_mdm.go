@@ -627,7 +627,7 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 	var url string
 	if a.BootstrapPackageStore != nil {
 		pkgID := hex.EncodeToString(meta.Sha256)
-		signedURL, err := a.BootstrapPackageStore.Sign(ctx, pkgID)
+		signedURL, err := a.BootstrapPackageStore.Sign(ctx, pkgID, fleet.BootstrapPackageSignedURLExpiry)
 		switch {
 		case errors.Is(err, fleet.ErrNotConfigured):
 			// no CDN configured, fall back to the MDM URL
