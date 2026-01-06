@@ -889,17 +889,9 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 }
 
 // getFleetAgentPackageInfo returns the Fleet agent package name and SHA256 fingerprint.
-// Returns empty strings if the package is not configured, or an error if the package is configured but SHA256 is missing.
-func (svc *Service) getFleetAgentPackageInfo(ctx context.Context) (packageName, sha256Fingerprint string, err error) {
-	if svc.androidAgentConfig.Package == "" {
-		return "", "", nil
-	}
-
-	if svc.androidAgentConfig.SigningSHA256 == "" {
-		return "", "", ctxerr.New(ctx, "mdm.android_agent.signing_sha256 must be set when mdm.android_agent.package is set")
-	}
-
-	return svc.androidAgentConfig.Package, svc.androidAgentConfig.SigningSHA256, nil
+// Returns empty strings if the package is not configured.
+func (svc *Service) getFleetAgentPackageInfo() (packageName, sha256Fingerprint string) {
+	return svc.androidAgentConfig.Package, svc.androidAgentConfig.SigningSHA256
 }
 
 // buildFleetAgentAppPolicy builds an ApplicationPolicy for the Fleet agent from the given managed configuration.
@@ -935,10 +927,7 @@ func buildFleetAgentAppPolicy(packageName, sha256Fingerprint string, managedConf
 func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string,
 	hostConfigs map[string]android.AgentManagedConfiguration,
 ) error {
-	packageName, sha256Fingerprint, err := svc.getFleetAgentPackageInfo(ctx)
-	if err != nil {
-		return err
-	}
+	packageName, sha256Fingerprint := svc.getFleetAgentPackageInfo()
 	if packageName == "" {
 		return nil
 	}
@@ -964,10 +953,7 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 
 // BuildFleetAgentApplicationPolicy builds the ApplicationPolicy for the Fleet agent for the given host.
 func (svc *Service) BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
-	packageName, sha256Fingerprint, err := svc.getFleetAgentPackageInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
+	packageName, sha256Fingerprint := svc.getFleetAgentPackageInfo()
 	if packageName == "" {
 		return nil, nil
 	}

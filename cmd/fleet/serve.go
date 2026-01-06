@@ -770,6 +770,7 @@ the way that the Fleet server works.
 			ctx = ctxerr.NewContext(ctx, eh)
 
 			activitiesModule := activities.NewActivityModule(ds, logger)
+			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,

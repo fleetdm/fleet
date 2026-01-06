@@ -769,6 +769,22 @@ type AndroidAgentConfig struct {
 	SigningSHA256 string `yaml:"signing_sha256"`
 }
 
+// Validate checks that the AndroidAgentConfig is valid.
+// Both package and signing_sha256 must be set together, or both must be empty.
+func (c AndroidAgentConfig) Validate(initFatal func(err error, msg string)) {
+	pkg := strings.TrimSpace(c.Package)
+	sha256 := strings.TrimSpace(c.SigningSHA256)
+
+	if pkg != "" && sha256 == "" {
+		initFatal(errors.New("mdm.android_agent.signing_sha256 must be set when mdm.android_agent.package is set"),
+			"Android agent configuration")
+	}
+	if sha256 != "" && pkg == "" {
+		initFatal(errors.New("mdm.android_agent.package must be set when mdm.android_agent.signing_sha256 is set"),
+			"Android agent configuration")
+	}
+}
+
 type CalendarConfig struct {
 	Periodicity time.Duration
 	// Hide alwaysReloadEvent from YAML config
