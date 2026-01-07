@@ -1393,6 +1393,8 @@ type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandRe
 
 type GetVPPAppInstallStatusByCommandUUIDFunc func(ctx context.Context, commandUUID string) (bool, error)
 
+type IsAutoUpdateVPPInstallFunc func(ctx context.Context, commandUUID string) (bool, error)
+
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
 type GetIncludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
@@ -3772,6 +3774,9 @@ type DataStore struct {
 
 	GetVPPAppInstallStatusByCommandUUIDFunc        GetVPPAppInstallStatusByCommandUUIDFunc
 	GetVPPAppInstallStatusByCommandUUIDFuncInvoked bool
+
+	IsAutoUpdateVPPInstallFunc        IsAutoUpdateVPPInstallFunc
+	IsAutoUpdateVPPInstallFuncInvoked bool
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
@@ -9055,6 +9060,13 @@ func (s *DataStore) GetVPPAppInstallStatusByCommandUUID(ctx context.Context, com
 	s.GetVPPAppInstallStatusByCommandUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPAppInstallStatusByCommandUUIDFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error) {
+	s.mu.Lock()
+	s.IsAutoUpdateVPPInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsAutoUpdateVPPInstallFunc(ctx, commandUUID)
 }
 
 func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPTokenDB, error) {
