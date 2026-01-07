@@ -52,6 +52,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -1141,7 +1142,9 @@ the way that the Fleet server works.
 				}
 
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger)
+					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger, apple_apps.GetAuthenticator(
+						ctx, ds, config.License.Key, config.Server.Address,
+					))
 				}); err != nil {
 					initFatal(err, "failed to register refresh vpp app versions schedule")
 				}

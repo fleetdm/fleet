@@ -1,17 +1,21 @@
 package apple_apps
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -60,13 +64,19 @@ type metadataResp struct {
 	Data []Metadata `json:"data"`
 }
 
+type Authenticator func(forceRenew bool) (string, error)
+
+func (a Authenticator) WithForcedRenew() Authenticator {
+	return func(bool) (string, error) { return a(true) }
+}
+
 // client is a package-level client (similar to http.DefaultClient) so it can
 // be reused instead of created as needed, as the internal Transport typically
 // has internal state (cached connections, etc) and it's safe for concurrent
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
-func GetMetadata(adamIDs []string, vppToken string, bearerToken string) (map[string]Metadata, error) {
+func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator) (map[string]Metadata, error) {
 	baseURL := getBaseURL()
 	reqURL, err := url.Parse(baseURL)
 	if err != nil {
@@ -83,7 +93,7 @@ func GetMetadata(adamIDs []string, vppToken string, bearerToken string) (map[str
 	}
 
 	var bodyResp metadataResp
-	if err = do(req, vppToken, bearerToken, &bodyResp); err != nil {
+	if err = do(req, vppToken, getBearerToken, &bodyResp); err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
 
@@ -95,7 +105,15 @@ func GetMetadata(adamIDs []string, vppToken string, bearerToken string) (map[str
 	return metadata, nil
 }
 
-func do(req *http.Request, vppToken string, bearerToken string, dest *metadataResp) error {
+func do(req *http.Request, vppToken string, getBearerToken Authenticator, dest *metadataResp) error {
+	bearerToken, err := getBearerToken(false)
+	if err != nil {
+		return retry.Do(
+			func() error { return do(req, vppToken, getBearerToken, dest) },
+			retry.WithMaxAttempts(1),
+		)
+	}
+
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
 	req.Header.Add("Cookie", fmt.Sprintf("itvt=%s", vppToken))
 
@@ -116,10 +134,31 @@ func do(req *http.Request, vppToken string, bearerToken string, dest *metadataRe
 			limitedBody = limitedBody[:1000]
 		}
 
-		if resp.StatusCode >= http.StatusInternalServerError {
+		if resp.StatusCode == http.StatusUnauthorized {
 			return retry.Do(
-				func() error { return do(req, vppToken, bearerToken, dest) },
-				retry.WithInterval(1*time.Second),
+				func() error {
+					return do(req, vppToken, getBearerToken.WithForcedRenew(), dest)
+				},
+				retry.WithMaxAttempts(1),
+			)
+		} else if resp.StatusCode >= http.StatusTooManyRequests && resp.Header.Get("Retry-After") != "" {
+			retryAfter := resp.Header.Get("Retry-After")
+			if resp.StatusCode == http.StatusInternalServerError && retryAfter != "" {
+				seconds, err := strconv.ParseInt(retryAfter, 10, 0)
+				if err != nil {
+					return fmt.Errorf("parsing retry-after header: %w", err)
+				}
+
+				ticker := time.NewTicker(time.Duration(seconds) * time.Second)
+				defer ticker.Stop()
+				<-ticker.C
+				return do(req, vppToken, getBearerToken, dest)
+			}
+		} else if resp.StatusCode >= http.StatusInternalServerError {
+			return retry.Do(
+				func() error { return do(req, vppToken, getBearerToken.WithForcedRenew(), dest) },
+				retry.WithInterval(time.Second),
+				retry.WithBackoffMultiplier(2),
 				retry.WithMaxAttempts(4),
 			)
 		}
@@ -200,11 +239,87 @@ func getBaseURL() string {
 	return "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo"
 }
 
-func GetAppMetadataBearerToken(ds any) string {
+type authResp struct {
+	Token string `json:"fleetServerSecret"`
+}
+
+func GetAuthenticator(ctx context.Context, ds fleet.AccessesMDMConfigAssets, licenseKey string, myServerURL string) Authenticator {
 	token := os.Getenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN")
 	if token != "" {
-		return token
+		return func(bool) (string, error) { return token, nil }
 	}
 
-	return "" // this will fail downstream
+	return func(forceRenew bool) (string, error) {
+		const key = fleet.MDMAssetVPPProxyBearerToken
+		if !forceRenew {
+			// throwing away the error here as on retrieval errors we'll request a new token
+			fromDB, _ := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{key}, nil)
+			if v, ok := fromDB[key]; ok {
+				return string(v.Value), nil
+			}
+		}
+
+		authUrl := os.Getenv("FLEET_DEV_VPP_PROXY_AUTH_URL")
+		if authUrl == "" {
+			authUrl = "https://fleetdm.com/api/vpp/v1/auth"
+		}
+
+		body, err := json.Marshal(struct {
+			ServerURL string `json:"serverUrl"`
+		}{myServerURL})
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "encoding authentication request for VPP metadata service")
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", authUrl, bytes.NewBuffer(body))
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "building authentication request for VPP metadata service")
+		}
+
+		var authResponse authResp
+		if err = doAuth(req, licenseKey, &authResponse); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "authenticating to VPP metadata service")
+		}
+
+		if authResponse.Token == "" {
+			return "", ctxerr.New(ctx, "no access token received from VPP metadata service")
+		}
+
+		// don't fail if we can't persist the token; we can continue anyway and will try again with the next request
+		_ = ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{Name: key, Value: []byte(authResponse.Token)})
+
+		return authResponse.Token, nil
+	}
+}
+
+func doAuth(req *http.Request, licenseKey string, dest *authResp) error {
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", licenseKey))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("authenticating to VPP metadata service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading authentication response from VPP metadata service: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		limitedBody := body
+		if len(limitedBody) > 1000 {
+			limitedBody = limitedBody[:1000]
+		}
+
+		return fmt.Errorf("calling authentication endpoint for VPP metadata service failed with status %d: %s", resp.StatusCode, string(limitedBody))
+	}
+
+	if dest != nil {
+		if err := json.Unmarshal(body, dest); err != nil {
+			return fmt.Errorf("decoding response data from authentication endpoint for VPP metdata service: %w", err)
+		}
+	}
+
+	return nil
 }

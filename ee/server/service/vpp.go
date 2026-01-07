@@ -237,7 +237,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var appStoreApps []*fleet.VPPApp
 
 	if len(incomingAppleApps) > 0 {
-		apps, err := getVPPAppsMetadata(ctx, incomingAppleApps, vppToken, svc.ds)
+		apps, err := getVPPAppsMetadata(ctx, incomingAppleApps, vppToken, svc.getVPPAuthenticator(ctx))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
@@ -247,7 +247,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 
 		appStoreApps = append(appStoreApps, apps...)
-
 	}
 
 	var enterprise *android.Enterprise
@@ -389,7 +388,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		adamIDs = append(adamIDs, a.AdamID)
 	}
 
-	metadata, err := apple_apps.GetMetadata(adamIDs, vppToken, apple_apps.GetAppMetadataBearerToken(svc.ds))
+	metadata, err := apple_apps.GetMetadata(adamIDs, vppToken, svc.getVPPAuthenticator(ctx))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
@@ -555,7 +554,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		asset := assets[0]
 
-		assetMetadata, err := apple_apps.GetMetadata([]string{asset.AdamID}, vppToken, apple_apps.GetAppMetadataBearerToken(svc.ds))
+		assetMetadata, err := apple_apps.GetMetadata([]string{asset.AdamID}, vppToken, svc.getVPPAuthenticator(ctx))
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 		}
@@ -661,7 +660,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	return addedApp.TitleID, nil
 }
 
-func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken string, ds fleet.Datastore) ([]*fleet.VPPApp, error) {
+func (svc *Service) getVPPAuthenticator(ctx context.Context) apple_apps.Authenticator {
+	return apple_apps.GetAuthenticator(ctx, svc.ds, svc.config.License.Key, svc.config.Server.Address)
+}
+
+func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken string, vppAuthenticator apple_apps.Authenticator) ([]*fleet.VPPApp, error) {
 	var apps []*fleet.VPPApp
 
 	// Map of adamID to platform, then to whether it's available as self-service
@@ -696,7 +699,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken st
 	for adamID := range adamIDMap {
 		adamIDs = append(adamIDs, adamID)
 	}
-	assetMetadata, err := apple_apps.GetMetadata(adamIDs, vppToken, apple_apps.GetAppMetadataBearerToken(ds))
+	assetMetadata, err := apple_apps.GetMetadata(adamIDs, vppToken, vppAuthenticator)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
