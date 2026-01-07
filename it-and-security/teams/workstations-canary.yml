@@ -290,10 +290,10 @@ software:
       categories:
         - Communication
         - Productivity
-    #- slug: google-chrome/darwin # Google Chrome for macOS
-    #  self_service: true
-    #  categories:
-    #    - Browsers
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+      categories:
+        - Browsers
     #- slug: brave-browser/darwin # Brave for macOS (ARM)
     #  self_service: true
     #  labels_include_any:
