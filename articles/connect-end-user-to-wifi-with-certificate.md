@@ -598,7 +598,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 </Exec>
 ```
 
-> Currently only device scoped SCEP profiles are supported for Windows devices.
+> Currently only device-scoped SCEP profiles are supported for Windows devices.
 </details>
 
 ## Custom EST (Enrollment over Secure Transport)
@@ -752,9 +752,9 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 
 ## Advanced
 
-### User scoped certificates
+### User-scoped certificates
 
-You can deploy a user scoped certificate on macOS and Windows hosts using a user scoped configuration profile.
+You can deploy a user-scoped certificate on macOS and Windows hosts using a user-scoped configuration profile.
 
 1. Follow the instructions above to connect Fleet to your certificate authority (CA).
 2. Create a certificate [configuration profile](#example-configuration-profiles). For Windows, replace `./Device` with `./User` in all `<LocURI>` elements. For macOS, set `PayloadScope` to `User`.
