@@ -165,6 +165,7 @@ export const generateSoftwareTableHeaders = ({
           .filter(
             (date): date is string =>
               date !== undefined &&
+              date !== null &&
               date !== "" &&
               !isNaN(new Date(date).getTime())
           );
