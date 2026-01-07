@@ -360,6 +360,14 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
 
+	// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
+	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
+	if err != nil {
+		level.Error(v.Log).Log("msg", "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", hostUUID, "err", err)
+	} else if fleetAgentPolicy != nil {
+		appPolicies = append(appPolicies, fleetAgentPolicy)
+	}
+
 	// Update Android MDM policy to include the apps in self service
 	err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: policyID})
 	if err != nil {

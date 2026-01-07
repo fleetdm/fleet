@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -22,18 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
-
-// setupAMAPIEnvVars sets up the required environment variables for AMAPI calls and returns a cleanup function.
-func setupAMAPIEnvVars(t *testing.T) {
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	t.Cleanup(func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	})
-}
 
 // verifyCertificateStatus is a helper function that verifies the certificate template status
 // via both the host API and the fleetd certificate API.
@@ -176,8 +163,6 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Create a test team
@@ -338,8 +323,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFailure() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Step: Create a test team
@@ -470,8 +453,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Step: Create a test certificate authority
@@ -586,8 +567,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Step: Create a test team
@@ -717,8 +696,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Create two teams with different certificate templates

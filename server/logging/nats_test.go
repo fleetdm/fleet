@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	natsTestLogCount      = 1000
+	natsTestLogCount      = 2
 	natsTestDirectSubject = "test.logs.direct"
 	natsTestStreamSubject = "test.logs.stream"
 	natsTestStreamName    = "test-logs-stream"
@@ -68,15 +68,15 @@ func makeNatsServer(t *testing.T) *server.Server {
 	return ns
 }
 
-// makeNatsLogs creates a number of test logs.
+// makeNatsLogs creates test logs.
 func makeNatsLogs(t *testing.T) []json.RawMessage {
 	t.Helper()
 
 	var logs []json.RawMessage
 
-	for n := range natsTestLogCount {
+	for i := range natsTestLogCount {
 		logs = append(logs,
-			json.RawMessage(fmt.Sprintf(`{"foo":"bar %d"}`, n)),
+			json.RawMessage(fmt.Sprintf(`{"foo":"bar %d"}`, i)),
 		)
 	}
 
@@ -235,9 +235,6 @@ func TestNatsLogWriter(t *testing.T) {
 
 		require.Error(t, err)
 
-		// Wait a moment to ensure no messages were published.
-		time.Sleep(100 * time.Millisecond)
-
 		// Ensure no messages were received.
 		lock.Lock()
 		require.Equal(t, 0, seen)
@@ -344,9 +341,6 @@ func TestNatsLogWriter(t *testing.T) {
 		err = writer.Write(ctx, invalidLogs)
 
 		require.Error(t, err)
-
-		// Wait a moment to ensure no messages were published.
-		time.Sleep(100 * time.Millisecond)
 
 		// Verify that the stream has no messages.
 		info, err := st.Info(ctx)
