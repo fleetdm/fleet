@@ -924,8 +924,12 @@ class CertificateOrchestratorTest {
         val cleanupResults = orchestrator.cleanupRemovedCertificates(context, hostCertificates)
 
         // Assert: Cleanup
-        assertEquals(1, cleanupResults.size)
+        // Note: Cleanup processes both certificates:
+        // - Certificate 14: Has operation="remove"
+        // - Certificate 20: Has no stored state (null UUID != "new-uuid" is true)
+        assertEquals(2, cleanupResults.size)
         assertTrue(cleanupResults[14] is CleanupResult.Success)
+        assertTrue(cleanupResults[20] is CleanupResult.Success)
         assertFalse("Old cert should be removed from keystore", fakeDeviceKeystoreManager.hasKeyPair("cert-1"))
 
         // Act: Enrollment installs new cert
@@ -950,6 +954,122 @@ class CertificateOrchestratorTest {
         assertEquals(CertificateStatus.INSTALLED, stored[20]?.status)
         assertEquals("cert-1", stored[20]?.alias)
         assertEquals("new-uuid", stored[20]?.uuid)
+    }
+
+    @Test
+    fun `uuid change - same certificate uninstalled and reinstalled when uuid changes`() = runTest {
+        // Scenario: Server changes UUID for same certificate ID (e.g., certificate renewal).
+        // Certificate ID 123 is already installed with old-uuid.
+        // Server sends certificate ID 123 with new-uuid.
+        // Expected: Certificate uninstalled, then reinstalled with new UUID.
+
+        // Arrange: Certificate installed with old UUID
+        val certificateId = 123
+        val alias = "cert-1"
+        val oldUuid = "old-uuid"
+        val newUuid = "new-uuid"
+
+        storeTestCertificateInDataStore(
+            certificateId = certificateId,
+            alias = alias,
+            status = CertificateStatus.INSTALLED,
+            uuid = oldUuid,
+        )
+        fakeDeviceKeystoreManager.installCert(alias)
+
+        // Configure API to return certificate template
+        fakeApiClient.getCertificateTemplateHandler = { certId ->
+            if (certId == certificateId) {
+                Result.success(
+                    CertificateTemplateResult(
+                        template = GetCertificateTemplateResponse(
+                            id = certificateId,
+                            name = alias,
+                            certificateAuthorityId = 1,
+                            certificateAuthorityName = "TestCA",
+                            createdAt = "2025-01-01T00:00:00Z",
+                            subjectName = "CN=test",
+                            certificateAuthorityType = "custom_scep_proxy",
+                            status = "delivered",
+                        ),
+                        scepUrl = TestCertificateTemplateFactory.DEFAULT_SCEP_URL,
+                    ),
+                )
+            } else {
+                Result.failure(Exception("Unexpected cert ID: $certId"))
+            }
+        }
+        mockInstaller.shouldSucceed = true
+
+        // Host certificate with new UUID and install operation
+        val hostCertificates = listOf(
+            HostCertificate(
+                id = certificateId,
+                status = "delivered",
+                operation = "install",
+                uuid = newUuid,
+            ),
+        )
+
+        // Act: Cleanup detects UUID mismatch and removes certificate
+        val cleanupResults = orchestrator.cleanupRemovedCertificates(context, hostCertificates)
+
+        // Assert: Certificate removed from keystore
+        assertEquals(1, cleanupResults.size)
+        assertTrue(
+            "Expected cleanup success but got: ${cleanupResults[certificateId]}",
+            cleanupResults[certificateId] is CleanupResult.Success,
+        )
+        assertFalse(
+            "Certificate should be removed from keystore",
+            fakeDeviceKeystoreManager.hasKeyPair(alias),
+        )
+
+        // Assert: State updated to REMOVED with new UUID
+        val afterCleanup = getStoredCertificates()
+        assertEquals(1, afterCleanup.size)
+        assertEquals(CertificateStatus.REMOVED, afterCleanup[certificateId]?.status)
+        assertEquals(alias, afterCleanup[certificateId]?.alias)
+        assertEquals(newUuid, afterCleanup[certificateId]?.uuid) // UUID updated during cleanup
+
+        // Act: Enrollment reinstalls certificate with new UUID
+        val installCerts = hostCertificates.filter { it.shouldInstall() }
+        val enrollResults = orchestrator.enrollCertificates(context, installCerts, mockInstaller)
+
+        // Assert: Certificate successfully reinstalled
+        assertEquals(1, enrollResults.size)
+        assertTrue(
+            "Expected enrollment success but got: ${enrollResults[certificateId]}",
+            enrollResults[certificateId] is CertificateEnrollmentHandler.EnrollmentResult.Success,
+        )
+        assertTrue("Installer should have been called", mockInstaller.wasInstallCalled)
+        assertEquals(alias, mockInstaller.capturedAlias)
+
+        // Assert: Final state is INSTALLED with new UUID
+        val afterEnrollment = getStoredCertificates()
+        assertEquals(1, afterEnrollment.size)
+        assertEquals(CertificateStatus.INSTALLED, afterEnrollment[certificateId]?.status)
+        assertEquals(alias, afterEnrollment[certificateId]?.alias)
+        assertEquals(newUuid, afterEnrollment[certificateId]?.uuid) // UUID matches server
+
+        // Assert: API calls made correctly
+        // 1. Removal status reported during cleanup
+        val updateCalls = fakeApiClient.updateStatusCalls
+        val removalCall = updateCalls.find {
+            it.certificateId == certificateId && it.operationType == UpdateCertificateStatusOperation.REMOVE
+        }
+        assertNotNull("Removal status should be reported to server", removalCall)
+        assertEquals(UpdateCertificateStatusStatus.VERIFIED, removalCall?.status)
+
+        // 2. Certificate template fetched during enrollment
+        assertTrue("Certificate template should be fetched", fakeApiClient.getCertificateTemplateCalls.contains(certificateId))
+
+        // 3. Installation status reported during enrollment
+        val installCall = updateCalls.find {
+            it.certificateId == certificateId && it.operationType == UpdateCertificateStatusOperation.INSTALL
+        }
+        assertNotNull("Installation status should be reported to server", installCall)
+        assertEquals(UpdateCertificateStatusStatus.VERIFIED, installCall?.status)
     }
 
     // ========== Test category: Status report retry logic ==========

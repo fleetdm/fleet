@@ -340,7 +340,7 @@ class CertificateOrchestrator(
      * @param hostCertificates List of host certificates from managed configuration
      * @return Map of certificate ID to cleanup result
      */
-    suspend fun cleanupRemovedCertificates(context: Context, hostCertificates: List<HostCertificate>): Map<Int, CleanupResult> {
+    suspend fun  cleanupRemovedCertificates(context: Context, hostCertificates: List<HostCertificate>): Map<Int, CleanupResult> {
         Log.d(TAG, "Starting certificate cleanup. Host certificates: ${hostCertificates.map { "${it.id}:${it.operation}" }}")
 
         val certificateStates = getCertificateStates(context)
@@ -348,8 +348,10 @@ class CertificateOrchestrator(
 
         val results = mutableMapOf<Int, CleanupResult>()
 
-        // Step 1: Process certificates with operation="remove"
-        val certificatesToRemove = hostCertificates.filter { it.shouldRemove() }
+        // Step 1: Process certificates with operation="remove" or where the UUID of the server and local certificate don't match
+        val certificatesToRemove = hostCertificates.filter {
+            it.shouldRemove() || certificateStates[it.id]?.uuid != it.uuid
+        }
         Log.d(TAG, "Certificates marked for removal: ${certificatesToRemove.map { it.id }}")
 
         for (hostCert in certificatesToRemove) {
