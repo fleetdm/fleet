@@ -907,6 +907,33 @@ func (hsv *HostSoftwareInstalledVersion) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// UnmarshalJSON implements custom JSON unmarshaling for HostSoftwareInstalledVersion to handle
+// the potential empty string in last_opened_at.
+func (hsv *HostSoftwareInstalledVersion) UnmarshalJSON(b []byte) error {
+	type Alias HostSoftwareInstalledVersion
+	aux := &struct {
+		*Alias
+		LastOpenedAt json.RawMessage `json:"last_opened_at"`
+	}{
+		Alias: (*Alias)(hsv),
+	}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	if len(aux.LastOpenedAt) > 0 && string(aux.LastOpenedAt) != "null" {
+		if string(aux.LastOpenedAt) == `""` {
+			hsv.LastOpenedAt = nil
+		} else {
+			var t time.Time
+			if err := json.Unmarshal(aux.LastOpenedAt, &t); err != nil {
+				return err
+			}
+			hsv.LastOpenedAt = &t
+		}
+	}
+	return nil
+}
+
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record
 // the results of a software installation attempt.
 type HostSoftwareInstallResultPayload struct {
