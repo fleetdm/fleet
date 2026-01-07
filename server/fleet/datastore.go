@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -2835,25 +2834,14 @@ const (
 // same in both (the other is currently NotFound), and ideally we'd just have
 // one of those interfaces.
 
-// NotFoundError is returned when the datastore resource cannot be found.
-type NotFoundError interface {
-	error
-	IsNotFound() bool
-}
+// NotFoundError is an alias for platform_http.NotFoundError.
+type NotFoundError = platform_http.NotFoundError
 
-func IsNotFound(err error) bool {
-	var nfe NotFoundError
-	if errors.As(err, &nfe) {
-		return nfe.IsNotFound()
-	}
-	return false
-}
+// IsNotFound is an alias for platform_http.IsNotFound.
+var IsNotFound = platform_http.IsNotFound
 
-// AlreadyExistsError is returned when creating a datastore resource that already exists.
-type AlreadyExistsError interface {
-	error
-	IsExists() bool
-}
+// AlreadyExistsError is an alias for platform_http.AlreadyExistsError.
+type AlreadyExistsError = platform_http.AlreadyExistsError
 
 // ForeignKeyError is an alias for platform_http.ForeignKeyError.
 type ForeignKeyError = platform_http.ForeignKeyError

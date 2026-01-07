@@ -243,7 +243,13 @@ the way that the Fleet server works.
 				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
 
-			mds, err := mysql.New(config.Mysql, clock.C, opts...)
+			// Create database connections that can be shared across datastores
+			dbConns, err := mysql.NewDBConnections(config.Mysql, opts...)
+			if err != nil {
+				initFatal(err, "initializing database connections")
+			}
+
+			mds, err := mysql.NewDatastore(dbConns, config.Mysql, clock.C)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
