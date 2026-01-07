@@ -282,14 +282,14 @@ software:
       self_service: true
   fleet_maintained_apps:
     # macOS apps
-    - slug: slack/darwin # Slack for macOS
-      self_service: true
-      setup_experience: true
-      post_install_script:
-        path: ../lib/macos/scripts/migrate-slack-preferences.sh
-      categories:
-        - Communication
-        - Productivity
+    #- slug: slack/darwin # Slack for macOS
+    #  self_service: true
+    #  setup_experience: true
+    #  post_install_script:
+    #    path: ../lib/macos/scripts/migrate-slack-preferences.sh
+    #  categories:
+    #    - Communication
+    #    - Productivity
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       categories:
