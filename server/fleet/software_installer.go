@@ -900,7 +900,7 @@ func (hsv *HostSoftwareInstalledVersion) MarshalJSON() ([]byte, error) {
 	type Alias HostSoftwareInstalledVersion
 	return json.Marshal(&struct {
 		*Alias
-		LastOpenedAt interface{} `json:"last_opened_at,omitempty"`
+		LastOpenedAt any `json:"last_opened_at,omitempty"`
 	}{
 		Alias:        (*Alias)(hsv),
 		LastOpenedAt: marshalLastOpenedAt(hsv.Source, hsv.LastOpenedAt),

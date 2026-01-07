@@ -58,7 +58,7 @@ func isLastOpenedAtSupported(source string) bool {
 // marshalLastOpenedAt returns the appropriate value for last_opened_at JSON marshaling.
 // Returns nil to omit the field for unsupported sources, "" for supported sources with nil,
 // or the actual timestamp for supported sources with a value.
-func marshalLastOpenedAt(source string, lastOpenedAt *time.Time) interface{} {
+func marshalLastOpenedAt(source string, lastOpenedAt *time.Time) any {
 	if !isLastOpenedAtSupported(source) {
 		return nil
 	}
@@ -160,7 +160,7 @@ func (s *Software) MarshalJSON() ([]byte, error) {
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
-		LastOpenedAt interface{} `json:"last_opened_at,omitempty"`
+		LastOpenedAt any `json:"last_opened_at,omitempty"`
 	}{
 		Alias:        (*Alias)(s),
 		LastOpenedAt: marshalLastOpenedAt(s.Source, s.LastOpenedAt),
@@ -520,7 +520,7 @@ func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
-		LastOpenedAt             interface{}                `json:"last_opened_at,omitempty"`
+		LastOpenedAt             any                        `json:"last_opened_at,omitempty"`
 		InstalledPaths           []string                   `json:"installed_paths"`
 		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
 	}{

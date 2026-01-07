@@ -272,7 +272,7 @@ func TestSoftwareMarshalJSONLastOpenedAt(t *testing.T) {
 		name           string
 		software       Software
 		expectField    bool
-		expectedValue  interface{}
+		expectedValue  any
 		description    string
 	}{
 		{
@@ -322,7 +322,7 @@ func TestSoftwareMarshalJSONLastOpenedAt(t *testing.T) {
 			data, err := tt.software.MarshalJSON()
 			require.NoError(t, err)
 
-			var result map[string]interface{}
+			var result map[string]any
 			err = json.Unmarshal(data, &result)
 			require.NoError(t, err)
 
@@ -352,7 +352,7 @@ func TestHostSoftwareEntryMarshalJSONLastOpenedAt(t *testing.T) {
 		name           string
 		entry          HostSoftwareEntry
 		expectField    bool
-		expectedValue  interface{}
+		expectedValue  any
 		description    string
 	}{
 		{
@@ -398,7 +398,7 @@ func TestHostSoftwareEntryMarshalJSONLastOpenedAt(t *testing.T) {
 			data, err := tt.entry.MarshalJSON()
 			require.NoError(t, err)
 
-			var result map[string]interface{}
+			var result map[string]any
 			err = json.Unmarshal(data, &result)
 			require.NoError(t, err)
 
@@ -428,7 +428,7 @@ func TestHostSoftwareInstalledVersionMarshalJSONLastOpenedAt(t *testing.T) {
 		name           string
 		version        HostSoftwareInstalledVersion
 		expectField    bool
-		expectedValue  interface{}
+		expectedValue  any
 		description    string
 	}{
 		{
@@ -478,7 +478,7 @@ func TestHostSoftwareInstalledVersionMarshalJSONLastOpenedAt(t *testing.T) {
 			data, err := tt.version.MarshalJSON()
 			require.NoError(t, err)
 
-			var result map[string]interface{}
+			var result map[string]any
 			err = json.Unmarshal(data, &result)
 			require.NoError(t, err)
 
