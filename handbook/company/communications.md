@@ -1301,9 +1301,12 @@ Spell out international time zones:
 
 #### Lists
 
-Lists help readers scan content for essential information. They should be as concise and symmetrical as possible.
-If you find your list running long, or if each item contains several sentences, you may want to reconsider whether a list is the best approach.
-Use a numbered list if it follows a specific order or includes a set number of items. Otherwise, use bullet points.
+Lists should be as concise and symmetrical as possible. If you find your list running long, or if each item contains several sentences, consider whether a list is the best approach. 
+
+
+##### Ordered list vs. unordered list
+
+If your list follows a specific order or includes a set number of items, use an [ordered list](https://fleetdm.com/handbook/company/communications.md#ordered-lists) by numbering each item. Otherwise, use an [unordered list](https://fleetdm.com/handbook/company/communications.md#unordered-lists) represented by bullet points.
 
 
 ##### How to introduce a list 
@@ -1437,6 +1440,8 @@ line two
 
 ##### Ordered lists
 
+Ordered lists are represented by numbering each line item. 
+
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
@@ -1462,6 +1467,8 @@ Paragraph about item one
 
 
 ##### Unordered lists
+
+Unordered lists are represented by using a hyphen at the beginning of each line item.
 
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
@@ -1520,9 +1527,9 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 | Left alignment | Right alignment | Center Alignment |
 
 > When using tables to document API endpoint parameters, we use the following conventions:
-> + Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
-> + In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
-> + In the **Description** column for required parameters, begin the description with "**Required.**"
+> - Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
+> - In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
+> - In the **Description** column for required parameters, begin the description with "**Required.**"
 
 
 #### Blockquotes
