@@ -154,6 +154,12 @@ type HostVPPSoftwareInstall struct {
 	RetryCount           int        `db:"retry_count"`
 }
 
+type HostVPPSoftwareInstallLite struct {
+	InstallCommandUUID string `db:"command_uuid"`
+	HostID             uint   `db:"host_id"`
+	RetryCount         int    `db:"retry_count"`
+}
+
 // HostAndroidVPPSoftwareInstall represents the payload needed to
 // insert a VPP software install record for an Android host.
 //

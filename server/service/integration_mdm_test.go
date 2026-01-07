@@ -18374,6 +18374,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 

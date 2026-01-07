@@ -2454,7 +2454,7 @@ WHERE execution_id = ?
 	return isAutoUpdate, nil
 }
 
-func (ds *Datastore) GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstall, error) {
+func (ds *Datastore) GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstallLite, error) {
 	const stmt = `
 	SELECT 
 	command_uuid,
@@ -2462,7 +2462,7 @@ func (ds *Datastore) GetHostVPPInstallByCommandUUID(ctx context.Context, command
 	retry_count
 	FROM host_vpp_software_installs
 	WHERE command_uuid = ?`
-	var vppSoftwareInstalls []fleet.HostVPPSoftwareInstall
+	var vppSoftwareInstalls []fleet.HostVPPSoftwareInstallLite
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppSoftwareInstalls, stmt, commandUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get VPP host install")
 	}
@@ -2479,7 +2479,7 @@ func (ds *Datastore) GetHostVPPInstallByCommandUUID(ctx context.Context, command
 	return &vppSoftwareInstalls[0], nil
 }
 
-func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstall) error {
+func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstallLite) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		newCommandUUID := uuid.New().String()
 
@@ -2505,15 +2505,18 @@ func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtConte
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid
+	uuid, platform
 FROM
 	hosts
 WHERE
 	id = ?
 `
 	// get the host uuid, requires for the nano tables
-	var hostUUID string
-	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+	var hostData struct {
+		UUID     string `db:"uuid"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
 	}
 
@@ -2535,7 +2538,7 @@ WHERE
 	ua.execution_id IN (:execution_ids)
 `
 
-	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
+	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -2544,7 +2547,7 @@ WHERE
 		<key>InstallAsManaged</key>
 		<true/>
         <key>ManagementFlags</key>
-        <integer>0</integer>
+        <integer>%d</integer>
         <key>ChangeManagementState</key>
         <string>Managed</string>
         <key>InstallAsManaged</key>
@@ -2567,6 +2570,15 @@ WHERE
 	const rawCmdPart3 = `</string>
 </dict>
 </plist>`
+
+	// Set management flags based on platform
+	if fleet.IsAppleMobilePlatform(hostData.Platform) {
+		// Remove app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
+	} else {
+		// Keep app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
+	}
 
 	// insert the nano command
 	namedArgs := map[string]any{
@@ -2607,7 +2619,7 @@ ORDER BY
 `
 
 	// enqueue the nano command in the nano queue
-	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
+	stmt, args, err = sqlx.In(insNanoQueueStmt, hostData.UUID, hostID, execIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
 	}
@@ -2618,8 +2630,8 @@ ORDER BY
 	// best-effort APNs push notification to the host, not critical because we
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
-		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
+		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
 		}
 	}
 	return nil

@@ -2638,11 +2638,11 @@ type Datastore interface {
 
 	// GetHostVPPInstallByCommandUUID retrieves the Apple VPP app install record
 	// for the given command UUID.
-	GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*HostVPPSoftwareInstall, error)
+	GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*HostVPPSoftwareInstallLite, error)
 
 	// RetryVPPInstall retries a single VPP install that failed for the host.
 	// It makes sure to queue a new nano command and update the command_uuid in the host_vpp_software_installs table, as well as the execution ID for the activity.
-	RetryVPPInstall(ctx context.Context, vppInstall *HostVPPSoftwareInstall) error
+	RetryVPPInstall(ctx context.Context, vppInstall *HostVPPSoftwareInstallLite) error
 }
 
 type AndroidDatastore interface {
