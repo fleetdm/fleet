@@ -54,7 +54,8 @@ How to deliver user-scoped configuration profiles:
 
 ### Windows
 
-To make a Windows configuration profiles user-scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
+1. Head to the [Windows configuration profiles (CSPs) documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) to verify that all the settings in your Windows profile support the user scope. For example, the [SCEP setting](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescep) supports both the device and user scope.
+2. To make a Windows configuration profiles user-scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
 #### Upgrading from below 4.71.0
 
