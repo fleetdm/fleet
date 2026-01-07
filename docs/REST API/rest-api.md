@@ -640,9 +640,10 @@ Object with the following structure:
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | url | string | **Required**. The URL of the NDES SCEP endpoint. |
-| admin_url | string | **Required**. The URL of the NDES admin endpoint. |
-| password | string | **Required**. The password for the NDES admin endpoint. |
-| username | string | **Required**. The username for the NDES admin endpoint. |
+| admin_url | string  | **Required**. The URL of the NDES admin endpoint. For Okta CA, this is the challenge URL. |
+| password  | string  | **Required**. The password for the NDES admin endpoint. |
+| username  | string  | **Required**. The username for the NDES admin endpoint. |
+| okta_ca   | boolean | Optional flag that indicates this is an Okta CA. The Fleet UI uses this to display relevant instructions. |
 
 ##### custom_scep_proxy
 
