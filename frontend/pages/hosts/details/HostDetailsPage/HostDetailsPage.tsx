@@ -1285,7 +1285,11 @@ Observer plus must be checked against host's team id  */
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
-              hostMdmDeviceStatus={hostMdmDeviceStatus}
+              hostMdmDeviceStatus={
+                hostMdmDeviceStatus === "locating"
+                  ? "locking"
+                  : hostMdmDeviceStatus
+              }
               hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
             />
           </div>
@@ -1687,7 +1691,7 @@ Observer plus must be checked against host's team id  */
             }}
             onClickLock={() => {
               setShowLockHostModal(true);
-              setShowLocationModal(undefined);
+              setShowLocationModal(false);
             }}
             detailsUpdatedAt={host.detail_updated_at}
           />
