@@ -1456,6 +1456,7 @@ WHERE in_house_app_id = ?
 }
 
 func (ds *Datastore) checkInstallerOrInHouseAppExists(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier string, swType softwareType) (bool, error) {
+	// TODO(mna): this is missing a platform-specific check?
 	stmt := fmt.Sprintf(`
 SELECT 1
 FROM software_titles st

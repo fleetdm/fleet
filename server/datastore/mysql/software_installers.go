@@ -199,25 +199,19 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 
 	err = ds.checkSoftwareConflictsByIdentifier(ctx, payload)
 	if err != nil {
-		// TODO(JK): this needs a teamName message
-		// teamName := fleet.TeamNameNoTeam
-		// if payload.TeamID != nil && *payload.TeamID > 0 {
-		// 	tm, err := ds.TeamLite(ctx, *payload.TeamID)
-		// 	if err != nil {
-		// 		return 0, 0, ctxerr.Wrap(ctx, err, "get team for software installer conflict error")
-		// 	}
-		// 	teamName = tm.Name
-		// }
-		//
-		// return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, payload.Title, teamName)},
-		// 	"existing app conflicts with installer")
-		return 0, 0, ctxerr.Wrap(ctx, err, "check software conflicts")
+		teamName, err := ds.getTeamName(ctx, payload.TeamID)
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "get team for installer conflict error")
+		}
+
+		return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+			Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, payload.Title, teamName),
+		}, "vpp app conflicts with existing software installer")
 	}
 
 	// Insert in house app instead of software installer
 	// And add both iOS and ipadOS titles per https://github.com/fleetdm/fleet/issues/34283
 	if payload.Extension == "ipa" {
-		// TODO(mna): check if it conflicts with an existing VPP/IPA app
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
 			Title:           payload.Title,
@@ -240,31 +234,6 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
 	}
-
-	// // check if a VPP app already exists for that software title in the same
-	// // platform (macOS) and team.
-	// if payload.Platform == string(fleet.MacOSPlatform) {
-	// 	// NOTE: this checks if a VPP/IPA app exists for the same team and for macos,
-	// 	// for the provided bundle identifier but also for the same source and browser (empty string).
-	// 	// Why do we consider the source and browser for that check? I think if there is a VPP/IPA
-	// 	// for the same platform and bundle identifier, it should be a conflict?
-	// 	exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx),
-	// 		payload.TeamID, payload.BundleIdentifier, payload.Source, "")
-	// 	if err != nil {
-	// 		return 0, 0, ctxerr.Wrap(ctx, err, "check VPP app exists for title identifier")
-	// 	}
-	// 	if exists {
-	// 		teamName, err := ds.getTeamName(ctx, payload.TeamID)
-	// 		if err != nil {
-	// 			return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
-	// 		}
-	//
-	// 		return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
-	// 			Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-	// 				payload.Title, teamName),
-	// 		}, "vpp app conflicts with existing software installer")
-	// 	}
-	// }
 
 	// Enforce team-scoped uniqueness by storage hash, aligning upload behavior with GitOps.
 	// However, if the duplicate-by-hash is for the same title/source on the same team,
