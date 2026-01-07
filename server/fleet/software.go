@@ -277,22 +277,16 @@ func (s SoftwareAutoUpdateSchedule) ScheduleIsValid() (bool, error) {
 	if s.AutoUpdateStartTime == nil || s.AutoUpdateEndTime == nil || *s.AutoUpdateStartTime == "" || *s.AutoUpdateEndTime == "" {
 		return false, errors.New("Start and end time must both be set")
 	}
+	// Validate that the times are in HH:MM format.
+	// Note that durations can be arbitrarily long, but parsing in this way
+	// automatically validates that the hours are between 0 and 23 and the minutes are between 0 and 59.
 	startDuration, err := time.Parse("15:04", *s.AutoUpdateStartTime)
 	if err != nil {
-		return false, fmt.Errorf("Error parsing start time %w", err)
+		return false, fmt.Errorf("Error parsing start time: %w", err)
 	}
 	endDuration, err := time.Parse("15:04", *s.AutoUpdateEndTime)
 	if err != nil {
-		return false, fmt.Errorf("Error parsing end time %w", err)
-	}
-	// Validate that the start and end time are in valid HH:MM format.
-	// Durations can be arbitrarily long, but since we're interpreting them as clock time
-	// the must be between 00:00 and 23:59.
-	if startDuration.Hour() < 0 || startDuration.Hour() > 23 || startDuration.Minute() < 0 || startDuration.Minute() > 59 {
-		return false, errors.New("Invalid start time: please use HH:MM format between 00:00 and 23:59")
-	}
-	if endDuration.Hour() < 0 || endDuration.Hour() > 23 || endDuration.Minute() < 0 || endDuration.Minute() > 59 {
-		return false, errors.New("Invalid end time: please use HH:MM format between 00:00 and 23:59")
+		return false, fmt.Errorf("Error parsing end time: %w", err)
 	}
 	// Validate that the window is at least one hour long.
 	// If the end time is less than the start time, the window wraps to the next day, so we need to add 24 hours to the end time in that case.
@@ -300,7 +294,7 @@ func (s SoftwareAutoUpdateSchedule) ScheduleIsValid() (bool, error) {
 		endDuration = endDuration.Add(24 * time.Hour)
 	}
 	if endDuration.Sub(startDuration) < time.Hour {
-		return false, errors.New("The maintenance window must be at least one hour long")
+		return false, errors.New("The update window must be at least one hour long")
 	}
 
 	return true, nil

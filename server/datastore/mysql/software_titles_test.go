@@ -2655,7 +2655,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid auto-update time format")
+	require.Contains(t, err.Error(), "Error parsing start time")
 
 	// Attempt to enable auto-update with invalid end time.
 	startTime = "12:00"
@@ -2666,7 +2666,18 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid auto-update time format")
+	require.Contains(t, err.Error(), "Error parsing end time")
+
+	// Attempt to enable auto-update with less than an hour between start and end time.
+	startTime = "12:00"
+	endTime = "12:30"
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
+		AutoUpdateEnabled:   ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "The update window must be at least one hour long")
 
 	// Enable auto-update.
 	startTime = "02:00"

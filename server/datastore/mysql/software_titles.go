@@ -832,24 +832,21 @@ WHERE
 }
 
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	// Validate start and end time.
-	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
-	for _, t := range []*string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
-		if t == nil {
-			if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
-				return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-			}
-			continue
-		}
-		duration, err := time.Parse("15:04", *t)
-		if err != nil {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
-		if duration.Hour() < 0 || duration.Hour() > 23 || duration.Minute() < 0 || duration.Minute() > 59 {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
+	// Validate schedule if enabled.
+	schedule := fleet.SoftwareAutoUpdateSchedule{
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   config.AutoUpdateEnabled,
+			AutoUpdateStartTime: config.AutoUpdateStartTime,
+			AutoUpdateEndTime:   config.AutoUpdateEndTime,
+		},
 	}
-
+	ok, err := schedule.ScheduleIsValid()
+	if !ok {
+		if err == nil {
+			err = fleet.NewInvalidArgumentError("auto_update_schedule", "invalid auto-update schedule")
+		}
+		return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+	}
 	var startTime, endTime string
 	if config.AutoUpdateStartTime != nil {
 		startTime = *config.AutoUpdateStartTime
@@ -867,7 +864,7 @@ ON DUPLICATE KEY UPDATE
 	start_time = IF(VALUES(start_time) = '', start_time, VALUES(start_time)),
 	end_time = IF(VALUES(end_time) = '', end_time, VALUES(end_time))
 `
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}
