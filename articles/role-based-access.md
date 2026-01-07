@@ -98,6 +98,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View disk encryption key for macOS, Windows, and Linux hosts                                                                               | ✅       | ✅         | ✅     | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                  |          |            |        |            | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            |        | ✅         | ✅    | ✅      |
+| View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                            |          |            | ✅     | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            |        | ✅         | ✅    | ✅      |
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅     | ✅         | ✅    |         |
 | Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                                 |          |            |        | ✅         | ✅    | ✅      |
@@ -109,7 +110,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Schedule and run scripts on hosts                                                                                                          |          |            | ✅     | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅     | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            |        | ✅         | ✅    | ✅      |
-| Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅     | ✅         | ✅    |         |
+| Lock, unlock, and wipe hosts\*                                                                                                             |          |            |        | ✅         | ✅    |         |
 | Turn off MDM                                                                                                                               |          |            |        | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |        |            | ✅    |         |
 
@@ -176,6 +177,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅          | ✅              | ✅         |             |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                        |               |                |             |                 | ✅         | ✅          |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                |             | ✅              | ✅         | ✅          |
+| View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                  |               |                | ✅          | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                |             | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅          | ✅              | ✅         |             |
 | Edit [team OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                  |               |                |             | ✅              | ✅         | ✅          |
@@ -184,7 +186,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅          | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                |             | ✅              | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅          | ✅              | ✅         |             |
-| Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅          | ✅              | ✅         |             |
+| Lock, unlock, and wipe hosts                                                                                                     |               |                |             | ✅              | ✅         |             |
 | Turn off MDM                                                                                                                     |               |                |             | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
