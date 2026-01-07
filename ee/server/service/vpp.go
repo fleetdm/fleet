@@ -337,7 +337,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ipados apps")
 	}
 	// Combine schedules from both sources
-	existingSchedules := append(existingIosAppSchedules, existingIPadOsSchedules...)
+	existingSchedules := slices.Concat(existingIosAppSchedules, existingIPadOsSchedules)
 	existingSchedulesByTitleID := make(map[uint]bool, len(existingSchedules))
 	for _, schedule := range existingSchedules {
 		existingSchedulesByTitleID[schedule.TitleID] = true
