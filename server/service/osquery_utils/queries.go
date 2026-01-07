@@ -1386,8 +1386,6 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return row["bundle_identifier"] == "org.mozilla.firefox"
 		},
 	},
-	// TODO - similarly tack on sha256 here, consider re-naming less specific than codesign
-
 	// macos_codesign collects code signature information of apps on a separate query for two reasons:
 	//   - codesign is a fleetd table (not part of osquery core).
 	//   - Avoid growing the main `software_macos` query
@@ -1402,29 +1400,30 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("codesign"),
 		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
+			if len(codesignResults) == 0 {
+				return mainSoftwareResults
+			}
+
 			type codesignResultRow struct {
 				teamIdentifier string
 				cdhashSHA256   string
 			}
 
-			codesignInformation := make(map[string]codesignResultRow) // path -> team_identifier
+			codesignInfoByPath := make(map[string]codesignResultRow)
 			for _, codesignResult := range codesignResults {
 				var cdhashSha256 string
 				if hash, ok := codesignResult["cdhash_sha256"]; ok {
 					cdhashSha256 = hash
 				}
 
-				codesignInformation[codesignResult["path"]] = codesignResultRow{
+				codesignInfoByPath[codesignResult["path"]] = codesignResultRow{
 					teamIdentifier: codesignResult["team_identifier"],
 					cdhashSHA256:   cdhashSha256,
 				}
 			}
-			if len(codesignInformation) == 0 {
-				return mainSoftwareResults
-			}
 
 			for _, result := range mainSoftwareResults {
-				codesignInfo, ok := codesignInformation[result["installed_path"]]
+				codesignInfo, ok := codesignInfoByPath[result["installed_path"]]
 				if !ok {
 					// No codesign information for this application.
 					continue
@@ -1435,6 +1434,46 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 
 			return mainSoftwareResults
 		},
+	},
+	// macos_fileutil collects information about a target file via the fleetd `fileutil` table.
+	"macos_fileutil": {
+		Query: `
+		SELECT path, binary_sha256
+		FROM apps a
+		JOIN fileutil fu ON a.path = fu.path
+		`,
+		Description: "A software override query[^1] to append file information macOS software entries. Requires `fleetd`",
+		Platforms: []string{"darwin"},
+		Discovery:	 discoveryTable("fileutil"),
+		SoftwareProcessResults: func(mainSoftwareResults, fileUtilResults []map[string]string) []map[string]string {
+			if len(fileUtilResults) == 0 {
+				return mainSoftwareResults
+			}
+
+			type fileUtilResultRow struct {
+				binSHA256 string
+			}
+
+			furByPath := make(map[string]fileUtilResultRow)
+			for _, fur := range fileUtilResults {
+				// probably okay to assume binary_sha256 will be present since fileutil table is computing it iself, but just in case
+				var binHash string
+				if hash, ok := fur["binary_sha256"]; ok {
+					binHash = hash	
+				}
+				furByPath[fur["path"]] = fileUtilResultRow{
+					binSHA256: fur["binary_sha256"],
+			}
+		}
+		for _, swRes := range mainSoftwareResults {
+			fur, ok := furByPath[swRes["installed_path"]]
+			if !ok {
+				// No fileutil information for this application.
+				continue
+			}
+			swRes["binary_sha256"] = fur.binSHA256
+		}
+		return mainSoftwareResults
 	},
 	// windows_last_opened_at collects last opened at information from prefetch files on Windows
 	// hosts. Joining this within the main software query is not performant enough to do on the
