@@ -1359,6 +1359,7 @@ func newAndroidMDMProfileManagerSchedule(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	licenseKey string,
+	androidAgentConfig config.AndroidAgentConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -1370,7 +1371,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
 		}),
 	)
 

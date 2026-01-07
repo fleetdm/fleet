@@ -378,7 +378,7 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
-	// GetHostMDMIdentifiers searches for hosts with identifiders matching the provided identifier.
+	// GetHostMDMIdentifiers searches for hosts with identifiers matching the provided identifier.
 	// It is intended as an optimization over existing host-by-identifier methods (e.g.,
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
 	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
@@ -598,7 +598,7 @@ type Datastore interface {
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
 	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
-	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
+	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
@@ -2077,6 +2077,14 @@ type Datastore interface {
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
+	// on VPP installations for a host
+	//
+	// By pending verification it means that the installation command is not acknowledged, OR that the installation
+	// is acknowledged but not yet verified (installation is still ongoing on the device and/or Fleet hasn't verified
+	// the installation via InstalledApplicationList).
+	MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
+
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
 
@@ -2161,6 +2169,8 @@ type Datastore interface {
 	// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
 	// is currently installed. Returns false if the command doesn't exist or app is not installed.
 	GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error)
+	// IsAutoUpdateVPPInstall determines whether a VPP install command was triggered by auto-update config
+	IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 
@@ -2606,6 +2616,10 @@ type Datastore interface {
 	// For a given certificate template ID, it deletes any rows with status=pending and
 	// updates all other rows to status=pending, operation_type=remove.
 	SetHostCertificateTemplatesToPendingRemove(ctx context.Context, certificateTemplateID uint) error
+
+	// SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
+	// for a specific host for removal.
+	SetHostCertificateTemplatesToPendingRemoveForHost(ctx context.Context, hostUUID string) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)

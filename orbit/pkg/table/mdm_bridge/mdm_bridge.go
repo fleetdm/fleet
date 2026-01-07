@@ -1,7 +1,7 @@
 //go:build windows
 
 // nolint:gosec,G103 // Reason: unsafe required for Windows API calls.
-package mdmbridge
+package mdm_bridge
 
 import (
 	"bytes"

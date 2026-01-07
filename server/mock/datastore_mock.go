@@ -457,7 +457,7 @@ type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string)
 
 type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error
 
-type ListSoftwareAutoUpdateSchedulesFunc func(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error)
+type ListSoftwareAutoUpdateSchedulesFunc func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error)
 
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
 
@@ -1317,6 +1317,8 @@ type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uin
 
 type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+type MapAdamIDsPendingInstallVerificationFunc func(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
+
 type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
 type GetVPPAppMetadataByAdamIDPlatformTeamIDFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error)
@@ -1390,6 +1392,8 @@ type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, app
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
 type GetVPPAppInstallStatusByCommandUUIDFunc func(ctx context.Context, commandUUID string) (bool, error)
+
+type IsAutoUpdateVPPInstallFunc func(ctx context.Context, commandUUID string) (bool, error)
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
@@ -1704,6 +1708,8 @@ type TransitionCertificateTemplatesToDeliveredFunc func(ctx context.Context, hos
 type RevertHostCertificateTemplatesToPendingFunc func(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
 
 type SetHostCertificateTemplatesToPendingRemoveFunc func(ctx context.Context, certificateTemplateID uint) error
+
+type SetHostCertificateTemplatesToPendingRemoveForHostFunc func(ctx context.Context, hostUUID string) error
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -3655,6 +3661,9 @@ type DataStore struct {
 	MapAdamIDsPendingInstallFunc        MapAdamIDsPendingInstallFunc
 	MapAdamIDsPendingInstallFuncInvoked bool
 
+	MapAdamIDsPendingInstallVerificationFunc        MapAdamIDsPendingInstallVerificationFunc
+	MapAdamIDsPendingInstallVerificationFuncInvoked bool
+
 	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
 	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
 
@@ -3765,6 +3774,9 @@ type DataStore struct {
 
 	GetVPPAppInstallStatusByCommandUUIDFunc        GetVPPAppInstallStatusByCommandUUIDFunc
 	GetVPPAppInstallStatusByCommandUUIDFuncInvoked bool
+
+	IsAutoUpdateVPPInstallFunc        IsAutoUpdateVPPInstallFunc
+	IsAutoUpdateVPPInstallFuncInvoked bool
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
@@ -4236,6 +4248,9 @@ type DataStore struct {
 
 	SetHostCertificateTemplatesToPendingRemoveFunc        SetHostCertificateTemplatesToPendingRemoveFunc
 	SetHostCertificateTemplatesToPendingRemoveFuncInvoked bool
+
+	SetHostCertificateTemplatesToPendingRemoveForHostFunc        SetHostCertificateTemplatesToPendingRemoveForHostFunc
+	SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -5771,11 +5786,11 @@ func (s *DataStore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, tit
 	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
 }
 
-func (s *DataStore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+func (s *DataStore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	s.mu.Lock()
 	s.ListSoftwareAutoUpdateSchedulesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListSoftwareAutoUpdateSchedulesFunc(ctx, teamID, optionalFilter...)
+	return s.ListSoftwareAutoUpdateSchedulesFunc(ctx, teamID, source, optionalFilter...)
 }
 
 func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -8781,6 +8796,13 @@ func (s *DataStore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (
 	return s.MapAdamIDsPendingInstallFunc(ctx, hostID)
 }
 
+func (s *DataStore) MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error) {
+	s.mu.Lock()
+	s.MapAdamIDsPendingInstallVerificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.MapAdamIDsPendingInstallVerificationFunc(ctx, hostID)
+}
+
 func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {
 	s.mu.Lock()
 	s.GetTitleInfoFromVPPAppsTeamsIDFuncInvoked = true
@@ -9038,6 +9060,13 @@ func (s *DataStore) GetVPPAppInstallStatusByCommandUUID(ctx context.Context, com
 	s.GetVPPAppInstallStatusByCommandUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPAppInstallStatusByCommandUUIDFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error) {
+	s.mu.Lock()
+	s.IsAutoUpdateVPPInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsAutoUpdateVPPInstallFunc(ctx, commandUUID)
 }
 
 func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPTokenDB, error) {
@@ -10137,6 +10166,13 @@ func (s *DataStore) SetHostCertificateTemplatesToPendingRemove(ctx context.Conte
 	s.SetHostCertificateTemplatesToPendingRemoveFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostCertificateTemplatesToPendingRemoveFunc(ctx, certificateTemplateID)
+}
+
+func (s *DataStore) SetHostCertificateTemplatesToPendingRemoveForHost(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostCertificateTemplatesToPendingRemoveForHostFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
