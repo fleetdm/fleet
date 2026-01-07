@@ -54,6 +54,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	t := s.T()
 	s.setSkipWorkerJobs(t)
+	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 
 	// Create a team
 	var newTeamResp teamResponse
@@ -1025,6 +1026,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
+	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)

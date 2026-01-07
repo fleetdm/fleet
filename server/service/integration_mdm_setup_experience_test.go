@@ -1387,6 +1387,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 			AvailableCount: 1,
 		},
 	}...)
+	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 
 	t.Cleanup(func() {
 		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
