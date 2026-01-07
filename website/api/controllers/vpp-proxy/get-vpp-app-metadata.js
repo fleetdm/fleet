@@ -38,7 +38,7 @@ module.exports = {
 
   exits: {
     success: {
-      description: 'The response was sent to the Fleet server',
+      description: 'App metadata was sent to the Fleet server',
       outputType: {},
     },
     missingAuthHeader: {
@@ -114,7 +114,7 @@ module.exports = {
       }
     })
     .tolerate((err)=>{
-      sails.log.warn(`p1: When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
+      sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
       return err;
     });
 
