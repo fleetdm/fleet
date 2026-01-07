@@ -22,6 +22,22 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import java.math.BigInteger
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+
+/**
+ * Converts a java.util.Date to ISO8601 format string.
+ * Format: "yyyy-MM-dd'T'HH:mm:ss'Z'" (UTC timezone)
+ * Example: "2025-12-31T23:59:59Z"
+ */
+private fun Date.toISO8601String(): String {
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+    dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+    return dateFormat.format(this)
+}
 
 val Context.prefDataStore: DataStore<Preferences> by preferencesDataStore(name = "pref_datastore")
 
@@ -41,6 +57,9 @@ interface CertificateApiClient {
         status: UpdateCertificateStatusStatus,
         operationType: UpdateCertificateStatusOperation,
         detail: String? = null,
+        notAfter: Date? = null,
+        notBefore: Date? = null,
+        serialNumber: BigInteger? = null,
     ): Result<Unit>
 }
 
@@ -253,6 +272,9 @@ object ApiClient : CertificateApiClient {
         status: UpdateCertificateStatusStatus,
         operationType: UpdateCertificateStatusOperation,
         detail: String?,
+        notAfter: Date?,
+        notBefore: Date?,
+        serialNumber: BigInteger?,
     ): Result<Unit> = makeRequest(
         endpoint = "/api/fleetd/certificates/$certificateId/status",
         method = "PUT",
@@ -260,6 +282,9 @@ object ApiClient : CertificateApiClient {
             status = status,
             operationType = operationType,
             detail = detail,
+            notAfter = notAfter?.toISO8601String(),
+            notBefore = notBefore?.toISO8601String(),
+            serialNumber = serialNumber?.toString(),
         ),
         bodySerializer = UpdateCertificateStatusRequest.serializer(),
         responseSerializer = UpdateCertificateStatusResponse.serializer(),
@@ -442,6 +467,12 @@ data class UpdateCertificateStatusRequest(
     val operationType: UpdateCertificateStatusOperation,
     @SerialName("detail")
     val detail: String? = null,
+    @SerialName("not_valid_after")
+    val notAfter: String? = null,
+    @SerialName("not_valid_before")
+    val notBefore: String? = null,
+    @SerialName("serial")
+    val serialNumber: String? = null,
 )
 
 @Serializable

@@ -17,6 +17,7 @@ import java.security.KeyPairGenerator
 import java.security.Security
 import java.security.cert.Certificate
 import java.util.Date
+import kotlin.math.exp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -97,9 +98,18 @@ class ScepClientImpl : ScepClient {
                         throw ScepCertificateException("No certificates returned from SCEP server")
                     }
 
+                    val leafCertificate = (certificates.first() as java.security.cert.X509Certificate)
+                    // Extract certificate metadata from the leaf certificate
+                    val notAfter = leafCertificate.notAfter
+                    val notBefore = leafCertificate.notBefore
+                    val serialNumber = leafCertificate.serialNumber
+
                     ScepResult(
                         privateKey = keyPair.private,
                         certificateChain = certificates,
+                        notAfter = notAfter,
+                        notBefore = notBefore,
+                        serialNumber = serialNumber,
                     )
                 }
                 response.isPending -> {

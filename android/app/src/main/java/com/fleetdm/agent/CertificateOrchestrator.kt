@@ -8,8 +8,13 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.fleetdm.agent.scep.ScepClient
 import com.fleetdm.agent.scep.ScepClientImpl
+import java.math.BigInteger
 import java.security.PrivateKey
 import java.security.cert.Certificate
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -53,6 +58,28 @@ class CertificateOrchestrator(
         encodeDefaults = true
         // Treat a missing field like a null field for optional types
         explicitNulls = false
+    }
+
+    /**
+     * Converts a java.util.Date to ISO8601 format string.
+     * Format: "yyyy-MM-dd'T'HH:mm:ss'Z'" (UTC timezone)
+     * Example: "2025-12-31T23:59:59Z"
+     */
+    private fun Date.toISO8601String(): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+        dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+        return dateFormat.format(this)
+    }
+
+    /**
+     * Parses an ISO8601 format string to java.util.Date.
+     * Format: "yyyy-MM-dd'T'HH:mm:ss'Z'" (UTC timezone)
+     * @throws IllegalArgumentException if the date string cannot be parsed
+     */
+    private fun parseISO8601(dateString: String): Date {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+        dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+        return dateFormat.parse(dateString) ?: throw IllegalArgumentException("Invalid ISO8601 date: $dateString")
     }
 
     // Mutex to protect concurrent access to certificate storage
@@ -496,13 +523,30 @@ class CertificateOrchestrator(
      * @param alias Certificate alias
      * @param isInstall True for install operation, false for remove operation
      */
-    internal suspend fun markCertificateUnreported(context: Context, certificateId: Int, alias: String, uuid: String, isInstall: Boolean) {
+    internal suspend fun markCertificateUnreported(
+        context: Context,
+        certificateId: Int,
+        alias: String,
+        uuid: String,
+        isInstall: Boolean,
+        notAfter: String? = null,
+        notBefore: String? = null,
+        serialNumber: String? = null,
+    ) {
         val status = if (isInstall) {
             CertificateStatus.INSTALLED_UNREPORTED
         } else {
             CertificateStatus.REMOVED_UNREPORTED
         }
-        val info = CertificateState(alias = alias, status = status, statusReportRetries = 0, uuid = uuid)
+        val info = CertificateState(
+            alias = alias,
+            status = status,
+            statusReportRetries = 0,
+            uuid = uuid,
+            notAfter = notAfter,
+            notBefore = notBefore,
+            serialNumber = serialNumber,
+        )
         storeCertificateState(context, certificateId, info)
     }
 
@@ -570,6 +614,9 @@ class CertificateOrchestrator(
                 certificateId = certId,
                 status = UpdateCertificateStatusStatus.VERIFIED,
                 operationType = operationType,
+                notAfter = state.notAfter?.let { parseISO8601(it) },
+                notBefore = state.notBefore?.let { parseISO8601(it) },
+                serialNumber = state.serialNumber?.let { BigInteger(it) },
             )
 
             if (result.isSuccess) {
@@ -623,7 +670,12 @@ class CertificateOrchestrator(
                     TAG,
                     "Certificate ID $certificateId (alias: '${storedState.alias}', uuid: $uuid) is already installed, skipping enrollment",
                 )
-                return CertificateEnrollmentHandler.EnrollmentResult.Success(storedState.alias)
+                return CertificateEnrollmentHandler.EnrollmentResult.Success(
+                    alias = storedState.alias,
+                    notAfter = Date(0),
+                    notBefore = Date(0),
+                    serialNumber = BigInteger.ZERO,
+                )
             }
             if (existsInKeystore && storedState.uuid != uuid) {
                 Log.i(TAG, "Certificate ID $certificateId uuid changed (${storedState.uuid} -> $uuid), will reinstall")
@@ -653,7 +705,12 @@ class CertificateOrchestrator(
             // The certificate template hasn't failed on the device, but isn't ready to be processed yet.
             // Retry next time we fetch but don't mark as failed locally
             Log.i(TAG, "Certificate template ${template.name} does not have status \"delivered\": status \"${template.status}\"")
-            return CertificateEnrollmentHandler.EnrollmentResult.Success(template.name)
+            return CertificateEnrollmentHandler.EnrollmentResult.Success(
+                alias = template.name,
+                notAfter = Date(0),
+                notBefore = Date(0),
+                serialNumber = BigInteger.ZERO,
+            )
         }
 
         // Step 3: Create certificate installer (use provided or create default)
@@ -673,14 +730,31 @@ class CertificateOrchestrator(
             is CertificateEnrollmentHandler.EnrollmentResult.Success -> {
                 Log.i(TAG, "Certificate enrollment successful for ID $certificateId with alias: ${result.alias}")
 
+                // Convert certificate metadata to ISO8601 for storage
+                val notAfterStr = result.notAfter.toISO8601String()
+                val notBeforeStr = result.notBefore.toISO8601String()
+                val serialNumberStr = result.serialNumber.toString()
+
                 // First, mark as unreported (persisted before network call)
-                markCertificateUnreported(context, certificateId, template.name, uuid = uuid, isInstall = true)
+                markCertificateUnreported(
+                    context,
+                    certificateId,
+                    template.name,
+                    uuid = uuid,
+                    isInstall = true,
+                    notAfter = notAfterStr,
+                    notBefore = notBeforeStr,
+                    serialNumber = serialNumberStr,
+                )
 
                 // Attempt to report status
                 val reportResult = apiClient.updateCertificateStatus(
                     certificateId = certificateId,
                     status = UpdateCertificateStatusStatus.VERIFIED,
                     operationType = UpdateCertificateStatusOperation.INSTALL,
+                    notAfter = result.notAfter,
+                    notBefore = result.notBefore,
+                    serialNumber = result.serialNumber,
                 )
 
                 if (reportResult.isSuccess) {
@@ -810,6 +884,12 @@ data class CertificateState(
     val statusReportRetries: Int = 0,
     @SerialName("uuid")
     val uuid: String = "",
+    @SerialName("not_after")
+    val notAfter: String? = null,
+    @SerialName("not_before")
+    val notBefore: String? = null,
+    @SerialName("serial_number")
+    val serialNumber: String? = null,
 ) {
     fun shouldRetry(): Boolean = status == CertificateStatus.RETRY && retries < (MAX_CERT_INSTALL_RETRIES)
     fun shouldRetryStatusReport(): Boolean = statusReportRetries < MAX_STATUS_REPORT_RETRIES
