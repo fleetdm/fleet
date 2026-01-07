@@ -954,7 +954,7 @@ Fleet’s writing style is clear, simple, and welcoming. We use short sentences,
 
 We avoid "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)". For engineers, replace hype with real data. For business readers, translate it into clear outcomes such as time saved or return on investment. Links are better than long explanations, since they keep content short and point people to more detail when they need it.
 
-Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communication#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
+Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communications#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
 
 When in doubt, simplify. Read your draft, cut unnecessary words, and make it shorter. If something feels confusing, rewrite until it feels obvious.
 
