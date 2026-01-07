@@ -1478,6 +1478,10 @@ Unordered lists are represented by using a hyphen at the beginning of each line 
 
 #### Links
 
+✅ **Do** use the full url when creating links, e.g. `[links](https://fleetdm.com/handbook/company/communications#links`. This ensures the link will work even if the content gets moved to another page. 
+
+❌ **Don’t** use relative links, e.g. `[links](#links)` to link to other content on the same page.
+
 The Fleet website currently supports the following Markdown link types.
 
 
