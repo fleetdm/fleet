@@ -88,14 +88,18 @@ const InventoryVersion = ({
         {bundleIdentifier && (
           <DataSet title="Bundle identifier" value={bundleIdentifier} />
         )}
-        {version.last_opened_at || sourcesWithLastOpenedTime.has(source) ? (
+        {sourcesWithLastOpenedTime.has(source) ? (
           <DataSet
             title={lastOpenedTitle}
             value={
-              version.last_opened_at ? dateAgo(version.last_opened_at) : "Never"
+              version.last_opened_at && version.last_opened_at !== ""
+                ? dateAgo(version.last_opened_at)
+                : "Never"
             }
           />
-        ) : null}
+        ) : (
+          <DataSet title={lastOpenedTitle} value="Not supported" />
+        )}
       </div>
       {vulnerabilities && vulnerabilities.length !== 0 && (
         <div className={`${baseClass}__row`}>
