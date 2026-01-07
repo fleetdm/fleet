@@ -31,7 +31,6 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/Vulnerabil
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import { sourcesWithLastOpenedTime } from "pages/hosts/details/components/InventoryVersions/InventoryVersions";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -156,8 +155,11 @@ export const generateSoftwareTableHeaders = ({
       id: "Last opened",
       disableSortBy: true,
       accessor: (originalRow) => {
-        const { source } = originalRow;
         const versions = originalRow.installed_versions || [];
+
+        const isSupported = versions.some(
+          (v) => v.last_opened_at !== undefined
+        );
 
         // Extract all last_opened_at values that are actual dates (not empty strings)
         const dateStrings = versions
@@ -179,10 +181,9 @@ export const generateSoftwareTableHeaders = ({
 
         // If source supports last_opened_at, return empty string to indicate "Never"
         // Otherwise return undefined to indicate "Not supported"
-        return sourcesWithLastOpenedTime.has(source) ? "" : undefined;
+        return isSupported ? "" : undefined;
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        const { source } = cellProps.row.original;
         const lastOpenedAt = cellProps.cell.value;
 
         // If we have a non-empty string value, display it
@@ -200,12 +201,8 @@ export const generateSoftwareTableHeaders = ({
           return <TextCell value="Never" />;
         }
 
-        // If last_opened_at is undefined/missing, check if source supports it
-        return sourcesWithLastOpenedTime.has(source) ? (
-          <TextCell value="Never" />
-        ) : (
-          <TextCell value="Not supported" grey />
-        );
+        // If last_opened_at is undefined/missing, it's not supported
+        return <TextCell value="Not supported" grey />;
       },
     },
     {
