@@ -290,43 +290,43 @@ software:
     #  categories:
     #    - Communication
     #    - Productivity
-    - slug: google-chrome/darwin # Google Chrome for macOS
-      self_service: true
-      categories:
-        - Browsers
-    - slug: brave-browser/darwin # Brave for macOS (ARM)
-      self_service: true
-      labels_include_any:
-        - Apple Silicon macOS hosts
-    - slug: docker/darwin # Docker for macOS (ARM)
-      self_service: true
-      labels_include_any:
-        - Apple Silicon macOS hosts
-    - slug: microsoft-edge/darwin # Microsoft Edge for macOS
-      self_service: true
-    - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
-      self_service: true
-      labels_include_any:
-        - Apple Silicon macOS hosts
-    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
-      self_service: true
+    #- slug: google-chrome/darwin # Google Chrome for macOS
+    #  self_service: true
+    #  categories:
+    #    - Browsers
+    #- slug: brave-browser/darwin # Brave for macOS (ARM)
+    #  self_service: true
+    #  labels_include_any:
+    #    - Apple Silicon macOS hosts
+    #- slug: docker/darwin # Docker for macOS (ARM)
+    #  self_service: true
+    #  labels_include_any:
+    #    - Apple Silicon macOS hosts
+    #- slug: microsoft-edge/darwin # Microsoft Edge for macOS
+    #  self_service: true
+    #- slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
+    #  self_service: true
+    #  labels_include_any:
+    #    - Apple Silicon macOS hosts
+    #- slug: microsoft-teams/darwin # Microsoft Teams for macOS
+    #  self_service: true
     # Windows apps
-    - slug: slack/windows # Slack for Windows
-      display_name: "Slack"
-      self_service: true
-      setup_experience: true
-      categories:
-        - Productivity
-        - Communication
-      labels_include_any:
-        - "x86-based Windows hosts"
-    - slug: google-chrome/windows # Google Chrome for Windows
-      self_service: true
-      categories:
-        - Browsers
-      labels_include_any:
-        - "x86-based Windows hosts"
-    - slug: brave-browser/windows # Brave for Windows
-      self_service: true
-    - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
-      self_service: true
+    #- slug: slack/windows # Slack for Windows
+    #  display_name: "Slack"
+    #  self_service: true
+    #  setup_experience: true
+    #  categories:
+    #    - Productivity
+    #    - Communication
+    #  labels_include_any:
+    #    - "x86-based Windows hosts"
+    #- slug: google-chrome/windows # Google Chrome for Windows
+    #  self_service: true
+    #  categories:
+    #    - Browsers
+    #  labels_include_any:
+    #    - "x86-based Windows hosts"
+    #- slug: brave-browser/windows # Brave for Windows
+    #  self_service: true
+    #- slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
+    #  self_service: true
