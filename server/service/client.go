@@ -530,6 +530,7 @@ func (c *Client) ApplyGroup(
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
+	filename *string,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.VPPAppResponse, map[string][]fleet.ScriptResponse, error) {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -578,6 +579,10 @@ func (c *Client) ApplyGroup(
 
 	if specs.CertificateAuthorities != nil {
 		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
+			// only do this custom message for gitops as we reference the applying filename which is only makes sense in gitops
+			if err.Error() == "missing or invalid license" && viaGitOps && filename != nil {
+				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.", *filename)
+			}
 			return nil, nil, nil, nil, fmt.Errorf("applying certificate authorities: %w", err)
 		}
 		// TODO(hca): is more detailed logging a hard requirement or can it be a follow up improvement?
@@ -2300,7 +2305,7 @@ func (c *Client) DoGitOps(
 			Overwrite: true,
 		},
 		ExpandEnvConfigProfiles: true,
-	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &filename)
 	if err != nil {
 		return nil, err
 	}
