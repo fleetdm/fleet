@@ -1435,8 +1435,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return mainSoftwareResults
 		},
 	},
-	// macos_fileutil collects information about a target file via the fleetd `fileutil` table.
-	"macos_fileutil": {
+	// macos_bin_sha256 collects a binary's sha256 hash via the fleetd `fileutil` table.
+	"macos_bin_sha256": {
 		Query: `
 		SELECT path, binary_sha256
 		FROM apps a
