@@ -1276,7 +1276,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 Download a signed installer for Fleet's agent (fleetd). 
 
-`GET /api/v1/fleet/agent_installer/:platform?alt=media`
+`GET /api/v1/fleet/agent/:platform?alt=media`
 
 #### Parameters
 
@@ -1291,7 +1291,7 @@ Download a signed installer for Fleet's agent (fleetd).
 
 #### Example
 
-`GET /api/v1/fleet/agent_installer/macos?alt=media&include_fleet_desktop=true`
+`GET /api/v1/fleet/agent/macos?alt=media&include_fleet_desktop=true`
 
 ##### Default response
 
