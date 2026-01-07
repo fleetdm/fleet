@@ -151,6 +151,7 @@ type HostVPPSoftwareInstall struct {
 	HostID               uint       `db:"host_id"`
 	InstallCommandStatus string     `db:"install_command_status"`
 	BundleIdentifier     string     `db:"bundle_identifier"`
+	RetryCount           int        `db:"retry_count"`
 }
 
 // HostAndroidVPPSoftwareInstall represents the payload needed to

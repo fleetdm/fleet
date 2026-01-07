@@ -58,6 +58,8 @@ const (
 	SCEPProxyPath = "/mdm/scep/proxy/"
 
 	DEPSyncLimit = 200
+
+	VPPLicenseNotFound = 9610
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {

@@ -1719,6 +1719,10 @@ type GetWindowsMDMCommandsForResendingFunc func(ctx context.Context, failedComma
 
 type ResendWindowsMDMCommandFunc func(ctx context.Context, mdmDeviceId string, newCmd *fleet.MDMWindowsCommand, oldCmd *fleet.MDMWindowsCommand) error
 
+type GetAppleHostVPPInstallByCommandUUIDFunc func(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstall, error)
+
+type RetryVPPInstallForHostFunc func(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstall) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -4263,6 +4267,12 @@ type DataStore struct {
 
 	ResendWindowsMDMCommandFunc        ResendWindowsMDMCommandFunc
 	ResendWindowsMDMCommandFuncInvoked bool
+
+	GetAppleHostVPPInstallByCommandUUIDFunc        GetAppleHostVPPInstallByCommandUUIDFunc
+	GetAppleHostVPPInstallByCommandUUIDFuncInvoked bool
+
+	RetryVPPInstallForHostFunc        RetryVPPInstallForHostFunc
+	RetryVPPInstallForHostFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -10201,4 +10211,18 @@ func (s *DataStore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId str
 	s.ResendWindowsMDMCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendWindowsMDMCommandFunc(ctx, mdmDeviceId, newCmd, oldCmd)
+}
+
+func (s *DataStore) GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.GetAppleHostVPPInstallByCommandUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleHostVPPInstallByCommandUUIDFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) RetryVPPInstallForHost(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstall) error {
+	s.mu.Lock()
+	s.RetryVPPInstallForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.RetryVPPInstallForHostFunc(ctx, vppInstall)
 }
