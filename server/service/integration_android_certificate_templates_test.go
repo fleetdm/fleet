@@ -1156,16 +1156,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 	require.NotNil(t, storedValidity.Serial, "serial should be stored")
 	require.Equal(t, serial, *storedValidity.Serial)
 
-	// Test renewal detection: GetAndroidCertificateTemplatesForRenewal should find this certificate
-	templates, err := s.ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
-	require.NoError(t, err)
-	require.Len(t, templates, 1, "Should find 1 certificate for renewal")
-	require.Equal(t, host.UUID, templates[0].HostUUID)
-	require.Equal(t, certificateTemplateID, templates[0].CertificateTemplateID)
-
-	// Trigger renewal: SetAndroidCertificateTemplatesForRenewal marks for renewal
-	err = s.ds.SetAndroidCertificateTemplatesForRenewal(ctx, templates)
-	require.NoError(t, err)
+	// Trigger the cleanups cron schedule which includes the renewal job
+	s.awaitRunCleanupSchedule()
 
 	// Verify the certificate is now pending with a NEW UUID
 	var newRecord struct {

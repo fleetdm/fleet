@@ -990,19 +990,7 @@ func newCleanupsAndAggregationSchedule(
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
 		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
-			const batchSize = 1000
-			templates, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, batchSize)
-			if err != nil {
-				return err
-			}
-			if len(templates) == 0 {
-				return nil
-			}
-			if err := ds.SetAndroidCertificateTemplatesForRenewal(ctx, templates); err != nil {
-				return err
-			}
-			level.Info(logger).Log("msg", "marked android certificate templates for renewal", "count", len(templates))
-			return nil
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
