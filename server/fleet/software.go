@@ -68,6 +68,17 @@ func marshalLastOpenedAt(source string, lastOpenedAt *time.Time) any {
 	return lastOpenedAt
 }
 
+func unmarshalLastOpenedAt(data json.RawMessage) (*time.Time, error) {
+	if len(data) == 0 || string(data) == "null" || string(data) == `""` {
+		return nil, nil
+	}
+	var t time.Time
+	if err := json.Unmarshal(data, &t); err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
 // Software is a named and versioned piece of software installed on a device.
 type Software struct {
 	ID uint `json:"id" db:"id"`
@@ -180,18 +191,9 @@ func (s *Software) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &aux); err != nil {
 		return err
 	}
-	if len(aux.LastOpenedAt) > 0 && string(aux.LastOpenedAt) != "null" {
-		if string(aux.LastOpenedAt) == `""` {
-			s.LastOpenedAt = nil
-		} else {
-			var t time.Time
-			if err := json.Unmarshal(aux.LastOpenedAt, &t); err != nil {
-				return err
-			}
-			s.LastOpenedAt = &t
-		}
-	}
-	return nil
+	var err error
+	s.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 // ToUniqueStr creates a unique string representation of the software
@@ -571,18 +573,9 @@ func (hse *HostSoftwareEntry) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &aux); err != nil {
 		return err
 	}
-	if len(aux.LastOpenedAt) > 0 && string(aux.LastOpenedAt) != "null" {
-		if string(aux.LastOpenedAt) == `""` {
-			hse.LastOpenedAt = nil
-		} else {
-			var t time.Time
-			if err := json.Unmarshal(aux.LastOpenedAt, &t); err != nil {
-				return err
-			}
-			hse.LastOpenedAt = &t
-		}
-	}
-	return nil
+	var err error
+	hse.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 type PathSignatureInformation struct {

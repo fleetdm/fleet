@@ -920,18 +920,9 @@ func (hsv *HostSoftwareInstalledVersion) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &aux); err != nil {
 		return err
 	}
-	if len(aux.LastOpenedAt) > 0 && string(aux.LastOpenedAt) != "null" {
-		if string(aux.LastOpenedAt) == `""` {
-			hsv.LastOpenedAt = nil
-		} else {
-			var t time.Time
-			if err := json.Unmarshal(aux.LastOpenedAt, &t); err != nil {
-				return err
-			}
-			hsv.LastOpenedAt = &t
-		}
-	}
-	return nil
+	var err error
+	hsv.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record
