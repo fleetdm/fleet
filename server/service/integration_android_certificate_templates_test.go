@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1051,4 +1052,151 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		_, exists := statuses[certTemplateA1ID]
 		require.False(t, exists, "certTemplateA1 should be deleted after verified removal")
 	})
+}
+
+// TestCertificateTemplateRenewal tests the full certificate renewal flow:
+// 1. Certificate is created and delivered to device
+// 2. Device reports "verified" status with validity data (certificate expiring soon)
+// 3. Server detects expiring certificate via GetAndroidCertificateTemplatesForRenewal
+// 4. Server marks certificate for renewal via SetAndroidCertificateTemplatesForRenewal
+// 5. Certificate UUID changes, signaling renewal to device
+// 6. Device sees new UUID and re-enrolls
+func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
+	t := s.T()
+	ctx := t.Context()
+	setupAMAPIEnvVars(t)
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Create a test team
+	teamName := t.Name() + "-team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	// Create a test certificate authority via API
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+
+	// Create an enrolled Android host
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "renewal")
+
+	// Create a certificate template
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
+	var createResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName,
+		TeamID:                 teamID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	certificateTemplateID := createResp.ID
+
+	// Set up AMAPI mock
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(_ context.Context, _ string, _ []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// Trigger the Android profile reconciliation job to deliver the certificate
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Verify status is now 'delivered'
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateDelivered, "")
+
+	// Get the original UUID before renewal
+	var originalUUID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &originalUUID,
+			`SELECT COALESCE(BIN_TO_UUID(uuid, true), '') FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			host.UUID, certificateTemplateID)
+	})
+	require.NotEmpty(t, originalUUID)
+
+	// Device updates certificate status to 'verified' WITH validity data
+	// Certificate validity: 1 year, expiring in 7 days (within 30-day renewal threshold)
+	now := time.Now().UTC()
+	notValidBefore := now.AddDate(-1, 0, 7) // Started almost a year ago
+	notValidAfter := now.Add(7 * 24 * time.Hour)
+	serial := "ABC123DEF456"
+
+	updateReq, err := json.Marshal(updateCertificateStatusRequest{
+		Status:         string(fleet.CertificateTemplateVerified),
+		Detail:         ptr.String("Certificate installed successfully"),
+		NotValidBefore: &notValidBefore,
+		NotValidAfter:  &notValidAfter,
+		Serial:         &serial,
+	})
+	require.NoError(t, err)
+
+	resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certificateTemplateID), updateReq, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	_ = resp.Body.Close()
+
+	// Verify the status is 'verified'
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateVerified, "Certificate installed successfully")
+
+	// Verify validity data was stored
+	var storedValidity struct {
+		NotValidBefore *time.Time `db:"not_valid_before"`
+		NotValidAfter  *time.Time `db:"not_valid_after"`
+		Serial         *string    `db:"serial"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedValidity,
+			`SELECT not_valid_before, not_valid_after, serial FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			host.UUID, certificateTemplateID)
+	})
+	require.NotNil(t, storedValidity.NotValidBefore, "not_valid_before should be stored")
+	require.NotNil(t, storedValidity.NotValidAfter, "not_valid_after should be stored")
+	require.NotNil(t, storedValidity.Serial, "serial should be stored")
+	require.Equal(t, serial, *storedValidity.Serial)
+
+	// Test renewal detection: GetAndroidCertificateTemplatesForRenewal should find this certificate
+	templates, err := s.ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	require.NoError(t, err)
+	require.Len(t, templates, 1, "Should find 1 certificate for renewal")
+	require.Equal(t, host.UUID, templates[0].HostUUID)
+	require.Equal(t, certificateTemplateID, templates[0].CertificateTemplateID)
+
+	// Trigger renewal: SetAndroidCertificateTemplatesForRenewal marks for renewal
+	err = s.ds.SetAndroidCertificateTemplatesForRenewal(ctx, templates)
+	require.NoError(t, err)
+
+	// Verify the certificate is now pending with a NEW UUID
+	var newRecord struct {
+		Status         string  `db:"status"`
+		UUID           string  `db:"uuid"`
+		NotValidBefore *string `db:"not_valid_before"`
+		NotValidAfter  *string `db:"not_valid_after"`
+		Serial         *string `db:"serial"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &newRecord,
+			`SELECT status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial
+			 FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			host.UUID, certificateTemplateID)
+	})
+
+	// Status should be 'pending'
+	require.Equal(t, string(fleet.CertificateTemplatePending), newRecord.Status, "Status should be pending after renewal trigger")
+
+	// UUID should be different (signals renewal to device)
+	require.NotEmpty(t, newRecord.UUID)
+	require.NotEqual(t, originalUUID, newRecord.UUID, "UUID should change to signal renewal to device")
+
+	// Validity fields should be cleared (will be re-populated after re-enrollment)
+	require.Nil(t, newRecord.NotValidBefore, "not_valid_before should be cleared")
+	require.Nil(t, newRecord.NotValidAfter, "not_valid_after should be cleared")
+	require.Nil(t, newRecord.Serial, "serial should be cleared")
+
+	// Trigger profile reconciliation again - this simulates the device seeing the new config
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Certificate should now be in 'delivered' state again, ready for re-enrollment
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateDelivered, "")
 }
