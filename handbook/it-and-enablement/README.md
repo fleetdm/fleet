@@ -49,9 +49,12 @@ The IT & Enablement department is directly responsible for solutions consulting,
 - CRM duplicate management
 - Go-to-market automation and processes
 
-### [Infrastructure](infrastructure.md)
+### [Services](services.md)
+- VPN service access and configuration
+- Certificate authorities management
+- Identity Provider (IdP) capabilities and environments
+- Apple Business Manager
 - Domain registration and management
-- Infrastructure-related processes
 
 
 ## Rituals

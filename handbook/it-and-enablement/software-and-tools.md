@@ -4,6 +4,28 @@ This page guides you through software procurement, licensing, and tool managemen
 
 We take a thoughtful approach to tool selection, prioritizing data portability, programmability, and intentional integration with our existing workflows. This helps us build a cohesive technology stack while maintaining cost efficiency and avoiding tool sprawl.
 
+## Individual Tool Documentation
+
+Each major software tool at Fleet has its own dedicated page with detailed information about what the tool is, what systems it integrates with, who is the DRI, how to get access, and how to get support:
+
+### Go-To-Market (GTM) Tools
+- **[Salesforce](tools/salesforce.md)** - Customer relationship management (CRM) system
+- **[Gong.io](tools/gong.md)** - Conversation intelligence and revenue analytics
+- **[Dripify](tools/dripify.md)** - LinkedIn automation and outreach
+- **[Clay](tools/clay.md)** - Data enrichment and lead generation
+- **[LinkedIn Sales Navigator](tools/linkedin-sales-navigator.md)** - LinkedIn's premium sales tool
+
+### Design and Development Tools
+- **[Figma](tools/figma.md)** - Collaborative design and prototyping
+- **[GitHub](tools/github.md)** - Version control and code collaboration
+- **[Slack](tools/slack.md)** - Internal communication platform
+
+### Automation and Workflow Tools
+- **[Zapier](tools/zapier.md)** - Workflow automation platform
+- **[DocuSign](tools/docusign.md)** - Electronic signature platform
+
+> **Note:** This list will be updated as new tools are added or existing ones are retired. For access requests or questions about any tool, [contact IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us).
+
 ## Purchase a SaaS tool
 
 When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
