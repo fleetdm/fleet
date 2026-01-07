@@ -1429,16 +1429,10 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		}
 
 		if adeData.IsDEPAssignedToFleet() {
-			_, err := svc.ds.GetHostLocationData(ctx, host.ID)
-			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
-			}
-
 			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
 			}
-
 		}
 
 		// Add commands to the database to track the commands sent
