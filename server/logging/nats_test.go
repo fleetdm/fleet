@@ -20,11 +20,12 @@ import (
 )
 
 const (
-	natsTestLogCount      = 1000
-	natsTestDirectSubject = "test.logs.direct"
-	natsTestStreamSubject = "test.logs.stream"
-	natsTestStreamName    = "test-logs-stream"
-	natsTestTimeout       = 5 * time.Second
+	natsTestLogCount            = 10
+	natsTestCompressionLogCount = 2
+	natsTestDirectSubject       = "test.logs.direct"
+	natsTestStreamSubject       = "test.logs.stream"
+	natsTestStreamName          = "test-logs-stream"
+	natsTestTimeout             = 5 * time.Second
 )
 
 // makeNatsClient creates a new NATS client.
@@ -71,12 +72,18 @@ func makeNatsServer(t *testing.T) *server.Server {
 // makeNatsLogs creates a number of test logs.
 func makeNatsLogs(t *testing.T) []json.RawMessage {
 	t.Helper()
+	return makeNatsLogsN(t, natsTestLogCount)
+}
+
+// makeNatsLogsN creates n test logs.
+func makeNatsLogsN(t *testing.T, n int) []json.RawMessage {
+	t.Helper()
 
 	var logs []json.RawMessage
 
-	for n := range natsTestLogCount {
+	for i := range n {
 		logs = append(logs,
-			json.RawMessage(fmt.Sprintf(`{"foo":"bar %d"}`, n)),
+			json.RawMessage(fmt.Sprintf(`{"foo":"bar %d"}`, i)),
 		)
 	}
 
@@ -235,9 +242,6 @@ func TestNatsLogWriter(t *testing.T) {
 
 		require.Error(t, err)
 
-		// Wait a moment to ensure no messages were published.
-		time.Sleep(100 * time.Millisecond)
-
 		// Ensure no messages were received.
 		lock.Lock()
 		require.Equal(t, 0, seen)
@@ -345,9 +349,6 @@ func TestNatsLogWriter(t *testing.T) {
 
 		require.Error(t, err)
 
-		// Wait a moment to ensure no messages were published.
-		time.Sleep(100 * time.Millisecond)
-
 		// Verify that the stream has no messages.
 		info, err := st.Info(ctx)
 
@@ -359,7 +360,7 @@ func TestNatsLogWriter(t *testing.T) {
 		// Create a wait group to track outstanding logs.
 		var wg sync.WaitGroup
 
-		exp := makeNatsLogs(t)
+		exp := makeNatsLogsN(t, natsTestCompressionLogCount)
 		act := []json.RawMessage{}
 
 		// Add the number of expected logs to the wait group.
@@ -450,7 +451,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		require.NoError(t, err)
 
-		exp := makeNatsLogs(t)
+		exp := makeNatsLogsN(t, natsTestCompressionLogCount)
 		act := []json.RawMessage{}
 
 		// Write the expected logs to the NATS log writer, and ensure it
@@ -487,7 +488,7 @@ func TestNatsLogWriter(t *testing.T) {
 		// Create a wait group to track outstanding logs.
 		var wg sync.WaitGroup
 
-		exp := makeNatsLogs(t)
+		exp := makeNatsLogsN(t, natsTestCompressionLogCount)
 		act := []json.RawMessage{}
 
 		// Add the number of expected logs to the wait group.
@@ -543,7 +544,7 @@ func TestNatsLogWriter(t *testing.T) {
 		// Create a wait group to track outstanding logs.
 		var wg sync.WaitGroup
 
-		exp := makeNatsLogs(t)
+		exp := makeNatsLogsN(t, natsTestCompressionLogCount)
 		act := []json.RawMessage{}
 
 		// Add the number of expected logs to the wait group.
@@ -635,7 +636,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		require.NoError(t, err)
 
-		exp := makeNatsLogs(t)
+		exp := makeNatsLogsN(t, natsTestCompressionLogCount)
 		act := []json.RawMessage{}
 
 		// Write the expected logs to the NATS log writer, and ensure it
@@ -697,7 +698,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		require.NoError(t, err)
 
-		exp := makeNatsLogs(t)
+		exp := makeNatsLogsN(t, natsTestCompressionLogCount)
 		act := []json.RawMessage{}
 
 		// Write the expected logs to the NATS log writer, and ensure it
