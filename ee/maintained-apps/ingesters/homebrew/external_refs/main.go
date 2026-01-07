@@ -21,7 +21,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
 	"camtasia/darwin":               {CamtasiaVersionTransformer},
-	"warp/darwin":                   {WarpHomebrewHeaders},
+	"warp/darwin":                   {WarpHomebrewHeaders, WarpVersionTransformer},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
