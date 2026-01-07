@@ -34,7 +34,7 @@ If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/e
 
 How to deliver user-scoped configuration profiles:
 
-#### macOS
+### macOS
 
 1. If you use iMazing Profile Creator, open your configuration profile in iMazing, select the **General** tab and update the **Payoad Scope** to **User**.
 2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`. Here's an example `.mobileconfig` snippet:
