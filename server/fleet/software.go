@@ -60,14 +60,11 @@ func isLastOpenedAtSupported(source string) bool {
 // or the actual timestamp for supported sources with a value.
 func marshalLastOpenedAt(source string, lastOpenedAt *time.Time) interface{} {
 	if !isLastOpenedAtSupported(source) {
-		// Omit the field for unsupported sources
 		return nil
 	}
 	if lastOpenedAt == nil {
-		// Return empty string for supported sources that haven't been opened
 		return ""
 	}
-	// Return the actual timestamp
 	return lastOpenedAt
 }
 
