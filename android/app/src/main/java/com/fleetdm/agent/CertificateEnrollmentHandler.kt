@@ -29,12 +29,7 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
      * Result of enrollment operation.
      */
     sealed class EnrollmentResult {
-        data class Success(
-            val alias: String,
-            val notAfter: Date,
-            val notBefore: Date,
-            val serialNumber: BigInteger,
-        ) : EnrollmentResult()
+        data class Success(val alias: String, val notAfter: Date, val notBefore: Date, val serialNumber: BigInteger) : EnrollmentResult()
         data class Failure(val reason: String, val exception: Exception? = null, val isRetryable: Boolean = false) : EnrollmentResult()
         data class PermanentlyFailed(val alias: String) : EnrollmentResult()
     }
