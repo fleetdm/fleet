@@ -94,11 +94,7 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     title: "LOCK PENDING",
     tagType: "warning",
     generateTooltip: () => (
-      <>
-        Host will lock when it comes online. If the host is
-        <br />
-        online, it will lock the next time it checks in to Fleet.
-      </>
+      <>Host will lock the next time it checks in to Fleet.</>
     ),
   },
   wiped: {
