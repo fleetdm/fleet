@@ -1041,7 +1041,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
 
 	enterpriseID := s.enableAndroidMDM(t)
 
