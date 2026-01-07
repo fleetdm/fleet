@@ -136,6 +136,11 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		Categories:       req.Categories,
 		Configuration:    req.Configuration,
 		DisplayName:      req.DisplayName,
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   req.AutoUpdateEnabled,
+			AutoUpdateStartTime: req.AutoUpdateStartTime,
+			AutoUpdateEndTime:   req.AutoUpdateEndTime,
+		},
 	})
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
