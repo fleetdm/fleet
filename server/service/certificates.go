@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -239,6 +240,7 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 			fleet.MDMDeliveryFailed,
 			&errorMsg,
 			fleet.MDMOperationTypeInstall,
+			nil, // no validity data for failed status
 		); err != nil {
 			return nil, err
 		}
@@ -567,6 +569,10 @@ type updateCertificateStatusRequest struct {
 	// Detail provides additional information about the status change.
 	// For example, it can be used to provide a reason for a failed status change.
 	Detail *string `json:"detail,omitempty"`
+	// Certificate validity fields - reported by device after successful enrollment
+	NotValidBefore *time.Time `json:"not_valid_before,omitempty"`
+	NotValidAfter  *time.Time `json:"not_valid_after,omitempty"`
+	Serial         *string    `json:"serial,omitempty"`
 }
 
 type updateCertificateStatusResponse struct {
@@ -581,7 +587,12 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 		return nil, errors.New("invalid request")
 	}
 
-	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status), req.Detail, req.OperationType)
+	validity := &fleet.HostCertificateValidity{
+		NotValidBefore: req.NotValidBefore,
+		NotValidAfter:  req.NotValidAfter,
+		Serial:         req.Serial,
+	}
+	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status), req.Detail, req.OperationType, validity)
 	if err != nil {
 		return updateCertificateStatusResponse{Err: err}, nil
 	}
@@ -595,6 +606,7 @@ func (svc *Service) UpdateCertificateStatus(
 	status fleet.MDMDeliveryStatus,
 	detail *string,
 	operationType *string,
+	validity *fleet.HostCertificateValidity,
 ) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -644,5 +656,5 @@ func (svc *Service) UpdateCertificateStatus(
 		return nil
 	}
 
-	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, opType)
+	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, opType, validity)
 }

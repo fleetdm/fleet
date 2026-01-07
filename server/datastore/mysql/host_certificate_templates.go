@@ -255,19 +255,32 @@ func (ds *Datastore) UpsertCertificateStatus(
 	status fleet.MDMDeliveryStatus,
 	detail *string,
 	operationType fleet.MDMOperationType,
+	validity *fleet.HostCertificateValidity,
 ) error {
 	// Validate the status.
 	if !status.IsValid() {
 		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
 	}
 
-	updateStmt := `
-		UPDATE host_certificate_templates
-		SET status = ?, detail = ?, operation_type = ?
-		WHERE host_uuid = ? AND certificate_template_id = ?`
+	// Build update statement - include validity fields if provided
+	var updateStmt string
+	var updateParams []any
+	if validity != nil && (validity.NotValidBefore != nil || validity.NotValidAfter != nil || validity.Serial != nil) {
+		updateStmt = `
+			UPDATE host_certificate_templates
+			SET status = ?, detail = ?, operation_type = ?, not_valid_before = ?, not_valid_after = ?, serial = ?
+			WHERE host_uuid = ? AND certificate_template_id = ?`
+		updateParams = []any{status, detail, operationType, validity.NotValidBefore, validity.NotValidAfter, validity.Serial, hostUUID, certificateTemplateID}
+	} else {
+		updateStmt = `
+			UPDATE host_certificate_templates
+			SET status = ?, detail = ?, operation_type = ?
+			WHERE host_uuid = ? AND certificate_template_id = ?`
+		updateParams = []any{status, detail, operationType, hostUUID, certificateTemplateID}
+	}
 
 	// Attempt to update the certificate status for the given host and template.
-	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, detail, operationType, hostUUID, certificateTemplateID)
+	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateParams...)
 	if err != nil {
 		return err
 	}
@@ -296,9 +309,16 @@ func (ds *Datastore) UpsertCertificateStatus(
 		}
 
 		insertStmt := `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name, uuid)
-			VALUES (?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true))`
-		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType, templateInfo.Name}
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name, uuid, not_valid_before, not_valid_after, serial)
+			VALUES (?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true), ?, ?, ?)`
+		var notValidBefore, notValidAfter any
+		var serial any
+		if validity != nil {
+			notValidBefore = validity.NotValidBefore
+			notValidAfter = validity.NotValidAfter
+			serial = validity.Serial
+		}
+		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType, templateInfo.Name, notValidBefore, notValidAfter, serial}
 
 		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")

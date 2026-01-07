@@ -53,3 +53,11 @@ type CertificateTemplateForHost struct {
 	CAType                CAConfigAssetType          `db:"ca_type"`
 	CAName                string                     `db:"ca_name"`
 }
+
+// HostCertificateValidity holds certificate validity information reported by the device
+// after successful SCEP enrollment.
+type HostCertificateValidity struct {
+	NotValidBefore *time.Time
+	NotValidAfter  *time.Time
+	Serial         *string
+}

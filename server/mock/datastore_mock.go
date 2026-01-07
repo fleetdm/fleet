@@ -1663,7 +1663,7 @@ type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certi
 
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
 
-type UpsertCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType fleet.MDMOperationType) error
+type UpsertCertificateStatusFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType fleet.MDMOperationType, validity *fleet.HostCertificateValidity) error
 
 type BatchUpsertCertificateTemplatesFunc func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error)
 
@@ -9997,11 +9997,11 @@ func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fl
 	return s.BatchApplyCertificateAuthoritiesFunc(ctx, ops)
 }
 
-func (s *DataStore) UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType fleet.MDMOperationType) error {
+func (s *DataStore) UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType fleet.MDMOperationType, validity *fleet.HostCertificateValidity) error {
 	s.mu.Lock()
 	s.UpsertCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpsertCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail, operationType)
+	return s.UpsertCertificateStatusFunc(ctx, hostUUID, certificateTemplateID, status, detail, operationType, validity)
 }
 
 func (s *DataStore) BatchUpsertCertificateTemplates(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
