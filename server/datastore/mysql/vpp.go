@@ -2479,7 +2479,7 @@ func (ds *Datastore) GetHostVPPInstallByCommandUUID(ctx context.Context, command
 	return &vppSoftwareInstalls[0], nil
 }
 
-func (ds *Datastore) RetryVPPInstallForHost(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstall) error {
+func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstall) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		newCommandUUID := uuid.New().String()
 

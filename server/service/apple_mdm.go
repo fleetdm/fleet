@@ -3747,7 +3747,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				}
 				if vppInstall.RetryCount < 3 {
 					// Requeue the app for installation
-					if err := svc.ds.RetryVPPInstallForHost(r.Context, vppInstall); err != nil {
+					if err := svc.ds.RetryVPPInstall(r.Context, vppInstall); err != nil {
 						return nil, ctxerr.Wrap(r.Context, err, "retrying VPP install for host")
 					}
 					level.Info(svc.logger).Log("msg", "re-queued VPP app installation due to missing license", "host_id", vppInstall.HostID, "command_uuid", cmdResult.CommandUUID, "retry_count", vppInstall.RetryCount+1)

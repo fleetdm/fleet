@@ -2931,7 +2931,7 @@ func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
 	})
 
 	// Call the retry method
-	err = ds.RetryVPPInstallForHost(ctx, install)
+	err = ds.RetryVPPInstall(ctx, install)
 	require.NoError(t, err)
 
 	// Manually grab the new command UUID
