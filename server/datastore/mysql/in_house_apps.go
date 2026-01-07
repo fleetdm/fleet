@@ -1454,3 +1454,54 @@ WHERE in_house_app_id = ?
 
 	return affectedHostIDs, nil
 }
+
+func (ds *Datastore) checkInstallerOrInHouseAppExists(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier string, swType softwareType) (bool, error) {
+	stmt := fmt.Sprintf(`
+SELECT 1
+FROM software_titles st
+INNER JOIN %[1]ss ON st.id = %[1]ss.title_id AND %[1]ss.global_or_team_id = ?
+WHERE st.unique_identifier = ?
+`, swType)
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	var exists int
+	err := sqlx.GetContext(ctx, q, &exists, stmt, globalOrTeamID, bundleIdentifier)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("check %s exists", swType))
+	}
+	return exists == 1, nil
+}
+
+func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, adamID string) (exists bool, title string, err error) {
+	// TODO(mna): should this include conditions on the exact platform?
+	const stmt = `
+SELECT st.name
+FROM software_titles st
+INNER JOIN in_house_apps iha ON iha.title_id = st.id AND
+	iha.global_or_team_id = ?
+INNER JOIN vpp_apps va ON va.bundle_identifier = st.bundle_identifier
+INNER JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND
+	vat.global_or_team_id = ?
+WHERE
+	va.adam_id = ?
+LIMIT 1
+`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	// Scan to see if either ios/ipados IHAs exist
+	err = sqlx.GetContext(ctx, q, &title, stmt, globalOrTeamID, globalOrTeamID, adamID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, "", nil
+		}
+		return false, "", err
+	}
+	return true, title, nil
+}
