@@ -490,23 +490,11 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 
 			// check if the vpp app conflicts with an existing software installer
 			// already associated with the software title for the same platform
-			// (macos).
-			if toAdd.Platform == fleet.MacOSPlatform {
-				// NOTE: unlike other similar conflict checks, this one happens _after_ the VPP app was inserted
-				// (but inside the same transaction), so it looks for a conflicting installer present in addition
-				// to the VPP app just inserted.
-				exists, conflictingTitle, err := ds.checkConflictingSoftwareInstallerForVPPApp(ctx, tx, teamID, toAdd.VPPAppID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "checking for conflicting software installer")
-				}
-				if exists {
-					return ctxerr.Wrap(ctx, fleet.ConflictError{
-						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-							conflictingTitle, teamName),
-					}, "vpp app conflicts with existing software installer")
-				}
+			// (macos) or any in-house app.
+			err = ds.checkSoftwareConflictsForVPPApp(ctx, tx, teamID, teamName, toAdd.VPPAppID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check for software conflicts")
 			}
-			// TODO(mna): if iOS/IpadOS check for VPP app conflict with existing IPA
 
 			if toAdd.ValidatedLabels != nil {
 				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {
@@ -613,6 +601,15 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		vppTokenID = &vppToken.ID
 	}
 
+	teamName := fleet.TeamNameNoTeam
+	if teamID != nil && *teamID > 0 {
+		tm, err := ds.TeamLite(ctx, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
+		}
+		teamName = tm.Name
+	}
+
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		titleID, err := ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, app)
 		if err != nil {
@@ -628,6 +625,11 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		vppAppTeamID, err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppTokenID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
+		}
+
+		err = ds.checkSoftwareConflictsForVPPApp(ctx, tx, teamID, teamName, app.VPPAppID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check for software conflicts")
 		}
 
 		app.VPPAppTeam.AppTeamID = vppAppTeamID
@@ -2455,4 +2457,32 @@ WHERE execution_id = ?
 		return false, ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
 	}
 	return isAutoUpdate, nil
+}
+
+func (ds *Datastore) checkSoftwareConflictsForVPPApp(ctx context.Context, tx sqlx.QueryerContext, teamID *uint, teamName string, appID fleet.VPPAppID) error {
+	if appID.Platform == fleet.MacOSPlatform {
+		exists, conflictingTitle, err := ds.checkConflictingSoftwareInstallerForVPPApp(ctx, tx, teamID, appID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if software installer exists")
+		}
+		if exists {
+			return ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+					conflictingTitle, teamName)}, "vpp app conflicts with existing software installer")
+		}
+	}
+
+	// check if the vpp app conflicts with an existing in-house app
+	if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+		exists, conflictingTitle, err := ds.checkInHouseAppExistsForAdamID(ctx, tx, teamID, appID.AdamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if in-house app exists")
+		}
+		if exists {
+			return ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, conflictingTitle, teamName),
+			}, "vpp app conflicts with existing in-house app")
+		}
+	}
+	return nil
 }
