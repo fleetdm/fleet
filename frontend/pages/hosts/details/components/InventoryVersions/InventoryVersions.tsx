@@ -81,7 +81,7 @@ const InventoryVersion = ({
         {bundleIdentifier && (
           <DataSet title="Bundle identifier" value={bundleIdentifier} />
         )}
-        {version.last_opened_at !== undefined ? (
+        {version.last_opened_at !== undefined && (
           <DataSet
             title={lastOpenedTitle}
             value={
@@ -90,8 +90,6 @@ const InventoryVersion = ({
                 : "Never"
             }
           />
-        ) : (
-          <DataSet title={lastOpenedTitle} value="Not supported" />
         )}
       </div>
       {vulnerabilities && vulnerabilities.length !== 0 && (
