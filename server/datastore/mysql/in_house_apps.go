@@ -1459,7 +1459,8 @@ WHERE in_house_app_id = ?
 }
 
 func (ds *Datastore) checkInstallerOrInHouseAppExists(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier string, swType softwareType) (bool, error) {
-	// TODO(mna): this is missing a platform-specific check?
+	// TODO(mna): this is missing a platform-specific check? It shouldn't be a conflict if an installer exists
+	// for a different platform.
 	stmt := fmt.Sprintf(`
 SELECT 1
 FROM software_titles st
@@ -1480,7 +1481,9 @@ WHERE st.unique_identifier = ?
 }
 
 func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, adamID string) (exists bool, title string, err error) {
-	// TODO(mna): should this include conditions on the exact platform?
+	// TODO(mna): should this include conditions on the exact platform? It shouldn't be a conflict if e.g.
+	// the ipa is for ios and the vpp exists for ipad (even though it's not really possible today because we
+	// create entries for both, but still, the check should include a platform).
 	const stmt = `
 SELECT st.name
 FROM software_titles st
