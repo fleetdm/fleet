@@ -1406,9 +1406,13 @@ Try to stay within three or four heading levels. Complicated documents may use m
 
 #### Line breaks and new lines
 
-Any time you need to add a line break in Markdown, add an extra line break.
+✅ **Do** use line breaks to separate paragraphs and break up large chunks of text for the reader.
 
-For example, if you were adding this section:
+❌ **Don’t** use line breaks to separate each sentence to optimize the code for the author.
+
+Overused line breaks cause irregular line spacing on our website and make it hard for the author to experience the content as the reader will.
+
+Whenever you need to add a line break in Markdown, simply add an extra blank line between the two pieces of content you want to separate. For example, if you were adding this section:
 
 ```
 line one
@@ -1477,6 +1481,10 @@ Unordered lists are represented by using a hyphen at the beginning of each line 
 
 
 #### Links
+
+✅ **Do** use the full url when creating links, e.g. `[links](https://fleetdm.com/handbook/company/communications#links`. This ensures the link will work even if the content gets moved to another page. 
+
+❌ **Don’t** use relative links, e.g. `[links](#links)` to link to other content on the same page.
 
 The Fleet website currently supports the following Markdown link types.
 
