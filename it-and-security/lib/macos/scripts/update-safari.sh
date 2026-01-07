@@ -2,7 +2,6 @@
 
 # Safari Update Script
 # This script runs softwareupdate to install Safari updates only
-# Designed to be used as a payload-free package for self-service remediation
 
 set -e
 
