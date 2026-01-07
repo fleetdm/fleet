@@ -13,11 +13,6 @@ module.exports = {
       type: 'string',
       required: true,
     },
-
-    fleetLicenseKey: {
-      type: 'string',
-      required: true,
-    }
   },
 
 
@@ -29,13 +24,23 @@ module.exports = {
       },
     },
     couldNotVerifyLicense: {
-      description: 'The provided Fleet license key could not be verified.',
+      description: 'The Fleet license key could not be verified.',
       responseType: 'unauthorized',
     },
   },
 
 
-  fn: async function ({fleetServerUrl, fleetLicenseKey}) {
+  fn: async function ({fleetServerUrl}) {
+
+    // Get the Fleet license key that was sent in the Authorization header as a bearer token.
+    let authHeader = this.req.get('authorization');
+    let fleetLicenseKey;
+
+    if (authHeader && authHeader.startsWith('Bearer')) {
+      fleetLicenseKey = authHeader.replace('Bearer', '').trim();
+    } else {
+      throw 'couldNotVerifyLicense';
+    }
 
     // Validate provided fleetLicenseKey
     try {
