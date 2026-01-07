@@ -287,7 +287,7 @@ DELETE FROM label_membership WHERE label_id = ?
 					// Use strconv to check if it's a valid integer
 					if intRegex.MatchString(s) {
 						n, _ := strconv.ParseUint(s, 10, 64)
-						intIdents = append(intIdents, uint64(n))
+						intIdents = append(intIdents, n)
 					}
 				}
 
@@ -410,7 +410,7 @@ func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label f
 				}
 			}
 
-			// Use ignore because duplicate hostIds could appear in
+			// Use ignore because duplicate host IDs could appear in
 			// different batches and would result in duplicate key errors.
 			var values []any
 			var placeholders []string
