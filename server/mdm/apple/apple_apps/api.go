@@ -88,8 +88,24 @@ func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator
 		return nil, fmt.Errorf("creating request to VPP app details endpoint: %w", err)
 	}
 
+	// small max attempts count because in many cases we're calling this from a UI that does
+	// client-side retries on top of this
 	var bodyResp metadataResp
-	if err = do(req, vppToken, getBearerToken, false, &bodyResp); err != nil {
+	if err = retry.Do(
+		func() error { return do(req, vppToken, getBearerToken, false, &bodyResp) },
+		retry.WithInterval(time.Second),
+		retry.WithBackoffMultiplier(2),
+		retry.WithMaxAttempts(3),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			// auth retries are handles inside do(); if we get all the way to the outer error,
+			// we've already tried to recover and should bail
+			if strings.Contains(err.Error(), "auth") {
+				return retry.ErrorOutcomeDoNotRetry
+			}
+
+			return retry.ErrorOutcomeNormalRetry
+		}),
+	); err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
 
@@ -107,8 +123,8 @@ func do(req *http.Request, vppToken string, getBearerToken Authenticator, forceR
 		return fmt.Errorf("authenticating to VPP app details endpoint: %w", err)
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
-	req.Header.Add("Cookie", fmt.Sprintf("itvt=%s", vppToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
+	req.Header.Set("Cookie", fmt.Sprintf("itvt=%s", vppToken))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -131,24 +147,15 @@ func do(req *http.Request, vppToken string, getBearerToken Authenticator, forceR
 			return do(req, vppToken, getBearerToken, true, dest)
 		} else if resp.StatusCode >= http.StatusTooManyRequests && resp.Header.Get("Retry-After") != "" {
 			retryAfter := resp.Header.Get("Retry-After")
-			if resp.StatusCode == http.StatusInternalServerError && retryAfter != "" {
-				seconds, err := strconv.ParseInt(retryAfter, 10, 0)
-				if err != nil {
-					return fmt.Errorf("parsing retry-after header: %w", err)
-				}
-
-				ticker := time.NewTicker(time.Duration(seconds) * time.Second)
-				defer ticker.Stop()
-				<-ticker.C
-				return do(req, vppToken, getBearerToken, false, dest)
+			seconds, err := strconv.ParseInt(retryAfter, 10, 0)
+			if err != nil {
+				return fmt.Errorf("parsing retry-after header: %w", err)
 			}
-		} else if resp.StatusCode >= http.StatusInternalServerError {
-			return retry.Do(
-				func() error { return do(req, vppToken, getBearerToken, false, dest) },
-				retry.WithInterval(time.Second),
-				retry.WithBackoffMultiplier(2),
-				retry.WithMaxAttempts(4),
-			)
+
+			ticker := time.NewTicker(time.Duration(seconds) * time.Second)
+			defer ticker.Stop()
+			<-ticker.C
+			return do(req, vppToken, getBearerToken, false, dest)
 		}
 
 		return fmt.Errorf("calling VPP app details endpoint failed with status %d: %s", resp.StatusCode, string(limitedBody))
@@ -282,6 +289,9 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 		if authResponse.Token == "" {
 			return "", ctxerr.New(ctx, "no access token received from VPP metadata service")
 		}
+
+		// no need to keep old access tokens around, but no need to hard-fail if we can't clean them up
+		_ = ds.HardDeleteMDMConfigAsset(ctx, key)
 
 		// don't fail if we can't persist the token; we can continue anyway and will try again with the next request
 		_ = ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{Name: key, Value: []byte(authResponse.Token)})
