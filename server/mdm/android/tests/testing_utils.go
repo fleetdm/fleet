@@ -113,7 +113,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	activityModule := activities.NewActivityModule(&ts.DS.DataStore, logger)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule)
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc
 
