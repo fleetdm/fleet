@@ -1064,6 +1064,9 @@ WHERE
 		for _, installer := range installers {
 			// TODO(mna): check for installers that target iOS/iPadOS if they conflict
 			// with an existing VPP app. They currently can't conflict with anything else.
+			// Goal would be to call checkSoftwareConflictsByIdentifier here. The check
+			// should be done in the transaction, so tx needs to be passed down to that method.
+			// ds.checkSoftwareConflictsByIdentifier(ctx, installer)
 
 			var providedTitle *string
 			if installer.Title != "" {

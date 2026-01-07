@@ -607,8 +607,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			return 0, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("%s isn't available for %s", assetMD.TrackName, appID.Platform))
 		}
 
-		// TODO(mna): replace this with a call to one of the checkConflict helpers?
 		if appID.Platform == fleet.MacOSPlatform {
+			// TODO(mna): goal would be to call checkInstallerOrInHouseAppExists here, but it can't as we
+			// are in the service and this is an unexported datastore method. Once this is exposed,
+			// UploadedSoftwareExists becomes unused and can be removed.
+
 			// Check if we've already added an installer for this app
 			// NOTE: the check in UploadedSoftwareExists is implicitly only for macOS, because
 			// it looks in software_installers (so, a custom package, which can't be ios/ipados for now) and with the bundle
@@ -626,8 +629,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 						assetMD.TrackName, teamName),
 				}, "vpp app conflicts with existing software installer")
 			}
+		} else if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+			// TODO(mna): goal would be to call checkInstallerOrInHouseAppExists here, but it can't as we
+			// are in the service and this is an unexported datastore method. Once this is exposed,
+			// UploadedSoftwareExists becomes unused and can be removed.
 		}
-		// TODO(mna): if iOS/iPadOS, check conflict with IPA
 
 		appID.ValidatedLabels = validatedLabels
 
