@@ -1801,6 +1801,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 	ctx := t.Context()
+	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 
 	// Create a team and a VPP token on it.
 	var newTeamResp teamResponse
