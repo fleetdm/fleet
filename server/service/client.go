@@ -579,7 +579,7 @@ func (c *Client) ApplyGroup(
 
 	if specs.CertificateAuthorities != nil {
 		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
-			// only do this custom message for gitops as we reference the applying filename which is only makes sense in gitops
+			// only do this custom message for gitops as we reference the applying filename which only makes sense in gitops
 			if err.Error() == "missing or invalid license" && viaGitOps && filename != nil {
 				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.", *filename)
 			}
