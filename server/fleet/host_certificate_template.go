@@ -61,3 +61,10 @@ type HostCertificateValidity struct {
 	NotValidAfter  *time.Time
 	Serial         *string
 }
+
+// HostCertificateTemplateForRenewal represents a certificate template that needs renewal.
+type HostCertificateTemplateForRenewal struct {
+	HostUUID              string    `db:"host_uuid"`
+	CertificateTemplateID uint      `db:"certificate_template_id"`
+	NotValidAfter         time.Time `db:"not_valid_after"`
+}

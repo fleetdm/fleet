@@ -604,3 +604,80 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemoveForHost(
 		return nil
 	})
 }
+
+// GetAndroidCertificateTemplatesForRenewal returns certificate templates that are approaching
+// expiration and need to be renewed. Uses the same threshold logic as Apple/Windows:
+// - If validity period > 30 days: renew within 30 days of expiration
+// - If validity period <= 30 days: renew within half the validity period of expiration
+// Only returns certificates with status 'delivered' or 'verified' and operation_type 'install'.
+func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
+	ctx context.Context,
+	limit int,
+) ([]fleet.HostCertificateTemplateForRenewal, error) {
+	stmt := fmt.Sprintf(`
+		SELECT
+			host_uuid,
+			certificate_template_id,
+			not_valid_after
+		FROM host_certificate_templates
+		WHERE
+			status IN ('%s', '%s')
+			AND operation_type = '%s'
+			AND not_valid_before IS NOT NULL
+			AND not_valid_after IS NOT NULL
+			AND (
+				(DATEDIFF(not_valid_after, not_valid_before) > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY))
+				OR
+				(DATEDIFF(not_valid_after, not_valid_before) <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL DATEDIFF(not_valid_after, not_valid_before)/2 DAY))
+			)
+		ORDER BY not_valid_after ASC
+		LIMIT ?
+	`, fleet.CertificateTemplateDelivered, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
+
+	var results []fleet.HostCertificateTemplateForRenewal
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, limit); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get android certificate templates for renewal")
+	}
+
+	return results, nil
+}
+
+// SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
+// by setting status to 'pending', clearing validity fields, and generating a new UUID.
+// The new UUID signals to the Android agent that the certificate needs renewal.
+func (ds *Datastore) SetAndroidCertificateTemplatesForRenewal(
+	ctx context.Context,
+	templates []fleet.HostCertificateTemplateForRenewal,
+) error {
+	if len(templates) == 0 {
+		return nil
+	}
+
+	var placeholders strings.Builder
+	args := make([]any, 0, len(templates)*2)
+	for i, t := range templates {
+		if i > 0 {
+			placeholders.WriteString(",")
+		}
+		placeholders.WriteString("(?,?)")
+		args = append(args, t.HostUUID, t.CertificateTemplateID)
+	}
+
+	stmt := fmt.Sprintf(`
+		UPDATE host_certificate_templates
+		SET
+			status = '%s',
+			uuid = UUID_TO_BIN(UUID(), true),
+			not_valid_before = NULL,
+			not_valid_after = NULL,
+			serial = NULL,
+			updated_at = NOW()
+		WHERE (host_uuid, certificate_template_id) IN (%s)
+	`, fleet.CertificateTemplatePending, placeholders.String())
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set android certificate templates for renewal")
+	}
+
+	return nil
+}

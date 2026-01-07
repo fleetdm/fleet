@@ -1707,6 +1707,10 @@ type SetHostCertificateTemplatesToPendingRemoveFunc func(ctx context.Context, ce
 
 type SetHostCertificateTemplatesToPendingRemoveForHostFunc func(ctx context.Context, hostUUID string) error
 
+type GetAndroidCertificateTemplatesForRenewalFunc func(ctx context.Context, limit int) ([]fleet.HostCertificateTemplateForRenewal, error)
+
+type SetAndroidCertificateTemplatesForRenewalFunc func(ctx context.Context, templates []fleet.HostCertificateTemplateForRenewal) error
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
@@ -4241,6 +4245,12 @@ type DataStore struct {
 
 	SetHostCertificateTemplatesToPendingRemoveForHostFunc        SetHostCertificateTemplatesToPendingRemoveForHostFunc
 	SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked bool
+
+	GetAndroidCertificateTemplatesForRenewalFunc        GetAndroidCertificateTemplatesForRenewalFunc
+	GetAndroidCertificateTemplatesForRenewalFuncInvoked bool
+
+	SetAndroidCertificateTemplatesForRenewalFunc        SetAndroidCertificateTemplatesForRenewalFunc
+	SetAndroidCertificateTemplatesForRenewalFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -10149,6 +10159,20 @@ func (s *DataStore) SetHostCertificateTemplatesToPendingRemoveForHost(ctx contex
 	s.SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostCertificateTemplatesToPendingRemoveForHostFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetAndroidCertificateTemplatesForRenewal(ctx context.Context, limit int) ([]fleet.HostCertificateTemplateForRenewal, error) {
+	s.mu.Lock()
+	s.GetAndroidCertificateTemplatesForRenewalFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidCertificateTemplatesForRenewalFunc(ctx, limit)
+}
+
+func (s *DataStore) SetAndroidCertificateTemplatesForRenewal(ctx context.Context, templates []fleet.HostCertificateTemplateForRenewal) error {
+	s.mu.Lock()
+	s.SetAndroidCertificateTemplatesForRenewalFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidCertificateTemplatesForRenewalFunc(ctx, templates)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
