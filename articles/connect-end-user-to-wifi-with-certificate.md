@@ -598,7 +598,6 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 </Exec>
 ```
 
-> Currently only device-scoped SCEP profiles are supported for Windows devices.
 </details>
 
 ## Custom EST (Enrollment over Secure Transport)
