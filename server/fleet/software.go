@@ -691,8 +691,6 @@ type VPPBatchPayload struct {
 	IconHash      string                    `json:"-"`
 	Platform      InstallableDevicePlatform `json:"platform"`
 	Configuration json.RawMessage           `json:"configuration,omitempty"`
-
-	// Auto-update fields for iOS/iPadOS VPP apps
 	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
 	AutoUpdateEndTime   *string `json:"auto_update_end_time,omitempty"`
@@ -719,8 +717,6 @@ type VPPBatchPayloadWithPlatform struct {
 	CategoryIDs   []uint          `json:"-"`
 	DisplayName   string          `json:"display_name"`
 	Configuration json.RawMessage `json:"configuration,omitempty"`
-
-	// Auto-update fields for iOS/iPadOS VPP apps
 	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
 	AutoUpdateEndTime   *string `json:"auto_update_end_time,omitempty"`

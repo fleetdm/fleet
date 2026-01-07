@@ -4793,11 +4793,11 @@ func TestComputeLabelMoves(t *testing.T) {
 }
 
 func TestAppStoreAppAutoUpdateFieldsParsing(t *testing.T) {
-    tmpfile, err := os.CreateTemp("", "gitops-appstoreapp-*.yml")
-    require.NoError(t, err)
-    defer os.Remove(tmpfile.Name())
+	tmpfile, err := os.CreateTemp("", "gitops-appstoreapp-*.yml")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
 
-    yaml := `
+	yaml := `
 name: Test Team
 team_settings: {
   secrets: []
@@ -4823,26 +4823,26 @@ software:
       configuration:
         path: ""
 `
-    _, err = tmpfile.WriteString(yaml)
-    require.NoError(t, err)
-    require.NoError(t, tmpfile.Close())
+	_, err = tmpfile.WriteString(yaml)
+	require.NoError(t, err)
+	require.NoError(t, tmpfile.Close())
 
-		appConfig := &fleet.EnrichedAppConfig{}
-		appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-    parsed, err := spec.GitOpsFromFile(tmpfile.Name(), "", appConfig, func(string, ...interface{}) {})
-    require.NoError(t, err)
-    require.NotNil(t, parsed)
-    require.NotNil(t, parsed.Software.AppStoreApps)
-    require.Len(t, parsed.Software.AppStoreApps, 1)
-    app := parsed.Software.AppStoreApps[0]
-    require.Equal(t, "1234567890", app.AppStoreID)
-    require.Equal(t, "ios", app.Platform)
-    require.NotNil(t, app.AutoUpdateEnabled)
-    require.True(t, *app.AutoUpdateEnabled)
-    require.NotNil(t, app.AutoUpdateStartTime)
-    require.Equal(t, "01:00", *app.AutoUpdateStartTime)
-    require.NotNil(t, app.AutoUpdateEndTime)
-    require.Equal(t, "05:00", *app.AutoUpdateEndTime)
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	parsed, err := spec.GitOpsFromFile(tmpfile.Name(), "", appConfig, func(string, ...any) {})
+	require.NoError(t, err)
+	require.NotNil(t, parsed)
+	require.NotNil(t, parsed.Software.AppStoreApps)
+	require.Len(t, parsed.Software.AppStoreApps, 1)
+	app := parsed.Software.AppStoreApps[0]
+	require.Equal(t, "1234567890", app.AppStoreID)
+	require.Equal(t, "ios", app.Platform)
+	require.NotNil(t, app.AutoUpdateEnabled)
+	require.True(t, *app.AutoUpdateEnabled)
+	require.NotNil(t, app.AutoUpdateStartTime)
+	require.Equal(t, "01:00", *app.AutoUpdateStartTime)
+	require.NotNil(t, app.AutoUpdateEndTime)
+	require.Equal(t, "05:00", *app.AutoUpdateEndTime)
 }
 
 func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
@@ -4857,7 +4857,6 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		},
 	)
 
-	// Create valid VPP token
 	tokExpire := time.Now().Add(time.Hour)
 	token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 	require.NoError(t, err)
@@ -4870,14 +4869,12 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		Name:      teamName,
 	}
 
-	// Track calls to UpdateSoftwareTitleAutoUpdateConfig
 	var autoUpdateCalls []struct {
 		titleID uint
 		teamID  uint
 		config  fleet.SoftwareAutoUpdateConfig
 	}
 
-	// Common mock setup
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
@@ -4917,6 +4914,9 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
 	}
@@ -4930,9 +4930,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		return false, nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
-		// Set TitleID on each app to simulate what the real datastore does
 		for _, app := range apps {
-			app.TitleID = 100 // Use consistent title ID for testing
+			app.TitleID = 100
 		}
 		return nil
 	}
@@ -5044,9 +5043,13 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 	setupDefaultTeamConfigMocks(ds)
 
-	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = teamFile.WriteString(`
+	t.Run("UpdateSoftwareTitleAutoUpdateConfig is applied for iOS VPP apps", func(t *testing.T) {
+		autoUpdateCalls = nil
+		savedTeam = nil
+
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(`
 controls:
 queries:
 policies:
@@ -5064,18 +5067,43 @@ software:
       auto_update_end_time: "05:00"
       self_service: false
 `)
-	require.NoError(t, err)
+		require.NoError(t, err)
 
-	_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
-	// Verify UpdateSoftwareTitleAutoUpdateConfig was called with the correct values
-	require.Len(t, autoUpdateCalls, 1, "UpdateSoftwareTitleAutoUpdateConfig should be called once")
-	assert.Equal(t, uint(100), autoUpdateCalls[0].titleID)
-	assert.Equal(t, team.ID, autoUpdateCalls[0].teamID)
-	require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEnabled)
-	assert.True(t, *autoUpdateCalls[0].config.AutoUpdateEnabled)
-	require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateStartTime)
-	assert.Equal(t, "01:00", *autoUpdateCalls[0].config.AutoUpdateStartTime)
-	require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEndTime)
-	assert.Equal(t, "05:00", *autoUpdateCalls[0].config.AutoUpdateEndTime)
+		require.Len(t, autoUpdateCalls, 1, "UpdateSoftwareTitleAutoUpdateConfig should be called once")
+		assert.Equal(t, uint(100), autoUpdateCalls[0].titleID)
+		assert.Equal(t, team.ID, autoUpdateCalls[0].teamID)
+		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEnabled)
+		assert.True(t, *autoUpdateCalls[0].config.AutoUpdateEnabled)
+		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateStartTime)
+		assert.Equal(t, "01:00", *autoUpdateCalls[0].config.AutoUpdateStartTime)
+		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEndTime)
+		assert.Equal(t, "05:00", *autoUpdateCalls[0].config.AutoUpdateEndTime)
+	})
+
+	t.Run("UpdateSoftwareTitleAutoUpdateConfig is not called when no VPP apps provided", func(t *testing.T) {
+		autoUpdateCalls = nil
+		savedTeam = nil
+
+		teamFileNoApps, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFileNoApps.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+name: TeamAutoUpdate
+team_settings:
+  secrets:
+    - secret: test
+software:
+  app_store_apps: []
+`)
+		require.NoError(t, err)
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", teamFileNoApps.Name()})
+
+		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when no VPP apps are provided")
+	})
 }
