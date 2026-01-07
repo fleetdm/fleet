@@ -195,6 +195,12 @@ func TestExpandEnv(t *testing.T) {
 			"$fleet_var_test", // Should not be replaced
 			nil,
 		},
+		{
+			map[string]string{"custom_secret": "test&123"},
+			"<Add>$custom_secret</Add>",
+			"<Add>test&amp;123</Add>",
+			nil,
+		},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)
