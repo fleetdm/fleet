@@ -3392,25 +3392,31 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		return nil, &notFoundError{}
 	}
 
-	// should be called twice - once with the 2 Android apps to make available for self-install,
-	// and once for the setup experience with only the app to install at setup (and install type
-	// PREINSTALLED)
+	// should be called three times:
+	// 1. Fleet agent added during enrollment (via ensureHostSpecificPolicyIsApplied)
+	// 2. The 2 Android apps made available for self-install
+	// 3. Setup experience with only the app to install at setup (PREINSTALLED)
 	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 		patchAppsCallCount++
 		switch patchAppsCallCount {
 		case 1:
-			// first call to make apps available for self-install
-			require.Len(t, appPolicies, 2, "initial call to make apps available for self-install should have 2 apps")
-			require.Equal(t, appPolicies[0].InstallType, "AVAILABLE")
-			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
-			require.Equal(t, appPolicies[1].InstallType, "AVAILABLE")
-			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+			// first call adds Fleet agent during enrollment
+			require.Len(t, appPolicies, 1, "first call should add the Fleet agent")
+			require.Equal(t, "FORCE_INSTALLED", appPolicies[0].InstallType)
+			require.Equal(t, "com.fleetdm.agent", appPolicies[0].PackageName)
 		case 2:
-			// second call for setup experience, should have only app1 with PREINSTALLED
-			require.Len(t, appPolicies, 1, "second call for setup experience should have only 1 app")
-			require.Equal(t, appPolicies[0].InstallType, "PREINSTALLED")
-			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
+			// second call makes apps available for self-install
+			require.Len(t, appPolicies, 2, "second call to make apps available for self-install should have 2 apps")
+			require.Equal(t, "AVAILABLE", appPolicies[0].InstallType)
+			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
+			require.Equal(t, "AVAILABLE", appPolicies[1].InstallType)
+			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
+		case 3:
+			// third call for setup experience, should have only app1 with PREINSTALLED
+			require.Len(t, appPolicies, 1, "third call for setup experience should have only 1 app")
+			require.Equal(t, "PREINSTALLED", appPolicies[0].InstallType)
+			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
 		default:
 			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
 		}
@@ -3482,6 +3488,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	// 2. The Fleet-enforced per-device policy
 	// 3. The patch applications to make apps available for self-service
 	// 4. The patch applications to force install at setup experience
+	// (Note: Fleet agent install call is not recorded in the database)
 	require.Equal(t, 4, count)
 
 	// the pending install should show up in the host software
@@ -3506,7 +3513,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			Name:                 deviceInfo.Name,
 			EnrollmentTokenData:  deviceInfo.EnrollmentTokenData,
 			AppliedPolicyName:    policyName,
-			AppliedPolicyVersion: 2,
+			AppliedPolicyVersion: 3, // policy version 3 is after Fleet agent (1), self-service apps (2), and setup experience (3)
 			ApplicationReports: []*androidmanagement.ApplicationReport{
 				{PackageName: app1.AdamID, State: "INSTALLED"},
 			},
@@ -3561,19 +3568,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		patchAppsCallCount++
 		switch patchAppsCallCount {
 		case 1:
-			// first call to make apps available for self-install
-			require.Len(t, appPolicies, 2, "initial call to make apps available for self-install should have 2 apps")
-			require.Equal(t, appPolicies[0].InstallType, "AVAILABLE")
-			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
-			require.Equal(t, appPolicies[1].InstallType, "AVAILABLE")
-			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+			// first call adds Fleet agent during enrollment
+			require.Len(t, appPolicies, 1, "first call should add the Fleet agent")
+			require.Equal(t, "FORCE_INSTALLED", appPolicies[0].InstallType)
+			require.Equal(t, "com.fleetdm.agent", appPolicies[0].PackageName)
 		case 2:
-			// second call for setup experience, should have both apps
-			require.Len(t, appPolicies, 2, "second call for setup experience should have 2 apps")
-			require.Equal(t, appPolicies[0].InstallType, "PREINSTALLED")
-			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
-			require.Equal(t, appPolicies[1].InstallType, "PREINSTALLED")
-			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+			// second call to make apps available for self-install
+			require.Len(t, appPolicies, 2, "second call to make apps available for self-install should have 2 apps")
+			require.Equal(t, "AVAILABLE", appPolicies[0].InstallType)
+			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
+			require.Equal(t, "AVAILABLE", appPolicies[1].InstallType)
+			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
+		case 3:
+			// third call for setup experience, should have both apps
+			require.Len(t, appPolicies, 2, "third call for setup experience should have 2 apps")
+			require.Equal(t, "PREINSTALLED", appPolicies[0].InstallType)
+			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
+			require.Equal(t, "PREINSTALLED", appPolicies[1].InstallType)
+			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
 		default:
 			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
 		}
@@ -3888,23 +3900,28 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// worker should have:
 	// 1. made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
 	// (this is because I made the worker run after host enrollment, if there were no host, the task would have nothing to do)
-	// 2. made all apps available to the enrolled host (for self-service), from the host enrollment
-	// 3. installed the apps, from the host enrollment
-	require.Len(t, patchAppsPolicies, 4)
+	// 2. added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
+	// 3. made all apps available to the enrolled host (for self-service), from the host enrollment
+	// 4. installed the apps, from the host enrollment
+	require.Len(t, patchAppsPolicies, 5)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
 		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
 	}, patchAppsPolicies[0])
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
 		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
 	}, patchAppsPolicies[1])
+	// Fleet agent is added during enrollment before self-service apps
+	require.Len(t, patchAppsPolicies[2], 1)
+	require.Equal(t, "com.fleetdm.agent", patchAppsPolicies[2][0].PackageName)
+	require.Equal(t, "FORCE_INSTALLED", patchAppsPolicies[2][0].InstallType)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
 		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
 		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[2])
+	}, patchAppsPolicies[3])
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
 		{PackageName: app1.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`1`)},
 		{PackageName: app2.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[3])
+	}, patchAppsPolicies[4])
 
 	patchAppsPolicies = nil
 
