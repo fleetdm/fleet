@@ -43,7 +43,7 @@ Create a new SAML app in Google Workspace:
 
 4. Configure the **Service provider details**:
     - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
-    - For Entity ID, use **the same unique identifier from step four** (e.g., `fleet`).
+    - For Entity ID, use **the same unique identifier as you'll use [in Fleet](#fleet-configuration)** (e.g., `fleet`).
     - For **Name ID format**, choose `EMAIL`.
     - For **Name ID**, choose `Basic Information > Primary email`.
     - All other fields can be left blank.
