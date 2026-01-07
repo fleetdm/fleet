@@ -120,6 +120,45 @@ func AssociateAssets(token string, params *AssociateAssetsRequest) (string, erro
 	return respBody.EventID, nil
 }
 
+// As of today we only support associating assets on this legacy URL, to ensure the call is made synchronously.
+type ManageVPPLicensesRequest struct {
+	// AdamID is the unique identifier for a product in the store.
+	AdamID string `json:"adamIdStr"`
+	// PricingParam is the quality of a product in the store.
+	// Possible Values are `STDQ` and `PLUS`
+	PricingParam string `json:"pricingParam"`
+	// AssociateSerialNumbers is the set of identifiers for devices to assign the
+	// assets to.
+	AssociateSerialNumbers []string `json:"associateSerialNumbers"`
+}
+
+// ManageVPPLicenses is using the deprecated V1 API to manage VPP licenses, the V1 API works synchronously.
+// https://developer.apple.com/documentation/devicemanagement/manage-licenses
+// This was added to hopefully reduce the number of 9610 (License not available) due to the async nature, and us not supporting the notification/async events correctly for the V2 API.
+// https://github.com/fleetdm/fleet/issues/36724
+func ManageVPPLicenses(token string, params *ManageVPPLicensesRequest) error {
+	var reqBody bytes.Buffer
+	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
+		return fmt.Errorf("encoding params as JSON: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, getV1BaseURL()+"/manageVPPLicensesByAdamIdSrv", &reqBody)
+	if err != nil {
+		return fmt.Errorf("creating request to Apple V1 VPP endpoint: %w", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	// Empty response body, as we don't care about the response
+	var respBody struct{}
+
+	if err := do(req, token, &respBody); err != nil {
+		return fmt.Errorf("making request to Apple V1 VPP endpoint: %w", err)
+	}
+
+	return nil
+}
+
 // AssetFilter represents the filters for querying assets.
 type AssetFilter struct {
 	// PageIndex is the requested page index.
@@ -367,6 +406,14 @@ func getBaseURL() string {
 		return devURL
 	}
 	return "https://vpp.itunes.apple.com/mdm/v2"
+}
+
+func getV1BaseURL() string {
+	devURL := os.Getenv("FLEET_DEV_VPP_V1_URL")
+	if devURL != "" {
+		return devURL
+	}
+	return "https://vpp.itunes.apple.com/mdm"
 }
 
 // addFilter adds a filter to the query values if it is not the zero value.

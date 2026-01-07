@@ -18,6 +18,7 @@ import (
 func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 	server := httptest.NewServer(handler)
 	os.Setenv("FLEET_DEV_VPP_URL", server.URL)
+	os.Setenv("FLEET_DEV_VPP_V1_URL", server.URL)
 	t.Cleanup(server.Close)
 }
 
@@ -144,6 +145,87 @@ func TestAssociateAssets(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
 			_, err := AssociateAssets(tt.token, tt.params)
+			if tt.expectedErrMsg != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErrMsg)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestManageVPPLicenses(t *testing.T) {
+	tests := []struct {
+		name           string
+		token          string
+		params         *ManageVPPLicensesRequest
+		handler        http.HandlerFunc
+		expectedErrMsg string
+	}{
+		{
+			name:  "valid request",
+			token: "valid_token",
+			params: &ManageVPPLicensesRequest{
+				AdamID:                 "12345",
+				PricingParam:           "STDQ",
+				AssociateSerialNumbers: []string{"SN12345"},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, http.MethodPost, r.Method)
+				require.Equal(t, "/manageVPPLicensesByAdamIdSrv", r.URL.Path)
+				require.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+
+				body, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+
+				var reqParams ManageVPPLicensesRequest
+				err = json.Unmarshal(body, &reqParams)
+				require.NoError(t, err)
+
+				require.Equal(t, "12345", reqParams.AdamID)
+				require.Equal(t, "STDQ", reqParams.PricingParam)
+				require.Equal(t, []string{"SN12345"}, reqParams.AssociateSerialNumbers)
+
+				_, _ = w.Write([]byte(`{"eventId": "123"}`))
+			},
+			expectedErrMsg: "",
+		},
+		{
+			name:  "server error",
+			token: "valid_token",
+			params: &ManageVPPLicensesRequest{
+				AdamID:                 "12345",
+				PricingParam:           "STDQ",
+				AssociateSerialNumbers: []string{"SN12345"},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintln(w, `Internal Server Error`)
+			},
+			expectedErrMsg: "calling Apple VPP endpoint failed with status 500: Internal Server Error\n",
+		},
+		{
+			name:  "client error",
+			token: "valid_token",
+			params: &ManageVPPLicensesRequest{
+				AdamID:                 "12345",
+				PricingParam:           "STDQ",
+				AssociateSerialNumbers: []string{"SN12345"},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`)
+			},
+			expectedErrMsg: "making request to Apple V1 VPP endpoint: Apple VPP endpoint returned error: Bad Request (error number: 400)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupFakeServer(t, tt.handler)
+
+			err := ManageVPPLicenses(tt.token, tt.params)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)
@@ -376,5 +458,16 @@ func TestGetBaseURL(t *testing.T) {
 		customURL := "http://localhost:8000"
 		os.Setenv("FLEET_DEV_VPP_URL", customURL)
 		require.Equal(t, customURL, getBaseURL())
+	})
+
+	t.Run("Default URL V1", func(t *testing.T) {
+		os.Setenv("FLEET_DEV_VPP_V1_URL", "")
+		require.Equal(t, "https://vpp.itunes.apple.com/mdm", getV1BaseURL())
+	})
+
+	t.Run("Custom URL", func(t *testing.T) {
+		customURL := "http://localhost:8000"
+		os.Setenv("FLEET_DEV_VPP_V1_URL", customURL)
+		require.Equal(t, customURL, getV1BaseURL())
 	})
 }
