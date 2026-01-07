@@ -1,8 +1,10 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -261,4 +263,240 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 	}`
 
 	assert.JSONEq(t, expectedJSON, string(data))
+}
+
+func TestSoftwareMarshalJSONLastOpenedAt(t *testing.T) {
+	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name           string
+		software       Software
+		expectField    bool
+		expectedValue  interface{}
+		description    string
+	}{
+		{
+			name: "supported source with nil last_opened_at",
+			software: Software{
+				Source:       "apps",
+				LastOpenedAt: nil,
+			},
+			expectField:   true,
+			expectedValue: "",
+			description:   "Should return empty string for supported source with nil",
+		},
+		{
+			name: "supported source with timestamp",
+			software: Software{
+				Source:       "programs",
+				LastOpenedAt: &now,
+			},
+			expectField:   true,
+			expectedValue: now.Format(time.RFC3339),
+			description:   "Should return timestamp for supported source with value",
+		},
+		{
+			name: "unsupported source with nil last_opened_at",
+			software: Software{
+				Source:       "chrome_extensions",
+				LastOpenedAt: nil,
+			},
+			expectField:   false,
+			expectedValue: nil,
+			description:   "Should omit field for unsupported source",
+		},
+		{
+			name: "unsupported source with timestamp",
+			software: Software{
+				Source:       "python_packages",
+				LastOpenedAt: &now,
+			},
+			expectField:   false,
+			expectedValue: nil,
+			description:   "Should omit field for unsupported source even with value",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := tt.software.MarshalJSON()
+			require.NoError(t, err)
+
+			var result map[string]interface{}
+			err = json.Unmarshal(data, &result)
+			require.NoError(t, err)
+
+			if tt.expectField {
+				require.Contains(t, result, "last_opened_at", tt.description)
+				if tt.expectedValue == "" {
+					assert.Equal(t, "", result["last_opened_at"], tt.description)
+				} else {
+					// For timestamps, check that it's a valid RFC3339 string
+					timeStr, ok := result["last_opened_at"].(string)
+					require.True(t, ok, "last_opened_at should be a string")
+					parsedTime, err := time.Parse(time.RFC3339, timeStr)
+					require.NoError(t, err)
+					assert.True(t, parsedTime.Equal(now), tt.description)
+				}
+			} else {
+				assert.NotContains(t, result, "last_opened_at", tt.description)
+			}
+		})
+	}
+}
+
+func TestHostSoftwareEntryMarshalJSONLastOpenedAt(t *testing.T) {
+	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name           string
+		entry          HostSoftwareEntry
+		expectField    bool
+		expectedValue  interface{}
+		description    string
+	}{
+		{
+			name: "supported source with nil last_opened_at",
+			entry: HostSoftwareEntry{
+				Software: Software{
+					Source:       "deb_packages",
+					LastOpenedAt: nil,
+				},
+			},
+			expectField:   true,
+			expectedValue: "",
+			description:   "Should return empty string for supported source with nil",
+		},
+		{
+			name: "supported source with timestamp",
+			entry: HostSoftwareEntry{
+				Software: Software{
+					Source:       "rpm_packages",
+					LastOpenedAt: &now,
+				},
+			},
+			expectField:   true,
+			expectedValue: now.Format(time.RFC3339),
+			description:   "Should return timestamp for supported source with value",
+		},
+		{
+			name: "unsupported source with nil last_opened_at",
+			entry: HostSoftwareEntry{
+				Software: Software{
+					Source:       "chrome_extensions",
+					LastOpenedAt: nil,
+				},
+			},
+			expectField:   false,
+			expectedValue: nil,
+			description:   "Should omit field for unsupported source",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := tt.entry.MarshalJSON()
+			require.NoError(t, err)
+
+			var result map[string]interface{}
+			err = json.Unmarshal(data, &result)
+			require.NoError(t, err)
+
+			if tt.expectField {
+				require.Contains(t, result, "last_opened_at", tt.description)
+				if tt.expectedValue == "" {
+					assert.Equal(t, "", result["last_opened_at"], tt.description)
+				} else {
+					// For timestamps, check that it's a valid RFC3339 string
+					timeStr, ok := result["last_opened_at"].(string)
+					require.True(t, ok, "last_opened_at should be a string")
+					parsedTime, err := time.Parse(time.RFC3339, timeStr)
+					require.NoError(t, err)
+					assert.True(t, parsedTime.Equal(now), tt.description)
+				}
+			} else {
+				assert.NotContains(t, result, "last_opened_at", tt.description)
+			}
+		})
+	}
+}
+
+func TestHostSoftwareInstalledVersionMarshalJSONLastOpenedAt(t *testing.T) {
+	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name           string
+		version        HostSoftwareInstalledVersion
+		expectField    bool
+		expectedValue  interface{}
+		description    string
+	}{
+		{
+			name: "supported source with nil last_opened_at",
+			version: HostSoftwareInstalledVersion{
+				Source:       "apps",
+				LastOpenedAt: nil,
+			},
+			expectField:   true,
+			expectedValue: "",
+			description:   "Should return empty string for supported source with nil",
+		},
+		{
+			name: "supported source with timestamp",
+			version: HostSoftwareInstalledVersion{
+				Source:       "programs",
+				LastOpenedAt: &now,
+			},
+			expectField:   true,
+			expectedValue: now.Format(time.RFC3339),
+			description:   "Should return timestamp for supported source with value",
+		},
+		{
+			name: "unsupported source with nil last_opened_at",
+			version: HostSoftwareInstalledVersion{
+				Source:       "chrome_extensions",
+				LastOpenedAt: nil,
+			},
+			expectField:   false,
+			expectedValue: nil,
+			description:   "Should omit field for unsupported source",
+		},
+		{
+			name: "unsupported source with timestamp",
+			version: HostSoftwareInstalledVersion{
+				Source:       "python_packages",
+				LastOpenedAt: &now,
+			},
+			expectField:   false,
+			expectedValue: nil,
+			description:   "Should omit field for unsupported source even with value",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := tt.version.MarshalJSON()
+			require.NoError(t, err)
+
+			var result map[string]interface{}
+			err = json.Unmarshal(data, &result)
+			require.NoError(t, err)
+
+			if tt.expectField {
+				require.Contains(t, result, "last_opened_at", tt.description)
+				if tt.expectedValue == "" {
+					assert.Equal(t, "", result["last_opened_at"], tt.description)
+				} else {
+					// For timestamps, check that it's a valid RFC3339 string
+					timeStr, ok := result["last_opened_at"].(string)
+					require.True(t, ok, "last_opened_at should be a string")
+					parsedTime, err := time.Parse(time.RFC3339, timeStr)
+					require.NoError(t, err)
+					assert.True(t, parsedTime.Equal(now), tt.description)
+				}
+			} else {
+				assert.NotContains(t, result, "last_opened_at", tt.description)
+			}
+		})
+	}
 }

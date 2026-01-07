@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -886,11 +887,24 @@ type HostSoftwareInstalledVersion struct {
 	Source           string     `json:"-" db:"source"`
 	Version          string     `json:"version" db:"version"`
 	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
-	LastOpenedAt     *time.Time `json:"last_opened_at" db:"last_opened_at"`
+	LastOpenedAt     *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
 	Vulnerabilities      []string                   `json:"vulnerabilities" db:"vulnerabilities"`
 	InstalledPaths       []string                   `json:"installed_paths"`
 	SignatureInformation []PathSignatureInformation `json:"signature_information,omitempty"`
+}
+
+// MarshalJSON implements custom JSON marshaling for HostSoftwareInstalledVersion to conditionally
+// handle last_opened_at based on the software source.
+func (hsv *HostSoftwareInstalledVersion) MarshalJSON() ([]byte, error) {
+	type Alias HostSoftwareInstalledVersion
+	return json.Marshal(&struct {
+		*Alias
+		LastOpenedAt interface{} `json:"last_opened_at,omitempty"`
+	}{
+		Alias:        (*Alias)(hsv),
+		LastOpenedAt: marshalLastOpenedAt(hsv.Source, hsv.LastOpenedAt),
+	})
 }
 
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record
