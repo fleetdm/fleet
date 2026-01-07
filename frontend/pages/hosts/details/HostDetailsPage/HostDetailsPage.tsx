@@ -1286,6 +1286,7 @@ Observer plus must be checked against host's team id  */
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>

@@ -49,6 +49,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
 	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	// we should go straight to the lock action, since we don't get host location data
+	// during this flow for macOS hosts.
 	require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
 
 	// try locking the host while it is pending lock returns error
@@ -273,7 +275,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
 			require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
 			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-			require.Equal(t, string(fleet.PendingActionLock), *getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, string(fleet.PendingActionLocation), *getHostResp.Host.MDM.PendingAction)
 
 			// try locking the host while it is pending lock returns error
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", tc.host.ID), nil, http.StatusUnprocessableEntity, &lockResp)
@@ -284,6 +286,13 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NotNil(t, cmd)
 			require.Equal(t, "EnableLostMode", cmd.Command.RequestType)
 			_, err = tc.mdmClient.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+
+			cmd, err = tc.mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd)
+			require.Equal(t, "DeviceLocation", cmd.Command.RequestType)
+			_, err = tc.mdmClient.AcknowledgeDeviceLocation(getHostResp.Host.UUID, cmd.CommandUUID)
 			require.NoError(t, err)
 
 			// refresh the host's status, it is now locked
@@ -321,14 +330,6 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			// try unlocking the host again errors
 			unlockResp = unlockHostResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", tc.host.ID), nil, http.StatusUnprocessableEntity, &unlockResp)
-
-			// send idle to simulate the host checking in, and see DeviceLocation is sent.
-			cmd, err = tc.mdmClient.Idle()
-			require.NoError(t, err)
-			require.NotNil(t, cmd)
-			require.Equal(t, "DeviceLocation", cmd.Command.RequestType)
-			_, err = tc.mdmClient.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
 
 			// send idle to simulate the host checking in, and see DisableLostMode is sent.
 			cmd, err = tc.mdmClient.Idle()

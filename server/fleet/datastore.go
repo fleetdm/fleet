@@ -1964,6 +1964,7 @@ type Datastore interface {
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
+	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
 	GetHostLocationData(ctx context.Context, hostID uint) (*HostLocationData, error)
 	DeleteHostLocationData(ctx context.Context, hostID uint) error
 
