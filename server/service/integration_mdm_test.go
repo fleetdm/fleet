@@ -123,8 +123,8 @@ type integrationMDMTestSuite struct {
 	scepChallenge             string
 	appleVPPConfigSrv         *httptest.Server
 	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
-	appleITunesSrv            *httptest.Server
-	appleITunesSrvData        map[string]string
+	appleVPPProxySrv          *httptest.Server
+	appleVPPProxySrvData      map[string]string
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
 	scepConfig                *eeservice.SCEPConfigService
@@ -640,35 +640,37 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write(resp)
 	}))
 
-	s.appleITunesSrvData = map[string]string{
+	// VPP proxy metadata server data in the new format
+	// deviceFamilies: "mac" -> osx platform, "iphone" -> ios platform, "ipad" -> ios platform
+	s.appleVPPProxySrvData = map[string]string{
 		// macOS app
-		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
+		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac"]}}`,
 		// macOS, iOS, iPadOS app
-		"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
+		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"osx": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}, "ios": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`,
 		// iPadOS app
-		"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
-
-		"4": `{"bundleId": "d-4", "artworkUrl512": "https://example.com/images/4", "version": "4.0.0", "trackName": "App 4", "TrackID": 4}`,
-		// App with 0 licenses
-		"5": `{"bundleId": "e-5", "artworkUrl512": "https://example.com/images/5", "version": "5.0.0", "trackName": "App 5", "TrackID": 5}`,
+		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "c-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["ipad"]}}`,
+		// macOS app
+		"4": `{"id": "4", "attributes": {"name": "App 4", "platformAttributes": {"osx": {"bundleId": "d-4", "artwork": {"url": "https://example.com/images/4/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "4.0.0"}}}, "deviceFamilies": ["mac"]}}`,
+		// App with 0 licenses - macOS app
+		"5": `{"id": "5", "attributes": {"name": "App 5", "platformAttributes": {"osx": {"bundleId": "e-5", "artwork": {"url": "https://example.com/images/5/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "5.0.0"}}}, "deviceFamilies": ["mac"]}}`,
 	}
 
-	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with
+	s.appleVPPProxySrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// VPP proxy metadata server using new format
 
-		adamIDString := r.URL.Query().Get("id")
+		adamIDString := r.URL.Query().Get("ids")
 		adamIDs := strings.Split(adamIDString, ",")
 
 		var objs []string
 		for _, a := range adamIDs {
-			data, ok := s.appleITunesSrvData[a]
+			data, ok := s.appleVPPProxySrvData[a]
 			if !ok {
 				continue
 			}
 			objs = append(objs, data)
 		}
 
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"data": [%s]}`, strings.Join(objs, ","))))
 	}))
 
 	s.appleGDMFSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -682,7 +684,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.T().Setenv("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL)
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
-	s.T().Setenv("FLEET_DEV_ITUNES_URL", s.appleITunesSrv.URL)
+	s.T().Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", s.appleVPPProxySrv.URL)
+	// Set a static bearer token so the authenticator doesn't try to call an auth endpoint
+	s.T().Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "test-bearer-token")
 
 	s.mockedDownloadFleetdmMeta = fleetdbase.Metadata{
 		MSIURL:           fmt.Sprintf("https://download-testing.fleetdm.com/archive/stable/%s/fleetd-base.msi", uuid.NewString()),
@@ -722,7 +726,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
-	s.T().Cleanup(s.appleITunesSrv.Close)
+	s.T().Cleanup(s.appleVPPProxySrv.Close)
 	s.T().Cleanup(s.appleGDMFSrv.Close)
 }
 
@@ -17444,24 +17448,24 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 }
 
-// registerResetITunesData resets the iTunes data after tests in `t` complete.
-func (s *integrationMDMTestSuite) registerResetITunesData(t *testing.T) {
-	oldApps := s.appleITunesSrvData
-	t.Cleanup(func() { s.appleITunesSrvData = oldApps })
+// registerResetVPPProxyData resets the VPP proxy data after tests in `t` complete.
+func (s *integrationMDMTestSuite) registerResetVPPProxyData(t *testing.T) {
+	oldApps := s.appleVPPProxySrvData
+	t.Cleanup(func() { s.appleVPPProxySrvData = oldApps })
 }
 
 func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Reset the iTunes data to what it was before this test
-	s.registerResetITunesData(t)
+	// Reset the VPP proxy data to what it was before this test
+	s.registerResetVPPProxyData(t)
 
-	// Set up 3 apps - macOS, iOS, and iPadOS
-	s.appleITunesSrvData = map[string]string{
-		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-		"2": `{"bundleId": "d-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s"] }`,
-		"3": `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
+	// Set up 3 apps - macOS, iOS, and iPadOS (using new VPP proxy format)
+	s.appleVPPProxySrvData = map[string]string{
+		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac"]}}`,
+		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
+		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["ipad"]}}`,
 	}
 
 	var newTeamResp teamResponse
@@ -17539,9 +17543,8 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
 
 	// "update" the versions
-	s.appleITunesSrvData["1"] = `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "9.9.9", "trackName": "App 1", "TrackID": 1}`
-	s.appleITunesSrvData["2"] = `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "10.10.10", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`
+	s.appleVPPProxySrvData["1"] = `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["2"] = `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"osx": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}, "ios": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`
 
 	err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
 	require.NoError(t, err)
@@ -17571,16 +17574,16 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	t := s.T()
 
-	// Reset the iTunes data to what it was before this test
-	s.registerResetITunesData(t)
+	// Reset the VPP proxy data to what it was before this test
+	s.registerResetVPPProxyData(t)
 
 	// Set up app with adamID 1 with iOS, iPadOS, macOS (e.g. WhatsApp).
 	// Set up app with adamID 2 with iOS and iPadOS.
 	// Set up app with adamID 3 with iOS.
-	s.appleITunesSrvData = map[string]string{
-		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`,
-		"2": `{"bundleId": "d-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
-		"3": `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPhone5s-iPhone5s"] }`,
+	s.appleVPPProxySrvData = map[string]string{
+		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}, "ios": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`,
+		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
+		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
 	}
 
 	noopAuthenticator := func(bool) (string, error) { return "", nil } // TODO
@@ -17686,8 +17689,8 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	}
 
 	// "Update" the versions for Adam ID "1" and "2".
-	s.appleITunesSrvData["1"] = `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "9.9.9", "trackName": "App 1", "TrackID": 1, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`
-	s.appleITunesSrvData["2"] = `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "10.10.10", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`
+	s.appleVPPProxySrvData["1"] = `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}, "ios": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`
+	s.appleVPPProxySrvData["2"] = `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}}, "deviceFamilies": ["iphone", "ipad"]}}`
 
 	err := vpp.RefreshVersions(t.Context(), s.ds, noopAuthenticator)
 	require.NoError(t, err)
@@ -17708,7 +17711,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	}
 
 	// "Update" the version for Adam ID "3".
-	s.appleITunesSrvData["3"] = `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "11.11.11", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPhone5s-iPhone5s"] }`
+	s.appleVPPProxySrvData["3"] = `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "11.11.11"}}}, "deviceFamilies": ["iphone"]}}`
 
 	err = vpp.RefreshVersions(t.Context(), s.ds, noopAuthenticator)
 	require.NoError(t, err)

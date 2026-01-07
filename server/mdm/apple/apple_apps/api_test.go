@@ -13,7 +13,7 @@ import (
 func TestGetBaseURL(t *testing.T) {
 	t.Run("Default URL", func(t *testing.T) {
 		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "")
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone,ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
 	})
 
 	t.Run("Custom URL", func(t *testing.T) {
@@ -79,7 +79,7 @@ func TestDoRetries(t *testing.T) {
 			})
 
 			start := time.Now()
-			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_ITUNES_URL"), nil)
+			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL"), nil)
 			require.NoError(t, err)
 			err = do(req, "vppToken", func(bool) (string, error) { return "", nil }, false, nil)
 			require.NoError(t, err)

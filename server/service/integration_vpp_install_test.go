@@ -1240,11 +1240,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 
-	s.registerResetITunesData(t)
+	s.registerResetVPPProxyData(t)
 
-	s.appleITunesSrvData = map[string]string{
-		"1": `{"bundleId": "com.example.dummy", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "DummyApp", "TrackID": 1}`,
-		"2": `{"bundleId": "com.example.noversion", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "NoVersion", "TrackID": 2}`,
+	s.appleVPPProxySrvData = map[string]string{
+		"1": `{"id": "1", "attributes": {"name": "DummyApp", "platformAttributes": {"osx": {"bundleId": "com.example.dummy", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac"]}}`,
+		"2": `{"id": "2", "attributes": {"name": "NoVersion", "platformAttributes": {"osx": {"bundleId": "com.example.noversion", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["mac"]}}`,
 	}
 
 	var newTeamResp teamResponse
