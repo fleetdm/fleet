@@ -21,6 +21,8 @@ Once configured, you will need to retrieve the issuer URI from **View Setup Inst
 
 > The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
 
+> Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)," but after the app is set up, Okta labels this as "Audience Restriction."
+
 ## Google Workspace
 
 If you're configuring [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
