@@ -551,7 +551,7 @@ software:
         - Communication
         - Productivity
       setup_experience: true
-      enable_pin_version: true
+      disable_auto_updates: true
 ```
 
 #### self_service, labels, categories, and setup_experience
@@ -619,7 +619,7 @@ To add the same App Store app for multiple platforms, specify the `app_store_id`
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
-- `enable_pin_version` specifies whether an app should be "pinned" to the current version in your Fleet library (default: `false`). If not specified, on every GitOps run the app will be updated to the latest available version in [Fleet's software catalog](https://fleetdm.com/software-catalog).
+- `disable_auto_updates` specifies whether an app should be "pinned" to the current version in your Fleet library (default: `false`). If not specified, on every GitOps run the app will be updated to the latest available version in [Fleet's software catalog](https://fleetdm.com/software-catalog).
 
 If the below fields are omitted, they default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
