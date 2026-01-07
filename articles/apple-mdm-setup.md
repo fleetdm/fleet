@@ -16,8 +16,7 @@ Then select **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 
 > Apple requires that APNs certificates are renewed annually.
 > - The recommended approach is to use a shared admin account to generate the CSR ensuring it can be renewed regardless of individual availability.
-> - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
-> - Configuration profile enforcement/removal and all other MDM commands will be stuck in "pending" until you renew.
+> - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts. Until you do, configuration profile enforcement/removal and all other MDM commands will be stuck in "pending".
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
 ## Apple Business Manager (ABM)
