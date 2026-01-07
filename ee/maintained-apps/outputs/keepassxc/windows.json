@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2.7.11",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'KeePassXC' AND publisher = 'KeePassXC Team';"
+      },
+      "installer_url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.11/KeePassXC-2.7.11-Win64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "344f9226",
+      "sha256": "74abea9e12282cc2b0feb51ebc6db65299eb4ef0086e89cfad8dcaafc94a6f67",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{88785A72-3EAE-4F29-89E3-BC6B19BA9A5B}"
+    }
+  ],
+  "refs": {
+    "344f9226": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts(\"{88785A72-3EAE-4F29-89E3-BC6B19BA9A5B}\")) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

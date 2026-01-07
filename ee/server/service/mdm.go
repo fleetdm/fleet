@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -288,7 +289,9 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	if err != nil {
 		return err
 	}
-	if !ac.MDM.EnabledAndConfigured {
+
+	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
+	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 
@@ -615,19 +618,35 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
-	// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
-	err := svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
-	if err != nil {
-		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
-	}
-
 	// must read the existing setup assistant first to detect if it did change
-	// (so that the changed activity is not created if the same assistant was
-	// uploaded).
+	// so that we can skip sending to Apple if it did not change and so that the
+	// changed activity is not created if the same assistant was uploaded).
 	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, asst.TeamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get previous setup assistant")
 	}
+
+	validateIncomingSetupAssistant := true
+	// If name and contents are the same, skip validation with Apple. Name is included to match
+	// the logic we use below for determining whether or not to post the activity
+	if prevAsst != nil && asst.Name == prevAsst.Name {
+		var m2 map[string]any
+		if err := json.Unmarshal(prevAsst.Profile, &m2); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "json unmarshal previous setup assistant profile")
+		}
+		if reflect.DeepEqual(m, m2) {
+			validateIncomingSetupAssistant = false
+		}
+	}
+
+	if validateIncomingSetupAssistant {
+		// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
+		err = svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("profile", err.Error())
+		}
+	}
+
 	newAsst, err := svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set or update setup assistant")
@@ -950,19 +969,22 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		return "", idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
 	}
 
-	// get the automatic profile to access the authentication token.
-	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
-	if err != nil {
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")
-	}
-
-	if depProf == nil {
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "missing profile")
+	var depProfToken string
+	// For automatic enrollments, get the automatic profile to access the authentication token.
+	if ssoRequestData.Initiator != "setup_experience" {
+		depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
+		if err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")
+		}
+		if depProf == nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, errors.New("missing profile"), "missing profile")
+		}
+		depProfToken = depProf.Token
 	}
 
 	// using the idp token as a reference just because that's the
 	// only thing we're referencing later on during enrollment.
-	return depProf.Token, idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
+	return depProfToken, idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
@@ -1292,7 +1314,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, softwareUpdateType, softwareUpdateIdentifier)
 
 	// Associate the profile with the built-in label to ensure that the profile is applied to the targeted devices.
-	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{labelName})
+	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{labelName}, fleet.TeamFilter{}) // built-in labels are global
 	if err != nil {
 		return err
 	}

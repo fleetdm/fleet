@@ -1497,7 +1497,7 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
-		Status:        p.Status,
+		Status:        p.Status.StringPtr(),
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "windows",
@@ -1594,6 +1594,13 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	if commandStatus == MDMDeliveryVerifying {
 		// Check a single LocURI for SCEP path, and move straight to verified.
 		if strings.Contains(string(cmdWithSecret.RawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") {
+			commandStatus = MDMDeliveryVerified
+		}
+
+		// Check if the command contains ./User, and no ./Device paths
+		if strings.Contains(string(cmdWithSecret.RawCommand), "./User/") &&
+			!strings.Contains(string(cmdWithSecret.RawCommand), "./Device/") &&
+			!strings.Contains(string(cmdWithSecret.RawCommand), "./Vendor/") {
 			commandStatus = MDMDeliveryVerified
 		}
 	}

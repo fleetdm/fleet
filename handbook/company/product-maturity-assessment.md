@@ -14,11 +14,11 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Stage lifecycle**
 
-- Early Development (most categories Planned/Minimal)
-- Core Capabilities Available (key platforms/categories Viable)
-- Enterprise Ready (majority Viable/Complete, competitive feature set)
-- Market Competitive (Complete across all major use cases)
-- Market Leading (Lovable in key areas, Complete elsewhere)
+- **Early development** (most categories 🥚 Planned/🐣 Minimal)
+- **Core capabilities available** (key platforms/categories 🐥 Viable)
+- **Enterprise ready** (majority 🐥 Viable/🦆 Complete, competitive feature set)
+- **Market competitive** (🦆 Complete across all major use cases)
+- **Market leading** (🦢 Lovable in key areas, 🦆 Complete elsewhere)
 
 ---
 
@@ -37,11 +37,11 @@ Fleet provides comprehensive device management across the entire computing lifec
 | ASM enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Windows enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Windows Autopilot | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Work Profile enrollment (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Work Profile enrollment (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Linux enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| iOS/iPadOS profile-based enrollment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Account Driven User Enrollment (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| iOS/iPadOS profile-based enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Account Driven User Enrollment (Apple) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
@@ -58,8 +58,8 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
 | Setup experience (macOS) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Setup experience (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Setup experience (Linux) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Setup experience (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Setup experience (Linux) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Configuration Profiles (macOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Configuration Profiles (iOS/iPadOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Configuration Profiles (tvOS/VisionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
@@ -69,7 +69,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Software deployment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | App Store app management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Custom package deployment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Fleet-maintained apps | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Fleet-maintained apps | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Disk encryption management (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Disk encryption management (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Disk encryption management (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
@@ -148,7 +148,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Remote lock/wipe (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Remote lock/wipe (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Remote lock/wipe (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Device unenrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Device unenrollment | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 |
 | Offboarding audit trail | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Activation lock management | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
@@ -162,7 +162,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Platform | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| macOS | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| macOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Windows | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
@@ -191,6 +191,8 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Jira integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Zendesk integration | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Splunk integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Snowflake integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| BigQuery integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Terraform provider | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | GitOps support | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
 | ServiceNow integration | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |

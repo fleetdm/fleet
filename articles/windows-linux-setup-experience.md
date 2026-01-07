@@ -2,7 +2,26 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can customize the software that's installed when a new Windows and Linux workstations enroll to Fleet.
+In Fleet, you can customize the out-of-the-box Windows and Linux setup.
+
+Here's what you can configure, and in what order each happen, to your Windows and Linux hosts during setup:
+
+1. Require [end users to authenticate](#end-user-authentication) with your identity provider (IdP).
+
+2. [Install software](#install-software) inclduing [app store apps](https://fleetdm.com/guides/install-app-store-apps), [custom packages](https://fleetdm.com/guides/deploy-software-packages) (e.g. a bootstrap package), and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps). 
+
+## End user authentication
+
+### End user experience
+
+Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue.
+Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+
+> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, end user authentication won't be enforced.
+
+## Install software
+
+### End user experience
 
 Fleet automatically opens the default web browser to show end users software install progress:
 
@@ -10,7 +29,7 @@ Fleet automatically opens the default web browser to show end users software ins
 
 The browser can be closed, and the installation will continue in the background. End users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
 
-If software installs fail, Fleet automatically retries. Learn more in the [macOS setup experience guide](https://fleetdm.com/guides/macos-setup-experience#install-software).
+If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 
 To replace the Fleet logo with your organization's logo:
 
@@ -20,14 +39,14 @@ To replace the Fleet logo with your organization's logo:
 
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
-> Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users. 
+> Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users.
 
-## Choose software
+### Add software
 
-To pick which software is installed during the setup experience:
+Add setup experience software setup experience:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **3. Install software**.
-2. Click on the tab corresponding to the operating system you're configuring: either **macOS**, **Windows**, or **Linux**.
+2. Click on the tab corresponding to the operating system (e.g. Linux).
 3. Click **Add software**, then select or search for the software you want installed during the setup experience.
 4. Press **Save** to save your selection.
 

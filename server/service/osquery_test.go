@@ -33,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/log"
@@ -992,7 +991,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	// Expect an error when unable to write to logging destination.
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
-	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*endpoint_utils.OsqueryError).Status())
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*OsqueryError).Status())
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -1475,9 +1474,9 @@ func TestLabelQueries(t *testing.T) {
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{
-			"label1": "query1",
-			"label2": "query2",
-			"label3": "query3",
+			"1": "query1",
+			"2": "query2",
+			"3": "query3",
 		}, nil
 	}
 
@@ -2119,6 +2118,67 @@ func TestDetailQueries(t *testing.T) {
 			Source:           "source2",
 		},
 	}, gotSoftware)
+
+	// Since this is set directly in the ingest function, it doesn't use the mock clock.
+	// So the expected restarted at time is calculated based on the current time.
+	expectedLastRestartedAt := time.Now().Add(-1730893 * time.Second)
+	require.NoError(t, err)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Set the last restarted at date, then change the uptime result to simulate
+	// a small drift (less than 30s). Verify that the LastRestartedAt is not updated.
+	host.LastRestartedAt = expectedLastRestartedAt
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "21",
+			"hours":         "0",
+			"minutes":       "46",
+			"seconds":       "13",
+			"total_seconds": "1730865",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Test again with _forward_ drift, which would push the last restarted at date
+	// back, and verify that we ignore it.
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "30",
+			"seconds":       "0",
+			"total_seconds": "1740865",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// One final test -- change the uptime to just one minute, and verify that we do update last restarted at.
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "1",
+			"seconds":       "0",
+			"total_seconds": "60",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	expectedLastRestartedAt = time.Now().Add(-60 * time.Second)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
 
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
@@ -2847,7 +2907,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
-	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.True(t, err.(*OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1, HasHostIdentityCert: ptr.Bool(false)}, nil
@@ -2868,7 +2928,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
-	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.True(t, err.(*OsqueryError).NodeInvalid())
 
 	// return other error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2877,7 +2937,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
-	require.False(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.False(t, err.(*OsqueryError).NodeInvalid())
 }
 
 func TestGetHostIdentifier(t *testing.T) {
@@ -2976,6 +3036,9 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	}
 	ds.SaveHostAdditionalFunc = func(ctx context.Context, hostID uint, additional *json.RawMessage) error {
 		return errors.New("something went wrong")
+	}
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "SELECT 1;"}, nil
 	}
 
 	lCtx := &fleetLogging.LoggingContext{}

@@ -1,7 +1,5 @@
 # How to use Fleet for zero trust attestation
 
-![Using Fleet for zero trust attestation](../website/assets/images/articles/fleet-for-zero-trust-attestation-800x450@2x.jpg)
-
 ### In this article
 
 - [What is zero trust?](#what-is-zero-trust)

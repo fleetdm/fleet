@@ -35,6 +35,7 @@ interface ISaveAsNewQueryModal {
   router: InjectedRouter;
   location: Location;
   initialQueryData: ICreateQueryRequestBody;
+  hostId?: number;
   onExit: () => void;
 }
 
@@ -62,6 +63,7 @@ const SaveAsNewQueryModal = ({
   router,
   location,
   initialQueryData,
+  hostId,
   onExit,
 }: ISaveAsNewQueryModal) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -161,6 +163,7 @@ const SaveAsNewQueryModal = ({
       router.push(
         getPathWithQueryParams(PATHS.QUERY_DETAILS(newQuery.id), {
           team_id: newQuery.team_id,
+          host_id: hostId,
         })
       );
     } catch (createError: unknown) {
@@ -213,6 +216,7 @@ const SaveAsNewQueryModal = ({
             type="submit"
             className="save-as-new-query"
             isLoading={isSaving}
+            // empty SQL error handled by parent
             disabled={Object.keys(formErrors).length > 0 || isSaving}
           >
             Save

@@ -40,7 +40,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// validate labels before we do anything else
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, labelsIncludeAny, labelsExcludeAny)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels")
 	}
@@ -74,7 +74,6 @@ func (svc *Service) AddFleetMaintainedApp(
 	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
-
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
 	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
@@ -149,6 +148,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		Source:                app.Source(),
 		Extension:             extension,
 		BundleIdentifier:      app.BundleIdentifier(),
+		UpgradeCode:           app.UpgradeCode,
 		StorageID:             app.SHA256,
 		FleetMaintainedAppID:  maintainedAppID,
 		PreInstallQuery:       preInstallQuery,

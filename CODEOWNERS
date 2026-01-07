@@ -56,25 +56,26 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
-/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
-/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
+/infrastructure/ @rfairburn @ksatter @edwardsb @georgekarrv @BCTBB @ddribeiro
+/charts/ @rfairburn @ksatter @edwardsb @georgekarrv @BCTBB @ddribeiro
+/terraform/ @rfairburn @ksatter @edwardsb @georgekarrv @BCTBB @ddribeiro
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                                   @noahtalerman
-/docs/solutions                                         @ddribeiro
-/docs/Configuration                                     @noahtalerman
+/docs                                                   @rachaelshaw
+/docs/solutions                                         @ddribeiro @lukeheath
+/docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
-/docs/REST\ API/rest-api.md                             @noahtalerman # « REST API reference documentation
-/docs/Contributing/reference                            @noahtalerman
+/docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
+/docs/Contributing/reference                            @rachaelshaw
 /schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
+/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @BCTBB # « Infra: active notification of changes to IP Allowlists
 
 ################################################################################################
 #  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐
@@ -83,9 +84,9 @@ go.mod @fleetdm/go
 ################################################################################################
 
 # MDM
-/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery
-/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery
-/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery
+/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery @lukeheath
+/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery @lukeheath
+/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery @lukeheath
 
 # Orchestration
 /docs/Contributing/architecture/orchestration           @sharon-fdm @sgress454
@@ -157,6 +158,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm
+/.github @lukeheath
+/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

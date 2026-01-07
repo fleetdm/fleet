@@ -60,29 +60,6 @@ const SoftwareAppStoreAndroid = ({
     setIsLoading(true);
 
     try {
-      // HANDLED SERVER SIDE?
-      // // Validate app ID exists using AMAPI
-      // const appId = formData.applicationID; // e.g. "us.zoom.videomeetings"
-      // const appApiUrl = `${AMAPI_BASE_URL}enterprises/${ENTERPRISE_ID}/applications/${appId}`;
-      // // Requires OAuth access token with the required scopes
-      // const accessToken = "<your_oauth_access_token>";
-
-      // const appApiRes = await axios.get(appApiUrl, {
-      //   headers: {
-      //     Authorization: `Bearer ${accessToken}`,
-      //   },
-      // });
-
-      // // If successful, app metadata is present
-      // if (!appApiRes.data || !appApiRes.data.name) {
-      //   renderFlash(
-      //     "error",
-      //     `${ADD_SOFTWARE_ERROR_PREFIX} The application ID isn't available in Play Store. Please find ID on the Play Store and try again.`
-      //   );
-      //   setIsLoading(false);
-      //   return;
-      // }
-
       const {
         software_title_id: softwareAppStoreTitleId,
         // Maybe this will return name and can render success message with the name?
@@ -93,7 +70,8 @@ const SoftwareAppStoreAndroid = ({
         "success",
         <>
           {/* <strong>{appApiRes.data.name}</strong> successfully added. */}
-          <strong>{softwareTitleName}</strong> successfully added.
+          <strong>{softwareTitleName || "Android app"}</strong> successfully
+          added.
         </>,
         { persistOnPageChange: true }
       );
@@ -128,6 +106,7 @@ const SoftwareAppStoreAndroid = ({
         />
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
+            source="android_apps"
             onCancel={onClickPreviewEndUserExperience}
           />
         )}

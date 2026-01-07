@@ -1,0 +1,8 @@
+{
+  "name": "Eclipse IDE",
+  "unique_identifier": "epp.package.committers",
+  "token": "eclipse-ide",
+  "installer_format": "dmg",
+  "slug": "eclipse-ide/darwin",
+  "default_categories": ["Developer tools"]
+}

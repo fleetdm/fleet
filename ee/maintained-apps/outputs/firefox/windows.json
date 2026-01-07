@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "145.0",
+      "version": "146.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla';"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/145.0/win64/en-US/Firefox%20Setup%20145.0.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/146.0.1/win64/en-US/Firefox%20Setup%20146.0.1.exe",
       "install_script_ref": "80fb9175",
       "uninstall_script_ref": "8b5e20e4",
-      "sha256": "4b0345c113242653d923b369fcbd48e3089c57658f8c1542f887c8a375d50306",
+      "sha256": "4e32935d0b9e423e718c2c31066fa096860771afca4a988709acb448e371de22",
       "default_categories": [
         "Browsers"
       ]

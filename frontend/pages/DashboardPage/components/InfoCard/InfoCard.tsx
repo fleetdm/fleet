@@ -4,6 +4,7 @@ import { browserHistory } from "react-router";
 import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import classnames from "classnames";
 
 interface IInfoCardProps {
   title: string;
@@ -24,6 +25,7 @@ interface IInfoCardProps {
       };
   total_host_count?: number;
   showTitle?: boolean;
+  className?: string;
 }
 
 const baseClass = "dashboard-info-card";
@@ -37,6 +39,7 @@ const useInfoCard = ({
   action,
   total_host_count,
   showTitle = true,
+  className,
 }: IInfoCardProps): JSX.Element => {
   const [actionLink, setActionURL] = useState<string | null>(
     defaultActionUrl || null
@@ -109,8 +112,10 @@ const useInfoCard = ({
     return child;
   });
 
+  const classNames = classnames(baseClass, className);
+
   return (
-    <Card className={baseClass} paddingSize="xlarge" borderRadiusSize="large">
+    <Card className={classNames} paddingSize="xlarge" borderRadiusSize="large">
       {showTitle && (
         <div>
           <div className={`${baseClass}__section-title-cta`}>

@@ -50,6 +50,7 @@ func TestActivity(t *testing.T) {
 		{"ActivateRegularPackageInstall", testActivateRegularPackageInstall},
 		{"ActivateDeletedInstallerShowsPlaceholder", testActivateDeletedInstallerShowsPlaceholder},
 		{"ActivateScriptPackageUninstallWithCorruptPayload", testActivateScriptPackageUninstallWithCorruptPayload},
+		{"ActivitySearchAndFiltering", testActivitySearchAndFiltering},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1307,6 +1308,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	rawCmd := string(cmd.Raw)
 	require.Contains(t, rawCmd, ">"+vppApp1.VPPAppTeam.AdamID+"<")
 	require.Contains(t, rawCmd, ">"+vpp1_1+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>0</integer>`, "MacOS VPP app install command should have ManagementFlags 0")
 
 	// insert a result for that command and create the past activity,
 	// which triggers the next activity to be activated (should be none
@@ -1326,7 +1329,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 
-	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1)
+	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1, "")
 	require.NoError(t, err)
 	require.Len(t, appleCmdRes, 1)
 	require.Equal(t, "Acknowledged", appleCmdRes[0].Status)
@@ -1407,7 +1410,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 
-	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2)
+	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2, "")
 	require.NoError(t, err)
 	require.Len(t, appleCmdRes, 1)
 	require.Equal(t, "Error", appleCmdRes[0].Status)
@@ -1482,6 +1485,18 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
 	require.Equal(t, ihaCmd, pendingActs[1].UUID)
 
+	// get next nano command for iOS host is the VPP app
+	nanoCtx = &mdm.Request{EnrollID: &mdm.EnrollID{ID: hIOS.UUID}, Context: ctx}
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, vpp1_1_ios, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+vppApp1IOS.VPPAppTeam.AdamID+"<")
+	require.Contains(t, rawCmd, ">"+vpp1_1_ios+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>1</integer>`)
+
 	// record a result for the VPP app install, which will activate the in-house app
 	cmdRes = &mdm.CommandResults{
 		CommandUUID: vpp1_1_ios,
@@ -1504,6 +1519,15 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 1)
 	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, ihaCmd, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+ihaCmd+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>1</integer>`)
 
 	// enqueue a VPP app request for iOS host once more
 	vpp1_1_ios = uuid.NewString()
@@ -2631,4 +2655,159 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 	require.NotNil(t, result.SoftwareTitleID)
 	require.Equal(t, uint(titleID), *result.SoftwareTitleID) //nolint:gosec // dismiss G115
 	require.Equal(t, "Test Uninstall Script", result.SoftwareTitleName)
+}
+
+func testActivitySearchAndFiltering(t *testing.T, ds *Datastore) {
+	timestamp := time.Now().UTC().Truncate(time.Second)
+	ctx := t.Context()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+	u := test.NewUser(t, ds, "user1", "email-user1@example.com", true)
+
+	// Create a single activity
+	err := ds.NewActivity(ctx, u, fleet.ActivityTypeEditedScript{
+		TeamID:   nil,
+		TeamName: ptr.String("No Team"),
+	}, nil, timestamp)
+	require.NoError(t, err)
+
+	// Search by type
+
+	// First no match on type
+	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ActivityType: "mdm_enrolled",
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 0)
+
+	// Now search for our type
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ActivityType: "edited_script",
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	require.Equal(t, "edited_script", activities[0].Type)
+
+	// Search by user
+	// We update the user in the users table, so we can verify search on both tables
+	u.Name = "newname"
+	u.Email = "email-newname@example.com"
+	err = ds.SaveUser(ctx, u)
+	require.NoError(t, err)
+
+	// First no match on user
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "nomatch",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 0)
+
+	// Match on activity user_name
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "user1",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	require.Equal(t, "newname", *activities[0].ActorFullName) // We get the updated user info, but we can still search the old activity record columns
+
+	// Match on activity user_email
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "email-u",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	require.Equal(t, "newname", *activities[0].ActorFullName) // We get the updated user info, but we can still search the old activity record columns
+
+	// Match on updated user name
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "newname",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	require.Equal(t, "newname", *activities[0].ActorFullName)
+	// Match on updated user email
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "email-newname",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	require.Equal(t, "newname", *activities[0].ActorFullName)
+
+	// Search by date range
+	// Create activities on different dates
+	dates := []time.Time{
+		timestamp.Add(-48 * time.Hour),
+		timestamp.Add(-24 * time.Hour),
+		timestamp,
+		timestamp.Add(24 * time.Hour),
+	}
+	for _, dt := range dates {
+		err = ds.NewActivity(ctx, u, fleet.ActivityTypeEditedScript{
+			TeamID:   nil,
+			TeamName: ptr.String("No Team"),
+		}, nil, dt)
+		require.NoError(t, err)
+	}
+
+	// From 36 hours ago to now (should get 2 activities)
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		StartCreatedAt: timestamp.Add(-36 * time.Hour).UTC().String(),
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 3) // includes the first activity created
+
+	// From 72 hours ago to 24 hours ago (should get 2 activities)
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
+		EndCreatedAt:   timestamp.Add(-24 * time.Hour).UTC().String(),
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 2)
+
+	// From now to 48 hours in the future (should get 3 activities)
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		StartCreatedAt: timestamp.UTC().String(),
+		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 3) // includes the first activity created
+
+	// Now we combine all 3 search types, should get all 5 activities
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ActivityType:   "edited_script",
+		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
+		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "newname",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 5)
+
+	// Now we retry with all 3 search types, but with no matches
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ActivityType:   "mdm_enrolled",
+		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
+		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "nomatch",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, activities, 0)
+
+	// Try with non valid timestamp
+	_, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		StartCreatedAt: "not-a-timestamp",
+	})
+	require.NoError(t, err)
 }

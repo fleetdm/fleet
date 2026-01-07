@@ -202,6 +202,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	if payload.Extension == "ipa" {
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
+			Title:           payload.Title,
 			Filename:        payload.Filename,
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
@@ -212,7 +213,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			SelfService:     payload.SelfService,
 		})
 		if err != nil {
-			return 0, 0, ctxerr.Wrap(ctx, err, "MatchOrCreateSoftwareInstaller")
+			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
 		}
 		return installerID, titleID, err
 	}
@@ -231,13 +232,9 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			return 0, 0, ctxerr.Wrap(ctx, err, "check VPP app exists for title identifier")
 		}
 		if exists {
-			teamName := fleet.TeamNameNoTeam
-			if payload.TeamID != nil && *payload.TeamID > 0 {
-				tm, err := ds.TeamLite(ctx, *payload.TeamID)
-				if err != nil {
-					return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
-				}
-				teamName = tm.Name
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 			}
 
 			return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
@@ -363,7 +360,11 @@ INSERT INTO software_installers (
 		if err != nil {
 			if IsDuplicate(err) {
 				// already exists for this team/no team
-				err = alreadyExists("SoftwareInstaller", payload.Title)
+				teamName, err := ds.getTeamName(ctx, payload.TeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err)
+				}
+				return alreadyExists("SoftwareInstaller", payload.Title).WithTeamName(teamName)
 			}
 			return err
 		}
@@ -418,6 +419,18 @@ INSERT INTO software_installers (
 	}
 
 	return installerID, titleID, nil
+}
+
+func (ds *Datastore) getTeamName(ctx context.Context, teamID *uint) (string, error) {
+	teamName := fleet.TeamNameNoTeam
+	if teamID != nil && *teamID > 0 {
+		tm, err := ds.TeamLite(ctx, *teamID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+	return teamName, nil
 }
 
 func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, categoryIDs []uint, swType softwareType) error {
@@ -506,10 +519,18 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
 	insertArgs := []any{payload.Title, payload.Source}
 
+	// upgrade_code should be NULL for non-Windows software, empty or non-empty string for Windows
+	// software
+	if payload.Source == "programs" {
+		insertStmt = `INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, ?, '', ?)`
+		insertArgs = []any{payload.Title, payload.Source, payload.UpgradeCode}
+	}
+
 	if payload.BundleIdentifier != "" {
 		// match by bundle identifier first, or standard matching if we don't have a bundle identifier match
 		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
 		selectArgs = []any{payload.BundleIdentifier, payload.Title, payload.Source, payload.BundleIdentifier}
+		// omit upgrade_code, since title.upgrade_code should be NULL for non-Windows software
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, payload.BundleIdentifier)
 	}
@@ -531,6 +552,9 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 }
 
 func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, titleID uint, payload *fleet.UploadSoftwareInstallerPayload) error {
+	// not considering upgrade_code, so inventory software will match this Title by this clause, even
+	// if upgrade_code doesn't match - TODO: enforce matching upgrade_code between software and
+	// incoming title?
 	whereClause := "WHERE (s.name, s.source, s.extension_for) = (?, ?, '')"
 	whereArgs := []any{payload.Title, payload.Source}
 	if payload.BundleIdentifier != "" {
@@ -702,8 +726,10 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			}
 		}
 
-		if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, payload.DisplayName); err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title display name")
+		if payload.DisplayName != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, *payload.DisplayName); err != nil {
+				return ctxerr.Wrap(ctx, err, "update software title display name")
+			}
 		}
 
 		return nil
@@ -774,6 +800,18 @@ WHERE
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
+
+	var tmID uint
+	if dest.TeamID != nil {
+		tmID = *dest.TeamID
+	}
+
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, *dest.TitleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get display name for software installer")
+	}
+
+	dest.DisplayName = displayName
 
 	return &dest, nil
 }
@@ -980,7 +1018,7 @@ WHERE
 
 var (
 	errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
-	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed when new Macs boot. Please remove software in Controls > Setup experience and try again."}
+	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
@@ -1259,6 +1297,12 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			ua.activated_at IS NOT NULL AND
 			ua.activity_type IN ('software_install', 'software_uninstall')`, installerID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
 		}
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
@@ -1551,15 +1595,32 @@ FROM upcoming
 
 func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
 	// for pending status, we'll join through upcoming_activities
+	// EXCEPT for android VPP apps, which currently bypass upcoming activities
+	// NOTE: this should change when standard VPP app installs are supported for Android
+	// (in https://github.com/fleetdm/fleet/issues/25595)
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
 		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
-FROM
-	upcoming_activities ua
-	JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
-WHERE
-	%s) hss ON hss.host_id = h.id`
+FROM (
+	SELECT host_id
+	FROM upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
+	WHERE
+		%s
+
+	UNION
+
+	SELECT host_id
+	FROM host_vpp_software_installs hvsi
+	WHERE
+		hvsi.adam_id = ? AND
+		hvsi.platform = ? AND
+		hvsi.platform = 'android' AND
+		hvsi.verification_at IS NULL AND
+		hvsi.verification_failed_at IS NULL
+	) combined_pending
+) hss ON hss.host_id = h.id`
 
 		filter := "vppua.adam_id = ? AND vppua.platform = ?"
 		switch status {
@@ -1573,7 +1634,7 @@ WHERE
 			// activity type that is associated with the app (i.e. both install and uninstall)
 		}
 
-		return fmt.Sprintf(stmt, filter), []interface{}{appID.AdamID, appID.Platform}, nil
+		return fmt.Sprintf(stmt, filter), []any{appID.AdamID, appID.Platform, appID.AdamID, appID.Platform}, nil
 	}
 
 	// TODO: Update this when VPP supports uninstall so that we map for now we map the generic failed status to the install statuses
@@ -1589,7 +1650,7 @@ SELECT
 	hvsi.host_id
 FROM
 	host_vpp_software_installs hvsi
-	INNER JOIN
+	LEFT JOIN
 		nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 	LEFT JOIN host_vpp_software_installs hvsi2
 		ON hvsi.host_id = hvsi2.host_id AND
@@ -1602,6 +1663,7 @@ WHERE
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
 	AND hvsi.canceled = 0
+	AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1
@@ -1866,7 +1928,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
-  (name, source, extension_for, bundle_identifier)
+  (name, source, extension_for, bundle_identifier, upgrade_code)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE
@@ -1881,7 +1943,16 @@ SELECT
   id
 FROM
   software_titles
-WHERE (unique_identifier, source, extension_for) IN (%s)
+WHERE (unique_identifier, source) IN (%s) AND extension_for = ''
+`
+
+	const getSoftwareTitle = `
+SELECT
+	id
+FROM
+	software_titles
+WHERE
+	unique_identifier = ? AND source = ? AND extension_for = ''
 `
 
 	const unsetAllInstallersFromPolicies = `
@@ -2069,7 +2140,7 @@ FROM
 	software_installers
 WHERE
 	global_or_team_id = ?	AND
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+	title_id = ?
 `
 
 	const insertNewOrEditedInstaller = `
@@ -2096,9 +2167,8 @@ INSERT INTO software_installers (
 	install_during_setup,
 	fleet_maintained_app_id
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = ''),
-  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2127,7 +2197,7 @@ FROM
 WHERE
 	global_or_team_id = ?	AND
 	-- this is guaranteed to select a single title_id, due to unique index
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+	title_id = ?
 `
 
 	const deleteInstallerLabelsNotInList = `
@@ -2193,6 +2263,28 @@ VALUES
 	%s
 `
 
+	const getDisplayNamesForTeam = `
+SELECT
+	stdn.software_title_id, stdn.display_name
+FROM
+	software_title_display_names stdn
+INNER JOIN
+	software_installers si ON stdn.software_title_id = si.title_id AND stdn.team_id = si.global_or_team_id
+WHERE
+	stdn.team_id = ?
+`
+
+	const deleteDisplayNamesNotInList = `
+DELETE
+	stdn
+FROM
+	software_title_display_names stdn
+INNER JOIN
+	software_installers si ON stdn.software_title_id = si.title_id AND stdn.team_id = si.global_or_team_id
+WHERE
+	stdn.team_id = ? AND stdn.software_title_id NOT IN (?)
+`
+
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	teamName := fleet.TeamNameNoTeam
@@ -2252,6 +2344,12 @@ VALUES
 				return ctxerr.Wrap(ctx, err, "mark all host software installs as removed")
 			}
 
+			// reuse query to delete all display names associated with installers, by providing just 0
+			// which should make the WHERE clause equivalent to WHERE stdn.team_id = ? AND TRUE
+			if _, err := tx.ExecContext(ctx, deleteDisplayNamesNotInList, globalOrTeamID, 0); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all display names associated with software installers")
+			}
+
 			if _, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 			}
@@ -2283,17 +2381,13 @@ VALUES
 				installer.Title,
 				installer.Source,
 				"",
-				func() *string {
-					if strings.TrimSpace(installer.BundleIdentifier) != "" {
-						return &installer.BundleIdentifier
-					}
-					return nil
-				}(),
+				installer.GetBundleIdentifierForDB(),
+				installer.GetUpgradeCodeForDB(),
 			)
 		}
 
 		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?,?),", len(installers)),
+			strings.Repeat("(?,?,?,?,?),", len(installers)),
 			",",
 		)
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
@@ -2303,15 +2397,10 @@ VALUES
 		var titleIDs []uint
 		args = []any{}
 		for _, installer := range installers {
-			args = append(
-				args,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
-				"",
-			)
+			args = append(args, installer.UniqueIdentifier(), installer.Source)
 		}
 		values = strings.TrimSuffix(
-			strings.Repeat("(?,?,?),", len(installers)),
+			strings.Repeat(`(?,?),`, len(installers)),
 			",",
 		)
 
@@ -2393,12 +2482,33 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "mark obsolete host software installs as removed")
 		}
 
+		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
+		}
+
 		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+		}
+
+		// Fill a map of title IDs for this team that have a display name
+		var titlesWithDisplayNames []struct {
+			TitleID uint   `db:"software_title_id"`
+			Name    string `db:"display_name"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &titlesWithDisplayNames, getDisplayNamesForTeam, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load display names for updating")
+		}
+		displayNameIDMap := make(map[uint]string, len(titlesWithDisplayNames))
+		for _, d := range titlesWithDisplayNames {
+			displayNameIDMap[d.TitleID] = d.Name
 		}
 
 		for _, installer := range installers {
@@ -2429,6 +2539,12 @@ VALUES
 				postInstallScriptID = &insertID
 			}
 
+			var titleID uint
+			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, installer.UniqueIdentifier(), installer.Source)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting software title id for software installer with name %q", installer.Filename)
+			}
+
 			wasUpdatedArgs := []interface{}{
 				// package update
 				installer.StorageID,
@@ -2441,8 +2557,7 @@ VALUES
 				postInstallScriptID,
 				// WHERE clause
 				globalOrTeamID,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
+				titleID,
 			}
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
@@ -2473,8 +2588,7 @@ VALUES
 				installer.Platform,
 				installer.SelfService,
 				installer.UpgradeCode,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
+				titleID,
 				installer.UserID,
 				installer.UserID,
 				installer.UserID,
@@ -2497,7 +2611,7 @@ VALUES
 			// ID (cannot use res.LastInsertID due to the upsert statement, won't
 			// give the id in case of update)
 			var installerID uint
-			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source); err != nil {
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, titleID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 
@@ -2596,6 +2710,14 @@ VALUES
 				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerCategories, upsertCategoriesValues), upsertCategoriesArgs...)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert new/edited categories for installer with name %q", installer.Filename)
+				}
+			}
+
+			// update display name for the software title if it needs to be updated or inserted
+			// no deletions will happen, display names will be set to empty if needed
+			if name, ok := displayNameIDMap[titleID]; (ok && name != installer.DisplayName) || (!ok && installer.DisplayName != "") {
+				if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
+					return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
 				}
 			}
 
@@ -2959,7 +3081,7 @@ WHERE
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, tx, &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
+		return nil, ctxerr.Wrap(ctx, err, "listing host ids included in software scope")
 	}
 
 	res := make(map[uint]struct{}, len(hostIDs))
@@ -2982,22 +3104,24 @@ func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx s
 FROM
 		hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
+		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id = ?
 WHERE
 		EXISTS (%s)
-		AND platform = 'android'
+		AND h.platform = 'android'
 `, filter)
 
 	var queryResults []struct {
-		UUID            string `db:"uuid"`
-		AppliedPolicyID string `db:"applied_policy_id"`
+		UUID            string  `db:"uuid"`
+		AppliedPolicyID *string `db:"applied_policy_id"`
 	}
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
 	res := make(map[string]string, len(queryResults))
 	for _, result := range queryResults {
-		res[result.UUID] = result.AppliedPolicyID
+		polID := ptr.ValOrZero(result.AppliedPolicyID)
+		res[result.UUID] = polID
 	}
 
 	return res, nil

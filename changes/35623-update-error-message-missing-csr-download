@@ -1,0 +1,1 @@
+- Improved unclear error message when uploading an APNS certificate if the CSR was not downloaded

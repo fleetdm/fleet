@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
@@ -68,6 +69,7 @@ type appleMDMArgs struct {
 	UseWorkerDeviceRelease bool       `json:"use_worker_device_release,omitempty"`
 	ReleaseDeviceAttempt   int        `json:"release_device_attempt,omitempty"`    // number of attempts to release the device
 	ReleaseDeviceStartedAt *time.Time `json:"release_device_started_at,omitempty"` // time when the release device task first started
+	FromMDMMigration       bool       `json:"from_mdm_migration,omitempty"`        // indicates if the task is part of an MDM migration
 }
 
 // Run executes the apple_mdm job.
@@ -114,6 +116,15 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 		}
+	} else {
+		// We shouldn't have any setup experience steps if we're not on a premium license,
+		// but best to check anyway plus it saves some db queries.
+		if license.IsPremium(ctx) {
+			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
+			}
+		}
 	}
 
 	return nil
@@ -149,15 +160,22 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 		}
 
-		bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-		}
-		if bootstrapCmdUUID != "" {
-			awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
+		if args.FromMDMMigration {
+			level.Info(a.Log).Log("info", "skipping bootstrap package installation during MDM migration", "host_uuid", args.HostUUID)
+			err = a.Datastore.RecordSkippedHostBootstrapPackage(ctx, args.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "recording skipped bootstrap package")
+			}
+		} else {
+			bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
+			if bootstrapCmdUUID != "" {
+				awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
+			}
 		}
 	} else {
-		// TODO: We likely want to wait for the actual installs to complete not just the commands to be ack'd
 		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
@@ -227,7 +245,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			// be final and same for MDM profiles of that host; it means the DEP
 			// enrollment process is done and the device can be released.
 			if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, AppleMDMPostDEPReleaseDeviceTask,
-				args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, false, awaitCmdUUIDs...); err != nil {
+				args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, false, args.FromMDMMigration, awaitCmdUUIDs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
 			}
 		}
@@ -347,7 +365,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			continue
 		}
 
-		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID)
+		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID, args.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to get MDM command results")
 		}
@@ -609,7 +627,7 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 	var url string
 	if a.BootstrapPackageStore != nil {
 		pkgID := hex.EncodeToString(meta.Sha256)
-		signedURL, err := a.BootstrapPackageStore.Sign(ctx, pkgID)
+		signedURL, err := a.BootstrapPackageStore.Sign(ctx, pkgID, fleet.BootstrapPackageSignedURLExpiry)
 		switch {
 		case errors.Is(err, fleet.ErrNotConfigured):
 			// no CDN configured, fall back to the MDM URL
@@ -645,6 +663,7 @@ func QueueAppleMDMJob(
 	teamID *uint,
 	enrollReference string,
 	useWorkerDeviceRelease bool,
+	fromMDMMigration bool,
 	enrollmentCommandUUIDs ...string,
 ) error {
 	attrs := []interface{}{
@@ -653,6 +672,7 @@ func QueueAppleMDMJob(
 		"host_uuid", hostUUID,
 		"platform", platform,
 		"with_enroll_reference", enrollReference != "",
+		"from_mdm_migration", fromMDMMigration,
 	}
 	if teamID != nil {
 		attrs = append(attrs, "team_id", *teamID)
@@ -670,6 +690,7 @@ func QueueAppleMDMJob(
 		EnrollmentCommands:     enrollmentCommandUUIDs,
 		Platform:               platform,
 		UseWorkerDeviceRelease: useWorkerDeviceRelease,
+		FromMDMMigration:       fromMDMMigration,
 	}
 
 	// the release device task is always added with a delay

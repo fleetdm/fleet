@@ -87,6 +87,11 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
+      - name: Get current date and time
+        if: steps.update-apps.outputs.changed == 'true'
+        id: date
+        run: echo "date=$(date +'%y%m%d%H%M')" >> $GITHUB_OUTPUT
+
       - name: Create Pull Request
         if: steps.update-apps.outputs.changed == 'true'
         id: create-pr
@@ -102,7 +107,7 @@ jobs:
             This PR automatically updates the `fleet_maintained_apps` list in `testing-and-qa.yml` with any new apps from Fleet's maintained apps library.
 
             The changes were generated automatically by the [dogfood-update-testing-qa-apps workflow](https://github.com/${{ github.repository }}/actions/workflows/dogfood-update-testing-qa-apps.yml).
-          branch: update-testing-qa-apps-$(date +%s)
+          branch: update-testing-qa-apps-${{ steps.date.outputs.date }}
           delete-branch: true
           assignees: allenhouchins
 

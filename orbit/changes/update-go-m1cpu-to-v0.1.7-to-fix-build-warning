@@ -1,0 +1,1 @@
+* Updated github.com/shoenig/go-m1cpu to v0.1.7 to fix a build warning on Apple silicon.

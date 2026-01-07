@@ -4,6 +4,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
   windows_require_bitlocker_pin: false,
+  enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
@@ -115,6 +116,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   conditional_access: {
     microsoft_entra_tenant_id: "123",
     microsoft_entra_connection_configured: true,
+    okta_idp_id: "",
+    okta_assertion_consumer_service_url: "",
+    okta_audience_uri: "",
+    okta_certificate: "",
   },
   host_expiry_settings: {
     host_expiry_enabled: false,

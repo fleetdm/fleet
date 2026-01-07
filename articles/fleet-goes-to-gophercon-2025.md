@@ -40,6 +40,6 @@ As a first-time attendee of GopherCon (and first-time attendee of New York City 
 <meta name="category" value="articles">
 <meta name="authorGitHubUsername" value="iansltx">
 <meta name="authorFullName" value="Ian Littman">
-<meta name="publishedOn" value="2023-09-10">
+<meta name="publishedOn" value="2025-09-10">
 <meta name="articleTitle" value="Fleet goes to GopherCon 2025">
 <meta name="description" value="Engineering Fleeties made it out to New York for the 2025 edition of GopherCon, and brought back learnings to make Fleet even better">

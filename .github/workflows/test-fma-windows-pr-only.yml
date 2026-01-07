@@ -1,0 +1,266 @@
+name: Test Fleet Maintained Apps - Windows (PR Only)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ee/maintained-apps/inputs/**
+      - ee/maintained-apps/outputs/**
+      - cmd/maintained-apps/validate/**
+  workflow_dispatch: # Manual trigger
+    inputs:
+      log_level:
+        description: "Log level (debug, info, warn, error)"
+        required: false
+        default: "info"
+        type: choice
+        options:
+          - debug
+          - info
+          - warn
+          - error
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  contents: read
+
+jobs:
+  test-fma-pr-only:
+    env:
+      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Fleet
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 0 # Need full history to compare with base branch
+          ref: ${{ github.ref }}
+          path: fleet
+
+      - name: Setup Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: "fleet/go.mod"
+
+      - name: Setup Git for base branch comparison
+        run: |
+          cd fleet
+          git config --global --add safe.directory $PWD
+        shell: pwsh
+
+      - name: Fetch base branch
+        run: |
+          cd fleet
+          $baseBranch = "${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
+          Write-Host "Fetching base branch: $baseBranch"
+          git fetch origin "$baseBranch`:$baseBranch" || exit 0
+        shell: pwsh
+
+      - name: Detect changed apps
+        id: detect-changed
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
+        run: |
+          cd fleet
+          $env:GITHUB_WORKSPACE = (Get-Location).Path
+          bash .github/scripts/detect-new-fmas-in-pr.sh
+        shell: pwsh
+
+      - name: Check if there are changes
+        id: check-changes
+        run: |
+          # Default to no changes if detection step failed or didn't set output
+          $hasChanges = "${{ steps.detect-changed.outputs.HAS_CHANGES }}"
+          if ($hasChanges -eq "true") {
+            "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "Changed apps detected: ${{ steps.detect-changed.outputs.CHANGED_APPS }}"
+          } else {
+            "has_changes=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "No changed apps detected, skipping validation"
+          }
+        shell: pwsh
+
+      - name: Check if there are Windows apps
+        id: check-windows-apps
+        run: |
+          if ("${{ steps.check-changes.outputs.has_changes }}" -ne "true") {
+            "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
+
+          # Filter changed apps to only include windows platform
+          $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
+          $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
+
+          if ($null -eq $windowsSlugs -or $windowsSlugs.Count -eq 0) {
+            "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "No windows apps changed, skipping Windows workflow"
+          } else {
+            "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "Windows apps detected:"
+            $windowsSlugs | ForEach-Object { Write-Host "  - $_" }
+
+            # Check if google-chrome/windows is in the changed apps
+            # Use -in operator which works for both arrays and single values
+            if ("google-chrome/windows" -in $windowsSlugs) {
+              "has_google_chrome=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+              Write-Host "Google Chrome detected in changed apps"
+            } else {
+              "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            }
+
+            # Check if 7-zip/windows is in the changed apps
+            if ("7-zip/windows" -in $windowsSlugs) {
+              "has_7zip=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+              Write-Host "7-zip detected in changed apps"
+            } else {
+              "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            }
+          }
+        shell: pwsh
+
+      - name: Install osquery windows
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
+        run: |
+          Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
+          curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
+          Expand-Archive -Path osquery.zip -DestinationPath osquery
+          Get-ChildItem -Recurse osquery | Where-Object { $_.Name -like "*osquery*" -and $_.Extension -eq ".exe" }
+          $osqueryPath = (Get-ChildItem -Recurse osquery | Where-Object { $_.Name -eq "osqueryi.exe" }).Directory.FullName
+          echo "Adding to PATH: $osqueryPath"
+          echo $osqueryPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+
+      - name: Remove pre-installed google chrome
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_google_chrome == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing 'Chrome':"
+          Get-Package | Where-Object { $_.Name -like "*Chrome*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          $uninstallPath = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -like "*Google Chrome*" } | Select-Object -ExpandProperty UninstallString
+          if ($uninstallPath) {
+            Write-Host "Found Chrome uninstall path: $uninstallPath"
+            try {
+              $guid = ($uninstallPath -split "/X")[1]
+              Write-Host "Uninstalling Chrome MSI with GUID: $guid"
+              Start-Process -FilePath "msiexec.exe" -ArgumentList "/X$guid", "/quiet", "/norestart" -Wait -NoNewWindow
+              Write-Host "Successfully removed Google Chrome via MSI uninstaller"
+            } catch {
+              Write-Host "Failed to remove Chrome: $($_.Exception.Message)"
+            }
+          } else {
+            Write-Host "Chrome uninstall path not found in registry"
+          }
+        shell: pwsh
+
+      - name: Remove pre-installed 7-zip
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_7zip == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing '7-Zip':"
+          Get-Package | Where-Object { $_.Name -like "*7-Zip*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # Check registry for 7-Zip uninstaller
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $uninstallEntry = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "*7-Zip*" -and $_.Publisher -like "*Igor Pavlov*" }
+            if ($uninstallEntry) {
+              $found = $true
+              Write-Host "Found 7-Zip uninstall entry: $($uninstallEntry.DisplayName)"
+              
+              # Try to get uninstall string
+              $uninstallString = if ($uninstallEntry.QuietUninstallString) {
+                $uninstallEntry.QuietUninstallString
+              } elseif ($uninstallEntry.UninstallString) {
+                $uninstallEntry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Found 7-Zip uninstall path: $uninstallString"
+                try {
+                  # Check if it's an MSI uninstall (contains /X or /I)
+                  if ($uninstallString -match "/X\{([A-F0-9\-]+)\}") {
+                    $guid = $matches[1]
+                    Write-Host "Uninstalling 7-Zip MSI with GUID: $guid"
+                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
+                    Write-Host "Successfully removed 7-Zip via MSI uninstaller"
+                  } elseif ($uninstallString -match '"([^"]+)"') {
+                    # Extract executable path
+                    $exePath = $matches[1]
+                    Write-Host "Uninstalling 7-Zip via executable: $exePath"
+                    # 7-Zip typically uses /S for silent uninstall
+                    Start-Process -FilePath $exePath -ArgumentList "/S" -Wait -NoNewWindow
+                    Write-Host "Successfully removed 7-Zip via executable uninstaller"
+                  } else {
+                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                  }
+                } catch {
+                  Write-Host "Failed to remove 7-Zip: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "7-Zip uninstall string not found in registry entry"
+              }
+              break
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "7-Zip uninstall path not found in registry"
+          }
+        shell: pwsh
+
+      - name: Filter apps.json and verify changed apps
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
+        run: |
+          cd fleet
+          # Set GITHUB_WORKSPACE to current directory so scripts can find files
+          $env:GITHUB_WORKSPACE = (Get-Location).Path
+
+          # Filter changed apps to only include windows platform
+          $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
+          $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
+          $windowsSlugsJson = ($windowsSlugs | ConvertTo-Json -Compress)
+          Write-Host "Filtering apps.json for slugs: $windowsSlugsJson"
+
+          # Backup original apps.json
+          Copy-Item -Path "ee\maintained-apps\outputs\apps.json" -Destination "ee\maintained-apps\outputs\apps.json.backup"
+
+          # Create filtered apps.json
+          # Use a fixed path for the temp file to avoid issues with bash
+          $filteredAppsJson = Join-Path $env:TEMP "filtered-apps-$(New-Guid).json"
+          bash .github/scripts/filter-apps-json.sh "$windowsSlugsJson" "$filteredAppsJson"
+
+          # Verify the filtered file was created
+          if (-not (Test-Path $filteredAppsJson)) {
+            Write-Host "Error: Filtered apps.json was not created at $filteredAppsJson"
+            exit 1
+          }
+
+          # Replace apps.json with filtered version
+          Move-Item -Path $filteredAppsJson -Destination "ee\maintained-apps\outputs\apps.json" -Force
+
+          # Run validation
+          ls "C:\Program Files"
+          go run ./cmd/maintained-apps/validate
+
+          # Restore original apps.json
+          Move-Item -Path "ee\maintained-apps\outputs\apps.json.backup" -Destination "ee\maintained-apps\outputs\apps.json" -Force
+        shell: pwsh

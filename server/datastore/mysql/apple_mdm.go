@@ -164,15 +164,18 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 			var errorMessage string
 			// If you change this URL you may need to change the frontend code as well which adds a
 			// nicely formatted link to the error message.
-			const learnMoreUrl = "https://fleetdm.com/learn-more-about/configuration-profiles-user-channel"
+			const learnMoreUserChannel = "https://fleetdm.com/learn-more-about/configuration-profiles-user-channel"
 			if isEdit {
 				if scopeImplicitlyChanged {
-					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because it was previously delivered to some hosts on the device channel. Change "PayloadScope" to "System" to keep existing behavior. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUrl)
+					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because it was previously delivered to some hosts on the device channel. Change "PayloadScope" to "System" to keep existing behavior. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUserChannel)
 				} else {
-					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because the profile's "PayloadScope" has changed. To change the “PayloadScope” of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUrl)
+					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because the profile's "PayloadScope" has changed. To change the “PayloadScope” of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUserChannel)
 				}
 			} else {
-				errorMessage = fmt.Sprintf(`Couldn't add configuration profile (%s) because "PayloadScope" conflicts with another profile with same identifier on a different team. Please use different identifier and try again. Learn more: %s`, cp.Identifier, learnMoreUrl)
+				// If you change this URL you may need to change the frontend code as well which adds a
+				// nicely formatted link to the error message.
+				const learnMoreSameScope = "https://fleetdm.com/learn-more-about/macos-configuration-profiles-same-scope"
+				errorMessage = fmt.Sprintf(`Couldn't add configuration profile. This profile has the same "PayloadIdentifier" but a different "PayloadScope" as another profile in a separate team. Learn more: %s`, learnMoreSameScope)
 			}
 			return &fleet.BadRequestError{Message: errorMessage}
 		}
@@ -830,77 +833,6 @@ func (ds *Datastore) GetAppleHostMDMCertificateProfile(ctx context.Context, host
 	return &profile, nil
 }
 
-// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
-func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
-	// This will trigger a resend next time profiles are checked
-	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
-	hostProfileClause := ``
-	values := []interface{}{fleet.MDMOperationTypeInstall}
-
-	totalHostCertsToRenew := 0
-	hostCertTypesToRenew := fleet.ListCATypesWithRenewalSupport()
-	for _, hostCertType := range hostCertTypesToRenew {
-		hostCertsToRenew := []struct {
-			HostUUID       string    `db:"host_uuid"`
-			ProfileUUID    string    `db:"profile_uuid"`
-			NotValidAfter  time.Time `db:"not_valid_after"`
-			ValidityPeriod int       `db:"validity_period"`
-		}{}
-		// Fetch all MDM Managed certificates of the given type that aren't already queued for
-		// resend(hmap.status=null) and which
-		// * Have a validity period > 30 days and are expiring in the next 30 days
-		// * Have a validity period <= 30 days and are within half the validity period of expiration
-		// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
-		// we don't actually need them for the update logic.
-		err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
-	SELECT
-		hmmc.host_uuid,
-		hmmc.profile_uuid,
-		hmmc.not_valid_after,
-		DATEDIFF(hmmc.not_valid_after, hmmc.not_valid_before) AS validity_period
-	FROM
-		host_mdm_managed_certificates hmmc
-	INNER JOIN
-		host_mdm_apple_profiles hmap
-		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
-	WHERE
-		hmmc.type = ? AND hmap.status IS NOT NULL AND hmap.operation_type = ?
-	HAVING
-		validity_period IS NOT NULL AND
-		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
-		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT 1000`, hostCertType, fleet.MDMOperationTypeInstall)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
-		}
-		if len(hostCertsToRenew) == 0 {
-			level.Debug(ds.logger).Log("msg", "No "+hostCertType+" certificates to renew")
-			continue
-		}
-		totalHostCertsToRenew += len(hostCertsToRenew)
-
-		for _, hostCertToRenew := range hostCertsToRenew {
-			hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
-			values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
-		}
-	}
-	if totalHostCertsToRenew == 0 {
-		return nil
-	}
-
-	hostProfileClause = strings.TrimSuffix(hostProfileClause, " OR ")
-
-	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert/SCEP certificates", "len(hostCertsToRenew)", totalHostCertsToRenew)
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, updateQuery+hostProfileClause+")", values...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
-		}
-		return nil
-	})
-	return err
-}
-
 // ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
 // also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 //
@@ -1087,26 +1019,25 @@ func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID strin
 		&results,
 		`
 SELECT
-    ncr.id as host_uuid,
-    ncr.command_uuid,
-    ncr.status,
-    ncr.result,
-    ncr.updated_at,
-    nc.request_type,
-    nc.command as payload
+	ncr.id as host_uuid,
+	ncr.command_uuid,
+	ncr.status,
+	ncr.result,
+	ncr.updated_at,
+	nc.request_type,
+	nc.command as payload
 FROM
-    nano_command_results ncr
+	nano_command_results ncr
 INNER JOIN
-    nano_commands nc
-ON
-    ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
-LEFT JOIN host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
-LEFT JOIN upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
-WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
-`,
-		hostUUID,
-		commandUUID,
-	)
+	nano_commands nc ON ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
+LEFT JOIN
+	host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
+LEFT JOIN
+	upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
+WHERE
+	ua.id IS NOT NULL OR
+	hvsi.id IS NOT NULL
+`, hostUUID, commandUUID)
 
 	if err == sql.ErrNoRows || len(results) == 0 {
 		var validCommandExists bool
@@ -1138,25 +1069,30 @@ WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
 	return results, nil
 }
 
-func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	query := `
 SELECT
-    ncr.id as host_uuid,
-    ncr.command_uuid,
-    ncr.status,
-    ncr.result,
-    ncr.updated_at,
-    nc.request_type,
-    nc.command as payload
+	nq.id AS host_uuid,
+	nc.command_uuid,
+	COALESCE(ncr.updated_at, nc.created_at) AS updated_at,
+	COALESCE(ncr.status, 'Pending') AS status,
+	request_type,
+	nc.command AS payload,
+	COALESCE(ncr.result, '') AS result
 FROM
-    nano_command_results ncr
-INNER JOIN
-    nano_commands nc
-ON
-    ncr.command_uuid = nc.command_uuid
+	nano_enrollment_queue nq
+	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
+	LEFT JOIN nano_command_results ncr ON nq.id = ncr.id
+		AND nc.command_uuid = ncr.command_uuid
 WHERE
-    ncr.command_uuid = ?
-`
+	nq.active = 1
+	AND nc.command_uuid = ?`
+
+	args := []any{commandUUID}
+	if hostUUID != "" {
+		query += " AND nq.id = ?"
+		args = append(args, hostUUID)
+	}
 
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
@@ -1164,7 +1100,7 @@ WHERE
 		ds.reader(ctx),
 		&results,
 		query,
-		commandUUID,
+		args...,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
@@ -2035,7 +1971,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
 		// app installs, so we return those to the MDM lifecycle to handle.
-		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID)
+		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking pending vpp installs as failed for host")
 		}
@@ -4193,13 +4129,15 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
               COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
-              COUNT(IF(ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
+              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
           FROM
               hosts h
           LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON
               hmabp.host_uuid = h.uuid
           LEFT JOIN nano_command_results ncr ON
               ncr.command_uuid  = hmabp.command_uuid
+		  LEFT JOIN host_dep_assignments hda ON
+		      hda.host_id = h.id
           JOIN host_mdm hm ON
               hm.host_id = h.id
           WHERE
@@ -4212,16 +4150,23 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
 	return &bp, nil
 }
 
+func (ds *Datastore) RecordSkippedHostBootstrapPackage(ctx context.Context, hostUUID string) error {
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (host_uuid, command_uuid, skipped) VALUES (?, NULL, 1)
+        ON DUPLICATE KEY UPDATE skipped = 1, command_uuid = NULL`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	return ctxerr.Wrap(ctx, err, "record skipped bootstrap package")
+}
+
 func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
-	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?)
-        ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid, skipped) VALUES (?, ?, 0)
+        ON DUPLICATE KEY UPDATE command_uuid = command_uuid, skipped = 0`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, commandUUID, hostUUID)
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
 }
 
 func (ds *Datastore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error) {
 	var cmdUUID string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmdUUID, `SELECT command_uuid FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmdUUID, `SELECT command_uuid FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ? AND skipped=0`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ctxerr.Wrap(ctx, notFound("HostMDMBootstrapPackage").WithName(hostUUID))
@@ -4258,7 +4203,7 @@ JOIN host_mdm hm ON
 JOIN mdm_apple_bootstrap_packages mabs ON
 		COALESCE(h.team_id, 0) = mabs.team_id
 WHERE
-    h.id = ? AND hm.installed_from_dep = 1`
+    h.id = ? AND hm.installed_from_dep = 1 AND hmabp.skipped = 0`
 
 	args := []interface{}{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
 
@@ -6273,14 +6218,20 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 	err error,
 ) {
 	hostsStmt := `
-SELECT h.id as host_id, h.uuid as uuid, JSON_ARRAYAGG(hmc.command_type) as commands_already_sent FROM hosts h
-INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
-INNER JOIN nano_enrollments ne ON ne.id = h.uuid
-LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
-WHERE (h.platform = 'ios' OR h.platform = 'ipados')
-AND TRIM(h.uuid) != ''
-AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
-AND ne.enabled = 1
+SELECT 
+	h.id as host_id, 
+	h.uuid as uuid, 
+	hmdm.installed_from_dep,
+	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
+FROM hosts h
+	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
+	INNER JOIN nano_enrollments ne ON ne.id = h.uuid
+	LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
+WHERE 
+	(h.platform = 'ios' OR h.platform = 'ipados')
+	AND TRIM(h.uuid) != ''
+	AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+	AND ne.enabled = 1
 GROUP BY h.id`
 	args := []any{fleet.ListAppleRefetchCommandPrefixes(), interval.Seconds()}
 	hostsStmt, args, err = sqlx.In(hostsStmt, args...)
@@ -6754,13 +6705,23 @@ func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	// This could also occur due to errors (i.e., large server/DB load) or server being stopped while processing the profiles.
 	// After the entry is deleted, the mdm_apple_profile_manager job will try to requeue the profile.
 	stmt := fmt.Sprintf(`
-		DELETE hmap FROM host_mdm_apple_profiles AS hmap
-        -- ANTIJOIN: Delete rows that don't have a corresponding entry in nano_enrollment_queue
-		-- Note that a given host may have multiple nano_enrollments(device and user) and thus we
-		-- need to account for the use of either of them in the join
-		LEFT JOIN (nano_enrollment_queue neq INNER JOIN nano_enrollments ne ON neq.id = ne.id AND ne.enabled = 1)
-		ON ne.device_id = hmap.host_uuid AND hmap.command_uuid = neq.command_uuid AND neq.active = 1
-		WHERE neq.id IS NULL AND (hmap.status IS NULL OR hmap.status = '%s') AND hmap.updated_at < NOW() - INTERVAL 1 HOUR`,
+	DELETE hmap FROM host_mdm_apple_profiles AS hmap
+WHERE (
+        hmap.status IS NULL
+        OR hmap.status = '%s'
+    )
+    AND hmap.updated_at < NOW() - INTERVAL 1 HOUR
+    AND NOT EXISTS (
+        SELECT 1
+        FROM
+            nano_enrollments ne
+            STRAIGHT_JOIN nano_enrollment_queue neq ON neq.id = ne.id
+            AND neq.command_uuid = hmap.command_uuid
+            AND neq.active = 1
+        WHERE
+            ne.device_id = hmap.host_uuid
+            AND ne.enabled = 1
+    );`,
 		fleet.MDMDeliveryPending)
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_apple_profiles")
@@ -6768,7 +6729,7 @@ func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	return nil
 }
 
-func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
+func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 	stmt := `
 SELECT
 	team_id, platform
@@ -6785,7 +6746,7 @@ LIMIT 1`
 		Platform string `db:"platform"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting team id for host")
+		return "", nil, ctxerr.Wrap(ctx, err, "getting team id for host")
 	}
 
 	var settings fleet.AppleOSUpdateSettings
@@ -6793,7 +6754,7 @@ LIMIT 1`
 		// use the global settings
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
+			return "", nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
 		}
 		switch dest.Platform {
 		case "ios":
@@ -6803,13 +6764,13 @@ LIMIT 1`
 		case "darwin":
 			settings = ac.MDM.MacOSUpdates
 		default:
-			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
 	} else {
 		// use the team settings
 		tm, err := ds.TeamLite(ctx, *dest.TeamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
+			return "", nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
 		}
 		switch dest.Platform {
 		case "ios":
@@ -6819,11 +6780,11 @@ LIMIT 1`
 		case "darwin":
 			settings = tm.Config.MDM.MacOSUpdates
 		default:
-			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
 		}
 	}
 
-	return &settings, nil
+	return dest.Platform, &settings, nil
 }
 
 // ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that

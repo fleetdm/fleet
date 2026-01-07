@@ -453,18 +453,20 @@ func syncMLForTestWithExec(locURI string) []byte {
 
 // Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
 // Use $FLEET_VAR_HOST_UUID in the profile SyncML to simulate error in profile variable processing flow.
-func setupReconcilerTest(t *testing.T, ds *mock.Store, profile *fleet.MDMWindowsConfigProfile, hostUUID string) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
+func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWindowsConfigProfile) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
 	// Mock ListMDMWindowsProfilesToInstall to return a profile with Fleet variable
 	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return []*fleet.MDMWindowsProfilePayload{
-			{
+		profilesToInstall := []*fleet.MDMWindowsProfilePayload{}
+		for hostUUID, profile := range hostToProfile {
+			profilesToInstall = append(profilesToInstall, &fleet.MDMWindowsProfilePayload{
 				ProfileUUID:   profile.ProfileUUID,
 				ProfileName:   profile.Name,
 				HostUUID:      hostUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
-			},
-		}, nil
+			})
+		}
+		return profilesToInstall, nil
 	}
 
 	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
@@ -472,12 +474,14 @@ func setupReconcilerTest(t *testing.T, ds *mock.Store, profile *fleet.MDMWindows
 	}
 
 	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
-		return map[string]fleet.MDMWindowsProfileContents{
-			profile.ProfileUUID: {
+		profileContentsMap := make(map[string]fleet.MDMWindowsProfileContents)
+		for _, profile := range hostToProfile {
+			profileContentsMap[profile.ProfileUUID] = fleet.MDMWindowsProfileContents{
 				SyncML:   profile.SyncML,
 				Checksum: []byte("test-checksum"),
-			},
-		}, nil
+			}
+		}
+		return profileContentsMap, nil
 	}
 
 	capturedUpdates = &[]*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
@@ -531,7 +535,10 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>Host: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`),
 	}
 
-	capturedUpdates, managedCerts := setupReconcilerTest(t, ds, testProfile, testHostUUID)
+	hostToProfile := map[string]*fleet.MDMWindowsConfigProfile{
+		testHostUUID: testProfile,
+	}
+	capturedUpdates, managedCerts := setupReconcilerTest(ds, hostToProfile)
 
 	var receivedCommand *fleet.MDMWindowsCommand
 	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
@@ -587,7 +594,10 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Certificate</LocURI></Target><Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA</Data></Item></Replace>`),
 	}
 
-	capturedUpdates, managedCerts := setupReconcilerTest(t, ds, testProfile, testHostUUID)
+	hostToProfile := map[string]*fleet.MDMWindowsConfigProfile{
+		testHostUUID: testProfile,
+	}
+	capturedUpdates, managedCerts := setupReconcilerTest(ds, hostToProfile)
 
 	// Override GetGroupedCertificateAuthorities to return a valid CA
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
@@ -614,7 +624,6 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 	// Run ReconcileWindowsProfiles
 	err := ReconcileWindowsProfiles(ctx, ds, logger)
 	require.NoError(t, err) // The function should not return an error even if cert processing fails
-	fmt.Println(capturedUpdates)
 
 	// Verify no managed certificates were added due to failure
 	require.Empty(t, managedCerts, "No managed certificates should have been added")
@@ -632,4 +641,91 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		}
 	}
 	require.True(t, foundError, "Should have found a failed status update")
+}
+
+func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t *testing.T) {
+	ctx := t.Context()
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	})
+	ds := new(mock.Store)
+	logger := log.NewNopLogger()
+
+	// Setup test data with a profile containing a certificate that will fail processing
+	testHostUUID := "test-host-uuid"
+	testProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "test-profile-uuid",
+		Name:        "Test Profile with Cert",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Certificate</LocURI></Target><Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA</Data></Item></Replace><Replace><Item><Target><LocURI>./Certificate</LocURI></Target><Data>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</Data></Item></Replace>`),
+	}
+	testHostUUID2 := "test-host-uuid-2"
+	hostToProfile := map[string]*fleet.MDMWindowsConfigProfile{
+		testHostUUID:  testProfile,
+		testHostUUID2: testProfile,
+	}
+
+	capturedUpdates, managedCerts := setupReconcilerTest(ds, hostToProfile)
+
+	// Override GetGroupedCertificateAuthorities to return a valid CA
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{
+				{
+					ID:        1,
+					Name:      "CA",
+					URL:       "https://scep.proxy.url",
+					Challenge: "secret",
+				},
+			},
+		}, nil
+	}
+
+	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+		return "secret", nil
+	}
+
+	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		return nil
+	}
+
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+		if hostnames[0] == testHostUUID {
+			return []uint{1}, nil
+		}
+		return []uint{2}, nil
+	}
+
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		if hostID == 1 {
+			return &fleet.ScimUser{
+				UserName: "test@example.com",
+			}, nil
+		}
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return []*fleet.HostDeviceMapping{}, nil
+	}
+
+	// Run ReconcileWindowsProfiles
+	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	require.NoError(t, err) // The function should not return an error even if cert processing fails
+
+	// Verify one managed certificates were added, for the successful host, but not for the failing one
+	require.NotNil(t, managedCerts, "Managed certificates slice should not be nil")
+	require.Len(t, *managedCerts, 1, "No managed certificates should have been added")
+
+	// Verify that the error was captured and the profile was marked as failed
+	require.True(t, ds.BulkUpsertMDMWindowsHostProfilesFuncInvoked, "BulkUpsertMDMWindowsHostProfiles should have been called")
+
+	// Check the error and only one error
+	foundErrors := 0
+	for _, update := range *capturedUpdates {
+		if update.Status != nil && *update.Status == fleet.MDMDeliveryFailed {
+			foundErrors++
+			require.Contains(t, update.Detail, "There is no IdP username for this host.", "Error detail should indicate missing IdP username")
+			break
+		}
+	}
+	require.EqualValues(t, 1, foundErrors, "Should have found one failed status update")
 }

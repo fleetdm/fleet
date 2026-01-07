@@ -84,7 +84,7 @@ Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, t
 4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
-### Send a subscription quote
+### Send a reseller subscription quote
 
 Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
 1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
@@ -135,9 +135,22 @@ To complete a security questionnaire, the AE assigned to the account will:
 
 1. Create an issue linking the questionnaire and any other context needed. 
 2. [Use the handbook](https://fleetdm.com/handbook/finance/security#vendor-questionnaires) to answer the questions with links to appropriate sections in the handbook.
-3. If there are outstanding questions, the AE will assign the issue to the Solutions Consultant (SC) associated to the opportunity.
+3. If there are outstanding questions, the AE will assign the issue to the Solutions Consultant (SC) associated with the opportunity.
 4. The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the AE.
-5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue `@`mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
+5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue, @`mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
+
+
+### Update Salesforce “Attributed to” field on an opportunity
+
+The “Attributed to” field in the Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built out the process that would automate how we track attribution and measure ROI associated with our program spend.  
+
+The “Attributed to” field is associated with a Salesforce user. The opportunity owner will have to determine the correct user to add to the field when the opportunity is created. The rule to determine which user to add to the field:
+
+- Inbound: For all opportunities created based on inbound leads (e.g., digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with the CMO’s name
+- Outbound-AE: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the AE's name.
+- Outbound-SDR: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the SDR’s name
+- Channel: If a deal was referred to us from a Channel Partner (deal-reg approved by Channel Manager), update the field with the Channel Manager’s name.
+- All other sources: For opportunities that do not fall under any of the above categories, update the field with the CMO's name
 
 
 ## Rituals
@@ -151,7 +164,7 @@ The following stubs are included only to make links backward compatible.
 ##### Fleet Premium
 ##### Fleet Free
 ##### Emergency (P0) request communications
-Please see [handbook/company/communications#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas) for all sections above.
+Please see [handbook/company/communications#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos) for all sections above.
 ##### Submit a customer contract for legal review
 ##### Standard terms
 ##### Non-standard NDAs

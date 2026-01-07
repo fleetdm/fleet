@@ -150,7 +150,7 @@ const InstallSoftwareModal = ({
       const foundTitle = titlesAvailableForInstall?.find(
         (title) => title.id === value
       );
-      return foundTitle ? foundTitle.name : "";
+      return foundTitle ? foundTitle.display_name || foundTitle.name : "";
     };
 
     return {
@@ -171,7 +171,7 @@ const InstallSoftwareModal = ({
         )
         .map((title) => {
           return {
-            label: title.name,
+            label: title.display_name || title.name,
             value: title.id,
             helpText: generateSoftwareOptionHelpText(title),
           };
@@ -205,7 +205,7 @@ const InstallSoftwareModal = ({
           if (currentSoftware) {
             options = [
               {
-                label: currentSoftware.name,
+                label: currentSoftware.display_name || currentSoftware.name,
                 value: currentSoftware.id,
                 helpText: generateSoftwareOptionHelpText(currentSoftware),
               },

@@ -1,0 +1,8 @@
+{
+  "name": "Wireshark",
+  "unique_identifier": "org.wireshark.Wireshark",
+  "token": "wireshark-app",
+  "installer_format": "dmg",
+  "slug": "wireshark-app/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -26,4 +26,10 @@
   &__upcoming-tooltip {
     font-size: $xx-small;
   }
+
+  &__tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
 }

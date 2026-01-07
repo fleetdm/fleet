@@ -84,7 +84,7 @@ interface IPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
-  defaultCategories?: SoftwareCategory[];
+  defaultCategories?: SoftwareCategory[] | null;
   className?: string;
   /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;

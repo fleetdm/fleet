@@ -1,0 +1,8 @@
+{
+  "name": "Canva",
+  "unique_identifier": "com.canva.CanvaDesktop",
+  "token": "canva",
+  "installer_format": "dmg",
+  "slug": "canva/darwin",
+  "default_categories": ["Productivity"]
+}

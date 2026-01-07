@@ -1,0 +1,11 @@
+{
+  "name": "Teleport Suite",
+  "unique_identifier": "com.gravitational.teleport",
+  "token": "teleport-suite",
+  "installer_format": "pkg",
+  "slug": "teleport-suite/darwin",
+  "default_categories": [
+    "Developer tools"
+  ],
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/teleport-suite-uninstall.sh"
+}

@@ -96,6 +96,14 @@ WHERE
 
 	app.DisplayName = displayName
 
+	config, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
+	}
+	if config != nil {
+		app.Configuration = *config
+	}
+
 	if teamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
@@ -202,7 +210,8 @@ past AS (
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
-			WHEN ncr.status = :mdm_status_acknowledged THEN
+			WHEN ncr.id IS NULL OR ncr.status = :mdm_status_acknowledged THEN
+				-- if ncr join is null this is an android vpp app
 				:software_status_pending
 			ELSE
 				NULL -- either pending or not installed via VPP App
@@ -210,7 +219,9 @@ past AS (
 	FROM
 		host_vpp_software_installs hvsi
 		JOIN hosts h ON host_id = h.id
-		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
+		LEFT JOIN nano_command_results ncr ON
+			ncr.id = h.uuid AND
+			ncr.command_uuid = hvsi.command_uuid
 		LEFT JOIN host_vpp_software_installs hvsi2
 			ON hvsi.host_id = hvsi2.host_id AND
 				 hvsi.adam_id = hvsi2.adam_id AND
@@ -222,6 +233,7 @@ past AS (
 		hvsi2.id IS NULL
 		AND hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
+		AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hvsi.removed = 0
@@ -302,7 +314,7 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 		WHEN %sstatus = :mdm_status_error OR %sstatus = :mdm_status_format_error THEN
 			:software_status_failed
 		ELSE
-		    :software_status_pending
+			:software_status_pending
 	END %s
 	`, hvsiAlias, hvsiAlias, ncrAlias, ncrAlias, colAlias)
 }
@@ -377,10 +389,10 @@ func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID 
 	return ids, nil
 }
 
-func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets []fleet.VPPAppTeam) error {
+func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error) {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
+		return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
 	}
 
 	// if we're batch-setting apps and replacing the ones installed during setup
@@ -388,7 +400,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	// install during setup (since we're overwriting those). This is always
 	// called from fleetctl gitops, so it should always be the case anyway.
 	var replacingInstallDuringSetup bool
-	if len(appFleets) == 0 || appFleets[0].InstallDuringSetup != nil {
+	if len(incomingApps) == 0 || incomingApps[0].InstallDuringSetup != nil {
 		replacingInstallDuringSetup = true
 	}
 
@@ -397,7 +409,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	for existingApp, appTeamInfo := range existingApps {
 		var found bool
-		for _, appFleet := range appFleets {
+		for _, appFleet := range incomingApps {
 			// Self service value doesn't matter for removing app from team
 			if existingApp == appFleet.VPPAppID {
 				found = true
@@ -406,53 +418,42 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		if !found {
 			// if app is marked as install during setup, prevent deletion unless we're replacing those.
 			if !replacingInstallDuringSetup && appTeamInfo.InstallDuringSetup != nil && *appTeamInfo.InstallDuringSetup {
-				return errDeleteInstallerInstalledDuringSetup
+				return false, errDeleteInstallerInstalledDuringSetup
 			}
 			toRemoveApps = append(toRemoveApps, existingApp)
 		}
 	}
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
-	for _, appFleet := range appFleets {
-		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
-		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
-		appFleet.AppTeamID = existingApp.AppTeamID
-		var labelsChanged, categoriesChanged bool
-		if isExistingApp {
-			existingLabels, err := ds.getExistingLabels(ctx, appFleet.AppTeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
-			}
+	var vppTokenRequired, setupExperienceChanged bool
+	for _, incomingApp := range incomingApps {
+		if incomingApp.Platform.IsApplePlatform() {
+			vppTokenRequired = true
+		}
+		// upsert the app if anything changed
+		existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
+		incomingApp.AppTeamID = existingApp.AppTeamID
 
-			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
-
-			existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, appFleet.AppTeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
-			}
-
-			categoriesChanged = !slices.Equal(existingCatIDs, appFleet.CategoryIDs)
-
+		changed, err := ds.hasAppStoreAppChanged(ctx, teamID, incomingApp, existingApp, isExistingApp)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "checking if app store app changed")
 		}
 
 		// Get the hosts that are NOT in label scope currently (before the update happens)
-		if labelsChanged {
-			hostsNotInScope, err := ds.GetExcludedHostIDMapForVPPApp(ctx, appFleet.AppTeamID)
+		if changed.Labels {
+			hostsNotInScope, err := ds.GetExcludedHostIDMapForVPPApp(ctx, incomingApp.AppTeamID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting hosts not in scope for vpp app")
+				return false, ctxerr.Wrap(ctx, err, "getting hosts not in scope for vpp app")
 			}
-			appsWithChangedLabels[appFleet.AppTeamID] = hostsNotInScope
-
+			appsWithChangedLabels[incomingApp.AppTeamID] = hostsNotInScope
 		}
 
-		if !isExistingApp ||
-			existingApp.SelfService != appFleet.SelfService ||
-			labelsChanged ||
-			categoriesChanged ||
-			appFleet.InstallDuringSetup != nil &&
-				existingApp.InstallDuringSetup != nil &&
-				*appFleet.InstallDuringSetup != *existingApp.InstallDuringSetup {
-			toAddApps = append(toAddApps, appFleet)
+		if changed.InstallDuringSetup {
+			setupExperienceChanged = true
+		}
+
+		if changed.Any {
+			toAddApps = append(toAddApps, incomingApp)
 		}
 	}
 
@@ -462,23 +463,27 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		if teamID != nil && *teamID > 0 {
 			tm, err := ds.TeamLite(ctx, *teamID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
+				return false, ctxerr.Wrap(ctx, err, "get team name for VPP app conflict error")
 			}
 			teamName = tm.Name
 		}
 	}
 
 	var vppToken *fleet.VPPTokenDB
-	if len(appFleets) > 0 {
+	if len(incomingApps) > 0 && vppTokenRequired {
 		vppToken, err = ds.GetVPPTokenByTeamID(ctx, teamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+			return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
 		}
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, &vppToken.ID)
+			var tokenID *uint
+			if vppToken != nil {
+				tokenID = &vppToken.ID
+			}
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, tokenID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -494,7 +499,8 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 				if exists {
 					return ctxerr.Wrap(ctx, fleet.ConflictError{
 						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-							conflictingTitle, teamName)}, "vpp app conflicts with existing software installer")
+							conflictingTitle, teamName),
+					}, "vpp app conflicts with existing software installer")
 				}
 			}
 
@@ -507,6 +513,18 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			if toAdd.CategoryIDs != nil {
 				if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, vppAppTeamID, toAdd.CategoryIDs, softwareTypeVPP); err != nil {
 					return ctxerr.Wrap(ctx, err, "failed to update categories on vpp apps batch operation")
+				}
+			}
+
+			if toAdd.DisplayName != nil {
+				if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, appStoreAppIDsToTitleIDs[toAdd.VPPAppID.String()], *toAdd.DisplayName); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
+				}
+			}
+
+			if toAdd.Configuration != nil {
+				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), toAdd.AdamID, toAdd.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 				}
 			}
 
@@ -541,10 +559,13 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 		return nil
 	})
+
+	return setupExperienceChanged, err
 }
 
 func (ds *Datastore) checkConflictingSoftwareInstallerForVPPApp(
-	ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
+	ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID,
+) (exists bool, title string, err error) {
 	const stmt = `
 SELECT
 	st.name
@@ -584,7 +605,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		}
 	}
 
-	if vppToken != nil {
+	if vppToken != nil && app.Platform != fleet.AndroidPlatform {
 		vppTokenID = &vppToken.ID
 	}
 
@@ -636,8 +657,16 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			app.VPPAppTeam.AddedAutomaticInstallPolicy = policy
 		}
 
-		if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, titleID, app.DisplayName); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
+		if app.DisplayName != nil {
+			if err := updateSoftwareTitleDisplayName(ctx, tx, teamID, titleID, *app.DisplayName); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting software title display name for vpp app")
+			}
+		}
+
+		if app.Configuration != nil && app.Platform == fleet.AndroidPlatform {
+			if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+			}
 		}
 
 		return nil
@@ -650,15 +679,12 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 }
 
 func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
+	tmID := ptr.ValOrZero(teamID)
 	var results []fleet.VPPAppResponse
 
 	// intentionally using writer as this is called right after batch-setting VPP apps
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &results, `
-		SELECT vat.team_id, va.title_id, vat.adam_id AS app_store_id, vat.platform,
+		SELECT vat.id AS app_team_id, vat.team_id, va.title_id, vat.adam_id AS app_store_id, vat.platform,
 			COALESCE(icons.filename, '') AS icon_filename, COALESCE(icons.storage_id, '') AS icon_hash_sha256
 		FROM vpp_apps_teams vat
 		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
@@ -785,9 +811,15 @@ func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPA
 		return ctxerr.Wrap(ctx, err, "unsetting vpp app policy associations from team")
 	}
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND team_id = ? AND platform = ?`, appID.AdamID, teamID, appID.Platform)
+	tmID := ptr.ValOrZero(teamID)
+	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ?`, appID.AdamID, tmID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`, appID.AdamID, tmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting android app configuration")
 	}
 
 	return nil
@@ -884,6 +916,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 			if count > 0 {
 				return errDeleteInstallerWithAssociatedPolicy
 			}
+
 		}
 		return ctxerr.Wrap(ctx, err, "delete VPP app from team")
 	}
@@ -903,13 +936,35 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for team id %d", appID.AdamID, appID.Platform,
 			globalOrTeamID))
 	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names 	WHERE team_id = ? AND
+		software_title_id IN (SELECT title_id FROM vpp_apps WHERE adam_id = ?)`, globalOrTeamID, appID.AdamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software title display name")
+	}
+
+	if appID.Platform == fleet.AndroidPlatform {
+		err := ds.DeleteAndroidAppConfiguration(ctx, appID.AdamID, globalOrTeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "deleting android app configuration")
+		}
+	}
+
 	return nil
 }
 
 func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {
+	stmt := `
+	SELECT
+		va.name AS name,
+		va.title_id AS title_id,
+		COALESCE(stdn.display_name, '') AS display_name
+	FROM vpp_apps va
+    JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND vat.id = ?
+    LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = va.title_id AND stdn.team_id = vat.global_or_team_id`
+
 	var info fleet.PolicySoftwareTitle
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &info, `SELECT name, title_id FROM vpp_apps va
-    	JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND vat.id = ?`, vppAppsTeamsID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &info, stmt, vppAppsTeamsID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP title info from VPP apps teams ID")
@@ -1004,6 +1059,7 @@ VALUES
 	(?, ?, ?, ?, 'vpp_app_install', ?,
 		JSON_OBJECT(
 			'self_service', ?,
+			'from_auto_update', ?,
 			'associated_event_id', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
@@ -1042,6 +1098,7 @@ VALUES
 			opts.IsFleetInitiated(),
 			commandUUID,
 			opts.SelfService,
+			opts.ForScheduledUpdates,
 			associatedEventID,
 			userID,
 		)
@@ -1070,6 +1127,8 @@ VALUES
 
 func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 	var adamIds []string
+	// this is Apple-only VPP installs, which is fine currently as Android does not support
+	// policy-based automatic installs (the context in which this is called).
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
 			FROM host_vpp_software_installs hvsi
 			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
@@ -1084,7 +1143,50 @@ func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) 
 	return adamMap, nil
 }
 
+func (ds *Datastore) MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error) {
+	var adamIDsList []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIDsList, `SELECT hvsi.adam_id
+		FROM host_vpp_software_installs hvsi
+		JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
+		WHERE hvsi.host_id = ?
+			AND hvsi.canceled = 0
+			AND (
+				nvq.status IS NULL -- install command not acknowledged yet
+				OR
+				(
+					-- install command acknowledged but still waiting for verification
+					-- completed/failed installation.
+					nvq.status = 'Acknowledged'
+					AND hvsi.verification_at IS NULL
+					AND hvsi.verification_failed_at IS NULL
+				)
+			)`, hostID); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list pending VPP install verifications")
+	}
+	adamIDs = make(map[string]struct{})
+	for _, id := range adamIDsList {
+		adamIDs[id] = struct{}{}
+	}
+	return adamIDs, nil
+}
+
+func (ds *Datastore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	return ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, ds.reader(ctx), cmdUUID, status)
+}
+
+func (ds *Datastore) getPastActivityDataForAndroidVPPAppInstallDB(ctx context.Context, q sqlx.QueryerContext, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	mdmStatus := fleet.MDMAppleStatusAcknowledged
+	if status != fleet.SoftwareInstalled {
+		mdmStatus = fleet.MDMAppleStatusError
+	}
+	return ds.getPastActivityDataForVPPAppInstallDB(ctx, q, &mdm.CommandResults{CommandUUID: cmdUUID, Status: mdmStatus})
+}
+
 func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	return ds.getPastActivityDataForVPPAppInstallDB(ctx, ds.reader(ctx), commandResults)
+}
+
+func (ds *Datastore) getPastActivityDataForVPPAppInstallDB(ctx context.Context, q sqlx.QueryerContext, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 	if commandResults == nil {
 		return nil, nil, nil
 	}
@@ -1101,10 +1203,12 @@ SELECT
 	hvsi.command_uuid AS command_uuid,
 	hvsi.self_service AS self_service,
 	hvsi.policy_id AS policy_id,
-	p.name AS policy_name
+	p.name AS policy_name,
+	h.platform AS platform
 FROM
 	host_vpp_software_installs hvsi
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
+	LEFT OUTER JOIN hosts h ON h.id = hvsi.host_id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
 	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
@@ -1112,7 +1216,7 @@ FROM
 WHERE
 	hvsi.command_uuid = :command_uuid AND
 	hvsi.canceled = 0
-	`
+`
 
 	type result struct {
 		HostID          uint    `db:"host_id"`
@@ -1126,6 +1230,7 @@ WHERE
 		SelfService     bool    `db:"self_service"`
 		PolicyID        *uint   `db:"policy_id"`
 		PolicyName      *string `db:"policy_name"`
+		HostPlatform    string  `db:"platform"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -1138,7 +1243,7 @@ WHERE
 	}
 
 	var res result
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+	if err := sqlx.GetContext(ctx, q, &res, listStmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, notFound("install_command")
 		}
@@ -1177,9 +1282,33 @@ WHERE
 		PolicyID:        res.PolicyID,
 		PolicyName:      res.PolicyName,
 		Status:          status,
+		HostPlatform:    res.HostPlatform,
 	}
 
 	return user, act, nil
+}
+
+// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
+// is currently installed (not at the time the command was issued).
+// Because of the UNIQUE constraint on command_uuid in host_vpp_software_installs,
+// each command UUID maps to exactly one host. Returns false if the command doesn't exist.
+func (ds *Datastore) GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error) {
+	stmt := `
+SELECT EXISTS(
+	SELECT 1
+	FROM host_vpp_software_installs hvsi
+	JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+	JOIN software_titles st ON st.id = vpa.title_id
+	JOIN software s ON s.title_id = st.id
+	JOIN host_software hs ON hs.software_id = s.id AND hs.host_id = hvsi.host_id
+	WHERE hvsi.command_uuid = ?
+) AS is_installed
+`
+	var isInstalled bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &isInstalled, stmt, commandUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get VPP app install status by command UUID")
+	}
+	return isInstalled, nil
 }
 
 func (ds *Datastore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPTokenDB, error) {
@@ -1827,10 +1956,15 @@ SELECT
 	name,
 	latest_version,
 	platform
-FROM vpp_apps`
+FROM vpp_apps WHERE platform IN (?)`
+
+	query, args, err := sqlx.In(query, fleet.ApplePlatforms)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get all vpp apps: building query")
+	}
 
 	var apps []*fleet.VPPApp
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting all VPP apps")
 	}
 
@@ -1870,11 +2004,9 @@ func (s softwareType) getInstallMappingTableName() string {
 	}
 
 	return tableNames[s]
-
 }
 
 func (ds *Datastore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID, hostUUID string) error {
-
 	stmt := `
 UPDATE %s
 SET verification_command_uuid = ?
@@ -1974,13 +2106,18 @@ WHERE command_uuid = ?
 	})
 }
 
-func (ds *Datastore) MarkAllPendingVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
+func (ds *Datastore) MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error {
+	// this is called on an Apple-only event, when APNS cert is deleted, so it should only
+	// affect Apple platforms. Currently, VPP installs in the upcoming queue are Apple only,
+	// but those in host_vpp_software_installs could be Android as well.
+
 	clearVPPUpcomingActivitiesStmt := `
 DELETE ua FROM
 	upcoming_activities ua
 JOIN
 	host_vpp_software_installs hvsi ON hvsi.command_uuid = ua.execution_id
-WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL AND hvsi.verification_at IS NULL
+WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL
+AND hvsi.verification_at IS NULL AND hvsi.platform != 'android'
 `
 
 	clearInHouseUpcomingActivitiesStmt := `
@@ -1994,7 +2131,7 @@ WHERE ua.activity_type = ? AND hihs.verification_failed_at IS NULL AND hihs.veri
 	installVPPFailStmt := `
 UPDATE host_vpp_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
-WHERE verification_failed_at IS NULL AND verification_at IS NULL
+WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform != 'android'
 `
 
 	installInHouseFailStmt := `
@@ -2011,30 +2148,56 @@ AND state = ?
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, clearVPPUpcomingActivitiesStmt, "vpp_app_install"); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear vpp install upcoming activities")
+			return ctxerr.Wrap(ctx, err, "clear apple vpp install upcoming activities")
 		}
 
 		if _, err := tx.ExecContext(ctx, installVPPFailStmt); err != nil {
-			return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+			return ctxerr.Wrap(ctx, err, "set all apple vpp install as failed")
 		}
 
 		if _, err := tx.ExecContext(ctx, clearInHouseUpcomingActivitiesStmt, "in_house_app_install"); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear in-house install upcoming activities")
+			return ctxerr.Wrap(ctx, err, "clear apple in-house install upcoming activities")
 		}
 
 		if _, err := tx.ExecContext(ctx, installInHouseFailStmt); err != nil {
-			return ctxerr.Wrap(ctx, err, "set all in-house install as failed")
+			return ctxerr.Wrap(ctx, err, "set all apple in-house install as failed")
 		}
 
 		if _, err := tx.ExecContext(ctx, deletePendingJobsStmt, jobName, fleet.JobStateQueued); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete pending jobs")
+			return ctxerr.Wrap(ctx, err, "delete apple pending jobs")
 		}
 
 		return nil
 	})
 }
 
-func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+func (ds *Datastore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Context) error {
+	// this is called on an Android-only event, when the enterprise is deleted
+	// (Android MDM turned off globally), so it should only affect Android
+	// platforms. Currently, only VPP installs in host_vpp_software_installs
+	// can be Android.
+
+	installVPPFailStmt := `
+UPDATE host_vpp_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform = 'android'
+`
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, installVPPFailStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "set all android vpp install as failed")
+		}
+		return nil
+	})
+}
+
+func (ds *Datastore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	return ds.markAllPendingVPPInstallsAsFailedForHost(ctx, ds.writer(ctx), hostID, "android")
+}
+
+func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext,
+	hostID uint, hostPlatform string,
+) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
 	const loadFailedCmdsStmt = `
 SELECT
 	command_uuid
@@ -2064,6 +2227,8 @@ WHERE
 	}
 
 	// We want to clear this table out, because otherwise we'll stop future installs from verifying.
+	// This is currently ios/ipados-only, but harmless on other platforms and less error-prone than
+	// adding a platform check that could become outdated.
 	const deleteHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
 	if _, err := tx.ExecContext(ctx, deleteHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "delete pending host mdm command records")
@@ -2071,9 +2236,18 @@ WHERE
 
 	for _, cmd := range failedCmds {
 		// NOTE: I don't think we need to check/set the from setup experience
-		// field, as it should not be possible to turn MDM off during setup
+		// field for Apple, as it should not be possible to turn MDM off during setup
 		// experience (host is not released).
-		user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+		var (
+			user *fleet.User
+			act  *fleet.ActivityInstalledAppStoreApp
+			err  error
+		)
+		if hostPlatform == "android" {
+			user, act, err = ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, tx, cmd, fleet.SoftwareInstallFailed)
+		} else {
+			user, act, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+		}
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// shouldn't happen, but no need to fail
@@ -2085,6 +2259,10 @@ WHERE
 		// user may be nil if fleet-initiated activity, but the activity itself indicates
 		// if a new entry must be made, since users and activities must match in length
 		if act != nil {
+			if hostPlatform == "android" {
+				// currently, android installs are always during setup experience
+				act.FromSetupExperience = true
+			}
 			users = append(users, user)
 			activities = append(activities, act)
 		}
@@ -2105,6 +2283,7 @@ FROM (
 			0 AS count_host_updated_after_labels,
 			vpp_apps_teams.adam_id AS installable_id
 			FROM vpp_apps_teams
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 			LEFT JOIN vpp_app_team_labels ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
 			WHERE vpp_app_team_labels.id IS NULL AND vpp_apps_teams.platform = 'android'
 
@@ -2119,6 +2298,7 @@ FROM (
 		FROM
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
 		AND lm.host_id = ?
 		WHERE vatl.exclude = 0 AND vpp_apps_teams.platform = 'android'
@@ -2155,6 +2335,7 @@ FROM (
 		FROM
 			vpp_app_team_labels vatl
 		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+		JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 		LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
 			AND lm.host_id = ?
@@ -2166,10 +2347,108 @@ FROM (
 			AND count_host_labels = 0) t;
 	`
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in android apps in scope for host")
 	}
 
 	return applicationIDs, err
+}
+
+func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error) {
+	stmt := `
+SELECT
+	adam_id
+FROM
+	vpp_apps_teams vat
+WHERE
+	vat.global_or_team_id = ? AND
+	vat.platform = ? AND
+	vat.install_during_setup = 1
+`
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var ids []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, tmID, platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get VPP apps to install during setup experience")
+	}
+	return ids, nil
+}
+
+type appStoreAppChanges struct {
+	Any                bool
+	Categories         bool
+	Labels             bool
+	InstallDuringSetup bool
+	DisplayName        bool
+	Configuration      bool
+}
+
+func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam, existingApp fleet.VPPAppTeam, isExistingApp bool) (appStoreAppChanges, error) {
+	var categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged bool
+
+	if isExistingApp {
+		existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
+		if err != nil {
+			return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
+		}
+
+		labelsChanged = !existingLabels.Equal(incomingApp.ValidatedLabels)
+
+		existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, incomingApp.AppTeamID)
+		if err != nil {
+			return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
+		}
+
+		categoriesChanged = !slices.Equal(existingCatIDs, incomingApp.CategoryIDs)
+
+		existingDisplayName := ptr.ValOrZero(existingApp.DisplayName)
+		incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
+		displayNameChanged = existingDisplayName != incomingDisplayName
+
+		if incomingApp.Platform == fleet.AndroidPlatform {
+			configurationChanged, err = ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
+			if err != nil {
+				return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
+			}
+			// Set configuration to empty if it exists and is provided as null
+			if configurationChanged && len(incomingApp.Configuration) == 0 {
+				incomingApp.Configuration = json.RawMessage("{}")
+			}
+		}
+
+		installDuringSetupChanged = incomingApp.InstallDuringSetup != nil &&
+			existingApp.InstallDuringSetup != nil &&
+			*incomingApp.InstallDuringSetup != *existingApp.InstallDuringSetup
+	}
+
+	// New app added with setup experience enabled
+	if !isExistingApp && incomingApp.InstallDuringSetup != nil && *incomingApp.InstallDuringSetup {
+		installDuringSetupChanged = true
+	}
+
+	if !isExistingApp || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
+		categoriesChanged || displayNameChanged || configurationChanged || installDuringSetupChanged {
+		return appStoreAppChanges{true, categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged}, nil
+	}
+
+	return appStoreAppChanges{}, nil
+}
+
+func (ds *Datastore) IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error) {
+	stmt := `
+SELECT COUNT(*) > 0
+FROM upcoming_activities
+WHERE execution_id = ?
+  AND activity_type = 'vpp_app_install'
+  AND JSON_EXTRACT(payload, '$.from_auto_update') = 1
+`
+	var isAutoUpdate bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &isAutoUpdate, stmt, commandUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
+	}
+	return isAutoUpdate, nil
 }

@@ -174,9 +174,9 @@ const HostSoftwareLibrary = ({
     if (!hostSoftwareLibraryRes) return [];
     return hostSoftwareLibraryRes.software.map((software) => ({
       ...software,
-      ui_status: getUiStatus(software, isHostOnline),
+      ui_status: getUiStatus(software, isHostOnline, softwareUpdatedAt),
     }));
-  }, [hostSoftwareLibraryRes, isHostOnline]);
+  }, [hostSoftwareLibraryRes, isHostOnline, softwareUpdatedAt]);
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
@@ -665,6 +665,7 @@ const HostSoftwareLibrary = ({
               selectedVPPInstallDetails.display_name ||
               selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,
+            platform,
           }}
           hostSoftware={selectedVPPInstallDetails}
           onCancel={() => setSelectedVPPInstallDetails(null)}

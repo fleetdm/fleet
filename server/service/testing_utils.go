@@ -45,9 +45,9 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -94,6 +94,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
+		androidService         android.Service
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -187,6 +188,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
 	}
 
+	if len(opts) > 0 && opts[0].androidModule != nil {
+		androidService = opts[0].androidModule
+	}
+
 	var wstepManager microsoft_mdm.CertManager
 	if fleetConfig.MDM.WindowsWSTEPIdentityCert != "" && fleetConfig.MDM.WindowsWSTEPIdentityKey != "" {
 		rawCert, err := os.ReadFile(fleetConfig.MDM.WindowsWSTEPIdentityCert)
@@ -223,6 +228,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
+		androidService,
 	)
 	if err != nil {
 		panic(err)
@@ -399,7 +405,7 @@ type TestServerOpts struct {
 	KeyValueStore                   fleet.KeyValueStore
 	EnableSCEPProxy                 bool
 	WithDEPWebview                  bool
-	FeatureRoutes                   []endpoint_utils.HandlerRoutesFunc
+	FeatureRoutes                   []endpointer.HandlerRoutesFunc
 	SCEPConfigService               fleet.SCEPConfigService
 	DigiCertService                 fleet.DigiCertService
 	EnableSCIM                      bool
@@ -468,7 +474,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		scepStorage := opts[0].SCEPStorage
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
+			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool))
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
@@ -515,7 +522,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		rootMux.Handle("/", frontendHandler)
 	}
 
-	var featureRoutes []endpoint_utils.HandlerRoutesFunc
+	var featureRoutes []endpointer.HandlerRoutesFunc
 	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
 		featureRoutes = opts[0].FeatureRoutes
 	}
@@ -862,8 +869,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
-		{"DELETE", "/api/latest/fleet/configuration_profiles/1", false, false},
 		// TODO: those endpoints accept multipart/form data that gets
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
@@ -1280,7 +1285,15 @@ func createAndroidDeviceID(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
 }
 
+func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+	return messageWithEnterpriseSpecificID(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID)
+}
+
 func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+	return messageWithEnterpriseSpecificID(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID)
+}
+
+func messageWithEnterpriseSpecificID(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
 		EnterpriseSpecificId: enterpriseSpecificID,
 		Brand:                "TestBrand",
@@ -1322,7 +1335,7 @@ func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidm
 
 	return &android.PubSubMessage{
 		Attributes: map[string]string{
-			"notificationType": string(android.PubSubEnrollment),
+			"notificationType": string(notificationType),
 		},
 		Data: encodedData,
 	}

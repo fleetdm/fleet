@@ -30,7 +30,7 @@ The People department is directly responsible for Fleet's culture, human resourc
 When review is requested on a proposal to open a new position, the Head of People will complete the following steps when reviewing the pull request:
 1. In “Fleeties,” confirm the new row has manager, job title, department, COGS/OPEX, and CAC-inclusion filled in, that there are no broken formulas or formatting, and the start date is the first Monday of next month.
 2. Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
-3. Ballpark and document compensation research for the role based on 
+3. Ballpark and document compensation research for the role based on location, level, and company stage. 
    - _Add screenshot:_ Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
 4. Decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Update financial model:_ Send the CFO a link to the position in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and request approval for the spend. Once approved, the CFO will add the new position to the financial model. 
@@ -50,15 +50,20 @@ When review is requested on a proposal to open a new position, the Head of Peopl
 
 ### Inform managers about hours worked
 
-Every Friday, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) for DRI (generally their manager) review. Here's how:
+Every Friday, we collect hours worked for all hourly core team members and US-based consultants at Fleet. International consultants are reviewed monthly, when they submit their invoice. Consultants submit their hours through Gusto (US consultants) or Remote (international consultants) for DRI (generally their manager) review.
+Here's how:
 1. Find the DRI using the [People KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
-2. Copy the template in the consultants column of the KPIs and send the teammate's DRI a direct message in Slack hours with an FYI including the total hours logged since last Saturday at midnight. For international teammates, they cannot enter hours weekly in Plane.com, so you will need to request the hours worked from them in order to have the DRI approve them.
+2. Get DRI approval for hours worked
+   -  **For hourly core team members and US consultants:**  
+   Copy the template in the consultants column of the KPIs and send the teammate's DRI a direct message in Slack with an FYI including the total hours logged since last Saturday at midnight.
+   - **For international consultants:**  
+   When they submit their monthly invoice (which already includes a breakdown of total hours worked), download the invoice from Remote and route to the DRI for approval. 
 3. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records. If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
 
 
 ### Prepare for the All hands
 
-- **Every month** the Executive Assistant will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+- **Every month** the Head of People will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands".
   - Update "End of the quarter" slides to reflect the current countdown.
   - Download a copy of the previous month's keynote file and rename the copy pattern matching existing files.
@@ -71,7 +76,7 @@ Every Friday, we collect hours worked for all hourly employees at Fleet, includi
   - Audit the "Strategy" slide.
   - Audit the "Goals" slide
 
-The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
+The day before the All hands, the Head of People and the CEO will review and prepare slides that reflect the CEO's vision and focus. 
 
 
 ### Share recording of all hands meeting
@@ -101,7 +106,7 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
 1. Team member submits a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=x-teammate-relocation.md) to update their personnel details (or People team creates if the request comes via email or is sensitive and needs a classified issue).
     - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-2. People makes change to HRIS (Gusto or Plane) to reflect change. 
+2. People makes change to HRIS (Gusto or Remote) to reflect change. 
     - Note: if making the change requires follow-up steps, resolve those steps to action the change.
 3. Once change is effected in HRIS, People makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
 4. If required, People makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
@@ -124,14 +129,14 @@ When People receives [notification of a Fleetie's role changing](https://fleetdm
    -  If the benchmark is significantly different, take the steps to [update a team member's compensation](#prepare-salary-benchmarking-information).
 4. Update the relevant payroll/HRIS system.
     - For updating Gusto (US-based Fleeties):
-      - Login to Gusto and navigate to "People > Team members".
+      - Log in to Gusto and navigate to "People > Team members".
       - Find the Fleetie and select them to see their profile page.
       - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
-    - For updating Plane (non-US Fleeties):
-      - Login to Plane and navigate to "People > Team".
-      - Find the Fleetie and select them to see their profile page.
-      - Use the "Help" function, or email support@plane.com to notify Plane of the need to change the job title for the Fleetie. Include the Fleetie's name, current title, new title, and effective date.
-      - Take any relevant steps as directed by Plane in order to make the required changes to the Fleetie's profile.
+    - For updating Remote (non-US Fleeties):
+      - Log in to Remote and navigate to "Requests".
+      - Click "New Request" and select the employee from the dropdown box. Then, select "Employee Agreement Amendement". 
+      - Follow Remote's prompts to complete the amendement. 
+      - Take any relevant follow-up steps as directed by Remote in order to make the required changes to the Fleetie's profile. 
 
 
 ### Change a Fleetie's manager
@@ -147,18 +152,18 @@ When People receives notification of a Fleetie's manager changing, follow these 
     - Remove the person from the "Team" section of the old department and add them to the "Team" section of the new department.
 3. If the person's level of confidential access will change along with the change to their manager, then update that level of access:
     - Update Google Workspace to make sure this person lives in the correct Google Group, removing them from the old and/or adding them to the new.
-    - Update 1password to remove this person from old vaults and/or add them to new vaults.
-    - For a team member moving from "classified" to "confidential" access, check Gusto, Plane, and other systems to remove their access.
+    - Update 1Password to remove this person from old vaults and/or add them to new vaults.
+    - For a team member moving from "classified" to "confidential" access, check Gusto, Remote, and other systems to remove their access.
 
 > **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
 
 
 ### Run payroll
 
-Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy. 
+Many of these processes are automated, but it's vital to check Gusto and Remote manually for accuracy. 
 
- - Salaried fleeties are automated in Gusto and Plane.
- - Hourly fleeties and consultants are a manual process each month in Gusto and Plane.
+ - Salaried fleeties are automated in Gusto and Remote.
+ - Hourly fleeties and consultants are a manual process each month in Gusto and Remote.
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
@@ -178,23 +183,22 @@ To complete payroll for a salaried US employee, use the following steps:
 7. Ensure the payroll date is the last business day of the month, and hit submit.
 
 To complete payroll for a salaried international employee, use the following steps:
-1. Log in to your admin [Plane](https://id.plane.com/login) account. 
-   - While Fleet considers all Fleeties employees, Plane differentiates between employees (that Fleet employs directly) and International contractors (that Fleet employs via a contracted company).
-2. Verify the number of employees in each country by checking the "Stats" tab in the [Fleeties doc](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?gid=1874060596#gid=1874060596). If the numbers seem incorrect, cross-reference with the main Fleeties tab to ensure all employees are accounted for in Plane.
+1. Log in to your admin [Remote](https://employ.remote.com) account. 
+   - While Fleet considers all Fleeties employees, Remote differentiates between employees (that Fleet employs directly) and International contractors (that Fleet employs via a contracted company).
+2. Verify the number of employees in each country by checking the "Stats" tab in the [Fleeties doc](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?gid=1874060596#gid=1874060596). If the numbers seem incorrect, cross-reference with the main Fleeties tab to ensure all employees are accounted for in Remote.
 3. Verify that all teammates have a planned (or already processed) payroll.
-   - To check payroll for those Plane considers "employees", go to Payroll > History.
+   - To check payroll for those Remote considers "employees", go to Payroll > Payroll runs 
       - Verify that any employees getting paid more frequently than monthly have had their payments processed throughout the month (Canada only currently).
       - Navigate to the People board, and search for "welcoming" issues or "offboarding" issues.
       - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
-      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
-      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
-   - To check payroll for those Plane considers "contractors", go to "Payments" > "Pay contractors".
-      - Navigate to the "scheduled" tab in the top right of screen to look at what is currently scheduled to be paid.
-      - Ensure all teammates have a pending payment (except those that invoice for payment).
+      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Remote and the equity plan.
+      - If anything is incorrect, open a ticket using the "Requests" feature. 
+   - To check payroll for those Remote considers "contractors", go to Contractor payments > Schedules.
+      - Ensure all teammates have a pending or completed payment (except those that invoice for payment).
       - Navigate to the People board, and search for "welcoming" issues or "offboarding" issues
       - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
-      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
-      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
+      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Remote and the equity plan.
+      - If anything is incorrect, open a ticket using the "Requests" feature. 
       - If all payments are scheduled or processing and are correct, no action needed. This payroll will process successfully without intervention.
     
 To complete payroll for a US contractor, use the following steps:
@@ -206,10 +210,9 @@ To complete payroll for a US contractor, use the following steps:
 6. Validate payment amounts are correct, then submit payments.
 
 To complete payroll for an international contractor, use the following steps:
-1. Contractors in Plane will submit invoices for payment at the end of the month.
-2. When the contractor submits the invoice for payment, log in to [Plane](https://id.plane.com/login) and validate that the amount of hours is in line with time worked, by having their manager review.
-3. If their manager verifies that the hours are as expected, process the invoice.
-   - Note: Approving the invoice for payment does not automatically schedule the payment. You will then need to navigate to "Pay contractors" and schedule the payment.
+1. Contractors in Remote will submit invoices for payment at the end of the month.
+2. When the contractor submits the invoice for payment, follow the [Inform managers about hours worked](https://fleetdm.com/handbook/people#inform-managers-about-hours-worked) process for international contractors.
+3. Once hours have been confirmed, log in to [Remote](https://employ.remote.com) and navigate to "Invoices" to approve and pay the invoice. 
 
 
 ### Prepare salary benchmarking information
@@ -246,8 +249,10 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 2. Share the values assessment document with the manager via Slack DM (include the Head of People) and ask the manager to fill out the values assessment.
 3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and at-mention the Head of People in the workiversary issue. Add a "DISCUSS" item to the roundup doc so the compensation change can be reviewed with the CEO.
 4. Once compensation decisions have been finalized, the Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
-5. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-6. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell.
+5. Update the respective payroll platform (Gusto or Remote): 
+   - In Gusto, navigate to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
+   - In Remote, navigate to "Requests", start a new request, select the employee from the dropdown box, and begin the process for an employee agreement amendement. 
+7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by adding to the "Notes" cell.
   - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
   - Update the "Last compensation change" column with the effective date from payroll platform.
   - Update the "¶¶ Notes" column. **⚠️ MAKE SURE NOT TO DELETE ANY EXISTING NOTES ⚠️** Add the note to the top of the cell using the following format: `As of YYYY-MM-DD OTE +15k` (pattern match off of other 2024 notes). Link your note to the relevant title in the ["¶¶ 💌 Compensation decisions (offer math)" (classified Google Doc)](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?tab=t.0#heading=h.slomq4whmyas).
@@ -288,7 +293,7 @@ Once notified, People takes the following steps:
     - Hours/capacity expected (hours per week or month)
     - Confirm hourly rate
 2. Once details are confirmed, use the information given to create the consulting agreement for the Fleetie (either in docusign (US-based) or via Plane (international)), and send to their personal email for signature. Once signed, save in Fleetie's [employee file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-3. Schedule the Fleetie's final day in HRIS (Gusto or Plane).
+3. Schedule the Fleetie's final day in HRIS (Gusto or Remote).
 4. Update final day in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
 5. Create an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md) for the Fleetie converting to a consultant, and confirm with their manager if there is a need to retain any tools or access while they are a consultant (default to removing all access from Fleet email, and migrating to personal email for Slack and other tools unless there is a business case to retain the Fleet email and associated tool access).
 6. Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.

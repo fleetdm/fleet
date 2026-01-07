@@ -27,14 +27,14 @@
   startedOn: "2024-02-08"
   frequency: "Daily" 
   description: "Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour." 
-  moreInfoUrl: "https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas" # TODO: add responsibility on customer-success readme
+  moreInfoUrl: "https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos" # TODO: add responsibility on customer-success readme
   dri: "ddribeiro" 
 -
   task: "Follow-up on unresolved customer questions and concerns"
   startedOn: "2024-02-08"
   frequency: "Daily" 
   description: "Follow-up with and tag appropriate personnel on customer issues and bugs in progress and items that remain unresolved." 
-  moreInfoUrl: "https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas" # TODO: add responsibility on customer-success readme
+  moreInfoUrl: "https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos" # TODO: add responsibility on customer-success readme
   dri: "ddribeiro" 
 -
   task: "Prepare for customer voice" 

@@ -148,14 +148,23 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		}
 
 		_, err = q.ExecContext(ctx, "DELETE FROM in_house_apps;")
-		return err
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "DELETE FROM vpp_apps;")
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
-	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := ts.ds.DeleteLabel(ctx, lbl.Name)
+			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
 			require.NoError(t, err)
 		}
 	}
@@ -816,7 +825,9 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("categories", c))
 		}
 	}
-	require.NoError(t, w.WriteField("display_name", payload.DisplayName))
+	if payload.DisplayName != nil {
+		require.NoError(t, w.WriteField("display_name", *payload.DisplayName))
+	}
 
 	w.Close()
 
@@ -841,5 +852,7 @@ func (ts *withServer) updateSoftwareInstaller(
 	var resp getSoftwareInstallerResponse
 	require.NoError(t, json.Unmarshal(bodyBytes, &resp))
 
-	assert.Equal(t, payload.DisplayName, resp.SoftwareInstaller.DisplayName)
+	if payload.DisplayName != nil {
+		assert.Equal(t, *payload.DisplayName, resp.SoftwareInstaller.DisplayName)
+	}
 }

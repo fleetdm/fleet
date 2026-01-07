@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -60,6 +61,19 @@ func main() {
 }
 
 func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
+	// validate categories before writing any files
+	if err := validateCategories(ctx, app); err != nil {
+		// Make the validation failure very obvious on stderr.
+		fmt.Fprintf(
+			os.Stderr,
+			"maintained-apps: fatal error processing %s: %v\n",
+			app.Slug,
+			err,
+		)
+		// Wrap so callers still see a proper error.
+		return ctxerr.Wrap(ctx, err, "validating categories")
+	}
+
 	if err := updateAppsListFile(ctx, app); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating apps list file")
 	}
@@ -70,10 +84,14 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		Refs:     map[string]string{app.UninstallScriptRef: app.UninstallScript, app.InstallScriptRef: app.InstallScript},
 	}
 
-	outBytes, err := json.MarshalIndent(outFile, "", "  ")
-	if err != nil {
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(outFile); err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
 	}
+	outBytes := buf.Bytes()
 
 	outDir := path.Join(maintained_apps.OutputPath, app.SlugAppName())
 
@@ -94,6 +112,38 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		}
 	}
 
+	return nil
+}
+
+// Match types in frontend/interfaces/software.ts
+var allowedCategories = map[string]struct{}{
+	"Browsers":        {},
+	"Communication":   {},
+	"Developer tools": {},
+	"Productivity":    {},
+	"Security":        {},
+	"Utilities":       {},
+}
+
+func allowedCategoriesString() string {
+	cats := make([]string, 0, len(allowedCategories))
+	for c := range allowedCategories {
+		cats = append(cats, c)
+	}
+	slices.Sort(cats)
+	return strings.Join(cats, ", ")
+}
+
+// validateCategories ensures every category on the app is one of the supported values.
+func validateCategories(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
+	for _, c := range app.DefaultCategories {
+		if _, ok := allowedCategories[c]; !ok {
+			return ctxerr.New(ctx, fmt.Sprintf(
+				"invalid category %q for slug %s (allowed: %s)",
+				c, app.Slug, allowedCategoriesString(),
+			))
+		}
+	}
 	return nil
 }
 
@@ -133,10 +183,14 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		// Keep existing order
 		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
 
-		updatedFile, err := json.MarshalIndent(outputAppsFile, "", "  ")
-		if err != nil {
+		var buf bytes.Buffer
+		encoder := json.NewEncoder(&buf)
+		encoder.SetEscapeHTML(false)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(outputAppsFile); err != nil {
 			return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
 		}
+		updatedFile := buf.Bytes()
 
 		if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
 			return ctxerr.Wrap(ctx, err, "writing updated output apps file")

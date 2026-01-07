@@ -6,6 +6,7 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
+import PATHS from "router/paths";
 
 import mdmAPI, {
   IGetSetupExperienceScriptResponse,
@@ -19,7 +20,7 @@ import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 
 import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
 import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
@@ -91,9 +92,10 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
       )
     ) {
       return (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
           buttonText="Turn on"
           router={router}
         />

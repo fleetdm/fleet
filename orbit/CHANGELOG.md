@@ -1,11 +1,17 @@
-## Orbit 1.50.0 (Nov 14, 2025)
+## Orbit 1.50.2 (Dec 12, 2025)
+
+* Fixed an issue where macOS devices would fail to enroll when end-user authentication was configured.
+
+## Orbit 1.50.1 (Nov 27, 2025)
 
 * Upgraded macadmins osquery-extension to v1.2.7.
+
 * Exposed `crowdstrike_falcon` osquery table from macadmins extension.
 
 * Added support for requiring end-user authentication before enrolling Windows and Linux devices.
 
 * Added `yaml_to_json` table for converting YAML in input to JSON in output.  
+
 * Added `file_contents` table for retrieving contents of a file. This table is like `file_lines` but returns the full file contents in a single row rather than a separate row for each line.
 
 * Fixed handling of various parsing bugs that caused the falconctl_options table to fail to load in some circumsatances.

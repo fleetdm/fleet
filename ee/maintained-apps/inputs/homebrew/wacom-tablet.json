@@ -1,0 +1,8 @@
+{
+  "name": "Wacom Tablet",
+  "unique_identifier": "com.wacom.WacomCenter",
+  "token": "wacom-tablet",
+  "installer_format": "dmg",
+  "slug": "wacom-tablet/darwin",
+  "default_categories": ["Productivity"]
+}

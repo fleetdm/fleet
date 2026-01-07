@@ -137,6 +137,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedIOSMinVersion{},
 	ActivityTypeEditedIPadOSMinVersion{},
 	ActivityTypeEditedWindowsUpdates{},
+	ActivityTypeEnabledMacosUpdateNewHosts{},
+	ActivityTypeDisabledMacosUpdateNewHosts{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
 
@@ -187,6 +189,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedAndroidProfile{},
 	ActivityTypeDeletedAndroidProfile{},
 	ActivityTypeEditedAndroidProfile{},
+	ActivityTypeEditedAndroidCertificate{},
 
 	ActivityTypeResentConfigurationProfile{},
 	ActivityTypeResentConfigurationProfileBatch{},
@@ -1114,6 +1117,44 @@ func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, det
   "team_name": "Workstations",
   "minimum_version": "13.0.1",
   "deadline": "2023-06-01"
+}`
+}
+
+type ActivityTypeEnabledMacosUpdateNewHosts struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEnabledMacosUpdateNewHosts) ActivityName() string {
+	return "enabled_macos_update_new_hosts"
+}
+
+func (a ActivityTypeEnabledMacosUpdateNewHosts) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDisabledMacosUpdateNewHosts struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDisabledMacosUpdateNewHosts) ActivityName() string {
+	return "disabled_macos_update_new_hosts"
+}
+
+func (a ActivityTypeDisabledMacosUpdateNewHosts) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
 }`
 }
 
@@ -2262,6 +2303,7 @@ type ActivityAddedAppStoreApp struct {
 	SelfService      bool                      `json:"self_service"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	Configuration    json.RawMessage           `json:"configuration,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -2352,7 +2394,9 @@ type ActivityInstalledAppStoreApp struct {
 	SelfService         bool    `json:"self_service"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
+	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"-"`
+	FromAutoUpdate      bool    `json:"from_auto_update"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -2364,7 +2408,7 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 }
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
-	return a.PolicyID != nil || a.FromSetupExperience
+	return a.PolicyID != nil || a.FromSetupExperience || a.FromAutoUpdate
 }
 
 func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
@@ -2402,16 +2446,21 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 }
 
 type ActivityEditedAppStoreApp struct {
-	SoftwareTitle    string                    `json:"software_title"`
-	SoftwareTitleID  uint                      `json:"software_title_id"`
-	AppStoreID       string                    `json:"app_store_id"`
-	TeamName         *string                   `json:"team_name"`
-	TeamID           *uint                     `json:"team_id"`
-	Platform         InstallableDevicePlatform `json:"platform"`
-	SelfService      bool                      `json:"self_service"`
-	SoftwareIconURL  *string                   `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	SoftwareTitle       string                    `json:"software_title"`
+	SoftwareTitleID     uint                      `json:"software_title_id"`
+	AppStoreID          string                    `json:"app_store_id"`
+	TeamName            *string                   `json:"team_name"`
+	TeamID              *uint                     `json:"team_id"`
+	Platform            InstallableDevicePlatform `json:"platform"`
+	SelfService         bool                      `json:"self_service"`
+	SoftwareIconURL     *string                   `json:"software_icon_url"`
+	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	SoftwareDisplayName string                    `json:"software_display_name"`
+	Configuration       json.RawMessage           `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_start_time,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_end_time,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -2428,7 +2477,12 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
 - "team_name": Name of the team on which this App Store app was updated, or ` + "`null`" + ` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or ` + "`null`" + `if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
+- "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
+- "auto_update_start_time": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_end_time": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+`, `{
   "software_title": "Logic Pro",
   "software_title_id": 123,
   "app_store_id": "1234567",
@@ -2447,6 +2501,10 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
       "id": 17
     }
   ]
+  "software_display_name": "Logic Pro DAW"
+  "auto_update_enabled": true
+  "auto_update_start_time": "22:00"
+  "auto_update_end_time": "02:00"
 }`
 }
 
@@ -3061,7 +3119,7 @@ func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
 func (a ActivityEditedSetupExperienceSoftware) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a user edits setup experience software.`,
 		`This activity contains the following fields:
-- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "platform": the platform of the host ("darwin", "android", "windows", or "linux").
 - "team_id": the ID of the team associated with the setup experience (0 for "No team").
 - "team_name": the name of the team associated with the setup experience (empty for "No team").`, `{
 	"platform": "darwin",
@@ -3133,6 +3191,25 @@ func (a ActivityTypeEditedAndroidProfile) Documentation() (activity, details, de
 }`
 }
 
+type ActivityTypeEditedAndroidCertificate struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedAndroidCertificate) ActivityName() string {
+	return "edited_android_certificate"
+}
+
+func (a ActivityTypeEditedAndroidCertificate) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds or removes Android certificate templates of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the certificate templates apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the certificate templates apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
 type ActivityTypeEditedHostIdpData struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -3152,5 +3229,49 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 	"host_id": 1,
 	"host_display_name": "Anna's MacBook Pro",
 	"host_idp_username": "anna.chao@example.com"
+}`
+}
+
+type ActivityTypeAddedCertificate struct {
+	Name     string  `json:"name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeAddedCertificate) ActivityName() string {
+	return "added_certificate"
+}
+
+func (a ActivityTypeAddedCertificate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user adds a Certificate Template.`,
+		`This activity contains the following fields:
+- "name": Name of the certificate.
+- "team_id": The ID of the team where the certificate was added, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was added, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "certificate_name": "WiFi cert",
+  "team_id": 123,
+  "team_name": "Mobile devices"
+}`
+}
+
+type ActivityTypeDeletedCertificate struct {
+	Name     string  `json:"name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedCertificate) ActivityName() string {
+	return "deleted_certificate"
+}
+
+func (a ActivityTypeDeletedCertificate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an user deletes a Certificate Template.`,
+		`This activity contains the following fields:
+- "name"": Name of the certificate.
+- "team_id": The ID of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was deleted, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "certificate_name": "WiFi cert",
+  "team_id": 123,
+  "team_name": "Mobile devices"
 }`
 }

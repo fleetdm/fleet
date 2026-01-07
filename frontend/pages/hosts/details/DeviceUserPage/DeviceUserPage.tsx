@@ -33,6 +33,7 @@ import {
   isMacOS,
   isAppleDevice,
   isLinuxLike,
+  isWindows,
 } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
@@ -54,14 +55,14 @@ import PATHS from "router/paths";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
-  HOST_ABOUT_DATA,
+  HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
 import HostSummaryCard from "../cards/HostSummary";
-import AboutCard from "../cards/About";
+import VitalsCard from "../cards/Vitals";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
@@ -151,8 +152,6 @@ const DeviceUserPage = ({
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -181,6 +180,11 @@ const DeviceUserPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
+  const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
+    false
+  );
+  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
@@ -301,7 +305,7 @@ const DeviceUserPage = ({
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
+            if (totalElapsedTime < 180000) {
               if (responseHost.status === "online") {
                 setTimeout(() => {
                   refetchHostDetails();
@@ -362,7 +366,7 @@ const DeviceUserPage = ({
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
+  const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
   const {
     data: setupStepStatuses,
@@ -464,20 +468,44 @@ const DeviceUserPage = ({
   }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
 
   // User-initiated refetch always starts a new timer!
-  const onRefetchHost = async () => {
-    if (host) {
-      setShowRefetchSpinner(true);
-      try {
-        await deviceUserAPI.refetch(deviceAuthToken);
-        setRefetchStartTime(Date.now()); // Always reset on user action
-        setTimeout(() => {
-          refetchHostDetails();
-          refetchExtensions();
-        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
-      } catch (error) {
-        renderFlash("error", getErrorMessage(error, host.display_name));
-        resetHostRefetchStates();
-      }
+  const onRefetchHost = useCallback(async () => {
+    if (!host) return;
+    setShowRefetchSpinner(true);
+    try {
+      await deviceUserAPI.refetch(deviceAuthToken);
+      setRefetchStartTime(Date.now());
+      setTimeout(() => {
+        refetchHostDetails();
+        refetchExtensions();
+      }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+    } catch (error) {
+      renderFlash("error", getErrorMessage(error, host.display_name));
+      resetHostRefetchStates();
+    }
+  }, [
+    host,
+    deviceAuthToken,
+    refetchHostDetails,
+    refetchExtensions,
+    renderFlash,
+  ]);
+
+  // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
+  useEffect(() => {
+    if (queuedSelfServiceRefetch && !showRefetchSpinner) {
+      setQueuedSelfServiceRefetch(false);
+      onRefetchHost();
+    }
+  }, [queuedSelfServiceRefetch, showRefetchSpinner, onRefetchHost]);
+
+  // Triggered when a software update finishes
+  const requestRefetch = () => {
+    // If a refetch is already happening, queue this refetch
+    if (showRefetchSpinner) {
+      setQueuedSelfServiceRefetch(true);
+    } else {
+      // Otherwise, run it now
+      onRefetchHost();
     }
   };
 
@@ -514,12 +542,12 @@ const DeviceUserPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const resendProfile = (profileUUID: string): Promise<void> => {
-    if (!host) {
-      return new Promise(() => undefined);
-    }
-    return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
-  };
+  const resendProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
+    },
+    [deviceAuthToken]
+  );
 
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
@@ -622,7 +650,7 @@ const DeviceUserPage = ({
               pathname={location.pathname}
               queryParams={parseSelfServiceQueryParams(location.query)}
               router={router}
-              refetchHostDetails={refetchHostDetails}
+              refetchHostDetails={requestRefetch}
               isHostDetailsPolling={showRefetchSpinner}
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
@@ -699,7 +727,7 @@ const DeviceUserPage = ({
                     pathname={location.pathname}
                     queryParams={parseSelfServiceQueryParams(location.query)}
                     router={router}
-                    refetchHostDetails={refetchHostDetails}
+                    refetchHostDetails={requestRefetch}
                     isHostDetailsPolling={showRefetchSpinner}
                     hostSoftwareUpdatedAt={host.software_updated_at}
                     hostDisplayName={host?.hostname || ""}
@@ -716,13 +744,13 @@ const DeviceUserPage = ({
                   hostSettings={host?.mdm.profiles ?? []}
                   osSettings={host?.mdm.os_settings}
                 />
-                <AboutCard
-                  className={defaultCardClass}
-                  aboutData={aboutData}
+                <VitalsCard
+                  className={fullWidthCardClass}
+                  vitalsData={vitalsData}
                   munki={deviceMacAdminsData?.munki}
                 />
                 <UserCard
-                  className={defaultCardClass}
+                  className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
                   disableFullNameTooltip
@@ -795,7 +823,9 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={host.platform === "darwin"}
+            canResendProfiles={
+              isMacOS(host.platform) || isWindows(host.platform)
+            }
             platform={host.platform}
             hostMDMData={host.mdm}
             resendRequest={resendProfile}

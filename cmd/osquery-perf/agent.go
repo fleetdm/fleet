@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
@@ -32,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/hostidentity"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
+	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/softwaredb"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -68,6 +70,9 @@ var (
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
 	ubuntuKernels                      []string
+
+	// Software library database (loaded from SQLite if --software_db_path is specified)
+	softwareDB *softwaredb.DB
 
 	installerMetadataCache installer_cache.Metadata
 
@@ -363,6 +368,9 @@ type agent struct {
 
 	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
 	installedSoftware sync.Map
+
+	// Cached software indices (pointers into global softwareDB array for this agent's platform)
+	cachedSoftwareIndices []uint32
 
 	// Host identity client for HTTP message signatures
 	hostIdentityClient *hostidentity.Client
@@ -1861,55 +1869,73 @@ func (a *agent) softwareMacOS() []map[string]string {
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
 
-	// Vulnerable Software
-	var vCount int
-	if a.softwareCount.vulnerable < 0 {
-		vCount = len(macosVulnerableSoftware)
-	} else {
-		vCount = a.softwareCount.vulnerable
-	}
-
-	vulnerableSoftware := make([]map[string]string, 0, vCount)
-	randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
-	var softwareLimit int
-
-	switch {
-	case a.softwareCount.vulnerable < 0: // Sequential assignment
-		softwareLimit = len(macosVulnerableSoftware)
-	case a.softwareCount.vulnerable == 0: // No vulnerable software
-		softwareLimit = 0
-	default: // Random assignment
-		softwareLimit = min(a.softwareCount.vulnerable, len(macosVulnerableSoftware)) // Limit to available software
-	}
-
-	for i := range softwareLimit {
-		var sw fleet.Software
-
-		if a.softwareCount.vulnerable < 0 {
-			sw = macosVulnerableSoftware[i]
+	// Use database software 80% of the time if available; otherwise use legacy vulnerable software.
+	var realSoftware []map[string]string
+	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+		// Initialize cached indices on first call, then mutate on subsequent calls
+		if a.cachedSoftwareIndices == nil {
+			// Select a random count between min-max, then pick that many random indices
+			count := softwaredb.RandomSoftwareCount("darwin")
+			perm := rand.Perm(len(softwareDB.Darwin))
+			a.cachedSoftwareIndices = make([]uint32, count)
+			for i := 0; i < count; i++ {
+				a.cachedSoftwareIndices[i] = uint32(perm[i])
+			}
 		} else {
-			sw = macosVulnerableSoftware[randomIndices[i]]
+			a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Darwin))
+		}
+		realSoftware = softwareDB.DarwinToMaps(a.cachedSoftwareIndices)
+	} else {
+		// Vulnerable Software
+		var vCount int
+		if a.softwareCount.vulnerable < 0 {
+			vCount = len(macosVulnerableSoftware)
+		} else {
+			vCount = a.softwareCount.vulnerable
 		}
 
-		var lastOpenedAt string
-		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
-			lastOpenedAt = l.Format(time.UnixDate)
+		realSoftware = make([]map[string]string, 0, vCount)
+		randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
+		var softwareLimit int
+
+		switch {
+		case a.softwareCount.vulnerable < 0: // Sequential assignment
+			softwareLimit = len(macosVulnerableSoftware)
+		case a.softwareCount.vulnerable == 0: // No vulnerable software
+			softwareLimit = 0
+		default: // Random assignment
+			softwareLimit = min(a.softwareCount.vulnerable, len(macosVulnerableSoftware)) // Limit to available software
 		}
 
-		vulnerableSoftware = append(vulnerableSoftware, map[string]string{
-			"name":              sw.Name,
-			"version":           sw.Version,
-			"bundle_identifier": sw.BundleIdentifier,
-			"source":            sw.Source,
-			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
-		})
+		for i := range softwareLimit {
+			var sw fleet.Software
+
+			if a.softwareCount.vulnerable < 0 {
+				sw = macosVulnerableSoftware[i]
+			} else {
+				sw = macosVulnerableSoftware[randomIndices[i]]
+			}
+
+			var lastOpenedAt string
+			if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+				lastOpenedAt = l.Format(time.UnixDate)
+			}
+
+			realSoftware = append(realSoftware, map[string]string{
+				"name":              sw.Name,
+				"version":           sw.Version,
+				"bundle_identifier": sw.BundleIdentifier,
+				"source":            sw.Source,
+				"last_opened_at":    lastOpenedAt,
+				"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
+			})
+		}
 	}
 
 	// Combine all software
 	software := commonSoftware
 	software = append(software, uniqueSoftware...)
-	software = append(software, vulnerableSoftware...)
+	software = append(software, realSoftware...)
 	software = append(software, duplicateBundleSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
@@ -2351,7 +2377,7 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
-func (a *agent) certificates() []map[string]string {
+func (a *agent) certificatesDarwin() []map[string]string {
 	a.certificatesMutex.RLock()
 	cache := a.certificatesCache
 	a.certificatesMutex.RUnlock()
@@ -2403,6 +2429,102 @@ func (a *agent) certificates() []map[string]string {
 	a.certificatesCache = results
 	a.certificatesMutex.Unlock()
 	return results
+}
+
+func (a *agent) certificatesWindows() []map[string]string {
+	a.certificatesMutex.RLock()
+	cache := a.certificatesCache
+	a.certificatesMutex.RUnlock()
+
+	// 90% of the time certificates do not change
+	if rand.Intn(100) < 90 && len(cache) > 0 {
+		return cache
+	}
+
+	const day = 24 * time.Hour
+
+	// custom SCEP profile ID used for certs issued via custom SCEP profiles (inserted by
+	// FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID)
+	//
+	// TODO: make this configurable as a loadtest agent parameter? for now, just hardcode it and try
+	// manipulating it in loadtest DB directly if needed.
+	profileIDCustomSCEP := "w2a6fd2c4-0018-4bdc-8046-c7342962b576"
+
+	// when windows hosts enroll to Fleet MDM, we issue them a unique cert during the WSTEP/SCEP process
+	uuidFleetSCEP := uuid.NewString()
+
+	// uuids that we'll use in serials and hashes to ensure uniqueness
+	serial1 := uuid.NewString()
+	s1 := sha1.Sum([]byte(serial1)) //nolint: gosec
+
+	serial2 := uuid.NewString()
+	s2 := sha1.Sum([]byte(serial2)) //nolint: gosec
+
+	// Fleet SCEP cert example based on data from a real Windows host
+	c1 := map[string]string{
+		"ca":                "-1",
+		"common_name":       uuidFleetSCEP,
+		"subject":           "Fleet, " + uuidFleetSCEP,
+		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2160",
+		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		// generate so that it may be expired
+		"not_valid_after": fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix()),
+		// notBefore is always in the past (1-10 days in the past)
+		"not_valid_before": fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix()),
+		"serial":           serial1,
+		"sha1":             hex.EncodeToString(s1[:]),
+		"username":         "Admin",
+		"path":             "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+	// Custom SCEP cert example based on data from a real Windows host
+	c2 := map[string]string{
+		"ca":                "-1",
+		"common_name":       fmt.Sprintf("%s User\n            CN", profileIDCustomSCEP),
+		"subject":           fmt.Sprintf("fleet-%s, \"%s User\n            CN\"", profileIDCustomSCEP, profileIDCustomSCEP),
+		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
+		"key_algorithm":     "RSA",
+		"key_strength":      "1120",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		// generate so that it may be expired
+		"not_valid_after": fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix()),
+		// notBefore is always in the past (1-10 days in the past)
+		"not_valid_before": fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix()),
+		"serial":           serial2,
+		"sha1":             hex.EncodeToString(s2[:]),
+		"username":         "Admin",
+		"path":             "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+
+	// We'll use the examples above to create rows with minor variations, similar to what
+	// we would get from a real Windows host.
+	c3 := maps.Clone(c1)
+	c3["username"] = "SYSTEM"
+	c3["path"] = "Users\\S-1-5-18\\Personal"
+
+	c4 := maps.Clone(c1)
+	c4["username"] = "SYSTEM"
+	c4["path"] = "CurrentUser\\Personal"
+
+	c5 := maps.Clone(c1)
+	c5["username"] = "SYSTEM"
+	c5["path"] = "Users\\S-1-5-18\\Personal"
+
+	c6 := maps.Clone(c1)
+	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	c7 := maps.Clone(c2)
+	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
+
+	a.certificatesMutex.Lock()
+	a.certificatesCache = rows
+	a.certificatesMutex.Unlock()
+	return rows
 }
 
 func (a *agent) orbitInfo() []map[string]string {
@@ -2660,18 +2782,35 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			results = make([]map[string]string, 0, len(windowsSoftware))
-			for _, s := range windowsSoftware {
-				// Use consistent version based on software name's first character
-				baseVersion := s["version"]
-				alternateVersion := baseVersion + ".1"
-				m := map[string]string{
-					"name":         s["name"],
-					"source":       s["source"],
-					"version":      a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
-					"upgrade_code": s["upgrade_code"],
+			// Use database software 80% of the time if available, otherwise use embedded data
+			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+				// Initialize cached indices on first call, then mutate on subsequent calls
+				if a.cachedSoftwareIndices == nil {
+					// Select a random count between min-max, then pick that many random indices
+					count := softwaredb.RandomSoftwareCount("windows")
+					perm := rand.Perm(len(softwareDB.Windows))
+					a.cachedSoftwareIndices = make([]uint32, count)
+					for i := 0; i < count; i++ {
+						a.cachedSoftwareIndices[i] = uint32(perm[i])
+					}
+				} else {
+					a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Windows))
 				}
-				results = append(results, m)
+				results = softwareDB.WindowsToMaps(a.cachedSoftwareIndices)
+			} else {
+				results = make([]map[string]string, 0, len(windowsSoftware))
+				for _, s := range windowsSoftware {
+					// Use consistent version based on software name's first character
+					baseVersion := s["version"]
+					alternateVersion := baseVersion + ".1"
+					m := map[string]string{
+						"name":         s["name"],
+						"source":       s["source"],
+						"version":      a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
+						"upgrade_code": s["upgrade_code"],
+					}
+					results = append(results, m)
+				}
 			}
 			a.installedSoftware.Range(func(key, value interface{}) bool {
 				results = append(results, value.(map[string]string))
@@ -2687,27 +2826,44 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		if ss == fleet.StatusOK {
 			switch a.os { //nolint:gocritic // ignore singleCaseSwitch
 			case "ubuntu":
-				results = make([]map[string]string, 0, len(ubuntuSoftware))
-				for _, s := range ubuntuSoftware {
-					softwareName := s["name"]
-					if a.linuxUniqueSoftwareTitle {
-						softwareName = fmt.Sprintf("%s-%d-%s", softwareName, a.agentIndex, linuxRandomBuildNumber)
-					}
-					var version string
-					if a.linuxUniqueSoftwareVersion {
-						version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
+				// Use database software 80% of the time if available, otherwise use embedded data
+				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+					// Initialize cached indices on first call, then mutate on subsequent calls
+					if a.cachedSoftwareIndices == nil {
+						// Select a random count between min-max, then pick that many random indices
+						count := softwaredb.RandomSoftwareCount("ubuntu")
+						perm := rand.Perm(len(softwareDB.Ubuntu))
+						a.cachedSoftwareIndices = make([]uint32, count)
+						for i := 0; i < count; i++ {
+							a.cachedSoftwareIndices[i] = uint32(perm[i])
+						}
 					} else {
-						// Use consistent version based on software name's first character
-						baseVersion := s["version"]
-						alternateVersion := baseVersion + ".1"
-						version = a.selectSoftwareVersion(softwareName, baseVersion, alternateVersion)
+						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Ubuntu))
 					}
-					m := map[string]string{
-						"name":    softwareName,
-						"source":  s["source"],
-						"version": version,
+					results = softwareDB.UbuntuToMaps(a.cachedSoftwareIndices)
+				} else {
+					results = make([]map[string]string, 0, len(ubuntuSoftware))
+					for _, s := range ubuntuSoftware {
+						softwareName := s["name"]
+						if a.linuxUniqueSoftwareTitle {
+							softwareName = fmt.Sprintf("%s-%d-%s", softwareName, a.agentIndex, linuxRandomBuildNumber)
+						}
+						var version string
+						if a.linuxUniqueSoftwareVersion {
+							version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
+						} else {
+							// Use consistent version based on software name's first character
+							baseVersion := s["version"]
+							alternateVersion := baseVersion + ".1"
+							version = a.selectSoftwareVersion(softwareName, baseVersion, alternateVersion)
+						}
+						m := map[string]string{
+							"name":    softwareName,
+							"source":  s["source"],
+							"version": version,
+						}
+						results = append(results, m)
 					}
-					results = append(results, m)
 				}
 
 				// Add pre-selected kernels for this agent
@@ -2765,7 +2921,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		// most other osquery queries are handled.
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
-			results = a.certificates()
+			results = a.certificatesDarwin()
+		}
+		return true, results, &ss, nil, nil
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"certificates_windows"):
+		// NOTE: feels exaggerated to fail osquery 50% of the time but this is how
+		// most other osquery queries are handled.
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.certificatesWindows()
 		}
 		return true, results, &ss, nil, nil
 	default:
@@ -3156,10 +3320,23 @@ func main() {
 		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
 			"Maximum number of buffered result log lines to send on every log request")
 		commonSoftwareNameSuffix = flag.String("common_software_name_suffix", "", "Suffix to add to generated common software names")
+		softwareDatabasePath     = flag.String("software_db_path", "software-library/software.db",
+			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
 	)
 
 	flag.Parse()
 	rand.Seed(*randSeed)
+
+	// Load software from database if path provided
+	if *softwareDatabasePath != "" {
+		db, err := softwaredb.LoadFromDatabase(*softwareDatabasePath)
+		if err != nil {
+			log.Fatalf("Failed to load software database: %v", err)
+		}
+		softwareDB = db
+	} else {
+		log.Println("No software database specified (--software_db_path). Using embedded software data.")
+	}
 
 	// There are two modes for osquery-perf:
 	// 1. Non distributed mode (old behavior). All agents get all software specified. This is done when specifying --host_count and --common_software_count

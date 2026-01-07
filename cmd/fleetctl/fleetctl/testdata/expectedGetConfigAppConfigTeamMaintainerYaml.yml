@@ -37,17 +37,21 @@ spec:
     enable_disk_encryption: false
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
+    enable_turn_on_windows_mdm_manually: false
     macos_migration:
       enable: false
       mode: ""
       webhook_url: ""
     macos_updates:
+      update_new_hosts: null
       minimum_version: null
       deadline: null
     ios_updates:
+      update_new_hosts: null
       minimum_version: null
       deadline: null
     ipados_updates:
+      update_new_hosts: null
       minimum_version: null
       deadline: null
     windows_updates:
@@ -67,6 +71,7 @@ spec:
     windows_settings:
       custom_settings: null
     android_settings:
+      certificates: null
       custom_settings: null
     end_user_authentication:
       idp_name: ""

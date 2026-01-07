@@ -1,7 +1,14 @@
 import { AxiosProgressEvent } from "axios";
 
-import sendRequest, { sendRequestWithProgress } from "services";
+import sendRequest, {
+  sendRequestWithHeaders,
+  sendRequestWithProgressAndHeaders,
+} from "services";
 import endpoints from "utilities/endpoints";
+import {
+  encodeScriptBase64,
+  SCRIPTS_ENCODED_HEADER,
+} from "utilities/scripts_encoding";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
@@ -25,10 +32,12 @@ import {
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareAutoUpdateConfigFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditAutoUpdateConfigModal/EditAutoUpdateConfigModal";
 import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { ISoftwareConfigurationFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditConfigurationModal/EditConfigurationModal";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -179,6 +188,10 @@ export interface IEditAppStoreAppPostBody {
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
   display_name?: string;
+  configuration?: string;
+  auto_update_enabled?: boolean;
+  auto_update_start_time?: string;
+  auto_update_end_time?: string;
 }
 
 const ORDER_KEY = "name";
@@ -262,10 +275,23 @@ const handleEditPackageForm = (
 ) => {
   data.software && formData.append("software", data.software);
   formData.append("self_service", data.selfService.toString());
-  formData.append("install_script", data.installScript);
-  formData.append("pre_install_query", data.preInstallQuery || "");
-  formData.append("post_install_script", data.postInstallScript || "");
-  formData.append("uninstall_script", data.uninstallScript || "");
+  // Base64 encode script fields to bypass WAF rules that block script patterns
+  formData.append(
+    "install_script",
+    encodeScriptBase64(data.installScript) || ""
+  );
+  formData.append(
+    "pre_install_query",
+    encodeScriptBase64(data.preInstallQuery || "") || ""
+  );
+  formData.append(
+    "post_install_script",
+    encodeScriptBase64(data.postInstallScript || "") || ""
+  );
+  formData.append(
+    "uninstall_script",
+    encodeScriptBase64(data.uninstallScript || "") || ""
+  );
   if (data.categories) {
     data.categories.forEach((category) => {
       formData.append("categories", category);
@@ -303,6 +329,35 @@ const handleDisplayNameAppStoreAppForm = (
   body.display_name = formData.displayName || "";
 };
 
+const handleConfigurationAppStoreAppForm = (
+  formData: ISoftwareConfigurationFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.configuration = formData.configuration || "{}";
+};
+
+const handleAutoUpdateConfigAppStoreAppForm = (
+  formData: ISoftwareAutoUpdateConfigFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.auto_update_enabled = formData.autoUpdateEnabled;
+  if (formData.autoUpdateEnabled) {
+    body.auto_update_start_time = formData.autoUpdateStartTime;
+    body.auto_update_end_time = formData.autoUpdateEndTime;
+  }
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
+  } else {
+    body.labels_exclude_any = [];
+    body.labels_include_any = [];
+  }
+};
+
 const handleEditAppStoreAppForm = (
   formData: ISoftwareVppFormData,
   body: IEditAppStoreAppPostBody
@@ -311,6 +366,8 @@ const handleEditAppStoreAppForm = (
 
   if (formData.categories && formData.categories.length > 0) {
     body.categories = formData.categories as SoftwareCategory[];
+  } else {
+    body.categories = [];
   }
 
   if (formData.targetType === "Custom") {
@@ -320,6 +377,9 @@ const handleEditAppStoreAppForm = (
     } else {
       body.labels_exclude_any = selectedLabels;
     }
+  } else {
+    body.labels_exclude_any = [];
+    body.labels_include_any = [];
   }
 };
 
@@ -444,13 +504,27 @@ export default {
     const formData = new FormData();
     formData.append("software", data.software);
     formData.append("self_service", data.selfService.toString());
-    data.installScript && formData.append("install_script", data.installScript);
+    // Base64 encode script fields to bypass WAF rules that block script patterns
+    data.installScript &&
+      formData.append(
+        "install_script",
+        encodeScriptBase64(data.installScript) || ""
+      );
     data.uninstallScript &&
-      formData.append("uninstall_script", data.uninstallScript);
+      formData.append(
+        "uninstall_script",
+        encodeScriptBase64(data.uninstallScript) || ""
+      );
     data.preInstallQuery &&
-      formData.append("pre_install_query", data.preInstallQuery);
+      formData.append(
+        "pre_install_query",
+        encodeScriptBase64(data.preInstallQuery) || ""
+      );
     data.postInstallScript &&
-      formData.append("post_install_script", data.postInstallScript);
+      formData.append(
+        "post_install_script",
+        encodeScriptBase64(data.postInstallScript) || ""
+      );
     data.automaticInstall &&
       formData.append("automatic_install", data.automaticInstall.toString());
     teamId && formData.append("team_id", teamId.toString());
@@ -473,10 +547,11 @@ export default {
       });
     }
 
-    return sendRequestWithProgress({
+    return sendRequestWithProgressAndHeaders({
       method: "POST",
       path: SOFTWARE_PACKAGE_ADD,
       data: formData,
+      customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
       onUploadProgress,
@@ -521,10 +596,11 @@ export default {
       );
     }
 
-    return sendRequestWithProgress({
+    return sendRequestWithProgressAndHeaders({
       method: "PATCH",
       path: EDIT_SOFTWARE_PACKAGE(softwareId),
       data: formData,
+      customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
       onUploadProgress,
@@ -552,6 +628,8 @@ export default {
       | ISoftwareVppFormData
       | ISoftwareAndroidFormData
       | ISoftwareDisplayNameFormData
+      | ISoftwareConfigurationFormData
+      | ISoftwareAutoUpdateConfigFormData
   ) => {
     const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
 
@@ -561,6 +639,18 @@ export default {
       // Handles Edit display name form only
       handleDisplayNameAppStoreAppForm(
         formData as ISoftwareDisplayNameFormData,
+        body
+      );
+    } else if ("configuration" in formData) {
+      // Handles Edit configuration form only
+      handleConfigurationAppStoreAppForm(
+        formData as ISoftwareConfigurationFormData,
+        body
+      );
+    } else if ("autoUpdateEnabled" in formData) {
+      // Handles Edit auto update configuration form only
+      handleAutoUpdateConfigAppStoreAppForm(
+        formData as ISoftwareAutoUpdateConfigFormData,
         body
       );
     } else {
@@ -675,13 +765,14 @@ export default {
   ) => {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
 
+    // Base64 encode script fields to bypass WAF rules that block script patterns
     const body: IAddFleetMaintainedAppPostBody = {
       team_id: teamId,
       fleet_maintained_app_id: formData.appId,
-      pre_install_query: formData.preInstallQuery,
-      install_script: formData.installScript,
-      post_install_script: formData.postInstallScript,
-      uninstall_script: formData.uninstallScript,
+      pre_install_query: encodeScriptBase64(formData.preInstallQuery),
+      install_script: encodeScriptBase64(formData.installScript),
+      post_install_script: encodeScriptBase64(formData.postInstallScript),
+      uninstall_script: encodeScriptBase64(formData.uninstallScript),
       self_service: formData.selfService,
       automatic_install: formData.automaticInstall,
       categories: formData.categories,
@@ -696,6 +787,13 @@ export default {
       }
     }
 
-    return sendRequest("POST", SOFTWARE_FLEET_MAINTAINED_APPS, body);
+    return sendRequestWithHeaders(
+      "POST",
+      SOFTWARE_FLEET_MAINTAINED_APPS,
+      body,
+      {
+        [SCRIPTS_ENCODED_HEADER]: "base64",
+      }
+    );
   },
 };

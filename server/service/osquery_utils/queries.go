@@ -423,6 +423,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			}
 			host.Uptime = time.Duration(uptimeSeconds) * time.Second
 
+			// Update the last restart date of the host if it's changed more than 30 seconds.
+			maybeUpdateLastRestartedAt(time.Now(), host)
+
 			return nil
 		},
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
@@ -799,7 +802,22 @@ var extraDetailQueries = map[string]DetailQuery{
 	WHERE
 		path LIKE '/Users/%/Library/Keychains/login.keychain-db';`,
 		Platforms:        []string{"darwin"},
-		DirectIngestFunc: directIngestHostCertificates,
+		DirectIngestFunc: directIngestHostCertificatesDarwin,
+	},
+	"certificates_windows": {
+		Query: `
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, username,
+		path
+	FROM
+		certificates
+	WHERE
+		store = 'Personal';`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestHostCertificatesWindows,
 	},
 }
 
@@ -937,26 +955,8 @@ var windowsUpdateHistory = DetailQuery{
 // entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
 var entraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the SSO extension).
-	//
-	// We cannot use LIMIT 1 on the outer SELECT because it breaks fleetd's app_sso_platform table.
-	// For that reason this query can return 0, 1 or 2 results and Fleet will always process the first one.
-	//
-	// This query aims to support the following scenarios:
-	// 1. Hosts enrolled to Company Portal using the legacy SSO extension (aka "Microsoft Entra registered").
-	//    The extension stores the credentials in the keychain.
-	// 2. Hosts enrolled to Company Portal using the new Platform SSO extension (aka "Microsoft Entra joined").
-	//	  The extension stores the credentials in the secure enclave.
-	// 3. Hosts that migrated from (1) to (2). The keychain items in (1) are not removed after the migration,
-	//    so for that reason we query the app_sso_platform first (priority 1).
-	//
-	Query: `SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
-	UNION ALL
-	SELECT device_id, user_principal_name, 2 AS priority FROM (
-		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
-		CROSS JOIN
-		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
-	ORDER BY priority ASC;`,
+	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
+	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestEntraIDDetails,
@@ -1821,7 +1821,6 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
-	// We are interested in the first row (see the corresponding query for details).
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -2382,6 +2381,18 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
 			automatic = true
+			// We also must check the MDM Enrollment information on the fleet side here. If the host set the NotInOobe
+			// flag during enrollment, the enrollment is considered manual as it was user-initiated via the Settings app.
+			// There does not seem to be a way on the host to detect this via osquery.
+			windowsDevice, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "checking windows enrolled device for AAD enrolled host")
+			}
+			// Not a big deal if we didn't find it - the query may not have been processed to link the host
+			// to the enrollment yet
+			if windowsDevice != nil {
+				automatic = !windowsDevice.MDMNotInOOBE
+			}
 		}
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
@@ -2654,7 +2665,58 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating windows mdm device id")
+	}
+	if updated {
+		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, rows[0]["data"])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+		}
+		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
+			// it taking two full refreshes to show this
+			if device.MDMNotInOOBE {
+				err = ds.UpdateMDMInstalledFromDEP(ctx, host.ID, false)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
+				}
+			}
+
+			mapping := []*fleet.HostDeviceMapping{
+				{
+					HostID: host.ID,
+					Email:  device.MDMEnrollUserID,
+					Source: fleet.DeviceMappingMDMIdpAccounts,
+				},
+			}
+			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingMDMIdpAccounts)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
+			}
+			// Check if the user is a valid SCIM user to manage the join table
+			scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
+			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
+			}
+			if err == nil && scimUser != nil {
+				// User exists in SCIM, create/update the mapping for additional attributes
+				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
+				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
+					// Log the error but don't fail the request since the main IDP mapping succeeded
+					level.Debug(logger).Log("msg", "failed to set SCIM user mapping", "err", err)
+				}
+			} else {
+				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
+				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
+					// Log the error but don't fail the request
+					level.Debug(logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 var luksVerifyQuery = DetailQuery{
@@ -3120,7 +3182,7 @@ func directIngestWindowsProfiles(
 
 var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
 
-func directIngestHostCertificates(
+func directIngestHostCertificatesDarwin(
 	ctx context.Context,
 	logger log.Logger,
 	host *fleet.Host,
@@ -3140,12 +3202,12 @@ func directIngestHostCertificates(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
 			continue
 		}
-		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["subject"])
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
 			continue
 		}
-		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["issuer"])
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
 			continue
@@ -3200,4 +3262,117 @@ func directIngestHostCertificates(
 	}
 
 	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+}
+
+func directIngestHostCertificatesWindows(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// if there are no results, it indicates we may have a problem so we log it
+		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
+		return nil
+	}
+
+	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
+	// on windows, the osquery certificates table returns duplicate
+	// entries for the same certificate if it is present in multiple
+	// certificate stores so we deduplicate them here based on the
+	// SHA1 sum + username
+	existsSha1User := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		csum, err := hex.DecodeString(row["sha1"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
+			continue
+		}
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
+			continue
+		}
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
+			continue
+		}
+
+		username := row["username"]
+		source := fleet.UserHostCertificate
+		if username == "SYSTEM" {
+			source = fleet.SystemHostCertificate
+		}
+
+		cert := &fleet.HostCertificateRecord{
+			HostID:                    host.ID,
+			SHA1Sum:                   csum,
+			NotValidAfter:             time.Unix(cast.ToInt64(row["not_valid_after"]), 0).UTC(),
+			NotValidBefore:            time.Unix(cast.ToInt64(row["not_valid_before"]), 0).UTC(),
+			CertificateAuthority:      cast.ToBool(row["ca"]),
+			CommonName:                row["common_name"],
+			KeyAlgorithm:              row["key_algorithm"],
+			KeyStrength:               cast.ToInt(row["key_strength"]),
+			KeyUsage:                  row["key_usage"],
+			Serial:                    row["serial"],
+			SigningAlgorithm:          row["signing_algorithm"],
+			SubjectCountry:            subject.Country,
+			SubjectOrganizationalUnit: subject.OrganizationalUnit,
+			SubjectOrganization:       subject.Organization,
+			SubjectCommonName:         subject.CommonName,
+			IssuerCountry:             issuer.Country,
+			IssuerOrganizationalUnit:  issuer.OrganizationalUnit,
+			IssuerOrganization:        issuer.Organization,
+			IssuerCommonName:          issuer.CommonName,
+			Source:                    source,
+			Username:                  username,
+		}
+
+		// deduplicate by SHA1 + Username
+		sha1UserKey := fmt.Sprintf("%x|%s", csum, username)
+		if exists := existsSha1User[sha1UserKey]; exists {
+			level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg",
+				"skipping duplicate certificate for sha1+user", "host_id", host.ID, "username", username, "sha1", fmt.Sprintf("%x", csum),
+				"issuer", cert.IssuerCommonName, "subject", cert.SubjectCommonName, "path", row["path"])
+			continue
+		}
+		existsSha1User[sha1UserKey] = true
+		certs = append(certs, cert)
+	}
+
+	if len(certs) == 0 {
+		// don't overwrite existing certs if we were unable to parse any new ones
+		return nil
+	}
+
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+}
+
+func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
+	// If the uptime is 0, don't change the last restarted at time.
+	if host.Uptime == 0 {
+		return
+	}
+	// Calculate the last restart date.
+	newLastRestartedAt := now.Add(-host.Uptime)
+
+	// If we have a previous last restarted at time, compare it to the new one.
+	if !host.LastRestartedAt.IsZero() {
+		diff := newLastRestartedAt.Sub(host.LastRestartedAt)
+		// The new date should always be later, so if it's not, ignore.
+		if diff < 0 {
+			return
+		}
+		// If the new date is within 30 seconds of the previous one, ignore.
+		// This accounts for small differences between when the uptime
+		// reading was taken and when we process it here.
+		if diff < 30*time.Second {
+			return
+		}
+	}
+
+	// Update the last restarted at time.
+	host.LastRestartedAt = newLastRestartedAt
 }

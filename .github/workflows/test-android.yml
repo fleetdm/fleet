@@ -1,0 +1,376 @@
+name: Test Android
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+      - prepare-*
+    paths:
+      - 'android/**'
+      - '.github/workflows/test-android.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/test-android.yml'
+  workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 4 * * *'
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: chmod +x gradlew
+
+      - name: Run formatting checks
+        working-directory: android
+        run: ./gradlew spotlessCheck --console=plain 2>&1 | tee /tmp/gradle.log
+
+      - name: Run static analysis, build, and tests with coverage
+        working-directory: android
+        run: ./gradlew detekt build jacocoTestReport --continue --console=plain 2>&1 | tee -a /tmp/gradle.log
+
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: build-reports
+          path: |
+            android/app/build/reports/
+            android/app/build/test-results/
+            /tmp/gradle.log
+
+      - name: Upload Detekt report
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: detekt-report
+          path: android/app/build/reports/detekt/
+
+      - name: Upload Lint report
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: lint-report
+          path: android/app/build/reports/lint-results-*.html
+
+      - name: Upload APK
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Save coverage
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: build-coverage
+          path: android/app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          if-no-files-found: error
+
+      - name: Generate summary of errors
+        if: github.event_name == 'schedule' && failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          # Capture test failures (JUnit format: "ClassName > testName FAILED")
+          c1grep -E '.+ > .+ FAILED$' /tmp/gradle.log > /tmp/summary.txt
+          # Capture Kotlin compilation errors (e: file.kt: (line, col): message)
+          c1grep -E '^e: ' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture task failures ("> Task :app:taskName FAILED")
+          c1grep -E '> Task :.+ FAILED$' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Spotless formatting violations
+          c1grep -E 'The following files had format violations:' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Detekt issues summary
+          c1grep -E 'detekt found [0-9]+ issue' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Gradle's "What went wrong" section
+          c1grep -A 3 '^\* What went wrong:' /tmp/gradle.log >> /tmp/summary.txt
+          ANDROID_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY"
+          if [[ -z "$ANDROID_FAIL_SUMMARY" ]]; then
+            ANDROID_FAIL_SUMMARY="Unknown error, please check the build URL"
+          fi
+          ANDROID_JOB_NAME="build and test" ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_android_template.json > ./payload.json
+
+      - name: Slack Notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  instrumented-tests:
+    name: Instrumented tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: chmod +x gradlew
+
+      - name: Free up disk space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          android: false
+          dotnet: true
+          haskell: true
+          swap-storage: true
+          large-packages: true
+          tool-cache: false
+          docker-images: false
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          script: cd android && ./gradlew connectedCheck --console=plain 2>&1 | tee /tmp/gradle.log
+
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: instrumented-test-reports
+          path: |
+            android/app/build/reports/androidTests/
+            android/app/build/outputs/androidTest-results/
+            /tmp/gradle.log
+
+      - name: Save coverage
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: instrumented-coverage
+          path: android/app/build/reports/coverage/androidTest/debug/connected/report.xml
+          if-no-files-found: error
+
+      - name: Generate summary of errors
+        if: github.event_name == 'schedule' && failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          # Capture test failures (JUnit format: "ClassName > testName FAILED")
+          c1grep -E '.+ > .+ FAILED$' /tmp/gradle.log > /tmp/summary.txt
+          # Capture Kotlin compilation errors (e: file.kt: (line, col): message)
+          c1grep -E '^e: ' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture task failures ("> Task :app:taskName FAILED")
+          c1grep -E '> Task :.+ FAILED$' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Gradle's "What went wrong" section
+          c1grep -A 3 '^\* What went wrong:' /tmp/gradle.log >> /tmp/summary.txt
+          ANDROID_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY"
+          if [[ -z "$ANDROID_FAIL_SUMMARY" ]]; then
+            ANDROID_FAIL_SUMMARY="Unknown error, please check the build URL"
+          fi
+          ANDROID_JOB_NAME="instrumented tests" ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_android_template.json > ./payload.json
+
+      - name: Slack Notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  scep-integration-test:
+    name: SCEP integration test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: chmod +x gradlew
+
+      - name: Clone and build SCEP server
+        run: |
+          git clone https://github.com/micromdm/scep.git /tmp/scep
+          cd /tmp/scep
+          # Checkout v2.3.0 release
+          git checkout 8eb5412c850c98aaa83c3b96b2facae3710777d6
+          CGO_ENABLED=0 go build -o scepserver ./cmd/scepserver
+
+      - name: Start SCEP server
+        run: |
+          mkdir -p /tmp/scep-depot
+          cd /tmp/scep
+          ./scepserver ca -init -depot /tmp/scep-depot
+          ./scepserver -depot /tmp/scep-depot -port 8080 -challenge test-challenge-123 &
+
+      - name: Wait for SCEP server to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/scep?operation=GetCACaps > /dev/null 2>&1; then
+              echo "SCEP server is ready"
+              exit 0
+            fi
+            echo "Waiting for SCEP server... ($i/30)"
+            sleep 2
+          done
+          echo "SCEP server failed to start"
+          exit 1
+
+      - name: Run SCEP integration tests
+        working-directory: android
+        run: |
+          ./gradlew test jacocoTestReport -PrunIntegrationTests=true \
+            -Pscep.url=http://localhost:8080/scep \
+            -Pscep.challenge=test-challenge-123 \
+            --console=plain 2>&1 | tee /tmp/gradle.log
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: scep-integration-test-reports
+          path: |
+            android/app/build/reports/tests/
+            android/app/build/test-results/
+            /tmp/gradle.log
+
+      - name: Save coverage
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: scep-coverage
+          path: android/app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          if-no-files-found: error
+
+      - name: Generate summary of errors
+        if: github.event_name == 'schedule' && failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          # Capture test failures (JUnit format: "ClassName > testName FAILED")
+          c1grep -E '.+ > .+ FAILED$' /tmp/gradle.log > /tmp/summary.txt
+          # Capture Kotlin compilation errors (e: file.kt: (line, col): message)
+          c1grep -E '^e: ' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture task failures ("> Task :app:taskName FAILED")
+          c1grep -E '> Task :.+ FAILED$' /tmp/gradle.log >> /tmp/summary.txt
+          # Capture Gradle's "What went wrong" section
+          c1grep -A 3 '^\* What went wrong:' /tmp/gradle.log >> /tmp/summary.txt
+          ANDROID_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY"
+          if [[ -z "$ANDROID_FAIL_SUMMARY" ]]; then
+            ANDROID_FAIL_SUMMARY="Unknown error, please check the build URL"
+          fi
+          ANDROID_JOB_NAME="SCEP integration test" ANDROID_FAIL_SUMMARY=$ANDROID_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_android_template.json > ./payload.json
+
+      - name: Slack Notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  upload-coverage:
+    needs: [build, instrumented-tests, scep-integration-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: '*-coverage'
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: android

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
+	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -38,6 +40,160 @@ const (
 	NDESChallengeInvalidAfter      = 57 * time.Minute
 	SmallstepChallengeInvalidAfter = 4 * time.Minute
 )
+
+// decodeHTMLResponse decodes HTTP response body to a string, handling various encodings.
+// Windows NDES servers return UTF-16 LE (often without BOM), while Okta returns UTF-8.
+//
+// Detection order:
+//  1. UTF-16 LE heuristic (for Windows NDES compatibility; checked first because
+//     charset detection libraries can't parse meta tags in UTF-16 encoded content)
+//  2. Content-Type charset header and BOM detection via charset.DetermineEncoding
+//  3. Fall back to UTF-8
+func decodeHTMLResponse(body []byte, contentType string) string {
+	if len(body) == 0 {
+		return ""
+	}
+
+	// Check for UTF-16 LE first. Windows NDES servers return UTF-16 LE without BOM
+	// and without proper Content-Type charset. We must detect this before trying
+	// charset.DetermineEncoding, which would fail to parse meta tags in UTF-16 bytes.
+	if looksLikeUTF16LE(body) {
+		// Use BOMOverride to handle BOM if present (strips it from output)
+		utf16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+		decoder := unicode.BOMOverride(utf16le.NewDecoder())
+		if decoded, _, err := transform.Bytes(decoder, body); err == nil {
+			return string(decoded)
+		}
+	}
+
+	// Standard HTML5 encoding detection:
+	// - Checks Content-Type charset parameter
+	// - Detects BOM (Byte Order Mark)
+	// - Prescans for meta charset tags
+	enc, _, _ := charset.DetermineEncoding(body, contentType)
+	if enc != nil {
+		if decoded, _, err := transform.Bytes(enc.NewDecoder(), body); err == nil {
+			return string(decoded)
+		}
+	}
+
+	// Default: treat as UTF-8
+	return string(body)
+}
+
+// looksLikeUTF16LE checks if the body appears to be UTF-16 LE encoded.
+// Detection is done in order of reliability:
+// 1. BOM (Byte Order Mark) - most authoritative
+// 2. HTML pattern - UTF-16 LE HTML starts with '<' 0x00
+// 3. Null byte percentage - fallback heuristic
+func looksLikeUTF16LE(body []byte) bool {
+	if len(body) < 4 {
+		return false
+	}
+
+	// 1. Check for UTF-16 LE BOM (FF FE) - most reliable indicator
+	if body[0] == 0xFF && body[1] == 0xFE {
+		return true
+	}
+
+	// 2. Check for HTML pattern: '<' followed by 0x00
+	// HTML content starts with '<' (e.g., "<HTML>", "<!DOCTYPE>")
+	// In UTF-16 LE, this becomes 0x3C 0x00 - very unlikely in valid UTF-8
+	if body[0] == '<' && body[1] == 0x00 {
+		return true
+	}
+
+	// 3. Fallback: count null bytes at odd positions
+	// UTF-16 LE ASCII has null at every odd position (char, 0x00, char, 0x00, ...)
+	// Require 90% to reduce false positives from UTF-8 with occasional nulls
+
+	// utf16DetectionSampleSize is the number of bytes to examine when detecting UTF-16 LE encoding.
+	const utf16DetectionSampleSize = 100
+	checkLen := min(len(body), utf16DetectionSampleSize)
+	nullCount := 0
+	for i := 1; i < checkLen; i += 2 {
+		if body[i] == 0x00 {
+			nullCount++
+		}
+	}
+	checked := checkLen / 2
+	return checked > 0 && float64(nullCount)/float64(checked) >= 0.9 // 90%
+}
+
+// scepCertificateRequest abstracts the common operations needed for SCEP certificate
+// requests across different platforms (Apple, Windows, Android).
+type scepCertificateRequest interface {
+	// GetStatus returns the delivery status of the certificate request.
+	// Returns empty string if status is not set.
+	GetStatus() fleet.MDMDeliveryStatus
+	// GetChallengeRetrievedAt returns when the challenge was retrieved (for expiration checks).
+	GetChallengeRetrievedAt() *time.Time
+	// GetCAType returns the certificate authority type (NDES, Smallstep, CustomSCEPProxy).
+	GetCAType() fleet.CAConfigAssetType
+	// GetCAName returns the name of the certificate authority.
+	GetCAName() string
+	// GetProfileUUID returns the profile/template UUID.
+	GetProfileUUID() string
+}
+
+// hostMDMCertificateProfileAdapter adapts HostMDMCertificateProfile to scepCertificateRequest.
+type hostMDMCertificateProfileAdapter struct {
+	profile *fleet.HostMDMCertificateProfile
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetStatus() fleet.MDMDeliveryStatus {
+	if a.profile.Status == nil {
+		return ""
+	}
+	return *a.profile.Status
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetChallengeRetrievedAt() *time.Time {
+	return a.profile.ChallengeRetrievedAt
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetCAType() fleet.CAConfigAssetType {
+	return a.profile.Type
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetCAName() string {
+	return a.profile.CAName
+}
+
+func (a *hostMDMCertificateProfileAdapter) GetProfileUUID() string {
+	return a.profile.ProfileUUID
+}
+
+// certificateTemplateForHostAdapter adapts CertificateTemplateForHost to scepCertificateRequest.
+type certificateTemplateForHostAdapter struct {
+	template    *fleet.CertificateTemplateForHost
+	profileUUID string
+}
+
+func (a *certificateTemplateForHostAdapter) GetStatus() fleet.MDMDeliveryStatus {
+	if a.template.Status == nil {
+		return ""
+	}
+	return fleet.CertificateTemplateStatusToMDMDeliveryStatus(*a.template.Status)
+}
+
+func (a *certificateTemplateForHostAdapter) GetChallengeRetrievedAt() *time.Time {
+	// Android certificate templates don't track challenge retrieval time;
+	// they use one-time fleet challenges validated via ConsumeChallenge.
+	return nil
+}
+
+func (a *certificateTemplateForHostAdapter) GetCAType() fleet.CAConfigAssetType {
+	return a.template.CAType
+}
+
+func (a *certificateTemplateForHostAdapter) GetCAName() string {
+	return a.template.CAName
+}
+
+func (a *certificateTemplateForHostAdapter) GetProfileUUID() string {
+	return a.profileUUID
+}
 
 type scepProxyService struct {
 	ds fleet.Datastore
@@ -145,33 +301,69 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	if len(parsedIDs) > 3 {
 		fleetChallenge = parsedIDs[3]
 	}
+
 	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) &&
-		!strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
-		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple and Windows config profiles are supported): %s",
+		!strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) &&
+		!strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix) {
+		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple, Windows, and Android config profiles are supported): %s",
 			profileUUID)}
 	}
 
-	var profile *fleet.HostMDMCertificateProfile
-	if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
-		profile, err = svc.ds.GetAppleHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
-	} else if strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
-		profile, err = svc.ds.GetWindowsHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
-	}
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+	var certReq scepCertificateRequest
+
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
+		profile, err := svc.ds.GetAppleHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+		}
+		if profile != nil {
+			certReq = &hostMDMCertificateProfileAdapter{profile: profile}
+		}
+
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		profile, err := svc.ds.GetWindowsHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+		}
+		if profile != nil {
+			certReq = &hostMDMCertificateProfileAdapter{profile: profile}
+		}
+
+	case strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix):
+		// Android identifier format: {hostUUID},g{certificateTemplateID},{caType},{challenge}
+		// Parse the certificate template ID from the profileUUID (e.g., "g123" -> 123)
+		certTemplateIDStr := strings.TrimPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix)
+		certTemplateID, err := strconv.ParseUint(certTemplateIDStr, 10, 32)
+		if err != nil {
+			return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid Android certificate template ID: %s", certTemplateIDStr)}
+		}
+
+		template, err := svc.ds.GetCertificateTemplateForHost(ctx, hostUUID, uint(certTemplateID))
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting Android certificate template")
+		}
+		certReq = &certificateTemplateForHostAdapter{
+			template:    template,
+			profileUUID: profileUUID,
+		}
+		// Use the fleet challenge from the template if not provided in the identifier
+		if fleetChallenge == "" && template.FleetChallenge != nil {
+			fleetChallenge = *template.FleetChallenge
+		}
 	}
 
-	if profile == nil {
+	if certReq == nil {
 		// Return error that implements kithttp.StatusCoder interface
 		return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
 	}
 	// We skip windows profiles for this check here as they instantly go to verifying when sent out, might change for windows renewal.
-	if (profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending) && !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+	if certReq.GetStatus() != fleet.MDMDeliveryPending && !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
 		// This could happen if Fleet DB was updated before the profile was updated on the host.
 		// We expect another certificate request from the host once the profile is updated.
-		status := "null"
-		if profile.Status != nil {
-			status = string(*profile.Status)
+		status := certReq.GetStatus()
+		if status == "" {
+			status = "null"
 		}
 		// FIXME: MDM client will report a failed status for the profile when we return bad request, which consumes the sole retry attempt.
 		// Seems like we should proactively use ResendHostCertificateProfile here too?
@@ -180,17 +372,18 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	}
 	var scepURL string
 
-	switch profile.Type {
+	switch certReq.GetCAType() {
 	case fleet.CAConfigNDES:
 		if groupedCAs.NDESSCEP == nil {
 			// Return error that implements kithttp.StatusCoder interface
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
-		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
+		challengeRetrievedAt := certReq.GetChallengeRetrievedAt()
+		if checkChallenge && challengeRetrievedAt != nil && challengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err = svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
+			if err := svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
@@ -202,18 +395,19 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
 		for _, ca := range groupedCAs.Smallstep {
-			if ca.Name == profile.CAName {
+			if ca.Name == certReq.GetCAName() {
 				scepURL = ca.URL
 				break
 			}
 		}
 
 		// FIXME: See comment in datastore method regarding how we resend profiles with dynamic content
-		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(SmallstepChallengeInvalidAfter).Before(time.Now()) {
+		challengeRetrievedAt := certReq.GetChallengeRetrievedAt()
+		if checkChallenge && challengeRetrievedAt != nil && challengeRetrievedAt.Add(SmallstepChallengeInvalidAfter).Before(time.Now()) {
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err = svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
+			if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
@@ -224,13 +418,13 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
 		for _, ca := range groupedCAs.CustomScepProxy {
-			if ca.Name == profile.CAName {
+			if ca.Name == certReq.GetCAName() {
 				scepURL = ca.URL
 				break
 			}
 		}
 
-		if strings.HasPrefix(profile.ProfileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		if strings.HasPrefix(certReq.GetProfileUUID(), fleet.MDMWindowsProfileUUIDPrefix) {
 			// TODO: Early return for Windows profiles as they do not support resending yet.
 			return scepURL, nil
 		}
@@ -333,18 +527,15 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
 			resp.StatusCode)})
 	}
-	// Make a transformer that converts MS-Win default to UTF8:
-	win16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	// Make a transformer that is like win16le, but abides by BOM:
-	utf16bom := unicode.BOMOverride(win16le.NewDecoder())
+	defer resp.Body.Close()
 
-	// Make a Reader that uses utf16bom:
-	unicodeReader := transform.NewReader(resp.Body, utf16bom)
-	bodyText, err := io.ReadAll(unicodeReader)
+	// Read raw bytes first to detect encoding
+	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "reading response body")
 	}
-	htmlString := string(bodyText)
+
+	htmlString := decodeHTMLResponse(rawBody, resp.Header.Get("Content-Type"))
 
 	matches := challengeRegex.FindStringSubmatch(htmlString)
 	challenge := ""

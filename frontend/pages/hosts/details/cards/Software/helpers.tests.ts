@@ -309,6 +309,13 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("installed");
   });
+  it("returns 'installed' for regular package, no installed versions present", () => {
+    const sw = createMockHostSoftware({
+      status: "installed",
+      installed_versions: null,
+    });
+    expect(getUiStatus(sw, true)).toBe("installed");
+  });
 
   it("returns 'installed' for regular package, installed version higher than library version", () => {
     const sw = createMockHostSoftware({
@@ -399,7 +406,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: true,
     });
     expect(result).toBe(
-      "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 
@@ -410,7 +417,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe(
-      "Software installed on this host. Built-in apps (e.g. Calculator) aren't included."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 

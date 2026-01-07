@@ -7,7 +7,13 @@ import {
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import { HostPlatform, isLinuxLike } from "interfaces/platform";
+import {
+  HostPlatform,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isMacOS,
+  isWindows,
+} from "interfaces/platform";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
@@ -96,6 +102,7 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
@@ -125,15 +132,20 @@ export const generateSoftwareTableHeaders = ({
     },
     {
       Header: (): JSX.Element => {
-        const lastOpenedHeader = isLinuxLike(platform) ? (
-          <TooltipWrapper
-            tipContent={
-              <>
-                The last time the package was opened by the end user <br />
-                or accessed by any process on the host.
-              </>
-            }
-          >
+        let tooltipContent = <></>;
+
+        if (isMacOS(platform)) {
+          tooltipContent = (
+            <>When the version installed most recently was last opened.</>
+          );
+        } else if (isLinuxLike(platform) || isWindows(platform)) {
+          tooltipContent = <>When any version was last opened.</>;
+        } else if (isIPadOrIPhone(platform)) {
+          tooltipContent = <>Date and time of last open.</>;
+        }
+
+        const lastOpenedHeader = tooltipContent ? (
+          <TooltipWrapper tipContent={tooltipContent}>
             Last opened
           </TooltipWrapper>
         ) : (

@@ -1,0 +1,8 @@
+{
+  "name": "BBEdit",
+  "unique_identifier": "com.barebones.bbedit",
+  "token": "bbedit",
+  "installer_format": "dmg",
+  "slug": "bbedit/darwin",
+  "default_categories": ["Developer tools"]
+}

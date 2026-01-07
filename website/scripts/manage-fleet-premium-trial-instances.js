@@ -425,6 +425,7 @@ module.exports = {
           { key: 'FLEET_EMAIL_BACKEND', value: 'ses'},
           { key: 'FLEET_SES_REGION', value: 'us-east-2'},
           { key: 'FLEET_SES_SOURCE_ARN', value: `arn:aws:ses:us-east-2:564445215450:identity/${povRecord.slug}.try.fleetdm.com`},
+          { key: 'FLEET_SESSION_DURATION', value: '720h'},
         ];
 
         //

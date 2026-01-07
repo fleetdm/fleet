@@ -11,9 +11,7 @@ import IdentityProviders from "./cards/IdentityProviders";
 import Sso from "./cards/Sso";
 import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
-const getIntegrationSettingsNavItems = (
-  isManagedCloud: boolean
-): ISideNavItem<any>[] => {
+const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
   const items: ISideNavItem<any>[] = [
     {
       title: "Ticket destinations",
@@ -46,8 +44,8 @@ const getIntegrationSettingsNavItems = (
       Card: Sso,
     },
     {
-      title: "Certificates",
-      urlSection: "certificates",
+      title: "Certificate authorities",
+      urlSection: "certificate-authorities",
       path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
       Card: CertificateAuthorities,
     },
@@ -63,16 +61,14 @@ const getIntegrationSettingsNavItems = (
       path: PATHS.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
       Card: GlobalHostStatusWebhook,
     },
-  ];
-
-  if (isManagedCloud) {
-    items.push({
+    {
       title: "Conditional access",
       urlSection: "conditional-access",
       path: PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
       Card: ConditionalAccess,
-    });
-  }
+    },
+  ];
+
   return items;
 };
 

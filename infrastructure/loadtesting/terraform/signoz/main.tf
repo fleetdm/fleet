@@ -134,10 +134,10 @@ module "eks" {
   # Managed node group
   eks_managed_node_groups = {
     default = {
-      min_size       = 2
-      max_size       = 2
-      desired_size   = 2
-      instance_types = ["t3.xlarge"]
+      min_size       = 1
+      max_size       = 1
+      desired_size   = 1
+      instance_types = ["t3.2xlarge"]
     }
   }
 
@@ -298,25 +298,24 @@ resource "helm_release" "signoz" {
   }
 
   # OTEL Collector resource configuration for loadtest
-  # Default 200Mi is way too low and causes OOMKills
   set {
     name  = "otelCollector.resources.requests.memory"
-    value = "2Gi"
+    value = "8Gi"
   }
 
   set {
     name  = "otelCollector.resources.limits.memory"
-    value = "4Gi"
+    value = "12Gi"
   }
 
   set {
     name  = "otelCollector.resources.requests.cpu"
-    value = "500m"
+    value = "1000m"
   }
 
   set {
     name  = "otelCollector.resources.limits.cpu"
-    value = "2000m"
+    value = "4000m"
   }
 
   # Only need 1 replica since we have 1 LoadBalancer endpoint

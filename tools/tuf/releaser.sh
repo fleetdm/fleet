@@ -173,13 +173,6 @@ release_fleetd_to_edge () {
     echo "Releasing fleetd to edge..."
     ORBIT_TAG="orbit-v$VERSION"
     prompt "A tag will be pushed to trigger a Github Action to build desktop and orbit."
-    pushd "$GIT_REPOSITORY_DIRECTORY"
-    git tag "$ORBIT_TAG"
-    git push origin "$ORBIT_TAG"
-    if [[ "$SKIP_PR" != "1" ]]; then
-        create_fleetd_release_pr
-    fi
-    popd
     DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY="$ARTIFACTS_DOWNLOAD_DIRECTORY/desktop"
     mkdir -p "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY"
     "$GO_TOOLS_DIRECTORY/download-artifacts" desktop \
@@ -316,7 +309,7 @@ release_to_production () {
         # Sleeping 5 minutes to allow for Cloudflare caches to clear.
         sleep 300
         gh workflow run "Update documentation of current versions of TUF fleetd components"
-        prompt "Make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+        prompt "When releasing to stable, make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
     fi
 }
 

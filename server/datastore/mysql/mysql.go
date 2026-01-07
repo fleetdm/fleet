@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"regexp"
 	"strconv"
@@ -25,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/rdsauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -230,7 +232,7 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 }
 
 // New creates an MySQL datastore.
-func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
@@ -245,7 +247,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	if err := checkConfig(&config); err != nil {
+	if err := checkConfig(&conf); err != nil {
 		return nil, err
 	}
 	if options.ReplicaConfig != nil {
@@ -254,13 +256,25 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	dbWriter, err := NewDB(&config, options)
+	// Set up IAM authentication connector factory if needed
+	if err := setupIAMAuthIfNeeded(&conf, options); err != nil {
+		return nil, err
+	}
+
+	dbWriter, err := NewDB(&conf, options)
 	if err != nil {
 		return nil, err
 	}
 	dbReader := dbWriter
 	if options.ReplicaConfig != nil {
-		dbReader, err = NewDB(options.ReplicaConfig, options)
+		// Set up IAM auth for replica if needed (may have different region/credentials)
+		replicaOptions := *options
+		// Reset ConnectorFactory - replica may have different auth requirements than primary
+		replicaOptions.ConnectorFactory = nil
+		if err := setupIAMAuthIfNeeded(options.ReplicaConfig, &replicaOptions); err != nil {
+			return nil, fmt.Errorf("replica: %w", err)
+		}
+		dbReader, err = NewDB(options.ReplicaConfig, &replicaOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -271,7 +285,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		replica:             dbReader,
 		logger:              options.Logger,
 		clock:               c,
-		config:              config,
+		config:              conf,
 		readReplicaConfig:   options.ReplicaConfig,
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
@@ -378,6 +392,28 @@ func checkConfig(conf *config.MysqlConfig) error {
 			return fmt.Errorf("register TLS config for mysql: %w", err)
 		}
 	}
+	return nil
+}
+
+// setupIAMAuthIfNeeded configures IAM authentication for RDS if the config
+// indicates it should be used (no password provided but region is set).
+func setupIAMAuthIfNeeded(conf *config.MysqlConfig, opts *common_mysql.DBOptions) error {
+	if conf.Password != "" || conf.PasswordPath != "" || conf.Region == "" {
+		return nil
+	}
+
+	// Parse host and port from address
+	host, port, err := net.SplitHostPort(conf.Address)
+	if err != nil {
+		host = conf.Address
+		port = "3306"
+	}
+
+	factory, err := rdsauth.NewConnectorFactory(conf, host, port)
+	if err != nil {
+		return fmt.Errorf("failed to create RDS IAM auth connector factory: %w", err)
+	}
+	opts.ConnectorFactory = factory
 	return nil
 }
 
@@ -874,7 +910,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
 }
 
-// whereFilterGlobalOrTeamIDByTeams is the same as whereFilterHostsByTeams, it
+// whereFilterTeamWithGlobalStats is the same as whereFilterHostsByTeams, it
 // returns the appropriate condition to use in the WHERE clause to render only
 // the appropriate teams, but is to be used when the team_id column uses "0" to
 // mean "all teams including no team". This is the case e.g. for
@@ -883,7 +919,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filter provides the filtering parameters that should be used.
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
-func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+func (ds *Datastore) whereFilterTeamWithGlobalStats(filter fleet.TeamFilter, filterTableAlias string) string {
 	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)

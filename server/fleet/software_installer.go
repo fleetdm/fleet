@@ -18,6 +18,7 @@ import (
 // MaxSoftwareInstallerSize is the maximum size allowed for software
 // installers. This is enforced by the endpoints that upload installers.
 const MaxSoftwareInstallerSize = 3000 * units.MiB
+const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -27,7 +28,7 @@ type SoftwareInstallerStore interface {
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, fileID string) (string, error)
+	Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 }
 
 // SoftwareInstallDetails contains all of the information
@@ -195,6 +196,7 @@ type VPPAppResponse struct {
 	LocalIconHash string `json:"-" db:"-"`
 	// LocalIconPath is the path to the icon specified in YAML
 	LocalIconPath string `json:"-" db:"-"`
+	AppTeamID     uint   `json:"-" db:"app_team_id"`
 }
 
 func (v VPPAppResponse) GetTeamID() uint {
@@ -419,7 +421,7 @@ type HostSoftwareInstallerResult struct {
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
-	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --scripts-enabled."
+	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
 	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
 	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"
@@ -516,10 +518,41 @@ type UploadSoftwareInstallerPayload struct {
 	AutomaticInstallQuery string
 	Categories            []string
 	CategoryIDs           []uint
+	DisplayName           string
 	// AddedAutomaticInstallPolicy is the auto-install policy that can be
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
+}
+
+func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
+	if p.BundleIdentifier != "" {
+		return p.BundleIdentifier
+	}
+	if p.Source == "programs" && p.UpgradeCode != "" {
+		return p.UpgradeCode
+	}
+	return p.Title
+}
+
+// GetBundleIdentifierForDB returns a pointer to the bundle identifier if it's
+// non-empty (after trimming whitespace), or nil otherwise. This is used when
+// inserting into the database where NULL is preferred over empty string.
+func (p UploadSoftwareInstallerPayload) GetBundleIdentifierForDB() *string {
+	if strings.TrimSpace(p.BundleIdentifier) != "" {
+		return &p.BundleIdentifier
+	}
+	return nil
+}
+
+// GetUpgradeCodeForDB returns a pointer to the upgrade code if the source is
+// "programs", or nil otherwise. This is used when inserting into the database
+// where NULL is preferred for non-Windows installers.
+func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
+	if p.Source != "programs" {
+		return nil
+	}
+	return &p.UpgradeCode
 }
 
 type ExistingSoftwareInstaller struct {
@@ -567,13 +600,13 @@ type UpdateSoftwareInstallerPayload struct {
 	Categories      []string
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
-	DisplayName string
+	DisplayName *string
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
-		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == existing.DisplayName
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -590,7 +623,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "deb_packages", nil
 	case "rpm":
 		return "rpm_packages", nil
-	case "exe", "msi":
+	case "exe", "msi", "zip":
 		return "programs", nil
 	case "pkg":
 		if filepath.Ext(name) == ".app" {
@@ -615,7 +648,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	switch ext {
 	case "deb", "rpm", "tar.gz", "sh":
 		return "linux", nil
-	case "exe", "msi", "ps1":
+	case "exe", "msi", "ps1", "zip":
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
@@ -707,6 +740,25 @@ type SoftwarePackageOrApp struct {
 	Categories           []string `json:"categories,omitempty"`
 }
 
+func (s *SoftwarePackageOrApp) GetPlatform() string {
+	return s.Platform
+}
+
+func (s *SoftwarePackageOrApp) GetAppStoreID() string {
+	return s.AppStoreID
+}
+
+// Returns unique name by Platform + AppStoreID/Name
+func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
+	if s.AppStoreID != "" {
+		return fmt.Sprintf(`%s_%s`, s.AppStoreID, s.Platform)
+	}
+	if s.Name != "" {
+		return fmt.Sprintf(`%s_%s`, s.Name, s.Platform)
+	}
+	return ""
+}
+
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
@@ -733,6 +785,7 @@ type SoftwarePackageSpec struct {
 	ReferencedYamlPath string   `json:"referenced_yaml_path"`
 	SHA256             string   `json:"hash_sha256"`
 	Categories         []string `json:"categories"`
+	DisplayName        string   `json:"display_name,omitempty"`
 }
 
 func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {
@@ -987,13 +1040,16 @@ type HostSoftwareInstallOptions struct {
 	SelfService        bool
 	PolicyID           *uint
 	ForSetupExperience bool
+	// ForScheduledUpdates means the install request is for iOS/iPadOS
+	// scheduled updates, which means it was Fleet-initiated.
+	ForScheduledUpdates bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
 // Software installs initiated via a policy are fleet-initiated (and we also
 // make sure SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && o.PolicyID != nil
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

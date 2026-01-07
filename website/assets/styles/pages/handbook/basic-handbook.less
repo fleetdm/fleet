@@ -1,9 +1,5 @@
 #basic-handbook {
 
-  a {
-    color: @core-vibrant-blue;
-    text-decoration: none;
-  }
   ul {
     list-style: none;
     padding-left: 8px;
@@ -157,7 +153,7 @@
 
     [purpose='subtopics'] {
       color: @core-fleet-black;
-      border-left: 1px solid @core-vibrant-blue-25;
+      border-left: 1px solid @core-fleet-black-10;
       box-sizing: content-box;
       ul {
         li:last-child {
@@ -169,12 +165,12 @@
         word-wrap: break-word;
         text-decoration: none;
         &:hover {
-          color: @core-vibrant-blue;
+          color: @core-vibrant-green;
         }
       }
       .active:before {
-        border: 1.5px solid @core-vibrant-blue;
-        background-color: @core-vibrant-blue;
+        border: 1.5px solid @core-vibrant-green;
+        background-color: @core-vibrant-green;
         border-radius: 3px;
         content: '';
         margin-right: 14px;
@@ -198,7 +194,7 @@
     line-height: 150%;
     a {
       color: @core-fleet-black;
-
+      text-decoration: none;
     }
     p {
       color: @core-fleet-black;
@@ -543,11 +539,7 @@
     [purpose='quote-text'] {
       font-size: 18px;
       line-height: 27px;
-    }
-    [purpose='quote-attribution'] {
       p {
-        font-size: 14px;
-        line-height: 21px;
         margin-bottom: 0px;
       }
     }
