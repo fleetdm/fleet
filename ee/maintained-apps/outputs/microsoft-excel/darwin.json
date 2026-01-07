@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "16.104.26010228",
+      "version": "16.104.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel';"
       },
