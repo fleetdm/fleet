@@ -854,7 +854,7 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		SoftwareList: make(map[uint]Software),
 		ScriptList:   make(map[uint]string),
 	}
@@ -863,7 +863,7 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 	cmd.AppConfig = appConfig
 
 	// prepare FilesToWrite entry like Run() would
-	cmd.FilesToWrite["teams/test.yml"] = map[string]interface{}{}
+	cmd.FilesToWrite["teams/test.yml"] = map[string]any{}
 
 	// generate software for team 1
 	res, err := cmd.generateSoftware("teams/test.yml", 1, "team-a", false)
@@ -872,14 +872,14 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 
 	apps, ok := res["app_store_apps"]
 	require.True(t, ok, "expected app_store_apps in result")
-	appsList, ok := apps.([]map[string]interface{})
+	appsList, ok := apps.([]map[string]any)
 	if !ok {
 		// yaml/unmarshal may produce []interface{}
-		rawList, ok := apps.([]interface{})
+		rawList, ok := apps.([]any)
 		require.True(t, ok, "unexpected app_store_apps type")
-		appsList = make([]map[string]interface{}, 0, len(rawList))
+		appsList = make([]map[string]any, 0, len(rawList))
 		for _, v := range rawList {
-			m, ok := v.(map[string]interface{})
+			m, ok := v.(map[string]any)
 			require.True(t, ok)
 			appsList = append(appsList, m)
 		}

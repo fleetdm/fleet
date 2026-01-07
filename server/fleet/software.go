@@ -683,17 +683,17 @@ type VPPBatchPayload struct {
 	SelfService        bool     `json:"self_service"`
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories    []string                  `json:"categories"`
-	DisplayName   string                    `json:"display_name"`
-	IconPath      string                    `json:"-"`
-	IconHash      string                    `json:"-"`
-	Platform      InstallableDevicePlatform `json:"platform"`
-	Configuration json.RawMessage           `json:"configuration,omitempty"`
-	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
-	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
-	AutoUpdateEndTime   *string `json:"auto_update_end_time,omitempty"`
+	Categories          []string                  `json:"categories"`
+	DisplayName         string                    `json:"display_name"`
+	IconPath            string                    `json:"-"`
+	IconHash            string                    `json:"-"`
+	Platform            InstallableDevicePlatform `json:"platform"`
+	Configuration       json.RawMessage           `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_start_time,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_end_time,omitempty"`
 }
 
 func (v VPPBatchPayload) GetPlatform() string {
@@ -714,12 +714,12 @@ type VPPBatchPayloadWithPlatform struct {
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs   []uint          `json:"-"`
-	DisplayName   string          `json:"display_name"`
-	Configuration json.RawMessage `json:"configuration,omitempty"`
-	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
-	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
-	AutoUpdateEndTime   *string `json:"auto_update_end_time,omitempty"`
+	CategoryIDs         []uint          `json:"-"`
+	DisplayName         string          `json:"display_name"`
+	Configuration       json.RawMessage `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string         `json:"auto_update_start_time,omitempty"`
+	AutoUpdateEndTime   *string         `json:"auto_update_end_time,omitempty"`
 }
 
 type SoftwareCategory struct {
