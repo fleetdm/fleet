@@ -280,14 +280,14 @@ DELETE FROM label_membership WHERE label_id = ?
 				var stringIdents []string
 				// Start with 0 so id IN (?) always has at least one element.
 				// id = 0 never matches any real host.
-				intIdents := []uint{0}
+				intIdents := []uint64{0}
 
 				for _, s := range hostIdentifiersBatch {
 					stringIdents = append(stringIdents, s)
 					// Use strconv to check if it's a valid integer
 					if intRegex.MatchString(s) {
 						n, _ := strconv.ParseUint(s, 10, 64)
-						intIdents = append(intIdents, uint(n))
+						intIdents = append(intIdents, uint64(n))
 					}
 				}
 
