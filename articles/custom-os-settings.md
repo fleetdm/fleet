@@ -93,6 +93,8 @@ iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to a
 
 Hosts that acknowledged all MDM commands to apply OS settings. Fleet is verifying. If the profile wasn't delivered, Fleet will redeliver the profile.
 
+For Windows profiles, when Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol, device-scoped profiles are "Verifying" but, currently, user-scoped Windows profiles go straight to "Verified."
+
 ### Pending
 
 Hosts that are running MDM commands or will run MDM commands to apply OS settings when they come online.
