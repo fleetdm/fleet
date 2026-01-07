@@ -247,21 +247,3 @@ func (c *Client) InstallSoftware(hostID uint, softwareTitleID uint) error {
 	var responseBody installSoftwareResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }
-
-func (c *Client) UpdateSoftwareTitleAutoUpdateConfig(titleID uint, teamID uint, cfg fleet.SoftwareAutoUpdateConfig) error {
-	verb, path := "PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID)
-	req := map[string]interface{}{
-		"team_id": teamID,
-	}
-	if cfg.AutoUpdateEnabled != nil {
-		req["auto_update_enabled"] = *cfg.AutoUpdateEnabled
-	}
-	if cfg.AutoUpdateStartTime != nil {
-		req["auto_update_start_time"] = *cfg.AutoUpdateStartTime
-	}
-	if cfg.AutoUpdateEndTime != nil {
-		req["auto_update_end_time"] = *cfg.AutoUpdateEndTime
-	}
-	var resp struct{}
-	return c.authenticatedRequest(req, verb, path, &resp)
-}

@@ -320,7 +320,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, ctxerr.Wrap(ctx, err, "set team vpp assets")
 	}
 
-	// Compute team ID for use in subsequent operations
+	// Do cleanup here because this is API call 2 of 2 for setting software from GitOps
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
@@ -348,7 +348,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	// Do cleanup here because this is API call 2 of 2 for setting software from GitOps
 	if err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, tmID); err != nil {
 		return nil, err // returned error already includes context that we could include here
 	}
