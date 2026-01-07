@@ -16,7 +16,7 @@ module.exports = {
 
     platform: {
       type: 'string',
-      description: 'A comma separated list of the platforms that are included in this proxied request.',
+      description: 'The platform the specified app(s) runs on',
     },
 
     additionalPlatforms: {
@@ -110,7 +110,6 @@ module.exports = {
       headers: {
         'Authorization': `Bearer ${tokenForThisRequest}`,
         'Cookie': `${cookieHeader}`,
-        'Content-Type': 'application/json'
       }
     })
     .tolerate((err)=>{
