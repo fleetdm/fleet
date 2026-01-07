@@ -340,7 +340,7 @@ class CertificateOrchestrator(
      * @param hostCertificates List of host certificates from managed configuration
      * @return Map of certificate ID to cleanup result
      */
-    suspend fun  cleanupRemovedCertificates(context: Context, hostCertificates: List<HostCertificate>): Map<Int, CleanupResult> {
+    suspend fun cleanupRemovedCertificates(context: Context, hostCertificates: List<HostCertificate>): Map<Int, CleanupResult> {
         Log.d(TAG, "Starting certificate cleanup. Host certificates: ${hostCertificates.map { "${it.id}:${it.operation}" }}")
 
         val certificateStates = getCertificateStates(context)
