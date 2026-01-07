@@ -269,11 +269,11 @@ func TestSoftwareMarshalJSONLastOpenedAt(t *testing.T) {
 	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name           string
-		software       Software
-		expectField    bool
-		expectedValue  any
-		description    string
+		name          string
+		software      Software
+		expectField   bool
+		expectedValue any
+		description   string
 	}{
 		{
 			name: "supported source with nil last_opened_at",
@@ -349,11 +349,11 @@ func TestHostSoftwareEntryMarshalJSONLastOpenedAt(t *testing.T) {
 	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name           string
-		entry          HostSoftwareEntry
-		expectField    bool
-		expectedValue  any
-		description    string
+		name          string
+		entry         HostSoftwareEntry
+		expectField   bool
+		expectedValue any
+		description   string
 	}{
 		{
 			name: "supported source with nil last_opened_at",
@@ -425,11 +425,11 @@ func TestHostSoftwareInstalledVersionMarshalJSONLastOpenedAt(t *testing.T) {
 	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name           string
-		version        HostSoftwareInstalledVersion
-		expectField    bool
-		expectedValue  any
-		description    string
+		name          string
+		version       HostSoftwareInstalledVersion
+		expectField   bool
+		expectedValue any
+		description   string
 	}{
 		{
 			name: "supported source with nil last_opened_at",
