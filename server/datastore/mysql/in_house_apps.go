@@ -726,11 +726,11 @@ WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
 	const getSoftwareTitle = `
-SELECT 
-	id 
-FROM 
-	software_titles 
-WHERE 
+SELECT
+	id
+FROM
+	software_titles
+WHERE
 	unique_identifier = ? AND source = ? AND extension_for = ''
 `
 
@@ -1062,6 +1062,9 @@ WHERE
 
 		var args []any
 		for _, installer := range installers {
+			// TODO(mna): check for installers that target iOS/iPadOS if they conflict
+			// with an existing VPP app. They currently can't conflict with anything else.
+
 			var providedTitle *string
 			if installer.Title != "" {
 				providedTitle = &installer.Title // for IPAs downloaded via URL; IPAs referenced by hash won't have this

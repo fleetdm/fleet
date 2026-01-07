@@ -200,6 +200,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	// Insert in house app instead of software installer
 	// And add both iOS and ipadOS titles per https://github.com/fleetdm/fleet/issues/34283
 	if payload.Extension == "ipa" {
+		// TODO(mna): check if it conflicts with an existing VPP/IPA app
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
 			Title:           payload.Title,
@@ -226,6 +227,10 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	// check if a VPP app already exists for that software title in the same
 	// platform (macOS) and team.
 	if payload.Platform == string(fleet.MacOSPlatform) {
+		// NOTE: this checks if a VPP/IPA app exists for the same team and for macos,
+		// for the provided bundle identifier but also for the same source and browser (empty string).
+		// Why do we consider the source and browser for that check? I think if there is a VPP/IPA
+		// for the same platform and bundle identifier, it should be a conflict?
 		exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx),
 			payload.TeamID, payload.BundleIdentifier, payload.Source, "")
 		if err != nil {
@@ -2364,6 +2369,7 @@ WHERE
 			// platform (if that platform is macOS), then this is a conflict.
 			// See https://github.com/fleetdm/fleet/issues/32082
 			if installer.Platform == string(fleet.MacOSPlatform) {
+				// NOTE: same as for the single installer case, why do we consider the source and browser in that conflict lookup?
 				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, installer.BundleIdentifier, installer.Source, "")
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "check existing VPP app for installer title identifier")

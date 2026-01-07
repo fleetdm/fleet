@@ -492,6 +492,9 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			// already associated with the software title for the same platform
 			// (macos).
 			if toAdd.Platform == fleet.MacOSPlatform {
+				// NOTE: unlike other similar conflict checks, this one happens _after_ the VPP app was inserted
+				// (but inside the same transaction), so it looks for a conflicting installer present in addition
+				// to the VPP app just inserted.
 				exists, conflictingTitle, err := ds.checkConflictingSoftwareInstallerForVPPApp(ctx, tx, teamID, toAdd.VPPAppID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking for conflicting software installer")
@@ -503,6 +506,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 					}, "vpp app conflicts with existing software installer")
 				}
 			}
+			// TODO(mna): if iOS/IpadOS check for VPP app conflict with existing IPA
 
 			if toAdd.ValidatedLabels != nil {
 				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {

@@ -609,6 +609,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		if appID.Platform == fleet.MacOSPlatform {
 			// Check if we've already added an installer for this app
+			// NOTE: the check in UploadedSoftwareExists is implicitly only for macOS, because
+			// it looks in software_installers (so, a custom package, which can't be ios/ipados for now) and with the bundle
+			// identifier (so, a macos "thing"). This kind of implicit platform due to other
+			// properties (bundle id) is error-prone and brittle, as we could support other "installers"
+			// with bundle identifiers in the future.
 			exists, err := svc.ds.UploadedSoftwareExists(ctx, assetMD.BundleID, teamID)
 			if err != nil {
 				return 0, ctxerr.Wrap(ctx, err, "checking existence of VPP app installer")
@@ -621,6 +626,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 				}, "vpp app conflicts with existing software installer")
 			}
 		}
+		// TODO(mna): if iOS/iPadOS, check conflict with IPA
 
 		appID.ValidatedLabels = validatedLabels
 
