@@ -253,6 +253,14 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				return true, nil
 			}
 
+			// Google Drive's installer URL always downloads the latest version, which can lead to
+			// version mismatches during validation. We only verify that the app exists rather
+			// than checking the version.
+			if uniqueAppIdentifier == "com.google.drivefs" {
+				level.Info(logger).Log("msg", "Google Drive detected - skipping version check due to installer URL always downloading latest version")
+				return true, nil
+			}
+
 			// Adobe DNG Converter's version format includes build number in parentheses
 			// (e.g., "18.0 (2389)") which doesn't match the installer version (e.g., "18.0")
 			// Check if the version starts with the expected version to handle this case
