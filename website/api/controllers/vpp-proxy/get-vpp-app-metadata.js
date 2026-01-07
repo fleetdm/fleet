@@ -14,7 +14,7 @@ module.exports = {
       description: 'The App store region that a proxied request will be sent to.',
     },
 
-    platforms: {
+    platform: {
       type: 'string',
       description: 'A comma separated list of the platforms that are included in this proxied request.',
     },
@@ -56,7 +56,7 @@ module.exports = {
   },
 
 
-  fn: async function ({storeRegion}) {
+  fn: async function ({storeRegion, ids, platform, additionalPlatforms, extend}) {
 
     // Validate the provided fleetServerSecret
     let authHeader = this.req.get('authorization');
@@ -99,11 +99,14 @@ module.exports = {
       }
     );
 
-    let queryParametersToSendToApple = this.req.query;
-
     let responseFromAppleApi = await sails.helpers.http.get.with({
       url: `https://api.ent.apple.com/v1/catalog/${storeRegion}/stoken-authenticated-apps`,
-      data: queryParametersToSendToApple,
+      data: {
+        ids,
+        platform,
+        additionalPlatforms,
+        extend,
+      },
       headers: {
         'Authorization': `Bearer ${tokenForThisRequest}`,
         'Cookie': `${cookieHeader}`,
