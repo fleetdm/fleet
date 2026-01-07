@@ -1386,6 +1386,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return row["bundle_identifier"] == "org.mozilla.firefox"
 		},
 	},
+	// TODO - similarly tack on sha256 here, consider re-naming less specific than codesign
+
 	// macos_codesign collects code signature information of apps on a separate query for two reasons:
 	//   - codesign is a fleetd table (not part of osquery core).
 	//   - Avoid growing the main `software_macos` query
