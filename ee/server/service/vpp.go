@@ -327,21 +327,48 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	// Apply auto-update config for iOS/iPadOS VPP apps
+	// First, get existing auto-update schedules to know which apps already have configs
+	existingIosAppSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ios_apps")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ios apps")
+	}
+	existingIPadOsSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ipados_apps")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ipados apps")
+	}
+	// Combine schedules from both sources
+	existingSchedules := append(existingIosAppSchedules, existingIPadOsSchedules...)
+	existingSchedulesByTitleID := make(map[uint]bool, len(existingSchedules))
+	for _, schedule := range existingSchedules {
+		existingSchedulesByTitleID[schedule.TitleID] = true
+	}
+
 	for _, app := range allPlatformApps {
 		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
 			continue
 		}
-		if app.AutoUpdateEnabled == nil && app.AutoUpdateStartTime == nil && app.AutoUpdateEndTime == nil {
-			continue
-		}
 		titleID, ok := appStoreIDToTitleID[app.VPPAppID.String()]
 		if !ok {
+			level.Error(svc.logger).Log("msg", "software title missing for vpp app", "vpp_app_id", app.VPPAppID.String())
 			continue
 		}
+
+		hasAutoUpdateSettings := app.AutoUpdateEnabled != nil || app.AutoUpdateStartTime != nil || app.AutoUpdateEndTime != nil
+		hasExistingSchedule := existingSchedulesByTitleID[titleID]
+
+		// Only update if: app has auto update settings OR app has an existing schedule to disable
+		if !hasAutoUpdateSettings && !hasExistingSchedule {
+			continue
+		}
+
 		cfg := fleet.SoftwareAutoUpdateConfig{
 			AutoUpdateEnabled:   app.AutoUpdateEnabled,
 			AutoUpdateStartTime: app.AutoUpdateStartTime,
 			AutoUpdateEndTime:   app.AutoUpdateEndTime,
+		}
+
+		if app.AutoUpdateEnabled == nil {
+			cfg.AutoUpdateEnabled = ptr.Bool(false)
 		}
 		if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tmID, cfg); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "updating auto-update config for vpp app")
