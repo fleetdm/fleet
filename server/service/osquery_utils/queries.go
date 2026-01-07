@@ -1443,8 +1443,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		JOIN fileutil fu ON a.path = fu.path
 		`,
 		Description: "A software override query[^1] to append file information macOS software entries. Requires `fleetd`",
-		Platforms: []string{"darwin"},
-		Discovery:	 discoveryTable("fileutil"),
+		Platforms:   []string{"darwin"},
+		Discovery:   discoveryTable("fileutil"),
 		SoftwareProcessResults: func(mainSoftwareResults, fileUtilResults []map[string]string) []map[string]string {
 			if len(fileUtilResults) == 0 {
 				return mainSoftwareResults
@@ -1459,21 +1459,22 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				// probably okay to assume binary_sha256 will be present since fileutil table is computing it iself, but just in case
 				var binHash string
 				if hash, ok := fur["binary_sha256"]; ok {
-					binHash = hash	
+					binHash = hash
 				}
 				furByPath[fur["path"]] = fileUtilResultRow{
-					binSHA256: fur["binary_sha256"],
+					binSHA256: binHash,
+				}
 			}
-		}
-		for _, swRes := range mainSoftwareResults {
-			fur, ok := furByPath[swRes["installed_path"]]
-			if !ok {
-				// No fileutil information for this application.
-				continue
+			for _, swRes := range mainSoftwareResults {
+				fur, ok := furByPath[swRes["installed_path"]]
+				if !ok {
+					// No fileutil information for this application.
+					continue
+				}
+				swRes["binary_sha256"] = fur.binSHA256
 			}
-			swRes["binary_sha256"] = fur.binSHA256
-		}
-		return mainSoftwareResults
+			return mainSoftwareResults
+		},
 	},
 	// windows_last_opened_at collects last opened at information from prefetch files on Windows
 	// hosts. Joining this within the main software query is not performant enough to do on the
