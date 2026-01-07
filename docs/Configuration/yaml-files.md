@@ -921,7 +921,7 @@ Can only be configured for all teams (`org_settings`).
 #### ndes_scep_proxy
 
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
-- `admin_url` is the URL of the NDES admin endpoint (default: `""`).
+- `admin_url` is the URL of the NDES admin endpoint. For Okta CA, this is the challenge URL (default: `""`).
 - `username` is the username of the NDES admin endpoint (default: `""`).
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
