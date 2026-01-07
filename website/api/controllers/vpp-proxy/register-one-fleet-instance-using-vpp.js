@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Register one Fleet instance using VPP',
+  friendlyName: 'Register one Fleet instance for using VPP',
 
 
   description: 'Creates a registration for a Fleet instance in the website\'s database and returns a generated secret to authenticate future requests.',
