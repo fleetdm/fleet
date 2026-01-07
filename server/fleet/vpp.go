@@ -51,13 +51,13 @@ type VPPAppTeam struct {
 	// automatically created when a VPP app is added to Fleet. This field should be set after VPP
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
-	DisplayName                 *string `json:"display_name"`
+	DisplayName                 *string         `json:"display_name"`
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Applicable to Android apps only.
-	Configuration json.RawMessage `json:"configuration,omitempty"`
-	AutoUpdateEnabled   *bool   `json:"-"`
-	AutoUpdateStartTime *string `json:"-"`
-	AutoUpdateEndTime   *string `json:"-"`
+	Configuration       json.RawMessage `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool           `json:"-"`
+	AutoUpdateStartTime *string         `json:"-"`
+	AutoUpdateEndTime   *string         `json:"-"`
 }
 
 func (v VPPAppTeam) GetPlatform() string {
