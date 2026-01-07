@@ -665,7 +665,12 @@ func StartAndServeVPPServer(t *testing.T) {
 	// Set up the VPP proxy metadata server using the new format
 	// This replaces the old iTunes API format
 	vppProxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with in the new VPP proxy format
+		if r.Header.Get("Authorization") != "Bearer test-bearer-token" {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"error": "unauthorized"}`))
+			return
+		}
+
 		// deviceFamilies: "mac" -> osx platform, "iphone" -> ios platform, "ipad" -> ios platform
 		db := map[string]string{
 			// macos app
@@ -691,8 +696,8 @@ func StartAndServeVPPServer(t *testing.T) {
 					"platformAttributes": {
 						"osx": {
 							"bundleId": "b-2",
-							"artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"},
-							"latestVersionInfo": {"versionDisplay": "2.0.0"}
+							"artwork": {"url": "https://example.com/images/2-mac/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "1.2.3"}
 						},
 						"ios": {
 							"bundleId": "b-2",
@@ -732,10 +737,15 @@ func StartAndServeVPPServer(t *testing.T) {
 
 		_, _ = w.Write([]byte(fmt.Sprintf(`{"data": [%s]}`, strings.Join(objs, ","))))
 	}))
+
+	vppProxyAuthSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"fleetServerSecret": "test-bearer-token"}`))
+	}))
+
 	t.Cleanup(vppProxySrv.Close)
+	t.Cleanup(vppProxyAuthSrv.Close)
 	t.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", vppProxySrv.URL)
-	// Set a static bearer token so the authenticator doesn't try to call an auth endpoint
-	t.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "test-bearer-token")
+	t.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", vppProxyAuthSrv.URL)
 }
 
 type MockPusher struct{}

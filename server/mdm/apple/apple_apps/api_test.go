@@ -29,6 +29,10 @@ func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 	t.Cleanup(server.Close)
 }
 
+// TODO test retries at the metadata pull level
+
+// TODO test auth, including forced renewal + nothing in database but no forced renewal + item in database with no forced renewal
+
 func TestDoRetries(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -57,13 +61,28 @@ func TestDoRetries(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name: "500 requests retries",
+			name: "500 requests does not retry (handled upstream)",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusServiceUnavailable)
 				_, err := w.Write([]byte("{}"))
 				require.NoError(t, err)
 			},
-			wantCalls: 4,
+			wantCalls: 1,
+			wantErr:   true,
+		},
+		{
+			name: "auth fail makes another attempt",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("Authorization") != "Bearer foo" {
+					w.WriteHeader(http.StatusUnauthorized)
+				} else {
+					w.WriteHeader(http.StatusOK)
+				}
+
+				_, err := w.Write([]byte("{}"))
+				require.NoError(t, err)
+			},
+			wantCalls: 2,
 			wantErr:   false,
 		},
 	}
@@ -81,7 +100,12 @@ func TestDoRetries(t *testing.T) {
 			start := time.Now()
 			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL"), nil)
 			require.NoError(t, err)
-			err = do(req, "vppToken", func(bool) (string, error) { return "", nil }, false, nil)
+			err = do(req, "vppToken", func(forceRenew bool) (string, error) {
+				if forceRenew {
+					return "foo", nil
+				}
+				return "", nil
+			}, false, nil)
 			require.NoError(t, err)
 			require.Equal(t, tt.wantCalls, calls)
 			require.WithinRange(t, time.Now(), start, start.Add(time.Duration(tt.wantCalls)*time.Second))

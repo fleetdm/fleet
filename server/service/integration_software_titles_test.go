@@ -214,7 +214,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 

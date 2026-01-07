@@ -5,8 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -1524,100 +1521,6 @@ software:
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
 }
 
-func createFakeITunesAndVPPServices(t *testing.T) {
-	config := &testing_utils.AppleVPPConfigSrvConf{
-		Assets: []vpp.Asset{
-			{
-				AdamID:         "1",
-				PricingParam:   "STDQ",
-				AvailableCount: 12,
-			},
-			{
-				AdamID:         "2",
-				PricingParam:   "STDQ",
-				AvailableCount: 3,
-			},
-		},
-		SerialNumbers: []string{"123", "456"},
-	}
-	testing_utils.StartVPPApplyServer(t, config)
-
-	// Set up the VPP proxy metadata server using the new format
-	// This replaces the old iTunes API format
-	vppProxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with in the new VPP proxy format
-		// deviceFamilies: "mac" -> osx platform, "iphone" -> ios platform, "ipad" -> ios platform
-		db := map[string]string{
-			// macos app
-			"1": `{
-				"id": "1",
-				"attributes": {
-					"name": "App 1",
-					"platformAttributes": {
-						"osx": {
-							"bundleId": "a-1",
-							"artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"},
-							"latestVersionInfo": {"versionDisplay": "1.0.0"}
-						}
-					},
-					"deviceFamilies": ["mac"]
-				}
-			}`,
-			// macos, ios, ipados app
-			"2": `{
-				"id": "2",
-				"attributes": {
-					"name": "App 2",
-					"platformAttributes": {
-						"osx": {
-							"bundleId": "b-2",
-							"artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"},
-							"latestVersionInfo": {"versionDisplay": "2.0.0"}
-						},
-						"ios": {
-							"bundleId": "b-2",
-							"artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"},
-							"latestVersionInfo": {"versionDisplay": "2.0.0"}
-						}
-					},
-					"deviceFamilies": ["mac", "iphone", "ipad"]
-				}
-			}`,
-			// ipados app
-			"3": `{
-				"id": "3",
-				"attributes": {
-					"name": "App 3",
-					"platformAttributes": {
-						"ios": {
-							"bundleId": "c-3",
-							"artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"},
-							"latestVersionInfo": {"versionDisplay": "3.0.0"}
-						}
-					},
-					"deviceFamilies": ["ipad"]
-				}
-			}`,
-		}
-
-		adamIDString := r.URL.Query().Get("ids")
-		adamIDs := strings.Split(adamIDString, ",")
-
-		var objs []string
-		for _, a := range adamIDs {
-			if obj, ok := db[a]; ok {
-				objs = append(objs, obj)
-			}
-		}
-
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"data": [%s]}`, strings.Join(objs, ","))))
-	}))
-	t.Cleanup(vppProxySrv.Close)
-	t.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", vppProxySrv.URL)
-	// Set a static bearer token so the authenticator doesn't try to call an auth endpoint
-	t.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "test-bearer-token")
-}
-
 func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -1859,8 +1762,14 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 		return nil, nil
 	}
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
 
-	createFakeITunesAndVPPServices(t)
+	testing_utils.StartAndServeVPPServer(t)
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)

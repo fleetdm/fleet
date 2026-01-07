@@ -81,7 +81,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 
@@ -94,7 +94,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
+		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 
@@ -107,7 +107,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		},
 		Name:             "App 3",
 		BundleIdentifier: "c-3",
-		IconURL:          "https://example.com/images/3",
+		IconURL:          "https://example.com/images/3/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 	var addAppResp addAppStoreAppResponse
@@ -166,8 +166,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
-		LatestVersion:    "2.0.0",
+		IconURL:          "https://example.com/images/2/512x512.png",
+		LatestVersion:    "2.0.1", // macOS has different version than iOS
 	}
 	expectedApps := []*fleet.VPPApp{macOSApp, errApp, iOSApp, iPadOSApp}
 	expectedAppsByBundleID := map[string]*fleet.VPPApp{
@@ -337,7 +337,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.Equal(t, expected.Name, got.Name)
 		require.NotNil(t, got.AppStoreApp)
 		require.Equal(t, expected.AdamID, got.AppStoreApp.AppStoreID)
-		require.Equal(t, ptr.String(expected.IconURL), got.IconUrl)
+		require.Equal(t, expected.IconURL, *got.IconUrl)
 		require.Empty(t, got.AppStoreApp.Name) // Name is only present for installer packages
 		require.Equal(t, expected.LatestVersion, got.AppStoreApp.Version)
 		require.NotNil(t, got.Status)
@@ -1040,7 +1040,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 
@@ -1053,7 +1053,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
+		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 
