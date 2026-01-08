@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"

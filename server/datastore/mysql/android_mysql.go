@@ -5,9 +5,9 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 )

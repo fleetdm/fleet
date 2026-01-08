@@ -9,9 +9,9 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
