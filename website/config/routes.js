@@ -1276,7 +1276,7 @@ module.exports.routes = {
   //  ╦  ╦╔═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╚╗╔╝╠═╝╠═╝  ║║║║╣  ║ ╠═╣ ║║╠═╣ ║ ╠═╣  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
   //   ╚╝ ╩  ╩    ╩ ╩╚═╝ ╩ ╩ ╩═╩╝╩ ╩ ╩ ╩ ╩  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
-  'POST /api/vpp/v1/register': { action: 'vpp-proxy/register-one-fleet-instance-using-vpp', csrf: false },
+  'POST /api/vpp/v1/auth': { action: 'vpp-proxy/register-one-fleet-instance-using-vpp', csrf: false },
   'GET /api/vpp/v1/metadata/:storeRegion': { action: 'vpp-proxy/get-vpp-app-metadata' },
 
   // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
