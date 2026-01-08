@@ -639,7 +639,8 @@ Currently, managing users and ticket destinations (Jira and Zendesk) are only su
 The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
-- `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
+- `enable_software_inventory` specifies whether or not Fleet generates downloadable installers for Fleet's agent (fleetd) (default: `true`).
+- `enable_agent_downloads` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 
 Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 
@@ -653,6 +654,7 @@ org_settings:
       macs: SELECT mac FROM interface_details
     enable_host_users: true
     enable_software_inventory: true
+    enable_agent_downloads: true
 ```
 
 ### fleet_desktop
