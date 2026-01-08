@@ -47,13 +47,59 @@ type HostDetailResponse struct {
 }
 
 func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
+	var isADEEnrolledIDevice bool
+	if host.Platform == "ipados" || host.Platform == "ios" {
+		ac, err := svc.AppConfigObfuscated(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
+			hdep, err := svc.GetHostDEPAssignment(ctx, &host.Host)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, err
+			}
+			if hdep != nil {
+				isADEEnrolledIDevice = hdep.IsDEPAssignedToFleet()
+			}
+		}
+	}
+
+	// For ADE-enrolled iDevices, we get geolocation data via the MDM protocol
+	// and store it in Fleet.
+	var geoLoc *fleet.GeoLocation
+	if isADEEnrolledIDevice {
+		var err error
+		geoLoc, err = svc.GetHostLocationData(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, err
+		}
+	} else {
+		// For other types of hosts, use the MaxMind geoIP data (if it's enabled)
+		geoLoc = svc.LookupGeoIP(ctx, host.PublicIP)
+	}
+
 	return &HostDetailResponse{
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
 		DisplayName: host.DisplayName(),
-		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
+		Geolocation: geoLoc,
 	}, nil
+}
+
+func (svc *Service) GetHostLocationData(ctx context.Context, hostID uint) (*fleet.GeoLocation, error) {
+	var ret fleet.GeoLocation
+
+	locData, err := svc.ds.GetHostLocationData(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host location data")
+	}
+
+	ret.Geometry = &fleet.Geometry{
+		Coordinates: []float64{locData.Longitude, locData.Latitude},
+	}
+
+	return &ret, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -363,6 +409,15 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 		return nil, err
 	}
 
+	statusMap := map[uint]*fleet.HostLockWipeStatus{}
+	if opt.IncludeDeviceStatus {
+		// We query the MDM lock/wipe status for all hosts in a batch to optimize performance.
+		statusMap, err = svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch")
+		}
+	}
+
 	// Create an iterator to return one host at a time, hydrated with extra details as needed.
 	hostIterator := func() iter.Seq2[*fleet.Host, error] {
 		return func(yield func(*fleet.Host, error) bool) {
@@ -398,7 +453,17 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 						return
 					}
 					host.Users = hu
+				}
 
+				if opt.IncludeDeviceStatus {
+					if status, ok := statusMap[host.ID]; ok {
+						host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
+						host.MDM.PendingAction = ptr.String(string(status.PendingAction()))
+					} else {
+						// Host has no MDM actions, set defaults
+						host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
+						host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
+					}
 				}
 
 				if !yield(host, nil) {
@@ -1340,14 +1405,21 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			// Nothing to do.
 			return nil
 		}
+
 		err = svc.verifyMDMConfiguredAndConnected(ctx, host)
 		if err != nil {
 			return err
 		}
+
 		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3)
 		cmdUUID := uuid.NewString()
 		if doAppRefetch {
-			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, false)
+			hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host MDM info")
+			}
+			isBYOD := !hostMDM.InstalledFromDep
+			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, isBYOD)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
 			}
@@ -1356,6 +1428,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 			})
 		}
+
 		if doCertsRefetch {
 			if err := svc.mdmAppleCommander.CertificateList(ctx, []string{host.UUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch certs with MDM")
@@ -1365,6 +1438,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
 			})
 		}
+
 		if doDeviceInfoRefetch {
 			// DeviceInformation is last because the refetch response clears the refetch_requested flag
 			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID)
@@ -1376,6 +1450,19 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
 			})
 		}
+
+		adeData, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "refetch host: get host DEP assignment")
+		}
+
+		if adeData.IsDEPAssignedToFleet() {
+			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
+			}
+		}
+
 		// Add commands to the database to track the commands sent
 		err = svc.ds.AddHostMDMCommands(ctx, hostMDMCommands)
 		if err != nil {
@@ -3203,7 +3290,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 		})
 		return nil, &fleet.BadRequestError{
 			Message: fmt.Sprintf(
-				"Couldn't %s labels. Labels not found: %s. All labels must exist.",
+				"Couldn't %s labels. Labels not found: %s. All labels must exist and be either global or on the same team as the host.",
 				action,
 				strings.Join(labelsNotFound, ", "),
 			),

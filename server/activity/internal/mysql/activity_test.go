@@ -11,8 +11,8 @@ import (
 
 	activityapi "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"

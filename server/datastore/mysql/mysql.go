@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/rdsauth"
@@ -31,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -44,7 +44,6 @@ import (
 var _ activities.ActivityStore = (*Datastore)(nil)
 
 const (
-	defaultSelectLimit   = 1000000
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
 
 	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
@@ -810,7 +809,7 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	// to insure that an unbounded query with many results doesn't consume too
 	// much memory or hang
 	if perPage == 0 {
-		perPage = defaultSelectLimit
+		perPage = fleet.DefaultPerPage
 	}
 
 	offset := perPage * opts.Page

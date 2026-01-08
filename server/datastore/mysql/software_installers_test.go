@@ -15,9 +15,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -38,6 +38,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
 		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
+		{"BatchSetSoftwareInstallersWithUpgradeCodes", testBatchSetSoftwareInstallersWithUpgradeCodes},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
@@ -1427,6 +1428,227 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
+}
+
+func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// helper to get upgrade_code from software_titles table
+	getUpgradeCodeForTitle := func(titleID uint) *string {
+		var upgradeCode *string
+		err := sqlx.GetContext(ctx, ds.reader(ctx), &upgradeCode,
+			`SELECT upgrade_code FROM software_titles WHERE id = ?`, titleID)
+		require.NoError(t, err)
+		return upgradeCode
+	}
+
+	// Create a Windows installer with an upgrade code
+	ins0 := "windows-installer"
+	ins0File := bytes.NewReader([]byte("installer0"))
+	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
+	upgradeCode := "{12345678-1234-1234-1234-123456789012}"
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+		InstallScript:   "install.ps1",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer0.msi",
+		Title:           "Windows App",
+		Source:          "programs",
+		Version:         "1.0",
+		UserID:          user1.ID,
+		Platform:        "windows",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		UpgradeCode:     upgradeCode,
+	}})
+	require.NoError(t, err)
+
+	softwareInstallers, err := ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 1)
+	require.NotNil(t, softwareInstallers[0].TitleID)
+	titleID := *softwareInstallers[0].TitleID
+
+	// Verify the upgrade_code was stored in software_titles
+	storedUpgradeCode := getUpgradeCodeForTitle(titleID)
+	require.NotNil(t, storedUpgradeCode)
+	require.Equal(t, upgradeCode, *storedUpgradeCode)
+
+	// Update the installer (same upgrade_code, different version) - should match the same title
+	ins0File = bytes.NewReader([]byte("installer0-v2"))
+	tfr0, err = fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+		InstallScript:   "install.ps1",
+		InstallerFile:   tfr0,
+		StorageID:       ins0 + "-v2",
+		Filename:        "installer0-v2.msi",
+		Title:           "Windows App",
+		Source:          "programs",
+		Version:         "2.0",
+		UserID:          user1.ID,
+		Platform:        "windows",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		UpgradeCode:     upgradeCode,
+	}})
+	require.NoError(t, err)
+
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 1)
+	require.NotNil(t, softwareInstallers[0].TitleID)
+	// Title ID should be the same since upgrade_code matches
+	require.Equal(t, titleID, *softwareInstallers[0].TitleID)
+
+	// Verify upgrade_code is still correct
+	storedUpgradeCode = getUpgradeCodeForTitle(titleID)
+	require.NotNil(t, storedUpgradeCode)
+	require.Equal(t, upgradeCode, *storedUpgradeCode)
+
+	// Add a second Windows installer with no upgrade code
+	ins1 := "windows-installer2"
+	ins1File := bytes.NewReader([]byte("installer1"))
+	tfr1, err := fleet.NewTempFileReader(ins1File, t.TempDir)
+	require.NoError(t, err)
+
+	// Reset tfr0 for reuse
+	ins0File = bytes.NewReader([]byte("installer0-v2"))
+	tfr0, err = fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   "install.ps1",
+			InstallerFile:   tfr0,
+			StorageID:       ins0 + "-v2",
+			Filename:        "installer0-v2.msi",
+			Title:           "Windows App",
+			Source:          "programs",
+			Version:         "2.0",
+			UserID:          user1.ID,
+			Platform:        "windows",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			UpgradeCode:     upgradeCode,
+		},
+		{
+			InstallScript:   "install2.ps1",
+			InstallerFile:   tfr1,
+			StorageID:       ins1,
+			Filename:        "installer1.msi",
+			Title:           "Another Windows App",
+			Source:          "programs",
+			Version:         "1.0",
+			UserID:          user1.ID,
+			Platform:        "windows",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			UpgradeCode:     "",
+		},
+	})
+	require.NoError(t, err)
+
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 2)
+
+	// Find the second installer and verify its upgrade_code
+	var secondTitleID uint
+	for _, si := range softwareInstallers {
+		if *si.TitleID != titleID {
+			secondTitleID = *si.TitleID
+			break
+		}
+	}
+	require.NotZero(t, secondTitleID)
+
+	storedUpgradeCode2 := getUpgradeCodeForTitle(secondTitleID)
+	require.NotNil(t, storedUpgradeCode2)
+	require.Empty(t, *storedUpgradeCode2)
+
+	// Verify non-Windows installers don't get upgrade_code set
+	ins2 := "mac-installer"
+	ins2File := bytes.NewReader([]byte("installer2"))
+	tfr2, err := fleet.NewTempFileReader(ins2File, t.TempDir)
+	require.NoError(t, err)
+
+	// Reset tfr0 and tfr1 for reuse
+	ins0File = bytes.NewReader([]byte("installer0-v2"))
+	tfr0, err = fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
+	ins1File = bytes.NewReader([]byte("installer1"))
+	tfr1, err = fleet.NewTempFileReader(ins1File, t.TempDir)
+	require.NoError(t, err)
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   "install.ps1",
+			InstallerFile:   tfr0,
+			StorageID:       ins0 + "-v2",
+			Filename:        "installer0-v2.msi",
+			Title:           "Windows App",
+			Source:          "programs",
+			Version:         "2.0",
+			UserID:          user1.ID,
+			Platform:        "windows",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			UpgradeCode:     upgradeCode,
+		},
+		{
+			InstallScript:   "install2.ps1",
+			InstallerFile:   tfr1,
+			StorageID:       ins1,
+			Filename:        "installer1.msi",
+			Title:           "Another Windows App",
+			Source:          "programs",
+			Version:         "1.0",
+			UserID:          user1.ID,
+			Platform:        "windows",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			UpgradeCode:     "",
+		},
+		{
+			InstallScript:    "install3.sh",
+			InstallerFile:    tfr2,
+			StorageID:        ins2,
+			Filename:         "installer2.pkg",
+			Title:            "Mac App",
+			Source:           "apps",
+			Version:          "1.0",
+			UserID:           user1.ID,
+			Platform:         "darwin",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.example.macapp",
+		},
+	})
+	require.NoError(t, err)
+
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 3)
+
+	// Find the mac installer and verify upgrade_code is NULL
+	var macTitleID uint
+	for _, si := range softwareInstallers {
+		if *si.TitleID != titleID && *si.TitleID != secondTitleID {
+			macTitleID = *si.TitleID
+			break
+		}
+	}
+	require.NotZero(t, macTitleID)
+
+	macUpgradeCode := getUpgradeCodeForTitle(macTitleID)
+	require.Nil(t, macUpgradeCode)
+
+	// Clean up
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
 }
 
 func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *Datastore) {

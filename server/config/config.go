@@ -540,6 +540,22 @@ type KafkaRESTConfig struct {
 	Timeout          int    `json:"timeout" yaml:"timeout"`
 }
 
+// NatsConfig defines configs for the NATS logging plugin.
+type NatsConfig struct {
+	StatusSubject    string        `json:"status_subject" yaml:"status_subject"`
+	ResultSubject    string        `json:"result_subject" yaml:"result_subject"`
+	AuditSubject     string        `json:"audit_subject" yaml:"audit_subject"`
+	Server           string        `json:"server" yaml:"server"`
+	CredFile         string        `json:"cred_file" yaml:"cred_file"`
+	NKeyFile         string        `json:"nkey_file" yaml:"nkey_file"`
+	TLSClientCrtFile string        `json:"tls_client_crt_file" yaml:"tls_client_crt_file"`
+	TLSClientKeyFile string        `json:"tls_client_key_file" yaml:"tls_client_key_file"`
+	CACrtFile        string        `json:"ca_crt_file" yaml:"ca_crt_file"`
+	Compression      string        `json:"compression" yaml:"compression"`
+	JetStream        bool          `json:"jetstream" yaml:"jetstream"`
+	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
+}
+
 // LicenseConfig defines configs related to licensing Fleet.
 type LicenseConfig struct {
 	Key              string `yaml:"key"`
@@ -627,6 +643,7 @@ type FleetConfig struct {
 	Filesystem                 FilesystemConfig
 	Webhook                    WebhookConfig
 	KafkaREST                  KafkaRESTConfig
+	Nats                       NatsConfig
 	License                    LicenseConfig
 	Vulnerabilities            VulnerabilitiesConfig
 	Upgrades                   UpgradesConfig
@@ -739,6 +756,30 @@ type MDMConfig struct {
 
 	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
+
+	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+}
+
+// AndroidAgentConfig holds configuration for the Fleet Android agent.
+type AndroidAgentConfig struct {
+	// Package is the package name for the Fleet Android agent.
+	// Default: com.fleetdm.agent
+	Package string `yaml:"package"`
+	// SigningSHA256 is the signing certificate SHA256 fingerprint for the Fleet Android agent.
+	SigningSHA256 string `yaml:"signing_sha256"`
+}
+
+// Validate checks that the AndroidAgentConfig is valid.
+// Both package and signing_sha256 must be set together, or both must be empty.
+func (c AndroidAgentConfig) Validate(initFatal func(err error, msg string)) {
+	if c.Package != "" && c.SigningSHA256 == "" {
+		initFatal(errors.New("mdm.android_agent.signing_sha256 must be set when mdm.android_agent.package is set"),
+			"Android agent configuration")
+	}
+	if c.SigningSHA256 != "" && c.Package == "" {
+		initFatal(errors.New("mdm.android_agent.package must be set when mdm.android_agent.signing_sha256 is set"),
+			"Android agent configuration")
+	}
 }
 
 type CalendarConfig struct {
@@ -1383,6 +1424,20 @@ func (man Manager) addConfigs() {
 		"Kafka REST proxy content type header (defaults to \"application/vnd.kafka.json.v1+json\"")
 	man.addConfigInt("kafkarest.timeout", 5, "Kafka REST proxy json post timeout")
 
+	// NATS
+	man.addConfigString("nats.status_subject", "", "NATS subject for status logs")
+	man.addConfigString("nats.result_subject", "", "NATS subject for result logs")
+	man.addConfigString("nats.audit_subject", "", "NATS subject for audit logs")
+	man.addConfigString("nats.server", "", "NATS server URL")
+	man.addConfigString("nats.cred_file", "", "NATS credentials file")
+	man.addConfigString("nats.nkey_file", "", "NATS NKey file")
+	man.addConfigString("nats.tls_client_crt_file", "", "NATS TLS client certificate file")
+	man.addConfigString("nats.tls_client_key_file", "", "NATS TLS client key file")
+	man.addConfigString("nats.ca_crt_file", "", "NATS CA certificate file")
+	man.addConfigString("nats.compression", "", "NATS compression algorithm (gzip, snappy, zstd)")
+	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
+	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
+
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 	man.addConfigBool("license.enforce_host_limit", false, "Enforce license limit of enrolled hosts")
@@ -1475,6 +1530,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Experimental feature: allows usage of specific Apple MDM profiles for OS updates and FileVault")
+	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
+	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
+	man.hideConfig("mdm.android_agent.package")
+	man.hideConfig("mdm.android_agent.signing_sha256")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1708,6 +1767,20 @@ func (man Manager) LoadConfig() FleetConfig {
 			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
 			Timeout:          man.getConfigInt("kafkarest.timeout"),
 		},
+		Nats: NatsConfig{
+			StatusSubject:    man.getConfigString("nats.status_subject"),
+			ResultSubject:    man.getConfigString("nats.result_subject"),
+			AuditSubject:     man.getConfigString("nats.audit_subject"),
+			Server:           man.getConfigString("nats.server"),
+			CredFile:         man.getConfigString("nats.cred_file"),
+			NKeyFile:         man.getConfigString("nats.nkey_file"),
+			TLSClientCrtFile: man.getConfigString("nats.tls_client_crt_file"),
+			TLSClientKeyFile: man.getConfigString("nats.tls_client_key_file"),
+			CACrtFile:        man.getConfigString("nats.ca_crt_file"),
+			Compression:      man.getConfigString("nats.compression"),
+			JetStream:        man.getConfigBool("nats.jetstream"),
+			Timeout:          man.getConfigDuration("nats.timeout"),
+		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),
 			EnforceHostLimit: man.getConfigBool("license.enforce_host_limit"),
@@ -1768,6 +1841,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			AndroidAgent: AndroidAgentConfig{
+				Package:       man.getConfigString("mdm.android_agent.package"),
+				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
+			},
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),

@@ -48,6 +48,8 @@ type InstallerStore interface {
 
 // Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
+	GetsAppConfig
+	AccessesMDMConfigAssets
 	health.Checker
 
 	CarveStore
@@ -380,7 +382,7 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
-	// GetHostMDMIdentifiers searches for hosts with identifiders matching the provided identifier.
+	// GetHostMDMIdentifiers searches for hosts with identifiers matching the provided identifier.
 	// It is intended as an optimization over existing host-by-identifier methods (e.g.,
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
 	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
@@ -484,7 +486,6 @@ type Datastore interface {
 	// AppConfigStore contains method for saving and retrieving application configuration
 
 	NewAppConfig(ctx context.Context, info *AppConfig) (*AppConfig, error)
-	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 
 	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
@@ -600,7 +601,7 @@ type Datastore interface {
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
 	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
-	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
+	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
@@ -1578,41 +1579,6 @@ type Datastore interface {
 	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
 	// for the host with the given serial number alongside the host's platform. The host must be DEP assigned to Fleet.
 	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (string, *AppleOSUpdateSettings, error)
-
-	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
-	// tx is optional and can be used to pass an existing transaction.
-	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
-	// InsertOrReplaceMDMConfigAsset inserts or updates an encrypted asset.
-	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
-
-	// GetAllMDMConfigAssetsByName returns the requested config assets.
-	//
-	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult` error.
-	// The queryerContext is optional and can be used to pass a transaction.
-	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
-		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
-
-	// GetAllMDMConfigAssetsHashes behaves like
-	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
-	// each asset
-	//
-	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
-	GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]string, error)
-
-	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
-	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
-
-	// HardDeleteMDMConfigAsset permanently deletes the given MDM config asset.
-	HardDeleteMDMConfigAsset(ctx context.Context, assetName MDMAssetName) error
-
-	// ReplaceMDMConfigAssets replaces (soft delete if they exist + insert) `MDMConfigAsset`s in a
-	// single transaction. Useful for "renew" flows where users are updating the assets with newly
-	// generated ones.
-	// tx parameter is optional and can be used to pass an existing transaction.
-	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
-
-	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
-	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
 	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
 	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
 	DeleteCAConfigAssets(ctx context.Context, names []string) error
@@ -1947,6 +1913,10 @@ type Datastore interface {
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
 
+	// GetHostsLockWipeStatusBatch gets the lock/unlock and wipe status for multiple hosts in a single operation.
+	// Returns a map of host ID to HostLockWipeStatus.
+	GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*Host) (map[uint]*HostLockWipeStatus, error)
+
 	// LockHostViaScript sends a script to lock a host and updates the
 	// states in host_mdm_actions
 	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
@@ -1963,6 +1933,11 @@ type Datastore interface {
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
+
+	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
+	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
+	GetHostLocationData(ctx context.Context, hostID uint) (*HostLocationData, error)
+	DeleteHostLocationData(ctx context.Context, hostID uint) error
 
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
@@ -2074,6 +2049,14 @@ type Datastore interface {
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
+	// on VPP installations for a host
+	//
+	// By pending verification it means that the installation command is not acknowledged, OR that the installation
+	// is acknowledged but not yet verified (installation is still ongoing on the device and/or Fleet hasn't verified
+	// the installation via InstalledApplicationList).
+	MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
+
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
 
@@ -2158,6 +2141,8 @@ type Datastore interface {
 	// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
 	// is currently installed. Returns false if the command doesn't exist or app is not installed.
 	GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error)
+	// IsAutoUpdateVPPInstall determines whether a VPP install command was triggered by auto-update config
+	IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 
@@ -2544,8 +2529,8 @@ type Datastore interface {
 	// update, delete). Deletes are processed first based on name and type. Adds and updates are
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
-	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
-	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType MDMOperationType) error
+	// UpsertCertificateStatus allows a host to update the installation status of a certificate given its template.
+	UpsertCertificateStatus(ctx context.Context, update *CertificateStatusUpdate) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
 	// Returns a map of team IDs that had certificates inserted or updated.
@@ -2603,6 +2588,22 @@ type Datastore interface {
 	// For a given certificate template ID, it deletes any rows with status=pending and
 	// updates all other rows to status=pending, operation_type=remove.
 	SetHostCertificateTemplatesToPendingRemove(ctx context.Context, certificateTemplateID uint) error
+
+	// SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
+	// for a specific host for removal.
+	SetHostCertificateTemplatesToPendingRemoveForHost(ctx context.Context, hostUUID string) error
+
+	// GetAndroidCertificateTemplatesForRenewal returns certificate templates that are approaching
+	// expiration and need to be renewed. Uses the same threshold logic as Apple/Windows:
+	// - If validity period > 30 days: renew within 30 days of expiration
+	// - If validity period <= 30 days: renew within half the validity period of expiration
+	// Only returns certificates with status 'delivered' or 'verified' and operation_type 'install'.
+	GetAndroidCertificateTemplatesForRenewal(ctx context.Context, limit int) ([]HostCertificateTemplateForRenewal, error)
+
+	// SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
+	// by setting status to 'pending', clearing validity fields, and generating a new UUID.
+	// The new UUID signals to the Android agent that the certificate needs renewal.
+	SetAndroidCertificateTemplatesForRenewal(ctx context.Context, templates []HostCertificateTemplateForRenewal) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
@@ -2863,4 +2864,38 @@ type EntityUsingSecret struct {
 	Name string
 	// TeamName is the name of the team the entity belongs to.
 	TeamName string
+}
+
+type AccessesMDMConfigAssets interface {
+	// InsertMDMConfigAssets inserts MDM-related config assets, such as SCEP and APNS certs and keys.
+	// tx is used to pass an existing transaction; if nil, a new transaction will be created inside the call
+	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
+	// InsertOrReplaceMDMConfigAsset inserts or updates an encrypted asset.
+	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
+	// GetAllMDMConfigAssetsByName returns the requested config assets.
+	//
+	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult` error.
+	// The queryerContext is optional and can be used to pass a transaction.
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
+	// GetAllMDMConfigAssetsHashes behaves like
+	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
+	// each asset
+	//
+	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
+	GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]string, error)
+	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
+	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
+	// HardDeleteMDMConfigAsset permanently deletes the given MDM config asset.
+	HardDeleteMDMConfigAsset(ctx context.Context, assetName MDMAssetName) error
+	// ReplaceMDMConfigAssets replaces (soft delete if they exist + insert) `MDMConfigAsset`s in a
+	// single transaction. Useful for "renew" flows where users are updating the assets with newly
+	// generated ones.
+	// tx parameter is optional and can be used to pass an existing transaction.
+	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
+	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
+	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
+}
+type GetsAppConfig interface {
+	AppConfig(ctx context.Context) (*AppConfig, error)
 }

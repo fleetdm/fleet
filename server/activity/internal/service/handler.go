@@ -5,7 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )

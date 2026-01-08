@@ -8,7 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/service"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
-	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"

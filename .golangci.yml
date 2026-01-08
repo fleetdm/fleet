@@ -38,6 +38,20 @@ linters:
           deny:
             - pkg: github.com/pkg/errors
               desc: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
+            - pkg: github.com/valyala/fastjson
+              desc: |
+                Unanswered issue opened 3 years ago: https://github.com/valyala/fastjson/issues/88).
+                For a safe use of their fastjson, you really have to call Validate* first and then Parse*,
+                otherwise it accepts a lot of invalid JSON strings.
+                There was a PR to address this, but it's still open and uncommented by the owner:
+                https://github.com/valyala/fastjson/pull/68.
+            - pkg: github.com/valyala/fasttemplate
+              desc: |
+                Unanswered issue opened 3 years ago: https://github.com/valyala/fastjson/issues/88).
+                For a safe use of their fastjson, you really have to call Validate* first and then Parse*,
+                otherwise it accepts a lot of invalid JSON strings.
+                There was a PR to address this, but it's still open and uncommented by the owner:
+                https://github.com/valyala/fastjson/pull/68.
     govet:
       enable:
         - nilness

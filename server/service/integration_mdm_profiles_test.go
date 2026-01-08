@@ -7519,7 +7519,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		"team_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "Couldn't add configuration profile (G4.user-but-actually-system) because \"PayloadScope\" conflicts")
+	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
 
 	// Test a conflict of a profile on a team with an existing global profile
 	// Should error because "G2" conflicts with global "G2" profile
@@ -7534,7 +7534,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		"team_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "Couldn't add configuration profile (G2) because \"PayloadScope\" conflicts")
+	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
 
 	// Test a conflict of a profile on a team versus one with the same identifier but different
 	// scope on a different team.
@@ -7550,7 +7550,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		"team_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "Couldn't add configuration profile (T2.3.user) because \"PayloadScope\" conflicts")
+	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
 
 	// Profile edit of existing profile on team1 with a new scope
 	newTm1Profiles = [][]byte{

@@ -55,18 +55,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
@@ -137,7 +138,7 @@ the way that the Fleet server works.
 				applyDevFlags(&config)
 			}
 
-			license, err := initLicense(config, devLicense, devExpiredLicense)
+			license, err := initLicense(&config, devLicense, devExpiredLicense)
 			if err != nil {
 				initFatal(
 					err,
@@ -402,6 +403,17 @@ the way that the Fleet server works.
 					ContentTypeValue: config.KafkaREST.ContentTypeValue,
 					Timeout:          config.KafkaREST.Timeout,
 				},
+				Nats: logging.NatsConfig{
+					Server:            config.Nats.Server,
+					CredFile:          config.Nats.CredFile,
+					NKeyFile:          config.Nats.NKeyFile,
+					TLSClientCertFile: config.Nats.TLSClientCrtFile,
+					TLSClientKeyFile:  config.Nats.TLSClientKeyFile,
+					CACertFile:        config.Nats.CACrtFile,
+					Compression:       config.Nats.Compression,
+					JetStream:         config.Nats.JetStream,
+					Timeout:           config.Nats.Timeout,
+				},
 			}
 
 			// Set specific configuration to osqueryd status logs.
@@ -414,6 +426,7 @@ the way that the Fleet server works.
 			loggingConfig.PubSub.Topic = config.PubSub.StatusTopic
 			loggingConfig.PubSub.AddAttributes = false // only used by result logs
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
+			loggingConfig.Nats.Subject = config.Nats.StatusSubject
 
 			osquerydStatusLogger, err := logging.NewJSONLogger("status", loggingConfig, logger)
 			if err != nil {
@@ -430,6 +443,7 @@ the way that the Fleet server works.
 			loggingConfig.PubSub.Topic = config.PubSub.ResultTopic
 			loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
+			loggingConfig.Nats.Subject = config.Nats.ResultSubject
 
 			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
 			if err != nil {
@@ -447,6 +461,7 @@ the way that the Fleet server works.
 				loggingConfig.PubSub.Topic = config.PubSub.AuditTopic
 				loggingConfig.PubSub.AddAttributes = false // only used by result logs
 				loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
+				loggingConfig.Nats.Subject = config.Nats.AuditSubject
 
 				auditLogger, err = logging.NewJSONLogger("audit", loggingConfig, logger)
 				if err != nil {
@@ -768,6 +783,7 @@ the way that the Fleet server works.
 			ctx = ctxerr.NewContext(ctx, eh)
 
 			activitiesModule := activities.NewActivityModule(ds, logger)
+			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
@@ -776,6 +792,7 @@ the way that the Fleet server works.
 				config.Server.PrivateKey,
 				ds,
 				activitiesModule,
+				config.MDM.AndroidAgent,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -1089,6 +1106,7 @@ the way that the Fleet server works.
 					ds,
 					logger,
 					config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
+					config.MDM.AndroidAgent,
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_android_profile_manager schedule")
@@ -1153,7 +1171,7 @@ the way that the Fleet server works.
 				}
 
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger)
+					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger, apple_apps.GetAuthenticator(ctx, ds, config.License.Key))
 				}); err != nil {
 					initFatal(err, "failed to register refresh vpp app versions schedule")
 				}
@@ -1286,7 +1304,7 @@ the way that the Fleet server works.
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
-					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes}, extra...)
+					[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1340,9 +1358,18 @@ the way that the Fleet server works.
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
-				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
+				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
+					ds,
+					commander,
+					vppInstaller,
+					license.IsPremium(),
+					logger,
+					redis_key_value.New(redisPool),
+				)
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
+				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
@@ -1705,10 +1732,10 @@ func printFleetv4732FixNeededMessage() {
 		"################################################################################\n", os.Args[0])
 }
 
-func initLicense(config configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {
+func initLicense(config *configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {
 	if devLicense {
 		// This license key is valid for development only
-		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzY3MTM5MjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiQ3JlYXRlZCB3aXRoIEZsZWV0IExpY2Vuc2Uga2V5IGRpc3BlbnNlciIsInRpZXIiOiJwcmVtaXVtIiwicGFydG5lciI6ImRldmVsb3BtZW50LW9ubHkiLCJpYXQiOjE3NTEyOTcyOTh9.dAR7M0yjKYXF57z_kWaXCsT97XEpWeJlwkJolEzSB9sJmiTgd-oXRqw10tsrwSs8x_WczgDSgyWliImBOtqmBQ"
+		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzgyNzc3NjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCwgSW5jLiBEZXZlbG9wZXIiLCJkZXZpY2VzIjoxMDAwLCJub3RlIjoiQ3JlYXRlZCB3aXRoIEZsZWV0IExpY2Vuc2Uga2V5IGRpc3BlbnNlciIsInRpZXIiOiJwcmVtaXVtIiwiaWF0IjoxNzY3MjAzODg2fQ.X9O3CXJOzIfgkzlXgL45iBaSvAbZyQn4UjcvH_gEXJGIQw0xMW4r3tJBSEuUqQXoaQnADVR1Oocfp6j_hMZX0A"
 	} else if devExpiredLicense {
 		// An expired license key
 		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"

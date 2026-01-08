@@ -50,10 +50,10 @@ import (
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -412,7 +412,7 @@ type TestServerOpts struct {
 	KeyValueStore                   fleet.KeyValueStore
 	EnableSCEPProxy                 bool
 	WithDEPWebview                  bool
-	FeatureRoutes                   []endpoint_utils.HandlerRoutesFunc
+	FeatureRoutes                   []endpointer.HandlerRoutesFunc
 	SCEPConfigService               fleet.SCEPConfigService
 	DigiCertService                 fleet.DigiCertService
 	EnableSCIM                      bool
@@ -509,8 +509,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		scepStorage := opts[0].SCEPStorage
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
+			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool))
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
+			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
@@ -556,7 +558,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		rootMux.Handle("/", frontendHandler)
 	}
 
-	var featureRoutes []endpoint_utils.HandlerRoutesFunc
+	var featureRoutes []endpointer.HandlerRoutesFunc
 	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
 		featureRoutes = opts[0].FeatureRoutes
 	}

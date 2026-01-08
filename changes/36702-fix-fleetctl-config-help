@@ -1,0 +1,1 @@
+- Fixed fleetctl config get/set to show proper usage information when called without required arguments
