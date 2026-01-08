@@ -5106,4 +5106,74 @@ software:
 
 		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when no VPP apps are provided")
 	})
+
+	t.Run("no auto update settings and no existing schedule does not call UpdateSoftwareTitleAutoUpdateConfig", func(t *testing.T) {
+		autoUpdateCalls = nil
+		savedTeam = nil
+
+		// Ensure no existing schedules are returned for either source
+		ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+			return []fleet.SoftwareAutoUpdateSchedule{}, nil
+		}
+
+		teamFileNoSettings, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFileNoSettings.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+name: TeamAutoUpdate
+team_settings:
+  secrets:
+    - secret: test
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: "ios"
+      self_service: false
+`)
+		require.NoError(t, err)
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", teamFileNoSettings.Name()})
+
+		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when YAML omits settings and no schedule exists")
+	})
+
+	t.Run("invalid auto-update window triggers error and does not call UpdateSoftwareTitleAutoUpdateConfig", func(t *testing.T) {
+		autoUpdateCalls = nil
+		savedTeam = nil
+
+		ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+			return []fleet.SoftwareAutoUpdateSchedule{}, nil
+		}
+
+		teamFileInvalidWindow, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFileInvalidWindow.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+name: TeamAutoUpdate
+team_settings:
+  secrets:
+    - secret: test
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: "ios"
+      auto_update_enabled: true
+      auto_update_start_time: "25:00"
+      auto_update_end_time: "05:00"
+      self_service: false
+`)
+		require.NoError(t, err)
+
+		_, runErr := RunAppNoChecks([]string{"gitops", "-f", teamFileInvalidWindow.Name()})
+		require.Error(t, runErr, "Expected error for invalid auto-update window")
+		require.Contains(t, runErr.Error(), "invalid auto-update window for vpp app")
+		require.Contains(t, runErr.Error(), "Error parsing start time")
+		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called on invalid window")
+	})
 }

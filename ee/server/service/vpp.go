@@ -370,6 +370,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		if app.AutoUpdateEnabled == nil {
 			cfg.AutoUpdateEnabled = ptr.Bool(false)
 		}
+
+		// Validate auto-update window
+		schedule := fleet.SoftwareAutoUpdateSchedule{SoftwareAutoUpdateConfig: cfg}
+		if err := schedule.WindowIsValid(); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
+		}
 		if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tmID, cfg); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "updating auto-update config for vpp app")
 		}
