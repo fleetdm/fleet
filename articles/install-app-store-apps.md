@@ -18,7 +18,11 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, then select the app you just purchased.
 
-> Currently, Fleet only supports Apple App Store apps from the United States (US) region. If the app is listed on the [Apple App Store](https://apps.apple.com/) and it has `/us` in the URL (e.g. https://apps.apple.com/us/app/slack/id618783545) then it's supported.
+#### Advanced configuration
+
+By default, Fleet retrieves apps from the `us` Apple storefront. To specify a different region, start Fleet with the `FLEET_DEV_VPP_REGION` environment variable set to another storefront (e.g. `fr`).
+
+By default, Fleet proxies app metadata requests to remove the need to configure extra credentials beyond a VPP token; if you want to communicate directly with Apple's app catalog API, start Fleet with the `FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL` environment variable set to `apple`, and set the `FLEET_DEV_VPP_METADATA_BEARER_TOKEN` environment variable to a valid Apple Developer JWT.
 
 ### Google Play (Android)
 
