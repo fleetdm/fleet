@@ -446,7 +446,7 @@ func TestDoRetries(t *testing.T) {
 				_, err := w.Write([]byte("{}"))
 				require.NoError(t, err)
 			},
-			wantCalls:   2,
+			wantCalls:   3, // will return 429 2x, then return a blank success response
 			wantErr:     false,
 			wantMinTime: 1 * time.Second,
 		},
