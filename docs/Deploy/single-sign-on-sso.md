@@ -146,7 +146,7 @@ Fleet doesn't generate SP metadata XML files. Most major identity providers (lik
 
 If your IdP requires an SP metadata XML file, you can generate one using a third-party tool like [SAMLTool.com's SP Metadata XML Builder](https://www.samltool.com/sp_metadata.php).
 
-You'll need to enter the Assertion Consumer Service URL, Entity ID, and Name ID Format values.
+You'll need to enter the **Assertion Consumer Service URL**, **Entity ID**, and **Name ID Format** values.
 
 After generating the XML file, upload it to your identity provider according to their documentation.
 
