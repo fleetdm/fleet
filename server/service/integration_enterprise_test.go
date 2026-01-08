@@ -7104,7 +7104,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 				case r := <-resultsCh:
 					r.ExecutionID = pending[0].ExecutionID
 					// ignoring errors in this goroutine, the HTTP request below will fail if this fails
-					_, _, err = s.ds.SetHostScriptExecutionResult(ctx, r)
+					_, _, err = s.ds.SetHostScriptExecutionResult(ctx, r, nil)
 					if err != nil {
 						t.Log(err)
 					}
@@ -17948,6 +17948,252 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.NoError(t, err)
 	require.Equal(t, float64(policy4Team2.ID), activityJson["policy_id"])
 	require.Equal(t, "policy4Team2", activityJson["policy_name"])
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create a host
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// Create a script
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "failing-script.sh",
+		ScriptContents: "exit 1",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Create a team policy
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     t.Name(),
+		Query:    "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	// Associate script with policy
+	var modifyResp modifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
+		},
+	}, http.StatusOK, &modifyResp)
+	require.NotNil(t, modifyResp.Policy)
+	policy, err = s.ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policy.ScriptID)
+	require.Equal(t, script.ID, *policy.ScriptID)
+
+	submitPolicyResult := func(policyID uint, passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host,
+			map[uint]*bool{
+				policyID: ptr.Bool(passes),
+			},
+		), http.StatusOK, &distributedResp)
+	}
+	getPendingScript := func() *fleet.HostScriptResult {
+		scripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+		require.NoError(t, err)
+		if len(scripts) == 0 {
+			return nil
+		}
+		return scripts[0]
+	}
+	submitScriptResult := func(executionID string, exitCode int) {
+		var orbitPostScriptResp orbitPostScriptResultResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+			json.RawMessage(
+				fmt.Sprintf(`
+					{"orbit_node_key": %q, "execution_id": %q, "exit_code": %d, "output": "script output"}
+				`, *host.OrbitNodeKey, executionID, exitCode),
+			),
+			http.StatusOK, &orbitPostScriptResp)
+	}
+	getScriptResults := func() []*fleet.HostScriptResult {
+		var results []*fleet.HostScriptResult
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &results, `
+				SELECT id, host_id, script_id, policy_id, exit_code, attempt_number, execution_id
+				FROM host_script_results
+				WHERE host_id = ? AND script_id = ? AND policy_id = ?
+				ORDER BY id ASC
+			`, host.ID, script.ID, policy.ID)
+		})
+		return results
+	}
+	countActivities := func() int {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*)
+				FROM activities
+				WHERE JSON_EXTRACT(details, '$.host_id') = ? AND JSON_EXTRACT(details, '$.policy_id') = ?
+			`, host.ID, policy.ID)
+		})
+		return count
+	}
+
+	// Policy fails, triggers first script execution
+	submitPolicyResult(policy.ID, false)
+
+	// Wait for script to be queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingScript := getPendingScript()
+		assert.NotNil(t, pendingScript, "script should be queued")
+		if pendingScript != nil && pendingScript.ScriptID != nil {
+			assert.Equal(t, script.ID, *pendingScript.ScriptID)
+		}
+		if pendingScript != nil && pendingScript.PolicyID != nil {
+			assert.Equal(t, policy.ID, *pendingScript.PolicyID)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail the attempt
+	pendingScript := getPendingScript()
+	require.NotNil(t, pendingScript)
+	executionID1 := pendingScript.ExecutionID
+	submitScriptResult(executionID1, 1)
+
+	// Verify attempt 1 and retry
+	results := getScriptResults()
+	require.Len(t, results, 2)
+	// First result: attempt 1
+	require.NotNil(t, results[0].AttemptNumber)
+	require.Equal(t, 1, *results[0].AttemptNumber)
+	require.NotNil(t, results[0].ExitCode)
+	require.Equal(t, int64(1), *results[0].ExitCode)
+	// queued retry
+	// Note: attempt_number is only calculated when the result is submitted, not when queued, so it will be NULL
+	require.Nil(t, results[1].ExitCode)
+	require.Nil(t, results[1].AttemptNumber)
+	require.Equal(t, 0, countActivities())
+
+	// Get pending retry
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingScript := getPendingScript()
+		assert.NotNil(t, pendingScript, "retry should be queued")
+		if pendingScript != nil {
+			assert.NotEqual(t, executionID1, pendingScript.ExecutionID, "should be a new execution")
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail attempt 2
+	pendingScript = getPendingScript()
+	require.NotNil(t, pendingScript)
+	executionID2 := pendingScript.ExecutionID
+	submitScriptResult(executionID2, 1)
+
+	// Verify attempt 2 and retry
+	results = getScriptResults()
+	require.Len(t, results, 3)
+	require.NotNil(t, results[1].AttemptNumber)
+	require.Equal(t, 2, *results[1].AttemptNumber)
+	require.Nil(t, results[2].AttemptNumber)
+	require.Equal(t, 0, countActivities())
+
+	// Get second pending retry
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingScript := getPendingScript()
+		assert.NotNil(t, pendingScript, "second retry should be queued")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail attempt 3
+	pendingScript = getPendingScript()
+	require.NotNil(t, pendingScript)
+	executionID3 := pendingScript.ExecutionID
+	submitScriptResult(executionID3, 1)
+
+	// Verify attempt = 3
+	results = getScriptResults()
+	require.Len(t, results, 3, "should have exactly 3 completed attempts, no more retries queued")
+	require.NotNil(t, results[2].AttemptNumber)
+	require.Equal(t, 3, *results[2].AttemptNumber)
+	require.NotNil(t, results[2].ExitCode, "final attempt should be completed")
+
+	// activity created after final attempt
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// no more retries, max reached
+	time.Sleep(2 * time.Second)
+	pendingScript = getPendingScript()
+	require.Nil(t, pendingScript)
+
+	// exactly 3 attempts
+	results = getScriptResults()
+	require.Len(t, results, 3)
+	require.Equal(t, 1, *results[0].AttemptNumber)
+	require.Equal(t, 2, *results[1].AttemptNumber)
+	require.Equal(t, 3, *results[2].AttemptNumber)
+
+	// policy passes
+	// Clean up old results
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx, `DELETE FROM host_script_results WHERE host_id = ? AND script_id = ?`, host.ID, script.ID)
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx, `DELETE FROM activities WHERE JSON_EXTRACT(details, '$.host_id') = ?`, host.ID)
+		return err
+	})
+
+	// pass policy
+	submitPolicyResult(policy.ID, true)
+	// fail policy fails to trigger first attempt
+	submitPolicyResult(policy.ID, false)
+
+	// Wait for first attempt
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingScript := getPendingScript()
+		assert.NotNil(t, pendingScript)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// fail result
+	pendingScript = getPendingScript()
+	submitScriptResult(pendingScript.ExecutionID, 1)
+
+	// Verify retry is queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingScript := getPendingScript()
+		assert.NotNil(t, pendingScript)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Make the policy pass
+	submitPolicyResult(policy.ID, true)
+
+	// Submit the pending retry result
+	pendingScript = getPendingScript()
+	submitScriptResult(pendingScript.ExecutionID, 1)
+
+	// Ensure no more retries
+	time.Sleep(2 * time.Second)
+	pendingScript = getPendingScript()
+	require.Nil(t, pendingScript)
+	results = getScriptResults()
+	require.Len(t, results, 2)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIdentifier() {

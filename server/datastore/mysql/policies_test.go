@@ -80,6 +80,7 @@ func TestPolicies(t *testing.T) {
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
 		{"SimultaneousSavePolicy", testSimultaneousSavePolicy},
+		{"IsPolicyStillFailing", testIsPolicyStillFailing},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6406,4 +6407,68 @@ func testSimultaneousSavePolicy(t *testing.T, ds *Datastore) {
 
 	err = g.Wait()
 	require.NoError(t, err)
+}
+
+func testIsPolicyStillFailing(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create test data
+	host := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// No policy membership record exists
+	// Edge case, should consider it as failing
+	isFailing, err := ds.IsPolicyStillFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with no membership record is considered failing")
+
+	// Exists with passes = NULL
+	// failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: nil}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyStillFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with NULL passes should be considered still failing")
+
+	// exists with passes = false
+	// failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyStillFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with passes=false should be considered still failing")
+
+	// exists with passes = true
+	// Not failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyStillFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.False(t, isFailing, "policy with passes=true should NOT be considered still failing")
+
+	// Different host
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2Key", "host2UUID", time.Now())
+	isFailing, err = ds.IsPolicyStillFailing(ctx, policy.ID, host2.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with no membership record for different host should be considered still failing")
+
+	// Different policy for the same host
+	policy2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy 2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyStillFailing(ctx, policy2.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "different policy with no membership record should be considered still failing")
 }

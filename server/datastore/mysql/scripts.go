@@ -142,7 +142,7 @@ func truncateScriptResult(output string) string {
 	return output
 }
 
-func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult,
+func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (*fleet.HostScriptResult,
 	string, error,
 ) {
 	const resultExistsStmt = `
@@ -161,7 +161,8 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     output = ?,
     runtime = ?,
     exit_code = ?,
-    timeout = ?
+    timeout = ?,
+    attempt_number = ?
   WHERE
     host_id = ? AND
     execution_id = ?`
@@ -222,6 +223,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// See /orbit/pkg/scripts/exec_windows.go
 			int32(result.ExitCode), //nolint:gosec // dismiss G115
 			result.Timeout,
+			attemptNumber,
 			result.HostID,
 			result.ExecutionID,
 		)
@@ -400,7 +402,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.host_deleted_at,
 		hsr.setup_experience_script_id,
 		hsr.canceled,
-		bahr.batch_execution_id
+		bahr.batch_execution_id,
+		hsr.attempt_number
 	FROM
 		host_script_results hsr
 	LEFT JOIN
@@ -459,6 +462,22 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		}
 	}
 	return &result, nil
+}
+
+func (ds *Datastore) CountHostScriptAttempts(ctx context.Context, hostID, scriptID, policyID uint) (int, error) {
+	var count int
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+		SELECT COUNT(*)
+		FROM host_script_results
+		WHERE host_id = ?
+		  AND script_id = ?
+		  AND policy_id = ?
+	`, hostID, scriptID, policyID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count host script attempts")
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {

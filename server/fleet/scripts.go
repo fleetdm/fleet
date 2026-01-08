@@ -276,6 +276,11 @@ type HostScriptResult struct {
 	// Canceled indicates if that script execution request was canceled by a
 	// user.
 	Canceled bool `json:"-" db:"canceled"`
+
+	// AttemptNumber tracks which retry attempt this is for policy automation executions.
+	// nil = not triggered by a policy failure
+	// 1,2,3 attempt, 3 being max retries
+	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {

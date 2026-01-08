@@ -912,7 +912,26 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	hsr, action, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
+
+	// Calculate attempt_number for policy automation retries by counting existing attempts
+	var attemptNumber *int // nil for manual runs, calculated for policy automation
+	// First, check if this script execution already exists and has policy_id
+	// (to know if this is a policy automation)
+	existingResult, err := svc.ds.GetHostScriptExecutionResult(ctx, result.ExecutionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get existing script result for attempt number calculation")
+	}
+
+	// Only calculate attempt_number for policy automation scripts
+	if existingResult.PolicyID != nil && existingResult.ScriptID != nil {
+		count, err := svc.ds.CountHostScriptAttempts(ctx, host.ID, *existingResult.ScriptID, *existingResult.PolicyID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "count previous script attempts")
+		}
+		attemptNumber = &count // count already includes current row since it was created when queued
+	}
+
+	hsr, action, err := svc.ds.SetHostScriptExecutionResult(ctx, result, attemptNumber)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host script result")
 	}
@@ -998,32 +1017,53 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
 			var policyName *string
+			shouldCreateActivity := true
 			if hsr.PolicyID != nil {
 				if policy, err := svc.ds.PolicyLite(ctx, *hsr.PolicyID); err == nil {
 					policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 				}
+
+				// Suppress activity for policy automation retires
+				if hsr.AttemptNumber != nil {
+					scriptFailed := hsr.ExitCode == nil || *hsr.ExitCode != 0
+					if scriptFailed && *hsr.AttemptNumber < fleet.MaxPolicyAutomationRetries {
+						shouldCreateActivity = false
+					}
+				}
 			}
 
-			if err := svc.NewActivity(
-				ctx,
-				user,
-				fleet.ActivityTypeRanScript{
-					HostID:              host.ID,
-					HostDisplayName:     host.DisplayName(),
-					ScriptExecutionID:   hsr.ExecutionID,
-					BatchExecutionID:    hsr.BatchExecutionID,
-					ScriptName:          scriptName,
-					Async:               !hsr.SyncRequest,
-					PolicyID:            hsr.PolicyID,
-					PolicyName:          policyName,
-					FromSetupExperience: fromSetupExperience,
-				},
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+			if shouldCreateActivity {
+				if err := svc.NewActivity(
+					ctx,
+					user,
+					fleet.ActivityTypeRanScript{
+						HostID:              host.ID,
+						HostDisplayName:     host.DisplayName(),
+						ScriptExecutionID:   hsr.ExecutionID,
+						BatchExecutionID:    hsr.BatchExecutionID,
+						ScriptName:          scriptName,
+						Async:               !hsr.SyncRequest,
+						PolicyID:            hsr.PolicyID,
+						PolicyName:          policyName,
+						FromSetupExperience: fromSetupExperience,
+					},
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+				}
 			}
 		}
-
 	}
+
+	// If this is a policy automation script that failed, maybe retry
+	if hsr != nil && hsr.PolicyID != nil && hsr.ScriptID != nil {
+		scriptFailed := hsr.ExitCode == nil || *hsr.ExitCode != 0
+		if scriptFailed {
+			if err := svc.maybeRetryPolicyAutomationScript(ctx, host, hsr); err != nil {
+				return ctxerr.Wrap(ctx, err, "retry policy automation script")
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -1439,6 +1479,22 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	}
 
+	// Calculate attempt_number for policy automation retries by counting existing attempts
+	var attemptNumber *int // nil for manual/self-service installs, calculated for policy automation
+	currentInstall, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get current install info for attempt number calculation")
+	}
+
+	// Only calculate attempt_number for policy automation installs
+	if currentInstall.PolicyID != nil && currentInstall.SoftwareInstallerID != nil {
+		count, err := svc.ds.CountHostSoftwareInstallAttempts(ctx, host.ID, *currentInstall.SoftwareInstallerID, *currentInstall.PolicyID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "count previous install attempts")
+		}
+		attemptNumber = &count
+	}
+
 	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// This might be a setup experience software install result, so we attempt to update the
@@ -1468,7 +1524,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 
-	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
+	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result, attemptNumber)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
@@ -1491,30 +1547,51 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 
 		var policyName *string
+		shouldCreateActivity := true
 		if hsi.PolicyID != nil {
 			if policy, err := svc.ds.PolicyLite(ctx, *hsi.PolicyID); err == nil && policy != nil {
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 			}
+
+			if status == fleet.SoftwareInstallFailed {
+				if err := svc.maybeRetryPolicyAutomationSoftwareInstall(ctx, host, hsi); err != nil {
+					level.Error(svc.logger).Log(
+						"msg", "failed to retry policy automation software install",
+						"host_id", host.ID,
+						"policy_id", *hsi.PolicyID,
+						"err", err,
+					)
+				}
+
+				// Only create activity on final
+				if hsi.AttemptNumber != nil {
+					if *hsi.AttemptNumber < fleet.MaxPolicyAutomationRetries {
+						shouldCreateActivity = false
+					}
+				}
+			}
 		}
 
-		if err := svc.NewActivity(
-			ctx,
-			user,
-			fleet.ActivityTypeInstalledSoftware{
-				HostID:              host.ID,
-				HostDisplayName:     host.DisplayName(),
-				SoftwareTitle:       hsi.SoftwareTitle,
-				SoftwarePackage:     hsi.SoftwarePackage,
-				InstallUUID:         result.InstallUUID,
-				Status:              string(status),
-				Source:              hsi.Source,
-				SelfService:         hsi.SelfService,
-				PolicyID:            hsi.PolicyID,
-				PolicyName:          policyName,
-				FromSetupExperience: fromSetupExperience,
-			},
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for software installation")
+		if shouldCreateActivity {
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeInstalledSoftware{
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       hsi.SoftwareTitle,
+					SoftwarePackage:     hsi.SoftwarePackage,
+					InstallUUID:         result.InstallUUID,
+					Status:              string(status),
+					Source:              hsi.Source,
+					SelfService:         hsi.SelfService,
+					PolicyID:            hsi.PolicyID,
+					PolicyName:          policyName,
+					FromSetupExperience: fromSetupExperience,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for software installation")
+			}
 		}
 
 		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
@@ -1525,6 +1602,83 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 	return nil
+}
+
+// maybeRetryPolicyAutomationSoftwareInstall checks if a failed policy automation software install should be retried
+func (svc *Service) maybeRetryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) error {
+	if hsi.AttemptNumber == nil {
+		// should not happen
+		return ctxerr.New(ctx, "attempt_number is nil for policy automation install")
+	}
+
+	currentAttempt := *hsi.AttemptNumber
+
+	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
+		return nil
+	}
+
+	// Check if policy is still failing for this host
+	policyStillFailing, err := svc.ds.IsPolicyStillFailing(ctx, *hsi.PolicyID, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check if policy is still failing")
+	}
+	if !policyStillFailing {
+		return nil
+	}
+
+	// Queue the retry
+	level.Info(svc.logger).Log(
+		"msg", "queuing policy automation software install retry",
+		"host_id", host.ID,
+		"policy_id", *hsi.PolicyID,
+		"software_installer_id", *hsi.SoftwareInstallerID,
+		"current_attempt", currentAttempt,
+	)
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+		PolicyID: hsi.PolicyID,
+	})
+
+	return err
+}
+
+// maybeRetryPolicyAutomationScript checks if a failed policy automation script should be retried
+func (svc *Service) maybeRetryPolicyAutomationScript(ctx context.Context, host *fleet.Host, hsr *fleet.HostScriptResult) error {
+	if hsr.AttemptNumber == nil {
+		// should not happen
+		return ctxerr.New(ctx, "attempt_number is nil for policy automation script")
+	}
+
+	currentAttempt := *hsr.AttemptNumber
+
+	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
+		return nil
+	}
+
+	// Check if policy is still failing for this host
+	policyStillFailing, err := svc.ds.IsPolicyStillFailing(ctx, *hsr.PolicyID, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check if policy is still failing")
+	}
+	if !policyStillFailing {
+		return nil
+	}
+
+	// Queue the retry
+	level.Info(svc.logger).Log(
+		"msg", "queuing policy automation script retry",
+		"host_id", host.ID,
+		"policy_id", *hsr.PolicyID,
+		"script_id", *hsr.ScriptID,
+		"current_attempt", currentAttempt,
+	)
+	_, err = svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         host.ID,
+		ScriptID:       hsr.ScriptID,
+		PolicyID:       hsr.PolicyID,
+		ScriptContents: hsr.ScriptContents,
+	})
+
+	return err
 }
 
 /////////////////////////////////////////////////////////////////////////////////

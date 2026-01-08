@@ -1664,6 +1664,28 @@ func (ds *Datastore) IncrementPolicyViolationDays(ctx context.Context) error {
 	})
 }
 
+func (ds *Datastore) IsPolicyStillFailing(ctx context.Context, policyID, hostID uint) (bool, error) {
+	var passes *bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &passes, `
+		SELECT passes
+		FROM policy_membership
+		WHERE policy_id = ? AND host_id = ?
+	`, policyID, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return true, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "get policy membership")
+	}
+
+	if passes == nil || !*passes {
+		return true, nil
+	}
+
+	// Policy is passing
+	return false, nil
+}
+
 func (ds *Datastore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `

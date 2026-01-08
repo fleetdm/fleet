@@ -1439,7 +1439,8 @@ SELECT
 	hsi.policy_id,
 	hsi.created_at as created_at,
 	hsi.updated_at as updated_at,
-	st.source
+	st.source,
+	hsi.attempt_number
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
@@ -1468,7 +1469,8 @@ SELECT
 	siua.policy_id AS policy_id,
 	ua.created_at as created_at,
 	ua.updated_at as updated_at,
-	st.source
+	st.source,
+	NULL AS attempt_number
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
