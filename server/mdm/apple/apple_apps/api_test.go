@@ -387,10 +387,11 @@ func TestAuthentication(t *testing.T) {
 
 func TestDoRetries(t *testing.T) {
 	tests := []struct {
-		name      string
-		handler   http.HandlerFunc
-		wantCalls int
-		wantErr   bool
+		name        string
+		handler     http.HandlerFunc
+		wantCalls   int
+		wantErr     bool
+		wantMinTime time.Duration
 	}{
 		{
 			name: "success status code",
@@ -437,6 +438,18 @@ func TestDoRetries(t *testing.T) {
 			wantCalls: 2,
 			wantErr:   false,
 		},
+		{
+			name: "429 with retry-after header waits and retries",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Retry-After", "1")
+				w.WriteHeader(http.StatusTooManyRequests)
+				_, err := w.Write([]byte("{}"))
+				require.NoError(t, err)
+			},
+			wantCalls:   2,
+			wantErr:     false,
+			wantMinTime: 1 * time.Second,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -460,7 +473,11 @@ func TestDoRetries(t *testing.T) {
 			}, false, nil)
 			require.NoError(t, err)
 			require.Equal(t, tt.wantCalls, calls)
-			require.WithinRange(t, time.Now(), start, start.Add(time.Duration(tt.wantCalls)*time.Second))
+			elapsed := time.Since(start)
+			require.WithinRange(t, time.Now(), start, start.Add(time.Duration(tt.wantCalls)*time.Second+tt.wantMinTime))
+			if tt.wantMinTime > 0 {
+				require.GreaterOrEqual(t, elapsed, tt.wantMinTime, "expected to wait at least %v for retry-after", tt.wantMinTime)
+			}
 		})
 	}
 }
