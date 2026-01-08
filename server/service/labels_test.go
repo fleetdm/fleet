@@ -9,11 +9,12 @@ import (
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -41,18 +42,40 @@ func TestLabelsAuth(t *testing.T) {
 	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
 		return nil
 	}
+
+	team1ID := uint(1)
+	team2ID := uint(2)
+
+	team1LabelID := uint(3)
+	team2LabelID := uint(4)
+
+	team1Label := fleet.Label{ID: team1LabelID, Name: "team1-label", TeamID: &team1ID}
+	team2Label := fleet.Label{ID: team2LabelID, Name: "team2-label", TeamID: &team2ID}
+
+	// Update LabelFunc to handle team labels
 	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		switch id {
 		case uint(1):
 			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id, AuthorID: &filter.User.ID}}, nil, nil
 		case uint(2):
 			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: id}}, nil, nil
+		case team1LabelID: // team1 label
+			return &fleet.LabelWithTeamName{Label: team1Label}, nil, nil
+		case team2LabelID: // team2 label
+			return &fleet.LabelWithTeamName{Label: team2Label}, nil, nil
 		}
-
 		return nil, nil, ctxerr.Wrap(ctx, notFoundErr{"label", fleet.ErrorWithUUID{}})
 	}
+
 	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{ID: 2, Name: name}, nil // for deletes, TODO add cases for authorship/team differences
+		switch name {
+		case "team1-label":
+			return &team1Label, nil
+		case "team2-label":
+			return &team2Label, nil
+		default:
+			return &fleet.Label{ID: 2, Name: name}, nil
+		}
 	}
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 		return nil, nil
@@ -76,10 +99,18 @@ func TestLabelsAuth(t *testing.T) {
 		shouldFailGlobalWrite         bool
 		shouldFailGlobalRead          bool
 		shouldFailGlobalWriteIfAuthor bool
+		shouldFailTeam1Write          bool
+		shouldFailTeam1Read           bool
+		shouldFailTeam2Write          bool
+		shouldFailTeam2Read           bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+			false,
+			false,
 			false,
 			false,
 			false,
@@ -90,6 +121,10 @@ func TestLabelsAuth(t *testing.T) {
 			false,
 			false,
 			false,
+			false,
+			false,
+			false,
+			false,
 		},
 		{
 			"global observer",
@@ -97,19 +132,31 @@ func TestLabelsAuth(t *testing.T) {
 			true,
 			false,
 			true,
+			true,
+			false,
+			true,
+			false,
 		},
 		{
-			"team maintainer",
+			"team 1 maintainer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			true,
 			false,
 			false,
+			false,
+			false,
+			true,
+			true,
 		},
 		{
-			"team observer",
+			"team 1 observer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			true,
 			false,
+			true,
+			true,
+			false,
+			true,
 			true,
 		},
 	}
@@ -118,8 +165,6 @@ func TestLabelsAuth(t *testing.T) {
 	otherLabel, _, err := svc.NewLabel(viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleMaintainer)}}), fleet.LabelPayload{Name: "Other label", Query: "SELECT 0"})
 	require.NoError(t, err)
 
-	// TODO create other-team label
-
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
@@ -127,47 +172,89 @@ func TestLabelsAuth(t *testing.T) {
 			myLabel, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: t.Name(), Query: `SELECT 1`})
 			checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err) // team write users can still create global labels
 
-			_, _, err = svc.ModifyLabel(ctx, otherLabel.ID, fleet.ModifyLabelPayload{})
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-
 			if myLabel != nil {
 				_, _, err = svc.ModifyLabel(ctx, myLabel.ID, fleet.ModifyLabelPayload{})
 				checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err)
 			}
-
-			err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{}, nil, nil)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-
-			_, _, err = svc.GetLabel(ctx, otherLabel.ID)
-			checkAuthErr(t, tt.shouldFailGlobalRead, err)
-
-			_, err = svc.GetLabelSpecs(ctx, nil)
-			checkAuthErr(t, tt.shouldFailGlobalRead, err)
-
-			_, err = svc.GetLabelSpec(ctx, "abc")
-			checkAuthErr(t, tt.shouldFailGlobalRead, err)
-
-			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, nil, true)
-			checkAuthErr(t, tt.shouldFailGlobalRead, err)
-
-			_, err = svc.LabelsSummary(ctx, nil)
-			checkAuthErr(t, tt.shouldFailGlobalRead, err)
-
-			_, err = svc.ListHostsInLabel(ctx, 1, fleet.HostListOptions{})
-			checkAuthErr(t, tt.shouldFailGlobalRead, err)
-
-			err = svc.DeleteLabel(ctx, "abc")
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-
-			err = svc.DeleteLabelByID(ctx, otherLabel.ID)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			if myLabel != nil {
 				err = svc.DeleteLabelByID(ctx, myLabel.ID)
 				checkAuthErr(t, tt.shouldFailGlobalWriteIfAuthor, err)
 			}
 
-			// TODO add team label permissions
+			for _, tc := range []struct {
+				label           fleet.Label
+				shouldFailWrite bool
+				shouldFailRead  bool
+			}{
+				{*otherLabel, tt.shouldFailGlobalWrite, tt.shouldFailGlobalRead},
+				{team1Label, tt.shouldFailTeam1Write, tt.shouldFailTeam1Read},
+				{team2Label, tt.shouldFailTeam2Write, tt.shouldFailTeam2Read},
+			} {
+				t.Run(tc.label.Name, func(t *testing.T) {
+					ctx2 := ctx
+					if tc.label.TeamID != nil {
+						// license check is after auth check
+						if !tc.shouldFailRead {
+							_, err = svc.GetLabelSpecs(ctx2, tc.label.TeamID)
+							require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+							_, err = svc.ListLabels(ctx2, fleet.ListOptions{}, tc.label.TeamID, true)
+							require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+							_, err = svc.LabelsSummary(ctx2, tc.label.TeamID)
+							require.ErrorIs(t, err, fleet.ErrMissingLicense)
+						}
+						if !tc.shouldFailWrite {
+							require.ErrorIs(t, svc.ApplyLabelSpecs(ctx2, []*fleet.LabelSpec{}, tc.label.TeamID, nil), fleet.ErrMissingLicense)
+
+							// We'll let global admins clean up team labels if they downgraded to Free
+							require.NoError(t, svc.DeleteLabel(ctx2, tc.label.Name))
+							require.NoError(t, svc.DeleteLabelByID(ctx2, tc.label.ID))
+						}
+
+						ctx2 = license.NewContext(ctx2, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+					}
+
+					err = svc.ApplyLabelSpecs(ctx2, []*fleet.LabelSpec{}, tc.label.TeamID, nil)
+					checkAuthErr(t, tc.shouldFailWrite, err)
+
+					_, err = svc.GetLabelSpecs(ctx2, tc.label.TeamID)
+					checkAuthErr(t, tc.shouldFailRead, err)
+
+					_, err = svc.ListLabels(ctx2, fleet.ListOptions{}, tc.label.TeamID, true)
+					checkAuthErr(t, tc.shouldFailRead, err)
+
+					_, err = svc.LabelsSummary(ctx2, tc.label.TeamID)
+					checkAuthErr(t, tc.shouldFailRead, err)
+
+					err = svc.DeleteLabel(ctx2, tc.label.Name)
+					checkAuthErr(t, tc.shouldFailWrite, err)
+
+					err = svc.DeleteLabelByID(ctx2, tc.label.ID)
+					checkAuthErr(t, tc.shouldFailWrite, err)
+				})
+			}
+
+			// filtering is done in the data store for these; NOT enforcing premium license checks here
+			_, err = svc.GetLabelSpec(ctx, "abc")
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, err = svc.ListHostsInLabel(ctx, 1, fleet.HostListOptions{})
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, _, err = svc.GetLabel(ctx, 1)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, _, err = svc.ModifyLabel(ctx, otherLabel.ID, fleet.ModifyLabelPayload{})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			// global label listing should work if you can read global labels
+			_, err = svc.GetLabelSpecs(ctx, ptr.Uint(0))
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, ptr.Uint(0), true)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 		})
 	}
 }

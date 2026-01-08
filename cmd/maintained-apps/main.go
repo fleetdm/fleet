@@ -119,7 +119,7 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 var allowedCategories = map[string]struct{}{
 	"Browsers":        {},
 	"Communication":   {},
-	"Developer Tools": {},
+	"Developer tools": {},
 	"Productivity":    {},
 	"Security":        {},
 	"Utilities":       {},

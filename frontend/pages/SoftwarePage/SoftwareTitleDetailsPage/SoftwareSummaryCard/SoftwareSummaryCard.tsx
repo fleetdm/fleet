@@ -19,6 +19,7 @@ import TitleVersionsTable from "./TitleVersionsTable";
 import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
+import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
 
 interface ISoftwareSummaryCard {
   softwareTitle: ISoftwareTitleDetails;
@@ -51,6 +52,10 @@ const SoftwareSummaryCard = ({
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
+  const [
+    showEditAutoUpdateConfigModal,
+    setShowEditAutoUpdateConfigModal,
+  ] = useState(false);
 
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
   // software installed
@@ -109,9 +114,14 @@ const SoftwareSummaryCard = ({
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
 
+  const canEditAutoUpdateConfig =
+    softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
+
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
+  const onClickEditAutoUpdateConfig = () =>
+    setShowEditAutoUpdateConfigModal(true);
 
   return (
     <>
@@ -139,6 +149,9 @@ const SoftwareSummaryCard = ({
           }
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
+          }
+          onClickEditAutoUpdateConfig={
+            canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
         />
         {showVersionsTable && (
@@ -198,6 +211,14 @@ const SoftwareSummaryCard = ({
           teamId={teamId}
           refetchSoftwareTitle={refetchSoftwareTitle}
           onExit={() => setShowEditConfigurationModal(false)}
+        />
+      )}
+      {showEditAutoUpdateConfigModal && softwareInstaller && teamId && (
+        <EditAutoUpdateConfigModal
+          softwareTitle={softwareTitle}
+          teamId={teamId}
+          refetchSoftwareTitle={refetchSoftwareTitle}
+          onExit={() => setShowEditAutoUpdateConfigModal(false)}
         />
       )}
     </>

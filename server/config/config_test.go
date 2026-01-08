@@ -723,6 +723,34 @@ func TestValidateCloudfrontURL(t *testing.T) {
 	}
 }
 
+func TestAndroidAgentConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when both set", func(t *testing.T) {
+		cfg := AndroidAgentConfig{Package: "com.fleetdm.agent", SigningSHA256: "abc123"}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("valid when both empty", func(t *testing.T) {
+		cfg := AndroidAgentConfig{}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid when only package set", func(t *testing.T) {
+		cfg := AndroidAgentConfig{Package: "com.fleetdm.agent"}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("invalid when only signing_sha256 set", func(t *testing.T) {
+		cfg := AndroidAgentConfig{SigningSHA256: "abc123"}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
 func TestServerConfigWithH2C(t *testing.T) {
 	ctx := context.Background()
 

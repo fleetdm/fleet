@@ -510,10 +510,8 @@ func (e ConflictError) IsConflict() bool {
 	return true
 }
 
-// Errorer interface is implemented by response structs to encode business logic errors
-type Errorer interface {
-	Error() error
-}
+// Errorer is an alias for platform_http.Errorer.
+type Errorer = platform_http.Errorer
 
 type VPPIconAvailable struct {
 	IconURL string
