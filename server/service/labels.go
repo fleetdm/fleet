@@ -343,13 +343,17 @@ func getTeamIDOrZeroForGlobal(stringID *string) *uint {
 }
 
 func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, teamID *uint, includeHostCounts bool) ([]*fleet.Label, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext
+	}
+
+	if !license.IsPremium(ctx) && teamID != nil && *teamID > 0 {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	// TODO(mna): ListLabels doesn't currently return the hostIDs members of the
@@ -405,13 +409,17 @@ func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) LabelsSummary(ctx context.Context, teamID *uint) ([]*fleet.LabelSummary, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext
+	}
+
+	if !license.IsPremium(ctx) && teamID != nil && *teamID > 0 {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	return svc.ds.LabelsSummary(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID})
@@ -479,6 +487,27 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 			host.HostIssues.CriticalVulnerabilitiesCount = &zero
 		}
 	}
+
+	if opt.IncludeDeviceStatus {
+		statusMap, err := svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch")
+		}
+
+		for _, host := range hosts {
+			if host != nil {
+				if status, ok := statusMap[host.ID]; ok {
+					host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
+					host.MDM.PendingAction = ptr.String(string(status.PendingAction()))
+				} else {
+					// Host has no MDM actions, set defaults
+					host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
+					host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
+				}
+			}
+		}
+	}
+
 	return hosts, nil
 }
 
@@ -682,6 +711,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		}
 
 		// make sure we're only upserting labels on the team we specified; individual spec teams aren't used on writes
+		if spec.TeamID != nil {
+			return fleet.NewUserMessageError(
+				ctxerr.New(
+					ctx,
+					"When applying team label specs, provide the team label by URL query string parameter rather than within the JSON request body",
+				), http.StatusUnprocessableEntity)
+		}
 		spec.TeamID = teamID
 		regularSpecs = append(regularSpecs, spec)
 	}
@@ -749,8 +785,12 @@ func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
+	}
+
+	if !license.IsPremium(ctx) && teamID != nil && *teamID > 0 {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	vc, ok := viewer.FromContext(ctx)

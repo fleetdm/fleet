@@ -58,11 +58,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
@@ -244,7 +244,13 @@ the way that the Fleet server works.
 				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
 
-			mds, err := mysql.New(config.Mysql, clock.C, opts...)
+			// Create database connections that can be shared across datastores
+			dbConns, err := mysql.NewDBConnections(config.Mysql, opts...)
+			if err != nil {
+				initFatal(err, "initializing database connections")
+			}
+
+			mds, err := mysql.NewDatastore(dbConns, config.Mysql, clock.C)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
@@ -391,6 +397,17 @@ the way that the Fleet server works.
 					ContentTypeValue: config.KafkaREST.ContentTypeValue,
 					Timeout:          config.KafkaREST.Timeout,
 				},
+				Nats: logging.NatsConfig{
+					Server:            config.Nats.Server,
+					CredFile:          config.Nats.CredFile,
+					NKeyFile:          config.Nats.NKeyFile,
+					TLSClientCertFile: config.Nats.TLSClientCrtFile,
+					TLSClientKeyFile:  config.Nats.TLSClientKeyFile,
+					CACertFile:        config.Nats.CACrtFile,
+					Compression:       config.Nats.Compression,
+					JetStream:         config.Nats.JetStream,
+					Timeout:           config.Nats.Timeout,
+				},
 			}
 
 			// Set specific configuration to osqueryd status logs.
@@ -403,6 +420,7 @@ the way that the Fleet server works.
 			loggingConfig.PubSub.Topic = config.PubSub.StatusTopic
 			loggingConfig.PubSub.AddAttributes = false // only used by result logs
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
+			loggingConfig.Nats.Subject = config.Nats.StatusSubject
 
 			osquerydStatusLogger, err := logging.NewJSONLogger("status", loggingConfig, logger)
 			if err != nil {
@@ -419,6 +437,7 @@ the way that the Fleet server works.
 			loggingConfig.PubSub.Topic = config.PubSub.ResultTopic
 			loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
+			loggingConfig.Nats.Subject = config.Nats.ResultSubject
 
 			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
 			if err != nil {
@@ -436,6 +455,7 @@ the way that the Fleet server works.
 				loggingConfig.PubSub.Topic = config.PubSub.AuditTopic
 				loggingConfig.PubSub.AddAttributes = false // only used by result logs
 				loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
+				loggingConfig.Nats.Subject = config.Nats.AuditSubject
 
 				auditLogger, err = logging.NewJSONLogger("audit", loggingConfig, logger)
 				if err != nil {
@@ -757,6 +777,7 @@ the way that the Fleet server works.
 			ctx = ctxerr.NewContext(ctx, eh)
 
 			activitiesModule := activities.NewActivityModule(ds, logger)
+			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
@@ -765,6 +786,7 @@ the way that the Fleet server works.
 				config.Server.PrivateKey,
 				ds,
 				activitiesModule,
+				config.MDM.AndroidAgent,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -1078,6 +1100,7 @@ the way that the Fleet server works.
 					ds,
 					logger,
 					config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
+					config.MDM.AndroidAgent,
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_android_profile_manager schedule")
@@ -1252,7 +1275,7 @@ the way that the Fleet server works.
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
-					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
+					[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1306,7 +1329,15 @@ the way that the Fleet server works.
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
-				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
+				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
+					ds,
+					commander,
+					vppInstaller,
+					license.IsPremium(),
+					logger,
+					redis_key_value.New(redisPool),
+				)
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
 

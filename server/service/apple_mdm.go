@@ -53,8 +53,8 @@ import (
 
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
@@ -458,7 +458,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	}
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, varNames)
 	if err != nil {
-		var existsErr endpoint_utils.ExistsErrorInterface
+		var existsErr endpointer.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
 			msg := SameProfileNameUploadErrorMsg
 			if re, ok := existsErr.(interface{ Resource() string }); ok {
@@ -3329,18 +3329,29 @@ type MDMAppleCheckinAndCommandService struct {
 	ds              fleet.Datastore
 	logger          kitlog.Logger
 	commander       *apple_mdm.MDMAppleCommander
+	vppInstaller    fleet.AppleMDMVPPInstaller
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
 	keyValueStore   fleet.KeyValueStore
+	isPremium       bool
 }
 
-func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger, keyValueStore fleet.KeyValueStore) *MDMAppleCheckinAndCommandService {
+func NewMDMAppleCheckinAndCommandService(
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	isPremium bool,
+	logger kitlog.Logger,
+	keyValueStore fleet.KeyValueStore,
+) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
 	return &MDMAppleCheckinAndCommandService{
 		ds:              ds,
 		commander:       commander,
 		logger:          logger,
 		mdmLifecycle:    mdmLifecycle,
+		vppInstaller:    vppInstaller,
+		isPremium:       isPremium,
 		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
 		keyValueStore:   keyValueStore,
 	}
@@ -3760,6 +3771,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 			if !commandsPending {
 				cmdUUID := fleet.VerifySoftwareInstallCommandUUID()
+				// for app verification, we always request only managed apps
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.Identifier()}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
@@ -3846,12 +3858,422 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshal app list")
 	}
-	_, err = svc.ds.UpdateHostSoftware(ctx, host.ID, software)
-	if err != nil {
+
+	if _, err := svc.ds.UpdateHostSoftware(ctx, host.ID, software); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "update host software")
 	}
 
+	if svc.isPremium {
+		if err := svc.handleScheduledUpdates(ctx, host, software); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "handle scheduled updates")
+		}
+	}
+
 	return nil, nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
+	ctx context.Context,
+	host *fleet.Host,
+	softwares []fleet.Software,
+) error {
+	logger := kitlog.With(svc.logger,
+		"method", "handle_scheduled_updates",
+		"host_id", host.ID,
+	)
+
+	if host.TimeZone == nil || *host.TimeZone == "" {
+		// We cannot determine if it's safe to schedule an update on this host.
+		level.Debug(logger).Log("msg", "skipping updates, host has no timezone")
+		return nil
+	}
+
+	// Get VPP token, fail early if we cannot get it
+	// (e.g. not configured, or not configured for the host's team).
+	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		level.Debug(logger).Log("msg", "no VPP token configured for this host's team")
+		return nil
+	default:
+		return ctxerr.Wrap(ctx, err, "get VPP token if can install VPP apps")
+	}
+
+	// Check if the device is managed or BYOD.
+	enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
+	}
+	if enrollment == nil {
+		level.Debug(logger).Log("msg", "skipping updates, missing nano enrollment type")
+		return nil
+	}
+	if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
+		level.Debug(logger).Log("msg", "skipping updates, software install isn't supported on personal (BYOD) iOS and iPadOS hosts")
+		return nil
+	}
+
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+	source := "ios_apps"
+	if host.Platform == string(fleet.IPadOSPlatform) {
+		source = "ipados_apps"
+	}
+	softwaresWithAutoUpdateSchedule, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx,
+		teamID,
+		source,
+		fleet.SoftwareAutoUpdateScheduleFilter{
+			Enabled: ptr.Bool(true),
+		},
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list software auto update schedules")
+	}
+
+	// Code below assumes svc.ds.ListSoftwareAutoUpdateSchedules with Enabled=true returns:
+	// 	- all entries with non-nil AutoUpdateStartTime and AutoUpdateEndTime
+	// 	- returned title IDs are VPP applications (currently the only entities that can have update window configured).
+
+	if len(softwaresWithAutoUpdateSchedule) == 0 {
+		// Nothing else to do.
+		return nil
+	}
+	level.Debug(logger).Log(
+		"msg", "found software with auto update scheduled",
+		"count", len(softwaresWithAutoUpdateSchedule),
+	)
+
+	// Create map of installed software title versions by bundle identifier and source.
+	installedVersionByBundleIdentifierAndSource := make(map[string]string, len(softwares))
+	for _, software := range softwares {
+		installedVersionByBundleIdentifierAndSource[software.BundleIdentifier+software.Source] = software.Version
+	}
+
+	// 1. Filter out software that is not within the configured update window in the host timezone.
+	var softwaresWithinUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
+	for _, softwareWithAutoUpdateSchedule := range softwaresWithAutoUpdateSchedule {
+		logger := kitlog.With(logger,
+			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
+			"team_id", softwareWithAutoUpdateSchedule.TeamID,
+			"update_window_start", softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
+			"update_window_end", softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
+			"host_timezone", *host.TimeZone,
+		)
+		ok, err := isTimezoneInWindow(ctx,
+			*host.TimeZone,
+			*softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
+			*softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
+		)
+		if err != nil {
+			level.Error(logger).Log(
+				"msg", "skipping software, failed to check if timezone is in window",
+				"err", err,
+			)
+			continue
+		}
+		if !ok {
+			level.Debug(logger).Log(
+				"msg", "host's local time is not within update window",
+			)
+			continue
+		}
+		softwaresWithinUpdateSchedule = append(softwaresWithinUpdateSchedule, softwareWithAutoUpdateSchedule)
+	}
+	if len(softwaresWithinUpdateSchedule) == 0 {
+		// Nothing else to do.
+		return nil
+	}
+	level.Debug(logger).Log(
+		"msg", "found software with auto update scheduled, with host local time currently in window",
+		"count", len(softwaresWithinUpdateSchedule),
+	)
+
+	// 2. Filter out software that is already at the latest version or higher.
+	var (
+		softwaresWithinUpdateWindowThatNeedUpdate []fleet.SoftwareAutoUpdateSchedule
+		softwareTitles                            = make(map[uint]*fleet.SoftwareTitle)
+	)
+	for _, softwareWithAutoUpdateSchedule := range softwaresWithinUpdateSchedule {
+		// Load software title.
+		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, host.TeamID, fleet.TeamFilter{})
+		if err != nil {
+			level.Error(logger).Log(
+				"msg", "software title by id",
+				"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
+				"team_id", host.TeamID,
+				"err", err,
+			)
+			continue
+		}
+		logger := kitlog.With(logger,
+			"name", softwareTitle.Name,
+			"bundle_identifier", softwareTitle.BundleIdentifier,
+			"source", softwareTitle.Source,
+		)
+
+		// Load VPP metadata for the software title.
+		vppAppMetadata, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
+		switch {
+		case err == nil:
+			// OK
+		case fleet.IsNotFound(err):
+			level.Error(logger).Log(
+				"msg", "title should be VPP app",
+				"software_title_id", softwareTitle.ID,
+				"team_id", host.TeamID,
+			)
+			continue
+		default:
+			level.Error(logger).Log(
+				"msg", "get VPP app metadata by team and title",
+				"software_title_id", softwareTitle.ID,
+				"team_id", host.TeamID,
+				"err", err,
+			)
+			continue
+		}
+		softwareTitle.AppStoreApp = vppAppMetadata
+
+		// Incoming softwares have Name, BundleIdentifier, Source and Version.
+		var bundleIdentifier string
+		if softwareTitle.BundleIdentifier != nil {
+			bundleIdentifier = *softwareTitle.BundleIdentifier
+		}
+		installedVersion, ok := installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source]
+		if !ok {
+			// There are some cases where InstalledApplicationList skips the software from the list
+			// when the update is ocurring. It seems the software is probably being skipped because
+			// it's on a temporary state of installation/replacement.
+			level.Debug(logger).Log(
+				"msg", "software title not installed on device or currently in the process of updating, skipping from update",
+				"name", softwareTitle.Name,
+				"bundle_identifier", bundleIdentifier,
+				"source", softwareTitle.Source,
+			)
+			continue
+		}
+		if installedVersion == "" {
+			// software.Version is empty when !software.Installed, which means the software is installing (see unmarshalAppList).
+			// Here's a sample:
+			//
+			// <dict>
+			//	 <key>Identifier</key>
+			//	 <string>foo.bar.app</string>
+			//	 <key>Installing</key>
+			//	   <true/>
+			//	 <key>Name</key>
+			//	 <string>Foobar</string>
+			// </dict>
+			//
+			// Note that "Installing" is true and there's no "ShortVersion":
+			level.Error(logger).Log(
+				"msg", "skipping software, currently installing",
+			)
+			continue
+		}
+		if _, err := fleet.VersionToSemverVersion(installedVersion); err != nil {
+			level.Error(logger).Log(
+				"msg", "invalid installed version",
+				"version", installedVersion,
+			)
+			continue
+		}
+		if _, err := fleet.VersionToSemverVersion(softwareTitle.AppStoreApp.LatestVersion); err != nil {
+			level.Error(logger).Log(
+				"msg", "invalid latest version",
+				"version", softwareTitle.AppStoreApp.LatestVersion,
+			)
+			continue
+		}
+		if fleet.CompareVersions(softwareTitle.AppStoreApp.LatestVersion, installedVersion) != 1 {
+			// Installed version is equal or higher than latest version, so nothing to do here.
+			level.Debug(logger).Log(
+				"msg", "skipping software version",
+				"latest_version", softwareTitle.AppStoreApp.LatestVersion,
+				"installed_version", installedVersion,
+			)
+			continue
+		}
+		softwaresWithinUpdateWindowThatNeedUpdate = append(softwaresWithinUpdateWindowThatNeedUpdate, softwareWithAutoUpdateSchedule)
+		softwareTitles[softwareTitle.ID] = softwareTitle
+	}
+	if len(softwaresWithinUpdateWindowThatNeedUpdate) == 0 {
+		// Nothing else to do.
+		return nil
+	}
+	level.Debug(logger).Log(
+		"msg", "found software with auto update scheduled, with host local time currently in window, that need update",
+		"count", len(softwaresWithinUpdateWindowThatNeedUpdate),
+	)
+
+	// 3. Filter out software that already has a pending installation (update).
+	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+	}
+	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
+	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateWindowThatNeedUpdate {
+		softwareTitle, ok := softwareTitles[softwareWithinUpdateSchedule.TitleID]
+		if !ok {
+			// "Should not happen", so we log it just in case.
+			level.Error(logger).Log(
+				"msg", "missing title ID from map",
+				"software_title_id", softwareWithinUpdateSchedule.TitleID,
+			)
+			continue
+		}
+		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+			// Skip this software title because there's already a pending install for this title.
+			level.Debug(logger).Log(
+				"msg", "skipping software, pending install for title",
+				"software_title_id", softwareTitle.ID,
+				"adam_id", softwareTitle.AppStoreApp.AdamID,
+			)
+			continue
+		}
+		softwaresWithinUpdateScheduleToInstall = append(softwaresWithinUpdateScheduleToInstall, softwareTitle)
+	}
+	if len(softwaresWithinUpdateScheduleToInstall) == 0 {
+		// Nothing else to do.
+		return nil
+	}
+	level.Debug(logger).Log(
+		"msg", "found software with auto update scheduled, with host local time currently in window, that need update, no pending installation",
+		"count", len(softwaresWithinUpdateScheduleToInstall),
+	)
+
+	// 4. Issue installation of the software titles to update.
+	for _, softwareTitle := range softwaresWithinUpdateScheduleToInstall {
+		var bundleIdentifier string
+		if softwareTitle.BundleIdentifier != nil {
+			bundleIdentifier = *softwareTitle.BundleIdentifier
+		}
+		logger := kitlog.With(logger,
+			"software_title_id", softwareTitle.ID,
+			"team_id", host.TeamID,
+			"adam_id", softwareTitle.AppStoreApp.AdamID,
+			"latest_version", softwareTitle.AppStoreApp.LatestVersion,
+			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
+		)
+
+		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
+		if err != nil {
+			level.Error(logger).Log(
+				"msg", "get VPP app by team and title",
+				"err", err,
+			)
+			continue
+		}
+
+		// Check the label scoping for this VPP app and host.
+		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+		if err != nil {
+			level.Error(logger).Log(
+				"msg", "get VPP app by team and title",
+				"err", err,
+			)
+			continue
+		}
+		if !scoped {
+			level.Debug(logger).Log(
+				"msg", "skipping host because it's not scoped by the configured labels",
+			)
+			continue
+		}
+
+		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken.Token, fleet.HostSoftwareInstallOptions{
+			ForScheduledUpdates: true,
+		})
+		if err != nil {
+			level.Error(logger).Log(
+				"msg", "install VPP app post validation",
+				"err", err,
+			)
+			continue
+		}
+
+		level.Debug(logger).Log(
+			"msg", "update scheduled",
+			"command_uuid", commandUUID,
+		)
+	}
+
+	return nil
+}
+
+// nowFunc is to be used in tests.
+var nowFunc = time.Now
+
+// getCurrentLocalTimeInHostTimeZone returns the current time of the given IANA time zone string.
+func getCurrentLocalTimeInHostTimeZone(ctx context.Context, timeZone string) (time.Time, error) {
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "load location")
+	}
+
+	// Convert now to the specified location using the In() method
+	localTime := nowFunc().In(loc)
+	return localTime, nil
+}
+
+// isTimezoneInWindow checks if the given timezone is currently within
+// the time window defined by start and end.
+// Arguments start and end should be in "HH:MM" format (24-hour clock).
+// Returns true if the timezone current time is within [start, end], inclusive.
+// Handles windows that cross midnight (e.g., "22:00" to "06:00").
+func isTimezoneInWindow(ctx context.Context, timezone string, start string, end string) (bool, error) {
+	t, err := getCurrentLocalTimeInHostTimeZone(ctx, timezone)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get current local time in host timezone")
+	}
+
+	// Parse hour and minute from start and end strings
+	startHour, startMin, err := parseHHMM(start)
+	if err != nil {
+		return false, fmt.Errorf("invalid start time: %w", err)
+	}
+	endHour, endMin, err := parseHHMM(end)
+	if err != nil {
+		return false, fmt.Errorf("invalid end time: %w", err)
+	}
+
+	// Get the clock time from t (in its own location)
+	currentHour := t.Hour()
+	currentMin := t.Minute()
+
+	// Convert everything to minutes since midnight for easy comparison
+	currentMins := currentHour*60 + currentMin
+	startMins := startHour*60 + startMin
+	endMins := endHour*60 + endMin
+
+	// Normal case: window does not cross midnight
+	if startMins <= endMins {
+		return currentMins >= startMins && currentMins <= endMins, nil
+	}
+
+	// Window crosses midnight (e.g., 22:00 to 06:00)
+	// True if time is after start OR before end
+	return currentMins >= startMins || currentMins <= endMins, nil
+}
+
+// parseHHMM parses "HH:MM" into hour and minute.
+func parseHHMM(s string) (hour, min_ int, err error) {
+	var h, m int
+	n, err := fmt.Sscanf(s, "%d:%d", &h, &m)
+	if err != nil || n != 2 {
+		return 0, 0, fmt.Errorf("expected HH:MM format, got %q", s)
+	}
+	if h < 0 || h > 23 {
+		return 0, 0, fmt.Errorf("hour must be 0-23, got %d", h)
+	}
+	if m < 0 || m > 59 {
+		return 0, 0, fmt.Errorf("minute must be 0-59, got %d", m)
+	}
+	return h, m, nil
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
@@ -3950,6 +4372,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	// on refetch similar to other platforms to simplify exclusion logic with dynamic labels
 	host.LabelUpdatedAt = time.Now()
 	host.RefetchRequested = false
+
+	timeZone, _ := deviceInformationResponse.QueryResponses["TimeZone"].(string)
+	host.TimeZone = &timeZone
 
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
@@ -4094,7 +4519,7 @@ func NewInstalledApplicationListResultsHandler(
 			// Used to mark the install as failed
 			failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
 			// Used to get the activity data for an install
-			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool) (*fleet.User, fleet.ActivityDetails, error)
+			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error)
 		}
 
 		var poll, shouldRefetch bool
@@ -4102,6 +4527,11 @@ func NewInstalledApplicationListResultsHandler(
 			expectedInstall *fleet.HostVPPSoftwareInstall,
 			setter installStatusSetter,
 		) error {
+			fromAutoUpdate, err := ds.IsAutoUpdateVPPInstall(ctx, expectedInstall.InstallCommandUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
+			}
+
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
@@ -4141,7 +4571,7 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			// create an activity for installing only if we're in a terminal state
-			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience)
+			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience, fromAutoUpdate)
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't an MDM-based install, so no activity generated
@@ -4162,13 +4592,14 @@ func NewInstalledApplicationListResultsHandler(
 			setter := installStatusSetter{
 				ds.SetVPPInstallAsVerified,
 				ds.SetVPPInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool) (*fleet.User, fleet.ActivityDetails, error) {
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error) {
 					user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, results)
 					if err != nil {
 						return nil, nil, err
 					}
 
 					act.FromSetupExperience = fromSetupExp
+					act.FromAutoUpdate = fromAutoUpdate
 
 					return user, act, nil
 				},
@@ -4183,7 +4614,7 @@ func NewInstalledApplicationListResultsHandler(
 			setter := installStatusSetter{
 				ds.SetInHouseAppInstallAsVerified,
 				ds.SetInHouseAppInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
+				func(ctx context.Context, results *mdm.CommandResults, _ bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
 					return ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
 				},
 			}
@@ -4209,7 +4640,13 @@ func NewInstalledApplicationListResultsHandler(
 					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
 				}
 			default:
-				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
+				hostMDM, err := ds.GetHostMDMCheckinInfo(ctx, installedAppResult.HostUUID())
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get host mdm checkin info to refetch apps")
+				}
+
+				isBYOD := !hostMDM.InstalledFromDEP
+				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), isBYOD)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
 				}
@@ -6514,7 +6951,7 @@ func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 	// because we are in this method, we know that the path has 7 parts, e.g:
 	// /api/latest/fleet/abm_tokens/19/renew
 
-	id, err := endpoint_utils.IntFromRequest(r, "id")
+	id, err := endpointer.IntFromRequest(r, "id")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse abm token id")
 	}

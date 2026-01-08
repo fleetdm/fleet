@@ -623,6 +623,7 @@ In brief, this means that as a Fleet team member, you may:
 - Spend company money like it is your own money.
 - [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).  Purchase what you need to do your job effectively.
 - Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
+- For purchases ≥ $1,000 in amount, please make sure there is a receipt/invoice in the transaction details. Brex sometimes does not automatically append those details to the transactions. 
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
 
@@ -953,7 +954,7 @@ Fleet’s writing style is clear, simple, and welcoming. We use short sentences,
 
 We avoid "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)". For engineers, replace hype with real data. For business readers, translate it into clear outcomes such as time saved or return on investment. Links are better than long explanations, since they keep content short and point people to more detail when they need it.
 
-Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communication#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
+Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communications#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
 
 When in doubt, simplify. Read your draft, cut unnecessary words, and make it shorter. If something feels confusing, rewrite until it feels obvious.
 
@@ -1300,9 +1301,12 @@ Spell out international time zones:
 
 #### Lists
 
-Lists help readers scan content for essential information. They should be as concise and symmetrical as possible.
-If you find your list running long, or if each item contains several sentences, you may want to reconsider whether a list is the best approach.
-Use a numbered list if it follows a specific order or includes a set number of items. Otherwise, use bullet points.
+Lists should be as concise and symmetrical as possible. If you find your list running long, or if each item contains several sentences, consider whether a list is the best approach. 
+
+
+##### Ordered list vs. unordered list
+
+If your list follows a specific order or includes a set number of items, use an [ordered list](https://fleetdm.com/handbook/company/communications.md#ordered-lists) by numbering each item. Otherwise, use an [unordered list](https://fleetdm.com/handbook/company/communications.md#unordered-lists) represented by bullet points.
 
 
 ##### How to introduce a list 
@@ -1402,9 +1406,13 @@ Try to stay within three or four heading levels. Complicated documents may use m
 
 #### Line breaks and new lines
 
-Any time you need to add a line break in Markdown, add an extra line break.
+✅ **Do** use line breaks to separate paragraphs and break up large chunks of text for the reader.
 
-For example, if you were adding this section:
+❌ **Don’t** use line breaks to separate each sentence to optimize the code for the author.
+
+Overused line breaks cause irregular line spacing on our website and make it hard for the author to experience the content as the reader will.
+
+Whenever you need to add a line break in Markdown, simply add an extra blank line between the two pieces of content you want to separate. For example, if you were adding this section:
 
 ```
 line one
@@ -1436,6 +1444,8 @@ line two
 
 ##### Ordered lists
 
+Ordered lists are represented by numbering each line item. 
+
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
@@ -1462,6 +1472,8 @@ Paragraph about item one
 
 ##### Unordered lists
 
+Unordered lists are represented by using a hyphen at the beginning of each line item.
+
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>- Line one<br>- Line two  <br>- Line three<br>- Line four</pre> | - Line one<br>- Line two<br>- Line three<br>- Line four |
@@ -1469,6 +1481,10 @@ Paragraph about item one
 
 
 #### Links
+
+✅ **Do** use the full url when creating links, e.g. `[links](https://fleetdm.com/handbook/company/communications#links`. This ensures the link will work even if the content gets moved to another page. 
+
+❌ **Don’t** use relative links, e.g. `[links](#links)` to link to other content on the same page.
 
 The Fleet website currently supports the following Markdown link types.
 
@@ -1519,9 +1535,9 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 | Left alignment | Right alignment | Center Alignment |
 
 > When using tables to document API endpoint parameters, we use the following conventions:
-> + Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
-> + In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
-> + In the **Description** column for required parameters, begin the description with "**Required.**"
+> - Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
+> - In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
+> - In the **Description** column for required parameters, begin the description with "**Required.**"
 
 
 #### Blockquotes

@@ -1,0 +1,1 @@
+* Fixed macOS `fleet-desktop` that was being displayed as dirty by `go version -m`.

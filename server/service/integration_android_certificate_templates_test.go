@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 
@@ -21,18 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
-
-// setupAMAPIEnvVars sets up the required environment variables for AMAPI calls and returns a cleanup function.
-func setupAMAPIEnvVars(t *testing.T) {
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	t.Cleanup(func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	})
-}
 
 // verifyCertificateStatus is a helper function that verifies the certificate template status
 // via both the host API and the fleetd certificate API.
@@ -116,12 +103,65 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 	}
 }
 
+// createTestCertificateAuthority creates a test certificate authority for use in tests.
+func (s *integrationMDMTestSuite) createTestCertificateAuthority(t *testing.T, ctx context.Context) (uint, *fleet.CertificateAuthority) {
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(t.Name() + "-CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	return ca.ID, ca
+}
+
+// createEnrolledAndroidHost creates an enrolled Android host in a team and returns the host and orbit node key.
+func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx context.Context, enterpriseID string, teamID *uint, suffix string) (*fleet.Host, string) {
+	hostUUID := uuid.NewString()
+	androidHostInput := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:       t.Name() + "-host-" + suffix,
+			ComputerName:   t.Name() + "-device-" + suffix,
+			Platform:       "android",
+			OSVersion:      "Android 14",
+			Build:          "build1",
+			Memory:         1024,
+			TeamID:         teamID,
+			HardwareSerial: uuid.NewString(),
+			UUID:           hostUUID,
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: ptr.String(enterpriseID),
+			AppliedPolicyID:      ptr.String("1"),
+		},
+	}
+	androidHostInput.SetNodeKey(enterpriseID)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	require.NoError(t, err)
+
+	host := createdAndroidHost.Host
+	orbitNodeKey := *host.NodeKey
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Mark host as enrolled in host_mdm
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server)
+			VALUES (?, 1, 'https://example.com', 0, 0)
+			ON DUPLICATE KEY UPDATE enrolled = 1
+		`, host.ID)
+		return err
+	})
+
+	return host, orbitNodeKey
+}
+
 // TestCertificateTemplateLifecycle tests the full Android certificate template lifecycle.
 func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Create a test team
@@ -282,8 +322,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFailure() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Step: Create a test team
@@ -414,8 +452,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Step: Create a test certificate authority
@@ -530,8 +566,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	t := s.T()
 	ctx := t.Context()
-	setupAMAPIEnvVars(t)
-
 	enterpriseID := s.enableAndroidMDM(t)
 
 	// Step: Create a test team
@@ -652,4 +686,346 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 		fleet.CertificateTemplatePending, "", "CN="+host.HardwareSerial)
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID2, certTemplateName2, caID,
 		fleet.CertificateTemplatePending, "", "CN="+host.UUID)
+}
+
+// TestCertificateTemplateTeamTransfer tests certificate template behavior when Android hosts transfer between teams:
+// 1. Host with certs in various statuses (pending, delivering, delivered, verified, failed, remove) transfers teams -> all certs marked for removal
+// 2. Host without any certs transfers to a team with certs -> gets new pending certs
+// 3. Host with certs transfers to another team with different certs -> old certs removed, new certs added
+func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
+	t := s.T()
+	ctx := t.Context()
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Create two teams with different certificate templates
+	teamAName := t.Name() + "-teamA"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamAName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamAID := createTeamResp.Team.ID
+
+	teamBName := t.Name() + "-teamB"
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamBName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamBID := createTeamResp.Team.ID
+
+	// Create enroll secrets for both teams
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamAID), modifyTeamEnrollSecretsRequest{
+		Secrets: []fleet.EnrollSecret{{Secret: "teamA-secret"}},
+	}, http.StatusOK, &teamEnrollSecretsResponse{})
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamBID), modifyTeamEnrollSecretsRequest{
+		Secrets: []fleet.EnrollSecret{{Secret: "teamB-secret"}},
+	}, http.StatusOK, &teamEnrollSecretsResponse{})
+
+	// Create a test certificate authority
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+
+	// Create certificate templates for Team A
+	certTemplateA1Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamA-Cert1"
+	var createCertResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateA1Name,
+		TeamID:                 teamAID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+	}, http.StatusOK, &createCertResp)
+	certTemplateA1ID := createCertResp.ID
+
+	certTemplateA2Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamA-Cert2"
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateA2Name,
+		TeamID:                 teamAID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+	}, http.StatusOK, &createCertResp)
+	certTemplateA2ID := createCertResp.ID
+
+	// Create certificate templates for Team B
+	certTemplateB1Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamB-Cert1"
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateB1Name,
+		TeamID:                 teamBID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+	}, http.StatusOK, &createCertResp)
+	certTemplateB1ID := createCertResp.ID
+
+	// Helper to get certificate template statuses for a host from the database
+	getCertTemplateStatuses := func(hostUUID string) map[uint]struct {
+		Status        fleet.CertificateTemplateStatus
+		OperationType fleet.MDMOperationType
+	} {
+		result := make(map[uint]struct {
+			Status        fleet.CertificateTemplateStatus
+			OperationType fleet.MDMOperationType
+		})
+		var rows []struct {
+			CertificateTemplateID uint                            `db:"certificate_template_id"`
+			Status                fleet.CertificateTemplateStatus `db:"status"`
+			OperationType         fleet.MDMOperationType          `db:"operation_type"`
+		}
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT certificate_template_id, status, operation_type
+				FROM host_certificate_templates
+				WHERE host_uuid = ?
+			`, hostUUID)
+		})
+		for _, r := range rows {
+			result[r.CertificateTemplateID] = struct {
+				Status        fleet.CertificateTemplateStatus
+				OperationType fleet.MDMOperationType
+			}{r.Status, r.OperationType}
+		}
+		return result
+	}
+
+	// Set up AMAPI mock to succeed
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(_ context.Context, _ string, _ []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	t.Run("host with certs in all status/operation combinations transfers to team without certs", func(t *testing.T) {
+		// Create a team with 9 certificate templates to test all status/operation combinations
+		teamEName := t.Name() + "-teamE"
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String(teamEName),
+			},
+		}, http.StatusOK, &createTeamResp)
+		teamEID := createTeamResp.Team.ID
+
+		// Create enroll secret for team E
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamEID), modifyTeamEnrollSecretsRequest{
+			Secrets: []fleet.EnrollSecret{{Secret: "teamE-secret"}},
+		}, http.StatusOK, &teamEnrollSecretsResponse{})
+
+		// Create a team without certificate templates for transfer target
+		teamFName := t.Name() + "-teamF"
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String(teamFName),
+			},
+		}, http.StatusOK, &createTeamResp)
+		teamFID := createTeamResp.Team.ID
+
+		// Create enroll secret for team F
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamFID), modifyTeamEnrollSecretsRequest{
+			Secrets: []fleet.EnrollSecret{{Secret: "teamF-secret"}},
+		}, http.StatusOK, &teamEnrollSecretsResponse{})
+
+		// Define all status/operation combinations to test
+		type certTestCase struct {
+			status         fleet.CertificateTemplateStatus
+			operation      fleet.MDMOperationType
+			shouldDelete   bool                            // true if record should be deleted during transfer
+			expectedStatus fleet.CertificateTemplateStatus // expected status after transfer (if not deleted)
+			expectedOp     fleet.MDMOperationType          // expected operation after transfer (if not deleted)
+			templateID     uint
+			templateName   string
+		}
+
+		testCases := []certTestCase{
+			// Install operations: pending/failed are deleted, others are marked for removal
+			{fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, true, "", "", 0, ""},
+			{fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall, false, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, 0, ""},
+			{fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, false, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, 0, ""},
+			{fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, false, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, 0, ""},
+			{fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall, true, "", "", 0, ""},
+			// Remove operations: all stay unchanged (removal already in progress)
+			{fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, false, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, 0, ""},
+			{fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeRemove, false, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeRemove, 0, ""},
+			{fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeRemove, false, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeRemove, 0, ""},
+			{fleet.CertificateTemplateFailed, fleet.MDMOperationTypeRemove, false, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeRemove, 0, ""},
+		}
+
+		// Create certificate templates for team E
+		for i := range testCases {
+			name := fmt.Sprintf("%s-Cert-%s-%s", strings.ReplaceAll(t.Name(), "/", "-"), testCases[i].status, testCases[i].operation)
+			s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+				Name:                   name,
+				TeamID:                 teamEID,
+				CertificateAuthorityId: caID,
+				SubjectName:            fmt.Sprintf("CN=Test-%d", i),
+			}, http.StatusOK, &createCertResp)
+			testCases[i].templateID = createCertResp.ID
+			testCases[i].templateName = name
+		}
+
+		// Create host in Team E
+		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamEID, "all-statuses")
+
+		// Insert certificate template records with all status/operation combinations
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			for _, tc := range testCases {
+				challenge := "challenge"
+				if tc.status == fleet.CertificateTemplatePending || tc.status == fleet.CertificateTemplateFailed {
+					challenge = "" // No challenge for pending/failed
+				}
+				_, err := q.ExecContext(ctx, `
+					INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
+					VALUES (?, ?, ?, ?, NULLIF(?, ''), ?)
+				`, host.UUID, tc.templateID, tc.status, tc.operation, challenge, tc.templateName)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+
+		// Verify initial state - should have 9 certificate template records
+		statuses := getCertTemplateStatuses(host.UUID)
+		require.Len(t, statuses, 9, "Should have 9 certificate template records")
+
+		// Transfer host to Team F (no certs)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+			TeamID:  &teamFID,
+			HostIDs: []uint{host.ID},
+		}, http.StatusOK, &addHostsToTeamResponse{})
+
+		// Run the worker to process the transfer
+		s.runWorker()
+
+		// Verify results
+		statuses = getCertTemplateStatuses(host.UUID)
+
+		// Count expected remaining records (those not deleted)
+		expectedRemaining := 0
+		for _, tc := range testCases {
+			if !tc.shouldDelete {
+				expectedRemaining++
+			}
+		}
+		require.Len(t, statuses, expectedRemaining, "Should have %d certificate template records after transfer", expectedRemaining)
+
+		// Verify each test case
+		for _, tc := range testCases {
+			status, exists := statuses[tc.templateID]
+			if tc.shouldDelete {
+				require.False(t, exists, "Record for %s/%s should be deleted", tc.status, tc.operation)
+			} else {
+				require.True(t, exists, "Record for %s/%s should exist", tc.status, tc.operation)
+				require.Equal(t, tc.expectedStatus, status.Status,
+					"Record for %s/%s should have status=%s", tc.status, tc.operation, tc.expectedStatus)
+				require.Equal(t, tc.expectedOp, status.OperationType,
+					"Record for %s/%s should have operation_type=%s", tc.status, tc.operation, tc.expectedOp)
+			}
+		}
+	})
+
+	t.Run("host without certs transfers to team with certs", func(t *testing.T) {
+		// Create a team without certificate templates
+		teamDName := t.Name() + "-teamD"
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String(teamDName),
+			},
+		}, http.StatusOK, &createTeamResp)
+		teamDID := createTeamResp.Team.ID
+
+		// Create enroll secret for team D
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamDID), modifyTeamEnrollSecretsRequest{
+			Secrets: []fleet.EnrollSecret{{Secret: "teamD-secret"}},
+		}, http.StatusOK, &teamEnrollSecretsResponse{})
+
+		// Create host in Team D (no certs)
+		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamDID, "no-certs")
+
+		// Verify no certificate templates for this host
+		statuses := getCertTemplateStatuses(host.UUID)
+		require.Empty(t, statuses, "Host should have no certificate templates initially")
+
+		// Transfer host to Team B (has certs)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+			TeamID:  &teamBID,
+			HostIDs: []uint{host.ID},
+		}, http.StatusOK, &addHostsToTeamResponse{})
+
+		// Run the worker to process the transfer
+		s.runWorker()
+
+		// Verify host now has Team B's certificate template as pending install
+		statuses = getCertTemplateStatuses(host.UUID)
+		require.Len(t, statuses, 1, "Host should have Team B's certificate template")
+		require.Equal(t, fleet.CertificateTemplatePending, statuses[certTemplateB1ID].Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, statuses[certTemplateB1ID].OperationType)
+	})
+
+	t.Run("host with certs transfers to team with different certs", func(t *testing.T) {
+		// Create host in Team A
+		host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamAID, "transfer-certs")
+
+		// Create pending certificate templates for this host (Team A certs)
+		_, err := s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamAID)
+		require.NoError(t, err)
+
+		// Set both certs to verified status (simulating they were both installed on device)
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_certificate_templates
+				SET status = ?, fleet_challenge = 'challenge'
+				WHERE host_uuid = ?
+			`, fleet.CertificateTemplateVerified, host.UUID)
+			return err
+		})
+
+		// Verify initial state - host has Team A's certs (both verified)
+		statuses := getCertTemplateStatuses(host.UUID)
+		require.Len(t, statuses, 2)
+		require.Contains(t, statuses, certTemplateA1ID)
+		require.Contains(t, statuses, certTemplateA2ID)
+		require.Equal(t, fleet.CertificateTemplateVerified, statuses[certTemplateA1ID].Status)
+		require.Equal(t, fleet.CertificateTemplateVerified, statuses[certTemplateA2ID].Status)
+
+		// Transfer host to Team B
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+			TeamID:  &teamBID,
+			HostIDs: []uint{host.ID},
+		}, http.StatusOK, &addHostsToTeamResponse{})
+
+		// Run the worker to process the transfer
+		s.runWorker()
+
+		// Verify:
+		// - Team A's certs (both verified/installed) are marked as pending remove
+		// - Team B's cert is added as pending install
+		statuses = getCertTemplateStatuses(host.UUID)
+		require.Len(t, statuses, 3, "Should have 2 old certs (pending remove) + 1 new cert (pending install)")
+
+		// Team A certs should be pending remove
+		require.Equal(t, fleet.CertificateTemplatePending, statuses[certTemplateA1ID].Status)
+		require.Equal(t, fleet.MDMOperationTypeRemove, statuses[certTemplateA1ID].OperationType)
+		require.Equal(t, fleet.CertificateTemplatePending, statuses[certTemplateA2ID].Status)
+		require.Equal(t, fleet.MDMOperationTypeRemove, statuses[certTemplateA2ID].OperationType)
+
+		// Team B cert should be pending install
+		require.Equal(t, fleet.CertificateTemplatePending, statuses[certTemplateB1ID].Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, statuses[certTemplateB1ID].OperationType)
+
+		// Test that device can report "verified" for a pending removal and the record gets deleted.
+		// This handles race conditions where the device processes the removal before the server
+		// transitions the status through the full state machine.
+		updateReq, err := json.Marshal(updateCertificateStatusRequest{
+			Status:        string(fleet.CertificateTemplateVerified),
+			OperationType: ptr.String(string(fleet.MDMOperationTypeRemove)),
+		})
+		require.NoError(t, err)
+
+		resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateA1ID), updateReq, http.StatusOK, map[string]string{
+			"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+		})
+		_ = resp.Body.Close()
+
+		// Verify the record was deleted
+		statuses = getCertTemplateStatuses(host.UUID)
+		require.Len(t, statuses, 2, "Should have 1 pending remove + 1 pending install after removal confirmed")
+		_, exists := statuses[certTemplateA1ID]
+		require.False(t, exists, "certTemplateA1 should be deleted after verified removal")
+	})
 }

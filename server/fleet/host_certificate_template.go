@@ -12,6 +12,7 @@ type HostCertificateTemplate struct {
 	Status                CertificateTemplateStatus `db:"status"`
 	OperationType         MDMOperationType          `db:"operation_type"`
 	Detail                *string                   `db:"detail" json:"-"`
+	UUID                  string                    `db:"uuid"`
 	CreatedAt             string                    `db:"created_at"`
 	UpdatedAt             string                    `db:"updated_at"`
 }
@@ -43,6 +44,7 @@ type CertificateTemplateForHost struct {
 	FleetChallenge        *string                    `db:"fleet_challenge"`
 	Status                *CertificateTemplateStatus `db:"status"`
 	OperationType         *MDMOperationType          `db:"operation_type"`
+	UUID                  *string                    `db:"uuid"`
 	CAType                CAConfigAssetType          `db:"ca_type"`
 	CAName                string                     `db:"ca_name"`
 }

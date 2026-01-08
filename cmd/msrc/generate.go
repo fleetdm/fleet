@@ -71,11 +71,11 @@ func main() {
 
 // windowsBulletinGracePeriod returns whether we are within the grace period for a MSRC monthly feed to exist.
 //
-// E.g. September 2024 bulletin was released on the 2nd, thus we add some grace period (5 days)
-// for Microsoft to publish the current month bulletin.
+// MSRC monthly feeds are typically published early in the month, but the exact date varies.
+// We use a 15-day grace period to account for this variability.
 func windowsBulletinGracePeriod(month time.Month, year int) bool {
 	now := time.Now()
-	return month == now.Month() && year == now.Year() && now.Day() <= 5
+	return month == now.Month() && year == now.Year() && now.Day() <= 15
 }
 
 func update(
