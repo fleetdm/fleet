@@ -182,7 +182,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 					(existingLabel.TeamID != nil && spec.TeamID == nil ||
 						existingLabel.TeamID == nil && spec.TeamID != nil ||
 						(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID)) {
-					return ctxerr.Wrap(ctx, err, "one or more specified labels exists on another team")
+					return ctxerr.New(ctx, "one or more specified labels exists on another team")
 				}
 			}
 		}
