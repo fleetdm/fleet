@@ -3226,6 +3226,24 @@ The best practice is to set this to 3x the number of new employees (end users) t
     sso_rate_limit_per_minute: 200
   ```
 
+### mdm.reconciler_ca_limit
+
+The maximum number of profiles containing Certificate Authority variables the fleet reconciler will send during each run.
+
+The reconciler runs approximately every 30 seconds. The best practice is to set this at a level that is half or less the number that can be handled by your certificate authority in one minute. If a profile for instance is uploaded that references a SCEP server which can handle 100 transactions per minute, best practice would be to set this to 50 or less. Lower values will mean that a profile potentially takes longer to be sent to all hosts targeted by it, with a tradeoff that it will result in lower Certificate Authority load.
+
+For a team with 10,000 hosts targeted by a newly-uploaded profile containing Certificate Authority variables, a setting of 100 would mean that it would take 100 runs of the profile reconciler, or, at least 50 minutes, for all 10,000 certificate profiles to be sent.
+
+Currently this limit only applies to the Apple profile reconciler. Windows and Android support will be added soon. Additionally, newly enrolling ADE hosts do not count toward and are not affected by limit, so as not to delay onboarding.
+
+- Default value: 100
+- Environment variable: `FLEET_MDM_RECONCILER_CA_LIMIT`
+- Config file format:
+  ```yaml
+  mdm:
+    reconciler_ca_limit: 50
+  ```
+
 ## Partnerships
 
 ### partnerships_enable_secureframe
