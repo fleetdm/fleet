@@ -90,3 +90,21 @@ func TestRatelimitPackageDependencies(t *testing.T) {
 		).
 		Check()
 }
+
+// TestMysqlPackageDependencies checks that mysql package is not dependent on other Fleet domain packages
+// to maintain decoupling and modularity.
+func TestMysqlPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform/mysql...").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m+"/...").
+		IgnoreDeps(
+			// Ignore our own packages
+			m+"/server/platform/mysql...",
+			// Other infra packages
+			m+"/server/platform/http",
+			m+"/server/contexts/ctxerr",
+		).
+		Check()
+}

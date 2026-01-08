@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251219201524, Down_20251219201524)
+	MigrationClient.AddMigration(Up_20251229000010, Down_20251229000010)
 }
 
-func Up_20251219201524(tx *sql.Tx) error {
+func Up_20251229000010(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS software_update_schedules (
 			id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -35,6 +35,6 @@ func Up_20251219201524(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251219201524(tx *sql.Tx) error {
+func Down_20251229000010(tx *sql.Tx) error {
 	return nil
 }

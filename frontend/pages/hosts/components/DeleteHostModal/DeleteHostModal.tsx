@@ -55,7 +55,7 @@ const DeleteHostModal = ({
     hostsCount >= 500;
 
   return (
-    <Modal title="Delete host" onExit={onCancel} className={baseClass}>
+    <Modal title="Delete" onExit={onCancel} className={baseClass}>
       <>
         <p>
           This will remove the record of <b>{hostText()}</b> and associated data

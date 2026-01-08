@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "12.4",
+      "version": "12.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram';"
       },
-      "installer_url": "https://osx.telegram.org/updates/Telegram-12.4.277872.app.zip",
+      "installer_url": "https://osx.telegram.org/updates/Telegram-12.4.1.277879.app.zip",
       "install_script_ref": "60ca098a",
       "uninstall_script_ref": "a39fa3ea",
-      "sha256": "70591f6df57ecd0df75c575b1ed5c176fd67574270521d1b10c5b4268e33370d",
+      "sha256": "be117cc86027ac4bfb0cfab6da26a6ee8b4f4c96d225517b4539db2033816844",
       "default_categories": [
         "Communication"
       ]
