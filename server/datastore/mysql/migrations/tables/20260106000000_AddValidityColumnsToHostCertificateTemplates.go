@@ -12,17 +12,19 @@ func init() {
 
 func Up_20260106000000(tx *sql.Tx) error {
 	// Add not_valid_before column for certificate validity tracking
+	// Using DATETIME (not DATETIME(6)) since X.509 cert validity has max 1-second precision per RFC 5280
 	if _, err := tx.Exec(`
 		ALTER TABLE host_certificate_templates
-		ADD COLUMN not_valid_before DATETIME(6) NULL
+		ADD COLUMN not_valid_before DATETIME NULL
 	`); err != nil {
 		return errors.Wrap(err, "adding not_valid_before column to host_certificate_templates")
 	}
 
 	// Add not_valid_after column for certificate expiration tracking (used for renewal)
+	// Using DATETIME (not DATETIME(6)) since X.509 cert validity has max 1-second precision per RFC 5280
 	if _, err := tx.Exec(`
 		ALTER TABLE host_certificate_templates
-		ADD COLUMN not_valid_after DATETIME(6) NULL
+		ADD COLUMN not_valid_after DATETIME NULL
 	`); err != nil {
 		return errors.Wrap(err, "adding not_valid_after column to host_certificate_templates")
 	}
