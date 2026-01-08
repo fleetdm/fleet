@@ -1352,6 +1352,23 @@ This activity contains the following fields:
 }
 ```
 
+## edited_android_certificate
+
+Generated when a user adds or removes Android certificate templates of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.
@@ -1713,6 +1730,10 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
+- "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
+- "auto_update_start_time": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_end_time": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+
 
 #### Example
 
@@ -1737,6 +1758,9 @@ This activity contains the following fields:
     }
   ]
   "software_display_name": "Logic Pro DAW"
+  "auto_update_enabled": true
+  "auto_update_start_time": "22:00"
+  "auto_update_end_time": "02:00"
 }
 ```
 

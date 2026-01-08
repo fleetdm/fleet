@@ -1,1 +1,0 @@
-* Updated 'fleetd/certificates/<id>' and 'fleetd/certificates/<id>/status' to authenticate using the orbit_node_key provided in the 'Authentication' header.

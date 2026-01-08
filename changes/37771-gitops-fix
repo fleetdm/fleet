@@ -1,0 +1,1 @@
+* Added missing upgrade code persistence when adding Windows software to Fleet via GitOps

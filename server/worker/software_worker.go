@@ -31,10 +31,11 @@ func (v *SoftwareWorker) Name() string {
 }
 
 const (
-	makeAndroidAppsAvailableForHostTask    SoftwareWorkerTask = "make_android_apps_available_for_host"
-	makeAndroidAppAvailableTask            SoftwareWorkerTask = "make_android_app_available"
-	runAndroidSetupExperienceTask          SoftwareWorkerTask = "run_android_setup_experience"
-	bulkSetAndroidAppsAvailableForHostTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
+	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host"
+	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
+	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
+	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
+	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
 )
 
 type softwareWorkerArgs struct {
@@ -59,7 +60,8 @@ type softwareWorkerArgs struct {
 
 	// AppConfigChanged indicates if the android app configuration changed as part
 	// of the action that triggered this task.
-	AppConfigChanged bool `json:"app_config_changed,omitempty"`
+	AppConfigChanged bool            `json:"app_config_changed,omitempty"`
+	UUIDsToIDs       map[string]uint `json:"uuids_to_ids,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -105,8 +107,16 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 		), "running %s task",
 			bulkSetAndroidAppsAvailableForHostTask)
 
+	case bulkSetAndroidAppsAvailableForHostsTask:
+		return ctxerr.Wrapf(ctx, v.bulkSetAndroidAppsAvailableForHosts(
+			ctx,
+			args.UUIDsToIDs,
+			args.EnterpriseName,
+		), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
+
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
+
 	}
 }
 
@@ -124,9 +134,9 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 	var configByAppID map[string]json.RawMessage
-	if config != nil && config.Configuration != nil {
+	if config != nil {
 		configByAppID = map[string]json.RawMessage{
-			applicationID: config.Configuration,
+			applicationID: *config,
 		}
 	}
 
@@ -350,6 +360,14 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
 
+	// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
+	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
+	if err != nil {
+		level.Error(v.Log).Log("msg", "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", hostUUID, "err", err)
+	} else if fleetAgentPolicy != nil {
+		appPolicies = append(appPolicies, fleetAgentPolicy)
+	}
+
 	// Update Android MDM policy to include the apps in self service
 	err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: policyID})
 	if err != nil {
@@ -446,6 +464,85 @@ func QueueBulkSetAndroidAppsAvailableForHost(
 		PolicyID:       policyID,
 		EnterpriseName: enterpriseName,
 		ApplicationIDs: applicationIDs,
+	}
+
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context, uuidsToIDs map[string]uint, enterpriseName string) error {
+	// for each host
+	// get the set of self-service apps that are in scope for it
+	for uuid, hostID := range uuidsToIDs {
+		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, uuid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", uuid)
+		}
+
+		teamID := ptr.ValOrZero(androidHost.TeamID)
+
+		// Update certificate templates for team transfer:
+		// 1. Mark old templates as pending removal
+		// 2. Create new pending templates for the new team
+		// This must happen before building the managed config, which includes certificate template IDs.
+		if err := v.Datastore.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, uuid); err != nil {
+			return ctxerr.Wrap(ctx, err, "set host certificate templates to pending remove for host")
+		}
+		if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, uuid, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
+		}
+
+		appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
+		if err != nil {
+			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
+		}
+
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+		}
+
+		appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building application policies with config")
+		}
+
+		// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
+		fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, uuid)
+		if err != nil {
+			level.Error(v.Log).Log("msg", "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", uuid, "err", err)
+		} else if fleetAgentPolicy != nil {
+			appPolicies = append(appPolicies, fleetAgentPolicy)
+		}
+
+		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{uuid: uuid})
+
+		if err != nil {
+			return ctxerr.WrapWithData(ctx, err, "set apps for android policy", map[string]any{"host_id": hostID})
+		}
+
+	}
+
+	return nil
+
+}
+
+func QueueBulkSetAndroidAppsAvailableForHosts(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	uuidsToIDs map[string]uint,
+	enterpriseName string) error {
+
+	args := &softwareWorkerArgs{
+		Task:           bulkSetAndroidAppsAvailableForHostsTask,
+		UUIDsToIDs:     uuidsToIDs,
+		EnterpriseName: enterpriseName,
 	}
 
 	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)

@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -56,6 +58,16 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
 		return 0, nil
 	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "Yellow jackets"}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
+
 	t.Run("Invalid CA type", func(t *testing.T) {
 		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(InvalidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
 		require.Error(t, err)
@@ -74,6 +86,85 @@ func TestCreateCertificateTemplate(t *testing.T) {
 		// Check that the error is about invalid CA type
 		require.Contains(t, err.Error(), "not found")
 	})
+
+	t.Run("Empty or whitespace-only name", func(t *testing.T) {
+		whitespaceNames := []string{"", " ", "  ", "\t", "\n", "   \t\n  "}
+		for _, name := range whitespaceNames {
+			_, err := svc.CreateCertificateTemplate(ctx, name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "Certificate template name is required")
+		}
+	})
+
+	t.Run("Name too long", func(t *testing.T) {
+		longName := strings.Repeat("a", 256)
+		_, err := svc.CreateCertificateTemplate(ctx, longName, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Certificate template name is too long")
+	})
+
+	t.Run("Name with invalid characters", func(t *testing.T) {
+		testCases := []struct {
+			name string
+		}{
+			{name: "template@name"},
+			{name: "template#name"},
+			{name: "template$name"},
+			{name: "template%name"},
+			{name: "template.name"},
+			{name: "template/name"},
+			{name: "template\\name"},
+			{name: "template!name"},
+			{name: "template?name"},
+			{name: "template*name"},
+			{name: "template+name"},
+			{name: "template=name"},
+			{name: "template<name>"},
+			{name: "template(name)"},
+			{name: "template[name]"},
+			{name: "template{name}"},
+			{name: "template|name"},
+			{name: "template;name"},
+			{name: "template:name"},
+			{name: "template'name"},
+			{name: "template\"name"},
+			{name: "template`name"},
+			{name: "template~name"},
+			{name: "template^name"},
+			{name: "template	name"},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := svc.CreateCertificateTemplate(ctx, tc.name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "Invalid certificate template name")
+			})
+		}
+	})
+
+	t.Run("Name with valid characters", func(t *testing.T) {
+		validNames := []string{
+			"my template",
+			" my template ",
+			"my-template",
+			"my_template",
+			"MyTemplate123",
+			"Template 1",
+			"UPPERCASE",
+			"lowercase",
+			"Mix-Ed_Case 123",
+			"a",
+			"1",
+			"a1",
+			"1a",
+		}
+		for _, name := range validNames {
+			t.Run(name, func(t *testing.T) {
+				_, err := svc.CreateCertificateTemplate(ctx, name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+				require.NoError(t, err)
+			})
+		}
+	})
 }
 
 func TestApplyCertificateTemplateSpecs(t *testing.T) {
@@ -81,6 +172,21 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{
+			ID:   id,
+			Name: "Test Team",
+		}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
 
 	// Set up certificate authority mocks
 	certAuthorities := []*fleet.CertificateAuthority{
@@ -128,12 +234,14 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 	var createdCertificates []fleet.CertificateTemplate
 	var nextTemplateID uint = 100
 
-	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) error {
+	ds.BatchUpsertCertificateTemplatesFunc = func(ctx context.Context, certificates []*fleet.CertificateTemplate) ([]uint, error) {
 		createdCertificates = nil
+		createdMap := make([]uint, 0, len(certificates))
 		for _, cert := range certificates {
 			createdCertificates = append(createdCertificates, *cert)
+			createdMap = append(createdMap, cert.TeamID)
 		}
-		return nil
+		return createdMap, nil
 	}
 
 	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
@@ -207,5 +315,54 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("Empty name", func(t *testing.T) {
+		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "",
+				CertificateAuthorityId: 1,
+				SubjectName:            "foo",
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Certificate template name is required")
+	})
+
+	t.Run("Whitespace-only name", func(t *testing.T) {
+		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "   ",
+				CertificateAuthorityId: 1,
+				SubjectName:            "foo",
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Certificate template name is required")
+	})
+
+	t.Run("Name with invalid characters", func(t *testing.T) {
+		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "template@name",
+				CertificateAuthorityId: 1,
+				SubjectName:            "foo",
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Invalid certificate template name")
+	})
+
+	t.Run("Name too long", func(t *testing.T) {
+		longName := strings.Repeat("a", 256)
+		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
+			{
+				Name:                   longName,
+				CertificateAuthorityId: 1,
+				SubjectName:            "foo",
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Certificate template name is too long")
 	})
 }

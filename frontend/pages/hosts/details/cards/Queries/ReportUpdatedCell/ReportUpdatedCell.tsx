@@ -115,7 +115,7 @@ const ReportUpdatedCell = ({
     );
   };
 
-  const onClick = (): void => {
+  const onClick = () => {
     hostId &&
       queryId &&
       browserHistory.push(PATHS.HOST_QUERY_REPORT(hostId, queryId));
@@ -132,7 +132,7 @@ const ReportUpdatedCell = ({
           onClick={onClick}
           size="small"
         >
-          <span>View report</span>
+          <span className={`${baseClass}__view-report--text`}>View data</span>
           <Icon name="chevron-right" color="ui-fleet-black-75" />
         </Button>
       )}

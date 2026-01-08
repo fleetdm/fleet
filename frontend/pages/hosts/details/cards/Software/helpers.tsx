@@ -435,9 +435,7 @@ export const getSoftwareSubheader = ({
         : "Software installed on work profile (Managed Apple Account).";
     }
     if (hostMdmEnrollmentStatus === "On (manual)") {
-      return isMyDevicePage
-        ? "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
-        : "Software installed on this host. Built-in apps (e.g. Calculator) aren't included.";
+      return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";
     }
   }
   return isMyDevicePage

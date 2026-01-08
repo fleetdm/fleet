@@ -59,18 +59,18 @@ const validate = (formData: IFormData) => {
     errs[OKTA_IDP_ID] = `IdP ID must be ${maxURLLength} characters or less`;
   }
 
-  // Assertion Consumer Service URL validation
+  // Assertion consumer service URL validation
   if (!formData[OKTA_ACS_URL] || !formData[OKTA_ACS_URL].trim()) {
-    errs[OKTA_ACS_URL] = "Assertion Consumer Service URL must be present";
+    errs[OKTA_ACS_URL] = "Assertion consumer service URL must be present";
   } else if (formData[OKTA_ACS_URL].length > maxURLLength) {
     errs[
       OKTA_ACS_URL
-    ] = `Assertion Consumer Service URL must be ${maxURLLength} characters or less`;
+    ] = `Assertion consumer service URL must be ${maxURLLength} characters or less`;
   } else if (
     !valid_url({ url: formData[OKTA_ACS_URL], protocols: ["http", "https"] })
   ) {
     errs[OKTA_ACS_URL] =
-      "Assertion Consumer Service URL must be a valid URL with http or https scheme and a host";
+      "Assertion consumer service URL must be a valid URL with http or https scheme and a host";
   }
 
   // Audience URI validation

@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +19,7 @@ import (
 // MaxSoftwareInstallerSize is the maximum size allowed for software
 // installers. This is enforced by the endpoints that upload installers.
 const MaxSoftwareInstallerSize = 3000 * units.MiB
+const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -27,7 +29,7 @@ type SoftwareInstallerStore interface {
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, fileID string) (string, error)
+	Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 }
 
 // SoftwareInstallDetails contains all of the information
@@ -524,6 +526,36 @@ type UploadSoftwareInstallerPayload struct {
 	AddedAutomaticInstallPolicy *Policy
 }
 
+func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
+	if p.BundleIdentifier != "" {
+		return p.BundleIdentifier
+	}
+	if p.Source == "programs" && p.UpgradeCode != "" {
+		return p.UpgradeCode
+	}
+	return p.Title
+}
+
+// GetBundleIdentifierForDB returns a pointer to the bundle identifier if it's
+// non-empty (after trimming whitespace), or nil otherwise. This is used when
+// inserting into the database where NULL is preferred over empty string.
+func (p UploadSoftwareInstallerPayload) GetBundleIdentifierForDB() *string {
+	if strings.TrimSpace(p.BundleIdentifier) != "" {
+		return &p.BundleIdentifier
+	}
+	return nil
+}
+
+// GetUpgradeCodeForDB returns a pointer to the upgrade code if the source is
+// "programs", or nil otherwise. This is used when inserting into the database
+// where NULL is preferred for non-Windows installers.
+func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
+	if p.Source != "programs" {
+		return nil
+	}
+	return &p.UpgradeCode
+}
+
 type ExistingSoftwareInstaller struct {
 	InstallerID      uint    `db:"installer_id"`
 	TeamID           *uint   `db:"team_id"`
@@ -717,6 +749,17 @@ func (s *SoftwarePackageOrApp) GetAppStoreID() string {
 	return s.AppStoreID
 }
 
+// Returns unique name by Platform + AppStoreID/Name
+func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
+	if s.AppStoreID != "" {
+		return fmt.Sprintf(`%s_%s`, s.AppStoreID, s.Platform)
+	}
+	if s.Name != "" {
+		return fmt.Sprintf(`%s_%s`, s.Name, s.Platform)
+	}
+	return ""
+}
+
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
@@ -844,11 +887,42 @@ type HostSoftwareInstalledVersion struct {
 	Source           string     `json:"-" db:"source"`
 	Version          string     `json:"version" db:"version"`
 	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
-	LastOpenedAt     *time.Time `json:"last_opened_at" db:"last_opened_at"`
+	LastOpenedAt     *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
 	Vulnerabilities      []string                   `json:"vulnerabilities" db:"vulnerabilities"`
 	InstalledPaths       []string                   `json:"installed_paths"`
 	SignatureInformation []PathSignatureInformation `json:"signature_information,omitempty"`
+}
+
+// MarshalJSON implements custom JSON marshaling for HostSoftwareInstalledVersion to conditionally
+// handle last_opened_at based on the software source.
+func (hsv *HostSoftwareInstalledVersion) MarshalJSON() ([]byte, error) {
+	type Alias HostSoftwareInstalledVersion
+	return json.Marshal(&struct {
+		*Alias
+		LastOpenedAt any `json:"last_opened_at,omitempty"`
+	}{
+		Alias:        (*Alias)(hsv),
+		LastOpenedAt: marshalLastOpenedAt(hsv.Source, hsv.LastOpenedAt),
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for HostSoftwareInstalledVersion to handle
+// the potential empty string in last_opened_at.
+func (hsv *HostSoftwareInstalledVersion) UnmarshalJSON(b []byte) error {
+	type Alias HostSoftwareInstalledVersion
+	aux := &struct {
+		*Alias
+		LastOpenedAt json.RawMessage `json:"last_opened_at"`
+	}{
+		Alias: (*Alias)(hsv),
+	}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	var err error
+	hsv.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record
@@ -998,13 +1072,16 @@ type HostSoftwareInstallOptions struct {
 	SelfService        bool
 	PolicyID           *uint
 	ForSetupExperience bool
+	// ForScheduledUpdates means the install request is for iOS/iPadOS
+	// scheduled updates, which means it was Fleet-initiated.
+	ForScheduledUpdates bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
 // Software installs initiated via a policy are fleet-initiated (and we also
 // make sure SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && o.PolicyID != nil
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

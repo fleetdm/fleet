@@ -22,6 +22,8 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 2, label: "👬 Communication", value: "Communication" },
   { id: 3, label: "🧰 Developer tools", value: "Developer tools" },
   { id: 4, label: "🖥️ Productivity", value: "Productivity" },
+  { id: 5, label: "🔐 Security", value: "Security" },
+  { id: 6, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
 export const CATEGORIES_NAV_ITEMS: ICategory[] = [

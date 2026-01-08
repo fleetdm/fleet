@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -281,8 +280,6 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
-	defer response.Body.Close()
-
 	return c.parseResponse(verb, path, response, responseDest)
 }
 
@@ -515,9 +512,10 @@ func numberWithPluralization(n int, singular string, plural string) string {
 }
 
 const (
-	dryRunAppliedFormat = "[+] would've applied %s\n"
-	appliedFormat       = "[+] applied %s\n"
-	applyingTeamFormat  = "[+] applying %s for team %s\n"
+	dryRunAppliedFormat     = "[+] would've applied %s\n"
+	appliedFormat           = "[+] applied %s\n"
+	applyingTeamFormat      = "[+] applying %s for team %s\n"
+	dryRunAppliedTeamFormat = "[+] would've applied %s for team %s\n"
 )
 
 // ApplyGroup applies the given spec group to Fleet.
@@ -532,6 +530,7 @@ func (c *Client) ApplyGroup(
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
+	filename *string,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.VPPAppResponse, map[string][]fleet.ScriptResponse, error) {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -560,7 +559,7 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, errors.New("Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
 				}
 			}
-			if err := c.ApplyLabels(specs.Labels); err != nil {
+			if err := c.ApplyLabels(specs.Labels, nil, nil); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
 			logfn(appliedFormat, numberWithPluralization(len(specs.Labels), "label", "labels"))
@@ -580,6 +579,10 @@ func (c *Client) ApplyGroup(
 
 	if specs.CertificateAuthorities != nil {
 		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
+			// only do this custom message for gitops as we reference the applying filename which only makes sense in gitops
+			if err.Error() == "missing or invalid license" && viaGitOps && filename != nil {
+				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.", *filename)
+			}
 			return nil, nil, nil, nil, fmt.Errorf("applying certificate authorities: %w", err)
 		}
 		// TODO(hca): is more detailed logging a hard requirement or can it be a follow up improvement?
@@ -958,7 +961,11 @@ func (c *Client) ApplyGroup(
 				if opts.DryRun && (teamID == 0 || !ok) {
 					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
 				} else {
-					logfn("[+] applying MDM profiles for team %s\n", tmName)
+					if opts.DryRun {
+						logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
+					} else {
+						logfn("[+] applying MDM profiles for team %s\n", tmName)
+					}
 					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
 					}
@@ -1019,6 +1026,10 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
+		format := applyingTeamFormat
+		if opts.DryRun {
+			format = dryRunAppliedTeamFormat
+		}
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
@@ -1034,7 +1045,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn(applyingTeamFormat, numberWithPluralization(len(software), "software package", "software packages"), tmName)
+				logfn(format, numberWithPluralization(len(software), "software package", "software packages"), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -1046,7 +1057,7 @@ func (c *Client) ApplyGroup(
 			for tmName, apps := range tmSoftwareAppsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn(applyingTeamFormat, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
+				logfn(format, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
 				appsResponse, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
@@ -1829,7 +1840,7 @@ func (c *Client) DoGitOps(
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
 	iconSettings *fleet.IconGitOpsSettings,
-) (*fleet.TeamSpecsDryRunAssumptions, []func() error, error) {
+) (*fleet.TeamSpecsDryRunAssumptions, error) {
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
 	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
@@ -1845,8 +1856,6 @@ func (c *Client) DoGitOps(
 	}
 	var mdmAppConfig map[string]interface{}
 	var team map[string]interface{}
-
-	var postOps []func() error
 
 	var eulaPath string
 
@@ -1869,26 +1878,17 @@ func (c *Client) DoGitOps(
 		// OrgSettings so that they are not applied as part of the AppConfig.
 		groupedCAs, err := fleet.ValidateCertificateAuthoritiesSpec(incoming.OrgSettings["certificate_authorities"])
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid certificate_authorities: %w", err)
+			return nil, fmt.Errorf("invalid certificate_authorities: %w", err)
 		}
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
 		// Labels
 		if incoming.Labels == nil || len(incoming.Labels) > 0 {
-			labelsToDelete, err := c.doGitOpsLabels(incoming, logFn, dryRun)
+			err := c.doGitOpsLabels(incoming, logFn, dryRun)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
-			postOps = append(postOps, func() error {
-				for _, labelToDelete := range labelsToDelete {
-					logFn("[-] deleting label '%s'\n", labelToDelete)
-					if err := c.DeleteLabel(labelToDelete); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
 		}
 
 		// Features
@@ -1900,7 +1900,7 @@ func (c *Client) DoGitOps(
 		}
 		features, ok = features.(map[string]any)
 		if !ok {
-			return nil, nil, errors.New("org_settings.features config is not a map")
+			return nil, errors.New("org_settings.features config is not a map")
 		}
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
@@ -1914,7 +1914,7 @@ func (c *Client) DoGitOps(
 		}
 		integrations, ok = integrations.(map[string]interface{})
 		if !ok {
-			return nil, nil, errors.New("org_settings.integrations config is not a map")
+			return nil, errors.New("org_settings.integrations config is not a map")
 		}
 		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
 			integrations.(map[string]interface{})["jira"] = []interface{}{}
@@ -1930,13 +1930,13 @@ func (c *Client) DoGitOps(
 		}
 		// ensure that legacy certificate authorities are not set in integrations
 		if _, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; ok {
-			return nil, nil, errors.New("org_settings.integrations.ndes_scep_proxy is not supported, please use org_settings.certificate_authorities.ndes_scep_proxy instead")
+			return nil, errors.New("org_settings.integrations.ndes_scep_proxy is not supported, please use org_settings.certificate_authorities.ndes_scep_proxy instead")
 		}
 		if _, ok := integrations.(map[string]interface{})["digicert"]; ok {
-			return nil, nil, errors.New("org_settings.integrations.digicert is not supported, please use org_settings.certificate_authorities.digicert instead")
+			return nil, errors.New("org_settings.integrations.digicert is not supported, please use org_settings.certificate_authorities.digicert instead")
 		}
 		if _, ok := integrations.(map[string]interface{})["custom_scep_proxy"]; ok {
-			return nil, nil, errors.New("org_settings.integrations.custom_scep_proxy is not supported, please use org_settings.certificate_authorities.custom_scep_proxy instead")
+			return nil, errors.New("org_settings.integrations.custom_scep_proxy is not supported, please use org_settings.certificate_authorities.custom_scep_proxy instead")
 		}
 
 		// Ensure webhooks settings exists
@@ -1991,7 +1991,7 @@ func (c *Client) DoGitOps(
 		}
 		mdmAppConfig, ok = mdmConfig.(map[string]interface{})
 		if !ok {
-			return nil, nil, errors.New("org_settings.mdm config is not a map")
+			return nil, errors.New("org_settings.mdm config is not a map")
 		}
 
 		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
@@ -2074,7 +2074,7 @@ func (c *Client) DoGitOps(
 			}
 			err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 		}
 
@@ -2129,7 +2129,7 @@ func (c *Client) DoGitOps(
 		}
 		features, ok = features.(map[string]any)
 		if !ok {
-			return nil, nil, fmt.Errorf("Team %s features config is not a map", *incoming.TeamName)
+			return nil, fmt.Errorf("Team %s features config is not a map", *incoming.TeamName)
 		}
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
@@ -2143,7 +2143,7 @@ func (c *Client) DoGitOps(
 		team["integrations"] = integrations
 		_, ok = integrations.(map[string]interface{})
 		if !ok {
-			return nil, nil, errors.New("team_settings.integrations config is not a map")
+			return nil, errors.New("team_settings.integrations config is not a map")
 		}
 
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
@@ -2151,7 +2151,7 @@ func (c *Client) DoGitOps(
 		} else {
 			_, ok = googleCal.(map[string]interface{})
 			if !ok {
-				return nil, nil, errors.New("team_settings.integrations.google_calendar config is not a map")
+				return nil, errors.New("team_settings.integrations.google_calendar config is not a map")
 			}
 		}
 
@@ -2160,7 +2160,7 @@ func (c *Client) DoGitOps(
 		} else {
 			_, ok = conditionalAccessEnabled.(bool)
 			if !ok {
-				return nil, nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
+				return nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
 			}
 		}
 
@@ -2169,6 +2169,7 @@ func (c *Client) DoGitOps(
 	}
 
 	if !incoming.IsNoTeam() {
+
 		// Common controls settings between org and team settings
 		// Put in default values for macos_settings
 		if incoming.Controls.MacOSSettings != nil {
@@ -2280,7 +2281,7 @@ func (c *Client) DoGitOps(
 			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
 		}
 		if !enableDiskEncryption && requireBitLockerPIN {
-			return nil, nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
+			return nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
 		}
 
 		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
@@ -2290,7 +2291,7 @@ func (c *Client) DoGitOps(
 			team["gitops_filename"] = filename
 			rawTeam, err := json.Marshal(team)
 			if err != nil {
-				return nil, nil, fmt.Errorf("error marshalling team spec: %w", err)
+				return nil, fmt.Errorf("error marshalling team spec: %w", err)
 			}
 			group.Teams = []json.RawMessage{rawTeam}
 			group.TeamsDryRunAssumptions = teamDryRunAssumptions
@@ -2304,9 +2305,9 @@ func (c *Client) DoGitOps(
 			Overwrite: true,
 		},
 		ExpandEnvConfigProfiles: true,
-	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &filename)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var teamSoftwareInstallers []fleet.SoftwarePackageResponse
@@ -2316,7 +2317,7 @@ func (c *Client) DoGitOps(
 	if incoming.TeamName != nil {
 		if !incoming.IsNoTeam() {
 			if len(teamIDsByName) != 1 {
-				return nil, nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
+				return nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
 			}
 			teamID, ok := teamIDsByName[*incoming.TeamName]
 			if ok && teamID == 0 {
@@ -2337,24 +2338,33 @@ func (c *Client) DoGitOps(
 							*incoming.TeamName)
 					}
 
-					return nil, postOps, nil
+					return nil, nil
 				}
-				return nil, nil, fmt.Errorf("team %s not created", *incoming.TeamName)
+				return nil, fmt.Errorf("team %s not created", *incoming.TeamName)
 			}
 			for _, teamID = range teamIDsByName {
 				incoming.TeamID = &teamID
 			}
+
+			// Apply team labels after any possible new teams are created
+			if incoming.Labels == nil || len(incoming.Labels) > 0 {
+				err := c.doGitOpsLabels(incoming, logFn, dryRun)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			teamSoftwareInstallers = teamsSoftwareInstallers[*incoming.TeamName]
 			teamVPPApps = teamsVPPApps[*incoming.TeamName]
 			teamScripts = teamsScripts[*incoming.TeamName]
 		} else {
 			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSetupAndSoftware(incoming, baseDir, appConfig, logFn, dryRun)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			// Apply webhook settings for "No Team"
 			if err := c.doGitOpsNoTeamWebhookSettings(incoming, appConfig, logFn, dryRun); err != nil {
-				return nil, nil, fmt.Errorf("applying no team webhook settings: %w", err)
+				return nil, fmt.Errorf("applying no team webhook settings: %w", err)
 			}
 			teamSoftwareInstallers = noTeamSoftwareInstallers
 			teamVPPApps = noTeamVPPApps
@@ -2364,7 +2374,7 @@ func (c *Client) DoGitOps(
 
 	err = c.doGitOpsPolicies(incoming, teamSoftwareInstallers, teamVPPApps, teamScripts, logFn, dryRun)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Apply Android certificates if present
@@ -2372,9 +2382,9 @@ func (c *Client) DoGitOps(
 	if err != nil {
 		var gitOpsErr *gitOpsValidationError
 		if errors.As(err, &gitOpsErr) {
-			return nil, nil, gitOpsErr.WithFileContext(baseDir, filename)
+			return nil, gitOpsErr.WithFileContext(baseDir, filename)
 		}
-		return nil, nil, err
+		return nil, err
 	}
 
 	// apply icon changes from software installers and VPP apps
@@ -2388,10 +2398,10 @@ func (c *Client) DoGitOps(
 			)
 		} else {
 			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			logFn(
-				"[+] Set icons on %s and deleted icons on %s\n",
+				"[+] set icons on %s and deleted icons on %s\n",
 				numberWithPluralization(len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), "software title", "software titles"),
 				numberWithPluralization(len(iconUpdates.TitleIDsToRemoveIconsFrom), "title", "titles"),
 			)
@@ -2404,11 +2414,11 @@ func (c *Client) DoGitOps(
 	if !incoming.IsNoTeam() {
 		err = c.doGitOpsQueries(incoming, logFn, dryRun)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	return teamAssumptions, postOps, nil
+	return teamAssumptions, nil
 }
 
 func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges, concurrentUploads int, concurrentUpdates int) error {
@@ -2571,20 +2581,24 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		}
 	}
 
-	logFn(applyingTeamFormat, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'No team'")
+	format := applyingTeamFormat
+	if dryRun {
+		format = dryRunAppliedTeamFormat
+	}
+
+	logFn(format, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'No team'")
 	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
-	logFn(applyingTeamFormat, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'No team'")
+
+	logFn(format, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'No team'")
 	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying app store apps: %w", err)
 	}
 
-	if dryRun {
-		logFn("[+] would've applied 'No Team' software packages\n")
-	} else {
+	if !dryRun {
 		logFn("[+] applied 'No Team' software packages\n")
 	}
 	return softwareInstallers, vppApps, nil
@@ -2638,9 +2652,8 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		}
 	}
 
-	logFn("[+] applying webhook settings for 'No team'\n")
-
 	if !dryRun {
+		logFn("[+] applying webhook settings for 'No team'\n")
 		// Apply the webhook settings to team ID 0 using the PATCH endpoint
 		var teamResp interface{}
 		err := c.authenticatedRequest(teamPayload, "PATCH", "/api/latest/fleet/teams/0", &teamResp)
@@ -2655,43 +2668,42 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	return nil
 }
 
-func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) ([]string, error) {
-	persistedLabels, err := c.GetLabels()
-	if err != nil {
-		return nil, err
-	}
-	var numUpdates int
-	var labelsToDelete []string
-	for _, persistedLabel := range persistedLabels {
-		if persistedLabel.LabelType == fleet.LabelTypeBuiltIn {
-			continue
-		}
-		if slices.IndexFunc(config.Labels, func(configLabel *fleet.LabelSpec) bool { return configLabel.Name == persistedLabel.Name }) == -1 {
-			labelsToDelete = append(labelsToDelete, persistedLabel.Name)
-		} else {
-			numUpdates++
-		}
-	}
-	numNew := len(config.Labels) - numUpdates
+func (c *Client) doGitOpsLabels(
+	config *spec.GitOps,
+	logFn func(format string, args ...any),
+	dryRun bool,
+) error {
+	toDelete := config.LabelChangesSummary.LabelsToRemove
+	toMove := config.LabelChangesSummary.LabelsMovements
+	nToAdd := len(config.LabelChangesSummary.LabelsToAdd)
+	nToUpdate := len(config.LabelChangesSummary.LabelsToUpdate)
+
 	if dryRun {
-		for _, labelToDelete := range labelsToDelete {
+		for _, labelToDelete := range toDelete {
 			logFn("[-] would've deleted label '%s'\n", labelToDelete)
 		}
-		if numNew > 0 {
-			logFn("[+] would've created %s\n", numberWithPluralization(numNew, "label", "labels"))
+		if nToAdd > 0 {
+			logFn("[+] would've created %s\n", numberWithPluralization(nToAdd, "label", "labels"))
 		}
-		if numUpdates > 0 {
-			logFn("[+] would've updated %s\n", numberWithPluralization(numUpdates, "label", "labels"))
+		if nToUpdate > 0 {
+			logFn("[+] would've updated %s\n", numberWithPluralization(nToUpdate, "label", "labels"))
 		}
-		return nil, nil
+		for _, l := range toMove {
+			logFn("[-] would've moved label %q from team %q to team %q\n", l.Name, l.FromTeamName, l.ToTeamName)
+		}
+		return nil
 	}
 
-	logFn("[+] syncing %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
-	err = c.ApplyLabels(config.Labels)
-	if err != nil {
-		return nil, err
+	for _, l := range toDelete {
+		logFn("[-] deleting label '%s'\n", l)
 	}
-	return labelsToDelete, nil
+	namesToMove := make([]string, 0, len(toMove))
+	for _, l := range toMove {
+		namesToMove = append(namesToMove, l.Name)
+		logFn("[-] moving label %q from team %q to team %q\n", l.Name, l.FromTeamName, l.ToTeamName)
+	}
+	logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), nToAdd, nToUpdate)
+	return c.ApplyLabels(config.Labels, config.TeamID, namesToMove)
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
@@ -2809,7 +2821,12 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 
 	if len(config.Policies) > 0 {
 		numPolicies := len(config.Policies)
-		logFn("[+] syncing %s\n", numberWithPluralization(numPolicies, "policy", "policies"))
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numPolicies, "policy", "policies"))
+		} else {
+			logFn("[+] applying %s\n", numberWithPluralization(numPolicies, "policy", "policies"))
+		}
+
 		if !dryRun {
 			totalApplied := 0
 			for i := 0; i < len(config.Policies); i += batchSize {
@@ -2827,7 +2844,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				if err := c.ApplyPolicies(policiesSpec); err != nil {
 					return fmt.Errorf("error applying policies: %w", err)
 				}
-				logFn("[+] synced %s\n", numberWithPluralization(totalApplied, "policy", "policies"))
+				logFn("[+] applied %s\n", numberWithPluralization(totalApplied, "policy", "policies"))
 			}
 		}
 	}
@@ -2850,7 +2867,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 	}
 	if len(policiesToDelete) > 0 {
-		logFn("[-] deleting %s\n", numberWithPluralization(len(policiesToDelete), "policy", "policies"))
+		if dryRun {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(policiesToDelete), "policy", "policies"))
+		} else {
+			logFn("[-] deleting %s\n", numberWithPluralization(len(policiesToDelete), "policy", "policies"))
+		}
 		if !dryRun {
 			totalDeleted := 0
 			for i := 0; i < len(policiesToDelete); i += batchSize {
@@ -2887,7 +2908,11 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	}
 	if len(config.Queries) > 0 {
 		numQueries := len(config.Queries)
-		logFn("[+] syncing %s\n", numberWithPluralization(numQueries, "query", "queries"))
+		if dryRun {
+			logFn("[+] would've applied %s\n", numberWithPluralization(numQueries, "query", "queries"))
+		} else {
+			logFn("[+] applying %s\n", numberWithPluralization(numQueries, "query", "queries"))
+		}
 		if !dryRun {
 			appliedCount := 0
 			for i := 0; i < len(config.Queries); i += batchSize {
@@ -2900,7 +2925,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 				if err := c.ApplyQueries(config.Queries[i:end]); err != nil {
 					return fmt.Errorf("error applying queries: %w", err)
 				}
-				logFn("[+] synced %s\n", numberWithPluralization(appliedCount, "query", "queries"))
+				logFn("[+] applied %s\n", numberWithPluralization(appliedCount, "query", "queries"))
 			}
 		}
 	}
@@ -2923,8 +2948,10 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		}
 	}
 	if len(queriesToDelete) > 0 {
-		logFn("[-] deleting %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
-		if !dryRun {
+		if dryRun {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
+		} else {
+			logFn("[-] deleting %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
 			deleteCount := 0
 			for i := 0; i < len(queriesToDelete); i += batchSize {
 				end := i + batchSize

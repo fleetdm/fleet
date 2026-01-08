@@ -82,6 +82,7 @@ func TestSoftware(t *testing.T) {
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
 		{"ListHostSoftwareWithVPPApps", testListHostSoftwareWithVPPApps},
 		{"ListHostSoftwareVPPSelfService", testListHostSoftwareVPPSelfService},
+		{"ListHostSoftwareVPPSelfServiceTeamFilter", testListHostSoftwareVPPSelfServiceTeamFilter},
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 		{"CreateIntermediateInstallFailureRecord", testCreateIntermediateInstallFailureRecord},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
@@ -101,6 +102,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareWithExtensionFor", testListHostSoftwareWithExtensionFor},
 		{"LongestCommonPrefix", testLongestCommonPrefix},
 		{"ListHostSoftwareInHouseApps", testListHostSoftwareInHouseApps},
+		{"ListHostSoftwareAndroidVPPAppMatching", testListHostSoftwareAndroidVPPAppMatching},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5778,6 +5780,109 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	assert.Len(t, sw, 0)
 }
 
+// testListHostSoftwareVPPSelfServiceTeamFilter tests that when a VPP app exists
+// in both global and a team with different self_service values, the correct
+// (team-specific) self_service value is returned for hosts in that team.
+func testListHostSoftwareVPPSelfServiceTeamFilter(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_vpp_filter_" + t.Name()})
+	require.NoError(t, err)
+
+	// Create iOS host and assign to team
+	host := test.NewHost(t, ds, "host_vpp_filter", "", "host_vpp_filter_key", "host_vpp_filter_uuid", time.Now(), test.WithPlatform("ios"))
+	nanoEnroll(t, ds, host, false)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &tm.ID
+
+	user := test.NewUser(t, ds, "VppFilter", "vppfilter@example.com", true)
+
+	// Setup VPP token
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// Create VPP app with self_service=true for the team
+	vppApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_filter_" + t.Name(), Platform: fleet.IOSPlatform}},
+		Name:             "vpp_filter_app",
+		BundleIdentifier: "com.app.vppfilter",
+		LatestVersion:    "1.0.0",
+	}
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+	require.NoError(t, err)
+
+	// Also add the same app globally with self_service=false
+	// This simulates the bug scenario where multiple vpp_apps_teams entries exist
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, self_service)
+		VALUES (?, ?, 0, 0)
+		ON DUPLICATE KEY UPDATE self_service = 0
+	`, vppApp.AdamID, vppApp.Platform)
+	require.NoError(t, err)
+
+	// Install the VPP app on the host (via host_vpp_software_installs)
+	cmdUUID := createVPPAppInstallRequest(t, ds, host, va.AdamID, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host, cmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// Insert software entry for the installed VPP app
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+		VALUES (?, ?, ?, ?, ?, UNHEX(MD5(?)))
+	`, vppApp.Name, "1.0.0", "ios_apps", vppApp.BundleIdentifier, va.TitleID, "vppfilter_checksum_input")
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	softwareID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, host.ID, softwareID)
+	require.NoError(t, err)
+
+	// Query with self-service filter - the team's self_service=true should be used
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+		IncludeAvailableForInstall: true,
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+	}
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+
+	// Should return the VPP app because team's self_service=true
+	// If the bug existed (no team filter), we might get duplicate rows or wrong self_service value
+	require.Len(t, sw, 1, "expected 1 self-service VPP app for team host")
+	assert.Equal(t, vppApp.Name, sw[0].Name)
+	assert.NotNil(t, sw[0].AppStoreApp)
+	require.NotNil(t, sw[0].AppStoreApp.SelfService, "expected SelfService to be set")
+	assert.True(t, *sw[0].AppStoreApp.SelfService, "expected self_service=true from team's vpp_apps_teams entry")
+
+	// Verify that if we query without self-service filter, we still get the correct value
+	opts.SelfServiceOnly = false
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	found := false
+	for _, s := range sw {
+		if s.Name == vppApp.Name {
+			found = true
+			assert.NotNil(t, s.AppStoreApp)
+			require.NotNil(t, s.AppStoreApp.SelfService, "expected SelfService to be set")
+			assert.True(t, *s.AppStoreApp.SelfService, "expected self_service=true from team's vpp_apps_teams entry")
+		}
+	}
+	assert.True(t, found, "expected to find the VPP app in the list")
+}
+
 func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
@@ -8800,25 +8905,25 @@ func testLabelScopingTimestampLogic(t *testing.T, ds *Datastore) {
 	})
 
 	// Dynamic label
-	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeDynamic})
+	label1Orig, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeDynamic})
 	require.NoError(t, err)
 
 	// Manual label
-	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
+	label2Orig, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
 
 	// make sure the label is created after the host's labels_updated_at timestamp
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id in (?, ?)`, host.LabelUpdatedAt.Add(time.Hour), label1.ID, label2.ID)
+		_, err = q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id in (?, ?)`, host.LabelUpdatedAt.Add(time.Hour), label1Orig.ID, label2Orig.ID)
 		if err != nil {
 			return err
 		}
 		return nil
 	})
 	// refetch labels to ensure their state is correct
-	label1, _, err = ds.Label(ctx, label1.ID, fleet.TeamFilter{})
+	label1, _, err := ds.Label(ctx, label1Orig.ID, fleet.TeamFilter{})
 	require.NoError(t, err)
-	label2, _, err = ds.Label(ctx, label2.ID, fleet.TeamFilter{})
+	label2, _, err := ds.Label(ctx, label2Orig.ID, fleet.TeamFilter{})
 	require.NoError(t, err)
 
 	require.Greater(t, label1.CreatedAt, host.LabelUpdatedAt)
@@ -10129,4 +10234,110 @@ func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, otherHost, opts)
 	require.NoError(t, err)
 	require.Len(t, sw, 0)
+}
+
+// testListHostSoftwareAndroidVPPAppMatching verifies that Android inventory software
+// matches VPP app titles by application_id even when names differ (bug #36809).
+func testListHostSoftwareAndroidVPPAppMatching(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "android-vpp-team"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "android-host", "", "android-host-key", "android-host-uuid", time.Now(), test.WithPlatform("android"))
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &tm.ID
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org android", "Test location android")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	// VPP app with long Play Store name
+	androidApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "com.amazon.shopping",
+				Platform: fleet.AndroidPlatform,
+			},
+			SelfService: true,
+		},
+		Name:             "Amazon Shopping - Search, Find, Ship, and Save",
+		BundleIdentifier: "com.amazon.shopping",
+		LatestVersion:    "26.0.0",
+		IconURL:          "https://example.com/amazon-icon.png",
+	}
+
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, androidApp, &tm.ID)
+	require.NoError(t, err)
+	require.NotZero(t, vppApp.TitleID)
+
+	var vppTitleSource string
+	err = ds.writer(ctx).GetContext(ctx, &vppTitleSource,
+		"SELECT source FROM software_titles WHERE id = ?", vppApp.TitleID)
+	require.NoError(t, err)
+	assert.Equal(t, "android_apps", vppTitleSource)
+
+	// MDM inventory reports shorter name but same application_id
+	inventorySoftware := []fleet.Software{
+		{
+			Name:          "Amazon Shopping",
+			Version:       "26.0.0",
+			Source:        "android_apps",
+			ApplicationID: ptr.String("com.amazon.shopping"),
+		},
+	}
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, inventorySoftware)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Verify inventory matched VPP app's title_id
+	var inventoryTitleID *uint
+	err = ds.writer(ctx).GetContext(ctx, &inventoryTitleID, `
+		SELECT s.title_id FROM software s
+		INNER JOIN host_software hs ON hs.software_id = s.id
+		WHERE hs.host_id = ? AND s.source = 'android_apps'
+		LIMIT 1`, host.ID)
+	require.NoError(t, err)
+
+	if inventoryTitleID == nil {
+		t.Logf("BUG: VPP title_id: %d, Inventory title_id: NULL", vppApp.TitleID)
+	} else {
+		t.Logf("VPP app title_id: %d, Inventory title_id: %d (should be same after fix)", vppApp.TitleID, *inventoryTitleID)
+	}
+
+	require.NotNil(t, inventoryTitleID)
+	assert.Equal(t, vppApp.TitleID, *inventoryTitleID)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true},
+		IncludeAvailableForInstall: true,
+		IsMDMEnrolled:              true,
+	}
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, sw)
+
+	var amazonApp *fleet.HostSoftwareWithInstaller
+	for i := range sw {
+		if sw[i].Source == "android_apps" && strings.Contains(sw[i].Name, "Amazon Shopping") {
+			amazonApp = sw[i]
+			break
+		}
+	}
+	require.NotNil(t, amazonApp)
+
+	assert.NotNil(t, amazonApp.AppStoreApp)
+	if amazonApp.AppStoreApp != nil {
+		assert.Equal(t, "com.amazon.shopping", amazonApp.AppStoreApp.AppStoreID)
+		require.NotNil(t, amazonApp.AppStoreApp.SelfService)
+		assert.True(t, *amazonApp.AppStoreApp.SelfService)
+		assert.NotNil(t, amazonApp.IconUrl)
+	}
 }
