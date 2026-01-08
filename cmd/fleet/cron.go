@@ -990,6 +990,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
+		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
+		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
 			if err != nil {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -37,6 +38,8 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"ListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval", testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval},
 		{"GetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval", testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval},
 		{"CertificateTemplateReinstalledAfterTransferBackToOriginalTeam", testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam},
+		{"GetAndroidCertificateTemplatesForRenewal", testGetAndroidCertificateTemplatesForRenewal},
+		{"SetAndroidCertificateTemplatesForRenewal", testSetAndroidCertificateTemplatesForRenewal},
 	}
 
 	for _, c := range cases {
@@ -634,7 +637,13 @@ func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ds.UpsertCertificateStatus(ctx, hostUUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail, tc.operationType)
+			err := ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+				HostUUID:              hostUUID,
+				CertificateTemplateID: tc.templateID,
+				Status:                fleet.MDMDeliveryStatus(tc.newStatus),
+				Detail:                tc.detail,
+				OperationType:         tc.operationType,
+			})
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				var result struct {
@@ -1509,4 +1518,189 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.Equal(t, fleet.CertificateTemplatePending, *certA.Status)
 	require.NotNil(t, certA.UUID, "UUID should be set")
 	require.NotEqual(t, uuidAfterRemove, *certA.UUID, "UUID should change when reinstalled")
+}
+
+func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test data
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Name: ptr.String("test ca"),
+		Type: string(fleet.CAConfigCustomSCEPProxy),
+		URL:  ptr.String("http://localhost:8080/scep"),
+	})
+	require.NoError(t, err)
+
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		TeamID:                 team.ID,
+		Name:                   "test template",
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=test",
+	})
+	require.NoError(t, err)
+
+	// Create hosts
+	now := time.Now().UTC()
+	host1 := test.NewHost(t, ds, "host1", "192.168.1.1", "host1_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host2 := test.NewHost(t, ds, "host2", "192.168.1.2", "host2_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host3 := test.NewHost(t, ds, "host3", "192.168.1.3", "host3_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host4 := test.NewHost(t, ds, "host4", "192.168.1.4", "host4_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+
+	// Insert certificate records with different validity scenarios
+	// Host 1: Certificate expiring in 7 days (validity period = 1 year) - SHOULD be renewed
+	notValidBefore1 := now.AddDate(-1, 0, 7) // Started almost a year ago
+	notValidAfter1 := now.Add(7 * 24 * time.Hour)
+	insertHostCertTemplate(t, ds, host1.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore1, &notValidAfter1)
+
+	// Host 2: Certificate expiring in 60 days (validity period = 1 year) - should NOT be renewed yet
+	notValidBefore2 := now.AddDate(-1, 0, 60)
+	notValidAfter2 := now.Add(60 * 24 * time.Hour)
+	insertHostCertTemplate(t, ds, host2.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore2, &notValidAfter2)
+
+	// Host 3: Short-lived cert (14 days total), expiring in 5 days - SHOULD be renewed (< 7 days = half of 14)
+	notValidBefore3 := now.Add(-9 * 24 * time.Hour) // Started 9 days ago
+	notValidAfter3 := now.Add(5 * 24 * time.Hour)   // Expires in 5 days
+	insertHostCertTemplate(t, ds, host3.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore3, &notValidAfter3)
+
+	// Host 4: Certificate with pending status - should NOT be renewed (not verified)
+	notValidBefore4 := now.AddDate(-1, 0, 7)
+	notValidAfter4 := now.Add(7 * 24 * time.Hour)
+	insertHostCertTemplate(t, ds, host4.UUID, template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, &notValidBefore4, &notValidAfter4)
+
+	// Test the renewal query
+	results, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	require.NoError(t, err)
+
+	// Should return host1 and host3
+	require.Len(t, results, 2, "Should find 2 certificates for renewal")
+
+	hostUUIDs := make(map[string]bool)
+	for _, r := range results {
+		hostUUIDs[r.HostUUID] = true
+		require.Equal(t, template.ID, r.CertificateTemplateID)
+	}
+
+	require.True(t, hostUUIDs[host1.UUID], "Host1 should be included (expires in 7 days, validity > 30)")
+	require.False(t, hostUUIDs[host2.UUID], "Host2 should NOT be included (expires in 60 days)")
+	require.True(t, hostUUIDs[host3.UUID], "Host3 should be included (short-lived cert expiring in 5 days)")
+	require.False(t, hostUUIDs[host4.UUID], "Host4 should NOT be included (pending status)")
+
+	// Test with limit
+	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 1)
+	require.NoError(t, err)
+	require.Len(t, results, 1, "Limit should be respected")
+
+	// Results should be ordered by not_valid_after ASC (most urgent first)
+	// Host3 expires in 5 days, Host1 expires in 7 days
+	require.Equal(t, host3.UUID, results[0].HostUUID, "Most urgent (earliest expiration) should be first")
+}
+
+// insertHostCertTemplate is a helper to insert a host_certificate_templates record with validity data
+func insertHostCertTemplate(t *testing.T, ds *Datastore, hostUUID string, templateID uint, status fleet.CertificateTemplateStatus, opType fleet.MDMOperationType, notValidBefore, notValidAfter *time.Time) {
+	t.Helper()
+	_, err := ds.writer(t.Context()).ExecContext(
+		t.Context(),
+		`INSERT INTO host_certificate_templates
+			(host_uuid, certificate_template_id, status, operation_type, name, uuid, not_valid_before, not_valid_after)
+		VALUES (?, ?, ?, ?, 'test', UUID_TO_BIN(UUID(), true), ?, ?)`,
+		hostUUID, templateID, status, opType, notValidBefore, notValidAfter,
+	)
+	require.NoError(t, err)
+}
+
+func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test team, CA, and certificate template
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team renewal set"})
+	require.NoError(t, err)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Name: ptr.String("test ca renewal set"),
+		Type: string(fleet.CAConfigCustomSCEPProxy),
+		URL:  ptr.String("http://localhost:8080/scep"),
+	})
+	require.NoError(t, err)
+
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		TeamID:                 team.ID,
+		Name:                   "test template set",
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=test",
+	})
+	require.NoError(t, err)
+	templateID := template.ID
+
+	// Create test hosts
+	now := time.Now().UTC()
+	host1 := test.NewHost(t, ds, "host1-set", "192.168.1.1", "host1_key_set", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host2 := test.NewHost(t, ds, "host2-set", "192.168.1.2", "host2_key_set", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	notValidBefore := now.AddDate(-1, 0, 7)
+	notValidAfter := now.Add(7 * 24 * time.Hour)
+
+	// Insert certificate records
+	insertHostCertTemplate(t, ds, host1.UUID, templateID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore, &notValidAfter)
+	insertHostCertTemplate(t, ds, host2.UUID, templateID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, &notValidBefore, &notValidAfter)
+
+	// Get the original UUIDs
+	var originalUUIDs []struct {
+		HostUUID string `db:"host_uuid"`
+		UUID     string `db:"uuid"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &originalUUIDs,
+		`SELECT host_uuid, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid FROM host_certificate_templates WHERE host_uuid IN (?, ?) ORDER BY host_uuid`,
+		host1.UUID, host2.UUID)
+	require.NoError(t, err)
+	require.Len(t, originalUUIDs, 2)
+
+	originalUUID1 := originalUUIDs[0].UUID
+	originalUUID2 := originalUUIDs[1].UUID
+
+	// Set templates for renewal
+	templates := []fleet.HostCertificateTemplateForRenewal{
+		{HostUUID: host1.UUID, CertificateTemplateID: templateID, NotValidAfter: notValidAfter},
+		{HostUUID: host2.UUID, CertificateTemplateID: templateID, NotValidAfter: notValidAfter},
+	}
+	err = ds.SetAndroidCertificateTemplatesForRenewal(ctx, templates)
+	require.NoError(t, err)
+
+	// Verify the records were updated
+	var updatedRecords []struct {
+		HostUUID       string  `db:"host_uuid"`
+		Status         string  `db:"status"`
+		UUID           string  `db:"uuid"`
+		NotValidBefore *string `db:"not_valid_before"`
+		NotValidAfter  *string `db:"not_valid_after"`
+		Serial         *string `db:"serial"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &updatedRecords,
+		`SELECT host_uuid, status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial
+		 FROM host_certificate_templates WHERE host_uuid IN (?, ?) ORDER BY host_uuid`,
+		host1.UUID, host2.UUID)
+	require.NoError(t, err)
+	require.Len(t, updatedRecords, 2)
+
+	for _, r := range updatedRecords {
+		// Status should be pending
+		require.Equal(t, string(fleet.CertificateTemplatePending), r.Status, "Status should be updated to pending")
+
+		// UUID should be different (new one generated)
+		if r.HostUUID == host1.UUID {
+			require.NotEqual(t, originalUUID1, r.UUID, "UUID should be regenerated for host1")
+		} else {
+			require.NotEqual(t, originalUUID2, r.UUID, "UUID should be regenerated for host2")
+		}
+
+		// Validity fields should be cleared
+		require.Nil(t, r.NotValidBefore, "not_valid_before should be cleared")
+		require.Nil(t, r.NotValidAfter, "not_valid_after should be cleared")
+		require.Nil(t, r.Serial, "serial should be cleared")
+	}
+
+	// Test empty slice doesn't error
+	err = ds.SetAndroidCertificateTemplatesForRenewal(ctx, []fleet.HostCertificateTemplateForRenewal{})
+	require.NoError(t, err)
 }

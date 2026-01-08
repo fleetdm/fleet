@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1028,4 +1029,210 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		_, exists := statuses[certTemplateA1ID]
 		require.False(t, exists, "certTemplateA1 should be deleted after verified removal")
 	})
+}
+
+// TestCertificateTemplateRenewal tests the certificate renewal flow with different validity periods.
+// The renewal logic uses different thresholds based on certificate validity:
+// - Long-lived certs (validity > 30 days): renew when expiring within 30 days
+// - Short-lived certs (validity <= 30 days): renew when expiring within half the validity period
+func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Create a test team
+	teamName := t.Name() + "-team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	// Create a test certificate authority
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+
+	// Set up AMAPI mock
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(_ context.Context, _ string, _ []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// Test cases for different validity periods
+	// The renewal logic:
+	// - validity > 30 days: renew if not_valid_after < NOW() + 30 days
+	// - validity <= 30 days: renew if not_valid_after < NOW() + (validity/2) days
+	testCases := []struct {
+		name          string
+		validityDays  int // Total certificate validity period in days
+		expiresInDays int // Days until certificate expires
+		shouldRenew   bool
+		description   string
+	}{
+		// Long-lived certificates (validity > 30 days) - 30-day renewal threshold
+		{
+			name:          "long_lived_90d_expires_29d",
+			validityDays:  90,
+			expiresInDays: 29,
+			shouldRenew:   true,
+			description:   "90-day cert expiring in 29 days should renew (within 30-day threshold)",
+		},
+		{
+			name:          "long_lived_90d_expires_31d",
+			validityDays:  90,
+			expiresInDays: 31,
+			shouldRenew:   false,
+			description:   "90-day cert expiring in 31 days should NOT renew (outside 30-day threshold)",
+		},
+		{
+			name:          "long_lived_365d_expires_7d",
+			validityDays:  365,
+			expiresInDays: 7,
+			shouldRenew:   true,
+			description:   "1-year cert expiring in 7 days should renew (within 30-day threshold)",
+		},
+		// Short-lived certificates (validity <= 30 days) - half-validity renewal threshold
+		{
+			name:          "short_lived_10d_expires_4d",
+			validityDays:  10,
+			expiresInDays: 4,
+			shouldRenew:   true,
+			description:   "10-day cert expiring in 4 days should renew (within 5-day threshold)",
+		},
+		{
+			name:          "short_lived_10d_expires_6d",
+			validityDays:  10,
+			expiresInDays: 6,
+			shouldRenew:   false,
+			description:   "10-day cert expiring in 6 days should NOT renew (outside 5-day threshold)",
+		},
+		{
+			name:          "short_lived_30d_expires_14d",
+			validityDays:  30,
+			expiresInDays: 14,
+			shouldRenew:   true,
+			description:   "30-day cert expiring in 14 days should renew (within 15-day threshold)",
+		},
+		{
+			name:          "short_lived_30d_expires_16d",
+			validityDays:  30,
+			expiresInDays: 16,
+			shouldRenew:   false,
+			description:   "30-day cert expiring in 16 days should NOT renew (outside 15-day threshold)",
+		},
+		// Edge case: exactly at boundary (validity = 31 days, so > 30, uses 30-day threshold)
+		// SQL uses strict less-than: not_valid_after < NOW() + 30 days
+		// So expiring in exactly 30 days is NOT renewed (30 < 30 is false)
+		{
+			name:          "boundary_31d_expires_30d",
+			validityDays:  31,
+			expiresInDays: 30,
+			shouldRenew:   false,
+			description:   "31-day cert expiring in exactly 30 days should NOT renew (at boundary, not within)",
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create an enrolled Android host for this test case
+			host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, fmt.Sprintf("renewal-%d", i))
+
+			// Create a certificate template
+			certTemplateName := strings.ReplaceAll(t.Name(), "/", "_") + "_CertTemplate"
+			var createResp createCertificateTemplateResponse
+			s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+				Name:                   certTemplateName,
+				TeamID:                 teamID,
+				CertificateAuthorityId: caID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			}, http.StatusOK, &createResp)
+			require.NotZero(t, createResp.ID)
+			certificateTemplateID := createResp.ID
+
+			// Trigger the Android profile reconciliation job to deliver the certificate
+			s.awaitTriggerAndroidProfileSchedule(t)
+
+			// Verify status is now 'delivered'
+			s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateDelivered, "")
+
+			// Get the original UUID before renewal
+			var originalUUID string
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &originalUUID,
+					`SELECT COALESCE(BIN_TO_UUID(uuid, true), '') FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+					host.UUID, certificateTemplateID)
+			})
+			require.NotEmpty(t, originalUUID)
+
+			// Device updates certificate status to 'verified' WITH validity data
+			now := time.Now().UTC()
+			notValidBefore := now.Add(-time.Duration(tc.validityDays-tc.expiresInDays) * 24 * time.Hour)
+			notValidAfter := now.Add(time.Duration(tc.expiresInDays) * 24 * time.Hour)
+			serial := fmt.Sprintf("SERIAL-%s", tc.name)
+
+			updateReq, err := json.Marshal(updateCertificateStatusRequest{
+				Status:         string(fleet.CertificateTemplateVerified),
+				Detail:         ptr.String("Certificate installed successfully"),
+				NotValidBefore: &notValidBefore,
+				NotValidAfter:  &notValidAfter,
+				Serial:         &serial,
+			})
+			require.NoError(t, err)
+
+			resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certificateTemplateID), updateReq, http.StatusOK, map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			})
+			_ = resp.Body.Close()
+
+			// Verify the status is 'verified'
+			s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateVerified, "Certificate installed successfully")
+
+			// Trigger the cleanups cron schedule which includes the renewal job
+			s.awaitRunCleanupSchedule()
+
+			// Check the certificate state after renewal job
+			var newRecord struct {
+				Status         string  `db:"status"`
+				UUID           string  `db:"uuid"`
+				NotValidBefore *string `db:"not_valid_before"`
+				NotValidAfter  *string `db:"not_valid_after"`
+				Serial         *string `db:"serial"`
+			}
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &newRecord,
+					`SELECT status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial
+					 FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+					host.UUID, certificateTemplateID)
+			})
+
+			if tc.shouldRenew {
+				// Status should be 'pending'
+				require.Equal(t, string(fleet.CertificateTemplatePending), newRecord.Status, "%s: Status should be pending after renewal", tc.description)
+
+				// UUID should be different (signals renewal to device)
+				require.NotEmpty(t, newRecord.UUID)
+				require.NotEqual(t, originalUUID, newRecord.UUID, "%s: UUID should change to signal renewal", tc.description)
+
+				// Validity fields should be cleared (will be re-populated after re-enrollment)
+				require.Nil(t, newRecord.NotValidBefore, "%s: not_valid_before should be cleared", tc.description)
+				require.Nil(t, newRecord.NotValidAfter, "%s: not_valid_after should be cleared", tc.description)
+				require.Nil(t, newRecord.Serial, "%s: serial should be cleared", tc.description)
+
+				// Trigger profile reconciliation again - certificate should be delivered
+				s.awaitTriggerAndroidProfileSchedule(t)
+				s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateDelivered, "")
+			} else {
+				// Status should still be 'verified' (not renewed)
+				require.Equal(t, string(fleet.CertificateTemplateVerified), newRecord.Status, "%s: Status should remain verified", tc.description)
+
+				// UUID should be the same (no renewal triggered)
+				require.Equal(t, originalUUID, newRecord.UUID, "%s: UUID should not change", tc.description)
+
+				// Validity fields should still be present
+				require.NotNil(t, newRecord.NotValidAfter, "%s: not_valid_after should still be present", tc.description)
+				require.NotNil(t, newRecord.Serial, "%s: serial should still be present", tc.description)
+			}
+		})
+	}
 }

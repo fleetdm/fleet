@@ -1,4 +1,4 @@
-package common_mysql
+package mysql
 
 // MysqlConfig defines MySQL connection configuration.
 // This is a local copy of the fields needed from server/config.MysqlConfig
