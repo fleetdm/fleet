@@ -17037,7 +17037,15 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"policy_name": "%s"
 	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
-	// host2Team1 posts the installation result for ruby.deb.
+	var activityCount int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&activityCount,
+			`SELECT count(1) FROM activities`,
+		)
+	})
+	// host2Team1 posts the installation result for ruby.deb (first attempt).
+	// No activity should be created for the first failed attempt
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -17045,42 +17053,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			"install_script_exit_code": 1,
 			"install_script_output": "failed"
 		}`, *host2Team1.OrbitNodeKey, host2LastInstall.ExecutionID)), http.StatusNoContent)
-	activityID := s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
-		"host_id": %d,
-		"host_display_name": "%s",
-		"software_title": "%s",
-		"software_package": "%s",
-		"self_service": false,
-		"install_uuid": "%s",
-		"status": "%s",
-		"source": "deb_packages",
-		"policy_id": %d,
-		"policy_name": "%s"
-	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID, fleet.SoftwareInstallFailed, policy2Team1.ID, policy2Team1.Name), 0)
-
-	// Check that the activity item generated for ruby.deb installation is shown as coming from Fleet
-	var actor struct {
-		UserID     *uint   `db:"user_id"`
-		UserName   *string `db:"user_name"`
-		UserEmail  string  `db:"user_email"`
-		PolicyID   *uint   `db:"policy_id"`
-		PolicyName *string `db:"policy_name"`
-	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q,
-			&actor,
-			`SELECT user_id, user_name, user_email, details->>'$.policy_id' policy_id, details->>'$.policy_name' policy_name FROM activities WHERE id = ?`,
-			activityID,
-		)
-	})
-	require.Nil(t, actor.UserID)
-	require.NotNil(t, actor.UserName)
-	require.Equal(t, "Fleet", *actor.UserName)
-	require.Equal(t, "", actor.UserEmail)
-	require.Equal(t, policy2Team1.ID, *actor.PolicyID)
-	require.Equal(t, policy2Team1.Name, *actor.PolicyName)
 
 	// host3Team2 posts the installation result for fleet-osquery.msi.
+	// No activity should be created for the first failed attempt
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -17088,34 +17063,14 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			"install_script_exit_code": 1,
 			"install_script_output": "failed"
 		}`, *host3Team2.OrbitNodeKey, host3LastInstall.ExecutionID)), http.StatusNoContent)
-	activityID = s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
-		"host_id": %d,
-		"host_display_name": "%s",
-		"software_title": "%s",
-		"software_package": "%s",
-		"self_service": false,
-		"install_uuid": "%s",
-		"status": "%s",
-		"source": "programs",
-		"policy_id": %f,
-		"policy_name": "%s"
-	}`, host3Team2.ID, host3Team2.DisplayName(), "Fleet osquery", "fleet-osquery.msi", host3LastInstall.ExecutionID,
-		fleet.SoftwareInstallFailed, float64(policy4Team2.ID), policy4Team2.Name), 0)
-
-	// Check that the activity item generated for fleet-osquery.msi installation has Fleet set as author.
+	var activityNewCount int
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
-			&actor,
-			`SELECT user_id, user_name, user_email, details->>'$.policy_id' policy_id, details->>'$.policy_name' policy_name FROM activities WHERE id = ?`,
-			activityID,
+			&activityNewCount,
+			`SELECT count(1) FROM activities`,
 		)
 	})
-	require.Nil(t, actor.UserID)
-	require.NotNil(t, actor.UserName)
-	require.Equal(t, "Fleet", *actor.UserName)
-	require.Equal(t, "", actor.UserEmail)
-	require.Equal(t, policy4Team2.ID, *actor.PolicyID)
-	require.Equal(t, policy4Team2.Name, *actor.PolicyName)
+	require.Equal(t, activityCount, activityNewCount, "no new activity should be created for first failed install attempts")
 
 	// hostVanillaOsquery5Team1 sends policy results with failed policies with associated installers.
 	// Fleet should not queue an install for vanilla osquery hosts.

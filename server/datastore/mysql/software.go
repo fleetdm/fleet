@@ -5907,6 +5907,8 @@ func (ds *Datastore) CountHostSoftwareInstallAttempts(ctx context.Context, hostI
 		WHERE host_id = ?
 		  AND software_installer_id = ?
 		  AND policy_id = ?
+		  AND removed = 0
+		  AND canceled = 0
 		  AND (attempt_number > 0 OR attempt_number IS NULL)
 	`, hostID, softwareInstallerID, policyID)
 	if err != nil {
