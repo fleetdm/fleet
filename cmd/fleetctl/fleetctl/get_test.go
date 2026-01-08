@@ -924,7 +924,11 @@ func TestGetSoftwareVersions(t *testing.T) {
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", ExtensionFor: "edge"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", ExtensionFor: "chrome"}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
+	barLastOpenedAt := time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)
+	bar003 := fleet.Software{
+		Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle",
+		LastOpenedAt: &barLastOpenedAt,
+	}
 
 	var gotTeamID *uint
 
@@ -991,6 +995,7 @@ spec:
 - bundle_identifier: bundle
   generated_cpe: ""
   id: 0
+  last_opened_at: "2022-01-01T00:00:00Z"
   name: bar
   source: deb_packages
   browser: ""
@@ -1060,7 +1065,8 @@ spec:
       "browser": "",
 	  "extension_for": "",
       "generated_cpe": "",
-      "vulnerabilities": null
+      "vulnerabilities": null,
+      "last_opened_at": "2022-01-01T00:00:00Z"
     }
   ]
 }

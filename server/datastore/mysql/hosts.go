@@ -18,9 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -572,6 +572,7 @@ var hostRefs = []string{
 	// needed for in-house apps as the activity contains the MDM command UUID and
 	// can access the request/response without this table's entry.
 	"host_in_house_software_installs",
+	"host_last_known_locations",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
