@@ -248,39 +248,19 @@ func (ds *Datastore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID
 	return nil
 }
 
-func (ds *Datastore) UpsertCertificateStatus(
-	ctx context.Context,
-	hostUUID string,
-	certificateTemplateID uint,
-	status fleet.MDMDeliveryStatus,
-	detail *string,
-	operationType fleet.MDMOperationType,
-	validity *fleet.HostCertificateValidity,
-) error {
+func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {
 	// Validate the status.
-	if !status.IsValid() {
-		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
+	if !update.Status.IsValid() {
+		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(update.Status)))
 	}
 
-	// Build update statement - include validity fields if provided
-	var updateStmt string
-	var updateParams []any
-	if validity != nil && (validity.NotValidBefore != nil || validity.NotValidAfter != nil || validity.Serial != nil) {
-		updateStmt = `
-			UPDATE host_certificate_templates
-			SET status = ?, detail = ?, operation_type = ?, not_valid_before = ?, not_valid_after = ?, serial = ?
-			WHERE host_uuid = ? AND certificate_template_id = ?`
-		updateParams = []any{status, detail, operationType, validity.NotValidBefore, validity.NotValidAfter, validity.Serial, hostUUID, certificateTemplateID}
-	} else {
-		updateStmt = `
-			UPDATE host_certificate_templates
-			SET status = ?, detail = ?, operation_type = ?
-			WHERE host_uuid = ? AND certificate_template_id = ?`
-		updateParams = []any{status, detail, operationType, hostUUID, certificateTemplateID}
-	}
-
-	// Attempt to update the certificate status for the given host and template.
-	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateParams...)
+	updateStmt := `
+		UPDATE host_certificate_templates
+		SET status = ?, detail = ?, operation_type = ?, not_valid_before = ?, not_valid_after = ?, serial = ?
+		WHERE host_uuid = ? AND certificate_template_id = ?`
+	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt,
+		update.Status, update.Detail, update.OperationType, update.NotValidBefore, update.NotValidAfter, update.Serial,
+		update.HostUUID, update.CertificateTemplateID)
 	if err != nil {
 		return err
 	}
@@ -299,11 +279,11 @@ func (ds *Datastore) UpsertCertificateStatus(
 			ID   uint   `db:"id"`
 			Name string `db:"name"`
 		}
-		err := ds.writer(ctx).GetContext(ctx, &templateInfo, `SELECT id, name FROM certificate_templates WHERE id = ?`, certificateTemplateID)
+		err := ds.writer(ctx).GetContext(ctx, &templateInfo, `SELECT id, name FROM certificate_templates WHERE id = ?`, update.CertificateTemplateID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'",
-					certificateTemplateID)))
+					update.CertificateTemplateID)))
 			}
 			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
 		}
@@ -311,16 +291,9 @@ func (ds *Datastore) UpsertCertificateStatus(
 		insertStmt := `
 			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name, uuid, not_valid_before, not_valid_after, serial)
 			VALUES (?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true), ?, ?, ?)`
-		var notValidBefore, notValidAfter any
-		var serial any
-		if validity != nil {
-			notValidBefore = validity.NotValidBefore
-			notValidAfter = validity.NotValidAfter
-			serial = validity.Serial
-		}
-		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType, templateInfo.Name, notValidBefore, notValidAfter, serial}
-
-		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
+		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt,
+			update.HostUUID, update.CertificateTemplateID, update.Status, update.Detail, "", update.OperationType, templateInfo.Name,
+			update.NotValidBefore, update.NotValidAfter, update.Serial); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
 		}
 	}

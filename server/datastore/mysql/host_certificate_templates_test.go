@@ -636,7 +636,13 @@ func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ds.UpsertCertificateStatus(ctx, hostUUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail, tc.operationType, nil)
+			err := ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+				HostUUID:              hostUUID,
+				CertificateTemplateID: tc.templateID,
+				Status:                fleet.MDMDeliveryStatus(tc.newStatus),
+				Detail:                tc.detail,
+				OperationType:         tc.operationType,
+			})
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				var result struct {

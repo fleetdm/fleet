@@ -54,12 +54,16 @@ type CertificateTemplateForHost struct {
 	CAName                string                     `db:"ca_name"`
 }
 
-// HostCertificateValidity holds certificate validity information reported by the device
-// after successful SCEP enrollment.
-type HostCertificateValidity struct {
-	NotValidBefore *time.Time
-	NotValidAfter  *time.Time
-	Serial         *string
+// CertificateStatusUpdate holds all fields for updating a host's certificate status.
+type CertificateStatusUpdate struct {
+	HostUUID              string
+	CertificateTemplateID uint
+	Status                MDMDeliveryStatus
+	Detail                *string
+	OperationType         MDMOperationType
+	NotValidBefore        *time.Time
+	NotValidAfter         *time.Time
+	Serial                *string
 }
 
 // HostCertificateTemplateForRenewal represents a certificate template that needs renewal.

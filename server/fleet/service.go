@@ -650,7 +650,7 @@ type Service interface {
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
 	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
-	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType *string, validity *HostCertificateValidity) error
+	UpdateCertificateStatus(ctx context.Context, update *CertificateStatusUpdate) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
