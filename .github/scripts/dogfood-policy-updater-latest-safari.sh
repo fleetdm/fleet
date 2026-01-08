@@ -24,7 +24,9 @@ if [ -z "$response" ] || [[ "$response" == *"Not Found"* ]]; then
 fi
 
 # Extract the query section (may be multi-line)
-query_section=$(echo "$response" | sed -n '/^query:/,/^[^ ]/p' | head -n -1)
+# Handle indented query: (starts with spaces followed by "query:")
+# The query is a YAML multiline string that continues until the next key at the same indentation level (2 spaces)
+query_section=$(echo "$response" | sed -n '/^[[:space:]]*query:/,/^  [a-zA-Z_-]+:/p' | head -n -1)
 
 if [ -z "$query_section" ]; then
     echo "Error: Could not find the query section in the file."
@@ -33,8 +35,9 @@ fi
 
 # Extract Safari 18 and Safari 26 version numbers from the query
 # Safari 18 is for macOS 15.x, Safari 26 is for macOS 26.x
-policy_safari_18_version=$(echo "$query_section" | grep -A 5 "version >= '15.0'" | grep "version_compare" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g" | head -n 1)
-policy_safari_26_version=$(echo "$query_section" | grep -A 5 "version >= '26.0'" | grep "version_compare" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g" | head -n 1)
+# The query uses "version LIKE '15.%'" and "version LIKE '26.%'"
+policy_safari_18_version=$(echo "$query_section" | grep -A 5 "version LIKE '15\.%" | grep "version_compare" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g" | head -n 1)
+policy_safari_26_version=$(echo "$query_section" | grep -A 5 "version LIKE '26\.%" | grep "version_compare" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g" | head -n 1)
 
 if [ -z "$policy_safari_18_version" ] || [ -z "$policy_safari_26_version" ]; then
     echo "Error: Failed to extract Safari version numbers from policy."
@@ -94,7 +97,8 @@ if [ "$update_needed" = true ]; then
     echo "Updating policy query with new Safari versions..."
 
     # Prepare the new query section with updated versions
-    new_query_section="query: |
+    # Match the indentation of the original file (2 spaces)
+    new_query_section="  query: |
     SELECT 1 WHERE 
       NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari')
       OR (
@@ -108,22 +112,32 @@ if [ "$update_needed" = true ]; then
 
     # Replace the query section in the response
     # Use a more robust approach: find the query section and replace it
+    # Handle indented query: (starts with spaces followed by "query:")
+    # The query is a YAML multiline string that continues until the next key at the same indentation level
     updated_response=$(echo "$response" | awk -v new_query="$new_query_section" '
         BEGIN {
             in_query = 0
             query_started = 0
         }
-        /^query:/ {
+        /^[[:space:]]*query:/ {
             query_started = 1
             in_query = 1
             print new_query
             next
         }
-        query_started && /^[a-zA-Z-]/ && !/^  / && !/^query:/ {
+        # After query started, skip lines until we find the next key at the same indentation level (2 spaces)
+        query_started && /^  [a-zA-Z_-]+:/ {
             in_query = 0
             query_started = 0
+            print
+            next
         }
-        !in_query {
+        # Skip lines that are part of the query block (indented content)
+        query_started {
+            next
+        }
+        # Print all other lines
+        {
             print
         }
     ')
