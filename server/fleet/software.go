@@ -563,16 +563,20 @@ func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements custom JSON unmarshaling for HostSoftwareEntry to handle
 // the potential empty string in last_opened_at.
 func (hse *HostSoftwareEntry) UnmarshalJSON(b []byte) error {
-	type Alias HostSoftwareEntry
+	type SoftwareAlias Software
 	aux := &struct {
-		*Alias
-		LastOpenedAt json.RawMessage `json:"last_opened_at"`
-	}{
-		Alias: (*Alias)(hse),
-	}
+		SoftwareAlias
+		InstalledPaths           []string                   `json:"installed_paths"`
+		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+		LastOpenedAt             json.RawMessage            `json:"last_opened_at"`
+	}{}
 	if err := json.Unmarshal(b, &aux); err != nil {
 		return err
 	}
+	hse.Software = Software(aux.SoftwareAlias)
+	hse.InstalledPaths = aux.InstalledPaths
+	hse.PathSignatureInformation = aux.PathSignatureInformation
+
 	var err error
 	hse.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
 	return err
