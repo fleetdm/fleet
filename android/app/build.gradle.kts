@@ -24,8 +24,8 @@ android {
         applicationId = "com.fleetdm.agent"
         minSdk = 33
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.1"
+        versionCode = 5
+        versionName = "1.0.2"
 
         buildConfigField("String", "INFO_URL", "\"https://fleetdm.com/better\"")
 

@@ -120,6 +120,7 @@ module.exports = {
       'melpike',
       'headmin',
       'nulmete',
+      'chrstphr84',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
