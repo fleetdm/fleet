@@ -262,3 +262,165 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 
 	assert.JSONEq(t, expectedJSON, string(data))
 }
+
+func TestAutoUpdateScheduleValidation(t *testing.T) {
+	testCases := []struct {
+		name     string
+		schedule SoftwareAutoUpdateSchedule
+		isValid  bool
+	}{
+		{
+			name: "schedule disabled",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(false),
+					AutoUpdateStartTime: nil,
+					AutoUpdateEndTime:   nil,
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "missing start time",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: nil,
+					AutoUpdateEndTime:   ptr.String("15:30"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "missing end time",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   nil,
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "empty start time",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String(""),
+					AutoUpdateEndTime:   ptr.String("15:30"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "empty end time",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   ptr.String(""),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "valid schedule",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   ptr.String("15:30"),
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "valid schedule (wrapped around midnight)",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("23:30"),
+					AutoUpdateEndTime:   ptr.String("00:30"),
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "start time invalid",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("invalid"),
+					AutoUpdateEndTime:   ptr.String("15:30"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "end time invalid",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   ptr.String("invalid"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "start time hour out of range",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("24:00"),
+					AutoUpdateEndTime:   ptr.String("15:30"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "end time hour out of range",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   ptr.String("24:00"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "window is less than one hour",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   ptr.String("15:29"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "window is less than one hour (wrapped around midnight)",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("23:30"),
+					AutoUpdateEndTime:   ptr.String("00:29"),
+				},
+			},
+			isValid: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.schedule.WindowIsValid()
+			if tc.isValid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}

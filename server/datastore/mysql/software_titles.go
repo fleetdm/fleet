@@ -832,29 +832,22 @@ WHERE
 }
 
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	// Validate start and end time.
-	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
-	for _, t := range []*string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
-		if t == nil {
-			if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
-				return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-			}
-			continue
-		}
-		duration, err := time.Parse("15:04", *t)
-		if err != nil {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
-		if duration.Hour() < 0 || duration.Hour() > 23 || duration.Minute() < 0 || duration.Minute() > 59 {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
+	// Validate schedule if enabled.
+	schedule := fleet.SoftwareAutoUpdateSchedule{
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   config.AutoUpdateEnabled,
+			AutoUpdateStartTime: config.AutoUpdateStartTime,
+			AutoUpdateEndTime:   config.AutoUpdateEndTime,
+		},
 	}
-
+	if err := schedule.WindowIsValid(); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+	}
 	var startTime, endTime string
-	if config.AutoUpdateStartTime != nil {
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
 		startTime = *config.AutoUpdateStartTime
 	}
-	if config.AutoUpdateEndTime != nil {
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
 		endTime = *config.AutoUpdateEndTime
 	}
 
