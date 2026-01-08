@@ -56,7 +56,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -3615,6 +3614,20 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 	return nil, nil
 }
 
+func (svc *MDMAppleCheckinAndCommandService) runCommandHandlers(ctx context.Context, cmdName string, result fleet.MDMCommandResults) error {
+	handlers, ok := svc.commandHandlers[cmdName]
+	if ok {
+		for _, f := range handlers {
+			if err := f(ctx, result); err != nil {
+				// TODO: should we run as many as we can? if so we have to collect into a multierror
+				return ctxerr.Wrapf(ctx, err, "%s handler failed", cmdName)
+			}
+		}
+	}
+
+	return nil
+}
+
 // CommandAndReportResults handles MDM [Commands and Queries][1].
 //
 // This method is executed after the request has been handled by nanomdm.
@@ -3714,11 +3727,46 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
-	case "DeviceLock", "EraseDevice", "EnableLostMode", "DisableLostMode":
+	case "DeviceLock", "EraseDevice":
 		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID, requestType,
+				cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
+		}
+
+	case fleet.DisableLostModeCmdName:
+
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+
+			host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "DisableLostMode: get host by identifier")
+			}
+
+			if err := svc.ds.DeleteHostLocationData(r.Context, host.ID); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "DisableLostMode: delete host location data")
+			}
+
+			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID, requestType,
+				cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
+		}
+
+	case fleet.EnableLostModeCmdName:
+
+		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+
+			err := svc.commander.DeviceLocation(r.Context, []string{cmdResult.Identifier()}, uuid.NewString())
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "EnableLostMode: enqueue DeviceLocation command")
+			}
+
 			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID, requestType,
 				cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
 		}
@@ -3822,6 +3870,23 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		for _, f := range svc.commandHandlers["InstalledApplicationList"] {
 			if err := f(r.Context, res); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "InstalledApplicationList handler failed")
+			}
+		}
+
+	case fleet.DeviceLocationCmdName:
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
+			host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "device location command result: get host by identifier")
+			}
+
+			res, err := NewDeviceLocationResult(cmdResult, host.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "build device location command result")
+			}
+			err = svc.runCommandHandlers(r.Context, fleet.DeviceLocationCmdName, res)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "DeviceLocation: calling handlers")
 			}
 		}
 	}
@@ -4439,253 +4504,6 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	}
 
 	return nil, nil
-}
-
-type InstalledApplicationListResult interface {
-	fleet.MDMCommandResults
-	AvailableApps() []fleet.Software
-	HostPlatform() string
-}
-
-type installedApplicationListResult struct {
-	raw           []byte
-	availableApps []fleet.Software
-	uuid          string
-	hostUUID      string
-	hostPlatform  string
-}
-
-func (i *installedApplicationListResult) Raw() []byte                     { return i.raw }
-func (i *installedApplicationListResult) UUID() string                    { return i.uuid }
-func (i *installedApplicationListResult) HostUUID() string                { return i.hostUUID }
-func (i *installedApplicationListResult) AvailableApps() []fleet.Software { return i.availableApps }
-func (i *installedApplicationListResult) HostPlatform() string            { return i.hostPlatform }
-
-func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID, hostPlatform string) (InstalledApplicationListResult, error) {
-	var source string
-	switch hostPlatform {
-	case "ios":
-		source = "ios_apps"
-	case "ipados":
-		source = "ipados_apps"
-	default:
-		source = "apps"
-	}
-	list, err := unmarshalAppList(ctx, rawResult, source)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshal app list for new installed application list result")
-	}
-
-	return &installedApplicationListResult{
-		raw:           rawResult,
-		uuid:          uuid,
-		availableApps: list,
-		hostUUID:      hostUUID,
-		hostPlatform:  hostPlatform,
-	}, nil
-}
-
-func NewInstalledApplicationListResultsHandler(
-	ds fleet.Datastore,
-	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
-	verifyTimeout, verifyRequestDelay time.Duration,
-) fleet.MDMCommandResultsHandler {
-	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
-		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
-		if !ok {
-			return ctxerr.New(ctx, "unexpected results type")
-		}
-
-		// Then it's not a command sent by Fleet, so skip it
-		if !strings.HasPrefix(installedAppResult.UUID(), fleet.VerifySoftwareInstallVPPPrefix) {
-			return nil
-		}
-
-		installedApps := installedAppResult.AvailableApps()
-
-		expectedVPPInstalls, err := ds.GetUnverifiedVPPInstallsForHost(ctx, installedAppResult.HostUUID())
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
-		}
-
-		expectedInHouseInstalls, err := ds.GetUnverifiedInHouseAppInstallsForHost(ctx, installedAppResult.HostUUID())
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: get unverified in house installs")
-		}
-
-		if len(expectedVPPInstalls) == 0 && len(expectedInHouseInstalls) == 0 {
-			level.Warn(logger).Log("msg", "no apple MDM installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
-			return nil
-		}
-
-		installsByBundleID := map[string]fleet.Software{}
-		for _, install := range installedApps {
-			installsByBundleID[install.BundleIdentifier] = install
-		}
-
-		// We've handled the "no installs found" case above,
-		// and installs are scoped to a single host via the host UUID, so this is OK.
-		var hostID uint
-		switch {
-		case len(expectedInHouseInstalls) > 0:
-			hostID = expectedInHouseInstalls[0].HostID
-		case len(expectedVPPInstalls) > 0:
-			hostID = expectedVPPInstalls[0].HostID
-		}
-
-		type installStatusSetter struct {
-			// Used to mark the install as verified
-			verifyFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
-			// Used to mark the install as failed
-			failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
-			// Used to get the activity data for an install
-			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error)
-		}
-
-		var poll, shouldRefetch bool
-		setStatusForExpectedInstall := func(
-			expectedInstall *fleet.HostVPPSoftwareInstall,
-			setter installStatusSetter,
-		) error {
-			fromAutoUpdate, err := ds.IsAutoUpdateVPPInstall(ctx, expectedInstall.InstallCommandUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
-			}
-
-			// If we don't find the app in the result, then we need to poll for it (within the timeout).
-			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
-
-			var terminalStatus string
-			switch {
-			case appFromResult.Installed:
-				if err := setter.verifyFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
-					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
-				}
-
-				terminalStatus = fleet.MDMAppleStatusAcknowledged
-				shouldRefetch = true
-			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
-				if err := setter.failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
-					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
-				}
-
-				terminalStatus = fleet.MDMAppleStatusError
-			}
-
-			if terminalStatus == "" {
-				poll = true
-				return nil
-			}
-
-			// this might be a setup experience VPP install, so we'll try to update setup experience status
-			var fromSetupExperience bool
-			if updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
-				HostUUID:      installedAppResult.HostUUID(),
-				CommandUUID:   expectedInstall.InstallCommandUUID,
-				CommandStatus: terminalStatus,
-			}, true); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
-			} else if updated {
-				fromSetupExperience = true
-				level.Debug(logger).Log("msg", "setup experience VPP install result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
-			}
-
-			// create an activity for installing only if we're in a terminal state
-			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience, fromAutoUpdate)
-			if err != nil {
-				if fleet.IsNotFound(err) {
-					// Then this isn't an MDM-based install, so no activity generated
-					return nil
-				}
-
-				return ctxerr.Wrap(ctx, err, "fetching data for installed app store app activity")
-			}
-
-			if err := newActivity(ctx, user, act, ds, logger); err != nil {
-				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
-			}
-
-			return nil
-		}
-
-		for _, expectedInstall := range expectedVPPInstalls {
-			setter := installStatusSetter{
-				ds.SetVPPInstallAsVerified,
-				ds.SetVPPInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error) {
-					user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, results)
-					if err != nil {
-						return nil, nil, err
-					}
-
-					act.FromSetupExperience = fromSetupExp
-					act.FromAutoUpdate = fromAutoUpdate
-
-					return user, act, nil
-				},
-			}
-
-			if err := setStatusForExpectedInstall(expectedInstall, setter); err != nil {
-				return ctxerr.Wrap(ctx, err, "setting status for vpp installs")
-			}
-		}
-
-		for _, expectedInstall := range expectedInHouseInstalls {
-			setter := installStatusSetter{
-				ds.SetInHouseAppInstallAsVerified,
-				ds.SetInHouseAppInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, _ bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
-					return ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
-				},
-			}
-			if err := setStatusForExpectedInstall(expectedInstall, setter); err != nil {
-				return ctxerr.Wrap(ctx, err, "setting status for in-house app installs")
-			}
-		}
-
-		if poll {
-			// Queue a job to verify the VPP install.
-			return ctxerr.Wrap(
-				ctx,
-				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID()),
-				"InstalledApplicationList handler: queueing vpp install verification job",
-			)
-		}
-
-		if shouldRefetch {
-			switch installedAppResult.HostPlatform() {
-			case "darwin":
-				// Request host refetch to get the most up to date software data ASAP.
-				if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
-					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
-				}
-			default:
-				hostMDM, err := ds.GetHostMDMCheckinInfo(ctx, installedAppResult.HostUUID())
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "get host mdm checkin info to refetch apps")
-				}
-
-				isBYOD := !hostMDM.InstalledFromDEP
-				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), isBYOD)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
-				}
-
-				err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix}})
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "add host mdm commands")
-				}
-			}
-		}
-
-		// If we get here, we're in a terminal state, so we can remove the verify command.
-		return ctxerr.Wrap(
-			ctx,
-			ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{CommandType: fleet.VerifySoftwareInstallVPPPrefix, HostID: hostID}),
-			"InstalledApplicationList handler: removing host mdm command",
-		)
-	}
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,

@@ -1,5 +1,7 @@
 package fleet
 
+import "time"
+
 // AndroidCertificateTemplateProfileID Used by the front-end for determining the displaying logic.
 const AndroidCertificateTemplateProfileID = "fleet-host-certificate-template"
 
@@ -15,6 +17,9 @@ type HostCertificateTemplate struct {
 	UUID                  string                    `db:"uuid"`
 	CreatedAt             string                    `db:"created_at"`
 	UpdatedAt             string                    `db:"updated_at"`
+	NotValidBefore        *time.Time                `db:"not_valid_before"`
+	NotValidAfter         *time.Time                `db:"not_valid_after"`
+	Serial                *string                   `db:"serial"` // for future use
 }
 
 // ToHostMDMProfile maps a HostCertificateTemplate to a HostMDMProfile, suitable for use in the MDM API
@@ -47,4 +52,23 @@ type CertificateTemplateForHost struct {
 	UUID                  *string                    `db:"uuid"`
 	CAType                CAConfigAssetType          `db:"ca_type"`
 	CAName                string                     `db:"ca_name"`
+}
+
+// CertificateStatusUpdate holds all fields for updating a host's certificate status.
+type CertificateStatusUpdate struct {
+	HostUUID              string            `db:"host_uuid"`
+	CertificateTemplateID uint              `db:"certificate_template_id"`
+	Status                MDMDeliveryStatus `db:"status"`
+	Detail                *string           `db:"detail"`
+	OperationType         MDMOperationType  `db:"operation_type"`
+	NotValidBefore        *time.Time        `db:"not_valid_before"`
+	NotValidAfter         *time.Time        `db:"not_valid_after"`
+	Serial                *string           `db:"serial"`
+}
+
+// HostCertificateTemplateForRenewal represents a certificate template that needs renewal.
+type HostCertificateTemplateForRenewal struct {
+	HostUUID              string    `db:"host_uuid"`
+	CertificateTemplateID uint      `db:"certificate_template_id"`
+	NotValidAfter         time.Time `db:"not_valid_after"`
 }

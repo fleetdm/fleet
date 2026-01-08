@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260107152600, Down_20260107152600)
+	MigrationClient.AddMigration(Up_20260108214732, Down_20260108214732)
 }
 
-func Up_20260107152600(tx *sql.Tx) error {
+func Up_20260108214732(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	ALTER TABLE host_vpp_software_installs
 	ADD COLUMN retry_count INT NOT NULL DEFAULT 0
@@ -21,6 +21,6 @@ func Up_20260107152600(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260107152600(tx *sql.Tx) error {
+func Down_20260108214732(tx *sql.Tx) error {
 	return nil
 }
