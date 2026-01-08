@@ -3,10 +3,10 @@ package apple_apps
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -36,9 +36,9 @@ func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 
 func TestGetMetadataRetries(t *testing.T) {
 	t.Run("successful on first attempt", func(t *testing.T) {
-		var callCount int32
+		var callCount int
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
-			atomic.AddInt32(&callCount, 1)
+			callCount++
 			w.WriteHeader(http.StatusOK)
 			resp := metadataResp{
 				Data: []Metadata{
@@ -52,16 +52,16 @@ func TestGetMetadataRetries(t *testing.T) {
 			return "bearer-token", nil
 		})
 		require.NoError(t, err)
-		require.Equal(t, int32(1), atomic.LoadInt32(&callCount))
+		require.Equal(t, 1, callCount)
 		require.Len(t, result, 1)
 		require.Equal(t, "Test App", result["123"].Attributes.Name)
 	})
 
 	t.Run("retries on 500 error and succeeds", func(t *testing.T) {
-		var callCount int32
+		var callCount int
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
-			count := atomic.AddInt32(&callCount, 1)
-			if count < 2 {
+			callCount++
+			if callCount < 2 {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte("server error"))
 				return
@@ -79,15 +79,15 @@ func TestGetMetadataRetries(t *testing.T) {
 			return "bearer-token", nil
 		})
 		require.NoError(t, err)
-		require.Equal(t, int32(2), atomic.LoadInt32(&callCount))
+		require.Equal(t, 2, callCount)
 		require.Len(t, result, 1)
 		require.Equal(t, "Retry App", result["456"].Attributes.Name)
 	})
 
 	t.Run("exhausts retries on persistent 500 error", func(t *testing.T) {
-		var callCount int32
+		var callCount int
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
-			atomic.AddInt32(&callCount, 1)
+			callCount++
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte("persistent server error"))
 		})
@@ -98,13 +98,13 @@ func TestGetMetadataRetries(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "retrieving asset metadata")
 		// Should have retried 3 times (max attempts)
-		require.Equal(t, int32(3), atomic.LoadInt32(&callCount))
+		require.Equal(t, 3, callCount)
 	})
 
 	t.Run("does not retry on auth error", func(t *testing.T) {
-		var callCount int32
+		var callCount int
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
-			atomic.AddInt32(&callCount, 1)
+			callCount++
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte("unauthorized"))
 		})
@@ -116,7 +116,7 @@ func TestGetMetadataRetries(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "auth")
 		// Should have called twice: initial + one retry with forceRenew, then bail
-		require.Equal(t, int32(2), atomic.LoadInt32(&callCount))
+		require.Equal(t, 2, callCount)
 	})
 
 	t.Run("returns multiple apps", func(t *testing.T) {
@@ -202,7 +202,7 @@ func (m *mockDataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetTyp
 	return nil, nil
 }
 
-func TestGetAuthenticator(t *testing.T) {
+func TestAuthentication(t *testing.T) {
 	// Clear any dev env vars that might interfere
 	originalDevToken := os.Getenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN")
 	originalAuthURL := os.Getenv("FLEET_DEV_VPP_PROXY_AUTH_URL")
@@ -211,14 +211,14 @@ func TestGetAuthenticator(t *testing.T) {
 		os.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", originalAuthURL)
 	})
 
-	t.Run("uses dev token when set", func(t *testing.T) {
+	t.Run("uses bearer token env var when set", func(t *testing.T) {
 		os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "dev-test-token")
 		defer os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "")
 
 		ds := &mockDataStore{}
 		auth := GetAuthenticator(context.Background(), ds, "license-key")
 
-		// Should return dev token regardless of forceRenew
+		// Should return bearer token regardless of forceRenew
 		token, err := auth(false)
 		require.NoError(t, err)
 		require.Equal(t, "dev-test-token", token)
@@ -258,6 +258,12 @@ func TestGetAuthenticator(t *testing.T) {
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Verify the license key is in the Authorization header
 			require.Equal(t, "Bearer test-license-key", r.Header.Get("Authorization"))
+
+			// Verify the URL is set
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			require.JSONEq(t, `{"serverUrl": "https://fleet.example.com"}`, string(body))
+
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"fleetServerSecret": "new-token-from-auth"}`))
 		}))
@@ -288,7 +294,7 @@ func TestGetAuthenticator(t *testing.T) {
 		require.True(t, ds.insertOrReplaceCalled)
 		require.Equal(t, fleet.MDMAssetVPPProxyBearerToken, ds.insertedAsset.Name)
 		require.Equal(t, []byte("new-token-from-auth"), ds.insertedAsset.Value)
-		// Should have deleted the old token first
+		// Should have deleted the old token
 		require.True(t, ds.hardDeleteCalled)
 		require.Equal(t, fleet.MDMAssetVPPProxyBearerToken, ds.hardDeletedAsset)
 	})
