@@ -136,17 +136,7 @@ type ManageVPPLicensesRequest struct {
 // https://developer.apple.com/documentation/devicemanagement/manage-licenses
 // This was added to hopefully reduce the number of 9610 (License not available) due to the async nature, and us not supporting the notification/async events correctly for the V2 API.
 // https://github.com/fleetdm/fleet/issues/36724
-func ManageVPPLicenses(token string, adamID, pricingParam string, associateSerialNumber string) error {
-	return manageVPPLicensesApple(token, &ManageVPPLicensesRequest{
-		AdamID:                 adamID,
-		PricingParam:           pricingParam,
-		AssociateSerialNumbers: []string{associateSerialNumber},
-	})
-}
-
-// manageVPPLicensesApple uses the V1 Apple VPP API to manage licenses.
-// It's private to reflect the Apple API 1:1, but wrapped by public methods to ensure we don't over-associate and hit errors.
-func manageVPPLicensesApple(token string, params *ManageVPPLicensesRequest) error {
+func ManageVPPLicenses(token string, params *ManageVPPLicensesRequest) error {
 	var reqBody bytes.Buffer
 	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
 		return fmt.Errorf("encoding params as JSON: %w", err)

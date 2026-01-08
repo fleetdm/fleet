@@ -1363,7 +1363,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 			}
 		}
 
-		err = vpp.ManageVPPLicenses(token, vppApp.AdamID, assets[0].PricingParam, host.HardwareSerial)
+		err = vpp.ManageVPPLicenses(token, &vpp.ManageVPPLicensesRequest{AdamID: vppApp.AdamID, PricingParam: assets[0].PricingParam, AssociateSerialNumbers: []string{host.HardwareSerial}})
 		if err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
