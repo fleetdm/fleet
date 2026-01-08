@@ -1276,22 +1276,22 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 Download a signed installer for Fleet's agent (fleetd). 
 
-`GET /api/v1/fleet/agent/:platform?alt=media`
+`GET /api/v1/fleet/agent?alt=media&type=:type`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| platform   | integer | path | **Required**. The platform for the installer. Must be either `"macos"`, `"windows"`, or `"linux"`. |
+| type            | string | query | **Required**. The type of installer file to download. Must be one of: `"pkg"` (macOS), `"msi"` (windows), `"deb"` (Debian-based Linux), `"rpm"` (RPM-based Linux), or `"pkg.tar.zst" (Arch-based Linux)` |
 | alt             | integer | query | **Required**. Set to `"media"` to download the installer. |
 | team_id | integer | query | _Available in Fleet Premium._ If specified, the downloaded package will include the enroll secret for the selected team. Otherwise, hosts will enroll to "No team". |
 | include_fleet_desktop | boolean | query | If specified and set to `true`, Fleet Desktop will be included in the package. |
-| arm | boolean | query | If specified and set to `true`, package will be for Arm devices. If `platform` is not set to `"windows"` or `"linux"`, this parameter is ignored. |
+| arm | boolean | query | If specified and set to `true`, package will be for Arm devices. If `type` is set to `"pkg"`, this parameter is ignored. |
 
 
 #### Example
 
-`GET /api/v1/fleet/agent/macos?alt=media&include_fleet_desktop=true`
+`GET /api/v1/fleet/agent?alt=media&type=pkg&include_fleet_desktop=true`
 
 ##### Default response
 
