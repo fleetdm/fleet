@@ -104,6 +104,7 @@ func TestLabels(t *testing.T) {
 		{"TeamLabels", testTeamLabels},
 		{"UpdateLabelMembershipForTransferredHost", testUpdateLabelMembershipForTransferredHost},
 		{"SetAsideLabels", testSetAsideLabels},
+		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -3303,5 +3304,141 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 				require.Truef(t, ok, "Missing renamed label %s", expected)
 			}
 		})
+	}
+}
+
+func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Create teams.
+	t1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	t2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	t3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+	t4, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team4"})
+	require.NoError(t, err)
+
+	// Create hosts on the teams.
+	h1t1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h1t1"),
+		NodeKey:        ptr.String("h1t1"),
+		Hostname:       "hostname-h1t1",
+		HardwareSerial: "serial-h1t1",
+		UUID:           "uuid-h1t1",
+		Platform:       "darwin",
+		TeamID:         &t1.ID,
+	})
+	require.NoError(t, err)
+	h2t2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h2t2"),
+		NodeKey:        ptr.String("h2t2"),
+		Hostname:       "hostname-h2t2",
+		HardwareSerial: "serial-h2t2",
+		UUID:           "uuid-h2t2",
+		Platform:       "darwin",
+		TeamID:         &t2.ID,
+	})
+	require.NoError(t, err)
+	h3t3, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h3t3"),
+		NodeKey:        ptr.String("h3t3"),
+		Hostname:       "hostname-h3t3",
+		HardwareSerial: "serial-h3t3",
+		UUID:           "uuid-h3t3",
+		Platform:       "darwin",
+		TeamID:         &t3.ID,
+	})
+	require.NoError(t, err)
+	h4t4, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h4t4"),
+		NodeKey:        ptr.String("h4t4"),
+		Hostname:       "hostname-h4t4",
+		HardwareSerial: "serial-h4t4",
+		UUID:           "uuid-h4t4",
+		Platform:       "darwin",
+		TeamID:         &t4.ID,
+	})
+	require.NoError(t, err)
+	h5Global, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h5Global"),
+		NodeKey:        ptr.String("h5Global"),
+		Hostname:       "hostname-h5Global",
+		HardwareSerial: "serial-h5Global",
+		UUID:           "uuid-h5Global",
+		Platform:       "darwin",
+		TeamID:         nil,
+	})
+	require.NoError(t, err)
+
+	// Create a global manual label, make sure you can add all.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "global1",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts: fleet.HostsSlice{
+				h1t1.Hostname,
+				h2t2.HardwareSerial,
+				h3t3.UUID,
+				fmt.Sprint(h4t4.ID),
+				h5Global.Hostname,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	global1, err := ds.LabelByName(ctx, "global1", teamFilter)
+	require.NoError(t, err)
+	hosts, err := ds.ListHostsInLabel(ctx, teamFilter, global1.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 5)
+
+	// Attempt to create team label, make sure we can only add hosts on that team.
+	for _, hostIdentifier := range []string{
+		h2t2.Hostname,
+		h3t3.UUID,
+		h4t4.HardwareSerial,
+		fmt.Sprint(h5Global.ID),
+	} {
+		err := ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{
+				Name:                "l1t1",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts: fleet.HostsSlice{
+					h1t1.Hostname,
+					hostIdentifier, // conflicting host identifier.
+				},
+				TeamID: &t1.ID,
+			},
+		})
+		require.Error(t, err)
+		require.ErrorIs(t, err, errLabelMismatchHostTeam)
+	}
+	// Create team label with team host identifiers should work.
+	for _, hostIdentifier := range []string{
+		h1t1.Hostname,
+		h1t1.UUID,
+		h1t1.HardwareSerial,
+		fmt.Sprint(h1t1.ID),
+	} {
+		err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{
+				Name:                "l1t1",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts: fleet.HostsSlice{
+					hostIdentifier,
+				},
+				TeamID: &t1.ID,
+			},
+		})
+		require.NoError(t, err)
+		l1t1, err := ds.LabelByName(ctx, "l1t1", teamFilter)
+		require.NoError(t, err)
+		hosts, err := ds.ListHostsInLabel(ctx, teamFilter, l1t1.ID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, h1t1.ID, hosts[0].ID)
 	}
 }

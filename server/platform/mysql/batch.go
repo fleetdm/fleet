@@ -1,4 +1,4 @@
-package common_mysql
+package mysql
 
 // BatchProcessSimple is a simple utility function to batch process a slice of payloads.
 // Provide a slice of payloads, a batch size, and a function to execute on each batch.

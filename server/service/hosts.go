@@ -364,7 +364,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 	}
 
 	statusMap := map[uint]*fleet.HostLockWipeStatus{}
-	if opt.PopulateDeviceStatus {
+	if opt.IncludeDeviceStatus {
 		// We query the MDM lock/wipe status for all hosts in a batch to optimize performance.
 		statusMap, err = svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
 		if err != nil {
@@ -409,7 +409,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 					host.Users = hu
 				}
 
-				if opt.PopulateDeviceStatus {
+				if opt.IncludeDeviceStatus {
 					if status, ok := statusMap[host.ID]; ok {
 						host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
 						host.MDM.PendingAction = ptr.String(string(status.PendingAction()))

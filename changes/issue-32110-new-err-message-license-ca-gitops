@@ -1,0 +1,1 @@
+- add better errro message when trying to apply certificate authorities via gitops without the correct license

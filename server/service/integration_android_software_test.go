@@ -326,7 +326,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 			appIDs = append(appIDs, a.PackageName)
 		}
 
-		s.Assert().ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID})
+		s.Assert().ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID, "com.fleetdm.agent"})
 		s.Assert().Contains(policyName, host1.UUID)
 	}
 
