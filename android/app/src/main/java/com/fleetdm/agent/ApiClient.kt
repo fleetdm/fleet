@@ -33,8 +33,7 @@ import kotlinx.serialization.json.JsonElement
  * Format: "yyyy-MM-dd'T'HH:mm:ss'Z'" (UTC timezone)
  * Example: "2025-12-31T23:59:59Z"
  */
-private fun Date.toISO8601String(): String =
-    this.toInstant().toString()  // Returns "2025-12-31T23:59:59Z"
+private fun Date.toISO8601String(): String = this.toInstant().toString() // Returns "2025-12-31T23:59:59Z"
 
 val Context.prefDataStore: DataStore<Preferences> by preferencesDataStore(name = "pref_datastore")
 

@@ -77,8 +77,7 @@ class CertificateOrchestrator(
      * Format: "yyyy-MM-dd'T'HH:mm:ss'Z'" (UTC timezone)
      * @throws : DateTimeParseException  if the date string cannot be parsed
      */
-    private fun parseISO8601(dateString: String): Date =
-        Date.from(Instant.parse(dateString))
+    private fun parseISO8601(dateString: String): Date = Date.from(Instant.parse(dateString))
 
     // Mutex to protect concurrent access to certificate storage
     private val certificateStorageMutex = Mutex()
