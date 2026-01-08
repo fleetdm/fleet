@@ -17131,6 +17131,333 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Nil(t, hostVanillaOsquery5Team1LastInstall)
 }
 
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetries() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create a host
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// Upload a software installer
+	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
+
+	// Get the software title and installer ID
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
+		http.StatusOK, &resp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	softwareTitleID := resp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			team.ID, "dummy_installer.pkg")
+	})
+	require.NotZero(t, installerID)
+
+	// Create a team policy
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     t.Name(),
+		Query:    "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	// Associate software installer with policy
+	var modifyResp modifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: softwareTitleID},
+		},
+	}, http.StatusOK, &modifyResp)
+	require.NotNil(t, modifyResp.Policy)
+	policy, err = s.ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policy.SoftwareInstallerID)
+	require.Equal(t, installerID, *policy.SoftwareInstallerID)
+
+	submitPolicyResult := func(policyID uint, passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host,
+			map[uint]*bool{
+				policyID: ptr.Bool(passes),
+			},
+		), http.StatusOK, &distributedResp)
+	}
+	getPendingInstall := func() *fleet.HostSoftwareInstallerResult {
+		var results []*fleet.HostSoftwareInstallerResult
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &results, `
+				SELECT
+					id,
+					execution_id,
+					host_id,
+					software_installer_id,
+					policy_id,
+					install_script_exit_code,
+					attempt_number
+				FROM host_software_installs
+				WHERE host_id = ? AND install_script_exit_code IS NULL
+				ORDER BY id ASC
+			`, host.ID)
+		})
+		if len(results) == 0 {
+			return nil
+		}
+		return results[0]
+	}
+	submitInstallResult := func(installUUID string, exitCode int) {
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"install_script_exit_code": %d,
+				"install_script_output": "install output"
+			}`, *host.OrbitNodeKey, installUUID, exitCode),
+		), http.StatusNoContent)
+	}
+	getInstallResults := func() []*fleet.HostSoftwareInstallerResult {
+		var results []*fleet.HostSoftwareInstallerResult
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &results, `
+				SELECT id, execution_id, host_id, software_installer_id, policy_id, install_script_exit_code, attempt_number
+				FROM host_software_installs
+				WHERE host_id = ? AND software_installer_id = ? AND policy_id = ?
+				ORDER BY id ASC
+			`, host.ID, installerID, policy.ID)
+		})
+		return results
+	}
+	countActivities := func() int {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*)
+				FROM activities
+				WHERE JSON_EXTRACT(details, '$.host_id') = ? AND JSON_EXTRACT(details, '$.policy_id') = ?
+			`, host.ID, policy.ID)
+		})
+		return count
+	}
+
+	// Policy fails, triggers first install
+	submitPolicyResult(policy.ID, false)
+
+	// Wait for install to be queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "install should be queued")
+		if pendingInstall != nil && pendingInstall.SoftwareInstallerID != nil {
+			assert.Equal(t, installerID, *pendingInstall.SoftwareInstallerID)
+		}
+		if pendingInstall != nil && pendingInstall.PolicyID != nil {
+			assert.Equal(t, policy.ID, *pendingInstall.PolicyID)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail the first attempt
+	pendingInstall := getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID1 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID1, 1) // exit code 1 = failure
+
+	// Verify attempt 1 and retry
+	results := getInstallResults()
+	require.Len(t, results, 2)
+	// First result: attempt 1
+	require.NotNil(t, results[0].AttemptNumber)
+	require.Equal(t, 1, *results[0].AttemptNumber)
+	require.NotNil(t, results[0].InstallScriptExitCode)
+	require.Equal(t, 1, *results[0].InstallScriptExitCode)
+	// Queued retry (attempt_number is NULL until result is submitted)
+	require.Nil(t, results[1].InstallScriptExitCode)
+	require.Nil(t, results[1].AttemptNumber)
+	require.Equal(t, 0, countActivities())
+
+	// Get pending retry
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "retry should be queued")
+		if pendingInstall != nil {
+			assert.NotEqual(t, installUUID1, pendingInstall.InstallUUID, "should be a new execution")
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail attempt 2
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID2 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID2, 1)
+
+	// Verify attempt 2 and retry
+	results = getInstallResults()
+	require.Len(t, results, 3)
+	require.NotNil(t, results[1].AttemptNumber)
+	require.Equal(t, 2, *results[1].AttemptNumber)
+	require.Nil(t, results[2].AttemptNumber)
+	require.Equal(t, 0, countActivities())
+
+	// Get second pending retry
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "second retry should be queued")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail attempt 3
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID3 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID3, 1)
+
+	// Verify attempt 3 is final
+	results = getInstallResults()
+	require.Len(t, results, 3, "should have exactly 3 completed attempts, no more retries queued")
+	require.NotNil(t, results[2].AttemptNumber)
+	require.Equal(t, 3, *results[2].AttemptNumber)
+	require.NotNil(t, results[2].InstallScriptExitCode, "final attempt should be completed")
+
+	// Activity created after final attempt
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// No more retries, max reached
+	time.Sleep(2 * time.Second)
+	pendingInstall = getPendingInstall()
+	require.Nil(t, pendingInstall)
+
+	// Exactly 3 attempts
+	results = getInstallResults()
+	require.Len(t, results, 3)
+	require.Equal(t, 1, *results[0].AttemptNumber)
+	require.Equal(t, 2, *results[1].AttemptNumber)
+	require.Equal(t, 3, *results[2].AttemptNumber)
+
+	// Pass policy
+	submitPolicyResult(policy.ID, true)
+	// Fail policy to trigger first attempt
+	submitPolicyResult(policy.ID, false)
+
+	// Wait for first attempt
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail result
+	pendingInstall = getPendingInstall()
+	submitInstallResult(pendingInstall.InstallUUID, 1)
+
+	// Verify retry is queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Make the policy pass (should stop retrying)
+	submitPolicyResult(policy.ID, true)
+
+	// Submit the pending retry result
+	pendingInstall = getPendingInstall()
+	submitInstallResult(pendingInstall.InstallUUID, 1)
+
+	// Ensure no more retries (policy is now passing)
+	time.Sleep(2 * time.Second)
+	pendingInstall = getPendingInstall()
+	require.Nil(t, pendingInstall)
+	// Verify that all attempts were reset to 0 (policy passed, marking entire sequence as obsolete)
+	results = getInstallResults()
+	require.GreaterOrEqual(t, len(results), 4)
+	require.NotNil(t, results[len(results)-1].AttemptNumber)
+	require.Equal(t, 0, *results[len(results)-1].AttemptNumber)
+	require.NotNil(t, results[len(results)-2].AttemptNumber)
+	require.Equal(t, 0, *results[len(results)-2].AttemptNumber)
+	cnt, err := s.ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, cnt)
+
+	// Verify that we can start a fresh retry sequence after the reset
+	// Fail the policy again to trigger a new automation
+	submitPolicyResult(policy.ID, false)
+
+	// first attempt
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "should have queued a new first attempt")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Submit failure for first attempt
+	pendingInstall = getPendingInstall()
+	submitInstallResult(pendingInstall.InstallUUID, 1)
+
+	// Wait for retry to be queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "should have queued retry")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Verify fresh sequence started at attempt_number = 1
+	results = getInstallResults()
+	require.GreaterOrEqual(t, len(results), 2, "should have at least completed attempt and pending retry")
+	require.Nil(t, results[len(results)-1].AttemptNumber, "pending retry should have attempt_number = NULL")
+	completedAttempt := results[len(results)-2]
+	require.NotNil(t, completedAttempt.AttemptNumber)
+	require.Equal(t, 1, *completedAttempt.AttemptNumber, "fresh sequence should start at attempt 1")
+
+	cnt, err = s.ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "should count completed attempt and pending retry")
+
+	// Verify database
+	var attemptCounts struct {
+		TotalRows     int `db:"total_rows"`
+		ZeroCount     int `db:"zero_count"`
+		PositiveCount int `db:"positive_count"`
+		NullCount     int `db:"null_count"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptCounts, `
+			SELECT
+				COUNT(*) as total_rows,
+				SUM(CASE WHEN attempt_number = 0 THEN 1 ELSE 0 END) as zero_count,
+				SUM(CASE WHEN attempt_number > 0 THEN 1 ELSE 0 END) as positive_count,
+				SUM(CASE WHEN attempt_number IS NULL THEN 1 ELSE 0 END) as null_count
+			FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id = ? AND policy_id = ?
+		`, host.ID, installerID, policy.ID)
+	})
+	require.GreaterOrEqual(t, attemptCounts.TotalRows, 6, "should have at least 6 total rows (3 old + 2 new + 1 pending)")
+	require.GreaterOrEqual(t, attemptCounts.ZeroCount, 5, "should have at least 5 rows with attempt_number=0 (old sequences)")
+	require.Equal(t, 1, attemptCounts.PositiveCount, "should have exactly 1 row with attempt_number > 0 (new sequence)")
+	require.Equal(t, 1, attemptCounts.NullCount, "should have exactly 1 row with attempt_number IS NULL (pending)")
+}
+
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallersLabelScoping() {
 	t := s.T()
 	ctx := context.Background()
@@ -18149,17 +18476,6 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Equal(t, 3, *results[2].AttemptNumber)
 
-	// policy passes
-	// Clean up old results
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `DELETE FROM host_script_results WHERE host_id = ? AND script_id = ?`, host.ID, script.ID)
-		return err
-	})
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `DELETE FROM activities WHERE JSON_EXTRACT(details, '$.host_id') = ?`, host.ID)
-		return err
-	})
-
 	// pass policy
 	submitPolicyResult(policy.ID, true)
 	// fail policy fails to trigger first attempt
@@ -18192,8 +18508,71 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	time.Sleep(2 * time.Second)
 	pendingScript = getPendingScript()
 	require.Nil(t, pendingScript)
+	// Verify that all attempts were reset to 0 (policy passed, marking entire sequence as obsolete)
 	results = getScriptResults()
-	require.Len(t, results, 2)
+	require.GreaterOrEqual(t, len(results), 4)
+	require.NotNil(t, results[len(results)-1].AttemptNumber)
+	require.Equal(t, 0, *results[len(results)-1].AttemptNumber)
+	require.NotNil(t, results[len(results)-2].AttemptNumber)
+	require.Equal(t, 0, *results[len(results)-2].AttemptNumber)
+	scnt, err := s.ds.CountHostScriptAttempts(ctx, host.ID, script.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, scnt)
+
+	// Verify that we can start a fresh retry sequence after the reset
+	// Fail the policy again to trigger a new automation
+	submitPolicyResult(policy.ID, false)
+
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingScript := getPendingScript()
+		assert.NotNil(t, pendingScript, "should have queued a new first attempt")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// first attempt
+	pendingScript = getPendingScript()
+	submitScriptResult(pendingScript.ExecutionID, 1)
+
+	// Wait for retry to be queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingScript := getPendingScript()
+		assert.NotNil(t, pendingScript, "should have queued retry")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Verify fresh sequence started at attempt_number = 1
+	results = getScriptResults()
+	require.GreaterOrEqual(t, len(results), 2)
+	require.Nil(t, results[len(results)-1].AttemptNumber)
+	completedAttempt := results[len(results)-2]
+	require.NotNil(t, completedAttempt.AttemptNumber)
+	require.Equal(t, 1, *completedAttempt.AttemptNumber)
+
+	// Count should be 2 (one completed, one pending)
+	scnt, err = s.ds.CountHostScriptAttempts(ctx, host.ID, script.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, scnt)
+
+	// Verify database state
+	var attemptCounts struct {
+		TotalRows     int `db:"total_rows"`
+		ZeroCount     int `db:"zero_count"`
+		PositiveCount int `db:"positive_count"`
+		NullCount     int `db:"null_count"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptCounts, `
+			SELECT
+				COUNT(*) as total_rows,
+				SUM(CASE WHEN attempt_number = 0 THEN 1 ELSE 0 END) as zero_count,
+				SUM(CASE WHEN attempt_number > 0 THEN 1 ELSE 0 END) as positive_count,
+				SUM(CASE WHEN attempt_number IS NULL THEN 1 ELSE 0 END) as null_count
+			FROM host_script_results
+			WHERE host_id = ? AND script_id = ? AND policy_id = ?
+		`, host.ID, script.ID, policy.ID)
+	})
+	require.GreaterOrEqual(t, attemptCounts.TotalRows, 6)
+	require.GreaterOrEqual(t, attemptCounts.ZeroCount, 5)
+	require.Equal(t, 1, attemptCounts.PositiveCount)
+	require.Equal(t, 1, attemptCounts.NullCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIdentifier() {

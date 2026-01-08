@@ -5898,12 +5898,16 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 
 func (ds *Datastore) CountHostSoftwareInstallAttempts(ctx context.Context, hostID, softwareInstallerID, policyID uint) (int, error) {
 	var count int
+	// Only count attempts from the current retry sequence.
+	// When a policy passes, all attempt_number values are reset to 0 to mark them as "old sequence".
+	// We count attempts where attempt_number > 0 (current sequence) OR attempt_number IS NULL (currently being processed).
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
 		SELECT COUNT(*)
 		FROM host_software_installs
 		WHERE host_id = ?
 		  AND software_installer_id = ?
 		  AND policy_id = ?
+		  AND (attempt_number > 0 OR attempt_number IS NULL)
 	`, hostID, softwareInstallerID, policyID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "count host software install attempts")

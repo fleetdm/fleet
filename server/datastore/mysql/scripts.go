@@ -435,7 +435,9 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		COALESCE(ua.payload->'$.sync_request', 0) as sync_request,
 		NULL as host_deleted_at,
 		sua.setup_experience_script_id,
-		0 as canceled
+		0 as canceled,
+		NULL as batch_execution_id,
+		NULL as attempt_number
   FROM
 		upcoming_activities ua
 		INNER JOIN script_upcoming_activities sua
@@ -466,12 +468,16 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 
 func (ds *Datastore) CountHostScriptAttempts(ctx context.Context, hostID, scriptID, policyID uint) (int, error) {
 	var count int
+	// Only count attempts from the current retry sequence.
+	// When a policy passes, all attempt_number values are reset to 0 to mark them as "old sequence".
+	// We count attempts where attempt_number > 0 (current sequence) OR attempt_number IS NULL (currently being processed).
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
 		SELECT COUNT(*)
 		FROM host_script_results
 		WHERE host_id = ?
 		  AND script_id = ?
 		  AND policy_id = ?
+		  AND (attempt_number > 0 OR attempt_number IS NULL)
 	`, hostID, scriptID, policyID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "count host script attempts")

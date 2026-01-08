@@ -864,8 +864,8 @@ type Datastore interface {
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
-	// IsPolicyStillFailing checks if a policy is currently failing for a given host.
-	IsPolicyStillFailing(ctx context.Context, policyID, hostID uint) (bool, error)
+	// IsPolicyFailing checks if a policy is currently failing for a given host.
+	IsPolicyFailing(ctx context.Context, policyID, hostID uint) (bool, error)
 	// CountHostSoftwareInstallAttempts counts how many install attempts exist for a specific
 	// host, software installer, and policy combination. Used to calculate attempt_number.
 	CountHostSoftwareInstallAttempts(ctx context.Context, hostID, softwareInstallerID, policyID uint) (int, error)
