@@ -12,6 +12,7 @@ import java.math.BigInteger
 import java.security.PrivateKey
 import java.security.cert.Certificate
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -74,13 +75,10 @@ class CertificateOrchestrator(
     /**
      * Parses an ISO8601 format string to java.util.Date.
      * Format: "yyyy-MM-dd'T'HH:mm:ss'Z'" (UTC timezone)
-     * @throws IllegalArgumentException if the date string cannot be parsed
+     * @throws : DateTimeParseException  if the date string cannot be parsed
      */
-    private fun parseISO8601(dateString: String): Date {
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-        dateFormat.timeZone = TimeZone.getTimeZone("UTC")
-        return dateFormat.parse(dateString) ?: throw IllegalArgumentException("Invalid ISO8601 date: $dateString")
-    }
+    private fun parseISO8601(dateString: String): Date =
+        Date.from(Instant.parse(dateString))
 
     // Mutex to protect concurrent access to certificate storage
     private val certificateStorageMutex = Mutex()
