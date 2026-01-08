@@ -348,9 +348,10 @@ class CertificateOrchestrator(
 
         val results = mutableMapOf<Int, CleanupResult>()
 
-        // Step 1: Process certificates with operation="remove" or where the UUID of the server and local certificate don't match
+        // Step 1: Process certificates with operation="remove"
+        // Note: UUID mismatches are now handled by enrollment (install-over), not cleanup
         val certificatesToRemove = hostCertificates.filter {
-            it.shouldRemove() || certificateStates[it.id]?.uuid != it.uuid
+            it.shouldRemove()
         }
         Log.d(TAG, "Certificates marked for removal: ${certificatesToRemove.map { it.id }}")
 
@@ -680,7 +681,7 @@ class CertificateOrchestrator(
                 )
             }
             if (existsInKeystore && storedState.uuid != uuid) {
-                Log.i(TAG, "Certificate ID $certificateId uuid changed (${storedState.uuid} -> $uuid), will reinstall")
+                Log.i(TAG, "Certificate ID $certificateId uuid changed (${storedState.uuid} -> $uuid), will install over existing")
             }
         }
 
