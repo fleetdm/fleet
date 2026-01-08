@@ -14,7 +14,10 @@ import softwareAPI from "services/entities/software";
 
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getSelfServiceTooltip,
+  getAutoUpdatesTooltip,
+} from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -190,6 +193,9 @@ const SoftwareInstallerCard = ({
     displayName,
     isSelfService,
     isScriptPackage,
+    autoUpdateEnabled,
+    autoUpdateStartTime,
+    autoUpdateEndTime,
   } = cardInfo;
 
   const {
@@ -291,6 +297,20 @@ const SoftwareInstallerCard = ({
                   underline={false}
                 >
                   <Tag icon="user" text="Self-service" />
+                </TooltipWrapper>
+              )}
+              {autoUpdateEnabled && (
+                <TooltipWrapper
+                  className={`${baseClass}__auto-updates-tooltip`}
+                  showArrow
+                  position="top"
+                  tipContent={getAutoUpdatesTooltip(
+                    autoUpdateStartTime || "",
+                    autoUpdateEndTime || ""
+                  )}
+                  underline={false}
+                >
+                  <Tag icon="clock" text="Auto updates" />
                 </TooltipWrapper>
               )}
             </div>

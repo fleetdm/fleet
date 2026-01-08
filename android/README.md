@@ -105,17 +105,26 @@ keytool -list -v -keystore keystore.jks -alias fleet-android
 echo <SHA256> | tr -d ':' | xxd -r -p | base64
 ```
 
-Copy the fingerprint for use in `FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256`
+Copy the fingerprint for use in the `mdm.android_agent.signing_sha256` config option.
 
 ## Deploying via Android MDM (development)
 
-This feature is behind the feature flag `FLEET_DEV_ANDROID_AGENT_PACKAGE`. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea to get the Google Play URL.
+This feature requires setting the Android agent package config. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea to get the Google Play URL.
 
-1. **Set these env vars on your Fleet server:**
+1. **Configure your Fleet server with the Android agent settings:**
 
+Using environment variables:
 ```bash
-export FLEET_DEV_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
-export FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256=<SHA256 fingerprint>
+export FLEET_MDM_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
+export FLEET_MDM_ANDROID_AGENT_SIGNING_SHA256=<SHA256 fingerprint>
+```
+
+Or in your Fleet config file:
+```yaml
+mdm:
+  android_agent:
+    package: com.fleetdm.agent.private.<yourname>
+    signing_sha256: <SHA256 fingerprint>
 ```
 
 2. **Change the `applicationId` in `app/build.gradle.kts`:**

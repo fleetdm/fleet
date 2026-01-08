@@ -1033,7 +1033,7 @@ func (svc *Service) getSoftwareInstallURL(ctx context.Context, installerID uint)
 	// If CloudFront is misconfigured, the server and Orbit clients will experience a greater load since they'll be doing throw-away work.
 
 	// Get the signed URL
-	signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID)
+	signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.SoftwareInstallerSignedURLExpiry)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing software installer URL")
 	}
@@ -2363,6 +2363,10 @@ func (svc *Service) softwareBatchUpload(
 
 				installer.Platform = p.MaintainedApp.Platform
 				installer.Source = p.MaintainedApp.Source()
+				if installer.Source == "programs" && p.MaintainedApp.UpgradeCode != "" {
+					installer.UpgradeCode = p.MaintainedApp.UpgradeCode
+				}
+
 				installer.Extension = extension
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
 				installer.StorageID = p.MaintainedApp.SHA256

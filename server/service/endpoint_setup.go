@@ -248,6 +248,7 @@ func ApplyStarterLibrary(
 			teamsSoftwareInstallers,
 			teamsVPPApps,
 			teamsScripts,
+			nil,
 		)
 		return err
 	}

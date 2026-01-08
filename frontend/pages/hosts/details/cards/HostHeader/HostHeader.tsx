@@ -170,6 +170,7 @@ const HostHeader = ({
           position="top"
           underline={false}
           showArrow
+          className={`${baseClass}__device-status-tag-wrapper`}
         >
           <span className={classNames}>{tag.title}</span>
         </TooltipWrapper>

@@ -1267,14 +1267,14 @@ func TestGetSignedURL(t *testing.T) {
 	// Signer not configured
 	mockStore := &mock.MDMBootstrapPackageStore{}
 	a.BootstrapPackageStore = mockStore
-	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	mockStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "bozo", fleet.ErrNotConfigured
 	}
 	assert.Empty(t, a.getSignedURL(ctx, meta))
 	assert.Empty(t, buf.String())
 
 	// Test happy path
-	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	mockStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "signed", nil
 	}
 	mockStore.ExistsFunc = func(ctx context.Context, packageID string) (bool, error) {
@@ -1289,7 +1289,7 @@ func TestGetSignedURL(t *testing.T) {
 	mockStore.ExistsFuncInvoked = false
 
 	// Test error -- sign failed
-	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	mockStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "", errors.New("test error")
 	}
 	assert.Empty(t, a.getSignedURL(ctx, meta))

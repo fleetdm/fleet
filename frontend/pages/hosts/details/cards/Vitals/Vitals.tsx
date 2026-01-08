@@ -244,6 +244,22 @@ const Vitals = ({
     );
   };
 
+  const renderTimezone = () => {
+    if (!isIosOrIpadosHost || !vitalsData?.timezone) {
+      return null;
+    }
+    return (
+      <DataSet
+        title="Timezone"
+        value={
+          <TooltipTruncatedText
+            value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
+          />
+        }
+      />
+    );
+  };
+
   const renderGeolocation = () => {
     const geolocation = vitalsData.geolocation;
 
@@ -516,6 +532,7 @@ const Vitals = ({
         {renderOperatingSystemSummary()}
         {renderMunkiData()}
         {renderMdmData()}
+        {renderTimezone()}
         {renderGeolocation()}
       </div>
     </Card>
