@@ -1263,6 +1263,12 @@ type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlat
 
 type CleanAppleMDMLockFunc func(ctx context.Context, hostUUID string) error
 
+type InsertHostLocationDataFunc func(ctx context.Context, locData fleet.HostLocationData) error
+
+type GetHostLocationDataFunc func(ctx context.Context, hostID uint) (*fleet.HostLocationData, error)
+
+type DeleteHostLocationDataFunc func(ctx context.Context, hostID uint) error
+
 type CleanupUnusedScriptContentsFunc func(ctx context.Context) error
 
 type CleanupActivitiesAndAssociatedDataFunc func(ctx context.Context, maxCount int, expiryWindowDays int) error
@@ -3583,6 +3589,15 @@ type DataStore struct {
 
 	CleanAppleMDMLockFunc        CleanAppleMDMLockFunc
 	CleanAppleMDMLockFuncInvoked bool
+
+	InsertHostLocationDataFunc        InsertHostLocationDataFunc
+	InsertHostLocationDataFuncInvoked bool
+
+	GetHostLocationDataFunc        GetHostLocationDataFunc
+	GetHostLocationDataFuncInvoked bool
+
+	DeleteHostLocationDataFunc        DeleteHostLocationDataFunc
+	DeleteHostLocationDataFuncInvoked bool
 
 	CleanupUnusedScriptContentsFunc        CleanupUnusedScriptContentsFunc
 	CleanupUnusedScriptContentsFuncInvoked bool
@@ -8615,6 +8630,27 @@ func (s *DataStore) CleanAppleMDMLock(ctx context.Context, hostUUID string) erro
 	s.CleanAppleMDMLockFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanAppleMDMLockFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) InsertHostLocationData(ctx context.Context, locData fleet.HostLocationData) error {
+	s.mu.Lock()
+	s.InsertHostLocationDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertHostLocationDataFunc(ctx, locData)
+}
+
+func (s *DataStore) GetHostLocationData(ctx context.Context, hostID uint) (*fleet.HostLocationData, error) {
+	s.mu.Lock()
+	s.GetHostLocationDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostLocationDataFunc(ctx, hostID)
+}
+
+func (s *DataStore) DeleteHostLocationData(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.DeleteHostLocationDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostLocationDataFunc(ctx, hostID)
 }
 
 func (s *DataStore) CleanupUnusedScriptContents(ctx context.Context) error {

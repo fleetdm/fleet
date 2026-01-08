@@ -8665,6 +8665,10 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, caCertSerial, host.ID, "test-ca-host", time.Now().Add(-1*time.Hour), time.Now().Add(24*time.Hour), "-----BEGIN CERTIFICATE-----", false)
 	require.NoError(t, err)
 
+	locData := fleet.HostLocationData{HostID: host.ID, Latitude: 42.42, Longitude: -42.42}
+	err = ds.InsertHostLocationData(ctx, locData)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

@@ -1932,6 +1932,11 @@ type Datastore interface {
 	// after it has been unlocked.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
+	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
+	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
+	GetHostLocationData(ctx context.Context, hostID uint) (*HostLocationData, error)
+	DeleteHostLocationData(ctx context.Context, hostID uint) error
+
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
 	CleanupUnusedScriptContents(ctx context.Context) error
