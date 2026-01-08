@@ -232,9 +232,12 @@ fun DebugCertificateList(certificates: CertificateStateMap) {
                 )
                 Column {
                     Text(text = "alias: ${value.alias}")
-                    Text(text = "uuid: ${value.uuid}")
                     Text(text = "status: ${value.status}")
                     Text(text = "retries: ${value.retries}")
+                    Text(text = "uuid: ${value.uuid}")
+                    Text(text = "notBefore: ${value.notBefore}")
+                    Text(text = "notAfter: ${value.notAfter}")
+                    Text(text = "serial: ${value.serialNumber}")
                 }
             }
         }
