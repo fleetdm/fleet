@@ -324,7 +324,7 @@ func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.
 			*fleet.CertificateStatusUpdate
 			Name string `db:"name"`
 		}{update, templateInfo.Name}
-		
+
 		if _, err := sqlx.NamedExecContext(ctx, ds.writer(ctx), insertStmt, insertArgs); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
 		}
@@ -626,7 +626,7 @@ func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 			not_valid_after
 		FROM host_certificate_templates
 		WHERE
-			status IN ('%s', '%s')
+			status = '%s'
 			AND operation_type = '%s'
 			AND not_valid_before IS NOT NULL
 			AND not_valid_after IS NOT NULL
@@ -637,7 +637,7 @@ func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 			)
 		ORDER BY not_valid_after ASC
 		LIMIT ?
-	`, fleet.CertificateTemplateDelivered, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
+	`, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
 
 	var results []fleet.HostCertificateTemplateForRenewal
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, limit); err != nil {

@@ -1563,9 +1563,9 @@ func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 	// Host 3: Short-lived cert (14 days total), expiring in 5 days - SHOULD be renewed (< 7 days = half of 14)
 	notValidBefore3 := now.Add(-9 * 24 * time.Hour) // Started 9 days ago
 	notValidAfter3 := now.Add(5 * 24 * time.Hour)   // Expires in 5 days
-	insertHostCertTemplate(t, ds, host3.UUID, template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, &notValidBefore3, &notValidAfter3)
+	insertHostCertTemplate(t, ds, host3.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore3, &notValidAfter3)
 
-	// Host 4: Certificate with pending status - should NOT be renewed (not delivered/verified)
+	// Host 4: Certificate with pending status - should NOT be renewed (not verified)
 	notValidBefore4 := now.AddDate(-1, 0, 7)
 	notValidAfter4 := now.Add(7 * 24 * time.Hour)
 	insertHostCertTemplate(t, ds, host4.UUID, template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, &notValidBefore4, &notValidAfter4)
