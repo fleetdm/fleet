@@ -147,7 +147,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
-	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+	if err := svc.activitiesModule.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:    payload.Title,
 		SoftwarePackage:  payload.Filename,
 		TeamName:         teamName,
@@ -185,7 +185,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			Name: addedInstaller.AutomaticInstallPolicies[0].Name,
 		}
 
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy for custom package")
 		}
 	}
@@ -810,7 +810,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
 
-	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
+	if err := svc.activitiesModule.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
 		AppStoreID:       meta.AdamID,
 		SoftwareTitle:    meta.Name,
 		TeamName:         teamName,
@@ -859,7 +859,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 	}
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
-	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
+	if err := svc.activitiesModule.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
 		SoftwareTitle:    meta.SoftwareTitle,
 		SoftwarePackage:  meta.Name,
 		TeamName:         teamName,

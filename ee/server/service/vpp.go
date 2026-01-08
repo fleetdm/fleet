@@ -355,7 +355,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	if setupExperienceChanged {
-		err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSetupExperienceSoftware{TeamID: ptr.ValOrZero(teamID), TeamName: teamName})
+		err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSetupExperienceSoftware{TeamID: ptr.ValOrZero(teamID), TeamName: teamName})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create edited setup experience activity")
 		}
@@ -641,7 +641,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		Configuration:    app.Configuration,
 	}
 
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+	if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create activity for add app store app")
 	}
 
@@ -651,7 +651,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			Name: app.AddedAutomaticInstallPolicy.Name,
 		}
 
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
 			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for app store app", "err", err)
 		}
 
@@ -992,7 +992,7 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 		return nil, ctxerr.Wrap(ctx, err, "writing VPP token to db")
 	}
 
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEnabledVPP{
+	if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEnabledVPP{
 		Location: locName,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
@@ -1082,7 +1082,7 @@ func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting vpp token")
 	}
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDisabledVPP{
+	if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDisabledVPP{
 		Location: tok.Location,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for delete VPP token")

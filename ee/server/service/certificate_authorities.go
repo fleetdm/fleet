@@ -980,27 +980,27 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 	for _, ca := range ops.Add {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedNDESSCEPProxy{}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedNDESSCEPProxy{}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added NDES SCEP proxy")
 			}
 		case string(fleet.CATypeDigiCert):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedDigiCert{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedDigiCert{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added DigiCert")
 			}
 		case string(fleet.CATypeCustomSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomSCEPProxy{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added custom SCEP proxy")
 			}
 		case string(fleet.CATypeHydrant):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedHydrant{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added hydrant")
 			}
 		case string(fleet.CATypeCustomESTProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomESTProxy{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomESTProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added custom est proxy")
 			}
 		case string(fleet.CATypeSmallstep):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedSmallstep{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added smallstep SCEP proxy")
 			}
 		}
@@ -1008,27 +1008,27 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 	for _, ca := range ops.Update {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedNDESSCEPProxy{}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedNDESSCEPProxy{}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited NDES SCEP proxy")
 			}
 		case string(fleet.CATypeDigiCert):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedDigiCert{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedDigiCert{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited DigiCert")
 			}
 		case string(fleet.CATypeCustomSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomSCEPProxy{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited custom SCEP proxy")
 			}
 		case string(fleet.CATypeHydrant):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedHydrant{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited hydrant")
 			}
 		case string(fleet.CATypeCustomESTProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomESTProxy{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomESTProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activityu for edited custom EST proxy")
 			}
 		case string(fleet.CATypeSmallstep):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSmallstep{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited smallstep SCEP proxy")
 			}
 		}
@@ -1036,27 +1036,27 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 	for _, ca := range ops.Delete {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedNDESSCEPProxy{}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedNDESSCEPProxy{}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted NDES SCEP proxy")
 			}
 		case string(fleet.CATypeDigiCert):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedDigiCert{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedDigiCert{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted DigiCert")
 			}
 		case string(fleet.CATypeCustomSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted custom SCEP proxy")
 			}
 		case string(fleet.CATypeHydrant):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedHydrant{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted hydrant")
 			}
 		case string(fleet.CATypeCustomESTProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomESTProxy{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomESTProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted custom EST proxy")
 			}
 		case string(fleet.CATypeSmallstep):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedSmallstep{Name: *ca.Name}); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted smallstep SCEP proxy")
 			}
 		}
@@ -1243,7 +1243,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		return err
 	}
 
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+	if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 		return fmt.Errorf("recording activity for edited %s certificate authority %s: %w", caToUpdate.Type, caActivityName, err)
 	}
 

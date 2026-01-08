@@ -763,7 +763,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		} else {
 			act = fleet.ActivityTypeDisabledGitOpsMode{}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 
@@ -783,12 +783,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	switch {
 	case appConfig.WebhookSettings.ActivitiesWebhook.Enable && !oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
 		act := fleet.ActivityTypeEnabledActivityAutomations{WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for enabled activity automations")
 		}
 	case !appConfig.WebhookSettings.ActivitiesWebhook.Enable && oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
 		act := fleet.ActivityTypeDisabledActivityAutomations{}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for disabled activity automations")
 		}
 	case appConfig.WebhookSettings.ActivitiesWebhook.Enable &&
@@ -796,7 +796,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		act := fleet.ActivityTypeEditedActivityAutomations{
 			WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for edited activity automations")
 		}
 	}
@@ -981,7 +981,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 					return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
 		}
@@ -995,7 +995,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		} else {
 			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
 		}
 	}
@@ -1018,7 +1018,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		} else {
 			act = fleet.ActivityTypeDisabledWindowsMDM{}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
@@ -1030,7 +1030,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		} else {
 			act = fleet.ActivityTypeDisabledWindowsMDMMigration{}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
@@ -1133,7 +1133,7 @@ func (svc *Service) processAppleOSUpdateSettings(
 				Deadline:       newOSUpdateSettings.Deadline.Value,
 			}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")
 		}
 	}
@@ -1144,7 +1144,7 @@ func (svc *Service) processAppleOSUpdateSettings(
 		if !newOSUpdateSettings.UpdateNewHosts.Value {
 			activity = fleet.ActivityTypeDisabledMacosUpdateNewHosts{}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")
 		}
 	}

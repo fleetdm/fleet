@@ -1259,7 +1259,7 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 		canceled = *batchActivity.NumCanceled
 	}
 
-	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptCanceled{
+	if err := svc.activitiesModule.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptCanceled{
 		BatchExecutionID: batchExecutionID,
 		ScriptName:       batchActivity.ScriptName,
 		HostCount:        targeted,
@@ -1514,7 +1514,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 			return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 		}
 
-		if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
+		if err := svc.activitiesModule.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
 			ScriptName:       script.Name,
 			BatchExecutionID: batchID,
 			HostCount:        uint(len(hostIDsToExecute)),
@@ -1532,7 +1532,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
-	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptScheduled{
+	if err := svc.activitiesModule.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptScheduled{
 		ScriptName:       &script.Name,
 		BatchExecutionID: batchID,
 		HostCount:        uint(len(hostIDsToExecute)),

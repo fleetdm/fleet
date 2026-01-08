@@ -444,7 +444,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
@@ -1583,7 +1583,7 @@ func (svc *Service) editTeamFromSpec(
 				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
@@ -1822,7 +1822,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 						return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 					}
 				}
-				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 					return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 				}
 			}

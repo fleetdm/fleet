@@ -306,7 +306,7 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	}
 
 	if pastAct != nil {
-		if err := svc.NewActivity(ctx, vc.User, pastAct); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, vc.User, pastAct); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for cancelation")
 		}
 	}

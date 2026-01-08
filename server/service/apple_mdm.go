@@ -2768,7 +2768,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
 		}
