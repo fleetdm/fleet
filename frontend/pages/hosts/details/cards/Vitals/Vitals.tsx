@@ -247,15 +247,16 @@ const Vitals = ({
   const renderGeolocation = () => {
     const geolocation = vitalsData.geolocation;
 
-    if (!isIosOrIpadosHost && !geolocation) {
+    const isAdeIDevice =
+      isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
+
+    if (!isAdeIDevice && !geolocation) {
       return null;
     }
 
     const geoLocationButton = (
       <Button variant="text-link" onClick={toggleLocationModal}>
-        {isIosOrIpadosHost
-          ? "Show location"
-          : getCityCountryLocation(geolocation)}
+        {isAdeIDevice ? "Show location" : getCityCountryLocation(geolocation)}
       </Button>
     );
     return <DataSet title="Location" value={geoLocationButton} />;

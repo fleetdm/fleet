@@ -28,7 +28,11 @@ const IosOrIpadLockPreview = () => {
       <p>
         Instead of &quot;Fleet&quot;, the message will show the{" "}
         <b>Organization name</b> that you configured in{" "}
-        <Link to={PATHS.ADMIN_ORGANIZATION_INFO}>Organization settings</Link>.
+        <CustomLink
+          url={PATHS.ADMIN_ORGANIZATION_INFO}
+          text="Organization settings"
+        />
+        .
       </p>
       <img src={IphoneLockPreview} alt="iPhone with a lock screen message" />
     </Card>
@@ -63,7 +67,6 @@ const LockModal = ({
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
-    onClose();
     setIsLocking(false);
   };
 
