@@ -19,8 +19,15 @@ func TestActivityRootPackageDependencies(t *testing.T) {
 		Check()
 }
 
-// TestActivityInternalTypesDependencies ensures the types package only depends on the api package.
-// The api package is the public interface owned by this bounded context.
+// TestActivityAPIPackageDependencies ensures the public API activity package has NO Fleet dependencies.
+func TestActivityAPIPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/activity/api").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		ShouldNotDependOn(m + "/...").
+		Check()
+}
+
 func TestActivityInternalTypesDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, m+"/server/activity/internal/types").
@@ -44,15 +51,13 @@ func TestActivityInternalMySQLDependencies(t *testing.T) {
 			m+"/server/activity/internal/types",
 			// Platform/infra packages (allowed)
 			m+"/server/platform/http",
-			m+"/server/datastore/mysql/common_mysql",
+			m+"/server/platform/mysql",
 			m+"/server/contexts/ctxerr",
 		).
 		Check()
 }
 
 // TestActivityInternalServiceDependencies ensures the service package doesn't depend on legacy packages.
-// Note: endpoint_utils has transitive dependencies on fleet that we must allow.
-// This is acceptable as these are infra/platform packages, not business logic.
 func TestActivityInternalServiceDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, m+"/server/activity/internal/service").
@@ -64,17 +69,13 @@ func TestActivityInternalServiceDependencies(t *testing.T) {
 			m+"/server/activity/api",
 			m+"/server/activity/internal/types",
 			// Platform/infra packages (allowed)
-			m+"/server/platform/authz",
-			m+"/server/platform/http",
+			m+"/server/platform/...",
 			m+"/server/contexts/ctxerr",
 			m+"/server/contexts/viewer",
 			m+"/server/contexts/license",
 			m+"/server/contexts/logging",
 			m+"/server/contexts/authz",    // transitive via authzcheck
 			m+"/server/contexts/publicip", // transitive via ratelimit
-			m+"/server/service/middleware/endpoint_utils",
-			m+"/server/service/middleware/authzcheck",
-			m+"/server/service/middleware/ratelimit",
 		).
 		Check()
 }
@@ -98,10 +99,6 @@ func TestActivityBootstrapDependencies(t *testing.T) {
 			m+"/server/contexts/logging",
 			m+"/server/contexts/authz",    // transitive via authzcheck
 			m+"/server/contexts/publicip", // transitive via ratelimit
-			m+"/server/datastore/mysql/common_mysql",
-			m+"/server/service/middleware/endpoint_utils",
-			m+"/server/service/middleware/authzcheck",
-			m+"/server/service/middleware/ratelimit",
 		).
 		Check()
 }
