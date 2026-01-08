@@ -85,7 +85,7 @@ const InventoryVersion = ({
           <DataSet
             title={lastOpenedTitle}
             value={
-              version.last_opened_at && version.last_opened_at !== ""
+              version.last_opened_at !== ""
                 ? dateAgo(version.last_opened_at)
                 : "Never"
             }
