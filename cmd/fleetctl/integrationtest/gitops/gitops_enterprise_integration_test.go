@@ -2847,4 +2847,76 @@ team_settings:
 			t.Fatalf("unexpected source: %s", foundTitle.Source)
 		}
 	}
+
+	// Now apply a config without auto-update fields for the iPadOS app and verify they're cleared
+	teamTemplateNoAutoUpdate := `
+controls:
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: ios
+      self_service: false
+      auto_update_enabled: true
+      auto_update_start_time: "02:00"
+      auto_update_end_time: "06:00"
+    - app_store_id: "2"
+      platform: ipados
+      self_service: false
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+
+	teamFileNoAutoUpdate, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFileNoAutoUpdate.WriteString(fmt.Sprintf(teamTemplateNoAutoUpdate, teamName))
+	require.NoError(t, err)
+	err = teamFileNoAutoUpdate.Close()
+	require.NoError(t, err)
+
+	// Apply the updated config
+	realRunOutput = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileNoAutoUpdate.Name()})
+	require.Contains(t, realRunOutput, "gitops succeeded")
+
+	// Verify auto-update schedules: iOS should still have settings, iPadOS should be disabled
+	var updatedSchedules []autoUpdateSchedule
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &updatedSchedules,
+			`SELECT title_id, team_id, enabled, start_time, end_time
+			FROM software_update_schedules
+			WHERE team_id = ?
+			ORDER BY title_id`, team.ID)
+	})
+
+	require.Len(t, updatedSchedules, 2)
+
+	for _, schedule := range updatedSchedules {
+		var foundTitle *fleet.SoftwareTitleListResult
+		for i := range titles {
+			if titles[i].ID == schedule.TitleID {
+				foundTitle = &titles[i]
+				break
+			}
+		}
+		require.NotNil(t, foundTitle, "should find title for schedule")
+
+		switch foundTitle.Source {
+		case "ios_apps":
+			// iOS app should still have auto-update enabled
+			require.True(t, schedule.Enabled)
+			require.Equal(t, "02:00", schedule.StartTime)
+			require.Equal(t, "06:00", schedule.EndTime)
+		case "ipados_apps":
+			// iPadOS app should now have auto-update disabled (fields removed from config)
+			// but the previous start/end times should still be preserved in the database
+			require.False(t, schedule.Enabled)
+			require.Equal(t, "03:00", schedule.StartTime)
+			require.Equal(t, "07:00", schedule.EndTime)
+		default:
+			t.Fatalf("unexpected source: %s", foundTitle.Source)
+		}
+	}
 }
