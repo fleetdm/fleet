@@ -251,6 +251,7 @@ func gitopsCommand() *cli.Command {
 			}
 
 			labelMoves, err := computeLabelMoves(labelChanges)
+
 			if err != nil {
 				return err
 			}
@@ -572,12 +573,19 @@ func gitopsCommand() *cli.Command {
 // A label is moved when it is deleted from one team and added to another, the moves are stored in
 // a team name -> label names map.
 func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]spec.LabelMovement, error) {
-	deleteOps := make(map[string]spec.LabelChange) // label name -> file name
-	addOps := make(map[string]spec.LabelChange)    // label name -> file name
+	deleteOps := make(map[string]spec.LabelChange)  // label name -> file name
+	addOps := make(map[string]spec.LabelChange)     // label name -> file name
+	updatedOps := make(map[string]spec.LabelChange) // label name -> file name
 
 	for _, teamChanges := range allChanges {
 		for _, change := range teamChanges {
 			switch change.Op {
+			case "=":
+				if prevCh, ok := addOps[change.Name]; ok {
+					errMsg := "can't update label %q to %q, as it is already being added in %q"
+					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
+				}
+				updatedOps[change.Name] = change
 			case "-":
 				if prevCh, ok := deleteOps[change.Name]; ok {
 					errMsg := "can't delete label %q from %q, as it is already being deleted in %q"
@@ -587,6 +595,10 @@ func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]s
 			case "+":
 				if prevCh, ok := addOps[change.Name]; ok {
 					errMsg := "can't add label %q to %q, as it is already being added in %q"
+					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
+				}
+				if prevCh, ok := updatedOps[change.Name]; ok {
+					errMsg := "can't add label %q to %q, as it is already being updated in %q"
 					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
 				}
 				addOps[change.Name] = change

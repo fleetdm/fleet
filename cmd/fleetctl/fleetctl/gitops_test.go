@@ -4748,4 +4748,13 @@ func TestComputeLabelMoves(t *testing.T) {
 		_, err := computeLabelMoves(allChanges)
 		require.ErrorContains(t, err, "already being added")
 	})
+
+	t.Run("conflict: trying to add an existing label", func(t *testing.T) {
+		allChanges := map[string][]spec.LabelChange{
+			"team1": {{Name: "conflict", Op: "=", FileName: "file1.yml"}},
+			"team2": {{Name: "conflict", Op: "+", FileName: "file2.yml"}},
+		}
+		_, err := computeLabelMoves(allChanges)
+		require.Error(t, err)
+	})
 }
