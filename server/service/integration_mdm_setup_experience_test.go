@@ -1387,7 +1387,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 			AvailableCount: 1,
 		},
 	}...)
-	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 
 	t.Cleanup(func() {
 		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
@@ -2092,7 +2091,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
-	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 

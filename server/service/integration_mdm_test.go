@@ -626,82 +626,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			return
 		}
 
-		if strings.Contains(r.URL.Path, "manageVPPLicensesByAdamIdSrv") {
-			var associations vpp.ManageVPPLicensesRequest
-
-			decoder := json.NewDecoder(r.Body)
-			if err := decoder.Decode(&associations); err != nil {
-				http.Error(w, "invalid request", http.StatusBadRequest)
-				return
-			}
-
-			fmt.Printf("Mock VPP Server: Trying to associate %v with %s\n", associations.AssociateSerialNumbers, associations.AdamID)
-
-			if len(associations.AssociateSerialNumbers) == 0 {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				res := vpp.ErrorResponse{
-					ErrorNumber:  9719,
-					ErrorMessage: "Either clientUserIds or serialNumbers are required arguments. Change the request to provide assignable users and devices.",
-				}
-				if err := json.NewEncoder(w).Encode(res); err != nil {
-					panic(err)
-				}
-				return
-			}
-
-			found := false
-			for _, reqAsset := range s.appleVPPConfigSrvConfig.Assets {
-				if reqAsset.AdamID == associations.AdamID {
-					found = true
-				}
-			}
-
-			var badSerials []string
-			for _, reqSerial := range associations.AssociateSerialNumbers {
-				var found bool
-				for _, goodSerial := range s.appleVPPConfigSrvConfig.SerialNumbers {
-					if reqSerial == goodSerial {
-						found = true
-					}
-				}
-				if !found {
-					badSerials = append(badSerials, reqSerial)
-				}
-			}
-
-			if !found || len(badSerials) != 0 {
-				errMsg := "error associating assets."
-				if !found {
-					errMsg += fmt.Sprintf(" assets don't exist on account: %s.", associations.AdamID)
-				}
-				if len(badSerials) > 0 {
-					errMsg += fmt.Sprintf(" bad serials: %s.", strings.Join(badSerials, ", "))
-				}
-				res := vpp.ErrorResponse{
-					ErrorInfo: vpp.ResponseErrorInfo{
-						Assets: []vpp.Asset{{
-							AdamID:       associations.AdamID,
-							PricingParam: associations.PricingParam,
-						}},
-						ClientUserIds: []string{"something"},
-						SerialNumbers: badSerials,
-					},
-					// Not sure what error should be returned on each
-					// error type
-					ErrorNumber:  1,
-					ErrorMessage: errMsg,
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				if err := json.NewEncoder(w).Encode(res); err != nil {
-					panic(err)
-				}
-			}
-			_, _ = w.Write([]byte(`{}`))
-			return
-		}
-
 		// Handle /client/config
 		resp := []byte(fmt.Sprintf(`{"locationName": "%s"}`, s.appleVPPConfigSrvConfig.Location))
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
@@ -12438,7 +12362,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
-	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
@@ -13790,7 +13713,6 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
-	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
@@ -17917,7 +17839,6 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
-	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
@@ -18452,7 +18373,6 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
-	t.Setenv("FLEET_DEV_VPP_V1_URL", s.appleVPPConfigSrv.URL)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
