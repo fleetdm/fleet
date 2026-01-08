@@ -49,6 +49,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -203,6 +204,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.NoError(t, err)
 	}
 
+	activitiesModule := activities.NewActivityModule(ds, logger)
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -229,6 +232,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
 		androidService,
+		activitiesModule,
 	)
 	if err != nil {
 		panic(err)
@@ -269,6 +273,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			digiCertService,
 			androidModule,
 			estCAService,
+			activitiesModule,
 		)
 		if err != nil {
 			panic(err)

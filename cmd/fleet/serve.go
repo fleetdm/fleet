@@ -821,6 +821,7 @@ the way that the Fleet server works.
 				conditionalAccessMicrosoftProxy,
 				redis_key_value.New(redisPool),
 				androidSvc,
+				activitiesModule,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -927,6 +928,7 @@ the way that the Fleet server works.
 					digiCertService,
 					androidSvc,
 					hydrantService,
+					activitiesModule,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")

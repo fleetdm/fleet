@@ -167,7 +167,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		return nil, err
 	}
 
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+	if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 		return nil, fmt.Errorf("recording activity for new %s certificate authority %s: %w", caToCreate.Type, *caToCreate.Name, err)
 	}
 
@@ -475,7 +475,7 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 		}
 	}
 
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+	if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 		return err
 	}
 
