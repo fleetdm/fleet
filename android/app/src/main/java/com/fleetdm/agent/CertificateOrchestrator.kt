@@ -674,9 +674,9 @@ class CertificateOrchestrator(
                 )
                 return CertificateEnrollmentHandler.EnrollmentResult.Success(
                     alias = storedState.alias,
-                    notAfter = Date(0),
-                    notBefore = Date(0),
-                    serialNumber = BigInteger.ZERO,
+                    notAfter = null,
+                    notBefore = null,
+                    serialNumber = null,
                 )
             }
             if (existsInKeystore && storedState.uuid != uuid) {
@@ -709,9 +709,9 @@ class CertificateOrchestrator(
             Log.i(TAG, "Certificate template ${template.name} does not have status \"delivered\": status \"${template.status}\"")
             return CertificateEnrollmentHandler.EnrollmentResult.Success(
                 alias = template.name,
-                notAfter = Date(0),
-                notBefore = Date(0),
-                serialNumber = BigInteger.ZERO,
+                notAfter = null,
+                notBefore = null,
+                serialNumber = null,
             )
         }
 
@@ -733,9 +733,9 @@ class CertificateOrchestrator(
                 Log.i(TAG, "Certificate enrollment successful for ID $certificateId with alias: ${result.alias}")
 
                 // Convert certificate metadata to ISO8601 for storage
-                val notAfterStr = result.notAfter.toISO8601String()
-                val notBeforeStr = result.notBefore.toISO8601String()
-                val serialNumberStr = result.serialNumber.toString()
+                val notAfterStr = result.notAfter?.toISO8601String()
+                val notBeforeStr = result.notBefore?.toISO8601String()
+                val serialNumberStr = result.serialNumber?.toString()
 
                 // First, mark as unreported (persisted before network call)
                 markCertificateUnreported(
