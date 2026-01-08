@@ -833,15 +833,17 @@ WHERE
 
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
 	// Validate schedule if enabled.
-	schedule := fleet.SoftwareAutoUpdateSchedule{
-		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
-			AutoUpdateEnabled:   config.AutoUpdateEnabled,
-			AutoUpdateStartTime: config.AutoUpdateStartTime,
-			AutoUpdateEndTime:   config.AutoUpdateEndTime,
-		},
-	}
-	if err := schedule.WindowIsValid(); err != nil {
-		return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
+		schedule := fleet.SoftwareAutoUpdateSchedule{
+			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+				AutoUpdateEnabled:   config.AutoUpdateEnabled,
+				AutoUpdateStartTime: config.AutoUpdateStartTime,
+				AutoUpdateEndTime:   config.AutoUpdateEndTime,
+			},
+		}
+		if err := schedule.WindowIsValid(); err != nil {
+			return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+		}
 	}
 	var startTime, endTime string
 	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {

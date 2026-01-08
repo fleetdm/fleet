@@ -271,9 +271,6 @@ type SoftwareAutoUpdateSchedule struct {
 }
 
 func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
-	if s.AutoUpdateEnabled == nil || !*s.AutoUpdateEnabled {
-		return nil
-	}
 	if s.AutoUpdateStartTime == nil || s.AutoUpdateEndTime == nil || *s.AutoUpdateStartTime == "" || *s.AutoUpdateEndTime == "" {
 		return errors.New("Start and end time must both be set")
 	}

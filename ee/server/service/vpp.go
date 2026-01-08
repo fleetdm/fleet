@@ -371,10 +371,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			cfg.AutoUpdateEnabled = ptr.Bool(false)
 		}
 
-		// Validate auto-update window
-		schedule := fleet.SoftwareAutoUpdateSchedule{SoftwareAutoUpdateConfig: cfg}
-		if err := schedule.WindowIsValid(); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
+		// Validate auto-update window if enabled or if times are provided
+		hasTimesSet := app.AutoUpdateStartTime != nil || app.AutoUpdateEndTime != nil
+		if (app.AutoUpdateEnabled != nil && *app.AutoUpdateEnabled) || hasTimesSet {
+			schedule := fleet.SoftwareAutoUpdateSchedule{SoftwareAutoUpdateConfig: cfg}
+			if err := schedule.WindowIsValid(); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
+			}
 		}
 		if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tmID, cfg); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "updating auto-update config for vpp app")
@@ -862,8 +865,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		},
 	}
 
-	if err := schedule.WindowIsValid(); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating auto-update schedule")
+	if payload.AutoUpdateEnabled != nil && *payload.AutoUpdateEnabled {
+		if err := schedule.WindowIsValid(); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating auto-update schedule")
+		}
 	}
 
 	var teamName string

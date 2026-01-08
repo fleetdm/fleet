@@ -270,12 +270,23 @@ func TestAutoUpdateScheduleValidation(t *testing.T) {
 		isValid  bool
 	}{
 		{
-			name: "schedule disabled",
+			name: "schedule disabled without times",
 			schedule: SoftwareAutoUpdateSchedule{
 				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
 					AutoUpdateEnabled:   ptr.Bool(false),
 					AutoUpdateStartTime: nil,
 					AutoUpdateEndTime:   nil,
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "schedule disabled with valid times",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(false),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   ptr.String("15:30"),
 				},
 			},
 			isValid: true,
