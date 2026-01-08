@@ -413,10 +413,10 @@ func TestDoRetries(t *testing.T) {
 				require.NoError(t, err)
 			},
 			wantCalls: 1,
-			wantErr:   true,
+			wantErr:   false,
 		},
 		{
-			name: "bad requests",
+			name: "bad requests no not retry (handled upstream)",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 				_, err := w.Write([]byte("{}"))
@@ -467,11 +467,10 @@ func TestDoRetries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var calls int
 			setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
-				calls++
 				if calls < tt.wantCalls {
 					tt.handler(w, r)
-					return
-				}
+					calls++
+				} // default is a 200 response
 			})
 
 			start := time.Now()
@@ -483,7 +482,12 @@ func TestDoRetries(t *testing.T) {
 				}
 				return "", nil
 			}, false, nil)
-			require.NoError(t, err)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
 			require.Equal(t, tt.wantCalls, calls)
 			elapsed := time.Since(start)
 			require.WithinRange(t, time.Now(), start, start.Add(time.Duration(tt.wantCalls)*time.Second+tt.wantMinTime))
