@@ -735,7 +735,7 @@ func StartAndServeVPPServer(t *testing.T) {
 			}
 		}
 
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"data": [%s]}`, strings.Join(objs, ","))))
+		_, _ = w.Write(fmt.Appendf(nil, `{"data": [%s]}`, strings.Join(objs, ",")))
 	}))
 
 	vppProxyAuthSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
