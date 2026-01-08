@@ -1625,7 +1625,11 @@ Observer plus must be checked against host's team id  */
               id={host.id}
               platform={host.platform}
               hostName={host.display_name}
-              onSuccess={() => setHostMdmDeviceState("locking")}
+              onSuccess={() => {
+                setHostMdmDeviceState("locking");
+                setShowLocationModal(false);
+                setShowLockHostModal(false);
+              }}
               onClose={() => {
                 setShowLockHostModal(false);
                 showLocationModal === undefined && setShowLocationModal(true);
@@ -1693,7 +1697,8 @@ Observer plus must be checked against host's team id  */
             }}
             onClickLock={() => {
               setShowLockHostModal(true);
-              setShowLocationModal(false);
+              // setShowLocationModal(false);
+              setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
           />

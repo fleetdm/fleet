@@ -67,7 +67,6 @@ const LockModal = ({
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
-    onClose();
     setIsLocking(false);
   };
 
