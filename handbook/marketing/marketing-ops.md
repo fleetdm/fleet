@@ -10,10 +10,10 @@ Our go-to-market (GTM) approach is built on a foundation of end-to-end visibilit
 
 ### Key resources
 
-1. [Conversion rates](#Conversion-rates)
-2. [GTM Model](#GTM-model)
-3. [Attribution framework (aka Lead Source)](#Attribution-framework-(aka-Lead-Source))  
-4. [Unified Campaign member status framework](#Unified-campaign-member-status-framework)
+1. [Conversion rates](https://fleetdm.com/handbook/marketing/marketing-ops#conversion-rates)
+2. [GTM Model](https://fleetdm.com/handbook/marketing/marketing-ops#GTM-model)
+3. [Attribution framework (aka contact source)](https://fleetdm.com/handbook/marketing/marketing-ops#attribution-framework)  
+4. [Unified campaign member status framework](https://fleetdm.com/handbook/marketing/marketing-ops#unified-campaign-member-status-framework)
 
 
 ## Conversion rates
@@ -273,5 +273,7 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Registered:** Clicked a link and filled out the resulting form.  
 - **Engaged:** Replied to the email directly.
 
+<meta name="maintainedBy" value="johnjeremiah">
+<meta name="title" value="🫧 Marketing Ops">
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing Ops">
