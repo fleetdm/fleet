@@ -17,7 +17,7 @@ type HostCertificateTemplate struct {
 	UUID                  string                    `db:"uuid"`
 	CreatedAt             string                    `db:"created_at"`
 	UpdatedAt             string                    `db:"updated_at"`
-	NotValidBefore        *time.Time                `db:"not_valid_before"` // for future use
+	NotValidBefore        *time.Time                `db:"not_valid_before"`
 	NotValidAfter         *time.Time                `db:"not_valid_after"`
 	Serial                *string                   `db:"serial"` // for future use
 }
