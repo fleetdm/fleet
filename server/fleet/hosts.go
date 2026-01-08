@@ -217,6 +217,9 @@ type HostListOptions struct {
 	// PopulateLabels adds the `Labels` array field to all host responses returned
 	PopulateLabels bool
 
+	// PopulateDeviceStatus adds the `MDM` field with the `device_status` & `pending_action` sub fields to all hosts returned
+	PopulateDeviceStatus bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 
@@ -1055,6 +1058,11 @@ func IsLinux(hostPlatform string) bool {
 
 func IsApplePlatform(hostPlatform string) bool {
 	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
+// Return true if the platform is either iOS or iPadOS
+func IsAppleMobilePlatform(hostPlatform string) bool {
+	return hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
 func IsAndroidPlatform(hostPlatform string) bool {

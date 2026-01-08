@@ -186,7 +186,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	})
 
 	// Step: Create a certificate template
-	certTemplateName := t.Name() + "-CertTemplate"
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
 	var createResp createCertificateTemplateResponse
 	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
 		Name:                   certTemplateName,
@@ -198,7 +198,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	certificateTemplateID := createResp.ID
 
 	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeCreatedCertificate{}.ActivityName(),
+		fleet.ActivityTypeAddedCertificate{}.ActivityName(),
 		fmt.Sprintf(
 			`{"team_id": %d, "team_name": %q, "name": %q}`,
 			teamID,
@@ -307,7 +307,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	caID := ca.ID
 
 	// Step: Create certificate template via spec/certificates endpoint with $FLEET_VAR_HOST_UUID
-	certTemplateName := t.Name() + "-CertTemplate"
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
 	var applyResp applyCertificateTemplateSpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
@@ -429,7 +429,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	caID := ca.ID
 
 	// Step: Create certificate template for "no team" (team_id = 0) with IDP_USERNAME variable
-	certTemplateName := t.Name() + "-CertTemplate"
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
 	var createResp createCertificateTemplateResponse
 	subjectName := "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
@@ -586,7 +586,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
 
 	// Step: Create the first certificate template (while host is enrolled)
-	certTemplateName := t.Name() + "-CertTemplate1"
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate1"
 	var createResp createCertificateTemplateResponse
 	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
 		Name:                   certTemplateName,
@@ -614,7 +614,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.Equal(t, 0, enrolledStatus, "Host should be marked as unenrolled in host_mdm")
 
 	// Step: Create a second certificate template while host is unenrolled
-	certTemplateName2 := t.Name() + "-CertTemplate2"
+	certTemplateName2 := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate2"
 	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
 		Name:                   certTemplateName2,
 		TeamID:                 teamID,

@@ -100,14 +100,22 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 //////////////////////////////////////////////////////////////////////////////
 
 type updateAppStoreAppRequest struct {
-	TitleID          uint            `url:"title_id"`
-	TeamID           *uint           `json:"team_id"`
-	SelfService      *bool           `json:"self_service"`
-	LabelsIncludeAny []string        `json:"labels_include_any"`
-	LabelsExcludeAny []string        `json:"labels_exclude_any"`
-	Categories       []string        `json:"categories"`
-	Configuration    json.RawMessage `json:"configuration,omitempty"`
-	DisplayName      *string         `json:"display_name"`
+	TitleID           uint            `url:"title_id"`
+	TeamID            *uint           `json:"team_id"`
+	SelfService       *bool           `json:"self_service"`
+	LabelsIncludeAny  []string        `json:"labels_include_any"`
+	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
+	Categories        []string        `json:"categories"`
+	Configuration     json.RawMessage `json:"configuration,omitempty"`
+	DisplayName       *string         `json:"display_name"`
+	AutoUpdateEnabled *bool           `json:"auto_update_enabled,omitempty"`
+	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
+	// AutoUpdateStartTime is the end of the maintenance window for the software title.
+	// If the end time is less than the start time, the window wraps to the next day.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -130,6 +138,18 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 	})
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
+	}
+
+	if req.AutoUpdateEnabled != nil {
+		// Update AutoUpdateConfig separately
+		err = svc.UpdateSoftwareTitleAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   req.AutoUpdateEnabled,
+			AutoUpdateStartTime: req.AutoUpdateStartTime,
+			AutoUpdateEndTime:   req.AutoUpdateEndTime,
+		})
+		if err != nil {
+			return updateAppStoreAppResponse{Err: err}, nil
+		}
 	}
 
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil

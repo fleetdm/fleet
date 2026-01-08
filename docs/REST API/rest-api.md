@@ -4197,7 +4197,7 @@ _Available in Fleet Premium_
 
 ### Turn off host's MDM
 
-Turns off MDM for the specified macOS, iOS, or iPadOS host.
+Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
 
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
@@ -5505,14 +5505,15 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
     "display_text": "macOS hosts (x86_64)",
     "count": 0,
     "host_ids": null,
-    "author_id": 1
+    "author_id": 1,
+    "team_id": null
   }
 }
 ```
 
 ### Update label
 
-Updates the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
+Updates the specified label. Note: Label queries, platforms, and teams are immutable. To change these, you must delete the label and create a new label.
 
 `PATCH /api/v1/fleet/labels/:id`
 
@@ -5559,7 +5560,9 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
     "display_text": "My label",
     "count": 2,
     "host_ids": [42, 43],
-    "author_id": 1
+    "author_id": 1,
+    "team_id": null,
+    "team_name": null
   }
 }
 ```
@@ -5598,16 +5601,24 @@ Returns the specified label.
     "display_text": "Ubuntu",
     "count": 0,
     "host_ids": null,
-    "author_id": 1
+    "author_id": 1,
+    "team_id": null,
+    "team_name": null
   }
 }
 ```
 
 ### Get labels summary
 
-Returns a list of all the labels in Fleet.
+Returns a list of labels in Fleet, including basic information on each label.
 
 `GET /api/v1/fleet/labels/summary`
+
+#### Parameters
+
+| Name            | Type    | In    | Description   |
+| --------------- | ------- | ----- |------------------------------------- |
+| team_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team, plus global labels. Specify `"global"` to show only globally-available labels. If omitted, Fleet returns all global labels, plus all labels for teams to which the requestor has access. |
 
 #### Example
 
@@ -5624,31 +5635,43 @@ Returns a list of all the labels in Fleet.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
     },
     {
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
     },
     {
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
     },
     {
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
     },
     {
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "label_type": "builtin"
+      "label_type": "builtin",
+      "team_id": null
+    },
+    {
+      "id": 11,
+      "name": "My team-specific label",
+      "description": "This one goes to eleven, but only on one team",
+      "label_type": "regular",
+      "team_id": 1
     }
   ]
 }
@@ -5656,7 +5679,7 @@ Returns a list of all the labels in Fleet.
 
 ### List labels
 
-Returns a list of all the labels in Fleet.
+Returns a list of labels.
 
 `GET /api/v1/fleet/labels`
 
@@ -5664,9 +5687,10 @@ Returns a list of all the labels in Fleet.
 
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
-| include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information.
+| include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information. |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| team_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team, plus global labels. Specify `"global"` to show only globally-available labels. If omitted, Fleet returns all global labels, plus all labels for teams to which the requestor has access. |
 
 When `include_host_counts` is `true` (or omitted), `host_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `host_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
 
@@ -5694,7 +5718,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "All Hosts",
       "count": 7,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5710,7 +5735,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "macOS",
       "count": 1,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5726,7 +5752,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "Ubuntu Linux",
       "count": 3,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5741,7 +5768,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "CentOS Linux",
       "count": 3,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5756,7 +5784,24 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "display_text": "MS Windows",
       "count": 0,
       "host_ids": null,
-      "author_id": 1
+      "author_id": 1,
+      "team_id": null
+    },
+    {
+      "created_at": "2025-11-13T06:14:20Z",
+      "updated_at": "2025-11-13T06:14:20Z",
+      "id": 4663,
+      "name": "Team: g-software",
+      "description": "Workstations used by team g-software",
+      "query": "",
+      "platform": "",
+      "label_type": "regular",
+      "label_membership_type": "manual",
+      "display_text": "Team: g-software",
+      "count": 0,
+      "host_ids": null,
+      "author_id": 1,
+      "team_id": 2
     }
   ]
 }
@@ -9858,7 +9903,7 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| platform | string | query | Filter software titles by platforms. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
+| platform | string | query | Filters software titles available for install by platforms. `team_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
 | exclude_fleet_maintained_apps | boolean | query | If `true` or `1`, Fleet maintained apps will not be included in the list of `software_titles`. Default is `false` |
 
 
@@ -10731,7 +10776,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | software        | file    | form | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | display_name    | string  | form | Optional override for the default `name`. |
-| categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| categories        | array | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
@@ -11060,10 +11105,10 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store app from the specified team.  |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
-| categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
+| categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
+| configuration | object | body | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
