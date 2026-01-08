@@ -26,6 +26,18 @@ func TestGetBaseURL(t *testing.T) {
 		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL)
 		require.Equal(t, customURL, getBaseURL())
 	})
+
+	t.Run("Custom Region", func(t *testing.T) {
+		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "")
+		os.Setenv("FLEET_DEV_VPP_REGION", "fr")
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+	})
+
+	t.Run("Direct to Apple", func(t *testing.T) {
+		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple")
+		os.Setenv("FLEET_DEV_VPP_REGION", "")
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+	})
 }
 
 func setupFakeServer(t *testing.T, handler http.HandlerFunc) {

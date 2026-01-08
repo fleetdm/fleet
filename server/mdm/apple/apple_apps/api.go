@@ -224,14 +224,17 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 }
 
 func getBaseURL() string {
-	devURL := os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
-	if devURL == "apple" {
-		return "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo"
+	region := "us"
+	if os.Getenv("FLEET_DEV_VPP_REGION") != "" {
+		region = os.Getenv("FLEET_DEV_VPP_REGION")
 	}
-	if devURL != "" {
-		return devURL
+	if os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") == "apple" {
+		return fmt.Sprintf("https://api.ent.apple.com/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
 	}
-	return "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo"
+	if os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") != "" {
+		return os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
+	}
+	return fmt.Sprintf("https://fleetdm.com/api/vpp/v1/metadata/%s?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
 }
 
 type authResp struct {
