@@ -1,6 +1,6 @@
 # Configuration for contributors
 
-Don't use these Fleet server configuration options. For Fleet server configuraiton, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
+Don't use these Fleet server configuration options. For Fleet server configuration, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
 
 These options in this document are only used when contributing to Fleet. They frequently change to reflect current functionality.
 
@@ -221,6 +221,25 @@ license:
   key: foobar
   enforce_host_limit: false
 ```
+
+### FLEET_DEV_VPP_REGION
+
+Override the default region (`us`) for the Apple App Store storefront.
+
+This is only available as an environment variable (not as YAML).
+
+### FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL
+
+Override the default URL (a Fleet-managed proxy) for retrieving VPP app metadata. Specify `apple` to interact with Apple's API directly
+(in which case you'll also need to set `FLEET_DEV_VPP_METADATA_BEARER_TOKEN`).
+
+This is only available as an environment variable (not as YAML).
+
+### FLEET_DEV_VPP_METADATA_BEARER_TOKEN
+
+Override the bearer token provided alongside VPP metadata requests. By default, Fleet will request a bearer token from
+the Fleet-run proxy when a token doesn't exist, or if auth fails. Auto-generated tokens are only good for interacting
+with the Fleet proxy, not Apple directly.
 
 ## YAML files
 
