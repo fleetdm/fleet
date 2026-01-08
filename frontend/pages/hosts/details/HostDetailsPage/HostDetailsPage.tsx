@@ -1697,7 +1697,6 @@ Observer plus must be checked against host's team id  */
             }}
             onClickLock={() => {
               setShowLockHostModal(true);
-              // setShowLocationModal(false);
               setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
