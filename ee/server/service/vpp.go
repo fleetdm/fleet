@@ -781,6 +781,20 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, nil, err
 	}
 
+	// If there's an auto-update config, validate it.
+	// Note that applying this config is done in a separate service method.
+	schedule := fleet.SoftwareAutoUpdateSchedule{
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   payload.AutoUpdateEnabled,
+			AutoUpdateStartTime: payload.AutoUpdateStartTime,
+			AutoUpdateEndTime:   payload.AutoUpdateEndTime,
+		},
+	}
+
+	if err := schedule.WindowIsValid(); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating auto-update schedule")
+	}
+
 	var teamName string
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)

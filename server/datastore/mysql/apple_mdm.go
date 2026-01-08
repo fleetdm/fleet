@@ -3253,7 +3253,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 // Optional hostUUID to list profiles to install for a single host instead of all.
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := ds.withReadTx(ctx, func(tx fleet.DBReadTx) error {
+	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var err error
 		profiles, err = ds.listMDMAppleProfilesToInstallTransaction(ctx, tx, hostUUID)
 		return err
@@ -3262,7 +3262,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID
 	return profiles, err
 }
 
-func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Context, tx fleet.DBReadTx, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
+func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Context, tx common_mysql.DBReadTx, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
 	query := fmt.Sprintf(`
 	SELECT
 		ds.profile_uuid,
@@ -3283,7 +3283,7 @@ func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Contex
 
 func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := ds.withReadTx(ctx, func(tx fleet.DBReadTx) error {
+	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var err error
 		profiles, err = ds.listMDMAppleProfilesToRemoveTransaction(ctx, tx)
 		return err
@@ -3292,7 +3292,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	return profiles, err
 }
 
-func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context, tx fleet.DBReadTx) ([]*fleet.MDMAppleProfilePayload, error) {
+func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context, tx common_mysql.DBReadTx) ([]*fleet.MDMAppleProfilePayload, error) {
 	// Note: although some of these values (like secrets_updated_at) are not strictly necessary for profile removal,
 	// we are keeping them here for consistency.
 	query := fmt.Sprintf(`
@@ -3318,7 +3318,7 @@ func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context
 func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
 	var profilesToInstall []*fleet.MDMAppleProfilePayload
 	var profilesToRemove []*fleet.MDMAppleProfilePayload
-	err := ds.withReadTx(ctx, func(tx fleet.DBReadTx) error {
+	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var err error
 		profilesToInstall, err = ds.listMDMAppleProfilesToInstallTransaction(ctx, tx, "")
 		if err != nil {

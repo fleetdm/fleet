@@ -217,8 +217,8 @@ type HostListOptions struct {
 	// PopulateLabels adds the `Labels` array field to all host responses returned
 	PopulateLabels bool
 
-	// PopulateDeviceStatus adds the `MDM` field with the `device_status` & `pending_action` sub fields to all hosts returned
-	PopulateDeviceStatus bool
+	// IncludeDeviceStatus adds the `MDM` field with the `device_status` & `pending_action` sub fields to all hosts returned
+	IncludeDeviceStatus bool
 
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
