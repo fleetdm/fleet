@@ -39,7 +39,6 @@ describe("TransferHostModal", () => {
   it("renders title for single host and label", () => {
     setup();
 
-    screen.queryByRole;
     expect(
       screen.getByText((content, element) => {
         return (
