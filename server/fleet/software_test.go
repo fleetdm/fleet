@@ -500,3 +500,317 @@ func TestHostSoftwareInstalledVersionMarshalJSONLastOpenedAt(t *testing.T) {
 		})
 	}
 }
+
+func TestSoftwareUnmarshalJSON(t *testing.T) {
+	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	nowStr := now.Format(time.RFC3339)
+
+	tests := []struct {
+		name          string
+		input         string
+		expectedValue *time.Time
+		expectError   bool
+	}{
+		{
+			name:          "null value",
+			input:         `{"id": 1, "name": "Test", "source": "apps", "last_opened_at": null}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "empty string",
+			input:         `{"id": 1, "name": "Test", "source": "apps", "last_opened_at": ""}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "valid timestamp",
+			input:         fmt.Sprintf(`{"id": 1, "name": "Test", "source": "apps", "last_opened_at": %q}`, nowStr),
+			expectedValue: &now,
+			expectError:   false,
+		},
+		{
+			name:          "missing field",
+			input:         `{"id": 1, "name": "Test", "source": "apps"}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "invalid timestamp format",
+			input:         `{"id": 1, "name": "Test", "source": "apps", "last_opened_at": "invalid"}`,
+			expectedValue: nil,
+			expectError:   true,
+		},
+		{
+			name:          "invalid JSON",
+			input:         `{invalid json}`,
+			expectedValue: nil,
+			expectError:   true,
+		},
+		{
+			name:          "boolean value (should error)",
+			input:         `{"id": 1, "name": "Test", "source": "apps", "last_opened_at": true}`,
+			expectedValue: nil,
+			expectError:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s Software
+			err := json.Unmarshal([]byte(tt.input), &s)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tt.expectedValue == nil {
+					require.Nil(t, s.LastOpenedAt)
+				} else {
+					require.NotNil(t, s.LastOpenedAt)
+					require.True(t, s.LastOpenedAt.Equal(*tt.expectedValue))
+				}
+			}
+		})
+	}
+
+	// Test round-trip marshaling/unmarshaling
+	t.Run("round-trip", func(t *testing.T) {
+		original := Software{
+			ID:     1,
+			Name:   "Test Software",
+			Source: "apps",
+			Version: "1.0.0",
+			LastOpenedAt: &now,
+		}
+
+		data, err := json.Marshal(original)
+		require.NoError(t, err)
+
+		var unmarshaled Software
+		err = json.Unmarshal(data, &unmarshaled)
+		require.NoError(t, err)
+
+		require.NotNil(t, unmarshaled.LastOpenedAt)
+		require.True(t, unmarshaled.LastOpenedAt.Equal(now))
+	})
+}
+
+func TestHostSoftwareEntryUnmarshalJSON(t *testing.T) {
+	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	nowStr := now.Format(time.RFC3339)
+
+	tests := []struct {
+		name          string
+		input         string
+		expectedValue *time.Time
+		expectError   bool
+	}{
+		{
+			name:          "null value",
+			input:         `{"id": 1, "name": "Test", "source": "apps", "last_opened_at": null, "installed_paths": []}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "empty string",
+			input:         `{"id": 1, "name": "Test", "source": "apps", "last_opened_at": "", "installed_paths": []}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "valid timestamp",
+			input:         fmt.Sprintf(`{"id": 1, "name": "Test", "version": "1.0.0", "source": "apps", "last_opened_at": %q, "installed_paths": []}`, nowStr),
+			expectedValue: &now,
+			expectError:   false,
+		},
+		{
+			name:          "missing field",
+			input:         `{"id": 1, "name": "Test", "source": "apps", "installed_paths": []}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "invalid timestamp format",
+			input:         `{"id": 1, "name": "Test", "source": "apps", "last_opened_at": "invalid", "installed_paths": []}`,
+			expectedValue: nil,
+			expectError:   true,
+		},
+		{
+			name:          "invalid JSON",
+			input:         `{invalid json}`,
+			expectedValue: nil,
+			expectError:   true,
+		},
+		{
+			name:          "with installed_paths and signature_information",
+			input:         fmt.Sprintf(`{"id": 1, "name": "Test", "version": "1.0.0", "source": "apps", "last_opened_at": %q, "installed_paths": ["/usr/local/bin/test"], "signature_information": [{"installed_path": "/usr/local/bin/test", "team_identifier": "ABC123"}]}`, nowStr),
+			expectedValue: &now,
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var hse HostSoftwareEntry
+			err := json.Unmarshal([]byte(tt.input), &hse)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tt.expectedValue == nil {
+					require.Nil(t, hse.LastOpenedAt)
+				} else {
+					require.NotNil(t, hse.LastOpenedAt, "LastOpenedAt should be set for test case: %s", tt.name)
+					require.True(t, hse.LastOpenedAt.Equal(*tt.expectedValue))
+				}
+			}
+		})
+	}
+
+	// Test round-trip marshaling/unmarshaling
+	t.Run("round-trip", func(t *testing.T) {
+		original := HostSoftwareEntry{
+			Software: Software{
+				ID:     1,
+				Name:   "Test Software",
+				Source: "apps",
+				Version: "1.0.0",
+				LastOpenedAt: &now,
+			},
+			InstalledPaths: []string{"/usr/local/bin/test"},
+			PathSignatureInformation: []PathSignatureInformation{
+				{
+					InstalledPath:  "/usr/local/bin/test",
+					TeamIdentifier: "ABC123",
+				},
+			},
+		}
+
+		data, err := json.Marshal(original)
+		require.NoError(t, err)
+
+		// Verify the JSON includes last_opened_at for supported sources
+		var jsonMap map[string]any
+		err = json.Unmarshal(data, &jsonMap)
+		require.NoError(t, err)
+		require.Contains(t, jsonMap, "last_opened_at", "JSON should include last_opened_at for supported sources")
+
+		var unmarshaled HostSoftwareEntry
+		err = json.Unmarshal(data, &unmarshaled)
+		require.NoError(t, err)
+
+		// Verify all fields are preserved in round-trip
+		require.Equal(t, original.Source, unmarshaled.Source, "Source should be preserved")
+		require.NotNil(t, unmarshaled.LastOpenedAt, "LastOpenedAt should be preserved for supported sources")
+		require.True(t, unmarshaled.LastOpenedAt.Equal(now))
+		require.Equal(t, original.InstalledPaths, unmarshaled.InstalledPaths)
+		require.Equal(t, original.PathSignatureInformation, unmarshaled.PathSignatureInformation)
+	})
+}
+
+func TestHostSoftwareInstalledVersionUnmarshalJSON(t *testing.T) {
+	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	nowStr := now.Format(time.RFC3339)
+
+	tests := []struct {
+		name          string
+		input         string
+		expectedValue *time.Time
+		expectError   bool
+	}{
+		{
+			name:          "null value",
+			input:         `{"version": "1.0.0", "bundle_identifier": "com.test", "source": "apps", "last_opened_at": null, "vulnerabilities": [], "installed_paths": []}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "empty string",
+			input:         `{"version": "1.0.0", "bundle_identifier": "com.test", "source": "apps", "last_opened_at": "", "vulnerabilities": [], "installed_paths": []}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "valid timestamp",
+			input:         fmt.Sprintf(`{"version": "1.0.0", "bundle_identifier": "com.test", "source": "apps", "last_opened_at": %q, "vulnerabilities": [], "installed_paths": []}`, nowStr),
+			expectedValue: &now,
+			expectError:   false,
+		},
+		{
+			name:          "missing field",
+			input:         `{"version": "1.0.0", "bundle_identifier": "com.test", "source": "apps", "vulnerabilities": [], "installed_paths": []}`,
+			expectedValue: nil,
+			expectError:   false,
+		},
+		{
+			name:          "invalid timestamp format",
+			input:         `{"version": "1.0.0", "bundle_identifier": "com.test", "source": "apps", "last_opened_at": "invalid", "vulnerabilities": [], "installed_paths": []}`,
+			expectedValue: nil,
+			expectError:   true,
+		},
+		{
+			name:          "invalid JSON",
+			input:         `{invalid json}`,
+			expectedValue: nil,
+			expectError:   true,
+		},
+		{
+			name:          "with vulnerabilities and installed_paths",
+			input:         fmt.Sprintf(`{"version": "1.0.0", "bundle_identifier": "com.test", "source": "apps", "last_opened_at": %q, "vulnerabilities": ["CVE-2023-1234"], "installed_paths": ["/usr/local/bin/test"], "signature_information": [{"installed_path": "/usr/local/bin/test"}]}`, nowStr),
+			expectedValue: &now,
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var hsv HostSoftwareInstalledVersion
+			err := json.Unmarshal([]byte(tt.input), &hsv)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tt.expectedValue == nil {
+					require.Nil(t, hsv.LastOpenedAt)
+				} else {
+					require.NotNil(t, hsv.LastOpenedAt)
+					require.True(t, hsv.LastOpenedAt.Equal(*tt.expectedValue))
+				}
+			}
+		})
+	}
+
+	// Test round-trip marshaling/unmarshaling
+	t.Run("round-trip", func(t *testing.T) {
+		original := HostSoftwareInstalledVersion{
+			Version:          "1.0.0",
+			BundleIdentifier: "com.test",
+			Source:           "apps",
+			LastOpenedAt:     &now,
+			Vulnerabilities:  []string{"CVE-2023-1234"},
+			InstalledPaths:   []string{"/usr/local/bin/test"},
+			SignatureInformation: []PathSignatureInformation{
+				{
+					InstalledPath:  "/usr/local/bin/test",
+					TeamIdentifier: "ABC123",
+				},
+			},
+		}
+
+		data, err := json.Marshal(original)
+		require.NoError(t, err)
+
+		var unmarshaled HostSoftwareInstalledVersion
+		err = json.Unmarshal(data, &unmarshaled)
+		require.NoError(t, err)
+
+		require.NotNil(t, unmarshaled.LastOpenedAt)
+		require.True(t, unmarshaled.LastOpenedAt.Equal(now))
+		require.Equal(t, original.Vulnerabilities, unmarshaled.Vulnerabilities)
+		require.Equal(t, original.InstalledPaths, unmarshaled.InstalledPaths)
+		require.Equal(t, original.SignatureInformation, unmarshaled.SignatureInformation)
+	})
+}
