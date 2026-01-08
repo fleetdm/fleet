@@ -5,8 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -18,12 +16,12 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -294,6 +292,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
 	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
@@ -645,6 +646,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
 	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
@@ -1247,6 +1251,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return nil, nil
 	}
 
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 	setupDefaultTeamConfigMocks(ds)
 
@@ -1524,50 +1532,6 @@ software:
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
 }
 
-func createFakeITunesAndVPPServices(t *testing.T) {
-	config := &testing_utils.AppleVPPConfigSrvConf{
-		Assets: []vpp.Asset{
-			{
-				AdamID:         "1",
-				PricingParam:   "STDQ",
-				AvailableCount: 12,
-			},
-			{
-				AdamID:         "2",
-				PricingParam:   "STDQ",
-				AvailableCount: 3,
-			},
-		},
-		SerialNumbers: []string{"123", "456"},
-	}
-	testing_utils.StartVPPApplyServer(t, config)
-
-	appleITunesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with
-		db := map[string]string{
-			// macos app
-			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-			// macos, ios, ipados app
-			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
-			// ipados app
-			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
-				"supportedDevices": ["iPadAir-iPadAir"] }`,
-		}
-
-		adamIDString := r.URL.Query().Get("id")
-		adamIDs := strings.Split(adamIDString, ",")
-
-		var objs []string
-		for _, a := range adamIDs {
-			objs = append(objs, db[a])
-		}
-
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
-	}))
-	t.Setenv("FLEET_DEV_ITUNES_URL", appleITunesSrv.URL)
-}
-
 func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -1809,8 +1773,14 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 		return nil, nil
 	}
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
 
-	createFakeITunesAndVPPServices(t)
+	testing_utils.StartAndServeVPPServer(t)
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -4520,6 +4490,9 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
 
 	// Track default team config for team 0
 	defaultTeamConfig := &fleet.TeamConfig{}
@@ -4674,5 +4647,105 @@ software:
 		// Verify neither function was called
 		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
 		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
+	})
+}
+
+func TestComputeLabelChanges(t *testing.T) {
+	testCases := []struct {
+		name            string
+		filename        string
+		teamName        string
+		existingLabels  []*fleet.LabelSpec
+		specifiedLabels []*fleet.LabelSpec
+		expected        []spec.LabelChange
+	}{
+		{
+			name:     "no specified labels removes all regular labels",
+			filename: "config.yml",
+			teamName: "team1",
+			existingLabels: []*fleet.LabelSpec{
+				{Name: "label1", LabelType: fleet.LabelTypeRegular},
+				{Name: "built-in", LabelType: fleet.LabelTypeBuiltIn},
+			},
+			specifiedLabels: nil,
+			expected: []spec.LabelChange{
+				{Name: "label1", Op: "-", TeamName: "team1", FileName: "config.yml"},
+			},
+		},
+		{
+			name:     "empty list of specified labels is a no-op",
+			filename: "config.yml",
+			teamName: "team1",
+			existingLabels: []*fleet.LabelSpec{
+				{Name: "label1", LabelType: fleet.LabelTypeRegular},
+			},
+			specifiedLabels: []*fleet.LabelSpec{},
+			expected: []spec.LabelChange{
+				{Name: "label1", Op: "=", TeamName: "team1", FileName: "config.yml"},
+			},
+		},
+		{
+			name:     "add, remove, and keep labels",
+			filename: "config.yml",
+			teamName: "team1",
+			existingLabels: []*fleet.LabelSpec{
+				{Name: "to-remove", LabelType: fleet.LabelTypeRegular},
+				{Name: "to-keep", LabelType: fleet.LabelTypeRegular},
+			},
+			specifiedLabels: []*fleet.LabelSpec{
+				{Name: "to-keep"},
+				{Name: "to-add"},
+			},
+			expected: []spec.LabelChange{
+				{Name: "to-remove", Op: "-", TeamName: "team1", FileName: "config.yml"},
+				{Name: "to-keep", Op: "=", TeamName: "team1", FileName: "config.yml"},
+				{Name: "to-add", Op: "+", TeamName: "team1", FileName: "config.yml"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels)
+			require.ElementsMatch(t, tc.expected, changes)
+		})
+	}
+}
+
+func TestComputeLabelMoves(t *testing.T) {
+	t.Run("valid move between teams", func(t *testing.T) {
+		allChanges := map[string][]spec.LabelChange{
+			"team1": { // Team 1 deletes "move-me"
+				{Name: "move-me", Op: "-", TeamName: "team1", FileName: "t1.yml"},
+			},
+			"team2": { // Team 2 adds "move-me"
+				{Name: "move-me", Op: "+", TeamName: "team2", FileName: "t2.yml"},
+			},
+		}
+
+		moves, err := computeLabelMoves(allChanges)
+		require.NoError(t, err)
+		require.Len(t, moves["team2"], 1)
+		require.Equal(t, "move-me", moves["team2"][0].Name)
+		require.Equal(t, "team1", moves["team2"][0].FromTeamName)
+		require.Equal(t, "team2", moves["team2"][0].ToTeamName)
+	})
+
+	t.Run("conflict: duplicate delete", func(t *testing.T) {
+		allChanges := map[string][]spec.LabelChange{
+			"team1": {{Name: "conflict", Op: "-", FileName: "file1.yml"}},
+			"team2": {{Name: "conflict", Op: "-", FileName: "file2.yml"}},
+		}
+		_, err := computeLabelMoves(allChanges)
+		require.ErrorContains(t, err, "already being deleted")
+	})
+
+	t.Run("conflict: duplicate add", func(t *testing.T) {
+		allChanges := map[string][]spec.LabelChange{
+			"team1": {{Name: "conflict", Op: "+", FileName: "file1.yml"}},
+			"team2": {{Name: "conflict", Op: "+", FileName: "file2.yml"}},
+		}
+		_, err := computeLabelMoves(allChanges)
+		require.ErrorContains(t, err, "already being added")
 	})
 }

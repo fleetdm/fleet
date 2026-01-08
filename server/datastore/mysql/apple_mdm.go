@@ -20,13 +20,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -164,15 +164,18 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 			var errorMessage string
 			// If you change this URL you may need to change the frontend code as well which adds a
 			// nicely formatted link to the error message.
-			const learnMoreUrl = "https://fleetdm.com/learn-more-about/configuration-profiles-user-channel"
+			const learnMoreUserChannel = "https://fleetdm.com/learn-more-about/configuration-profiles-user-channel"
 			if isEdit {
 				if scopeImplicitlyChanged {
-					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because it was previously delivered to some hosts on the device channel. Change "PayloadScope" to "System" to keep existing behavior. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUrl)
+					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because it was previously delivered to some hosts on the device channel. Change "PayloadScope" to "System" to keep existing behavior. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUserChannel)
 				} else {
-					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because the profile's "PayloadScope" has changed. To change the “PayloadScope” of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUrl)
+					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because the profile's "PayloadScope" has changed. To change the “PayloadScope” of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUserChannel)
 				}
 			} else {
-				errorMessage = fmt.Sprintf(`Couldn't add configuration profile (%s) because "PayloadScope" conflicts with another profile with same identifier on a different team. Please use different identifier and try again. Learn more: %s`, cp.Identifier, learnMoreUrl)
+				// If you change this URL you may need to change the frontend code as well which adds a
+				// nicely formatted link to the error message.
+				const learnMoreSameScope = "https://fleetdm.com/learn-more-about/macos-configuration-profiles-same-scope"
+				errorMessage = fmt.Sprintf(`Couldn't add configuration profile. This profile has the same "PayloadIdentifier" but a different "PayloadScope" as another profile in a separate team. Learn more: %s`, learnMoreSameScope)
 			}
 			return &fleet.BadRequestError{Message: errorMessage}
 		}
@@ -3250,7 +3253,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 // Optional hostUUID to list profiles to install for a single host instead of all.
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := ds.withReadTx(ctx, func(tx fleet.DBReadTx) error {
+	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var err error
 		profiles, err = ds.listMDMAppleProfilesToInstallTransaction(ctx, tx, hostUUID)
 		return err
@@ -3259,7 +3262,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID
 	return profiles, err
 }
 
-func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Context, tx fleet.DBReadTx, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
+func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Context, tx common_mysql.DBReadTx, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
 	query := fmt.Sprintf(`
 	SELECT
 		ds.profile_uuid,
@@ -3280,7 +3283,7 @@ func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Contex
 
 func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := ds.withReadTx(ctx, func(tx fleet.DBReadTx) error {
+	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var err error
 		profiles, err = ds.listMDMAppleProfilesToRemoveTransaction(ctx, tx)
 		return err
@@ -3289,7 +3292,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	return profiles, err
 }
 
-func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context, tx fleet.DBReadTx) ([]*fleet.MDMAppleProfilePayload, error) {
+func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context, tx common_mysql.DBReadTx) ([]*fleet.MDMAppleProfilePayload, error) {
 	// Note: although some of these values (like secrets_updated_at) are not strictly necessary for profile removal,
 	// we are keeping them here for consistency.
 	query := fmt.Sprintf(`
@@ -3315,7 +3318,7 @@ func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context
 func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
 	var profilesToInstall []*fleet.MDMAppleProfilePayload
 	var profilesToRemove []*fleet.MDMAppleProfilePayload
-	err := ds.withReadTx(ctx, func(tx fleet.DBReadTx) error {
+	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var err error
 		profilesToInstall, err = ds.listMDMAppleProfilesToInstallTransaction(ctx, tx, "")
 		if err != nil {
@@ -7071,4 +7074,40 @@ func (ds *Datastore) SetLockCommandForLostModeCheckin(ctx context.Context, hostI
 	`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, commandUUID)
 	return ctxerr.Wrap(ctx, err, "set lock ref for lost mode checkin")
+}
+
+func (ds *Datastore) InsertHostLocationData(ctx context.Context, locData fleet.HostLocationData) error {
+	const stmt = `
+		INSERT INTO host_last_known_locations
+			(host_id, latitude, longitude)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			latitude = VALUES(latitude),
+			longitude = VALUES(longitude)
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, locData.HostID, locData.Latitude, locData.Longitude)
+	return ctxerr.Wrap(ctx, err, "insert host location data")
+}
+
+func (ds *Datastore) GetHostLocationData(ctx context.Context, hostID uint) (*fleet.HostLocationData, error) {
+
+	var ret fleet.HostLocationData
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &ret, "SELECT host_id, latitude, longitude FROM host_last_known_locations WHERE host_id = ?", hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostLocation"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host location data")
+	}
+
+	return &ret, nil
+}
+
+func (ds *Datastore) DeleteHostLocationData(ctx context.Context, hostID uint) error {
+	const stmt = `
+	 	DELETE FROM host_last_known_locations WHERE host_id = ?
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID)
+	return ctxerr.Wrap(ctx, err, "delete host location data")
 }

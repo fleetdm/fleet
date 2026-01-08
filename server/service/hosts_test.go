@@ -3839,14 +3839,14 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 	}
 
 	// Test scenarios
-	t.Run("no populating device status", func(t *testing.T) {
+	t.Run("no including device status", func(t *testing.T) {
 		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
 			// Return empty map - no MDM actions for any host
 			return make(map[uint]*fleet.HostLockWipeStatus), nil
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: false})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: false})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 		require.False(t, ds.GetHostsLockWipeStatusBatchFuncInvoked)
@@ -3866,7 +3866,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 		require.True(t, ds.GetHostsLockWipeStatusBatchFuncInvoked)
@@ -3892,7 +3892,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -3918,7 +3918,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -3943,7 +3943,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -3968,7 +3968,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -4008,7 +4008,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -4047,7 +4047,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		}
 
 		userContext := test.UserContext(ctx, test.UserAdmin)
-		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
 		require.NoError(t, err)
 		require.Len(t, hosts, 4)
 
@@ -4071,7 +4071,7 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 			return statusMap, nil
 		}
 
-		hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateDeviceStatus: true})
+		hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
 		require.NoError(t, err)
 
 		// Failed script should show unlocked

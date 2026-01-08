@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,13 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"CertificateTemplateFullStateMachine", testCertificateTemplateFullStateMachine},
 		{"RevertStaleCertificateTemplates", testRevertStaleCertificateTemplates},
 		{"SetHostCertificateTemplatesToPendingRemove", testSetHostCertificateTemplatesToPendingRemove},
+		{"SetHostCertificateTemplatesToPendingRemoveForHost", testSetHostCertificateTemplatesToPendingRemoveForHost},
+		{"ListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer", testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer},
+		{"ListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval", testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval},
+		{"GetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval", testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval},
+		{"CertificateTemplateReinstalledAfterTransferBackToOriginalTeam", testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam},
+		{"GetAndroidCertificateTemplatesForRenewal", testGetAndroidCertificateTemplatesForRenewal},
+		{"SetAndroidCertificateTemplatesForRenewal", testSetAndroidCertificateTemplatesForRenewal},
 	}
 
 	for _, c := range cases {
@@ -629,7 +637,13 @@ func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ds.UpsertCertificateStatus(ctx, hostUUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail, tc.operationType)
+			err := ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+				HostUUID:              hostUUID,
+				CertificateTemplateID: tc.templateID,
+				Status:                fleet.MDMDeliveryStatus(tc.newStatus),
+				Detail:                tc.detail,
+				OperationType:         tc.operationType,
+			})
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				var result struct {
@@ -828,7 +842,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, certTemplates.DeliveringTemplateIDs, 2)
 	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, certTemplates.DeliveringTemplateIDs)
-	require.Empty(t, certTemplates.OtherTemplateIDs) // No existing verified/delivered templates yet
+	require.Len(t, certTemplates.Templates, 2)
 
 	// Verify host is no longer in pending list
 	hostUUIDs, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
@@ -840,7 +854,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, certTemplates.DeliveringTemplateIDs, 2) // Already delivering from previous call
 	require.ElementsMatch(t, []uint{setup.template.ID, templateTwo.ID}, certTemplates.DeliveringTemplateIDs)
-	require.Empty(t, certTemplates.OtherTemplateIDs) // No delivered/verified/failed yet
+	require.Len(t, certTemplates.Templates, 2)
 
 	// Verify database shows delivering status
 	records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
@@ -1028,17 +1042,17 @@ func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
 func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	t.Run("deletes pending rows and updates others to pending remove", func(t *testing.T) {
+	t.Run("deletes pending and failed rows and updates others to pending remove", func(t *testing.T) {
 		defer TruncateTables(t, ds)
 		setup := createCertTemplateTestSetup(t, ctx, ds, "")
 
 		// Insert records with various statuses for the same template
 		_, err := ds.writer(ctx).ExecContext(ctx, `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
-			(?, ?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?, ?)
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name, uuid) VALUES
+			(?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true)),
+			(?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true)),
+			(?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true)),
+			(?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true))
 		`,
 			"host-pending", setup.template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, nil, setup.template.Name,
 			"host-delivered", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", setup.template.Name,
@@ -1057,20 +1071,47 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 		require.NoError(t, err)
 		require.Equal(t, 0, count)
 
-		// Verify remaining rows have status=pending and operation_type=remove
+		// Verify the failed row was also deleted
+		err = ds.writer(ctx).GetContext(ctx, &count,
+			"SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?", "host-failed")
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+
+		// Verify remaining rows (delivered, verified) have status=pending and operation_type=remove
 		var remaining []struct {
 			HostUUID      string                 `db:"host_uuid"`
 			Status        string                 `db:"status"`
 			OperationType fleet.MDMOperationType `db:"operation_type"`
+			UUID          string                 `db:"uuid"`
 		}
 		err = ds.writer(ctx).SelectContext(ctx, &remaining,
-			"SELECT host_uuid, status, operation_type FROM host_certificate_templates ORDER BY host_uuid")
+			"SELECT host_uuid, status, operation_type, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid FROM host_certificate_templates ORDER BY host_uuid")
 		require.NoError(t, err)
-		require.Len(t, remaining, 3)
+		require.Len(t, remaining, 2)
 
 		for _, r := range remaining {
 			require.Equal(t, string(fleet.CertificateTemplatePending), r.Status)
 			require.Equal(t, fleet.MDMOperationTypeRemove, r.OperationType)
+			require.NotEmpty(t, r.UUID, "UUID should be set after transition to remove")
+		}
+
+		// Capture UUIDs before second call
+		uuidsBefore := make(map[string]string)
+		for _, r := range remaining {
+			uuidsBefore[r.HostUUID] = r.UUID
+		}
+
+		// Second call should be idempotent - UUIDs should not change
+		err = ds.SetHostCertificateTemplatesToPendingRemove(ctx, setup.template.ID)
+		require.NoError(t, err)
+
+		err = ds.writer(ctx).SelectContext(ctx, &remaining,
+			"SELECT host_uuid, status, operation_type, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid FROM host_certificate_templates ORDER BY host_uuid")
+		require.NoError(t, err)
+		require.Len(t, remaining, 2)
+
+		for _, r := range remaining {
+			require.Equal(t, uuidsBefore[r.HostUUID], r.UUID, "UUID should not change when already in remove state")
 		}
 	})
 
@@ -1130,4 +1171,536 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 		err := ds.SetHostCertificateTemplatesToPendingRemove(ctx, 99999)
 		require.NoError(t, err)
 	})
+}
+
+func testSetHostCertificateTemplatesToPendingRemoveForHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("deletes pending and failed installs, updates other installs, leaves removes unchanged", func(t *testing.T) {
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		// Create additional templates
+		templateTwo, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert2",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test2",
+		})
+		require.NoError(t, err)
+
+		templateThree, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert3",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test3",
+		})
+		require.NoError(t, err)
+
+		templateFour, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Cert4",
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=Test4",
+		})
+		require.NoError(t, err)
+
+		// Insert records for host-1 (the target host) and host-2 (should not be affected)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name) VALUES
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?)
+		`,
+			"host-1", setup.template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, nil, setup.template.Name,
+			"host-1", templateTwo.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge1", templateTwo.Name,
+			"host-1", templateThree.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall, nil, templateThree.Name,
+			"host-1", templateFour.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeRemove, nil, templateFour.Name,
+			"host-2", setup.template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "challenge2", setup.template.Name,
+		)
+		require.NoError(t, err)
+
+		// Call the method for host-1 only
+		err = ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, "host-1")
+		require.NoError(t, err)
+
+		// Verify host-1's pending install was deleted
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count,
+			"SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			"host-1", setup.template.ID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "pending install should be deleted")
+
+		// Verify host-1's failed install was also deleted
+		err = ds.writer(ctx).GetContext(ctx, &count,
+			"SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			"host-1", templateThree.ID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "failed install should be deleted")
+
+		// Verify host-1's delivered install was updated to pending remove
+		var row struct {
+			Status        string                 `db:"status"`
+			OperationType fleet.MDMOperationType `db:"operation_type"`
+		}
+		err = ds.writer(ctx).GetContext(ctx, &row,
+			"SELECT status, operation_type FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			"host-1", templateTwo.ID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.CertificateTemplatePending), row.Status)
+		require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType)
+
+		// Verify host-1's delivering remove was NOT changed (removal in progress)
+		err = ds.writer(ctx).GetContext(ctx, &row,
+			"SELECT status, operation_type FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			"host-1", templateFour.ID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.CertificateTemplateDelivering), row.Status, "remove operation should not change status")
+		require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType, "remove operation should stay as remove")
+
+		// Verify host-2 was NOT affected
+		err = ds.writer(ctx).GetContext(ctx, &row,
+			"SELECT status, operation_type FROM host_certificate_templates WHERE host_uuid = ?", "host-2")
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.CertificateTemplateDelivered), row.Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, row.OperationType)
+	})
+}
+
+// testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer verifies that
+// ListCertificateTemplatesForHosts returns removal entries for templates from a previous team
+// after the host has transferred to a new team.
+func testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Setup: Create two teams with certificate templates using existing helpers
+	setupA := createCertTemplateTestSetup(t, ctx, ds, "Team A for removal test")
+	setupB := createCertTemplateTestSetup(t, ctx, ds, "Team B for removal test")
+
+	// Create host initially in Team A
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setupA.team.ID)
+
+	// Insert verified certificate from Team A using BulkInsertHostCertificateTemplates
+	challenge := "challenge-a"
+	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setupA.template.ID,
+		Status:                fleet.CertificateTemplateVerified,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		FleetChallenge:        &challenge,
+		Name:                  setupA.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Simulate team transfer: move host to Team B using UpdateHost
+	host.TeamID = &setupB.team.ID
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// Mark Team A template for removal using the datastore method
+	err = ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// Insert pending install for Team B template
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setupB.template.ID,
+		Status:                fleet.CertificateTemplatePending,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		Name:                  setupB.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Act: List certificate templates for host
+	results, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
+	require.NoError(t, err)
+
+	require.Len(t, results, 2, "should include both install and removal templates")
+
+	templatesByID := make(map[uint]fleet.CertificateTemplateForHost)
+	for _, r := range results {
+		templatesByID[r.CertificateTemplateID] = r
+	}
+
+	// Team A template should be marked for removal
+	require.Contains(t, templatesByID, setupA.template.ID, "should include Team A template marked for removal")
+	require.NotNil(t, templatesByID[setupA.template.ID].OperationType)
+	require.Equal(t, fleet.MDMOperationTypeRemove, *templatesByID[setupA.template.ID].OperationType)
+	require.NotNil(t, templatesByID[setupA.template.ID].Status)
+	require.Equal(t, fleet.CertificateTemplatePending, *templatesByID[setupA.template.ID].Status)
+
+	// Team B template should be pending install
+	require.Contains(t, templatesByID, setupB.template.ID, "should include Team B template")
+	require.NotNil(t, templatesByID[setupB.template.ID].OperationType)
+	require.Equal(t, fleet.MDMOperationTypeInstall, *templatesByID[setupB.template.ID].OperationType)
+}
+
+// testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval verifies that
+// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts with pending removal templates.
+func testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setup := createCertTemplateTestSetup(t, ctx, ds, "")
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setup.team.ID)
+
+	// Insert a pending removal template using BulkInsertHostCertificateTemplates
+	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setup.template.ID,
+		Status:                fleet.CertificateTemplatePending,
+		OperationType:         fleet.MDMOperationTypeRemove,
+		Name:                  setup.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Act: List hosts with pending templates
+	results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 100)
+	require.NoError(t, err)
+
+	require.Len(t, results, 1, "should include host with pending removal")
+	require.Equal(t, host.UUID, results[0])
+}
+
+// testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval verifies that
+// GetAndTransitionCertificateTemplatesToDelivering handles both install and remove operations.
+func testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setup := createCertTemplateTestSetup(t, ctx, ds, "")
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setup.team.ID)
+
+	// Create second template for removal
+	templateForRemoval, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "Template for Removal",
+		TeamID:                 setup.team.ID,
+		CertificateAuthorityID: setup.ca.ID,
+		SubjectName:            "CN=Template for Removal",
+	})
+	require.NoError(t, err)
+
+	// Insert both pending install and pending removal using BulkInsertHostCertificateTemplates
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: setup.template.ID,
+			Status:                fleet.CertificateTemplatePending,
+			OperationType:         fleet.MDMOperationTypeInstall,
+			Name:                  setup.template.Name,
+		},
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: templateForRemoval.ID,
+			Status:                fleet.CertificateTemplatePending,
+			OperationType:         fleet.MDMOperationTypeRemove,
+			Name:                  templateForRemoval.Name,
+		},
+	})
+	require.NoError(t, err)
+
+	// Act: Transition to delivering
+	result, err := ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// Assert: Should include BOTH install and removal templates
+	// Currently only install is included
+	require.Len(t, result.Templates, 2, "should include both install and removal")
+	require.Len(t, result.DeliveringTemplateIDs, 2, "should transition both to delivering")
+
+	// Verify both templates are in delivering state in the database
+	var statuses []struct {
+		CertificateTemplateID uint   `db:"certificate_template_id"`
+		Status                string `db:"status"`
+		OperationType         string `db:"operation_type"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &statuses,
+		`SELECT certificate_template_id, status, operation_type
+		 FROM host_certificate_templates WHERE host_uuid = ?`, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	for _, s := range statuses {
+		require.Equal(t, string(fleet.CertificateTemplateDelivering), s.Status,
+			"template %d should be in delivering status", s.CertificateTemplateID)
+	}
+
+	// Verify the result contains templates with correct operation types
+	hasInstall := false
+	hasRemove := false
+	for _, tmpl := range result.Templates {
+		if tmpl.OperationType == fleet.MDMOperationTypeInstall {
+			hasInstall = true
+		}
+		if tmpl.OperationType == fleet.MDMOperationTypeRemove {
+			hasRemove = true
+		}
+	}
+	require.True(t, hasInstall, "should include install operation")
+	require.True(t, hasRemove, "should include remove operation")
+}
+
+// testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam verifies that when a host
+// transfers back to its original team, the certificate template that was marked for removal
+// is correctly transitioned back to pending install.
+func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setupA := createCertTemplateTestSetup(t, ctx, ds, "Team A")
+	setupB := createCertTemplateTestSetup(t, ctx, ds, "Team B")
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setupA.team.ID)
+
+	// Host starts with verified cert in Team A
+	challenge := "challenge-a"
+	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setupA.template.ID,
+		Status:                fleet.CertificateTemplateVerified,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		FleetChallenge:        &challenge,
+		Name:                  setupA.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Capture initial UUID
+	initialResults, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
+	require.NoError(t, err)
+	var initialUUID string
+	for _, r := range initialResults {
+		if r.CertificateTemplateID == setupA.template.ID {
+			require.NotNil(t, r.UUID, "initial UUID should be set")
+			initialUUID = *r.UUID
+			break
+		}
+	}
+	require.NotEmpty(t, initialUUID, "initial UUID should not be empty")
+
+	// Transfer to Team B: mark Team A cert for removal, create pending install for Team B
+	host.TeamID = &setupB.team.ID
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
+	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupB.team.ID)
+	require.NoError(t, err)
+
+	// Capture UUID after marking for removal (should be different from initial)
+	removeResults, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
+	require.NoError(t, err)
+	var uuidAfterRemove string
+	for _, r := range removeResults {
+		if r.CertificateTemplateID == setupA.template.ID {
+			require.NotNil(t, r.UUID, "UUID after remove should be set")
+			uuidAfterRemove = *r.UUID
+			break
+		}
+	}
+	require.NotEqual(t, initialUUID, uuidAfterRemove, "UUID should change when marked for removal")
+
+	// Transfer back to Team A: mark Team B cert for removal, re-create pending install for Team A
+	host.TeamID = &setupA.team.ID
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
+	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupA.team.ID)
+	require.NoError(t, err)
+
+	// Team A's cert should now be pending install (not pending remove) with a new UUID
+	results, err := ds.ListCertificateTemplatesForHosts(ctx, []string{host.UUID})
+	require.NoError(t, err)
+
+	var certA *fleet.CertificateTemplateForHost
+	for _, r := range results {
+		if r.CertificateTemplateID == setupA.template.ID {
+			certA = &r
+			break
+		}
+	}
+	require.NotNil(t, certA, "Team A cert should exist")
+	require.Equal(t, fleet.MDMOperationTypeInstall, *certA.OperationType)
+	require.Equal(t, fleet.CertificateTemplatePending, *certA.Status)
+	require.NotNil(t, certA.UUID, "UUID should be set")
+	require.NotEqual(t, uuidAfterRemove, *certA.UUID, "UUID should change when reinstalled")
+}
+
+func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test data
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Name: ptr.String("test ca"),
+		Type: string(fleet.CAConfigCustomSCEPProxy),
+		URL:  ptr.String("http://localhost:8080/scep"),
+	})
+	require.NoError(t, err)
+
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		TeamID:                 team.ID,
+		Name:                   "test template",
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=test",
+	})
+	require.NoError(t, err)
+
+	// Create hosts
+	now := time.Now().UTC()
+	host1 := test.NewHost(t, ds, "host1", "192.168.1.1", "host1_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host2 := test.NewHost(t, ds, "host2", "192.168.1.2", "host2_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host3 := test.NewHost(t, ds, "host3", "192.168.1.3", "host3_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host4 := test.NewHost(t, ds, "host4", "192.168.1.4", "host4_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+
+	// Insert certificate records with different validity scenarios
+	// Host 1: Certificate expiring in 7 days (validity period = 1 year) - SHOULD be renewed
+	notValidBefore1 := now.AddDate(-1, 0, 7) // Started almost a year ago
+	notValidAfter1 := now.Add(7 * 24 * time.Hour)
+	insertHostCertTemplate(t, ds, host1.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore1, &notValidAfter1)
+
+	// Host 2: Certificate expiring in 60 days (validity period = 1 year) - should NOT be renewed yet
+	notValidBefore2 := now.AddDate(-1, 0, 60)
+	notValidAfter2 := now.Add(60 * 24 * time.Hour)
+	insertHostCertTemplate(t, ds, host2.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore2, &notValidAfter2)
+
+	// Host 3: Short-lived cert (14 days total), expiring in 5 days - SHOULD be renewed (< 7 days = half of 14)
+	notValidBefore3 := now.Add(-9 * 24 * time.Hour) // Started 9 days ago
+	notValidAfter3 := now.Add(5 * 24 * time.Hour)   // Expires in 5 days
+	insertHostCertTemplate(t, ds, host3.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore3, &notValidAfter3)
+
+	// Host 4: Certificate with pending status - should NOT be renewed (not verified)
+	notValidBefore4 := now.AddDate(-1, 0, 7)
+	notValidAfter4 := now.Add(7 * 24 * time.Hour)
+	insertHostCertTemplate(t, ds, host4.UUID, template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, &notValidBefore4, &notValidAfter4)
+
+	// Test the renewal query
+	results, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	require.NoError(t, err)
+
+	// Should return host1 and host3
+	require.Len(t, results, 2, "Should find 2 certificates for renewal")
+
+	hostUUIDs := make(map[string]bool)
+	for _, r := range results {
+		hostUUIDs[r.HostUUID] = true
+		require.Equal(t, template.ID, r.CertificateTemplateID)
+	}
+
+	require.True(t, hostUUIDs[host1.UUID], "Host1 should be included (expires in 7 days, validity > 30)")
+	require.False(t, hostUUIDs[host2.UUID], "Host2 should NOT be included (expires in 60 days)")
+	require.True(t, hostUUIDs[host3.UUID], "Host3 should be included (short-lived cert expiring in 5 days)")
+	require.False(t, hostUUIDs[host4.UUID], "Host4 should NOT be included (pending status)")
+
+	// Test with limit
+	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 1)
+	require.NoError(t, err)
+	require.Len(t, results, 1, "Limit should be respected")
+
+	// Results should be ordered by not_valid_after ASC (most urgent first)
+	// Host3 expires in 5 days, Host1 expires in 7 days
+	require.Equal(t, host3.UUID, results[0].HostUUID, "Most urgent (earliest expiration) should be first")
+}
+
+// insertHostCertTemplate is a helper to insert a host_certificate_templates record with validity data
+func insertHostCertTemplate(t *testing.T, ds *Datastore, hostUUID string, templateID uint, status fleet.CertificateTemplateStatus, opType fleet.MDMOperationType, notValidBefore, notValidAfter *time.Time) {
+	t.Helper()
+	_, err := ds.writer(t.Context()).ExecContext(
+		t.Context(),
+		`INSERT INTO host_certificate_templates
+			(host_uuid, certificate_template_id, status, operation_type, name, uuid, not_valid_before, not_valid_after)
+		VALUES (?, ?, ?, ?, 'test', UUID_TO_BIN(UUID(), true), ?, ?)`,
+		hostUUID, templateID, status, opType, notValidBefore, notValidAfter,
+	)
+	require.NoError(t, err)
+}
+
+func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test team, CA, and certificate template
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team renewal set"})
+	require.NoError(t, err)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Name: ptr.String("test ca renewal set"),
+		Type: string(fleet.CAConfigCustomSCEPProxy),
+		URL:  ptr.String("http://localhost:8080/scep"),
+	})
+	require.NoError(t, err)
+
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		TeamID:                 team.ID,
+		Name:                   "test template set",
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=test",
+	})
+	require.NoError(t, err)
+	templateID := template.ID
+
+	// Create test hosts
+	now := time.Now().UTC()
+	host1 := test.NewHost(t, ds, "host1-set", "192.168.1.1", "host1_key_set", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host2 := test.NewHost(t, ds, "host2-set", "192.168.1.2", "host2_key_set", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	notValidBefore := now.AddDate(-1, 0, 7)
+	notValidAfter := now.Add(7 * 24 * time.Hour)
+
+	// Insert certificate records
+	insertHostCertTemplate(t, ds, host1.UUID, templateID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore, &notValidAfter)
+	insertHostCertTemplate(t, ds, host2.UUID, templateID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, &notValidBefore, &notValidAfter)
+
+	// Get the original UUIDs
+	var originalUUIDs []struct {
+		HostUUID string `db:"host_uuid"`
+		UUID     string `db:"uuid"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &originalUUIDs,
+		`SELECT host_uuid, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid FROM host_certificate_templates WHERE host_uuid IN (?, ?) ORDER BY host_uuid`,
+		host1.UUID, host2.UUID)
+	require.NoError(t, err)
+	require.Len(t, originalUUIDs, 2)
+
+	originalUUID1 := originalUUIDs[0].UUID
+	originalUUID2 := originalUUIDs[1].UUID
+
+	// Set templates for renewal
+	templates := []fleet.HostCertificateTemplateForRenewal{
+		{HostUUID: host1.UUID, CertificateTemplateID: templateID, NotValidAfter: notValidAfter},
+		{HostUUID: host2.UUID, CertificateTemplateID: templateID, NotValidAfter: notValidAfter},
+	}
+	err = ds.SetAndroidCertificateTemplatesForRenewal(ctx, templates)
+	require.NoError(t, err)
+
+	// Verify the records were updated
+	var updatedRecords []struct {
+		HostUUID       string  `db:"host_uuid"`
+		Status         string  `db:"status"`
+		UUID           string  `db:"uuid"`
+		NotValidBefore *string `db:"not_valid_before"`
+		NotValidAfter  *string `db:"not_valid_after"`
+		Serial         *string `db:"serial"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &updatedRecords,
+		`SELECT host_uuid, status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial
+		 FROM host_certificate_templates WHERE host_uuid IN (?, ?) ORDER BY host_uuid`,
+		host1.UUID, host2.UUID)
+	require.NoError(t, err)
+	require.Len(t, updatedRecords, 2)
+
+	for _, r := range updatedRecords {
+		// Status should be pending
+		require.Equal(t, string(fleet.CertificateTemplatePending), r.Status, "Status should be updated to pending")
+
+		// UUID should be different (new one generated)
+		if r.HostUUID == host1.UUID {
+			require.NotEqual(t, originalUUID1, r.UUID, "UUID should be regenerated for host1")
+		} else {
+			require.NotEqual(t, originalUUID2, r.UUID, "UUID should be regenerated for host2")
+		}
+
+		// Validity fields should be cleared
+		require.Nil(t, r.NotValidBefore, "not_valid_before should be cleared")
+		require.Nil(t, r.NotValidAfter, "not_valid_after should be cleared")
+		require.Nil(t, r.Serial, "serial should be cleared")
+	}
+
+	// Test empty slice doesn't error
+	err = ds.SetAndroidCertificateTemplatesForRenewal(ctx, []fleet.HostCertificateTemplateForRenewal{})
+	require.NoError(t, err)
 }

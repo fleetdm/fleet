@@ -65,6 +65,7 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
   isWindows,
+  isChrome,
 } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
@@ -136,6 +137,7 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
+import LocationModal from "../modals/LocationModal";
 
 const baseClass = "host-details";
 
@@ -223,6 +225,10 @@ const HostDetailsPage = ({
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+  // Undefined used to return to true after closing the lock modal
+  const [showLocationModal, setShowLocationModal] = useState<
+    boolean | undefined
+  >(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -698,6 +704,10 @@ const HostDetailsPage = ({
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
   }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
 
+  const toggleLocationModal = useCallback(() => {
+    setShowLocationModal(!showLocationModal);
+  }, [showLocationModal, setShowLocationModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -1099,6 +1109,10 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
+  const isChromeHost = isChrome(host.platform);
+
+  const isSupportedHostQueriesPlatform =
+    !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
     (isMacOSHost || isWindowsHost) &&
@@ -1262,7 +1276,14 @@ const HostDetailsPage = ({
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
-              hostMdmDeviceStatus={hostMdmDeviceStatus}
+              // Setting this to "locking" because if a host is "locating", it is also
+              // "locking"; an iOS/iPadOS host isn't "locked" until the location is found.
+              hostMdmDeviceStatus={
+                hostMdmDeviceStatus === "locating"
+                  ? "locking"
+                  : hostMdmDeviceStatus
+              }
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1302,6 +1323,7 @@ const HostDetailsPage = ({
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
+                  toggleLocationModal={toggleLocationModal}
                 />
                 <QueriesCard
                   hostId={host.id}
@@ -1311,7 +1333,10 @@ const HostDetailsPage = ({
                   queryReportsDisabled={
                     config?.server_settings?.query_reports_disabled
                   }
-                  canAddQuery={isAnyMaintainerAdminObserverPlus}
+                  canAddQuery={
+                    isAnyMaintainerAdminObserverPlus &&
+                    isSupportedHostQueriesPlatform
+                  }
                   onClickAddQuery={onClickAddQuery}
                 />
                 <UserCard
@@ -1588,8 +1613,15 @@ const HostDetailsPage = ({
               id={host.id}
               platform={host.platform}
               hostName={host.display_name}
-              onSuccess={() => setHostMdmDeviceState("locking")}
-              onClose={() => setShowLockHostModal(false)}
+              onSuccess={() => {
+                setHostMdmDeviceState("locking");
+                setShowLocationModal(false);
+                setShowLockHostModal(false);
+              }}
+              onClose={() => {
+                setShowLockHostModal(false);
+                showLocationModal === undefined && setShowLocationModal(true);
+              }}
             />
           )}
           {showUnlockHostModal && (
@@ -1641,6 +1673,21 @@ const HostDetailsPage = ({
             onUpdate={onUpdateEndUser}
             isUpdating={isUpdating}
             onExit={() => setShowUpdateEndUserModal(false)}
+          />
+        )}
+        {showLocationModal && (
+          <LocationModal
+            hostGeolocation={host.geolocation}
+            onExit={toggleLocationModal}
+            iosOrIpadosDetails={{
+              isIosOrIpadosHost,
+              hostMdmDeviceStatus,
+            }}
+            onClickLock={() => {
+              setShowLockHostModal(true);
+              setShowLocationModal(undefined);
+            }}
+            detailsUpdatedAt={host.detail_updated_at}
           />
         )}
       </>
