@@ -2835,13 +2835,15 @@ team_settings:
 		}
 		require.NotNil(t, foundTitle, "should find title for schedule")
 
-		if foundTitle.Source == "ios_apps" {
+		// Verify the correct start/end times based on source
+		switch foundTitle.Source {
+		case "ios_apps":
 			require.Equal(t, "02:00", schedule.StartTime)
 			require.Equal(t, "06:00", schedule.EndTime)
-		} else if foundTitle.Source == "ipados_apps" {
+		case "ipados_apps":
 			require.Equal(t, "03:00", schedule.StartTime)
 			require.Equal(t, "07:00", schedule.EndTime)
-		} else {
+		default:
 			t.Fatalf("unexpected source: %s", foundTitle.Source)
 		}
 	}
