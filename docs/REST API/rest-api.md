@@ -7319,8 +7319,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
 | page                      | integer | query | Page number of the results to fetch.                                      |
-| per_page                  | integer | query | Results per page.                                                         |
-| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
+| per_page                  | integer | query | Results per page. Default is `10`.                                        |
+| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
 | request_type              | string  | query | The request type to filter commands by. |
@@ -11197,11 +11197,11 @@ _Available in Fleet Premium._
 | ----            | ------- | ---- | --------------------------------------------     |
 | id   | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
-| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
+| alt             | string | query | **Required**. If specified and set to `"media"`, downloads the specified software package. |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+`GET /api/v1/fleet/software/titles/123/package?alt=media&team_id=2`
 
 ##### Default response
 

@@ -298,7 +298,7 @@ software:
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
-    - slug: docker/darwin # Docker for macOS (ARM)
+    - slug: docker-desktop/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts

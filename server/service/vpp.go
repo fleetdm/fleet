@@ -8,9 +8,10 @@ import (
 	"net/http"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -128,19 +129,24 @@ func (r updateAppStoreAppResponse) Error() error { return r.Err }
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
-	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, fleet.AppStoreAppUpdatePayload{
+	updatedApp, activity, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, fleet.AppStoreAppUpdatePayload{
 		SelfService:      req.SelfService,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsExcludeAny: req.LabelsExcludeAny,
 		Categories:       req.Categories,
 		Configuration:    req.Configuration,
 		DisplayName:      req.DisplayName,
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   req.AutoUpdateEnabled,
+			AutoUpdateStartTime: req.AutoUpdateStartTime,
+			AutoUpdateEndTime:   req.AutoUpdateEndTime,
+		},
 	})
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
 
-	if req.AutoUpdateEnabled != nil && req.AutoUpdateStartTime != nil && req.AutoUpdateEndTime != nil {
+	if req.AutoUpdateEnabled != nil {
 		// Update AutoUpdateConfig separately
 		err = svc.UpdateSoftwareTitleAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.SoftwareAutoUpdateConfig{
 			AutoUpdateEnabled:   req.AutoUpdateEnabled,
@@ -152,15 +158,32 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		}
 	}
 
+	// Re-fetch the software title to get the updated auto-update config.
+	updatedTitle, err := svc.SoftwareTitleByID(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return updateAppStoreAppResponse{Err: err}, nil
+	}
+	if updatedTitle.AutoUpdateEnabled != nil {
+		activity.AutoUpdateEnabled = updatedTitle.AutoUpdateEnabled
+		if *updatedTitle.AutoUpdateEnabled {
+			activity.AutoUpdateStartTime = updatedTitle.AutoUpdateStartTime
+			activity.AutoUpdateEndTime = updatedTitle.AutoUpdateEndTime
+		}
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+		return updateAppStoreAppResponse{Err: err}, nil
+	}
+
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -258,7 +281,7 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 
 	decoded.File = r.MultipartForm.File["token"][0]
 
-	id, err := endpoint_utils.UintFromRequest(r, "id")
+	id, err := endpointer.UintFromRequest(r, "id")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse vpp token id")
 	}

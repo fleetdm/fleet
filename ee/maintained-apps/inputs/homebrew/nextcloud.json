@@ -1,0 +1,8 @@
+{
+  "name": "Nextcloud",
+  "slug": "nextcloud/darwin",
+  "unique_identifier": "com.nextcloud.desktopclient",
+  "token": "nextcloud",
+  "installer_format": "pkg",
+  "default_categories": ["Productivity"]
+}

@@ -51,7 +51,7 @@ interface RecordWithRenewDate {
 const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
 
 // TODO: add tests for this function
-const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
+export const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
   const earliest = records.reduce((acc, record) => {
     const renewDate = new Date(record.renew_date);
     return isBefore(acc, renewDate) ? acc : renewDate;

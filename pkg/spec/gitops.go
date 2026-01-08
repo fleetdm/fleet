@@ -19,6 +19,58 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+const LabelAPIGlobalTeamName = "global"
+
+// LabelChangesSummary carries extra context of the labels operations for a config.
+type LabelChangesSummary struct {
+	LabelsToUpdate  []string
+	LabelsToAdd     []string
+	LabelsToRemove  []string
+	LabelsMovements []LabelMovement
+}
+
+func NewLabelChangesSummary(changes []LabelChange, moves []LabelMovement) LabelChangesSummary {
+	r := LabelChangesSummary{
+		LabelsMovements: moves,
+	}
+
+	lookUp := make(map[string]any)
+	for _, m := range moves {
+		lookUp[m.Name] = nil
+	}
+
+	for _, change := range changes {
+		if _, ok := lookUp[change.Name]; ok {
+			continue
+		}
+		switch change.Op {
+		case "+":
+
+			r.LabelsToAdd = append(r.LabelsToAdd, change.Name)
+		case "-":
+			r.LabelsToRemove = append(r.LabelsToRemove, change.Name)
+		case "=":
+			r.LabelsToUpdate = append(r.LabelsToUpdate, change.Name)
+		}
+	}
+	return r
+}
+
+// LabelMovement specifies a label movement, a label is moved if its removed from one team and added to another
+type LabelMovement struct {
+	FromTeamName string // Source team name
+	ToTeamName   string // Dest. team name
+	Name         string // The globally unique label name
+}
+
+// LabelChange used for keeping track of label operations
+type LabelChange struct {
+	Name     string // The globally unique label name
+	Op       string // What operation to perform on the label. +:add, -:remove, =:no-op
+	TeamName string // The team this label belongs to.
+	FileName string // The filename that contains the label change
+}
+
 type ParseTypeError struct {
 	Filename string   // The name of the file being parsed
 	Keys     []string // The complete path to the field
@@ -196,7 +248,10 @@ type GitOps struct {
 	Controls     GitOpsControls
 	Policies     []*GitOpsPolicySpec
 	Queries      []*fleet.QuerySpec
-	Labels       []*fleet.LabelSpec
+
+	Labels              []*fleet.LabelSpec
+	LabelChangesSummary LabelChangesSummary
+
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
@@ -275,11 +330,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	// Get the labels. If `labels:` is specified but no labels are listed, this will
 	// set Labels as nil.  If `labels:` isn't present at all, it will be set as an
 	// empty array.
-	_, ok := top["labels"]
-	if !ok || !result.IsGlobal() {
-		if ok && !result.IsGlobal() {
-			logFn("[!] 'labels' is only supported in global settings.  This key will be ignored.\n")
-		}
+	if _, ok := top["labels"]; !ok {
 		result.Labels = make([]*fleet.LabelSpec, 0)
 	} else {
 		multiError = parseLabels(top, result, baseDir, filePath, multiError)
@@ -326,6 +377,13 @@ func (g *GitOps) IsNoTeam() bool {
 
 func isNoTeam(teamName string) bool {
 	return strings.EqualFold(teamName, noTeam)
+}
+
+func (g *GitOps) CoercedTeamName() string {
+	if g.global() {
+		return LabelAPIGlobalTeamName
+	}
+	return *g.TeamName
 }
 
 const noTeam = "No team"

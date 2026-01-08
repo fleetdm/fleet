@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -38,7 +38,7 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
 		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
-		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
+		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "sthc")
 		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
 		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
 		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
@@ -621,7 +621,7 @@ func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tm
 	if teamID != nil {
 		teamFilter = fmt.Sprintf("shc.team_id = %d", *teamID)
 	} else {
-		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "shc")
+		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "shc")
 	}
 
 	selectVersionsStmt := `
@@ -832,19 +832,23 @@ WHERE
 }
 
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	// Validate start and end time.
-	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
-	for _, t := range []*string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
-		if t == nil {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
-		duration, err := time.Parse("15:04", *t)
-		if err != nil {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
-		if duration.Hour() < 0 || duration.Hour() > 23 || duration.Minute() < 0 || duration.Minute() > 59 {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
+	// Validate schedule if enabled.
+	schedule := fleet.SoftwareAutoUpdateSchedule{
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   config.AutoUpdateEnabled,
+			AutoUpdateStartTime: config.AutoUpdateStartTime,
+			AutoUpdateEndTime:   config.AutoUpdateEndTime,
+		},
+	}
+	if err := schedule.WindowIsValid(); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+	}
+	var startTime, endTime string
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
+		startTime = *config.AutoUpdateStartTime
+	}
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
+		endTime = *config.AutoUpdateEndTime
 	}
 
 	stmt := `
@@ -853,29 +857,30 @@ INSERT INTO software_update_schedules
 VALUES (?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
 	enabled = VALUES(enabled),
-	start_time = VALUES(start_time),
-	end_time = VALUES(end_time)
+	start_time = IF(VALUES(start_time) = '', start_time, VALUES(start_time)),
+	end_time = IF(VALUES(end_time) = '', end_time, VALUES(end_time))
 `
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, config.AutoUpdateStartTime, config.AutoUpdateEndTime)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}
 	return nil
 }
 
-func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	stmt := `
 SELECT
-	team_id,
-	title_id,
-	enabled AS auto_update_enabled,
-	start_time AS auto_update_start_time,
-	end_time AS auto_update_end_time
-FROM software_update_schedules
-WHERE team_id = ?
+	sus.team_id,
+	sus.title_id,
+	sus.enabled AS auto_update_enabled,
+	sus.start_time AS auto_update_start_time,
+	sus.end_time AS auto_update_end_time
+FROM software_update_schedules sus
+JOIN software_titles st ON st.id = sus.title_id
+WHERE sus.team_id = ? AND st.source = ?
 `
 
-	args := []any{teamID}
+	args := []any{teamID, source}
 
 	if len(optionalFilter) > 0 {
 		filter := optionalFilter[0]

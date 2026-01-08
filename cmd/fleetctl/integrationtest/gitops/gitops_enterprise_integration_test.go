@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"text/template"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
@@ -38,6 +40,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
+const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
 
 func TestIntegrationsEnterpriseGitops(t *testing.T) {
 	testingSuite := new(enterpriseIntegrationGitopsTestSuite)
@@ -149,11 +153,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		return err
 	})
 
-	lbls, err := s.DS.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	lbls, err := s.DS.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := s.DS.DeleteLabel(ctx, lbl.Name)
+			err := s.DS.DeleteLabel(ctx, lbl.Name, fleet.TeamFilter{User: test.UserAdmin})
 			require.NoError(t, err)
 		}
 	}
@@ -161,6 +165,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 
 func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, output string) {
 	allowedVerbs := []string{
+		"moved",
 		"deleted",
 		"updated",
 		"applied",
@@ -179,6 +184,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, 
 
 func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutput(t *testing.T, output string) {
 	allowedVerbs := []string{
+		"moving",
 		"deleted",
 		"updated",
 		"applied",
@@ -201,7 +207,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutput(t *testing.T,
 // Changes to that repo may cause this test to fail.
 func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
 	t := s.T()
-	const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
@@ -334,7 +339,7 @@ contexts:
 
 func (s *enterpriseIntegrationGitopsTestSuite) createGitOpsUser(t *testing.T) fleet.User {
 	user := fleet.User{
-		Name:       "GitOps User",
+		Name:       "GitOps User " + uuid.NewString(),
 		Email:      uuid.NewString() + "@example.com",
 		GlobalRole: ptr.String(fleet.RoleGitOps),
 	}
@@ -1602,7 +1607,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitOpsDeletesNonManagedL
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", opsFile})
 
 	// Check label was removed successfully
-	result, err := s.DS.LabelIDsByName(ctx, []string{nonManagedLabel.Name})
+	result, err := s.DS.LabelIDsByName(ctx, []string{nonManagedLabel.Name}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Empty(t, result)
 }
@@ -1999,7 +2004,7 @@ labels:
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
 
 	// Verify the label was created and has the correct hosts
-	labels, err := s.DS.LabelsByName(ctx, []string{"my-label"})
+	labels, err := s.DS.LabelsByName(ctx, []string{"my-label"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 	label := labels["my-label"]
@@ -2343,4 +2348,366 @@ team_settings:
 			team.ID, teamTitleID)
 	})
 	require.Equal(t, "Team Custom Ruby", teamDisplayName)
+}
+
+// TestGitOpsTeamLabels tests operations around team labels
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabels() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	// -----------------------------------------------------------------
+	// First, let's validate that we can add labels to the global scope
+	// -----------------------------------------------------------------
+	require.NoError(t, os.WriteFile(globalFile.Name(), []byte(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+queries:
+labels:
+  - name: global-label-one
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: global-label-two
+    label_membership_type: dynamic
+    query: SELECT 1
+`), 0o644))
+
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name()}))
+
+	expected := make(map[string]uint)
+	expected["global-label-one"] = 0
+	expected["global-label-two"] = 0
+
+	got := labelTeamIDResult(t, s, ctx)
+
+	require.True(t, maps.Equal(expected, got))
+
+	// ---------------------------------------------------------------
+	// Now, let's validate that we can add and remove labels in a team
+	// ---------------------------------------------------------------
+	// TeamOne already exists
+	teamOneName := uuid.NewString()
+	teamOne, err := s.DS.NewTeam(context.Background(), &fleet.Team{Name: teamOneName})
+	require.NoError(t, err)
+
+	teamOneFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(teamOneFile.Name(), fmt.Appendf(nil,
+		`
+controls:
+software:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+labels:
+  - name: team-one-label-one
+    label_membership_type: dynamic
+    query: SELECT 2 
+  - name: team-one-label-two
+    label_membership_type: dynamic
+    query: SELECT 3 
+`, teamOneName), 0o644))
+
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", teamOneFile.Name(), "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", teamOneFile.Name()}))
+
+	got = labelTeamIDResult(t, s, ctx)
+
+	expected = make(map[string]uint)
+	expected["global-label-one"] = 0
+	expected["global-label-two"] = 0
+	expected["team-one-label-one"] = teamOne.ID
+	expected["team-one-label-two"] = teamOne.ID
+
+	require.True(t, maps.Equal(expected, got))
+
+	// Try removing one label from teamOne
+	require.NoError(t, os.WriteFile(teamOneFile.Name(), fmt.Appendf(nil,
+		`
+controls:
+software:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+labels:
+  - name: team-one-label-one
+    label_membership_type: dynamic
+    query: SELECT 2 
+`, teamOneName), 0o644))
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name()}))
+
+	expected = make(map[string]uint)
+	expected["global-label-one"] = 0
+	expected["global-label-two"] = 0
+	expected["team-one-label-one"] = teamOne.ID
+
+	got = labelTeamIDResult(t, s, ctx)
+
+	require.True(t, maps.Equal(expected, got))
+
+	// ------------------------------------------------
+	// Finally, let's validate that we can move labels around
+	// ------------------------------------------------
+	require.NoError(t, os.WriteFile(globalFile.Name(), []byte(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+queries:
+labels:
+  - name: global-label-one
+    label_membership_type: dynamic
+    query: SELECT 1
+
+`), 0o644))
+
+	require.NoError(t, os.WriteFile(teamOneFile.Name(), fmt.Appendf(nil,
+
+		`
+controls:
+software:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+labels:
+  - name: team-one-label-two
+    label_membership_type: dynamic
+    query: SELECT 3 
+  - name: global-label-two
+    label_membership_type: dynamic
+    query: SELECT 1
+`, teamOneName), 0o644))
+
+	teamTwoName := uuid.NewString()
+	teamTwoFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(teamTwoFile.Name(), fmt.Appendf(nil, `
+controls:
+software:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret2"}]
+labels:
+  - name: team-one-label-one
+    label_membership_type: dynamic
+    query: SELECT 2 
+`, teamTwoName), 0o644))
+
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name(), "--dry-run"}))
+
+	// TODO: Seems like we require two passes to achieve equilibrium?
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}))
+
+	teamTwo, err := s.DS.TeamByName(ctx, teamTwoName)
+	require.NoError(t, err)
+
+	got = labelTeamIDResult(t, s, ctx)
+
+	expected = make(map[string]uint)
+	expected["global-label-one"] = 0
+	expected["team-one-label-two"] = teamOne.ID
+	expected["global-label-two"] = teamOne.ID
+	expected["team-one-label-one"] = teamTwo.ID
+
+	require.True(t, maps.Equal(expected, got))
+}
+
+// Tests a gitops setup where every team runs from an independent repo. Multiple repos are simulated by
+// copying over the example repository multiple times.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos() {
+	t := s.T()
+	ctx := context.Background()
+
+	var users []fleet.User
+	var cfgPaths []*os.File
+	var reposDir []string
+
+	for range 2 {
+		user := s.createGitOpsUser(t)
+		users = append(users, user)
+
+		cfg := s.createFleetctlConfig(t, user)
+		cfgPaths = append(cfgPaths, cfg)
+
+		repoDir := t.TempDir()
+		_, err := git.PlainClone(
+			repoDir, false, &git.CloneOptions{
+				ReferenceName: "main",
+				SingleBranch:  true,
+				Depth:         1,
+				URL:           fleetGitopsRepo,
+				Progress:      os.Stdout,
+			},
+		)
+		require.NoError(t, err)
+		reposDir = append(reposDir, repoDir)
+	}
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
+	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
+
+	type tmplParams struct {
+		Name    string
+		Queries string
+		Labels  string
+	}
+	teamCfgTmpl, err := template.New("t1").Parse(`
+controls:
+software:
+queries:{{ .Queries }}
+policies:
+labels:{{ .Labels }}
+agent_options:
+name:{{ .Name }}
+team_settings:
+  secrets: [{"secret":"{{ .Name}}_secret"}]
+`)
+	require.NoError(t, err)
+
+	// --------------------------------------------------
+	// First, lets simulate adding a new team per repo
+	// --------------------------------------------------
+	for i, repo := range reposDir {
+		globalFile := path.Join(repo, "default.yml")
+
+		newTeamCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+
+		require.NoError(t, teamCfgTmpl.Execute(newTeamCfgFile, tmplParams{
+			Name:    fmt.Sprintf(" team-%d", i),
+			Queries: fmt.Sprintf("\n  - name: query-%d\n    query: SELECT 1", i),
+			Labels:  fmt.Sprintf("\n  - name: label-%d\n    label_membership_type: dynamic\n    query: SELECT 1", i),
+		}))
+
+		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
+		s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, args))
+	}
+
+	for i, user := range users {
+		team, err := s.DS.TeamByName(ctx, fmt.Sprintf("team-%d", i))
+		require.NoError(t, err)
+		require.NotNil(t, team)
+
+		queries, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+		require.NoError(t, err)
+		require.Len(t, queries, 1)
+		require.Equal(t, fmt.Sprintf("query-%d", i), queries[0].Name)
+		require.Equal(t, "SELECT 1", queries[0].Query)
+		require.NotNil(t, queries[0].TeamID)
+		require.Equal(t, *queries[0].TeamID, team.ID)
+		require.NotNil(t, queries[0].AuthorID)
+		require.Equal(t, *queries[0].AuthorID, user.ID)
+
+		label, err := s.DS.LabelByName(ctx, fmt.Sprintf("label-%d", i), fleet.TeamFilter{User: &fleet.User{ID: user.ID}})
+		require.NoError(t, err)
+		require.NotNil(t, label)
+		require.NotNil(t, label.TeamID)
+		require.Equal(t, *label.TeamID, team.ID)
+		require.NotNil(t, label.AuthorID)
+		require.Equal(t, *label.AuthorID, user.ID)
+	}
+
+	// -----------------------------------------------------------------
+	// Then, lets simulate a mutation by dropping the labels on team one
+	// -----------------------------------------------------------------
+	for i, repo := range reposDir {
+		globalFile := path.Join(repo, "default.yml")
+
+		newTeamCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+
+		params := tmplParams{
+			Name:    fmt.Sprintf(" team-%d", i),
+			Queries: fmt.Sprintf("\n  - name: query-%d\n    query: SELECT 1", i),
+		}
+		if i != 0 {
+			params.Labels = fmt.Sprintf("\n  - name: label-%d\n    label_membership_type: dynamic\n    query: SELECT 1", i)
+		}
+
+		require.NoError(t, teamCfgTmpl.Execute(newTeamCfgFile, params))
+
+		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
+		s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, args))
+	}
+
+	for i, user := range users {
+		team, err := s.DS.TeamByName(ctx, fmt.Sprintf("team-%d", i))
+		require.NoError(t, err)
+		require.NotNil(t, team)
+
+		queries, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+		require.NoError(t, err)
+		require.Len(t, queries, 1)
+		require.Equal(t, fmt.Sprintf("query-%d", i), queries[0].Name)
+		require.Equal(t, "SELECT 1", queries[0].Query)
+		require.NotNil(t, queries[0].TeamID)
+		require.Equal(t, *queries[0].TeamID, team.ID)
+		require.NotNil(t, queries[0].AuthorID)
+		require.Equal(t, *queries[0].AuthorID, user.ID)
+
+		label, err := s.DS.LabelByName(ctx, fmt.Sprintf("label-%d", i), fleet.TeamFilter{User: &fleet.User{ID: user.ID}})
+		if i == 0 {
+			require.Error(t, err)
+			require.Nil(t, label)
+		} else {
+			require.NoError(t, err)
+			require.NotNil(t, label)
+			require.NotNil(t, label.TeamID)
+			require.Equal(t, *label.TeamID, team.ID)
+			require.NotNil(t, label.AuthorID)
+			require.Equal(t, *label.AuthorID, user.ID)
+		}
+	}
+}
+
+func labelTeamIDResult(t *testing.T, s *enterpriseIntegrationGitopsTestSuite, ctx context.Context) map[string]uint {
+	type labelResult struct {
+		Name   string `db:"name"`
+		TeamID *uint  `db:"team_id"`
+	}
+	var result []labelResult
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		require.NoError(t, sqlx.SelectContext(ctx, q, &result, "SELECT name, team_id FROM labels WHERE label_type = 0"))
+		return nil
+	})
+	got := make(map[string]uint)
+	for _, r := range result {
+		var teamID uint
+		if r.TeamID != nil {
+			teamID = *r.TeamID
+		}
+		got[r.Name] = teamID
+	}
+	return got
 }
