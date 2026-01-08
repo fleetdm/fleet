@@ -256,11 +256,15 @@ func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.
 
 	updateStmt := `
 		UPDATE host_certificate_templates
-		SET status = ?, detail = ?, operation_type = ?, not_valid_before = ?, not_valid_after = ?, serial = ?
-		WHERE host_uuid = ? AND certificate_template_id = ?`
-	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt,
-		update.Status, update.Detail, update.OperationType, update.NotValidBefore, update.NotValidAfter, update.Serial,
-		update.HostUUID, update.CertificateTemplateID)
+		SET 
+			status = :status, 
+			detail = :detail, 
+			operation_type = :operation_type,
+			not_valid_before = :not_valid_before, 
+			not_valid_after = :not_valid_after, 
+			serial = :serial
+		WHERE host_uuid = :host_uuid AND certificate_template_id = :certificate_template_id`
+	result, err := sqlx.NamedExecContext(ctx, ds.writer(ctx), updateStmt, update)
 	if err != nil {
 		return err
 	}
@@ -289,11 +293,39 @@ func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.
 		}
 
 		insertStmt := `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name, uuid, not_valid_before, not_valid_after, serial)
-			VALUES (?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true), ?, ?, ?)`
-		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt,
-			update.HostUUID, update.CertificateTemplateID, update.Status, update.Detail, "", update.OperationType, templateInfo.Name,
-			update.NotValidBefore, update.NotValidAfter, update.Serial); err != nil {
+			INSERT INTO host_certificate_templates (
+				host_uuid, 
+				certificate_template_id, 
+				status, 
+				detail, 
+				fleet_challenge, 
+				operation_type, 
+				name, 
+				uuid, 
+				not_valid_before, 
+				not_valid_after, 
+				serial
+			)
+			VALUES (
+				:host_uuid, 
+				:certificate_template_id, 
+				:status, 
+				:detail, 
+				'', 
+				:operation_type, 
+				:name, 
+				UUID_TO_BIN(UUID(), true), 
+				:not_valid_before, 
+				:not_valid_after, 
+				:serial
+			)`
+
+		insertArgs := struct {
+			*fleet.CertificateStatusUpdate
+			Name string `db:"name"`
+		}{update, templateInfo.Name}
+		
+		if _, err := sqlx.NamedExecContext(ctx, ds.writer(ctx), insertStmt, insertArgs); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
 		}
 	}

@@ -56,14 +56,14 @@ type CertificateTemplateForHost struct {
 
 // CertificateStatusUpdate holds all fields for updating a host's certificate status.
 type CertificateStatusUpdate struct {
-	HostUUID              string
-	CertificateTemplateID uint
-	Status                MDMDeliveryStatus
-	Detail                *string
-	OperationType         MDMOperationType
-	NotValidBefore        *time.Time
-	NotValidAfter         *time.Time
-	Serial                *string
+	HostUUID              string            `db:"host_uuid"`
+	CertificateTemplateID uint              `db:"certificate_template_id"`
+	Status                MDMDeliveryStatus `db:"status"`
+	Detail                *string           `db:"detail"`
+	OperationType         MDMOperationType  `db:"operation_type"`
+	NotValidBefore        *time.Time        `db:"not_valid_before"`
+	NotValidAfter         *time.Time        `db:"not_valid_after"`
+	Serial                *string           `db:"serial"`
 }
 
 // HostCertificateTemplateForRenewal represents a certificate template that needs renewal.
