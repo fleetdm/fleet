@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20251222163753, Down_20251222163753)
+	MigrationClient.AddMigration(Up_20251229000020, Down_20251229000020)
 }
 
-func Up_20251222163753(tx *sql.Tx) error {
+func Up_20251229000020(tx *sql.Tx) error {
 	// Add a new column and a constraint that either:
 	// - skipped is true and command_uuid is NULL
 	// - skipped is false and command_uuid is NOT NULL
@@ -26,6 +26,6 @@ func Up_20251222163753(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20251222163753(tx *sql.Tx) error {
+func Down_20251229000020(tx *sql.Tx) error {
 	return nil
 }

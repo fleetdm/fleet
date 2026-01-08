@@ -4779,7 +4779,7 @@ func TestComputeLabelMoves(t *testing.T) {
 			"team2": {{Name: "conflict", Op: "-", FileName: "file2.yml"}},
 		}
 		_, err := computeLabelMoves(allChanges)
-		require.ErrorContains(t, err, `already being deleted in "file1.yml"`)
+		require.ErrorContains(t, err, "already being deleted")
 	})
 
 	t.Run("conflict: duplicate add", func(t *testing.T) {

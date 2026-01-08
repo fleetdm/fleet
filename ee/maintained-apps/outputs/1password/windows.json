@@ -3,7 +3,7 @@
     {
       "version": "8.11.23",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'AgileBits Inc.';"
+        "exists": "SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'Agilebits Inc.';"
       },
       "installer_url": "https://c.1password.com/dist/1P/win8/1PasswordSetup-8.11.23.msi",
       "install_script_ref": "8959087b",
