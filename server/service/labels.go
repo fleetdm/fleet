@@ -488,7 +488,7 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 		}
 	}
 
-	if opt.PopulateDeviceStatus {
+	if opt.IncludeDeviceStatus {
 		statusMap, err := svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch")

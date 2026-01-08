@@ -19,8 +19,8 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 type uploadSoftwareInstallerRequest struct {
@@ -64,7 +64,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// populate software title ID since we're overriding the decoder that would do it for us
 	titleID, err := uint32FromRequest(r, "id")
 	if err != nil {
-		return nil, endpoint_utils.BadRequestErr("IntFromRequest", err)
+		return nil, endpointer.BadRequestErr("IntFromRequest", err)
 	}
 	decoded.TitleID = uint(titleID)
 

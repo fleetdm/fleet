@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260106164935, Down_20260106164935)
+	MigrationClient.AddMigration(Up_20260108050649, Down_20260108050649)
 }
 
-func Up_20260106164935(tx *sql.Tx) error {
+func Up_20260108050649(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE host_script_results
 		ADD COLUMN attempt_number INT DEFAULT NULL;
@@ -29,6 +29,6 @@ func Up_20260106164935(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260106164935(tx *sql.Tx) error {
+func Down_20260108050649(tx *sql.Tx) error {
 	return nil
 }

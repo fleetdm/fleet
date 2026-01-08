@@ -874,19 +874,20 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	stmt := `
 SELECT
-	team_id,
-	title_id,
-	enabled AS auto_update_enabled,
-	start_time AS auto_update_start_time,
-	end_time AS auto_update_end_time
-FROM software_update_schedules
-WHERE team_id = ?
+	sus.team_id,
+	sus.title_id,
+	sus.enabled AS auto_update_enabled,
+	sus.start_time AS auto_update_start_time,
+	sus.end_time AS auto_update_end_time
+FROM software_update_schedules sus
+JOIN software_titles st ON st.id = sus.title_id
+WHERE sus.team_id = ? AND st.source = ?
 `
 
-	args := []any{teamID}
+	args := []any{teamID, source}
 
 	if len(optionalFilter) > 0 {
 		filter := optionalFilter[0]

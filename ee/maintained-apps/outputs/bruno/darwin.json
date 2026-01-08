@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.0.0",
+      "version": "3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.usebruno.app';"
       },
-      "installer_url": "https://github.com/usebruno/bruno/releases/download/v3.0.0/bruno_3.0.0_arm64_mac.dmg",
+      "installer_url": "https://github.com/usebruno/bruno/releases/download/v3.0.1/bruno_3.0.1_arm64_mac.dmg",
       "install_script_ref": "5d2adbb6",
       "uninstall_script_ref": "28a81327",
-      "sha256": "b6c82e0d8e517687e525a428ca21d0f77a2c75cb585c82351a69d6bcc730c072",
+      "sha256": "e48f1334c4f06f5b9ea5b7fc41cd9468ed089e476a43f57732e3113c3642c3bb",
       "default_categories": [
         "Developer tools"
       ]

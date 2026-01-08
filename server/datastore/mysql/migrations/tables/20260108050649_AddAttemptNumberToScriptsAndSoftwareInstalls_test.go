@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260106164935(t *testing.T) {
+func TestUp_20260108050649(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// insert a team

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -21,8 +20,6 @@ import (
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
 	"github.com/nats-io/nats.go"
-	"github.com/valyala/fastjson"
-	"github.com/valyala/fasttemplate"
 )
 
 // natsPublisher sends logs to a NATS server.
@@ -353,33 +350,54 @@ func (r *natsConstantRouter) Route(_ json.RawMessage) (string, error) {
 
 // natsTemplateEnv is the evaluation environment for the template expressions.
 type natsTemplateEnv struct {
-	Log *fastjson.Value `expr:"log"`
+	Log any `expr:"log"`
 }
 
-// natsTemplateGet returns the value of a field from a fastjson value. If it is
+// natsTemplateGet returns the value of a field from a parsed JSON value. If it is
 // a terminal type, it returns the string representation. Otherwise, it returns
-// the fastjson value.
-func natsTemplateGet(val *fastjson.Value, path string) any {
-	v := val.Get(path)
-
-	switch v.Type() {
-	case fastjson.TypeFalse:
-		return "false"
-
-	case fastjson.TypeNull:
+// the value for further traversal.
+func natsTemplateGet(val any, path string) any {
+	// Handle nil values.
+	if val == nil {
 		return "null"
-
-	case fastjson.TypeNumber:
-		return strconv.FormatFloat(v.GetFloat64(), 'f', -1, 64)
-
-	case fastjson.TypeString:
-		return string(v.GetStringBytes())
-
-	case fastjson.TypeTrue:
-		return "true"
 	}
 
-	return v
+	// If val is a map, look up the path key.
+	if m, ok := val.(map[string]any); ok {
+		v, exists := m[path]
+		if !exists {
+			return "null"
+		}
+		return natsTemplateToString(v)
+	}
+
+	// For non-map types, return their string representation.
+	return natsTemplateToString(val)
+}
+
+// natsTemplateToString converts a JSON value to its string representation.
+func natsTemplateToString(val any) any {
+	switch v := val.(type) {
+	case nil:
+		return "null"
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case string:
+		return v
+	case map[string]any:
+		// Return the map for further traversal.
+		return v
+	case []any:
+		// Return the slice for further traversal.
+		return v
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // natsTemplatePatcher patches the expression's AST so it uses natsTemplateGet
@@ -398,14 +416,14 @@ func (p *natsTemplatePatcher) Visit(node *ast.Node) {
 
 // natsTemplateRouter uses the log contents to create a subject.
 type natsTemplateRouter struct {
-	// The JSON parser pool.
-	pp *fastjson.ParserPool
-
 	// The compiled programs for each template tag expression.
 	pr map[string]*vm.Program
 
-	// The template for the subject.
-	tp *fasttemplate.Template
+	// The original subject template string.
+	template string
+
+	// The ordered list of tags found in the template.
+	tags []string
 }
 
 // newNatsTemplateRouter creates a new template router.
@@ -413,11 +431,11 @@ func newNatsTemplateRouter(sub string) (*natsTemplateRouter, error) {
 	// Initialize the programs map.
 	pr := make(map[string]*vm.Program)
 
-	// Initialize the template.
-	tp := fasttemplate.New(sub,
-		natsSubjectTagStart,
-		natsSubjectTagStop,
-	)
+	// Parse the template to extract tags.
+	tags, err := parseTemplateTags(sub)
+	if err != nil {
+		return nil, err
+	}
 
 	// Define the expression compiler options.
 	opts := []expr.Option{
@@ -428,7 +446,7 @@ func newNatsTemplateRouter(sub string) (*natsTemplateRouter, error) {
 			"get",
 			func(params ...any) (any, error) {
 				return natsTemplateGet(
-					params[0].(*fastjson.Value),
+					params[0],
 					params[1].(string),
 				), nil
 			},
@@ -436,49 +454,74 @@ func newNatsTemplateRouter(sub string) (*natsTemplateRouter, error) {
 		),
 	}
 
-	// Execute the template, compiling each tag expression.
-	_, err := tp.ExecuteFuncStringWithErr(func(_ io.Writer, tag string) (int, error) {
+	// Compile each tag expression.
+	for _, tag := range tags {
 		p, err := expr.Compile(tag, opts...)
-
+		if err != nil {
+			return nil, err
+		}
 		pr[tag] = p
-
-		return 0, err
-	})
-	if err != nil {
-		return nil, err
 	}
 
-	return &natsTemplateRouter{pp: new(fastjson.ParserPool), pr: pr, tp: tp}, nil
+	return &natsTemplateRouter{pr: pr, template: sub, tags: tags}, nil
+}
+
+// parseTemplateTags extracts all tags from a template string.
+func parseTemplateTags(template string) ([]string, error) {
+	var tags []string
+	s := template
+
+	for {
+		// Find the start of the next tag.
+		startIdx := strings.Index(s, natsSubjectTagStart)
+		if startIdx == -1 {
+			break
+		}
+
+		// Find the end of the tag.
+		remaining := s[startIdx+len(natsSubjectTagStart):]
+		endIdx := strings.Index(remaining, natsSubjectTagStop)
+		if endIdx == -1 {
+			return nil, fmt.Errorf("unclosed template tag in: %s", template)
+		}
+
+		// Extract the tag content.
+		tag := remaining[:endIdx]
+		tags = append(tags, tag)
+
+		// Move past this tag.
+		s = remaining[endIdx+len(natsSubjectTagStop):]
+	}
+
+	return tags, nil
 }
 
 // Route returns the subject for a log.
 func (r *natsTemplateRouter) Route(log json.RawMessage) (string, error) {
-	// Get a JSON parser from the pool, and ensure it is released when done.
-	p := r.pp.Get()
-	defer r.pp.Put(p)
-
-	// Parse the log contents into a fastjson value.
-	v, err := p.ParseBytes(log)
-	if err != nil {
+	// Parse the log contents into a map.
+	var v map[string]any
+	if err := json.Unmarshal(log, &v); err != nil {
 		return "", fmt.Errorf("failed to parse log: %w", err)
 	}
 
-	// Define the function to evaluate the template for a tag.
-	fn := func(w io.Writer, tag string) (int, error) {
+	// Build the result by replacing tags with their evaluated values.
+	result := r.template
+	for _, tag := range r.tags {
 		// Evaluate the tag expression.
-		r, err := expr.Run(r.pr[tag], &natsTemplateEnv{Log: v})
+		val, err := expr.Run(r.pr[tag], &natsTemplateEnv{Log: v})
 		if err != nil {
-			return 0, err
+			return "", err
 		}
 
-		// If the returned value is a string, write it.
-		if s, ok := r.(string); ok {
-			return io.WriteString(w, s)
+		// Ensure the result is a string.
+		s, ok := val.(string)
+		if !ok {
+			return "", fmt.Errorf("expected string, got %T: %v", val, val)
 		}
 
-		// A non-string value was returned.
-		return 0, fmt.Errorf("expected string, got %T: %v", r, r)
+		// Replace the tag in the template.
+		result = strings.Replace(result, natsSubjectTagStart+tag+natsSubjectTagStop, s, 1)
 	}
 
-	return r.tp.ExecuteFuncStringWithErr(fn)
+	return result, nil
 }
