@@ -1,4 +1,4 @@
-# Marketing operations
+# Marketing ops
 
 Drive efficient, scalable pipeline growth by building and optimizing the systems, processes, and campaigns that attract, nurture, and convert high-quality leads into revenue—enabling the sales team to focus on closing while we focus on filling the funnel.
 
