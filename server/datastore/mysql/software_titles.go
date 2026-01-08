@@ -848,10 +848,10 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 		return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
 	}
 	var startTime, endTime string
-	if config.AutoUpdateStartTime != nil {
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
 		startTime = *config.AutoUpdateStartTime
 	}
-	if config.AutoUpdateEndTime != nil {
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
 		endTime = *config.AutoUpdateEndTime
 	}
 

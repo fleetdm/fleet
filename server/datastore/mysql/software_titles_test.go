@@ -2698,6 +2698,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
 
 	// Add valid, disabled auto-update schedule for the other VPP app.
+	// The schedule should be ignored since it's disabled, but it should still be created.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   ptr.Bool(false),
 		AutoUpdateStartTime: ptr.String(startTime),
@@ -2717,8 +2718,8 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, title2ID, schedules[1].TitleID)
 	require.Equal(t, team1.ID, schedules[1].TeamID)
 	require.False(t, *schedules[1].AutoUpdateEnabled)
-	require.Equal(t, startTime, *schedules[1].AutoUpdateStartTime)
-	require.Equal(t, endTime, *schedules[1].AutoUpdateEndTime)
+	require.Equal(t, "", *schedules[1].AutoUpdateStartTime)
+	require.Equal(t, "", *schedules[1].AutoUpdateEndTime)
 
 	// Filter by enabled only.
 	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps", fleet.SoftwareAutoUpdateScheduleFilter{
@@ -2738,9 +2739,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 
 	// Disable auto-update.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(false),
-		AutoUpdateStartTime: nil,
-		AutoUpdateEndTime:   nil,
+		AutoUpdateEnabled: ptr.Bool(false),
 	})
 	require.NoError(t, err)
 
