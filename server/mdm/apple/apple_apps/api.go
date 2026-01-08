@@ -64,6 +64,8 @@ type metadataResp struct {
 	Data []Metadata `json:"data"`
 }
 
+// Authenticator returns a bearer token for the VPP metadata service (proxied or direct), or an error if once can't be
+// retrieved. If forceRenew is true, bypasses the database bearer token cache if it would've otherwise been used.
 type Authenticator func(forceRenew bool) (string, error)
 
 // client is a package-level client (similar to http.DefaultClient) so it can
@@ -131,6 +133,7 @@ func do(req *http.Request, vppToken string, getBearerToken Authenticator, forceR
 		return fmt.Errorf("making request to VPP app details endpoint: %w", err)
 	}
 	defer resp.Body.Close()
+
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
