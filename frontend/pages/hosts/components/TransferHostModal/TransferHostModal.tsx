@@ -75,7 +75,7 @@ const TransferHostModal = ({
   };
 
   return (
-    <Modal onExit={onCancel} title={`Transfer`} className={baseClass}>
+    <Modal onExit={onCancel} title="Transfer" className={baseClass}>
       <>
         <form className={`${baseClass}__form`}>
           <Dropdown
