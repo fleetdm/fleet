@@ -179,7 +179,8 @@ Once the deployment is complete, database migrations have run successfully, and 
 
 ## Cleaning Up
 
-To destroy all resources created by this Terraform project:
+If you would like to permanently remove your Fleet instance and related infrastructure, use `terraform destroy` to remove all resources created by this Terraform project:
+
 1.  Navigate to the root directory of the project.
 2.  Run the destroy command:
 
