@@ -30,7 +30,7 @@ const IosOrIpadLockPreview = () => {
         <b>Organization name</b> that you configured in{" "}
         <CustomLink
           url={PATHS.ADMIN_ORGANIZATION_INFO}
-          text={"Organization settings"}
+          text="Organization settings"
         />
         .
       </p>
