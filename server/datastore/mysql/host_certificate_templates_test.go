@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -1520,7 +1521,7 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 }
 
 func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test data
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
@@ -1542,63 +1543,11 @@ func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Create hosts
-	host1, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "host1",
-		UUID:            uuid.NewString(),
-		Platform:        "android",
-		NodeKey:         ptr.String("host1_key"),
-		OsqueryHostID:   ptr.String("host1_osquery"),
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		TeamID:          &team.ID,
-	})
-	require.NoError(t, err)
-
-	host2, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "host2",
-		UUID:            uuid.NewString(),
-		Platform:        "android",
-		NodeKey:         ptr.String("host2_key"),
-		OsqueryHostID:   ptr.String("host2_osquery"),
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		TeamID:          &team.ID,
-	})
-	require.NoError(t, err)
-
-	host3, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "host3",
-		UUID:            uuid.NewString(),
-		Platform:        "android",
-		NodeKey:         ptr.String("host3_key"),
-		OsqueryHostID:   ptr.String("host3_osquery"),
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		TeamID:          &team.ID,
-	})
-	require.NoError(t, err)
-
-	host4, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "host4",
-		UUID:            uuid.NewString(),
-		Platform:        "android",
-		NodeKey:         ptr.String("host4_key"),
-		OsqueryHostID:   ptr.String("host4_osquery"),
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		TeamID:          &team.ID,
-	})
-	require.NoError(t, err)
-
 	now := time.Now().UTC()
+	host1 := test.NewHost(t, ds, "host1", "192.168.1.1", "host1_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host2 := test.NewHost(t, ds, "host2", "192.168.1.2", "host2_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host3 := test.NewHost(t, ds, "host3", "192.168.1.3", "host3_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host4 := test.NewHost(t, ds, "host4", "192.168.1.4", "host4_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
 
 	// Insert certificate records with different validity scenarios
 	// Host 1: Certificate expiring in 7 days (validity period = 1 year) - SHOULD be renewed
@@ -1652,8 +1601,8 @@ func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 // insertHostCertTemplate is a helper to insert a host_certificate_templates record with validity data
 func insertHostCertTemplate(t *testing.T, ds *Datastore, hostUUID string, templateID uint, status fleet.CertificateTemplateStatus, opType fleet.MDMOperationType, notValidBefore, notValidAfter *time.Time) {
 	t.Helper()
-	_, err := ds.writer(context.Background()).ExecContext(
-		context.Background(),
+	_, err := ds.writer(t.Context()).ExecContext(
+		t.Context(),
 		`INSERT INTO host_certificate_templates
 			(host_uuid, certificate_template_id, status, operation_type, name, uuid, not_valid_before, not_valid_after)
 		VALUES (?, ?, ?, ?, 'test', UUID_TO_BIN(UUID(), true), ?, ?)`,
@@ -1663,7 +1612,7 @@ func insertHostCertTemplate(t *testing.T, ds *Datastore, hostUUID string, templa
 }
 
 func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test team, CA, and certificate template
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team renewal set"})
@@ -1686,35 +1635,9 @@ func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 	templateID := template.ID
 
 	// Create test hosts
-	host1, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "host1-set",
-		UUID:            uuid.NewString(),
-		Platform:        "android",
-		NodeKey:         ptr.String("host1_key_set"),
-		OsqueryHostID:   ptr.String("host1_osquery_set"),
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		TeamID:          &team.ID,
-	})
-	require.NoError(t, err)
-
-	host2, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "host2-set",
-		UUID:            uuid.NewString(),
-		Platform:        "android",
-		NodeKey:         ptr.String("host2_key_set"),
-		OsqueryHostID:   ptr.String("host2_osquery_set"),
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		TeamID:          &team.ID,
-	})
-	require.NoError(t, err)
-
 	now := time.Now().UTC()
+	host1 := test.NewHost(t, ds, "host1-set", "192.168.1.1", "host1_key_set", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host2 := test.NewHost(t, ds, "host2-set", "192.168.1.2", "host2_key_set", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
 	notValidBefore := now.AddDate(-1, 0, 7)
 	notValidAfter := now.Add(7 * 24 * time.Hour)
 
