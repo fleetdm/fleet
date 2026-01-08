@@ -577,10 +577,10 @@ func TestSoftwareUnmarshalJSON(t *testing.T) {
 	// Test round-trip marshaling/unmarshaling
 	t.Run("round-trip", func(t *testing.T) {
 		original := Software{
-			ID:     1,
-			Name:   "Test Software",
-			Source: "apps",
-			Version: "1.0.0",
+			ID:           1,
+			Name:         "Test Software",
+			Source:       "apps",
+			Version:      "1.0.0",
 			LastOpenedAt: &now,
 		}
 
@@ -673,10 +673,10 @@ func TestHostSoftwareEntryUnmarshalJSON(t *testing.T) {
 	t.Run("round-trip", func(t *testing.T) {
 		original := HostSoftwareEntry{
 			Software: Software{
-				ID:     1,
-				Name:   "Test Software",
-				Source: "apps",
-				Version: "1.0.0",
+				ID:           1,
+				Name:         "Test Software",
+				Source:       "apps",
+				Version:      "1.0.0",
 				LastOpenedAt: &now,
 			},
 			InstalledPaths: []string{"/usr/local/bin/test"},
