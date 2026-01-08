@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"

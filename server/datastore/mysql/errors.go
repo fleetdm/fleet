@@ -13,7 +13,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-sql-driver/mysql"
 )
 

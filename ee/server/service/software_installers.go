@@ -27,7 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"

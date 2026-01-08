@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/log"
 	"github.com/ngrok/sqlmw"
 )

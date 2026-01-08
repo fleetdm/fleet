@@ -30,7 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"

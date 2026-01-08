@@ -31,7 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
