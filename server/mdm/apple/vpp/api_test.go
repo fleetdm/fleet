@@ -156,20 +156,25 @@ func TestAssociateAssets(t *testing.T) {
 }
 
 func TestManageVPPLicenses(t *testing.T) {
+	type params struct {
+		AdamID                string
+		PricingParam          string
+		AssociateSerialNumber string
+	}
 	tests := []struct {
 		name           string
 		token          string
-		params         *ManageVPPLicensesRequest
+		params         params
 		handler        http.HandlerFunc
 		expectedErrMsg string
 	}{
 		{
 			name:  "valid request",
 			token: "valid_token",
-			params: &ManageVPPLicensesRequest{
-				AdamID:                 "12345",
-				PricingParam:           "STDQ",
-				AssociateSerialNumbers: []string{"SN12345"},
+			params: params{
+				AdamID:                "12345",
+				PricingParam:          "STDQ",
+				AssociateSerialNumber: "SN12345",
 			},
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				require.Equal(t, http.MethodPost, r.Method)
@@ -194,10 +199,10 @@ func TestManageVPPLicenses(t *testing.T) {
 		{
 			name:  "server error",
 			token: "valid_token",
-			params: &ManageVPPLicensesRequest{
-				AdamID:                 "12345",
-				PricingParam:           "STDQ",
-				AssociateSerialNumbers: []string{"SN12345"},
+			params: params{
+				AdamID:                "12345",
+				PricingParam:          "STDQ",
+				AssociateSerialNumber: "SN12345",
 			},
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -208,10 +213,10 @@ func TestManageVPPLicenses(t *testing.T) {
 		{
 			name:  "client error",
 			token: "valid_token",
-			params: &ManageVPPLicensesRequest{
-				AdamID:                 "12345",
-				PricingParam:           "STDQ",
-				AssociateSerialNumbers: []string{"SN12345"},
+			params: params{
+				AdamID:                "12345",
+				PricingParam:          "STDQ",
+				AssociateSerialNumber: "SN12345",
 			},
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
@@ -225,7 +230,7 @@ func TestManageVPPLicenses(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
-			err := ManageVPPLicenses(tt.token, tt.params)
+			err := ManageVPPLicenses(tt.token, tt.params.AdamID, tt.params.PricingParam, tt.params.AssociateSerialNumber)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)
