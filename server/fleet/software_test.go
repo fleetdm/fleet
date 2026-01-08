@@ -415,12 +415,10 @@ func TestAutoUpdateScheduleValidation(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ok, err := tc.schedule.ScheduleIsValid()
+			err := tc.schedule.WindowIsValid()
 			if tc.isValid {
-				assert.True(t, ok)
 				assert.NoError(t, err)
 			} else {
-				assert.False(t, ok)
 				assert.Error(t, err)
 			}
 		})

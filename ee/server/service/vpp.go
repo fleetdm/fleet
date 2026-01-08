@@ -790,11 +790,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 		},
 	}
-	ok, err := schedule.ScheduleIsValid()
-	if !ok {
-		if err == nil {
-			err = fleet.NewInvalidArgumentError("auto_update_schedule", "invalid auto-update schedule")
-		}
+
+	if err := schedule.WindowIsValid(); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating auto-update schedule")
 	}
 

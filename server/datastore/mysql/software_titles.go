@@ -840,11 +840,7 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 			AutoUpdateEndTime:   config.AutoUpdateEndTime,
 		},
 	}
-	ok, err := schedule.ScheduleIsValid()
-	if !ok {
-		if err == nil {
-			err = fleet.NewInvalidArgumentError("auto_update_schedule", "invalid auto-update schedule")
-		}
+	if err := schedule.WindowIsValid(); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
 	}
 	var startTime, endTime string
@@ -864,7 +860,7 @@ ON DUPLICATE KEY UPDATE
 	start_time = IF(VALUES(start_time) = '', start_time, VALUES(start_time)),
 	end_time = IF(VALUES(end_time) = '', end_time, VALUES(end_time))
 `
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}
