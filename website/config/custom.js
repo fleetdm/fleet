@@ -288,7 +288,7 @@ module.exports.custom = {
     'handbook/company/communications.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil'],
+    'handbook/it': ['sampfluger88', 'mikermcneil'],
     'handbook/finance': ['sampfluger88', 'mikermcneil'],
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
     'handbook/marketing': ['sampfluger88', 'mikermcneil'],

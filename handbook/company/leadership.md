@@ -48,7 +48,7 @@ Departmental pages exist to outline people, responsibilities, recurring rituals,
 
 Changes to departmental pages can be merged when the change results in a page consistent with this structure.
 
-> Please see https://fleetdm.com/handbook/it-and-enablement for an example of what this structure should look like in practice.
+> Please see https://fleetdm.com/handbook/it for an example of what this structure should look like in practice.
 
 <blockquote purpose="large-quote">
 Biggest learning is that we federated carte blanche edit permissions a bit too early back in 2021, and it’s resulted in the need for a lot of cleanup as different people have had their hands in the content prior to introducing a framework for organizing that content.  
@@ -73,7 +73,7 @@ Departmental page structure:
   - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
 
   - `## Team`
-    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/it-and-enablement#team](https://fleetdm.com/handbook/it-and-enablement#team) for example.
+    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/it-and-enablement#team](https://fleetdm.com/handbook/it#team) for example.
 
   - `## Contact us`
     - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=1-custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[#g-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`)."
@@ -126,7 +126,7 @@ Every release cycle, each department leader discusses their [key performance ind
 In this meeting, the department leader discusses actual week-over-week progress toward the goals for a particular quarter with the CEO.
 
 - Key reviews are scheduled during the e-group time slot every three weeks and are not moved or rescheduled.  If a department leader is not available to lead a particular key review, another team member from their department will join the meeting and discuss their department's key performance indicators (KPIs).
-- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, contact 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us).
+- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, contact 🌐 [IT & Enablement](https://fleetdm.com/handbook/it#contact-us).
 
 
 ## Hiring

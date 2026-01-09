@@ -114,7 +114,7 @@ When purchasing hardware through Brex, follow these recommendations:
 - **Include detailed descriptions**: When submitting expenses, include the team member's name, role tier (Engineer/Tech/Non-tech), and intended use (primary device, secondary device, test equipment, etc.).
 - **Attach purchase documentation**: Include order confirmations, receipts, and shipping information in the Brex expense submission.
 - **Tag appropriately**: Use appropriate tags in Brex to categorize hardware purchases (e.g., "Hardware - Apple", "Hardware - Windows", "Hardware - Linux", "Hardware - Warehouse").
-- **Pre-approval for high-value items**: For purchases exceeding standard tier allocations, seek pre-approval through the standard [request process](https://fleetdm.com/handbook/it-and-enablement#contact-us) before making the purchase.
+- **Pre-approval for high-value items**: For purchases exceeding standard tier allocations, seek pre-approval through the standard [request process](https://fleetdm.com/handbook/it#contact-us) before making the purchase.
 - **Track delivery**: Update the request issue with delivery tracking information so the team member can be notified when equipment arrives.
 
 ## Equipment lifecycle management

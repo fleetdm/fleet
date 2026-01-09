@@ -20,7 +20,7 @@ IT & Enablement manages and supports the following GTM systems and tools:
 
 **GTM Team** handles application administration and day-to-day configuration changes within these systems. This includes workflow configuration, field customization, report creation, and other operational changes that affect how the systems are used.
 
-> **Note:** This list will be updated as new systems are added or existing ones are retired. For access requests or questions about any GTM system, [contact IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us).
+> **Note:** This list will be updated as new systems are added or existing ones are retired. For access requests or questions about any GTM system, [contact IT & Enablement](https://fleetdm.com/handbook/it#contact-us).
 
 ## Measure intent signals
 

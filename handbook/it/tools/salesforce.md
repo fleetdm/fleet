@@ -42,19 +42,19 @@ Salesforce integrates with several other tools and systems at Fleet:
 
 ### Configuration and workflow questions
 - Contact the GTM Team or your manager
-- For duplicate management, see [GTM Systems - Manage duplicates in CRM](https://fleetdm.com/handbook/it-and-enablement/gtm-systems#manage-duplicates-in-crm)
+- For duplicate management, see [GTM Systems - Manage duplicates in CRM](https://fleetdm.com/handbook/it/gtm-systems#manage-duplicates-in-crm)
 
 ### Adding a Salesforce seat
-See [Software and Tools - Add a seat to Salesforce](https://fleetdm.com/handbook/it-and-enablement/software-and-tools#add-a-seat-to-salesforce) for detailed steps.
+See [Software and Tools - Add a seat to Salesforce](https://fleetdm.com/handbook/it/software-and-tools#add-a-seat-to-salesforce) for detailed steps.
 
 ### Salesforce documentation
 - [Salesforce Help Documentation](https://help.salesforce.com/)
-- Internal processes: [GTM Systems](https://fleetdm.com/handbook/it-and-enablement/gtm-systems) handbook page
+- Internal processes: [GTM Systems](https://fleetdm.com/handbook/it/gtm-systems) handbook page
 
 ## Common tasks
 
 - **Add an account**: See [Sales handbook - Add an account to Salesforce](https://fleetdm.com/handbook/sales#add-an-account-to-salesforce)
-- **Manage duplicates**: See [GTM Systems - Manage duplicates in CRM](https://fleetdm.com/handbook/it-and-enablement/gtm-systems#manage-duplicates-in-crm)
+- **Manage duplicates**: See [GTM Systems - Manage duplicates in CRM](https://fleetdm.com/handbook/it/gtm-systems#manage-duplicates-in-crm)
 - **Review opportunities**: See [Sales handbook - Review Salesforce opportunities](https://fleetdm.com/handbook/sales#review-salesforce-opportunities)
 
 

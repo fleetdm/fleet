@@ -18,10 +18,10 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 ### Preparing for recovery
 
 1. If the requester still has access to GitHub and/or Slack, they [ask for
-   help](https://fleetdm.com/handbook/it-and-enablement#contact-us). For non-urgent requests, please
+   help](https://fleetdm.com/handbook/it#contact-us). For non-urgent requests, please
    prefer filing an issue with the IT & Enablement team. If they do not have access,
    they can contact their manager or a teammate over the phone via voice or texting, and they will
-   [ask for help](https://fleetdm.com/handbook/it-and-enablement#contact-us) on behalf of the
+   [ask for help](https://fleetdm.com/handbook/it#contact-us) on behalf of the
    requester.
 2. The recoverer identifies the requester through a live video call.
 * If the recoverer does not know the requester well enough to positively identify them visually, the
