@@ -7,6 +7,7 @@
 - Added support for renewal of custom SCEP profiles for Windows.
 - Added support for team-specific labels. Currently team-specific labels must be created via spec endpoints, used by GitOps.
 - Implemented ability to create, list, and delete Android certs from the UI.
+- Added Android agent application (automatically deployed via Android MDM) to support automated installation of SCEP certificates on Android hosts.
 - Added messaging around Apple VPP update failures due to the application being open.
 - Added ability to indicate that new MacOS hosts enrolling via ADE should be updated to the latest operating system version.
 - Added ability to edit Android software config in UI.
