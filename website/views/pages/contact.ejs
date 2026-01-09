@@ -139,7 +139,7 @@
       </div>
 
       <div v-if="formToDisplay === 'apply'">
-        <ajax-form action="deliverApplicationMessage" class="apply" :form-errors.sync="formErrors" :form-data="formData" :form-rules="applicationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedContactForm()">
+        <ajax-form action="deliverApplicationSubmission" class="apply" :form-errors.sync="formErrors" :form-data="formData" :form-rules="applicationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedApplicationForm()">
           <div class="form-group">
             <div class="row">
               <div purpose="first-name-column" class="col-sm mb-4 mb-sm-0">

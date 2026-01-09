@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Deliver application message',
+  friendlyName: 'Deliver application submission',
 
 
-  description: 'Delivers form submissions from the application form on the contact page to Zapier.',
+  description: 'Delivers form submissions from the application form on the contact page to a Zapier webhook.',
 
 
   inputs: {
@@ -56,7 +56,9 @@ module.exports = {
 
 
   exits: {
-
+    success: {
+      description: 'A job application was successfully submitted.',
+    }
   },
 
 
@@ -64,8 +66,8 @@ module.exports = {
 
 
 
-    // Send the submitted information to a Zapier webhook.
 
+    // Send the submitted information to a Zapier webhook.
     await sails.helpers.http.post.with({
       url: 'https://hooks.zapier.com/hooks/catch/3627242/uwc77dr/',
       data: {
@@ -85,8 +87,6 @@ module.exports = {
       sails.log.warn(`When a user submitted the application form, an error occurred while sending a request to Zapier. Raw error: ${require('util').inspect(err)}`);
       return;
     });
-
-
 
 
     // All done.

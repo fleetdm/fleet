@@ -122,6 +122,11 @@ parasails.registerPage('contact', {
       this.goto(eventUrl);
     },
 
+    submittedApplicationForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
+    },
+
     clickSwitchForms: function(form) {
       if(this.me){
         this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
