@@ -85,13 +85,13 @@ module.exports = {
       lastName: lastName,
       // organization: organization, // Note: the user-provided organization is not used here because we're relying on the enrichment helper below to find the correct organization for this person.
       primaryBuyingSituation: primaryBuyingSituation === 'security-misc' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'it-misc' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'it-major-mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'it-gap-filler-mdm' ? 'IT - Gap-filler MDM' : primaryBuyingSituation === 'security-vm' ? 'Vulnerability management' : undefined,
-      contactSource: 'Website - Contact forms',
       psychologicalStage: '4 - Has use case',
       psychologicalStageChangeReason: 'Website - Contact forms'
     };
 
     // If the user said they have 700+ hosts, Update/create a contact and account, and send them to the "Talk to us" Calendly event.
     if(numberOfHosts >= 700){
+      contactInformation.contactSource = 'Website - Contact forms - Demo - ICP';
       contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event. Provided organization name: ${organization}, Number of hosts: ${numberOfHosts}`;
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
         if(err) {
@@ -101,6 +101,7 @@ module.exports = {
       return `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`;
     } else {
       // If the user has <700 hosts, use the get-enriched helper to try to find the number of employees at their organization.
+      contactInformation.contactSource = 'Website - Contact forms - Demo';
       let enrichmentInformation = await sails.helpers.iq.getEnriched.with({
         emailAddress,
         firstName,
