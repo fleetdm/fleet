@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "143.1.85.118",
+      "version": "143.1.85.120",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser';"
       },
-      "installer_url": "https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/185.118/Brave-Browser-arm64.dmg",
+      "installer_url": "https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/185.120/Brave-Browser-arm64.dmg",
       "install_script_ref": "f1d4713c",
       "uninstall_script_ref": "e860eed9",
-      "sha256": "9cc98520ce3abf7d00aec9086ed65cc41c0d77e82d1b30d008c69b72b536ad3c",
+      "sha256": "1e66e2b5491e75222f6feedf2df534ddbf1d1774b8e6cb591fe56101829356ca",
       "default_categories": [
         "Browsers"
       ]
