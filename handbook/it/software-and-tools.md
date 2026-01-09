@@ -24,7 +24,7 @@ Each major software tool at Fleet has its own dedicated page with detailed infor
 - **[Zapier](tools/zapier.md)** - Workflow automation platform
 - **[DocuSign](tools/docusign.md)** - Electronic signature platform
 
-> **Note:** This list will be updated as new tools are added or existing ones are retired. For access requests or questions about any tool, [contact IT & Enablement](https://fleetdm.com/handbook/it#contact-us).
+> **Note:** This list will be updated as new tools are added or existing ones are retired. For access requests or questions about any tool, [contact IT](https://fleetdm.com/handbook/it#contact-us).
 
 ## Purchase a SaaS tool
 
@@ -49,7 +49,7 @@ Once the decision has been made not to renew a tool or subscription on Fleet's b
 
 ## Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from IT & Enablement](https://fleetdm.com/handbook/it#contact-us) and we will make sure there is no license redundancy in that department.
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from IT](https://fleetdm.com/handbook/it#contact-us) and we will make sure there is no license redundancy in that department.
 
 ## Process a tool upgrade request from a team member
 

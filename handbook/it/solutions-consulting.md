@@ -77,7 +77,7 @@ NFR instances should **not** be used for:
 - **Cleanup**: Deprovision NFR instances promptly when they're no longer needed or have expired
 - **Documentation**: Maintain accurate records of all NFR instances for tracking and compliance purposes
 
-## GitOps Training and Enablement
+## GitOps Training
 
 Solutions Consultants are responsible for:
 
