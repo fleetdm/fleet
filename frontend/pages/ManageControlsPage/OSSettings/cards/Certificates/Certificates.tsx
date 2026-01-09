@@ -21,6 +21,7 @@ import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -160,7 +161,7 @@ const Certificates = ({
             return (
               <ListItem
                 graphic="file-certificate"
-                title={name}
+                title={<TooltipTruncatedText value={name} />}
                 details={details}
                 actions={
                   <GitOpsModeTooltipWrapper
