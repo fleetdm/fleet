@@ -110,25 +110,11 @@ fi
 if [ "$update_needed" = true ]; then
     echo "Updating policy query with new Safari versions..."
 
-    # Prepare the new query section with updated versions
-    # Match the indentation of the original file (2 spaces)
-    new_query_section="  query: |
-    SELECT 1 WHERE 
-      NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari')
-      OR (
-        EXISTS (SELECT 1 FROM os_version WHERE version LIKE '26.%')
-        AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '$safari_26_version') >= 0)
-      )
-      OR (
-        EXISTS (SELECT 1 FROM os_version WHERE version LIKE '15.%')
-        AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '$safari_18_version') >= 0)
-      );"
-
     # Replace the query section in the response
-    # Use a more robust approach: find the query section and replace it
+    # Build the new query inline in awk to avoid multi-line variable issues
     # Handle indented query: (starts with spaces followed by "query:")
     # The query is a YAML multiline string that continues until the next key at the same indentation level
-    updated_response=$(echo "$response" | awk -v new_query="$new_query_section" '
+    updated_response=$(echo "$response" | awk -v safari_26="$safari_26_version" -v safari_18="$safari_18_version" '
         BEGIN {
             in_query = 0
             query_started = 0
@@ -136,7 +122,18 @@ if [ "$update_needed" = true ]; then
         /^[[:space:]]*query:/ {
             query_started = 1
             in_query = 1
-            print new_query
+            # Print the new query section with updated versions
+            print "  query: |"
+            print "    SELECT 1 WHERE "
+            print "      NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '\''com.apple.Safari'\'')"
+            print "      OR ("
+            print "        EXISTS (SELECT 1 FROM os_version WHERE version LIKE '\''26.%'\'')"
+            print "        AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '\''com.apple.Safari'\'' AND version_compare(bundle_short_version, '\''" safari_26 "'\'' ) >= 0)"
+            print "      )"
+            print "      OR ("
+            print "        EXISTS (SELECT 1 FROM os_version WHERE version LIKE '\''15.%'\'')"
+            print "        AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '\''com.apple.Safari'\'' AND version_compare(bundle_short_version, '\''" safari_18 "'\'' ) >= 0)"
+            print "      );"
             next
         }
         # After query started, skip lines until we find the next key at the same indentation level (2 spaces)
