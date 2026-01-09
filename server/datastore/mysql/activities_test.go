@@ -24,11 +24,11 @@ import (
 )
 
 func TestActivity(t *testing.T) {
-	ds := CreateMySQLDSWithActivities(t)
+	ds := CreateMySQLDS(t)
 
 	cases := []struct {
 		name string
-		fn   func(t *testing.T, ds *DatastoreWithActivities)
+		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UsernameChange", testActivityUsernameChange},
 		{"New", testActivityNew},
@@ -54,7 +54,7 @@ func TestActivity(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds.Datastore)
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -86,7 +86,7 @@ func (d dummyActivity) HostIDs() []uint {
 	return d.hostIDs
 }
 
-func testActivityUsernameChange(t *testing.T, ds *DatastoreWithActivities) {
+func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	u := &fleet.User{
 		Password:    []byte("asd"),
 		Name:        "fullname",
@@ -144,7 +144,7 @@ func testActivityUsernameChange(t *testing.T, ds *DatastoreWithActivities) {
 	assert.Nil(t, activities[0].ActorGravatar)
 }
 
-func testActivityNew(t *testing.T, ds *DatastoreWithActivities) {
+func testActivityNew(t *testing.T, ds *Datastore) {
 	u := &fleet.User{
 		Password:   []byte("asd"),
 		Name:       "fullname",
@@ -218,7 +218,7 @@ func testActivityNew(t *testing.T, ds *DatastoreWithActivities) {
 	assert.Len(t, activities, 2)
 }
 
-func testListActivitiesStreamed(t *testing.T, ds *DatastoreWithActivities) {
+func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	u := &fleet.User{
 		Password:   []byte("asd"),
 		Name:       "fullname",
@@ -290,7 +290,7 @@ func testListActivitiesStreamed(t *testing.T, ds *DatastoreWithActivities) {
 	require.Equal(t, streamed[0], activities[0])
 }
 
-func testActivityEmptyUser(t *testing.T, ds *DatastoreWithActivities) {
+func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 	timestamp := time.Now()
 	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	require.NoError(
@@ -324,7 +324,7 @@ func testActivityEmptyUser(t *testing.T, ds *DatastoreWithActivities) {
 	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
 }
 
-func testActivityPaginationMetadata(t *testing.T, ds *DatastoreWithActivities) {
+func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
 	timestamp := time.Now()
 	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	for i := 0; i < 3; i++ {
@@ -398,7 +398,7 @@ func testActivityPaginationMetadata(t *testing.T, ds *DatastoreWithActivities) {
 	}
 }
 
-func testListHostUpcomingActivities(t *testing.T, ds *DatastoreWithActivities) {
+func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	noUserCtx := context.Background()
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
@@ -409,13 +409,13 @@ func testListHostUpcomingActivities(t *testing.T, ds *DatastoreWithActivities) {
 
 	// create four hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, h1, false)
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, h2, false)
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 	h3 := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, h3, false)
+	nanoEnrollAndSetHostMDMData(t, ds, h3, false)
 	h4 := test.NewHost(t, ds, "h4.local", "10.10.10.4", "4", "4", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, h4, false)
+	nanoEnrollAndSetHostMDMData(t, ds, h4, false)
 
 	// create a couple of named scripts
 	scr1, err := ds.NewScript(ctx, &fleet.Script{
@@ -505,7 +505,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *DatastoreWithActivities) {
 	require.NoError(t, err)
 	hSyncExpired := hsr.ExecutionID
 	t.Log("hSyncExpired", hSyncExpired)
-	ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ? WHERE execution_id = ?", time.Now().Add(-(scripts.MaxServerWaitTime + time.Minute)), hSyncExpired)
 		return err
 	})
@@ -608,7 +608,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *DatastoreWithActivities) {
 	// force-set the order of the created_at timestamps
 	// even if vppCommand1 and 2 are later, since they are already activated
 	// (because they were enqueued first) they will show up first.
-	SetOrderedCreatedAtTimestamps(t, ds.Datastore, time.Now(), "upcoming_activities", "execution_id",
+	SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "upcoming_activities", "execution_id",
 		h1A, h1B, h1Bar, h1C, h1D, h1E, h1Fleet, h2SelfService, h2Bar, h2A, vppCommand1, vppCommand2, h2SetupExp)
 
 	execIDsWithUser := map[string]bool{
@@ -797,7 +797,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *DatastoreWithActivities) {
 	}
 }
 
-func testListHostPastActivities(t *testing.T, ds *DatastoreWithActivities) {
+func testListHostPastActivities(t *testing.T, ds *Datastore) {
 	getDetails := func(a *fleet.Activity) map[string]any {
 		details := make(map[string]any)
 		err := json.Unmarshal([]byte(*a.Details), &details)
@@ -893,7 +893,7 @@ func testListHostPastActivities(t *testing.T, ds *DatastoreWithActivities) {
 	}
 }
 
-func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *DatastoreWithActivities) {
+func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -1021,7 +1021,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *DatastoreWithActiv
 	require.NotNil(t, savedQuery1)
 }
 
-func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *DatastoreWithActivities) {
+func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -1071,7 +1071,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *DatastoreWith
 	require.NoError(t, err)
 	require.Len(t, activities, 1500)
 	var queriesLen int
-	ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 1500, queriesLen)
@@ -1096,7 +1096,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *DatastoreWith
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	require.Len(t, activities, 1000)
-	ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen) // All expired queries should be cleaned up.
@@ -1107,7 +1107,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *DatastoreWith
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	require.Len(t, activities, 500)
-	ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen)
@@ -1118,7 +1118,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *DatastoreWith
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	require.Len(t, activities, 250)
-	ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen)
@@ -1129,24 +1129,24 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *DatastoreWith
 	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	require.Len(t, activities, 250)
-	ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen)
 }
 
-func testActivateNextActivity(t *testing.T, ds *DatastoreWithActivities) {
+func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, h1, false)
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, h2, false)
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 	hIOS := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now().Add(-1*time.Second), test.WithPlatform("ios"))
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, hIOS, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hIOS, false)
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 
@@ -1273,7 +1273,7 @@ func testActivateNextActivity(t *testing.T, ds *DatastoreWithActivities) {
 	require.Nil(t, scriptRes.ExitCode)
 
 	// delete the script1_2 upcoming activity as if it was cancelled
-	ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 			DELETE FROM upcoming_activities
 			WHERE execution_id = ?`,
@@ -1634,13 +1634,13 @@ func testActivateNextActivity(t *testing.T, ds *DatastoreWithActivities) {
 	require.Len(t, pendingActs, 0)
 }
 
-func testActivateItselfOnEmptyQueue(t *testing.T, ds *DatastoreWithActivities) {
+func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, h1, false)
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 
 	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
@@ -1736,18 +1736,18 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *DatastoreWithActivities) {
 	require.Len(t, pendingActs, 0)
 }
 
-func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *DatastoreWithActivities) {
+func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 
 	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, host, false)
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
 	hostLeftUntouched := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, hostLeftUntouched, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostLeftUntouched, false)
 	hostIOS := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now(), test.WithPlatform("ios"))
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, hostIOS, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostIOS, false)
 
 	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	require.NoError(t, err)
@@ -1902,18 +1902,18 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *DatastoreWithActiv
 	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
 }
 
-func testCancelActivatedUpcomingActivity(t *testing.T, ds *DatastoreWithActivities) {
+func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 
 	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, host, false)
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
 	hostLeftUntouched := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, hostLeftUntouched, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostLeftUntouched, false)
 	hostIOS := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now(), test.WithPlatform("ios"))
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, hostIOS, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostIOS, false)
 
 	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	require.NoError(t, err)
@@ -2084,7 +2084,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *DatastoreWithActiviti
 			gotExecIDs = append(gotExecIDs, sws...)
 
 			var nanoExecIDs []string
-			ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				err := sqlx.SelectContext(ctx, q, &nanoExecIDs, `SELECT command_uuid FROM nano_view_queue WHERE id = ? AND active = 1 AND status IS NULL`, c.host.UUID)
 				return err
 			})
@@ -2107,13 +2107,13 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *DatastoreWithActiviti
 	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
 }
 
-func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *DatastoreWithActivities) {
+func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	nanoEnrollAndSetHostMDMData(t, ds.Datastore, host, false)
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
 	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	require.NoError(t, err)
 
@@ -2142,7 +2142,7 @@ func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *DatastoreWithAct
 	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged")
 }
 
-func testGetHostUpcomingActivityMeta(t *testing.T, ds *DatastoreWithActivities) {
+func testGetHostUpcomingActivityMeta(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
 	host2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
@@ -2271,7 +2271,7 @@ func testGetHostUpcomingActivityMeta(t *testing.T, ds *DatastoreWithActivities) 
 	require.ErrorAs(t, err, &nfe)
 }
 
-func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *DatastoreWithActivities) {
+func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 
@@ -2288,7 +2288,7 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *DatastoreWithActivi
 	require.Equal(t, 0, n)
 
 	deleteUpcomingActivityToBlockQueue := func(execID string) {
-		ExecAdhocSQL(t, ds.Datastore, func(q sqlx.ExtContext) error {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `DELETE FROM upcoming_activities WHERE execution_id = ?`, execID)
 			return err
 		})
@@ -2304,11 +2304,11 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *DatastoreWithActivi
 	host2ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "A", UserID: &u.ID, SyncRequest: true})
 	require.NoError(t, err)
 
-	checkUpcomingActivities(t, ds.Datastore, hosts[0], host0ScriptA.ExecutionID, host0ScriptB.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[1], host1ScriptA.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[2], host2ScriptA.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[3])
-	checkUpcomingActivities(t, ds.Datastore, hosts[4])
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptA.ExecutionID, host0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
 
 	// nothing to unblock
 	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
@@ -2322,11 +2322,11 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *DatastoreWithActivi
 	require.NoError(t, err)
 	require.Equal(t, 1, n)
 
-	checkUpcomingActivities(t, ds.Datastore, hosts[0], host0ScriptB.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[1], host1ScriptA.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[2], host2ScriptA.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[3])
-	checkUpcomingActivities(t, ds.Datastore, hosts[4])
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
 
 	// enqueue script C for all hosts
 	host0ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
@@ -2340,11 +2340,11 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *DatastoreWithActivi
 	host4ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[4].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
 	require.NoError(t, err)
 
-	checkUpcomingActivities(t, ds.Datastore, hosts[0], host0ScriptB.ExecutionID, host0ScriptC.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[1], host1ScriptA.ExecutionID, host1ScriptC.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[2], host2ScriptA.ExecutionID, host2ScriptC.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[3], host3ScriptC.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[4], host4ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptB.ExecutionID, host0ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID, host1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID, host2ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptC.ExecutionID)
 
 	// block queue for all hosts, but since hosts 3 and 4 are now empty, no need
 	// to unblock
@@ -2358,11 +2358,11 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *DatastoreWithActivi
 	require.NoError(t, err)
 	require.Equal(t, 3, n)
 
-	checkUpcomingActivities(t, ds.Datastore, hosts[0], host0ScriptC.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[1], host1ScriptC.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[2], host2ScriptC.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[3])
-	checkUpcomingActivities(t, ds.Datastore, hosts[4])
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
 
 	// enqueue script D and E for all hosts
 	host0ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
@@ -2386,11 +2386,11 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *DatastoreWithActivi
 	host4ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[4].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
 	require.NoError(t, err)
 
-	checkUpcomingActivities(t, ds.Datastore, hosts[0], host0ScriptC.ExecutionID, host0ScriptD.ExecutionID, host0ScriptE.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[1], host1ScriptC.ExecutionID, host1ScriptD.ExecutionID, host1ScriptE.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[2], host2ScriptC.ExecutionID, host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[3], host3ScriptD.ExecutionID, host3ScriptE.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[4], host4ScriptD.ExecutionID, host4ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptC.ExecutionID, host0ScriptD.ExecutionID, host0ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptC.ExecutionID, host1ScriptD.ExecutionID, host1ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptC.ExecutionID, host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptD.ExecutionID, host3ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptD.ExecutionID, host4ScriptE.ExecutionID)
 
 	// block queue for all hosts
 	deleteUpcomingActivityToBlockQueue(host0ScriptC.ExecutionID)
@@ -2412,14 +2412,14 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *DatastoreWithActivi
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
-	checkUpcomingActivities(t, ds.Datastore, hosts[0], host0ScriptD.ExecutionID, host0ScriptE.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[1], host1ScriptD.ExecutionID, host1ScriptE.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[2], host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[3], host3ScriptE.ExecutionID)
-	checkUpcomingActivities(t, ds.Datastore, hosts[4], host4ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptD.ExecutionID, host0ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptD.ExecutionID, host1ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptE.ExecutionID)
 }
 
-func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *DatastoreWithActivities) {
+func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "192.168.1.1", "1", "1", time.Now())
 
@@ -2486,7 +2486,7 @@ func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datast
 	require.Equal(t, "", result.Version)
 }
 
-func testActivateRegularPackageInstall(t *testing.T, ds *DatastoreWithActivities) {
+func testActivateRegularPackageInstall(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host2", "192.168.1.2", "2", "2", time.Now())
 	u := test.NewUser(t, ds, "user2", "user2@example.com", false)
@@ -2533,7 +2533,7 @@ func testActivateRegularPackageInstall(t *testing.T, ds *DatastoreWithActivities
 	require.Equal(t, "1.0.0", result.Version)
 }
 
-func testActivateDeletedInstallerShowsPlaceholder(t *testing.T, ds *DatastoreWithActivities) {
+func testActivateDeletedInstallerShowsPlaceholder(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host3", "192.168.1.3", "3", "3", time.Now())
 	u := test.NewUser(t, ds, "user3", "user3@example.com", false)
@@ -2595,7 +2595,7 @@ func testActivateDeletedInstallerShowsPlaceholder(t *testing.T, ds *DatastoreWit
 	require.Equal(t, "unknown", result.Version)
 }
 
-func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *DatastoreWithActivities) {
+func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	titleStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES ('Test Uninstall Script', 'apps', '')`
@@ -2657,7 +2657,7 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 	require.Equal(t, "Test Uninstall Script", result.SoftwareTitleName)
 }
 
-func testActivitySearchAndFiltering(t *testing.T, ds *DatastoreWithActivities) {
+func testActivitySearchAndFiltering(t *testing.T, ds *Datastore) {
 	timestamp := time.Now().UTC().Truncate(time.Second)
 	ctx := t.Context()
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)

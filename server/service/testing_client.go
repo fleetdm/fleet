@@ -583,14 +583,6 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 	return res
 }
 
-// listActivities returns all activities via the HTTP API.
-// Use this instead of s.ds.ListActivities to test activity creation.
-func (ts *withServer) listActivities() []*fleet.Activity {
-	var resp listActivitiesResponse
-	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp, "per_page", "1000")
-	return resp.Activities
-}
-
 func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 	return ts.lastActivityMatchesExtended(name, details, id, nil)
 }
