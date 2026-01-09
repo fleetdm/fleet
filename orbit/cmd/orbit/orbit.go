@@ -2078,8 +2078,7 @@ var versionCommand = &cli.Command{
 	Usage: "Get the orbit version",
 	Flags: []cli.Flag{},
 	Action: func(c *cli.Context) error {
-		// fmt.Println("orbit " + build.Version)
-		fmt.Println("orbit " + "jacob dev 11")
+		fmt.Println("orbit " + build.Version)
 		fmt.Println("commit - " + build.Commit)
 		fmt.Println("date - " + build.Date)
 		return nil
