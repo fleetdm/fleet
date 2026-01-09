@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -223,7 +224,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	ctx := test.UserContext(context.Background(), test.UserAdmin)
 	ds := new(mock.Store)
-	svc, baseSvc := newTestServiceWithMock(t, ds)
+	svc, _ := newTestServiceWithMock(t, ds)
 
 	appConfig := fleet.AppConfig{}
 	team := fleet.TeamLite{}
@@ -248,7 +249,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 		return nil
 	}
 
-	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
 	}
 
