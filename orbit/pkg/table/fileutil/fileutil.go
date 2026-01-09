@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -70,7 +71,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		})
 	}
 
-	fmt.Printf("\n\nresults: %#v\n\n", results)
 	return results, nil
 }
 
@@ -92,7 +92,7 @@ func processFile(path string, wildcard bool) ([]fileInfo, error) {
 		}
 		for _, f := range files {
 			fmt.Printf("\n\nprocessing file from wildcard query: %s\n\n", f)
-			binPath, err := getExecutablePath(context.Background(), f)
+			binPath := getExecutablePath(context.Background(), f)
 			if err != nil {
 				return nil, fmt.Errorf("couldn't get executable path (glob): %w", err)
 			}
@@ -105,21 +105,21 @@ func processFile(path string, wildcard bool) ([]fileInfo, error) {
 			output = append(output, fileInfo{Path: binPath, BinSha256: hash})
 		}
 	} else {
-		binPath, err := getExecutablePath(context.Background(), path)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't get executable path (single path): %w", err)
-		}
+		binPath := getExecutablePath(context.Background(), path)
 		hash, err := computeFileSHA256(binPath)
 		if err != nil {
 			return nil, fmt.Errorf("computing bin sha256 from specific path: %w", err)
 		}
 		output = append(output, fileInfo{Path: path, BinSha256: hash})
 	}
-	fmt.Printf("\n\noutput arr: %#v\n\n", output)
 	return output, nil
 }
 
 func computeFileSHA256(filePath string) (string, error) {
+	if filePath == "" {
+		log.Warn().Msg("empty path provided, returning empty hash")
+		return "", nil
+	}
 	f, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("couldn't open filepath: %w", err)
@@ -137,36 +137,40 @@ func computeFileSHA256(filePath string) (string, error) {
 // getExecutablePath determines the executable path for unsigned code.
 // For .app bundles, it reads CFBundleExecutable from Info.plist.
 // For direct binaries, it returns the path itself if it's an executable file.
-func getExecutablePath(ctx context.Context, path string) (string, error) {
+func getExecutablePath(ctx context.Context, path string) string {
 	// Check if it's an app bundle
 	if strings.HasSuffix(path, ".app") {
 		// Use defaults to read CFBundleExecutable from Info.plist
 		infoPlistPath := path + "/Contents/Info.plist"
 		output, err := exec.CommandContext(ctx, "/usr/bin/defaults", "read", infoPlistPath, "CFBundleExecutable").Output()
 		if err != nil {
-			return "", fmt.Errorf("failed to read CFBundleExecutable from Info.plist for path %s: %w", path, err)
+			// lots of helper .app bundles nested within parent .apps seem to have invalid Info.plists, this handles those cases gracefully
+			log.Warn().Err(err).Str("path", path).Msg("failed to read CFBundleExecutable from Info.plist, returning empty executable path")
+			return ""
 		}
 
 		executableName := strings.TrimSpace(string(output))
 		if executableName == "" {
-			return "", nil
+			return ""
 		}
 
-		return path + "/Contents/MacOS/" + executableName, nil
+		return path + "/Contents/MacOS/" + executableName
 	}
 
 	// For non-app paths, check if it's a regular file (binary)
 	info, err := os.Stat(path)
 	if err != nil {
-		return "", err
+		log.Warn().Err(err).Str("path", path).Msg("couldn't get FileInfo")
+		return ""
 	}
 
 	// Only return the path if it's a regular file (not a directory)
 	if info.Mode().IsRegular() {
-		return path, nil
+		return path
 	}
 
 	fmt.Printf("\n\ngetting exec paths: path: %s, info.mode: %s\n\n", path, info.Mode().String())
 
-	return "", fmt.Errorf("path is not a regular file nor an app bundle (.app): %s", path)
+	log.Warn().Err(err).Str("path", path).Msg("path is not a regular file nor an app bundle (.app)")
+	return ""
 }
