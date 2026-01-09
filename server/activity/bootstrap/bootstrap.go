@@ -9,9 +9,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/internal/service"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/log"
-	"github.com/jmoiron/sqlx"
 )
 
 // AuthMiddleware is a type alias for endpoint middleware functions.
@@ -21,8 +21,7 @@ type AuthMiddleware = func(endpoint.Endpoint) endpoint.Endpoint
 // New creates a new activity bounded context and returns its service and route handler.
 //
 // Parameters:
-//   - primary: primary MySQL database connection for writes
-//   - replica: replica MySQL database connection for reads
+//   - dbConns: database connections (primary for writes, replica for reads)
 //   - authorizer: authorization checker (injected from serve.go)
 //   - userProvider: ACL adapter for fetching user data from legacy service
 //   - logger: logger for the service
@@ -31,13 +30,13 @@ type AuthMiddleware = func(endpoint.Endpoint) endpoint.Endpoint
 //   - api.Service: the public activity service interface for external consumers
 //   - func(AuthMiddleware) eu.HandlerRoutesFunc: function to create routes with auth middleware
 func New(
-	primary, replica *sqlx.DB,
+	dbConns *common_mysql.DBConnections,
 	authorizer platform_authz.Authorizer,
 	userProvider activity.UserProvider,
 	logger kitlog.Logger,
 ) (api.Service, func(authMiddleware AuthMiddleware) eu.HandlerRoutesFunc) {
 	// Create the datastore
-	ds := mysql.NewDatastore(primary, replica)
+	ds := mysql.NewDatastore(dbConns.Primary, dbConns.Replica)
 
 	// Create the service (implements api.Service)
 	svc := service.NewService(authorizer, ds, userProvider, logger)

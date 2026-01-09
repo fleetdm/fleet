@@ -6,7 +6,6 @@ package authz
 import "context"
 
 // Authorizer is the interface for authorization checks.
-// The implementation (server/authz.Authorizer) is injected from serve.go.
 type Authorizer interface {
 	// Authorize checks if the current user (from context) can perform the action on the subject.
 	// subject must implement AuthzTyper interface.

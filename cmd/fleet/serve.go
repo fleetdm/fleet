@@ -1273,8 +1273,7 @@ the way that the Fleet server works.
 			activityAuthorizer := &authorizerAdapter{authorizer: legacyAuthorizer}
 			activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
 			_, activityRoutesFn := activity_bootstrap.New(
-				dbConns.Primary,
-				dbConns.Replica,
+				dbConns,
 				activityAuthorizer,
 				activityUserProvider,
 				logger,
@@ -1676,7 +1675,7 @@ the way that the Fleet server works.
 }
 
 // authorizerAdapter adapts the legacy authz.Authorizer to the platform_authz.Authorizer interface.
-// This allows bounded contexts to use a clean interface while leveraging the existing OPA-based authorization.
+// This provides stronger typing via AuthzTyper (instead of `any`) while reusing the existing OPA-based authorization.
 type authorizerAdapter struct {
 	authorizer *authz.Authorizer
 }
