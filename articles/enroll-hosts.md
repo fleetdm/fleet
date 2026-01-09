@@ -141,7 +141,7 @@ In the Google Admin console:
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
 2. If MDM is turned on, for macOS, Windows, iOS/iPadOS, and Android hosts:
-  - For macOS hosts, select **Actions > Turn off MDM** to turn MDM off. 
+  - For macOS hosts, select **Actions > Turn off MDM** on the host's details page to turn MDM off. 
   - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) and deploy via **Actions > Run script** on the host's details page. 
   - For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
 
