@@ -17,7 +17,7 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type activityModule struct {
+type ActivityWriter struct {
 	repo   ActivityStore
 	logger kitlog.Logger
 }
@@ -34,7 +34,7 @@ type ActivityStore interface {
 }
 
 func NewActivityModule(repo ActivityStore, logger kitlog.Logger) ActivityModule {
-	return &activityModule{
+	return &ActivityWriter{
 		repo:   repo,
 		logger: logger,
 	}
@@ -42,7 +42,7 @@ func NewActivityModule(repo ActivityStore, logger kitlog.Logger) ActivityModule 
 
 var automationActivityAuthor = "Fleet"
 
-func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+func (a *ActivityWriter) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	fmt.Println("using the activity module NewActivity method")
 	appConfig, err := a.repo.AppConfig(ctx)
 	if err != nil {
