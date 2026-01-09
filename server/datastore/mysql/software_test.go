@@ -10360,13 +10360,6 @@ func testListSoftwareVersionsSearchByTitleName(t *testing.T, ds *Datastore) {
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, initialSoftware)
 	require.NoError(t, err)
 
-	// Get the title_id that was created
-	var titleID uint
-	err = ds.writer(ctx).GetContext(ctx, &titleID,
-		`SELECT title_id FROM software WHERE bundle_identifier = ? LIMIT 1`,
-		"com.microsoft.sharepoint")
-	require.NoError(t, err)
-
 	// Now add more software entries with different names but the same bundle_identifier.
 	// These will be grouped under the same title "SharePoint" but their individual names
 	// do NOT contain "SharePoint".
