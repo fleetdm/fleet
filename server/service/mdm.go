@@ -1437,7 +1437,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedWindowsProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
@@ -1515,7 +1515,7 @@ func (svc *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUU
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedAndroidProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
@@ -1811,7 +1811,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		actTeamName = &teamName
 	}
 	// TODO AP Make sure this activity is correct
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedAndroidProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
@@ -2171,7 +2171,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	if updates.AppleConfigProfile {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
@@ -2180,7 +2180,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 	if updates.WindowsConfigProfile {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
@@ -2189,7 +2189,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 	if updates.AppleDeclaration {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
@@ -2198,7 +2198,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 	if updates.AndroidConfigProfile {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
@@ -2899,7 +2899,7 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 		return ctxerr.Wrap(ctx, err, "resending host mdm profile")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfile{
 			HostID:          &host.ID,
 			HostDisplayName: ptr.String(host.DisplayName()),
@@ -3427,7 +3427,7 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 	}
 
 	if count > 0 {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfileBatch{
 				ProfileName: profileName,
 				HostCount:   count,
@@ -3632,7 +3632,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 		}
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
 			HostSerial:       host.HardwareSerial,
 			HostDisplayName:  host.DisplayName(),

@@ -63,7 +63,7 @@ func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListActivities
 
 // TODO: delete
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-	return newActivity(ctx, user, activity, svc.ds, svc.logger)
+	return svc.activitiesModule.NewActivity(ctx, user, activity)
 }
 
 var automationActivityAuthor = "Fleet"

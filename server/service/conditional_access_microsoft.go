@@ -149,7 +149,7 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 		return false, "", ctxerr.Wrap(ctx, err, "failed to mark setup_done=true")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
@@ -214,7 +214,7 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 		return ctxerr.Wrap(ctx, err, "failed to delete integration in datastore")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},

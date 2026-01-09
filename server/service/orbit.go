@@ -246,7 +246,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		nil,
 		fleet.ActivityTypeFleetEnrolled{
@@ -974,7 +974,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
 				activityStatus = "uninstalled"
 			}
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				user,
 				fleet.ActivityTypeUninstalledSoftware{
@@ -1004,7 +1004,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				}
 			}
 
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				user,
 				fleet.ActivityTypeRanScript{
@@ -1148,7 +1148,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if !keyArchived {
 		return nil
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		nil,
 		fleet.ActivityTypeEscrowedDiskEncryptionKey{
@@ -1232,7 +1232,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	if !keyArchived {
 		return nil
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		nil,
 		fleet.ActivityTypeEscrowedDiskEncryptionKey{
@@ -1497,7 +1497,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{

@@ -188,7 +188,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 	var err error
 	defer func(start time.Time) {
 		if err != nil && !errors.Is(err, sendingMFAEmail) && !errors.Is(err, mfaNotSupportedForClient) {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx, nil, fleet.ActivityTypeUserFailedLogin{
 					Email:    email,
 					PublicIP: publicip.FromContext(ctx),
@@ -233,7 +233,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, user, fleet.ActivityTypeUserLoggedIn{
 			PublicIP: publicip.FromContext(ctx),
 		}); err != nil {
@@ -292,7 +292,7 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Sessi
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, user, fleet.ActivityTypeUserLoggedIn{
 			PublicIP: publicip.FromContext(ctx),
 		}); err != nil {
@@ -741,7 +741,7 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 		Token:       session.Key,
 		RedirectURL: redirectURL,
 	}
-	err = svc.NewActivity(
+	err = svc.activitiesModule.NewActivity(
 		ctx,
 		user,
 		fleet.ActivityTypeUserLoggedIn{

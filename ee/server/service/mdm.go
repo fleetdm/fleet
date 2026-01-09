@@ -384,7 +384,7 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		return err
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName},
 	); err != nil {
@@ -456,7 +456,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamID, TeamName: ptrTeamName},
 	); err != nil {
@@ -663,7 +663,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeChangedMacosSetupAssistant{
 				TeamID:   newAsst.TeamID,
 				TeamName: teamName,
@@ -716,7 +716,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 			}
 			teamName = &tm.Name
 		}
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosSetupAssistant{
 				TeamID:   teamID,
 				TeamName: teamName,

@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 )
 
 func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
@@ -58,7 +59,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 		// In case of invites the user created herself.
 		adminUser = user
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		adminUser,
 		fleet.ActivityTypeCreatedUser{
@@ -69,8 +70,11 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	); err != nil {
 		return nil, err
 	}
-	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, nil, nil, user); err != nil {
-		return nil, err
+	// if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, nil, nil, user); err != nil {
+	// 	return nil, err
+	// }
+	if err := activities.LogRoleChangeActivities(ctx, svc.activitiesModule, user, nil, nil, user); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "log activities for role change")
 	}
 
 	return user, nil

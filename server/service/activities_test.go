@@ -13,7 +13,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	activities_module "github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/test"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -123,7 +125,8 @@ func Test_logRoleChangeActivities(t *testing.T) {
 		},
 	}
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	// svc, ctx := newTestService(t, ds, nil, nil)
+	ctx := context.Background()
 	var activities []string
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -155,7 +158,7 @@ func Test_logRoleChangeActivities(t *testing.T) {
 				GlobalRole: tt.newRole,
 				Teams:      newTeams,
 			}
-			require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, &fleet.User{}, tt.oldRole, oldTeams, newUser))
+			require.NoError(t, activities_module.LogRoleChangeActivities(ctx, activities_module.NewActivityModule(ds, kitlog.NewNopLogger()), &fleet.User{}, tt.oldRole, oldTeams, newUser))
 			require.Equal(t, tt.expectActivities, activities)
 		})
 	}

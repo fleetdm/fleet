@@ -113,3 +113,81 @@ func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, acti
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	return a.repo.NewActivity(ctx, user, activity, detailsBytes, timestamp)
 }
+
+func LogRoleChangeActivities(ctx context.Context, activitiesModule ActivityModule, adminUser *fleet.User, oldGlobalRole *string, oldTeamRoles []fleet.UserTeam, user *fleet.User) error {
+	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
+		if err := activitiesModule.NewActivity(
+			ctx,
+			adminUser,
+			fleet.ActivityTypeChangedUserGlobalRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      *user.GlobalRole,
+			},
+		); err != nil {
+			return err
+		}
+	}
+	if user.GlobalRole == nil && oldGlobalRole != nil {
+		if err := activitiesModule.NewActivity(
+			ctx,
+			adminUser,
+			fleet.ActivityTypeDeletedUserGlobalRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				OldRole:   *oldGlobalRole,
+			},
+		); err != nil {
+			return err
+		}
+	}
+	oldTeamsLookup := make(map[uint]fleet.UserTeam, len(oldTeamRoles))
+	for _, t := range oldTeamRoles {
+		oldTeamsLookup[t.ID] = t
+	}
+
+	newTeamsLookup := make(map[uint]struct{}, len(user.Teams))
+	for _, t := range user.Teams {
+		newTeamsLookup[t.ID] = struct{}{}
+		o, ok := oldTeamsLookup[t.ID]
+		if ok && o.Role == t.Role {
+			continue
+		}
+		if err := activitiesModule.NewActivity(
+			ctx,
+			adminUser,
+			fleet.ActivityTypeChangedUserTeamRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      t.Role,
+				TeamID:    t.ID,
+				TeamName:  t.Name,
+			},
+		); err != nil {
+			return err
+		}
+	}
+	for _, o := range oldTeamRoles {
+		if _, ok := newTeamsLookup[o.ID]; ok {
+			continue
+		}
+		if err := activitiesModule.NewActivity(
+			ctx,
+			adminUser,
+			fleet.ActivityTypeDeletedUserTeamRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      o.Role,
+				TeamID:    o.ID,
+				TeamName:  o.Name,
+			},
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 )
 
 // GetSSOUser is the premium implementation of svc.GetSSOUser, it allows to
@@ -70,7 +71,11 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "save user")
 		}
-		if err := fleet.LogRoleChangeActivities(ctx, svc, user, oldGlobalRole, oldTeamsRoles, user); err != nil {
+		// if err := fleet.LogRoleChangeActivities(ctx, svc, user, oldGlobalRole, oldTeamsRoles, user); err != nil {
+		// 	return nil, ctxerr.Wrap(ctx, err, "log activities for role change")
+		// }
+
+		if err := activities.LogRoleChangeActivities(ctx, svc.activitiesModule, user, oldGlobalRole, oldTeamsRoles, user); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "log activities for role change")
 		}
 		return user, nil
@@ -116,7 +121,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new SSO user")
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		user,
 		fleet.ActivityTypeUserAddedBySSO{},

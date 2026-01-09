@@ -123,7 +123,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedWindowsProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,

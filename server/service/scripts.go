@@ -555,7 +555,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		teamName = &tm.Name
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedScript{
@@ -613,7 +613,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 		teamName = &tm.Name
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedScript{
@@ -861,7 +861,7 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 		teamName = &tm.Name
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeUpdatedScript{
@@ -1084,7 +1084,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return nil, ctxerr.Wrap(ctx, err, "batch saving scripts")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
 			TeamID:   teamID,
 			TeamName: teamName,

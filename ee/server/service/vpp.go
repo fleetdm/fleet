@@ -737,9 +737,9 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken st
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// If there's an auto-update config, validate it.
@@ -753,17 +753,17 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	if err := schedule.WindowIsValid(); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating auto-update schedule")
+		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating auto-update schedule")
 	}
 
 	var teamName string
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if fleet.IsNotFound(err) {
-			return nil, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		} else if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if team exists")
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if team exists")
 		}
 
 		teamName = tm.Name
@@ -774,19 +774,19 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		var err error
 		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
 		}
 	}
 
 	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
+		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
 
 	if payload.DisplayName != nil && *payload.DisplayName != meta.DisplayName {
 		trimmed := strings.TrimSpace(*payload.DisplayName)
 		if trimmed == "" && *payload.DisplayName != "" {
-			return nil, nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
 		}
 
 		*payload.DisplayName = trimmed
@@ -824,11 +824,11 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
 		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 		}
 
 		if len(catIDs) != len(payload.Categories) {
-			return nil, nil, &fleet.BadRequestError{
+			return nil, &fleet.BadRequestError{
 				Message:     "some or all of the categories provided don't exist",
 				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
 			}
@@ -864,7 +864,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if labelsChanged {
 		hostsNotInScope, err = svc.ds.GetExcludedHostIDMapForVPPApp(ctx, meta.VPPAppsTeamsID)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting hosts not in scope for vpp app")
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting hosts not in scope for vpp app")
 		}
 	}
 
@@ -875,14 +875,14 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		// check if configuration has changed
 		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), payload.Configuration)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if android app configuration changed")
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if android app configuration changed")
 		}
 	}
 
 	// Update the app
 	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
+		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
 	}
 
 	// if labelsChanged, new hosts may require having the app made available, and if config
@@ -890,11 +890,11 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if meta.Platform == fleet.AndroidPlatform && (labelsChanged || androidConfigChanged) {
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {
-			return nil, nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
 		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name(), androidConfigChanged)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
+			return nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
 	}
 
@@ -902,7 +902,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		// Get the hosts that are now IN label scope (after the update)
 		hostsInScope, err := svc.ds.GetIncludedHostIDMapForVPPApp(ctx, meta.VPPAppsTeamsID)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting hosts in scope for vpp app")
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting hosts in scope for vpp app")
 		}
 
 		var hostsToClear []uint
@@ -916,7 +916,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		// We clear the policy status here because otherwise the policy automation machinery
 		// won't pick this up and the software won't install.
 		if err := svc.ds.ClearVPPAppAutoInstallPolicyStatusForHosts(ctx, meta.VPPAppsTeamsID, hostsToClear); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
+			return nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
 		}
 	}
 
@@ -941,10 +941,39 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	updatedAppMeta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
+		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
 	}
 
-	return updatedAppMeta, &act, nil
+	if payload.AutoUpdateEnabled != nil {
+		// Update AutoUpdateConfig separately
+		err = svc.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, teamID, fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   payload.AutoUpdateEnabled,
+			AutoUpdateStartTime: payload.AutoUpdateStartTime,
+			AutoUpdateEndTime:   payload.AutoUpdateEndTime,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Re-fetch the software title to get the updated auto-update config.
+	updatedTitle, err := svc.SoftwareTitleByID(ctx, titleID, teamID)
+	if err != nil {
+		return nil, err
+	}
+	if updatedTitle.AutoUpdateEnabled != nil {
+		act.AutoUpdateEnabled = updatedTitle.AutoUpdateEnabled
+		if *updatedTitle.AutoUpdateEnabled {
+			act.AutoUpdateStartTime = updatedTitle.AutoUpdateStartTime
+			act.AutoUpdateEndTime = updatedTitle.AutoUpdateEndTime
+		}
+	}
+
+	if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return nil, err
+	}
+
+	return updatedAppMeta, nil
 }
 
 func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {

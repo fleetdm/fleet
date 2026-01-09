@@ -533,7 +533,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		// Create activities for host deletions
 		adminUser := authz.UserFromContext(ctx)
 		for _, host := range hosts {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				adminUser,
 				fleet.ActivityTypeDeletedHost{
@@ -1015,7 +1015,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 
 	// Create activity for host deletion
 	adminUser := authz.UserFromContext(ctx)
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		adminUser,
 		fleet.ActivityTypeDeletedHost{
@@ -1051,7 +1051,7 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 
 	// Create activities for each deleted host
 	for _, hostDetail := range hostDetails {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			nil, // Fleet automation user
 			fleet.ActivityTypeDeletedHost{
@@ -1190,7 +1190,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 		}
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeTransferredHostsToTeam{
@@ -1941,7 +1941,7 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedHostIdpData{
@@ -2031,7 +2031,7 @@ func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host IdP and SCIM mappings")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedHostIdpData{
@@ -2831,7 +2831,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
-	err = svc.NewActivity(
+	err = svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeReadHostDiskEncryptionKey{

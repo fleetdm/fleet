@@ -132,7 +132,7 @@ func (svc *Service) CreateSecretVariable(ctx context.Context, name string, value
 		return 0, ctxerr.Wrap(ctx, err, "saving secret variable")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityCreatedCustomVariable{
@@ -242,7 +242,7 @@ func (svc *Service) DeleteSecretVariable(ctx context.Context, id uint) error {
 		}
 		return ctxerr.Wrap(ctx, err, "delete secret variable")
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityDeletedCustomVariable{

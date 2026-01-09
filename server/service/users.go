@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -538,7 +539,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 	adminUser := authz.UserFromContext(ctx)
-	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+	if err := activities.LogRoleChangeActivities(ctx, svc.activitiesModule, adminUser, oldGlobalRole, oldTeams, user); err != nil {
 		return nil, err
 	}
 
@@ -582,7 +583,7 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 	}
 
 	adminUser := authz.UserFromContext(ctx)
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		adminUser,
 		fleet.ActivityTypeDeletedUser{

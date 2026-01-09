@@ -44,7 +44,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 		return ctxerr.Wrap(ctx, err, "setting setup experience titles")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityEditedSetupExperienceSoftware{

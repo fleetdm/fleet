@@ -111,7 +111,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, err
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedTeam{
@@ -329,7 +329,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedMacOSMinVersion{
@@ -347,7 +347,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on iOS updates change")
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedIOSMinVersion{
@@ -365,7 +365,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on iPadOS updates change")
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedIPadOSMinVersion{
@@ -392,7 +392,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			activity,
@@ -418,7 +418,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "disable team windows OS updates")
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedWindowsUpdates{
@@ -456,7 +456,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	// Create activity if conditional access was enabled or disabled for the team.
 	if conditionalAccessUpdated {
 		if team.Config.Integrations.ConditionalAccessEnabled.Value {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeEnabledConditionalAccessAutomations{
@@ -467,7 +467,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
 			}
 		} else {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeDisabledConditionalAccessAutomations{
@@ -519,7 +519,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		return nil, err
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedAgentOptions{
@@ -742,7 +742,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedTeam{
@@ -1109,7 +1109,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if !applyOpts.DryRun {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeAppliedSpecTeam{
@@ -1273,7 +1273,7 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if conditionalAccessEnabled.Set && conditionalAccessEnabled.Value {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEnabledConditionalAccessAutomations{
@@ -1291,7 +1291,7 @@ func (svc *Service) createTeamFromSpec(
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name},
@@ -1654,7 +1654,7 @@ func (svc *Service) editTeamFromSpec(
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if *spec.Integrations.ConditionalAccessEnabled {
 			if !oldConditionalAccessEnabled {
-				if err := svc.NewActivity(
+				if err := svc.activitiesModule.NewActivity(
 					ctx,
 					authz.UserFromContext(ctx),
 					fleet.ActivityTypeEnabledConditionalAccessAutomations{
@@ -1667,7 +1667,7 @@ func (svc *Service) editTeamFromSpec(
 			}
 		} else {
 			if oldConditionalAccessEnabled {
-				if err := svc.NewActivity(
+				if err := svc.activitiesModule.NewActivity(
 					ctx,
 					authz.UserFromContext(ctx),
 					fleet.ActivityTypeDisabledConditionalAccessAutomations{

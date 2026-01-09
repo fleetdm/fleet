@@ -1923,7 +1923,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	}
 
-	err = svc.NewActivity(
+	err = svc.activitiesModule.NewActivity(
 		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
 			HostDisplayName: displayName,
 			MDMPlatform:     fleet.MDMPlatformMicrosoft,

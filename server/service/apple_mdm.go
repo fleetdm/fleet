@@ -483,7 +483,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
 			TeamID:            actTeamID,
 			TeamName:          actTeamName,
@@ -943,7 +943,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
@@ -1244,7 +1244,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
 			TeamID:            actTeamID,
 			TeamName:          actTeamName,
@@ -1318,7 +1318,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
@@ -2630,7 +2630,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
 			TeamID:   tmID,
 			TeamName: tmName,

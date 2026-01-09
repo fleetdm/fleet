@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 	"time"
 )
@@ -2183,85 +2182,85 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
-func LogRoleChangeActivities(
-	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
-) error {
-	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
-		if err := svc.NewActivity(
-			ctx,
-			adminUser,
-			ActivityTypeChangedUserGlobalRole{
-				UserID:    user.ID,
-				UserName:  user.Name,
-				UserEmail: user.Email,
-				Role:      *user.GlobalRole,
-			},
-		); err != nil {
-			return err
-		}
-	}
-	if user.GlobalRole == nil && oldGlobalRole != nil {
-		if err := svc.NewActivity(
-			ctx,
-			adminUser,
-			ActivityTypeDeletedUserGlobalRole{
-				UserID:    user.ID,
-				UserName:  user.Name,
-				UserEmail: user.Email,
-				OldRole:   *oldGlobalRole,
-			},
-		); err != nil {
-			return err
-		}
-	}
-	oldTeamsLookup := make(map[uint]UserTeam, len(oldTeamRoles))
-	for _, t := range oldTeamRoles {
-		oldTeamsLookup[t.ID] = t
-	}
+// func LogRoleChangeActivities(
+// 	ctx context.Context, activitiesModule activities.ActivityModule, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
+// ) error {
+// 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
+// 		if err := activitiesModule.NewActivity(
+// 			ctx,
+// 			adminUser,
+// 			ActivityTypeChangedUserGlobalRole{
+// 				UserID:    user.ID,
+// 				UserName:  user.Name,
+// 				UserEmail: user.Email,
+// 				Role:      *user.GlobalRole,
+// 			},
+// 		); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	if user.GlobalRole == nil && oldGlobalRole != nil {
+// 		if err := activitiesModule.NewActivity(
+// 			ctx,
+// 			adminUser,
+// 			ActivityTypeDeletedUserGlobalRole{
+// 				UserID:    user.ID,
+// 				UserName:  user.Name,
+// 				UserEmail: user.Email,
+// 				OldRole:   *oldGlobalRole,
+// 			},
+// 		); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	oldTeamsLookup := make(map[uint]UserTeam, len(oldTeamRoles))
+// 	for _, t := range oldTeamRoles {
+// 		oldTeamsLookup[t.ID] = t
+// 	}
 
-	newTeamsLookup := make(map[uint]struct{}, len(user.Teams))
-	for _, t := range user.Teams {
-		newTeamsLookup[t.ID] = struct{}{}
-		o, ok := oldTeamsLookup[t.ID]
-		if ok && o.Role == t.Role {
-			continue
-		}
-		if err := svc.NewActivity(
-			ctx,
-			adminUser,
-			ActivityTypeChangedUserTeamRole{
-				UserID:    user.ID,
-				UserName:  user.Name,
-				UserEmail: user.Email,
-				Role:      t.Role,
-				TeamID:    t.ID,
-				TeamName:  t.Name,
-			},
-		); err != nil {
-			return err
-		}
-	}
-	for _, o := range oldTeamRoles {
-		if _, ok := newTeamsLookup[o.ID]; ok {
-			continue
-		}
-		if err := svc.NewActivity(
-			ctx,
-			adminUser,
-			ActivityTypeDeletedUserTeamRole{
-				UserID:    user.ID,
-				UserName:  user.Name,
-				UserEmail: user.Email,
-				Role:      o.Role,
-				TeamID:    o.ID,
-				TeamName:  o.Name,
-			},
-		); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+// 	newTeamsLookup := make(map[uint]struct{}, len(user.Teams))
+// 	for _, t := range user.Teams {
+// 		newTeamsLookup[t.ID] = struct{}{}
+// 		o, ok := oldTeamsLookup[t.ID]
+// 		if ok && o.Role == t.Role {
+// 			continue
+// 		}
+// 		if err := activitiesModule.NewActivity(
+// 			ctx,
+// 			adminUser,
+// 			ActivityTypeChangedUserTeamRole{
+// 				UserID:    user.ID,
+// 				UserName:  user.Name,
+// 				UserEmail: user.Email,
+// 				Role:      t.Role,
+// 				TeamID:    t.ID,
+// 				TeamName:  t.Name,
+// 			},
+// 		); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	for _, o := range oldTeamRoles {
+// 		if _, ok := newTeamsLookup[o.ID]; ok {
+// 			continue
+// 		}
+// 		if err := activitiesModule.NewActivity(
+// 			ctx,
+// 			adminUser,
+// 			ActivityTypeDeletedUserTeamRole{
+// 				UserID:    user.ID,
+// 				UserName:  user.Name,
+// 				UserEmail: user.Email,
+// 				Role:      o.Role,
+// 				TeamID:    o.ID,
+// 				TeamName:  o.Name,
+// 			},
+// 		); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }
 
 type ActivityEnabledVPP struct {
 	Location string `json:"location"`

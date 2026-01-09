@@ -897,7 +897,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedAgentOptions{
@@ -955,7 +955,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			return nil, ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedWindowsUpdates{
@@ -1038,7 +1038,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// Create activity if conditional access was enabled or disabled for "No team".
 	if conditionalAccessNoTeamUpdated {
 		if appConfig.Integrations.ConditionalAccessEnabled.Value {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeEnabledConditionalAccessAutomations{
@@ -1049,7 +1049,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
 			}
 		} else {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeDisabledConditionalAccessAutomations{
@@ -1078,7 +1078,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if (!oldOktaConfigured && newOktaConfigured) || oktaConfigChanged {
 		// Okta configuration was added or edited
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeAddedConditionalAccessOkta{},
@@ -1087,7 +1087,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	} else if oldOktaConfigured && !newOktaConfigured {
 		// Okta configuration was deleted
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedConditionalAccessOkta{},

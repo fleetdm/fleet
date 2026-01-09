@@ -1255,7 +1255,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if host.DiskEncryptionKeyEscrowed {
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			nil,
 			fleet.ActivityTypeEscrowedDiskEncryptionKey{
