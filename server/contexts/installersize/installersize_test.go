@@ -36,7 +36,7 @@ func TestFormatSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatSize(tt.bytes)
+			result := Human(tt.bytes)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

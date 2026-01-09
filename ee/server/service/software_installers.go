@@ -2085,7 +2085,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.FormatSize(maxInstallerSize)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.Human(maxInstallerSize)),
 				)
 			}
 
@@ -2116,7 +2116,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.FormatSize(maxInstallerSize)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.Human(maxInstallerSize)),
 				)
 			}
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
