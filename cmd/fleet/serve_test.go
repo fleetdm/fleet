@@ -1099,8 +1099,8 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-			require.Equal(t, opt.ListOptions.PerPage, ActivitiesToStreamBatchCount)
-			switch opt.ListOptions.Page {
+			require.Equal(t, opt.PerPage, ActivitiesToStreamBatchCount)
+			switch opt.Page {
 			case 0:
 				return as[:ActivitiesToStreamBatchCount], nil, nil
 			case 1:
@@ -1108,7 +1108,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 			case 2:
 				return as[ActivitiesToStreamBatchCount*2:], nil, nil
 			default:
-				t.Fatalf("invalid page requested: %d", opt.ListOptions.Page)
+				t.Fatalf("invalid page requested: %d", opt.Page)
 				return nil, nil, nil
 			}
 		}
