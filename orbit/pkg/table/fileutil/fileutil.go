@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
@@ -144,9 +143,8 @@ func getExecutablePath(ctx context.Context, path string) (string, error) {
 		// Use defaults to read CFBundleExecutable from Info.plist
 		infoPlistPath := path + "/Contents/Info.plist"
 		output, err := exec.CommandContext(ctx, "/usr/bin/defaults", "read", infoPlistPath, "CFBundleExecutable").Output()
-		// TODO - replace this ctxerrs iwth fmt.Errorfs
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "failed to read CFBundleExecutable from Info.plist")
+			return "", fmt.Errorf("failed to read CFBundleExecutable from Info.plist for path %s: %w", path, err)
 		}
 
 		executableName := strings.TrimSpace(string(output))
