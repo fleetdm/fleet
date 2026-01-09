@@ -1877,7 +1877,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 	// See: https://github.com/fleetdm/fleet/issues/35028
 	if opts.ListOptions.MatchQuery != "" {
 		ds = ds.
-			LeftJoin(
+			InnerJoin(
 				goqu.I("software_titles").As("st"),
 				goqu.On(goqu.I("s.title_id").Eq(goqu.I("st.id"))),
 			)
