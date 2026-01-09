@@ -43,7 +43,6 @@ func NewActivityModule(repo ActivityStore, logger kitlog.Logger) ActivityModule 
 var automationActivityAuthor = "Fleet"
 
 func (a *ActivityWriter) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-	fmt.Println("using the activity module NewActivity method")
 	appConfig, err := a.repo.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
