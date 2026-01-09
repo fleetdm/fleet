@@ -26,7 +26,7 @@ fi
 # Extract the query section (may be multi-line)
 # Handle indented query: (starts with spaces followed by "query:")
 # The query is a YAML multiline string that continues until the next key at the same indentation level (2 spaces)
-query_section=$(echo "$response" | sed -n '/^[[:space:]]*query:/,/^  [a-zA-Z_-]+:/p' | head -n -1)
+query_section=$(echo "$response" | awk '/^[[:space:]]*query:/{flag=1} flag && /^  [a-zA-Z_-]+:/ && !/^[[:space:]]*query:/{flag=0} flag')
 
 if [ -z "$query_section" ]; then
     echo "Error: Could not find the query section in the file."
@@ -52,8 +52,22 @@ echo "Policy Safari 26 version: $policy_safari_26_version"
 # Fetch the latest Safari version from SOFA feed
 echo "Fetching latest Safari version from SOFA feed..."
 safari_feed_response=$(curl -s "https://sofafeed.macadmins.io/v2/safari_data_feed.json" 2>/dev/null)
+curl_exit_code=$?
 
-if [ -z "$safari_feed_response" ] || [[ "$safari_feed_response" == *"404"* ]] || [[ "$safari_feed_response" == *"Not Found"* ]]; then
+# Check if it's valid JSON first
+if ! echo "$safari_feed_response" | jq empty 2>/dev/null; then
+    echo "Error: Failed to fetch Safari feed from SOFA - invalid JSON response."
+    exit 1
+fi
+
+# Check for HTTP errors in the JSON (if the API returns error JSON)
+if echo "$safari_feed_response" | jq -e '.error' >/dev/null 2>&1; then
+    echo "Error: SOFA API returned an error"
+    echo "$safari_feed_response" | jq '.error'
+    exit 1
+fi
+
+if [ $curl_exit_code -ne 0 ] || [ -z "$safari_feed_response" ]; then
     echo "Error: Failed to fetch Safari feed from SOFA."
     exit 1
 fi
