@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
@@ -114,6 +115,7 @@ type ServerConfig struct {
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
+	MaxInstallerSize                 int64         `yaml:"max_installer_size"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1175,6 +1177,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
+	man.addConfigInt64("server.max_installer_size", installersize.DefaultMaxInstallerSize, "Maximum size in bytes for software installer uploads")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1638,6 +1641,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
+			MaxInstallerSize:                 man.getConfigInt64("server.max_installer_size"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2077,6 +2081,27 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	return durationVal
 }
 
+// addConfigInt64 adds an int64 config to the config options
+func (man Manager) addConfigInt64(key string, defVal int64, usage string) {
+	man.command.PersistentFlags().Int64(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
+
+	// Add default
+	man.addDefault(key, defVal)
+}
+
+// getConfigInt64 retrieves an int64 from the loaded config
+func (man Manager) getConfigInt64(key string) int64 {
+	interfaceVal := man.getInterfaceVal(key)
+	int64Val, err := cast.ToInt64E(interfaceVal)
+	if err != nil {
+		panic("Unable to cast to int64 for key " + key + ": " + err.Error())
+	}
+
+	return int64Val
+}
+
 // panics if the config is invalid, this is handled by Viper (this is how all
 // getConfigT helpers indicate errors). The default value is only applied if
 // there is no task-specific config (i.e., no "task=true" config format for that
@@ -2214,7 +2239,10 @@ func TestConfig() FleetConfig {
 			AuditLogFile:  testLogFile,
 			MaxSize:       500,
 		},
-		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"},
+		Server: ServerConfig{
+			PrivateKey:       "72414F4A688151F75D032F5CDA095FC4",
+			MaxInstallerSize: installersize.DefaultMaxInstallerSize,
+		},
 	}
 }
 

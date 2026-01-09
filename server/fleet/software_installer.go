@@ -16,8 +16,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// MaxSoftwareInstallerSize is the maximum size allowed for software
-// installers. This is enforced by the endpoints that upload installers.
+// MaxSoftwareInstallerSize is the legacy default maximum size allowed for software
+// installers. This constant is deprecated - use ServerConfig.MaxInstallerSize instead,
+// which defaults to 10 GiB and can be configured via FLEET_SERVER_MAX_INSTALLER_SIZE.
 const MaxSoftwareInstallerSize = 3000 * units.MiB
 const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 

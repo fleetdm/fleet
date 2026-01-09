@@ -2068,9 +2068,10 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
+	maxInstallerSize := svc.config.Server.MaxInstallerSize
 	downloadURLFn := func(ctx context.Context, url string) (*http.Response, *fleet.TempFileReader, error) {
 		client := fleethttp.NewClient()
-		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
+		client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -2083,7 +2084,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, maxInstallerSize/(1000*1024*1024)),
 				)
 			}
 
@@ -2114,7 +2115,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, maxInstallerSize/(1000*1024*1024)),
 				)
 			}
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
