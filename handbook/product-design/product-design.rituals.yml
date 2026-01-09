@@ -72,12 +72,6 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit?gid=0#gid=0" 
   dri: "noahtalerman"
 -
-  task: "Pre-sprint prioritization" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
-  startedOn: "2024-02-27" 
-  frequency: "Triweekly"
-  description: "Decide which stories and bugs to bring in to the upcoming sprint. Ahead of the call, Engineering Managers (EM) for each product group prepare their team's estimated capacity that factors in time off (PTO) and the on-call rotation."
-  dri: "noahtalerman"
--
   task: "User story review"
   startedOn: "2025-01-16"
   frequency: "Weekly"
