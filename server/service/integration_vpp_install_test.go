@@ -2728,12 +2728,12 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 
-	s.registerResetITunesData(t)
+	s.registerResetVPPProxyData(t)
 
-	s.appleITunesSrvData = map[string]string{
-		"100": `{"bundleId": "com.ipa-test.ipa-test", "artworkUrl512": "https://example.com/images/100", "version": "1.0.0", "trackName": "IPA Test App", "TrackID": 100, "supportedDevices": ["iPhone5s-iPhone5s"]}`,
-		"101": `{"bundleId": "com.ipa-test.ipa-test", "artworkUrl512": "https://example.com/images/101", "version": "1.0.0", "trackName": "IPA Test App iPad", "TrackID": 101, "supportedDevices": ["iPadAir-iPadAir"]}`,
-		"102": `{"bundleId": "com.example.different", "artworkUrl512": "https://example.com/images/102", "version": "1.0.0", "trackName": "Different App", "TrackID": 102, "supportedDevices": ["iPhone5s-iPhone5s"]}`,
+	s.appleVPPProxySrvData = map[string]string{
+		"100": `{"id": "100", "attributes": {"name": "IPA Test App", "platformAttributes": {"ios": {"bundleId": "com.ipa-test.ipa-test", "artwork": {"url": "https://example.com/images/100/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
+		"101": `{"id": "101", "attributes": {"name": "IPA Test App iPad", "platformAttributes": {"ios": {"bundleId": "com.ipa-test.ipa-test", "artwork": {"url": "https://example.com/images/101/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["ipad"]}}`,
+		"102": `{"id": "102", "attributes": {"name": "Different App", "platformAttributes": {"ios": {"bundleId": "com.example.different", "artwork": {"url": "https://example.com/images/102/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
 	}
 
 	originalAssets := s.appleVPPConfigSrvConfig.Assets
