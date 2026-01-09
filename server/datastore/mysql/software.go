@@ -97,9 +97,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return err
 	}
 
-	fmt.Printf("\n\nreported: %+v\n\n", reported)
 	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, hsip, currS, ds.logger)
-	fmt.Printf("\n\nhost software installed paths to insert: %v\n\n", toI)
 	if err != nil {
 		return err
 	}
@@ -192,7 +190,6 @@ func hostSoftwareInstalledPathsDelta(
 		if iP.BinarySHA256 != nil {
 			binHashSHA256 = *iP.BinarySHA256
 		}
-		// TODO - continue looking for null incoming hash here
 		key := fmt.Sprintf(
 			"%s%s%s%s%s%s%s%s%s",
 			iP.InstalledPath, fleet.SoftwareFieldSeparator, iP.TeamIdentifier, fleet.SoftwareFieldSeparator, cdHashSHA256, fleet.SoftwareFieldSeparator, binHashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),

@@ -28,7 +28,6 @@ const (
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		// added here
 		table.TextColumn(colPath),
 		table.TextColumn(colBinHash),
 	}
@@ -85,27 +84,23 @@ func processFile(path string, wildcard bool) ([]fileInfo, error) {
 	if wildcard {
 		replacedPath := strings.ReplaceAll(path, "%", "*")
 
-		// to fix: does this matches files, not directories?
 		files, err := filepath.Glob(replacedPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve filepaths for incoming path: %w", err)
 		}
 		for _, f := range files {
-			fmt.Printf("\n\nprocessing file from wildcard query: %s\n\n", f)
 			binPath := getExecutablePath(context.Background(), f)
-			if err != nil {
-				return nil, fmt.Errorf("couldn't get executable path (glob): %w", err)
-			}
 
 			hash, err := computeFileSHA256(binPath)
 			if err != nil {
 				return nil, fmt.Errorf("computing bin sha256 from wildcard path: %w", err)
 			}
-			fmt.Printf("\n\ngot info for path: binPath: %s, hash: %s\n\n", binPath, hash)
+
 			output = append(output, fileInfo{Path: binPath, BinSha256: hash})
 		}
 	} else {
 		binPath := getExecutablePath(context.Background(), path)
+
 		hash, err := computeFileSHA256(binPath)
 		if err != nil {
 			return nil, fmt.Errorf("computing bin sha256 from specific path: %w", err)
@@ -134,17 +129,13 @@ func computeFileSHA256(filePath string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// getExecutablePath determines the executable path for unsigned code.
-// For .app bundles, it reads CFBundleExecutable from Info.plist.
-// For direct binaries, it returns the path itself if it's an executable file.
 func getExecutablePath(ctx context.Context, path string) string {
-	// Check if it's an app bundle
 	if strings.HasSuffix(path, ".app") {
 		// Use defaults to read CFBundleExecutable from Info.plist
 		infoPlistPath := path + "/Contents/Info.plist"
 		output, err := exec.CommandContext(ctx, "/usr/bin/defaults", "read", infoPlistPath, "CFBundleExecutable").Output()
 		if err != nil {
-			// lots of helper .app bundles nested within parent .apps seem to have invalid Info.plists, this handles those cases gracefully
+			// lots of helper .app bundles nested within parent .apps seem to have invalid Info.plists - warn and continue
 			log.Warn().Err(err).Str("path", path).Msg("failed to read CFBundleExecutable from Info.plist, returning empty executable path")
 			return ""
 		}
@@ -169,8 +160,6 @@ func getExecutablePath(ctx context.Context, path string) string {
 		return path
 	}
 
-	fmt.Printf("\n\ngetting exec paths: path: %s, info.mode: %s\n\n", path, info.Mode().String())
-
-	log.Warn().Err(err).Str("path", path).Msg("path is not a regular file nor an app bundle (.app)")
+	log.Warn().Err(err).Str("path", path).Msg("path is not a regular file nor a .app bundle")
 	return ""
 }

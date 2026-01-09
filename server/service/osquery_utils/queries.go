@@ -1442,9 +1442,6 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		FROM apps a
 		JOIN fileutil fu ON a.path = fu.path
 		`,
-		// Query: `
-		// SELECT "a/b/c" AS path, "dummyhash" AS binary_sha256;
-		// `,
 		Description: "A software override query[^1] to append file information macOS software entries. Requires `fleetd`",
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("fileutil"),
@@ -1452,7 +1449,6 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			if len(fileUtilResults) == 0 {
 				return mainSoftwareResults
 			}
-			fmt.Printf("\n\nfileUtilResults: %v\n\n", fileUtilResults)
 
 			type fileUtilResultRow struct {
 				binSHA256 string
@@ -1460,7 +1456,6 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 
 			furByPath := make(map[string]fileUtilResultRow)
 			for _, fur := range fileUtilResults {
-				// probably okay to assume binary_sha256 will be present since fileutil table is computing it iself, but just in case
 				var binHash string
 				if hash, ok := fur["binary_sha256"]; ok {
 					binHash = hash
@@ -1469,16 +1464,14 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 					binSHA256: binHash,
 				}
 			}
-			fmt.Printf("\n\nfurByPath: %v\n\n", furByPath)
 			for _, swRes := range mainSoftwareResults {
 				fur, ok := furByPath[swRes["installed_path"]]
 				if !ok {
-					// No fileutil information for this application.
+					// No fileutil information for this software
 					continue
 				}
 				swRes["binary_sha256"] = fur.binSHA256
 			}
-			fmt.Printf("\n\nmainSWResults: %v\n\n", mainSoftwareResults)
 			return mainSoftwareResults
 		},
 	},

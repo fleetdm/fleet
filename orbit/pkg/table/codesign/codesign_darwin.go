@@ -78,8 +78,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		info := parseCodesignOutput(output)
 		row["team_identifier"] = info.teamIdentifier
 		row["cdhash_sha256"] = info.cdHash
-		// TODO - this data isn't available from codesign --display output. Need to figure out how to get it (see dev doc)
-		// row["binary_sha256"] = getBinSHA256FromSomeWhereElse()
 		rows = append(rows, row)
 	}
 
