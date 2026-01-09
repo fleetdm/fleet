@@ -10226,8 +10226,8 @@ Returns information about the specified software. By default, `versions` are sor
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
     "auto_update_enabled": true,
-    "auto_update_start_time": "00:00",
-    "auto_update_end_time": "02:00",
+    "auto_update_window_start": "00:00",
+    "auto_update_window_end": "02:00",
     "app_store_app": {
       "name": "Logic Pro",
       "categories": [],
@@ -10263,7 +10263,7 @@ Returns information about the specified software. By default, `versions` are sor
 }
 ```
 
-`auto_update_enabled`, `auto_update_start_time` and `auto_update_end_time` will only be returned for iOS/iPadOS apps, and only when a `team_id` is specified in the request.
+`auto_update_enabled`, `auto_update_window_start` and `auto_update_window_end` will only be returned for iOS/iPadOS apps, and only when a `team_id` is specified in the request.
 
 #### Example (Play Store app)
 
