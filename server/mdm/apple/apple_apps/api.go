@@ -275,7 +275,7 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 		}
 
 		body, err := json.Marshal(struct {
-			ServerURL string `json:"serverUrl"`
+			ServerURL string `json:"fleetServerUrl"`
 		}{appConfig.ServerSettings.ServerURL})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "encoding authentication request for VPP metadata service")

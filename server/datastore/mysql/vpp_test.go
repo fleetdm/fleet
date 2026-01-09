@@ -46,6 +46,8 @@ func TestVPP(t *testing.T) {
 		{"GetVPPAppInstallStatusByCommandUUID", testGetVPPAppInstallStatusByCommandUUID},
 		{"AndroidAppConfigs", testAndroidAppConfigs},
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
+		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
+		{"RetryVPPInstallForHost", testRetryVPPAppInstallForHost},
 	}
 
 	for _, c := range cases {
@@ -2828,5 +2830,139 @@ func testMapAdamIDsPendingInstallVerification(t *testing.T, ds *Datastore) {
 		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
 		require.NoError(t, err)
 		require.Empty(t, adamIDs)
+	})
+}
+
+func testGetHostVPPInstallByCommandUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	// Non-existent command UUID returns nil
+	install, err := ds.GetHostVPPInstallByCommandUUID(ctx, "no-such-cmd")
+	require.NoError(t, err)
+	require.Nil(t, install)
+
+	// Fake inserting some data only in to the host_vpp_software_installs table
+	firstCmd := "cmd-uuid-1"
+	adamId := "adam_vpp_1"
+	vpp := &fleet.VPPApp{
+		Name: "name_1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   adamId,
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		BundleIdentifier: adamId,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, firstCmd, "event-1", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	install, err = ds.GetHostVPPInstallByCommandUUID(ctx, firstCmd)
+	require.NoError(t, err)
+	require.NotNil(t, install)
+	require.Equal(t, host.ID, install.HostID)
+	require.Equal(t, firstCmd, install.InstallCommandUUID)
+}
+
+func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	adamId := "adam_vpp_1"
+	vpp := &fleet.VPPApp{
+		Name: "name_1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   adamId,
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		BundleIdentifier: adamId,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+
+	cmdUUID := "cmd-uuid-1"
+	err = ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "event-1", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// Get the host install
+	install, err := ds.GetHostVPPInstallByCommandUUID(ctx, cmdUUID)
+	require.NoError(t, err)
+	require.NotNil(t, install)
+	require.Equal(t, 0, install.RetryCount)
+	require.Equal(t, cmdUUID, install.InstallCommandUUID)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var upcomingActivityExecutionID string
+		err := sqlx.GetContext(ctx, q, &upcomingActivityExecutionID, "SELECT execution_id FROM upcoming_activities WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		require.Equal(t, install.InstallCommandUUID, upcomingActivityExecutionID)
+
+		var nanoCommandCount int
+		err = sqlx.GetContext(ctx, q, &nanoCommandCount, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", install.InstallCommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, nanoCommandCount)
+
+		var queueCommandCount int
+		err = sqlx.GetContext(ctx, q, &queueCommandCount, "SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = ?", install.InstallCommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, queueCommandCount)
+		return nil
+	})
+
+	// Call the retry method
+	err = ds.RetryVPPInstall(ctx, install)
+	require.NoError(t, err)
+
+	// Manually grab the new command UUID
+	var newCmdUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &newCmdUUID, "SELECT command_uuid FROM host_vpp_software_installs WHERE host_id = ?", install.HostID)
+	})
+
+	// Get the host install again and verify the retry count increased
+	install, err = ds.GetHostVPPInstallByCommandUUID(ctx, newCmdUUID)
+	require.NoError(t, err)
+	require.NotNil(t, install)
+	require.Equal(t, 1, install.RetryCount)
+	require.NotEqual(t, cmdUUID, install.InstallCommandUUID)
+
+	// Verify the upcoming activity has the new command UUID and the nano_commands and nano_enrollment_queue has the new command
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var upcomingActivityExecutionID string
+		err := sqlx.GetContext(ctx, q, &upcomingActivityExecutionID, "SELECT execution_id FROM upcoming_activities WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		require.Equal(t, install.InstallCommandUUID, upcomingActivityExecutionID)
+
+		var nanoCommandCount int
+		err = sqlx.GetContext(ctx, q, &nanoCommandCount, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", install.InstallCommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, nanoCommandCount)
+
+		var queueCommandCount int
+		err = sqlx.GetContext(ctx, q, &queueCommandCount, "SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = ?", install.InstallCommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, queueCommandCount)
+		return nil
 	})
 }
