@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -127,6 +128,201 @@ func (ds *Datastore) NewActivity(
 		}
 		return nil
 	})
+}
+
+// ListActivities returns a slice of activities performed across the organization
+func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	// Fetch activities
+
+	activities := []*fleet.Activity{}
+	activitiesQ := `
+		SELECT
+			a.id,
+			a.user_id,
+			a.created_at,
+			a.activity_type,
+			a.user_name as name,
+			a.streamed,
+			a.user_email,
+			a.fleet_initiated
+		FROM activities a
+		WHERE a.host_only = false`
+
+	var args []interface{}
+	if opt.Streamed != nil {
+		activitiesQ += " AND a.streamed = ?"
+		args = append(args, *opt.Streamed)
+	}
+	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
+
+	// Searching activites currently only supports searching by user name or email.
+	if opt.ListOptions.MatchQuery != "" {
+
+		activitiesQ += " AND (a.user_name LIKE ? OR a.user_email LIKE ?" // Final ')' will be added at the bottom of this IF
+		args = append(args, opt.ListOptions.MatchQuery+"%", opt.ListOptions.MatchQuery+"%")
+
+		// Also search the users table here to get the most up to date information
+		users, err := ds.ListUsers(ctx, fleet.UserListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: opt.ListOptions.MatchQuery,
+			},
+		})
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list users for activity search")
+		}
+
+		if len(users) != 0 {
+			userIds := make([]uint, 0, len(users))
+			for _, u := range users {
+				userIds = append(userIds, u.ID)
+			}
+
+			inQ, inArgs, err := sqlx.In("a.user_id IN (?)", userIds)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "bind user IDs for IN clause")
+			}
+			inQ = ds.reader(ctx).Rebind(inQ)
+			activitiesQ += " OR " + inQ
+			args = append(args, inArgs...)
+		}
+
+		activitiesQ += ")"
+	}
+
+	if opt.ActivityType != "" {
+		activitiesQ += " AND a.activity_type = ?"
+		args = append(args, opt.ActivityType)
+	}
+
+	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
+		start := opt.StartCreatedAt
+		end := opt.EndCreatedAt
+		switch {
+		case start == "" && end != "":
+			// Only EndCreatedAt is set, so filter up to end
+			activitiesQ += " AND a.created_at <= ?"
+			args = append(args, end)
+		case start != "" && end == "":
+			// Only StartCreatedAt is set, so filter from start to now
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, time.Now().UTC())
+		case start != "" && end != "":
+			// Both are set
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, end)
+		}
+	}
+
+	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
+
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
+	}
+
+	if len(activities) > 0 {
+		// Fetch details as a separate query due to sort buffer issue triggered by large JSON details entries. Issue last reproduced on MySQL 8.0.36
+		// https://stackoverflow.com/questions/29575835/error-1038-out-of-sort-memory-consider-increasing-sort-buffer-size/67266529
+		IDs := make([]uint, 0, len(activities))
+		for _, a := range activities {
+			IDs = append(IDs, a.ID)
+		}
+		detailsStmt, detailsArgs, err := sqlx.In("SELECT id, details FROM activities WHERE id IN (?)", IDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding activity IDs")
+		}
+		type activityDetails struct {
+			ID      uint             `db:"id"`
+			Details *json.RawMessage `db:"details"`
+		}
+		var details []activityDetails
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &details, detailsStmt, detailsArgs...)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "select activities details")
+		}
+		detailsLookup := make(map[uint]*json.RawMessage, len(details))
+		for _, d := range details {
+			detailsLookup[d.ID] = d.Details
+		}
+		for _, a := range activities {
+			det, ok := detailsLookup[a.ID]
+			if !ok {
+				level.Warn(ds.logger).Log("msg", "Activity details not found", "activity_id", a.ID)
+				continue
+			}
+			a.Details = det
+		}
+	}
+
+	// Fetch users as a stand-alone query (because of performance reasons)
+
+	lookup := make(map[uint][]int)
+	for idx, a := range activities {
+		if a.ActorID != nil {
+			lookup[*a.ActorID] = append(lookup[*a.ActorID], idx)
+		}
+	}
+
+	if len(lookup) != 0 {
+		// TODO: We left this query here for user replacement, to keep the scope simple, and the users table is never going to be super big, so it won't tank performance.
+		usersQ := `
+			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
+			FROM users u
+			WHERE id IN (?)
+		`
+		userIDs := make([]uint, 0, len(lookup))
+		for k := range lookup {
+			userIDs = append(userIDs, k)
+		}
+
+		usersQ, usersArgs, err := sqlx.In(usersQ, userIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding usersIDs")
+		}
+
+		var usersR []struct {
+			ID          uint   `db:"id"`
+			Name        string `db:"name"`
+			GravatarUrl string `db:"gravatar_url"`
+			Email       string `db:"email"`
+			APIOnly     bool   `db:"api_only"`
+		}
+
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, nil, ctxerr.Wrap(ctx, err, "selecting users")
+		}
+
+		for _, r := range usersR {
+			entries, ok := lookup[r.ID]
+			if !ok {
+				continue
+			}
+
+			email := r.Email
+			gravatar := r.GravatarUrl
+			name := r.Name
+			apiOnly := r.APIOnly
+
+			for _, idx := range entries {
+				activities[idx].ActorEmail = &email
+				activities[idx].ActorGravatar = &gravatar
+				activities[idx].ActorFullName = &name
+				activities[idx].ActorAPIOnly = &apiOnly
+			}
+		}
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(activities) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			activities = activities[:len(activities)-1]
+		}
+	}
+
+	return activities, metaData, nil
 }
 
 func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {

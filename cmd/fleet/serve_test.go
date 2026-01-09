@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
-	activityapi "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1017,15 +1016,6 @@ func TestDebugMux(t *testing.T) {
 	}
 }
 
-// mockActivityService is a mock implementation of activityapi.ListActivitiesService for testing.
-type mockActivityService struct {
-	listActivitiesFunc func(ctx context.Context, opt activityapi.ListOptions) ([]*activityapi.Activity, *activityapi.PaginationMetadata, error)
-}
-
-func (m *mockActivityService) ListActivities(ctx context.Context, opt activityapi.ListOptions) ([]*activityapi.Activity, *activityapi.PaginationMetadata, error) {
-	return m.listActivitiesFunc(ctx, opt)
-}
-
 func TestCronActivitiesStreaming(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -1035,9 +1025,9 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		actorID uint,
 		actorGravatar, actorEmail, actType string,
 		details string,
-	) *activityapi.Activity {
+	) *fleet.Activity {
 		jsonRawMessage := json.RawMessage(details)
-		return &activityapi.Activity{
+		return &fleet.Activity{
 			ID:            id,
 			ActorFullName: &actorName,
 			ActorID:       &actorID,
@@ -1053,12 +1043,10 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	a3 := newActivity(3, "foo3", 9, "foo3_gravatar", "foo3_email", "foobar3", `{"foo3":"bar3"}`)
 
 	t.Run("basic", func(t *testing.T) {
-		as := []*activityapi.Activity{a1, a2, a3}
+		as := []*fleet.Activity{a1, a2, a3}
 
-		activitySvc := &mockActivityService{
-			listActivitiesFunc: func(ctx context.Context, opt activityapi.ListOptions) ([]*activityapi.Activity, *activityapi.PaginationMetadata, error) {
-				return as, nil, nil
-			},
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			return as, nil, nil
 		}
 
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -1067,11 +1055,11 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		var auditLogger jsonLogger
-		err := cronActivitiesStreaming(context.Background(), ds, activitySvc, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
 		require.Len(t, auditLogger.logs, 3)
 		for i, m := range auditLogger.logs {
-			var a *activityapi.Activity
+			var a *fleet.Activity
 			err := json.Unmarshal([]byte(m), &a)
 			require.NoError(t, err)
 			require.Equal(t, as[i], a)
@@ -1079,12 +1067,10 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	})
 
 	t.Run("fail_to_stream_an_activity", func(t *testing.T) {
-		as := []*activityapi.Activity{a1, a2, a3}
+		as := []*fleet.Activity{a1, a2, a3}
 
-		activitySvc := &mockActivityService{
-			listActivitiesFunc: func(ctx context.Context, opt activityapi.ListOptions) ([]*activityapi.Activity, *activityapi.PaginationMetadata, error) {
-				return as, nil, nil
-			},
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			return as, nil, nil
 		}
 
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -1093,11 +1079,11 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		auditLogger := jsonLogger{failAfter: 1}
-		err := cronActivitiesStreaming(context.Background(), ds, activitySvc, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
 		require.Error(t, err)
 		require.ErrorIs(t, err, errStreamFailed)
 		require.Len(t, auditLogger.logs, 1)
-		var a *activityapi.Activity
+		var a *fleet.Activity
 		err = json.Unmarshal([]byte(auditLogger.logs[0]), &a)
 		require.NoError(t, err)
 		require.Equal(t, a1, a)
@@ -1106,27 +1092,25 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	t.Run("bigger_than_batch", func(t *testing.T) {
 		// Make slice that will require three iterations (3 pages,
 		// two pages of ActivitiesToStreamBatchCount and one extra page of one item.
-		as := make([]*activityapi.Activity, ActivitiesToStreamBatchCount*2+1)
+		as := make([]*fleet.Activity, ActivitiesToStreamBatchCount*2+1)
 		for i := range as {
 			as[i] = newActivity(uint(i), "foo", uint(i), //nolint:gosec // dismiss G115
 				"foog", "fooe", "bar", `{"bar": "foo"}`)
 		}
 
-		activitySvc := &mockActivityService{
-			listActivitiesFunc: func(ctx context.Context, opt activityapi.ListOptions) ([]*activityapi.Activity, *activityapi.PaginationMetadata, error) {
-				require.Equal(t, opt.PerPage, ActivitiesToStreamBatchCount)
-				switch opt.Page {
-				case 0:
-					return as[:ActivitiesToStreamBatchCount], nil, nil
-				case 1:
-					return as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2], nil, nil
-				case 2:
-					return as[ActivitiesToStreamBatchCount*2:], nil, nil
-				default:
-					t.Fatalf("invalid page requested: %d", opt.Page)
-					return nil, nil, nil
-				}
-			},
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			require.Equal(t, opt.ListOptions.PerPage, ActivitiesToStreamBatchCount)
+			switch opt.ListOptions.Page {
+			case 0:
+				return as[:ActivitiesToStreamBatchCount], nil, nil
+			case 1:
+				return as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2], nil, nil
+			case 2:
+				return as[ActivitiesToStreamBatchCount*2:], nil, nil
+			default:
+				t.Fatalf("invalid page requested: %d", opt.ListOptions.Page)
+				return nil, nil, nil
+			}
 		}
 
 		call := 0
@@ -1155,7 +1139,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		var auditLogger jsonLogger
-		err := cronActivitiesStreaming(context.Background(), ds, activitySvc, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
 		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1) //nolint:gosec // dismiss G115
 		require.Equal(t, 3, call)
