@@ -665,30 +665,90 @@ func StartAndServeVPPServer(t *testing.T) {
 
 	StartVPPApplyServer(t, config)
 
-	appleITunesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with
-		db := map[string]string{
-			// macos app
-			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-			// macos, ios, ipados app
-			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
-			// ipados app
-			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
-				"supportedDevices": ["iPadAir-iPadAir"] }`,
+	// Set up the VPP proxy metadata server using the new format
+	// This replaces the old iTunes API format
+	vppProxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer test-bearer-token" {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"error": "unauthorized"}`))
+			return
 		}
 
-		adamIDString := r.URL.Query().Get("id")
+		// deviceFamilies: "mac" -> osx platform, "iphone" -> ios platform, "ipad" -> ios platform
+		db := map[string]string{
+			// macos app
+			"1": `{
+				"id": "1",
+				"attributes": {
+					"name": "App 1",
+					"platformAttributes": {
+						"osx": {
+							"bundleId": "a-1",
+							"artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "1.0.0"}
+						}
+					},
+					"deviceFamilies": ["mac"]
+				}
+			}`,
+			// macos, ios, ipados app
+			"2": `{
+				"id": "2",
+				"attributes": {
+					"name": "App 2",
+					"platformAttributes": {
+						"osx": {
+							"bundleId": "b-2",
+							"artwork": {"url": "https://example.com/images/2-mac/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "1.2.3"}
+						},
+						"ios": {
+							"bundleId": "b-2",
+							"artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "2.0.0"}
+						}
+					},
+					"deviceFamilies": ["mac", "iphone", "ipad"]
+				}
+			}`,
+			// ipados app
+			"3": `{
+				"id": "3",
+				"attributes": {
+					"name": "App 3",
+					"platformAttributes": {
+						"ios": {
+							"bundleId": "c-3",
+							"artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "3.0.0"}
+						}
+					},
+					"deviceFamilies": ["ipad"]
+				}
+			}`,
+		}
+
+		adamIDString := r.URL.Query().Get("ids")
 		adamIDs := strings.Split(adamIDString, ",")
 
 		var objs []string
 		for _, a := range adamIDs {
-			objs = append(objs, db[a])
+			if obj, ok := db[a]; ok {
+				objs = append(objs, obj)
+			}
 		}
 
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+		_, _ = w.Write(fmt.Appendf(nil, `{"data": [%s]}`, strings.Join(objs, ",")))
 	}))
-	t.Setenv("FLEET_DEV_ITUNES_URL", appleITunesSrv.URL)
+
+	vppProxyAuthSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"fleetServerSecret": "test-bearer-token"}`))
+	}))
+
+	t.Cleanup(vppProxySrv.Close)
+	t.Cleanup(vppProxyAuthSrv.Close)
+	t.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", vppProxySrv.URL)
+	t.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", vppProxyAuthSrv.URL)
 }
 
 type MockPusher struct{}

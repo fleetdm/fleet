@@ -45,6 +45,40 @@ const (
 
 type Vulnerabilities []CVE
 
+// isLastOpenedAtSupported returns true if the software source supports the last_opened_at field.
+func isLastOpenedAtSupported(source string) bool {
+	switch source {
+	case "apps", "programs", "deb_packages", "rpm_packages":
+		return true
+	default:
+		return false
+	}
+}
+
+// marshalLastOpenedAt returns the appropriate value for last_opened_at JSON marshaling.
+// Returns nil to omit the field for unsupported sources, "" for supported sources with nil,
+// or the actual timestamp for supported sources with a value.
+func marshalLastOpenedAt(source string, lastOpenedAt *time.Time) any {
+	if !isLastOpenedAtSupported(source) {
+		return nil
+	}
+	if lastOpenedAt == nil {
+		return ""
+	}
+	return lastOpenedAt
+}
+
+func unmarshalLastOpenedAt(data json.RawMessage) (*time.Time, error) {
+	if len(data) == 0 || string(data) == "null" || string(data) == `""` {
+		return nil, nil
+	}
+	var t time.Time
+	if err := json.Unmarshal(data, &t); err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
 // Software is a named and versioned piece of software installed on a device.
 type Software struct {
 	ID uint `json:"id" db:"id"`
@@ -135,7 +169,31 @@ func (s *Software) populateBrowserField() {
 func (s *Software) MarshalJSON() ([]byte, error) {
 	s.populateBrowserField()
 	type Alias Software
-	return json.Marshal((*Alias)(s))
+	return json.Marshal(&struct {
+		*Alias
+		LastOpenedAt any `json:"last_opened_at,omitempty"`
+	}{
+		Alias:        (*Alias)(s),
+		LastOpenedAt: marshalLastOpenedAt(s.Source, s.LastOpenedAt),
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for Software to handle
+// the potential empty string in last_opened_at.
+func (s *Software) UnmarshalJSON(b []byte) error {
+	type Alias Software
+	aux := &struct {
+		*Alias
+		LastOpenedAt json.RawMessage `json:"last_opened_at"`
+	}{
+		Alias: (*Alias)(s),
+	}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	var err error
+	s.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 // ToUniqueStr creates a unique string representation of the software
@@ -518,13 +576,37 @@ func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
+		LastOpenedAt             any                        `json:"last_opened_at,omitempty"`
 		InstalledPaths           []string                   `json:"installed_paths"`
 		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
 	}{
 		Alias:                    (*Alias)(&hse.Software),
+		LastOpenedAt:             marshalLastOpenedAt(hse.Source, hse.LastOpenedAt),
 		InstalledPaths:           hse.InstalledPaths,
 		PathSignatureInformation: hse.PathSignatureInformation,
 	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for HostSoftwareEntry to handle
+// the potential empty string in last_opened_at.
+func (hse *HostSoftwareEntry) UnmarshalJSON(b []byte) error {
+	type SoftwareAlias Software
+	aux := &struct {
+		SoftwareAlias
+		InstalledPaths           []string                   `json:"installed_paths"`
+		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+		LastOpenedAt             json.RawMessage            `json:"last_opened_at"`
+	}{}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	hse.Software = Software(aux.SoftwareAlias)
+	hse.InstalledPaths = aux.InstalledPaths
+	hse.PathSignatureInformation = aux.PathSignatureInformation
+
+	var err error
+	hse.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 type PathSignatureInformation struct {

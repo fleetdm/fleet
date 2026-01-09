@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.2.15",
+      "version": "4.2.16",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.torusknot.SourceTreeNotMAS';"
       },
-      "installer_url": "https://product-downloads.atlassian.com/software/sourcetree/ga/Sourcetree_4.2.15_305.zip",
+      "installer_url": "https://product-downloads.atlassian.com/software/sourcetree/ga/Sourcetree_4.2.16_307.zip",
       "install_script_ref": "3a5ca048",
       "uninstall_script_ref": "639d4333",
-      "sha256": "51817848ec375ee084bc23f1fdc197d2c1734f0bd56925993cec3aeabac45a5a",
+      "sha256": "de80f562fa5fa0f3000e11f11db08d3a1ecb086c659d87a8df3b1c29737664a8",
       "default_categories": [
         "Developer tools"
       ]

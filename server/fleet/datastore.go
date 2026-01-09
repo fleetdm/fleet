@@ -48,6 +48,8 @@ type InstallerStore interface {
 
 // Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
+	GetsAppConfig
+	AccessesMDMConfigAssets
 	health.Checker
 
 	CarveStore
@@ -481,7 +483,6 @@ type Datastore interface {
 	// AppConfigStore contains method for saving and retrieving application configuration
 
 	NewAppConfig(ctx context.Context, info *AppConfig) (*AppConfig, error)
-	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 
 	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
@@ -1576,41 +1577,6 @@ type Datastore interface {
 	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
 	// for the host with the given serial number alongside the host's platform. The host must be DEP assigned to Fleet.
 	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (string, *AppleOSUpdateSettings, error)
-
-	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
-	// tx is optional and can be used to pass an existing transaction.
-	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
-	// InsertOrReplaceMDMConfigAsset inserts or updates an encrypted asset.
-	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
-
-	// GetAllMDMConfigAssetsByName returns the requested config assets.
-	//
-	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult` error.
-	// The queryerContext is optional and can be used to pass a transaction.
-	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
-		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
-
-	// GetAllMDMConfigAssetsHashes behaves like
-	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
-	// each asset
-	//
-	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
-	GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]string, error)
-
-	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
-	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
-
-	// HardDeleteMDMConfigAsset permanently deletes the given MDM config asset.
-	HardDeleteMDMConfigAsset(ctx context.Context, assetName MDMAssetName) error
-
-	// ReplaceMDMConfigAssets replaces (soft delete if they exist + insert) `MDMConfigAsset`s in a
-	// single transaction. Useful for "renew" flows where users are updating the assets with newly
-	// generated ones.
-	// tx parameter is optional and can be used to pass an existing transaction.
-	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
-
-	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
-	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
 	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
 	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
 	DeleteCAConfigAssets(ctx context.Context, names []string) error
@@ -1965,6 +1931,11 @@ type Datastore interface {
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
+
+	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
+	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
+	GetHostLocationData(ctx context.Context, hostID uint) (*HostLocationData, error)
+	DeleteHostLocationData(ctx context.Context, hostID uint) error
 
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
@@ -2556,8 +2527,8 @@ type Datastore interface {
 	// update, delete). Deletes are processed first based on name and type. Adds and updates are
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
-	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
-	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType MDMOperationType) error
+	// UpsertCertificateStatus allows a host to update the installation status of a certificate given its template.
+	UpsertCertificateStatus(ctx context.Context, update *CertificateStatusUpdate) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
 	// Returns a map of team IDs that had certificates inserted or updated.
@@ -2619,6 +2590,18 @@ type Datastore interface {
 	// SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
 	// for a specific host for removal.
 	SetHostCertificateTemplatesToPendingRemoveForHost(ctx context.Context, hostUUID string) error
+
+	// GetAndroidCertificateTemplatesForRenewal returns certificate templates that are approaching
+	// expiration and need to be renewed. Uses the same threshold logic as Apple/Windows:
+	// - If validity period > 30 days: renew within 30 days of expiration
+	// - If validity period <= 30 days: renew within half the validity period of expiration
+	// Only returns certificates with status 'delivered' or 'verified' and operation_type 'install'.
+	GetAndroidCertificateTemplatesForRenewal(ctx context.Context, limit int) ([]HostCertificateTemplateForRenewal, error)
+
+	// SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
+	// by setting status to 'pending', clearing validity fields, and generating a new UUID.
+	// The new UUID signals to the Android agent that the certificate needs renewal.
+	SetAndroidCertificateTemplatesForRenewal(ctx context.Context, templates []HostCertificateTemplateForRenewal) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
@@ -2879,4 +2862,38 @@ type EntityUsingSecret struct {
 	Name string
 	// TeamName is the name of the team the entity belongs to.
 	TeamName string
+}
+
+type AccessesMDMConfigAssets interface {
+	// InsertMDMConfigAssets inserts MDM-related config assets, such as SCEP and APNS certs and keys.
+	// tx is used to pass an existing transaction; if nil, a new transaction will be created inside the call
+	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
+	// InsertOrReplaceMDMConfigAsset inserts or updates an encrypted asset.
+	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
+	// GetAllMDMConfigAssetsByName returns the requested config assets.
+	//
+	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult` error.
+	// The queryerContext is optional and can be used to pass a transaction.
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
+	// GetAllMDMConfigAssetsHashes behaves like
+	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
+	// each asset
+	//
+	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
+	GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]string, error)
+	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
+	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
+	// HardDeleteMDMConfigAsset permanently deletes the given MDM config asset.
+	HardDeleteMDMConfigAsset(ctx context.Context, assetName MDMAssetName) error
+	// ReplaceMDMConfigAssets replaces (soft delete if they exist + insert) `MDMConfigAsset`s in a
+	// single transaction. Useful for "renew" flows where users are updating the assets with newly
+	// generated ones.
+	// tx parameter is optional and can be used to pass an existing transaction.
+	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
+	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
+	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
+}
+type GetsAppConfig interface {
+	AppConfig(ctx context.Context) (*AppConfig, error)
 }
