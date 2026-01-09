@@ -124,57 +124,6 @@ func TestBase64DecodePaddingAgnostic(t *testing.T) {
 	}
 }
 
-func TestFormatFileSize(t *testing.T) {
-	tests := []struct {
-		name     string
-		bytes    int64
-		expected string
-	}{
-		// Zero and negative values
-		{"zero bytes", 0, "0 bytes"},
-		{"negative bytes", -100, "0 bytes"},
-
-		// Raw bytes (not divisible by 100 or 128)
-		{"raw bytes small", 1, "1 bytes"},
-		{"raw bytes 99", 99, "99 bytes"},
-		{"raw bytes 127", 127, "127 bytes"},
-		{"raw bytes 129", 129, "129 bytes"},
-		{"raw bytes 1001", 1001, "1001 bytes"},
-
-		// SI units (divisible by 100)
-		{"SI 100 bytes", 100, "100 bytes"},
-		{"SI 1000 bytes (1 KB)", 1000, "1 KB"},
-		{"SI 1500 bytes", 1500, "1.5 KB"},
-		{"SI 1000000 bytes (1 MB)", 1000000, "1 MB"},
-		{"SI 1500000 bytes", 1500000, "1.5 MB"},
-		{"SI 1000000000 bytes (1 GB)", 1000000000, "1 GB"},
-		{"SI 1500000000 bytes", 1500000000, "1.5 GB"},
-		{"SI 1000000000000 bytes (1 TB)", 1000000000000, "1 TB"},
-		{"SI 2500000000000 bytes", 2500000000000, "2.5 TB"},
-
-		// Binary units (divisible by 128)
-		{"binary 128 bytes", 128, "128 bytes"},
-		{"binary 1024 bytes (1 KiB)", 1024, "1 KiB"},
-		{"binary 1536 bytes (1.5 KiB)", 1536, "1.5 KiB"},
-		{"binary 1048576 bytes (1 MiB)", 1048576, "1 MiB"},
-		{"binary 1572864 bytes (1.5 MiB)", 1572864, "1.5 MiB"},
-		{"binary 1073741824 bytes (1 GiB)", 1073741824, "1 GiB"},
-		{"binary 1610612736 bytes (1.5 GiB)", 1610612736, "1.5 GiB"},
-		{"binary 1099511627776 bytes (1 TiB)", 1099511627776, "1 TiB"},
-
-		// Edge cases - values divisible by both 100 and 128
-		// 6400 is divisible by both 100 and 128, so SI takes precedence
-		{"divisible by both 100 and 128", 6400, "6.4 KB"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FormatFileSize(tt.bytes)
-			require.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestRemoveDuplicatesFromSlice(t *testing.T) {
 	tests := map[string]struct {
 		input  []interface{}

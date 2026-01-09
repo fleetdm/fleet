@@ -15,7 +15,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -193,89 +192,3 @@ func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
 // occurred. For example, `hosts.detail_updated_at` is set to this value to indicate
 // that Fleet has never updated the host vitals.
 const NeverTimestamp = "2000-01-01 00:00:00"
-
-// FormatFileSize formats a byte size into a human-readable string.
-// It uses SI units (KB, MB, GB) if the value is evenly divisible by 100,
-// binary units (KiB, MiB, GiB) if evenly divisible by 128,
-// and raw bytes otherwise.
-func FormatFileSize(bytes int64) string {
-	if bytes <= 0 {
-		return "0 bytes"
-	}
-
-	// Check if we should use SI units (divisible by 100)
-	if bytes%100 == 0 {
-		return formatSISize(bytes)
-	}
-
-	// Check if we should use binary units (divisible by 128)
-	if bytes%128 == 0 {
-		return formatBinarySize(bytes)
-	}
-
-	// Return raw bytes
-	return strconv.FormatInt(bytes, 10) + " bytes"
-}
-
-// formatSISize formats bytes using SI units (KB, MB, GB, TB)
-func formatSISize(bytes int64) string {
-	const (
-		KB = 1000
-		MB = 1000 * KB
-		GB = 1000 * MB
-		TB = 1000 * GB
-	)
-
-	switch {
-	case bytes >= TB:
-		val := float64(bytes) / float64(TB)
-		return formatFloat(val) + " TB"
-	case bytes >= GB:
-		val := float64(bytes) / float64(GB)
-		return formatFloat(val) + " GB"
-	case bytes >= MB:
-		val := float64(bytes) / float64(MB)
-		return formatFloat(val) + " MB"
-	case bytes >= KB:
-		val := float64(bytes) / float64(KB)
-		return formatFloat(val) + " KB"
-	default:
-		return strconv.FormatInt(bytes, 10) + " bytes"
-	}
-}
-
-// formatBinarySize formats bytes using binary units (KiB, MiB, GiB, TiB)
-func formatBinarySize(bytes int64) string {
-	const (
-		KiB = 1024
-		MiB = 1024 * KiB
-		GiB = 1024 * MiB
-		TiB = 1024 * GiB
-	)
-
-	switch {
-	case bytes >= TiB:
-		val := float64(bytes) / float64(TiB)
-		return formatFloat(val) + " TiB"
-	case bytes >= GiB:
-		val := float64(bytes) / float64(GiB)
-		return formatFloat(val) + " GiB"
-	case bytes >= MiB:
-		val := float64(bytes) / float64(MiB)
-		return formatFloat(val) + " MiB"
-	case bytes >= KiB:
-		val := float64(bytes) / float64(KiB)
-		return formatFloat(val) + " KiB"
-	default:
-		return strconv.FormatInt(bytes, 10) + " bytes"
-	}
-}
-
-// formatFloat formats a float, removing trailing zeros and unnecessary decimal points
-func formatFloat(val float64) string {
-	// Format with up to 2 decimal places, then trim trailing zeros
-	s := strconv.FormatFloat(val, 'f', 2, 64)
-	s = strings.TrimRight(s, "0")
-	s = strings.TrimRight(s, ".")
-	return s
-}
