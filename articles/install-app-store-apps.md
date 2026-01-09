@@ -28,7 +28,7 @@ Currently, Fleet only supports Apple App Store apps from the United States (US) 
 
 4. To configure the app's self-service categories or change which hosts can install the app, click the Actions button and select **Edit software**.
 
-5. To remove the app, click the trash can (delete) icon above the table of installed, pending and failed hosts.
+5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
 
 ## Configure automatic updates for an app (iOS / iPadOS only)
 
