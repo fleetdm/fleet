@@ -488,5 +488,9 @@ module.exports.custom = {
   // androidEnterpriseServiceAccountEmailAddress: '…',
   // androidEnterpriseServiceAccountPrivateKey: '…',
 
+  // VPP proxy
+  // vppProxyTokenTeamId: '',
+  // vppProxyTokenKeyId: '',
+  // vppProxyTokenPrivateKey: '',
 
 };

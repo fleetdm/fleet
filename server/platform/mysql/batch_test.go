@@ -1,4 +1,4 @@
-package common_mysql
+package mysql
 
 import (
 	"testing"

@@ -9,8 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -165,8 +164,8 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 	}
 }
 
-func MysqlTestConfig(testName string) *config.MysqlConfig {
-	return &config.MysqlConfig{
+func MysqlTestConfig(testName string) *common_mysql.MysqlConfig {
+	return &common_mysql.MysqlConfig{
 		Username: TestUsername,
 		Password: TestPassword,
 		Database: testName,

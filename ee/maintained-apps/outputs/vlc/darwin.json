@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.0.21",
+      "version": "3.0.23",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.videolan.vlc';"
       },
-      "installer_url": "https://get.videolan.org/vlc/3.0.21/macosx/vlc-3.0.21-arm64.dmg",
+      "installer_url": "https://get.videolan.org/vlc/3.0.23/macosx/vlc-3.0.23-arm64.dmg",
       "install_script_ref": "8e2b4a69",
       "uninstall_script_ref": "24d06128",
-      "sha256": "15dd65bf6489da9ec6a67f5585c74c40a58993acff41a82958a916dd74178044",
+      "sha256": "fc6fac08d87f538517d44aca0c5e7a244b67c8c4cb589bf478363a7315fd5e0d",
       "default_categories": [
         "Productivity"
       ]

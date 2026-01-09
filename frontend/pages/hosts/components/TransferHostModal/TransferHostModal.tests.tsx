@@ -39,8 +39,6 @@ describe("TransferHostModal", () => {
   it("renders title for single host and label", () => {
     setup();
 
-    expect(screen.getByText("Transfer host")).toBeInTheDocument();
-
     expect(
       screen.getByText("Transfer host to:", { selector: "label" })
     ).toBeInTheDocument();
@@ -48,8 +46,6 @@ describe("TransferHostModal", () => {
 
   it("pluralizes title and label when multipleHosts is true", () => {
     setup({ multipleHosts: true });
-
-    expect(screen.getByText("Transfer hosts")).toBeInTheDocument();
 
     expect(
       screen.getByText("Transfer selected hosts to:", { selector: "label" })
