@@ -46,7 +46,9 @@ Apple App Store (VPP) apps can be installed manually on each host's Host details
 
 Currently, Android apps can only be installed via self-service in the end user's managed Google Play Store (work profile).
 
-Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
+
+> VPP apps on iOS/iPadOS will be uninstalled when the host is unenrolled from MDM.
 
 ## API and GitOps
 
