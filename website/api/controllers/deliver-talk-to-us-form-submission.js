@@ -104,7 +104,7 @@ module.exports = {
       return {
         icp: true,
         eventUrl: `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`
-      }
+      };
     } else {
       // If the user has <700 hosts, use the get-enriched helper to try to find the number of employees at their organization.
 
@@ -129,7 +129,7 @@ module.exports = {
         return {
           icp: true,
           eventUrl:`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`
-        }
+        };
       } else {
         // If the enrichment helper didn't return a employer.numberOfEmployees value and this user has <700 hosts, send them to the "Let's get you set up!" Calendly event
         contactInformation.contactSource = 'Website - Contact forms - Demo';
@@ -142,7 +142,7 @@ module.exports = {
         return {
           icp: false,
           eventUrl: `https://calendly.com/fleetdm/chat?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`
-        }
+        };
       }
     }
   }
