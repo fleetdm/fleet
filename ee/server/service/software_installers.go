@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -2085,7 +2085,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, units.HumanSize(float64(maxInstallerSize))),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.FormatSize(maxInstallerSize)),
 				)
 			}
 
@@ -2116,7 +2116,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, units.HumanSize(float64(maxInstallerSize))),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.FormatSize(maxInstallerSize)),
 				)
 			}
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)

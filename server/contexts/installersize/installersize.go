@@ -7,6 +7,19 @@ import (
 	"github.com/docker/go-units"
 )
 
+// FormatSize formats a byte size into a human-readable string.
+// It evaluates both SI units (KB, MB, GB) and binary units (KiB, MiB, GiB)
+// and returns whichever representation is shorter.
+func FormatSize(bytes int64) string {
+	si := units.HumanSize(float64(bytes))
+	binary := units.BytesSize(float64(bytes))
+
+	if len(binary) < len(si) {
+		return binary
+	}
+	return si
+}
+
 type key struct{}
 
 // DefaultMaxInstallerSizeStr is the default maximum size allowed for software installers
