@@ -1263,6 +1263,12 @@ type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlat
 
 type CleanAppleMDMLockFunc func(ctx context.Context, hostUUID string) error
 
+type InsertHostLocationDataFunc func(ctx context.Context, locData fleet.HostLocationData) error
+
+type GetHostLocationDataFunc func(ctx context.Context, hostID uint) (*fleet.HostLocationData, error)
+
+type DeleteHostLocationDataFunc func(ctx context.Context, hostID uint) error
+
 type CleanupUnusedScriptContentsFunc func(ctx context.Context) error
 
 type CleanupActivitiesAndAssociatedDataFunc func(ctx context.Context, maxCount int, expiryWindowDays int) error
@@ -1722,6 +1728,10 @@ type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *
 type GetWindowsMDMCommandsForResendingFunc func(ctx context.Context, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error)
 
 type ResendWindowsMDMCommandFunc func(ctx context.Context, mdmDeviceId string, newCmd *fleet.MDMWindowsCommand, oldCmd *fleet.MDMWindowsCommand) error
+
+type GetHostVPPInstallByCommandUUIDFunc func(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstallLite, error)
+
+type RetryVPPInstallFunc func(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstallLite) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3584,6 +3594,15 @@ type DataStore struct {
 	CleanAppleMDMLockFunc        CleanAppleMDMLockFunc
 	CleanAppleMDMLockFuncInvoked bool
 
+	InsertHostLocationDataFunc        InsertHostLocationDataFunc
+	InsertHostLocationDataFuncInvoked bool
+
+	GetHostLocationDataFunc        GetHostLocationDataFunc
+	GetHostLocationDataFuncInvoked bool
+
+	DeleteHostLocationDataFunc        DeleteHostLocationDataFunc
+	DeleteHostLocationDataFuncInvoked bool
+
 	CleanupUnusedScriptContentsFunc        CleanupUnusedScriptContentsFunc
 	CleanupUnusedScriptContentsFuncInvoked bool
 
@@ -4273,6 +4292,12 @@ type DataStore struct {
 
 	ResendWindowsMDMCommandFunc        ResendWindowsMDMCommandFunc
 	ResendWindowsMDMCommandFuncInvoked bool
+
+	GetHostVPPInstallByCommandUUIDFunc        GetHostVPPInstallByCommandUUIDFunc
+	GetHostVPPInstallByCommandUUIDFuncInvoked bool
+
+	RetryVPPInstallFunc        RetryVPPInstallFunc
+	RetryVPPInstallFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8617,6 +8642,27 @@ func (s *DataStore) CleanAppleMDMLock(ctx context.Context, hostUUID string) erro
 	return s.CleanAppleMDMLockFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) InsertHostLocationData(ctx context.Context, locData fleet.HostLocationData) error {
+	s.mu.Lock()
+	s.InsertHostLocationDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertHostLocationDataFunc(ctx, locData)
+}
+
+func (s *DataStore) GetHostLocationData(ctx context.Context, hostID uint) (*fleet.HostLocationData, error) {
+	s.mu.Lock()
+	s.GetHostLocationDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostLocationDataFunc(ctx, hostID)
+}
+
+func (s *DataStore) DeleteHostLocationData(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.DeleteHostLocationDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostLocationDataFunc(ctx, hostID)
+}
+
 func (s *DataStore) CleanupUnusedScriptContents(ctx context.Context) error {
 	s.mu.Lock()
 	s.CleanupUnusedScriptContentsFuncInvoked = true
@@ -10225,4 +10271,18 @@ func (s *DataStore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId str
 	s.ResendWindowsMDMCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendWindowsMDMCommandFunc(ctx, mdmDeviceId, newCmd, oldCmd)
+}
+
+func (s *DataStore) GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstallLite, error) {
+	s.mu.Lock()
+	s.GetHostVPPInstallByCommandUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostVPPInstallByCommandUUIDFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstallLite) error {
+	s.mu.Lock()
+	s.RetryVPPInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.RetryVPPInstallFunc(ctx, vppInstall)
 }

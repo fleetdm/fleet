@@ -1932,6 +1932,11 @@ type Datastore interface {
 	// after it has been unlocked.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
+	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
+	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
+	GetHostLocationData(ctx context.Context, hostID uint) (*HostLocationData, error)
+	DeleteHostLocationData(ctx context.Context, hostID uint) error
+
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
 	CleanupUnusedScriptContents(ctx context.Context) error
@@ -2612,6 +2617,14 @@ type Datastore interface {
 	// ResendWindowsMDMCommand marks the specified Windows MDM command for resend
 	// by inserting a new command entry, command queue, but also updates the host profile reference.
 	ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId string, newCmd *MDMWindowsCommand, oldCmd *MDMWindowsCommand) error
+
+	// GetHostVPPInstallByCommandUUID retrieves the Apple VPP app install record
+	// for the given command UUID.
+	GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*HostVPPSoftwareInstallLite, error)
+
+	// RetryVPPInstall retries a single VPP install that failed for the host.
+	// It makes sure to queue a new nano command and update the command_uuid in the host_vpp_software_installs table, as well as the execution ID for the activity.
+	RetryVPPInstall(ctx context.Context, vppInstall *HostVPPSoftwareInstallLite) error
 }
 
 type AndroidDatastore interface {

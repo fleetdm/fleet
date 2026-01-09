@@ -329,9 +329,6 @@ type SoftwareAutoUpdateSchedule struct {
 }
 
 func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
-	if s.AutoUpdateEnabled == nil || !*s.AutoUpdateEnabled {
-		return nil
-	}
 	if s.AutoUpdateStartTime == nil || s.AutoUpdateEndTime == nil || *s.AutoUpdateStartTime == "" || *s.AutoUpdateEndTime == "" {
 		return errors.New("Start and end time must both be set")
 	}
@@ -797,12 +794,15 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories    []string                  `json:"categories"`
-	DisplayName   string                    `json:"display_name"`
-	IconPath      string                    `json:"-"`
-	IconHash      string                    `json:"-"`
-	Platform      InstallableDevicePlatform `json:"platform"`
-	Configuration json.RawMessage           `json:"configuration,omitempty"`
+	Categories          []string                  `json:"categories"`
+	DisplayName         string                    `json:"display_name"`
+	IconPath            string                    `json:"-"`
+	IconHash            string                    `json:"-"`
+	Platform            InstallableDevicePlatform `json:"platform"`
+	Configuration       json.RawMessage           `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_start_time,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_end_time,omitempty"`
 }
 
 func (v VPPBatchPayload) GetPlatform() string {
@@ -823,9 +823,12 @@ type VPPBatchPayloadWithPlatform struct {
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs   []uint          `json:"-"`
-	DisplayName   string          `json:"display_name"`
-	Configuration json.RawMessage `json:"configuration,omitempty"`
+	CategoryIDs         []uint          `json:"-"`
+	DisplayName         string          `json:"display_name"`
+	Configuration       json.RawMessage `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string         `json:"auto_update_start_time,omitempty"`
+	AutoUpdateEndTime   *string         `json:"auto_update_end_time,omitempty"`
 }
 
 type SoftwareCategory struct {

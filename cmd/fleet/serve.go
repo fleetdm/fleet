@@ -1342,6 +1342,7 @@ the way that the Fleet server works.
 				)
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
+				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {

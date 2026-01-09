@@ -13090,6 +13090,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			http.StatusOK, &addAppResp)
 	}
 
+	var failedCmdUUID string
+	errorOnInstallApplicationCommand := func(errorCode int) {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		assert.NotNil(t, cmd)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+			case "InstallApplication":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				failedCmdUUID = cmd.CommandUUID
+				t.Logf("Failed command UUID: %s", failedCmdUUID)
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: errorCode}})
+				require.NoError(t, err)
+			}
+		}
+	}
+
 	// Trigger install to the host
 	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
@@ -13109,21 +13127,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate failed installation on the host
-	cmd, err := mdmDevice.Idle()
-	var failedCmdUUID string
-	require.NoError(t, err)
-	assert.NotNil(t, cmd)
-	for cmd != nil {
-		var fullCmd micromdm.CommandPayload
-		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
-		case "InstallApplication":
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			failedCmdUUID = cmd.CommandUUID
-			t.Logf("Failed command UUID: %s", failedCmdUUID)
-			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
-			require.NoError(t, err)
-		}
-	}
+	errorOnInstallApplicationCommand(1234)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
@@ -13150,6 +13154,95 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		0,
 	)
 
+	// We store the old failedCmdUUID to restore after this 9610, since it's used further down.
+	storedFailedCmdUUID := failedCmdUUID
+
+	// Trigger a 9610 failure to see retry happening
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	s.runWorker()
+
+	// Simulate failed installation on the host
+	errorOnInstallApplicationCommand(9610)
+
+	// Verify the retry_count was increased to 1 for the failedCmdUUID
+	var retryCount int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 1, retryCount)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 0)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 0, countResp.Count)
+
+	oldFailedCmdUUID := failedCmdUUID
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, oldFailedCmdUUID, failedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 2, retryCount)
+
+	oldFailedCmdUUID = failedCmdUUID
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 3, retryCount)
+
+	oldFailedCmdUUID = failedCmdUUID
+	// Final time where we mark the app as failed
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 3, retryCount)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_auto_update": false}`,
+			mdmHost.ID,
+			mdmHost.DisplayName(),
+			macOSApp.Name,
+			macOSApp.AdamID,
+			failedCmdUUID,
+			fleet.SoftwareInstallFailed,
+			mdmHost.Platform,
+		),
+		0,
+	)
+
+	// Restore failedCmdUUID to the original failed command UUID for further processing.
+	failedCmdUUID = storedFailedCmdUUID
+
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
@@ -13163,7 +13256,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Simulate successful installation on the host
 	var installCmdUUID string
-	cmd, err = mdmDevice.Idle()
+	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload

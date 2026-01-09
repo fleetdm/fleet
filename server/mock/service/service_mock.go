@@ -511,6 +511,8 @@ type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery str
 
 type LookupGeoIPFunc func(ctx context.Context, ip string) *fleet.GeoLocation
 
+type GetHostLocationDataFunc func(ctx context.Context, hostID uint) (*fleet.GeoLocation, error)
+
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error)
 
 type GetAppleMDMFunc func(ctx context.Context) (*fleet.AppleMDM, error)
@@ -1611,6 +1613,9 @@ type Service struct {
 
 	LookupGeoIPFunc        LookupGeoIPFunc
 	LookupGeoIPFuncInvoked bool
+
+	GetHostLocationDataFunc        GetHostLocationDataFunc
+	GetHostLocationDataFuncInvoked bool
 
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
@@ -3878,6 +3883,13 @@ func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation
 	s.LookupGeoIPFuncInvoked = true
 	s.mu.Unlock()
 	return s.LookupGeoIPFunc(ctx, ip)
+}
+
+func (s *Service) GetHostLocationData(ctx context.Context, hostID uint) (*fleet.GeoLocation, error) {
+	s.mu.Lock()
+	s.GetHostLocationDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostLocationDataFunc(ctx, hostID)
 }
 
 func (s *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error) {

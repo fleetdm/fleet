@@ -482,6 +482,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
 			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool))
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
+			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
