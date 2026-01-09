@@ -507,7 +507,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
 	}
 
-	var teamName string
+	teamName := fleet.TeamNameNoTeam
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if fleet.IsNotFound(err) {
@@ -630,9 +630,23 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 				}, "vpp app conflicts with existing software installer")
 			}
 		} else if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
-			// TODO(mna): goal would be to call checkInstallerOrInHouseAppExists here, but it can't as we
-			// are in the service and this is an unexported datastore method. Once this is exposed,
-			// UploadedSoftwareExists becomes unused and can be removed.
+			// Check if an in-house app (IPA) with the same bundle identifier already exists
+			exists, conflictingTitle, err := svc.ds.InHouseAppExistsByBundleIdentifier(ctx, assetMD.BundleID, teamID)
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "checking existence of in-house app for VPP app")
+			}
+
+			if exists {
+				// Use the conflicting title name if available, otherwise use the VPP app name
+				titleName := conflictingTitle
+				if titleName == "" {
+					titleName = assetMD.TrackName
+				}
+				return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+					Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+						titleName, teamName),
+				}, "vpp app conflicts with existing in-house app")
+			}
 		}
 
 		appID.ValidatedLabels = validatedLabels

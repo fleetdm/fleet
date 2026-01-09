@@ -1060,13 +1060,42 @@ WHERE
 			return nil
 		}
 
+		// Get team name for error messages
+		teamName := "No team"
+		if tmID != nil && *tmID > 0 {
+			var err error
+			teamName, err = ds.getTeamName(ctx, tmID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get team name for conflict check")
+			}
+		}
+
 		var args []any
 		for _, installer := range installers {
-			// TODO(mna): check for installers that target iOS/iPadOS if they conflict
-			// with an existing VPP app. They currently can't conflict with anything else.
-			// Goal would be to call checkSoftwareConflictsByIdentifier here. The check
-			// should be done in the transaction, so tx needs to be passed down to that method.
-			// ds.checkSoftwareConflictsByIdentifier(ctx, installer)
+			// Check for installers that target iOS/iPadOS if they conflict with an existing VPP app
+			if installer.BundleIdentifier != "" {
+				// Check for iOS VPP app conflict
+				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(fleet.IOSPlatform), installer.BundleIdentifier, "ios_apps", "")
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check if VPP app (ios) exists for in-house app")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
+					}, "in-house app conflicts with existing VPP app (ios)")
+				}
+
+				// Check for iPadOS VPP app conflict
+				exists, err = ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(fleet.IPadOSPlatform), installer.BundleIdentifier, "ipados_apps", "")
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check if VPP app (ipados) exists for in-house app")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
+					}, "in-house app conflicts with existing VPP app (ipados)")
+				}
+			}
 
 			var providedTitle *string
 			if installer.Title != "" {
@@ -1511,4 +1540,29 @@ LIMIT 1
 		return false, "", err
 	}
 	return true, title, nil
+}
+
+// InHouseAppExistsByBundleIdentifier checks if an in-house app (IPA) with the given bundle
+// identifier exists in the given team. Returns the app name if it exists.
+func (ds *Datastore) InHouseAppExistsByBundleIdentifier(ctx context.Context, bundleIdentifier string, teamID *uint) (exists bool, appName string, err error) {
+	const stmt = `
+SELECT st.name
+FROM software_titles st
+INNER JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = ?
+WHERE st.bundle_identifier = ?
+LIMIT 1
+`
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &appName, stmt, globalOrTeamID, bundleIdentifier)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, "", nil
+		}
+		return false, "", ctxerr.Wrap(ctx, err, "check if in-house app exists by bundle identifier")
+	}
+	return true, appName, nil
 }

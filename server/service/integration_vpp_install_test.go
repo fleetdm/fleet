@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
@@ -2719,4 +2720,113 @@ CMD_LOOP:
 			)
 		}
 	*/
+}
+
+// TestInHouseAppVPPConflict tests that IPA (in-house apps) and VPP iOS/iPadOS apps
+// with the same bundle identifier cannot coexist on the same team.
+func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	s.registerResetITunesData(t)
+
+	s.appleITunesSrvData = map[string]string{
+		"100": `{"bundleId": "com.ipa-test.ipa-test", "artworkUrl512": "https://example.com/images/100", "version": "1.0.0", "trackName": "IPA Test App", "TrackID": 100, "supportedDevices": ["iPhone5s-iPhone5s"]}`,
+		"101": `{"bundleId": "com.ipa-test.ipa-test", "artworkUrl512": "https://example.com/images/101", "version": "1.0.0", "trackName": "IPA Test App iPad", "TrackID": 101, "supportedDevices": ["iPadAir-iPadAir"]}`,
+		"102": `{"bundleId": "com.example.different", "artworkUrl512": "https://example.com/images/102", "version": "1.0.0", "trackName": "Different App", "TrackID": 102, "supportedDevices": ["iPhone5s-iPhone5s"]}`,
+	}
+
+	originalAssets := s.appleVPPConfigSrvConfig.Assets
+	t.Cleanup(func() { s.appleVPPConfigSrvConfig.Assets = originalAssets })
+
+	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, vpp.Asset{
+		AdamID:         "100",
+		PricingParam:   "STDQ",
+		AvailableCount: 10,
+	}, vpp.Asset{
+		AdamID:         "101",
+		PricingParam:   "STDQ",
+		AvailableCount: 10,
+	}, vpp.Asset{
+		AdamID:         "102",
+		PricingParam:   "STDQ",
+		AvailableCount: 10,
+	})
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.setVPPTokenForTeam(team.ID)
+
+	// Test Case 1: Upload IPA first, then try to add VPP iOS app with same bundle ID
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "ipa_test.ipa",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: "100",
+		Platform:   "ios",
+	}, http.StatusConflict)
+	txt := extractServerErrorText(res.Body)
+	require.Contains(t, txt, "already has a package or app available for install on the IPA Conflict Team team.")
+
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: "101",
+		Platform:   "ipados",
+	}, http.StatusConflict)
+	txt = extractServerErrorText(res.Body)
+	require.Contains(t, txt, "already has a package or app available for install on the IPA Conflict Team team.")
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: "102",
+		Platform:   "ios",
+	}, http.StatusOK, &addAppResp)
+
+	// Test Case 2: Add VPP iOS app first, then try to upload IPA with same bundle ID
+	var newTeamResp2 teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team 2")}}, http.StatusOK, &newTeamResp2)
+	team2 := newTeamResp2.Team
+
+	var tokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID}}, http.StatusOK, &resPatchVPP)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team2.ID,
+		AppStoreID: "100",
+		Platform:   "ios",
+	}, http.StatusOK, &addAppResp)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "ipa_test.ipa",
+		TeamID:   &team2.ID,
+	}, http.StatusConflict, "already has a package or app available for install on the IPA Conflict Team 2 team.")
+
+	// Test Case 3: Verify "No team" works correctly
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "ipa_test.ipa",
+		TeamID:   nil,
+	}, http.StatusOK, "")
+
+	var newTeamResp3 teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team 3")}}, http.StatusOK, &newTeamResp3)
+	team3 := newTeamResp3.Team
+
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID, team3.ID, 0}}, http.StatusOK, &resPatchVPP)
+
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     nil,
+		AppStoreID: "100",
+		Platform:   "ios",
+	}, http.StatusConflict)
+	txt = extractServerErrorText(res.Body)
+	require.Contains(t, txt, "already has a package or app available for install on the No team team.")
 }

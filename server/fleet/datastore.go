@@ -698,6 +698,10 @@ type Datastore interface {
 	// the given team.
 	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
+	// InHouseAppExistsByBundleIdentifier checks if an in-house app (IPA) with the given bundle
+	// identifier exists in the given team. Returns the app name if it exists.
+	InHouseAppExistsByBundleIdentifier(ctx context.Context, bundleIdentifier string, teamID *uint) (exists bool, appName string, err error)
+
 	// NewSoftwareCategory creates a new category for software.
 	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
 	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.

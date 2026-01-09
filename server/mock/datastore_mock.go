@@ -523,6 +523,8 @@ type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
+type InHouseAppExistsByBundleIdentifierFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (exists bool, appName string, err error)
+
 type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.SoftwareCategory, error)
 
 type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uint, error)
@@ -2469,6 +2471,9 @@ type DataStore struct {
 
 	UploadedSoftwareExistsFunc        UploadedSoftwareExistsFunc
 	UploadedSoftwareExistsFuncInvoked bool
+
+	InHouseAppExistsByBundleIdentifierFunc        InHouseAppExistsByBundleIdentifierFunc
+	InHouseAppExistsByBundleIdentifierFuncInvoked bool
 
 	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
 	NewSoftwareCategoryFuncInvoked bool
@@ -6015,6 +6020,13 @@ func (s *DataStore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier
 	s.UploadedSoftwareExistsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UploadedSoftwareExistsFunc(ctx, bundleIdentifier, teamID)
+}
+
+func (s *DataStore) InHouseAppExistsByBundleIdentifier(ctx context.Context, bundleIdentifier string, teamID *uint) (exists bool, appName string, err error) {
+	s.mu.Lock()
+	s.InHouseAppExistsByBundleIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.InHouseAppExistsByBundleIdentifierFunc(ctx, bundleIdentifier, teamID)
 }
 
 func (s *DataStore) NewSoftwareCategory(ctx context.Context, name string) (*fleet.SoftwareCategory, error) {
