@@ -38,7 +38,7 @@ Currently, Fleet only supports Apple App Store apps from the United States (US) 
 
 3. Click the **Actions** button and select **Schedule auto updates**.
 
-4. In the modal dialog that opens, click "Enable auto updates" and configure an update window of at least one hour. You may also choose to limit which hosts receive auto updates using the Target configuration (this configuration will also affect which hosts may install the app themselves via the self-service feature).
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the Target configuration (this configuration will also affect which hosts can install the app themselves via the self-service feature).
 
 ## Install app
 
