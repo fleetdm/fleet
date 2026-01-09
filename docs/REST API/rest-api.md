@@ -1381,7 +1381,8 @@ None.
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
-    "ai_features_disabled": false
+    "ai_features_disabled": false,
+    "agent_downloads_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -1429,7 +1430,6 @@ None.
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "enable_agent_downloads": true,
     "additional_queries": null
   },
   "mdm": {
@@ -1692,7 +1692,8 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
-    "ai_features_disabled": false
+    "ai_features_disabled": false,
+    "agent_downloads_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": true,
@@ -1943,6 +1944,7 @@ Modifies the Fleet's configuration with the supplied information.
 | query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                             |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
 | query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
+| agent_downloads_disabled          | boolean | Whether to disable generating & downloading installers for Fleet's agent (fleetd). (Default: `false`)                                                             |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
 
@@ -2521,7 +2523,6 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
-| enable_agent_downloads            | boolean | Whether to enable generating & downloading installers for Fleet's agent (fleetd). (Default: `true`)                                                             |
 | additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
 
 <br/>
@@ -2533,7 +2534,6 @@ _Available in Fleet Premium._
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "enable_agent_downloads": true,
     "additional_queries": {
       "time": "SELECT * FROM time",
       "macs": "SELECT mac FROM interface_details"

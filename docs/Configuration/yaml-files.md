@@ -639,8 +639,7 @@ Currently, managing users and ticket destinations (Jira and Zendesk) are only su
 The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
-- `enable_software_inventory` specifies whether or not Fleet generates downloadable installers for Fleet's agent (fleetd) (default: `true`).
-- `enable_agent_downloads` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
+- `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 
 Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 
@@ -654,7 +653,6 @@ org_settings:
       macs: SELECT mac FROM interface_details
     enable_host_users: true
     enable_software_inventory: true
-    enable_agent_downloads: true
 ```
 
 ### fleet_desktop
@@ -735,6 +733,7 @@ org_settings:
 - `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
 - `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
+- `agent_downloads_disabled` disables generating downloadable installers for Fleet's agent (fleetd) (default: `false`).
 
 
 Can only be configured for all teams (`org_settings`).
