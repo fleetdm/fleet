@@ -97,13 +97,16 @@ parasails.registerPage('contact', {
     },
     handleSubmittingTalkToUsForm: async function(argins) {
       this.syncing = true;
-      if(typeof gtag !== 'undefined'){
-        gtag('event','fleet_website__contact_forms');
-      }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
       let eventUrl = await Cloud.deliverTalkToUsFormSubmission.with(argins);
+
+      if(typeof gtag !== 'undefined'){
+        // look at result from talking to api and decide whether to track 
+        gtag('event','fleet_website__contact_forms__demo');
+        // or this: gtag('event','fleet_website__contact_forms__demo__icp');
+      }
 
       this.goto(eventUrl);
     },
