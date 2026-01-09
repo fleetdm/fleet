@@ -9,11 +9,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
@@ -41,6 +44,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	if constraintList, present := queryContext.Constraints[colPath]; present {
 		// 'path' is in the where clause
 		for _, constraint := range constraintList.Constraints {
+			path = constraint.Expression
+
 			switch constraint.Operator {
 			case table.OperatorLike:
 				path = constraint.Expression
@@ -48,8 +53,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 			case table.OperatorEquals:
 				path = constraint.Expression
 				wildcard = false
-			default:
-				return results, errors.New("invalid comparison for column 'path': supported comparisons are `=` and `LIKE`")
 			}
 		}
 	} else {
@@ -58,7 +61,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	processed, err := processFile(path, wildcard)
 	if err != nil {
-		return results, err
+		return nil, err
 	}
 
 	for _, res := range processed {
@@ -68,6 +71,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		})
 	}
 
+	fmt.Printf("\n\nresults: %#v\n\n", results)
 	return results, nil
 }
 
@@ -82,41 +86,89 @@ func processFile(path string, wildcard bool) ([]fileInfo, error) {
 	if wildcard {
 		replacedPath := strings.ReplaceAll(path, "%", "*")
 
+		// to fix: does this matches files, not directories?
 		files, err := filepath.Glob(replacedPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to resolve filepaths for incoming path: %w", err)
 		}
-		for _, file := range files {
-			// TODO: confirm file is valid for hash, e.g. not a directory?
-
-			hash, err := computeFileSHA256(file)
+		for _, f := range files {
+			fmt.Printf("\n\nprocessing file from wildcard query: %s\n\n", f)
+			binPath, err := getExecutablePath(context.Background(), f)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("couldn't get executable path (glob): %w", err)
 			}
-			output = append(output, fileInfo{Path: file, BinSha256: hash})
+
+			hash, err := computeFileSHA256(binPath)
+			if err != nil {
+				return nil, fmt.Errorf("computing bin sha256 from wildcard path: %w", err)
+			}
+			fmt.Printf("\n\ngot info for path: binPath: %s, hash: %s\n\n", binPath, hash)
+			output = append(output, fileInfo{Path: binPath, BinSha256: hash})
 		}
 	} else {
-		hash, err := computeFileSHA256(path)
+		binPath, err := getExecutablePath(context.Background(), path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("couldn't get executable path (single path): %w", err)
+		}
+		hash, err := computeFileSHA256(binPath)
+		if err != nil {
+			return nil, fmt.Errorf("computing bin sha256 from specific path: %w", err)
 		}
 		output = append(output, fileInfo{Path: path, BinSha256: hash})
 	}
-
+	fmt.Printf("\n\noutput arr: %#v\n\n", output)
 	return output, nil
 }
 
 func computeFileSHA256(filePath string) (string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("couldn't open filepath: %w", err)
 	}
 	defer f.Close()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
-		return "", err
+		return "", fmt.Errorf("computing hash: %w", err)
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// getExecutablePath determines the executable path for unsigned code.
+// For .app bundles, it reads CFBundleExecutable from Info.plist.
+// For direct binaries, it returns the path itself if it's an executable file.
+func getExecutablePath(ctx context.Context, path string) (string, error) {
+	// Check if it's an app bundle
+	if strings.HasSuffix(path, ".app") {
+		// Use defaults to read CFBundleExecutable from Info.plist
+		infoPlistPath := path + "/Contents/Info.plist"
+		output, err := exec.CommandContext(ctx, "/usr/bin/defaults", "read", infoPlistPath, "CFBundleExecutable").Output()
+		// TODO - replace this ctxerrs iwth fmt.Errorfs
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "failed to read CFBundleExecutable from Info.plist")
+		}
+
+		executableName := strings.TrimSpace(string(output))
+		if executableName == "" {
+			return "", nil
+		}
+
+		return path + "/Contents/MacOS/" + executableName, nil
+	}
+
+	// For non-app paths, check if it's a regular file (binary)
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+
+	// Only return the path if it's a regular file (not a directory)
+	if info.Mode().IsRegular() {
+		return path, nil
+	}
+
+	fmt.Printf("\n\ngetting exec paths: path: %s, info.mode: %s\n\n", path, info.Mode().String())
+
+	return "", fmt.Errorf("path is not a regular file nor an app bundle (.app): %s", path)
 }

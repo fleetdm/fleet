@@ -1438,10 +1438,13 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// macos_bin_sha256 collects a binary's sha256 hash via the fleetd `fileutil` table.
 	"macos_bin_sha256": {
 		Query: `
-		SELECT path, binary_sha256
-		FROM apps a
-		JOIN fileutil fu ON a.path = fu.path
+		SELECT "testpath", "testhash"
 		`,
+		// Query: `
+		// SELECT path, binary_sha256
+		// FROM apps a
+		// JOIN fileutil fu ON a.path = fu.path
+		// `,
 		Description: "A software override query[^1] to append file information macOS software entries. Requires `fleetd`",
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("fileutil"),
