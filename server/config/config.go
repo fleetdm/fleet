@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -1177,7 +1178,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
-	man.addConfigInt64("server.max_installer_size", installersize.DefaultMaxInstallerSize, "Maximum size in bytes for software installer uploads")
+	man.addConfigByteSize("server.max_installer_size", installersize.DefaultMaxInstallerSizeStr, "Maximum size for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1641,7 +1642,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
-			MaxInstallerSize:                 man.getConfigInt64("server.max_installer_size"),
+			MaxInstallerSize:                 man.getConfigByteSize("server.max_installer_size"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2081,9 +2082,9 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	return durationVal
 }
 
-// addConfigInt64 adds an int64 config to the config options
-func (man Manager) addConfigInt64(key string, defVal int64, usage string) {
-	man.command.PersistentFlags().Int64(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
+// addConfigByteSize adds a byte size config that accepts human-readable values like "10GiB", "500MB", "1G"
+func (man Manager) addConfigByteSize(key string, defVal string, usage string) {
+	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
 	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
 	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
@@ -2091,15 +2092,21 @@ func (man Manager) addConfigInt64(key string, defVal int64, usage string) {
 	man.addDefault(key, defVal)
 }
 
-// getConfigInt64 retrieves an int64 from the loaded config
-func (man Manager) getConfigInt64(key string) int64 {
+// getConfigByteSize retrieves a byte size from the loaded config, parsing human-readable strings
+// like "10GiB", "500MB", "1G" into int64 byte values
+func (man Manager) getConfigByteSize(key string) int64 {
 	interfaceVal := man.getInterfaceVal(key)
-	int64Val, err := cast.ToInt64E(interfaceVal)
+	stringVal, err := cast.ToStringE(interfaceVal)
 	if err != nil {
-		panic("Unable to cast to int64 for key " + key + ": " + err.Error())
+		panic("Unable to cast to string for key " + key + ": " + err.Error())
 	}
 
-	return int64Val
+	byteSize, err := units.RAMInBytes(stringVal)
+	if err != nil {
+		panic("Unable to parse byte size for key " + key + ": " + err.Error())
+	}
+
+	return byteSize
 }
 
 // panics if the config is invalid, this is handled by Viper (this is how all
