@@ -23,8 +23,6 @@ const (
 // certificateTemplateNameRegex allows only letters, numbers, spaces, dashes, and underscores
 var certificateTemplateNameRegex = regexp.MustCompile(`^[a-zA-Z0-9 \-_]+$`)
 
-// validateCertificateTemplateSubjectName validates the certificate template subject name.
-// Returns a BadRequestError if validation fails.
 func validateCertificateTemplateSubjectName(subjectName string) error {
 	if strings.TrimSpace(subjectName) == "" {
 		return &fleet.BadRequestError{Message: "Certificate template subject name is required."}
@@ -90,7 +88,6 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, err
 	}
 
-	// Validate certificate template subject name
 	if err := validateCertificateTemplateSubjectName(subjectName); err != nil {
 		return nil, err
 	}
@@ -439,7 +436,6 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 			return err
 		}
 
-		// Validate certificate template subject name
 		if err := validateCertificateTemplateSubjectName(spec.SubjectName); err != nil {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
 		}
