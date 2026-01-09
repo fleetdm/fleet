@@ -32,9 +32,6 @@ func Columns() []table.ColumnDefinition {
 		// cdhash_sha256 is the SHA256 hash returned by codesign of the code directory for the macOS app or executable.
 		// It is a unique identifier for the code signature of the app.
 		table.TextColumn("cdhash_sha256"),
-		// binary_sha256 is the SHA256 hash returned by codesign of the binary file for the macOS app or executable.
-		// It is a unique identifier for the entire binary file.
-		table.TextColumn("binary_sha256"),
 	}
 }
 
