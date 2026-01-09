@@ -107,19 +107,15 @@ const SaveNewQueryModal = ({
     isFetching: isFetchingLabels,
   } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => {
+    () => labelsAPI.summary(currentTeam?.id, true),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       // Wait for the current team to load from context before pulling labels, otherwise on a page load
       // directly on the page this gets called with currentTeam not set, then again
       // with the correct team value. If we don't trigger on currentTeam changes we'll just start with a
       // null team ID here and never populate with the correct team unless we navigate from another page
       // where team context is already set prior to navigation.
-      return !currentTeam
-        ? ({ labels: [] } as ILabelsSummaryResponse)
-        : labelsAPI.summary(currentTeam?.id, true);
-    },
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
+      enabled: isPremiumTier && !!currentTeam,
       staleTime: 10000,
       select: (res) => ({ labels: getCustomLabels(res.labels) }),
     }
