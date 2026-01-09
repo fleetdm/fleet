@@ -144,6 +144,14 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
 		return err
 	})
+
+	vppTokens, err := s.DS.ListVPPTokens(ctx)
+	require.NoError(t, err)
+	for _, tok := range vppTokens {
+		err := s.DS.DeleteVPPToken(ctx, tok.ID)
+		require.NoError(t, err)
+	}
+
 	mysql.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
