@@ -115,7 +115,7 @@ func NewInstalledApplicationListResultsHandler(
 			// Used to mark the install as failed
 			failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
 			// Used to get the activity data for an install
-			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool) (*fleet.User, fleet.ActivityDetails, error)
+			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error)
 		}
 
 		var poll, shouldRefetch bool
@@ -123,6 +123,10 @@ func NewInstalledApplicationListResultsHandler(
 			expectedInstall *fleet.HostVPPSoftwareInstall,
 			setter installStatusSetter,
 		) error {
+			fromAutoUpdate, err := ds.IsAutoUpdateVPPInstall(ctx, expectedInstall.InstallCommandUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
+			}
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
@@ -162,7 +166,7 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			// create an activity for installing only if we're in a terminal state
-			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience)
+			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience, fromAutoUpdate)
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't an MDM-based install, so no activity generated
@@ -183,13 +187,14 @@ func NewInstalledApplicationListResultsHandler(
 			setter := installStatusSetter{
 				ds.SetVPPInstallAsVerified,
 				ds.SetVPPInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool) (*fleet.User, fleet.ActivityDetails, error) {
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error) {
 					user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, results)
 					if err != nil {
 						return nil, nil, err
 					}
 
 					act.FromSetupExperience = fromSetupExp
+					act.FromAutoUpdate = fromAutoUpdate
 
 					return user, act, nil
 				},
@@ -204,7 +209,7 @@ func NewInstalledApplicationListResultsHandler(
 			setter := installStatusSetter{
 				ds.SetInHouseAppInstallAsVerified,
 				ds.SetInHouseAppInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
+				func(ctx context.Context, results *mdm.CommandResults, _ bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
 					return ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
 				},
 			}
