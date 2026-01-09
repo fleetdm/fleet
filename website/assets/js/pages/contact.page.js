@@ -29,8 +29,19 @@ parasails.registerPage('contact', {
       emailAddress: {isEmail: true, required: true},
       firstName: {required: true},
       lastName: {required: true},
-      message: {required: false},
+      message: {required: true},
     },
+    // Application form rules
+    applicationFormRules: {
+      emailAddress: {isEmail: true, required: true},
+      firstName: {required: true},
+      lastName: {required: true},
+      linkedinProfileUrl: {required: true},
+      position: {required: true},
+      location: {required: true},
+      message: {required: true},
+    },
+
     formDataToPrefillForLoggedInUsers: {},
 
     // Server error state for the form
@@ -73,6 +84,9 @@ parasails.registerPage('contact', {
 
     if (window.location.hash === '#message') {// prefill from URL bar
       this.formToDisplay = 'contact';
+    }
+    if (window.location.hash === '#apply') {// prefill from URL bar
+      this.formToDisplay = 'apply';
     }
   },
   mounted: async function() {
