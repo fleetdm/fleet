@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -75,7 +76,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("The maximum file size is %d GB.", maxInstallerSize/(1000*1024*1024)),
+				Message:     fmt.Sprintf("The maximum file size is %s.", server.FormatFileSize(maxInstallerSize)),
 				InternalErr: err,
 			}
 		}
@@ -98,7 +99,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		if decoded.File.Size > maxInstallerSize {
 			// Should never happen here since the request's body is limited to the maximum size.
 			return nil, &fleet.BadRequestError{
-				Message: fmt.Sprintf("The maximum file size is %d GB.", maxInstallerSize/(1000*1024*1024)),
+				Message: fmt.Sprintf("The maximum file size is %s.", server.FormatFileSize(maxInstallerSize)),
 			}
 		}
 	}
@@ -281,7 +282,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("The maximum file size is %d GB.", maxInstallerSize/(1000*1024*1024)),
+				Message:     fmt.Sprintf("The maximum file size is %s.", server.FormatFileSize(maxInstallerSize)),
 				InternalErr: err,
 			}
 		}
@@ -310,7 +311,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		// Should never happen here since the request's body is limited to the
 		// maximum size.
 		return nil, &fleet.BadRequestError{
-			Message: fmt.Sprintf("The maximum file size is %d GB.", maxInstallerSize/(1000*1024*1024)),
+			Message: fmt.Sprintf("The maximum file size is %s.", server.FormatFileSize(maxInstallerSize)),
 		}
 	}
 
