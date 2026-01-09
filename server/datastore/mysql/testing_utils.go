@@ -28,11 +28,11 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -41,7 +41,8 @@ import (
 )
 
 func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
-	cfg := testing_utils.MysqlTestConfig(testName)
+	commonCfg := testing_utils.MysqlTestConfig(testName)
+	cfg := fromCommonMysqlConfig(commonCfg)
 
 	// Create datastore client
 	var replicaOpt DBOption
@@ -354,7 +355,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 	replica, err := NewDB(&replicaConfig, options)
 	require.NoError(t, err)
 	ds.replica = replica
-	ds.readReplicaConfig = &replicaConfig
+	ds.readReplicaConfig = toCommonMysqlConfig(&replicaConfig)
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in

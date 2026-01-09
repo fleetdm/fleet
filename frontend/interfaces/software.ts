@@ -514,7 +514,7 @@ export interface ISoftwareLastUninstall {
 export interface ISoftwareInstallVersion {
   version: string;
   bundle_identifier: string;
-  last_opened_at: string | null;
+  last_opened_at?: string;
   vulnerabilities: string[] | null;
   installed_paths: string[];
   signature_information?: SignatureInformation[];

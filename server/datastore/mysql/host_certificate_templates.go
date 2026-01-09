@@ -248,26 +248,23 @@ func (ds *Datastore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID
 	return nil
 }
 
-func (ds *Datastore) UpsertCertificateStatus(
-	ctx context.Context,
-	hostUUID string,
-	certificateTemplateID uint,
-	status fleet.MDMDeliveryStatus,
-	detail *string,
-	operationType fleet.MDMOperationType,
-) error {
+func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {
 	// Validate the status.
-	if !status.IsValid() {
-		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
+	if !update.Status.IsValid() {
+		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(update.Status)))
 	}
 
 	updateStmt := `
 		UPDATE host_certificate_templates
-		SET status = ?, detail = ?, operation_type = ?
-		WHERE host_uuid = ? AND certificate_template_id = ?`
-
-	// Attempt to update the certificate status for the given host and template.
-	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, detail, operationType, hostUUID, certificateTemplateID)
+		SET 
+			status = :status, 
+			detail = :detail, 
+			operation_type = :operation_type,
+			not_valid_before = :not_valid_before, 
+			not_valid_after = :not_valid_after, 
+			serial = :serial
+		WHERE host_uuid = :host_uuid AND certificate_template_id = :certificate_template_id`
+	result, err := sqlx.NamedExecContext(ctx, ds.writer(ctx), updateStmt, update)
 	if err != nil {
 		return err
 	}
@@ -286,21 +283,49 @@ func (ds *Datastore) UpsertCertificateStatus(
 			ID   uint   `db:"id"`
 			Name string `db:"name"`
 		}
-		err := ds.writer(ctx).GetContext(ctx, &templateInfo, `SELECT id, name FROM certificate_templates WHERE id = ?`, certificateTemplateID)
+		err := ds.writer(ctx).GetContext(ctx, &templateInfo, `SELECT id, name FROM certificate_templates WHERE id = ?`, update.CertificateTemplateID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'",
-					certificateTemplateID)))
+					update.CertificateTemplateID)))
 			}
 			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
 		}
 
 		insertStmt := `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name, uuid)
-			VALUES (?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true))`
-		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType, templateInfo.Name}
+			INSERT INTO host_certificate_templates (
+				host_uuid, 
+				certificate_template_id, 
+				status, 
+				detail, 
+				fleet_challenge, 
+				operation_type, 
+				name, 
+				uuid, 
+				not_valid_before, 
+				not_valid_after, 
+				serial
+			)
+			VALUES (
+				:host_uuid, 
+				:certificate_template_id, 
+				:status, 
+				:detail, 
+				'', 
+				:operation_type, 
+				:name, 
+				UUID_TO_BIN(UUID(), true), 
+				:not_valid_before, 
+				:not_valid_after, 
+				:serial
+			)`
 
-		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
+		insertArgs := struct {
+			*fleet.CertificateStatusUpdate
+			Name string `db:"name"`
+		}{update, templateInfo.Name}
+
+		if _, err := sqlx.NamedExecContext(ctx, ds.writer(ctx), insertStmt, insertArgs); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
 		}
 	}
@@ -583,4 +608,81 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemoveForHost(
 
 		return nil
 	})
+}
+
+// GetAndroidCertificateTemplatesForRenewal returns certificate templates that are approaching
+// expiration and need to be renewed. Uses the same threshold logic as Apple/Windows:
+// - If validity period > 30 days: renew within 30 days of expiration
+// - If validity period <= 30 days: renew within half the validity period of expiration
+// Only returns certificates with status 'delivered' or 'verified' and operation_type 'install'.
+func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
+	ctx context.Context,
+	limit int,
+) ([]fleet.HostCertificateTemplateForRenewal, error) {
+	stmt := fmt.Sprintf(`
+		SELECT
+			host_uuid,
+			certificate_template_id,
+			not_valid_after
+		FROM host_certificate_templates
+		WHERE
+			status = '%s'
+			AND operation_type = '%s'
+			AND not_valid_before IS NOT NULL
+			AND not_valid_after IS NOT NULL
+			AND (
+				(DATEDIFF(not_valid_after, not_valid_before) > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY))
+				OR
+				(DATEDIFF(not_valid_after, not_valid_before) <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL DATEDIFF(not_valid_after, not_valid_before)/2 DAY))
+			)
+		ORDER BY not_valid_after ASC
+		LIMIT ?
+	`, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
+
+	var results []fleet.HostCertificateTemplateForRenewal
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, limit); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get android certificate templates for renewal")
+	}
+
+	return results, nil
+}
+
+// SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
+// by setting status to 'pending', clearing validity fields, and generating a new UUID.
+// The new UUID signals to the Android agent that the certificate needs renewal.
+func (ds *Datastore) SetAndroidCertificateTemplatesForRenewal(
+	ctx context.Context,
+	templates []fleet.HostCertificateTemplateForRenewal,
+) error {
+	if len(templates) == 0 {
+		return nil
+	}
+
+	var placeholders strings.Builder
+	args := make([]any, 0, len(templates)*2)
+	for i, t := range templates {
+		if i > 0 {
+			placeholders.WriteString(",")
+		}
+		placeholders.WriteString("(?,?)")
+		args = append(args, t.HostUUID, t.CertificateTemplateID)
+	}
+
+	stmt := fmt.Sprintf(`
+		UPDATE host_certificate_templates
+		SET
+			status = '%s',
+			uuid = UUID_TO_BIN(UUID(), true),
+			not_valid_before = NULL,
+			not_valid_after = NULL,
+			serial = NULL,
+			updated_at = NOW()
+		WHERE (host_uuid, certificate_template_id) IN (%s)
+	`, fleet.CertificateTemplatePending, placeholders.String())
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set android certificate templates for renewal")
+	}
+
+	return nil
 }

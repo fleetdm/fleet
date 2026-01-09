@@ -2106,9 +2106,9 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
 	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
 
-	// With "populate_device_status" query param
+	// With "include_device_status" query param
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_device_status", "true")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "include_device_status", "true")
 	require.Len(t, resp.Hosts, 1)
 	require.Contains(t, resp.Hosts[0].Hostname, "local0")
 	require.Equal(t, string(fleet.DeviceStatusUnlocked), *resp.Hosts[0].MDM.DeviceStatus)
@@ -5295,9 +5295,9 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
 
-	// Do request with populate_device_status, since it's an additional feature
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "populate_device_status", "true")
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "populate_device_status", "true")
+	// Do request with include_device_status, since it's an additional feature
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "include_device_status", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "include_device_status", "true")
 
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ = json.MarshalIndent(hostsResp, "", "  ")
@@ -13789,7 +13789,6 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	}, http.StatusOK, &removeLabelsFromHostResp)
 	teamHost2Labels = getHostLabels(teamHost2)
 	require.Empty(t, teamHost2Labels)
-
 }
 
 func (s *integrationTestSuite) TestDebugDB() {

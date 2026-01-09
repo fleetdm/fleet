@@ -15,8 +15,8 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -1646,7 +1646,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	// Apply pagination
 	perPage := opts.ListOptions.PerPage
 	if perPage == 0 {
-		perPage = defaultSelectLimit
+		perPage = fleet.DefaultPerPage
 	}
 
 	offset := perPage * opts.ListOptions.Page
@@ -1872,6 +1872,17 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			)
 	}
 
+	// LEFT JOIN software_titles when searching, to allow searching by title name
+	// in addition to software name. This ensures consistency with the titles endpoint.
+	// See: https://github.com/fleetdm/fleet/issues/35028
+	if opts.ListOptions.MatchQuery != "" {
+		ds = ds.
+			InnerJoin(
+				goqu.I("software_titles").As("st"),
+				goqu.On(goqu.I("s.title_id").Eq(goqu.I("st.id"))),
+			)
+	}
+
 	if opts.IncludeCVEScores {
 
 		baseJoinConditions := goqu.Ex{
@@ -1922,6 +1933,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.I("s.name").ILike(match),
 				goqu.I("s.version").ILike(match),
 				goqu.I("scv.cve").ILike(match),
+				goqu.I("st.name").ILike(match), // Also search by software title name
 			),
 		)
 	}
@@ -2036,6 +2048,7 @@ func countSoftwareDB(
 	// For listing all software, use optimized query starting from software_host_counts
 	// Add joins only if needed for filtering
 	needsSoftwareJoin := opts.ListOptions.MatchQuery != ""
+	needsTitleJoin := opts.ListOptions.MatchQuery != "" // Join software_titles for search by title name
 	needsCVEJoin := opts.VulnerableOnly || opts.ListOptions.MatchQuery != ""
 	needsCVEMetaJoin := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
 
@@ -2047,7 +2060,7 @@ func countSoftwareDB(
 	// Use COUNT(*) when no joins are needed (faster since primary key guarantees uniqueness)
 	// Use COUNT(DISTINCT) when joins could create duplicate rows
 	countFunc := "COUNT(*)"
-	if needsSoftwareJoin || needsCVEJoin {
+	if needsSoftwareJoin || needsCVEJoin || needsTitleJoin {
 		countFunc = "COUNT(DISTINCT shc.software_id)"
 	}
 
@@ -2058,6 +2071,12 @@ func countSoftwareDB(
 
 	if needsSoftwareJoin {
 		countSQL += ` INNER JOIN software s ON s.id = shc.software_id`
+	}
+
+	// Join software_titles to search by title name (consistency with titles endpoint)
+	// See: https://github.com/fleetdm/fleet/issues/35028
+	if needsTitleJoin {
+		countSQL += ` LEFT JOIN software_titles st ON s.title_id = st.id`
 	}
 
 	if needsCVEJoin {
@@ -2100,11 +2119,12 @@ func countSoftwareDB(
 		args = append(args, opts.MaximumCVSS)
 	}
 
-	// Apply search filter
+	// Apply search filter (also search by software title name for consistency with titles endpoint)
+	// See: https://github.com/fleetdm/fleet/issues/35028
 	if match := opts.ListOptions.MatchQuery; match != "" {
 		match = likePattern(match)
-		whereClauses = append(whereClauses, "(s.name LIKE ? OR s.version LIKE ? OR scv.cve LIKE ?)")
-		args = append(args, match, match, match)
+		whereClauses = append(whereClauses, "(s.name LIKE ? OR s.version LIKE ? OR scv.cve LIKE ? OR st.name LIKE ?)")
+		args = append(args, match, match, match, match)
 	}
 
 	// Add all WHERE clauses
@@ -2349,7 +2369,7 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		if perPage <= 0 {
-			perPage = defaultSelectLimit
+			perPage = fleet.DefaultPerPage
 		}
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
 		if len(software) > int(perPage) { //nolint:gosec // dismiss G115
@@ -5819,7 +5839,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	var metaData *fleet.PaginationMetadata
 	if opts.ListOptions.IncludeMetadata {
 		if perPage <= 0 {
-			perPage = defaultSelectLimit
+			perPage = fleet.DefaultPerPage
 		}
 		metaData = &fleet.PaginationMetadata{
 			HasPreviousResults: opts.ListOptions.Page > 0,

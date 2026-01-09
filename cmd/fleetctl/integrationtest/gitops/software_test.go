@@ -153,6 +153,12 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
 			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
+			}
 
 			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -301,6 +307,12 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil
 			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
+			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "../../fleetctl/testdata/gitops/global_config_no_paths.yml"
@@ -430,6 +442,12 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil
+			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -576,6 +594,12 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
 			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
+			}
 
 			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.file})
 
@@ -649,6 +673,12 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
 	}
 
 	buf, err := fleetctl.RunAppNoChecks([]string{

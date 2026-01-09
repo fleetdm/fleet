@@ -1,10 +1,10 @@
-package common_mysql
+package mysql
 
 import (
 	"database/sql"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
 type NotFoundError struct {
@@ -15,7 +15,7 @@ type NotFoundError struct {
 }
 
 // Compile-time interface check.
-var _ fleet.NotFoundError = &NotFoundError{}
+var _ platform_http.NotFoundError = &NotFoundError{}
 
 func NotFound(kind string) *NotFoundError {
 	return &NotFoundError{
