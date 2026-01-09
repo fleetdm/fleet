@@ -27,6 +27,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
@@ -74,6 +75,8 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	}
 	t.Cleanup(func() { ts.Close() })
 
+	activitiesModule := activities.NewActivityModule(ds, logger)
+
 	freeSvc, err := service.NewService(
 		ctx,
 		ds,
@@ -100,7 +103,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
-		nil,
+		activitiesModule,
 	)
 	if err != nil {
 		panic(err)
@@ -125,7 +128,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
-		nil,
+		activitiesModule,
 	)
 	if err != nil {
 		panic(err)
@@ -403,6 +406,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.EqualValues(t, lastTeamID, *asst.TeamID)
 			setupAsstByTeam[*asst.TeamID] = asst
 			return asst, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
 		}
 
 		// new team ("one - three") is created with bootstrap package and end user auth based on app config
