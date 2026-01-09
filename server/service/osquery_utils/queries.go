@@ -1438,12 +1438,12 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// macos_bin_sha256 collects a binary's sha256 hash via the fleetd `fileutil` table.
 	"macos_bin_sha256": {
 		Query: `
-		SELECT "testpath", "testhash"
+		SELECT fu.*
+		FROM apps a
+		JOIN fileutil fu ON a.path = fu.path
 		`,
 		// Query: `
-		// SELECT path, binary_sha256
-		// FROM apps a
-		// JOIN fileutil fu ON a.path = fu.path
+		// SELECT "a/b/c" AS path, "dummyhash" AS binary_sha256;
 		// `,
 		Description: "A software override query[^1] to append file information macOS software entries. Requires `fleetd`",
 		Platforms:   []string{"darwin"},
@@ -1452,6 +1452,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			if len(fileUtilResults) == 0 {
 				return mainSoftwareResults
 			}
+			fmt.Printf("\n\nfileUtilResults: %v\n\n", fileUtilResults)
 
 			type fileUtilResultRow struct {
 				binSHA256 string
@@ -1468,6 +1469,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 					binSHA256: binHash,
 				}
 			}
+			fmt.Printf("\n\nfurByPath: %v\n\n", furByPath)
 			for _, swRes := range mainSoftwareResults {
 				fur, ok := furByPath[swRes["installed_path"]]
 				if !ok {
@@ -1476,6 +1478,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				}
 				swRes["binary_sha256"] = fur.binSHA256
 			}
+			fmt.Printf("\n\nmainSWResults: %v\n\n", mainSoftwareResults)
 			return mainSoftwareResults
 		},
 	},
