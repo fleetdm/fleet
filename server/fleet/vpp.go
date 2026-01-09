@@ -54,7 +54,10 @@ type VPPAppTeam struct {
 	DisplayName                 *string `json:"display_name"`
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Applicable to Android apps only.
-	Configuration json.RawMessage `json:"configuration,omitempty"`
+	Configuration       json.RawMessage `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool           `json:"-"`
+	AutoUpdateStartTime *string         `json:"-"`
+	AutoUpdateEndTime   *string         `json:"-"`
 }
 
 func (v VPPAppTeam) GetPlatform() string {

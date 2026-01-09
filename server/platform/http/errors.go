@@ -196,6 +196,27 @@ func IsForeignKey(err error) bool {
 	return false
 }
 
+// NotFoundError is an interface for errors when a resource cannot be found.
+type NotFoundError interface {
+	error
+	IsNotFound() bool
+}
+
+// IsNotFound returns true if err is a not-found error.
+func IsNotFound(err error) bool {
+	var nfe NotFoundError
+	if errors.As(err, &nfe) {
+		return nfe.IsNotFound()
+	}
+	return false
+}
+
+// AlreadyExistsError is an interface for errors when a resource already exists.
+type AlreadyExistsError interface {
+	error
+	IsExists() bool
+}
+
 // Error is a generic error type with a code and message.
 type Error struct {
 	Code    int    `json:"code,omitempty"`

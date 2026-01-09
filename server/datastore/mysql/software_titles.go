@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -832,29 +832,24 @@ WHERE
 }
 
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	// Validate start and end time.
-	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
-	for _, t := range []*string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
-		if t == nil {
-			if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
-				return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-			}
-			continue
+	// Validate schedule if enabled.
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
+		schedule := fleet.SoftwareAutoUpdateSchedule{
+			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+				AutoUpdateEnabled:   config.AutoUpdateEnabled,
+				AutoUpdateStartTime: config.AutoUpdateStartTime,
+				AutoUpdateEndTime:   config.AutoUpdateEndTime,
+			},
 		}
-		duration, err := time.Parse("15:04", *t)
-		if err != nil {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
-		if duration.Hour() < 0 || duration.Hour() > 23 || duration.Minute() < 0 || duration.Minute() > 59 {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
+		if err := schedule.WindowIsValid(); err != nil {
+			return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
 		}
 	}
-
 	var startTime, endTime string
-	if config.AutoUpdateStartTime != nil {
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
 		startTime = *config.AutoUpdateStartTime
 	}
-	if config.AutoUpdateEndTime != nil {
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
 		endTime = *config.AutoUpdateEndTime
 	}
 
@@ -874,19 +869,20 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	stmt := `
 SELECT
-	team_id,
-	title_id,
-	enabled AS auto_update_enabled,
-	start_time AS auto_update_start_time,
-	end_time AS auto_update_end_time
-FROM software_update_schedules
-WHERE team_id = ?
+	sus.team_id,
+	sus.title_id,
+	sus.enabled AS auto_update_enabled,
+	sus.start_time AS auto_update_start_time,
+	sus.end_time AS auto_update_end_time
+FROM software_update_schedules sus
+JOIN software_titles st ON st.id = sus.title_id
+WHERE sus.team_id = ? AND st.source = ?
 `
 
-	args := []any{teamID}
+	args := []any{teamID, source}
 
 	if len(optionalFilter) > 0 {
 		filter := optionalFilter[0]

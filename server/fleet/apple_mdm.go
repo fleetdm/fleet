@@ -1114,5 +1114,16 @@ type AppleMDMVPPInstaller interface {
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
 
 	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
+	// Returns the command UUID of the installation.
 	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+}
+
+const DeviceLocationCmdName = "DeviceLocation"
+const EnableLostModeCmdName = "EnableLostMode"
+const DisableLostModeCmdName = "DisableLostMode"
+
+type HostLocationData struct {
+	HostID    uint    `db:"host_id"`
+	Latitude  float64 `db:"latitude"`
+	Longitude float64 `db:"longitude"`
 }

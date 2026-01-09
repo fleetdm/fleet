@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -886,11 +887,42 @@ type HostSoftwareInstalledVersion struct {
 	Source           string     `json:"-" db:"source"`
 	Version          string     `json:"version" db:"version"`
 	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
-	LastOpenedAt     *time.Time `json:"last_opened_at" db:"last_opened_at"`
+	LastOpenedAt     *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
 	Vulnerabilities      []string                   `json:"vulnerabilities" db:"vulnerabilities"`
 	InstalledPaths       []string                   `json:"installed_paths"`
 	SignatureInformation []PathSignatureInformation `json:"signature_information,omitempty"`
+}
+
+// MarshalJSON implements custom JSON marshaling for HostSoftwareInstalledVersion to conditionally
+// handle last_opened_at based on the software source.
+func (hsv *HostSoftwareInstalledVersion) MarshalJSON() ([]byte, error) {
+	type Alias HostSoftwareInstalledVersion
+	return json.Marshal(&struct {
+		*Alias
+		LastOpenedAt any `json:"last_opened_at,omitempty"`
+	}{
+		Alias:        (*Alias)(hsv),
+		LastOpenedAt: marshalLastOpenedAt(hsv.Source, hsv.LastOpenedAt),
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for HostSoftwareInstalledVersion to handle
+// the potential empty string in last_opened_at.
+func (hsv *HostSoftwareInstalledVersion) UnmarshalJSON(b []byte) error {
+	type Alias HostSoftwareInstalledVersion
+	aux := &struct {
+		*Alias
+		LastOpenedAt json.RawMessage `json:"last_opened_at"`
+	}{
+		Alias: (*Alias)(hsv),
+	}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	var err error
+	hsv.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record
@@ -1040,13 +1072,16 @@ type HostSoftwareInstallOptions struct {
 	SelfService        bool
 	PolicyID           *uint
 	ForSetupExperience bool
+	// ForScheduledUpdates means the install request is for iOS/iPadOS
+	// scheduled updates, which means it was Fleet-initiated.
+	ForScheduledUpdates bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
 // Software installs initiated via a policy are fleet-initiated (and we also
 // make sure SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && o.PolicyID != nil
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
 }
 
 // Priority returns the upcoming activities queue priority to use for this
