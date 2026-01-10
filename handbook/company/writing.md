@@ -1,4 +1,4 @@
-# Handbook
+# Writing
 
 ## Contributing to the handbook
 
@@ -28,4 +28,4 @@ To contribute a new handbook page:
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
-<meta name="title" value="Handbook">
+<meta name="title" value="Writing at Fleet">
