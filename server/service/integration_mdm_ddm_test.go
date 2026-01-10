@@ -49,13 +49,13 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		decls = append(decls, newDeclBytes(i))
 	}
 
-	// Non-configuration type should fail
+	// Non-configuration and non-activation type should fail
 	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "bad", Contents: []byte(`{"Type": "com.apple.activation", "Payload": "test"}`)},
+		{Name: "bad", Contents: []byte(`{"Type": "com.apple.management.foo", "Payload": "test"}`)},
 	}}, http.StatusUnprocessableEntity)
 
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration.) are supported")
+	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration.) and activation declarations (com.apple.activation.) are supported")
 
 	// "com.apple.configuration.softwareupdate.enforcement.specific" type should fail
 	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{

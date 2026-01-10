@@ -733,8 +733,8 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided(allowCustomOSUpdatesAndFil
 		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
 	}
 
-	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) are supported.")
+	if !strings.HasPrefix(r.Type, "com.apple.configuration.") && !strings.HasPrefix(r.Type, "com.apple.activation.") {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) and activation declarations (com.apple.activation.) are supported.")
 	}
 
 	return err
