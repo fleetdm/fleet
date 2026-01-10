@@ -1534,7 +1534,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, fleet.SoftwareFieldSeparator, data[1]["name"]))
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -1645,11 +1645,14 @@ func TestDirectIngestSoftware(t *testing.T) {
 			)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
-					"%s%s%s%s%s%s",
+					"%s%s%s%s%s%s%s%s%s",
 					data[1]["installed_path"],
 					fleet.SoftwareFieldSeparator,
 					data[1]["team_identifier"],
 					fleet.SoftwareFieldSeparator,
+					"",
+					fleet.SoftwareFieldSeparator,
+					"",
 					fleet.SoftwareFieldSeparator,
 					dataAsSoftware[1].ToUniqueStr(),
 				),
