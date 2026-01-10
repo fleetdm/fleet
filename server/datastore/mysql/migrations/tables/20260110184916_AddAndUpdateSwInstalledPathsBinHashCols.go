@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260109193736, Down_20260109193736)
+	MigrationClient.AddMigration(Up_20260110184916, Down_20260110184916)
 }
 
-func Up_20260109193736(tx *sql.Tx) error {
+func Up_20260110184916(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	ALTER TABLE host_software_installed_paths
 	ADD COLUMN binary_sha256 CHAR(64) COLLATE utf8mb4_unicode_ci NULL
@@ -29,6 +29,6 @@ func Up_20260109193736(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260109193736(tx *sql.Tx) error {
+func Down_20260110184916(tx *sql.Tx) error {
 	return nil
 }
