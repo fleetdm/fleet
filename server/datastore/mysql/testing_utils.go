@@ -428,6 +428,15 @@ func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) erro
 	return fn(ds.primary)
 }
 
+// DBConnectionsForTest returns the database connections for use in tests.
+// This allows tests to bootstrap bounded contexts that need direct DB access.
+func DBConnectionsForTest(ds *Datastore) *common_mysql.DBConnections {
+	return &common_mysql.DBConnections{
+		Primary: ds.primary,
+		Replica: ds.primary, // Use same connection for replica in tests
+	}
+}
+
 // EncryptWithPrivateKey encrypts data with the server private key associated
 // with the Datastore.
 func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, error) {
