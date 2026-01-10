@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"html/template"
 	"io"
 	"net"
 	"net/http"
@@ -18,7 +19,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
