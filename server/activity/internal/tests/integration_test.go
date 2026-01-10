@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -213,6 +214,7 @@ func TestIntegration(t *testing.T) {
 	}{
 		{"ListActivities", testListActivities},
 		{"ListActivitiesPagination", testListActivitiesPagination},
+		{"ListActivitiesCursorPagination", testListActivitiesCursorPagination},
 		{"ListActivitiesFilters", testListActivitiesFilters},
 		{"ListActivitiesUserEnrichment", testListActivitiesUserEnrichment},
 	}
@@ -296,6 +298,63 @@ func testListActivitiesPagination(t *testing.T, s *integrationTestSuite) {
 	assert.Len(t, result.Activities, 1)
 	assert.False(t, result.Meta.HasNextResults)
 	assert.True(t, result.Meta.HasPreviousResults)
+}
+
+func testListActivitiesCursorPagination(t *testing.T, s *integrationTestSuite) {
+	userID := s.insertUser("admin", "admin@example.com")
+
+	// Insert 3 activities
+	s.insertActivity(userID, "applied_spec_pack", map[string]any{})
+	s.insertActivity(userID, "deleted_pack", map[string]any{})
+	s.insertActivity(userID, "edited_pack", map[string]any{})
+
+	// Test cursor-based pagination with after=0 and table alias in order_key
+	// This should return the first activity and Meta should be nil (cursor-based pagination
+	// doesn't return metadata)
+	resp, err := http.Get(s.server.URL + "/api/v1/fleet/activities?per_page=1&order_key=a.id&after=0")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var result listActivitiesResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+
+	// Should return 1 activity
+	assert.Len(t, result.Activities, 1)
+
+	// Meta should be nil for cursor-based pagination
+	assert.Nil(t, result.Meta)
+
+	// The activity should be the first one (id > 0, ascending order)
+	assert.Equal(t, "applied_spec_pack", result.Activities[0].Type)
+
+	// Test cursor pagination to get the next activity
+	firstID := result.Activities[0].ID
+	resp, err = http.Get(s.server.URL + "/api/v1/fleet/activities?per_page=1&order_key=a.id&after=" + strconv.FormatUint(uint64(firstID), 10))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+
+	assert.Len(t, result.Activities, 1)
+	assert.Nil(t, result.Meta)
+	assert.Equal(t, "deleted_pack", result.Activities[0].Type)
+
+	// Test descending order with cursor
+	resp, err = http.Get(s.server.URL + "/api/v1/fleet/activities?per_page=1&order_key=id&order_direction=desc&after=999999")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+
+	assert.Len(t, result.Activities, 1)
+	assert.Nil(t, result.Meta)
+	// Descending order, so the newest (edited_pack) should be first
+	assert.Equal(t, "edited_pack", result.Activities[0].Type)
 }
 
 func testListActivitiesFilters(t *testing.T, s *integrationTestSuite) {
