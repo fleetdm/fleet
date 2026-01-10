@@ -1183,7 +1183,7 @@ type HostMunkiIssue struct {
 // the mobile_device_management_solutions table.
 const (
 	UnknownMDMName        = ""
-	WellKnownMDMKandji    = "Kandji"
+	WellKnownMDMIru       = "Iru"
 	WellKnownMDMJamf      = "Jamf"
 	WellKnownMDMJumpCloud = "JumpCloud"
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
@@ -1194,7 +1194,8 @@ const (
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
-	"kandji":    WellKnownMDMKandji,
+	"kandji":    WellKnownMDMIru,
+	"iru":       WellKnownMDMIru,
 	"jamf":      WellKnownMDMJamf,
 	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
