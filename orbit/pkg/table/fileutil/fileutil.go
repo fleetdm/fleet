@@ -1,5 +1,4 @@
 //go:build darwin
-// +build darwin
 
 // Package fileutil implements an extension osquery table to get information about a macOS file
 package fileutil
