@@ -103,6 +103,7 @@ func TestSoftware(t *testing.T) {
 		{"LongestCommonPrefix", testLongestCommonPrefix},
 		{"ListHostSoftwareInHouseApps", testListHostSoftwareInHouseApps},
 		{"ListHostSoftwareAndroidVPPAppMatching", testListHostSoftwareAndroidVPPAppMatching},
+		{"ListSoftwareVersionsSearchByTitleName", testListSoftwareVersionsSearchByTitleName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -10340,4 +10341,69 @@ func testListHostSoftwareAndroidVPPAppMatching(t *testing.T, ds *Datastore) {
 		assert.True(t, *amazonApp.AppStoreApp.SelfService)
 		assert.NotNil(t, amazonApp.IconUrl)
 	}
+}
+
+// testListSoftwareVersionsSearchByTitleName tests that searching software versions
+// by a software title name finds all software entries under that title, even when
+// individual software entry names differ from the title name.
+// This is a regression test for https://github.com/fleetdm/fleet/issues/35028
+func testListSoftwareVersionsSearchByTitleName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host
+	host := test.NewHost(t, ds, "search-test-host", "", "searchtestkey", "searchtestuuid", time.Now())
+
+	// First, create software with a specific name to establish the title
+	initialSoftware := []fleet.Software{
+		{Name: "SharePoint", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.microsoft.sharepoint"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, initialSoftware)
+	require.NoError(t, err)
+
+	// Now add more software entries with different names but the same bundle_identifier.
+	// These will be grouped under the same title "SharePoint" but their individual names
+	// do NOT contain "SharePoint".
+	allSoftware := []fleet.Software{
+		{Name: "SharePoint", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.microsoft.sharepoint"},
+		{Name: "Office Shared MUI Components", Version: "16.0.5765", Source: "apps", BundleIdentifier: "com.microsoft.sharepoint"},
+		{Name: "Office Runtime Libraries", Version: "16.0.1234", Source: "apps", BundleIdentifier: "com.microsoft.sharepoint"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, allSoftware)
+	require.NoError(t, err)
+
+	// Sync host software to populate software_host_counts
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+
+	// Test: Search by the title name "sharepoint" on the versions method.
+	// This should find all 3 software entries because they all belong to a title named "SharePoint",
+	// even though only 1 of them has "SharePoint" in its software.name.
+	opts := fleet.SoftwareListOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "sharepoint",
+		},
+		WithHostCounts: true,
+	}
+
+	software, _, err := ds.ListSoftware(ctx, opts)
+	require.NoError(t, err)
+
+	// All 3 software entries should be found because they belong to a title named "SharePoint".
+	require.Len(t, software, 3, "Search by title name should find all software entries under that title")
+
+	// Verify we got the expected software entries
+	foundNames := make(map[string]bool)
+	for _, sw := range software {
+		foundNames[sw.Name] = true
+	}
+	assert.True(t, foundNames["SharePoint"], "Should find 'SharePoint'")
+	assert.True(t, foundNames["Office Shared MUI Components"], "Should find 'Office Shared MUI Components'")
+	assert.True(t, foundNames["Office Runtime Libraries"], "Should find 'Office Runtime Libraries'")
+
+	// Test: Search by a name that only matches one software entry (not the title)
+	// This should still work as before - find the entry by its software.name
+	opts.ListOptions.MatchQuery = "Runtime"
+	software, _, err = ds.ListSoftware(ctx, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1, "Search by software name should still work")
+	assert.Equal(t, "Office Runtime Libraries", software[0].Name)
 }
