@@ -892,6 +892,24 @@ WHERE type = 'cask'
 AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%') AND file.path LIKE '%.app%' LIMIT 1);
 ```
 
+## software_macos_bin_sha256
+
+- Description: A software override query[^1] to append file information macOS software entries. Requires `fleetd`
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'fileutil'
+```
+
+- Query:
+```sql
+SELECT fu.*
+		FROM apps a
+		JOIN fileutil fu ON a.path = fu.path
+```
+
 ## software_macos_codesign
 
 - Description: A software override query[^1] to append codesign information to macOS software entries. Requires `fleetd`
