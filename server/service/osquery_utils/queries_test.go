@@ -1595,9 +1595,11 @@ func TestDirectIngestSoftware(t *testing.T) {
 				"source":            "apps",
 				"bundle_identifier": "com.bundle.com",
 				"vendor":            "EvilCorp",
-				"installed_path":    "/Applications/Software1.app",
-				"team_identifier":   "corp1",
-				"cdhash_sha256":     "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+
+				"installed_path":  "/Applications/Software1.app",
+				"team_identifier": "corp1",
+				"cdhash_sha256":   "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+				"binary_sha256":   "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
 			},
 			{
 				"name":              "Software 2",
@@ -1605,8 +1607,9 @@ func TestDirectIngestSoftware(t *testing.T) {
 				"source":            "apps",
 				"bundle_identifier": "coms.widgets.com",
 				"vendor":            "widgets",
-				"team_identifier":   "corp2",
-				"installed_path":    "/Applications/Software2.app",
+
+				"team_identifier": "corp2",
+				"installed_path":  "/Applications/Software2.app",
 			},
 		}
 		var dataAsSoftware []fleet.Software
@@ -1628,12 +1631,14 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.Len(t, sPaths, 2)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
-					"%s%s%s%s%s%s%s",
+					"%s%s%s%s%s%s%s%s%s",
 					data[0]["installed_path"],
 					fleet.SoftwareFieldSeparator,
 					data[0]["team_identifier"],
 					fleet.SoftwareFieldSeparator,
 					data[0]["cdhash_sha256"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["binary_sha256"],
 					fleet.SoftwareFieldSeparator,
 					dataAsSoftware[0].ToUniqueStr(),
 				),
