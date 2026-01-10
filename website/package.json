@@ -30,7 +30,7 @@
     "lesshint": "6.3.6",
     "marked": "4.0.10",
     "sails-hook-grunt": "^5.0.0",
-    "sails-hook-shipwright": "^1.0.0",
+    "sails-hook-shipwright": "^1.1.0",
     "yaml": "1.10.2"
   },
   "scripts": {
