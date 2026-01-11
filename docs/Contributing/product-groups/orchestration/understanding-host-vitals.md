@@ -894,7 +894,7 @@ AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages
 
 ## software_macos_bin_sha256
 
-- Description: A software override query[^1] to append file information macOS software entries. Requires `fleetd`
+- Description: A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`
 
 - Platforms: darwin
 
