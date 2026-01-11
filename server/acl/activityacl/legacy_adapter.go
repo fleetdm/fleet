@@ -48,8 +48,6 @@ func (a *LegacyServiceAdapter) ListUsers(ctx context.Context, ids []uint) ([]*ac
 }
 
 // SearchUsers searches for users by name/email prefix and returns their IDs.
-// This matches the legacy behavior in server/datastore/mysql/activities.go ListActivities
-// where it searches users to get the most up-to-date name/email info.
 func (a *LegacyServiceAdapter) SearchUsers(ctx context.Context, query string) ([]uint, error) {
 	if query == "" {
 		return nil, nil

@@ -22,9 +22,6 @@ import (
 // When page is specified without per_page, a smaller default is used in listOptionsFromRequest.
 const defaultPerPage = 1000000
 
-// AuthMiddleware is a type alias for endpoint middleware functions.
-type AuthMiddleware = func(endpoint.Endpoint) endpoint.Endpoint
-
 // encodeResponse encodes the response as JSON.
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) error {
 	return eu.EncodeCommonResponse(ctx, w, response,
@@ -136,7 +133,7 @@ func (e *endpointer) Service() any {
 	return e.svc
 }
 
-func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware AuthMiddleware, opts []kithttp.ServerOption, r *mux.Router,
+func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{

@@ -6,18 +6,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
 // GetRoutes returns a function that registers activity routes on the router.
-func GetRoutes(svc api.Service, authMiddleware AuthMiddleware) eu.HandlerRoutesFunc {
+func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
 	return func(r *mux.Router, opts []kithttp.ServerOption) {
 		attachFleetAPIRoutes(r, svc, authMiddleware, opts)
 	}
 }
 
-func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware AuthMiddleware, opts []kithttp.ServerOption) {
+func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
 	// User-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, authMiddleware, opts, r, apiVersions()...)
 

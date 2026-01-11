@@ -8,18 +8,8 @@ import (
 	"time"
 )
 
-// ListActivitiesService defines the contract for listing activities.
-// Consumers should depend on this interface, not on internal implementations.
 type ListActivitiesService interface {
-	// ListActivities returns a paginated list of activities.
-	// Authorization is checked internally.
 	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
-}
-
-// Service is the composite interface for the activity bounded context.
-// It embeds all method-specific interfaces. Bootstrap returns this type.
-type Service interface {
-	ListActivitiesService
 }
 
 // Activity represents a recorded activity in the audit log.
@@ -61,7 +51,7 @@ type ListOptions struct {
 type PaginationMetadata struct {
 	HasNextResults     bool `json:"has_next_results"`
 	HasPreviousResults bool `json:"has_previous_results"`
-	// TotalResults is intentionally excluded from JSON serialization to match
-	// the legacy fleet.PaginationMetadata behavior. It's kept for internal use only.
+	// TotalResults is excluded from JSON responses to match legacy behavior.
+	// It can be used by server-side code but won't be sent to API clients.
 	TotalResults uint `json:"-"`
 }
