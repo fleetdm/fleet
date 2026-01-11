@@ -7918,7 +7918,8 @@ func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
 	// Checking response content
 	resContent := string(resBytes)
 	require.Contains(t, resContent, "inputToken.name = 'wresult'")
-	require.Contains(t, resContent, "form.action = \"ms-app://windows.immersivecontrolpanel\"")
+	// we expect the URL to be escaped
+	require.Contains(t, resContent, `form.action = "ms-app:\/\/windows.immersivecontrolpanel"`)
 	require.Contains(t, resContent, "performPost()")
 
 	// Getting token content
@@ -7938,6 +7939,79 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.NoError(t, err)
 	require.NotEmpty(t, resBytes)
 	require.Contains(t, resContent, "forbidden")
+}
+
+func (s *integrationMDMTestSuite) TestAppruValidationInGetAuthRequest() {
+	t := s.T()
+
+	// Test cases with invalid appru values that should bail due to exiting before auth check
+	invalidAppruCases := []struct {
+		name  string
+		appru string
+	}{
+		{
+			name:  "javascript injection",
+			appru: "%3Bfor%20(var%20key%20in%20localStorage)%7B%20alert(key)%7D%3B%2F%2F",
+		},
+		{
+			name:  "javascript protocol",
+			appru: "javascript:alert(1)",
+		},
+		{
+			name:  "data URI",
+			appru: "data:text/html,<script>alert(1)</script>",
+		},
+		{
+			name:  "empty scheme",
+			appru: "://example.com",
+		},
+		{
+			name:  "plain text",
+			appru: "not-a-url",
+		},
+	}
+
+	for _, tc := range invalidAppruCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
+			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
+
+			resBytes, err := io.ReadAll(resp.Body)
+			resContent := string(resBytes)
+			require.NoError(t, err)
+			require.NotEmpty(t, resBytes)
+			require.Contains(t, resContent, "forbidden")
+
+			resp.Body.Close()
+		})
+	}
+
+	// Also verify valid URLs still work
+	validAppruCases := []struct {
+		name  string
+		appru string
+	}{
+		{
+			name:  "ms-app scheme",
+			appru: "ms-app%3A%2F%2Fwindows.immersivecontrolpanel",
+		},
+		{
+			name:  "https scheme",
+			appru: "https%3A%2F%2Fexample.com%2Fcallback",
+		},
+		{
+			name:  "http scheme",
+			appru: "http%3A%2F%2Flocalhost%2Fcallback",
+		},
+	}
+
+	for _, tc := range validAppruCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
+			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
+			resp.Body.Close()
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) TestValidGetTOC() {
@@ -13091,6 +13165,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			http.StatusOK, &addAppResp)
 	}
 
+	var failedCmdUUID string
+	errorOnInstallApplicationCommand := func(errorCode int) {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		assert.NotNil(t, cmd)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+			case "InstallApplication":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				failedCmdUUID = cmd.CommandUUID
+				t.Logf("Failed command UUID: %s", failedCmdUUID)
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: errorCode}})
+				require.NoError(t, err)
+			}
+		}
+	}
+
 	// Trigger install to the host
 	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
@@ -13110,21 +13202,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate failed installation on the host
-	cmd, err := mdmDevice.Idle()
-	var failedCmdUUID string
-	require.NoError(t, err)
-	assert.NotNil(t, cmd)
-	for cmd != nil {
-		var fullCmd micromdm.CommandPayload
-		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
-		case "InstallApplication":
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			failedCmdUUID = cmd.CommandUUID
-			t.Logf("Failed command UUID: %s", failedCmdUUID)
-			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
-			require.NoError(t, err)
-		}
-	}
+	errorOnInstallApplicationCommand(1234)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
@@ -13151,6 +13229,95 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		0,
 	)
 
+	// We store the old failedCmdUUID to restore after this 9610, since it's used further down.
+	storedFailedCmdUUID := failedCmdUUID
+
+	// Trigger a 9610 failure to see retry happening
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	s.runWorker()
+
+	// Simulate failed installation on the host
+	errorOnInstallApplicationCommand(9610)
+
+	// Verify the retry_count was increased to 1 for the failedCmdUUID
+	var retryCount int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 1, retryCount)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 0)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 0, countResp.Count)
+
+	oldFailedCmdUUID := failedCmdUUID
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, oldFailedCmdUUID, failedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 2, retryCount)
+
+	oldFailedCmdUUID = failedCmdUUID
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 3, retryCount)
+
+	oldFailedCmdUUID = failedCmdUUID
+	// Final time where we mark the app as failed
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 3, retryCount)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_auto_update": false}`,
+			mdmHost.ID,
+			mdmHost.DisplayName(),
+			macOSApp.Name,
+			macOSApp.AdamID,
+			failedCmdUUID,
+			fleet.SoftwareInstallFailed,
+			mdmHost.Platform,
+		),
+		0,
+	)
+
+	// Restore failedCmdUUID to the original failed command UUID for further processing.
+	failedCmdUUID = storedFailedCmdUUID
+
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
@@ -13164,7 +13331,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Simulate successful installation on the host
 	var installCmdUUID string
-	cmd, err = mdmDevice.Idle()
+	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload

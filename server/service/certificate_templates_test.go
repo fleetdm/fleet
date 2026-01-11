@@ -165,6 +165,15 @@ func TestCreateCertificateTemplate(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("Empty or whitespace-only subject name", func(t *testing.T) {
+		whitespaceSubjectNames := []string{"", " ", "   \t\n  "}
+		for _, subjectName := range whitespaceSubjectNames {
+			_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(ValidCATypeID), subjectName)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "Certificate template subject name is required")
+		}
+	})
 }
 
 func TestApplyCertificateTemplateSpecs(t *testing.T) {
@@ -364,5 +373,18 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Certificate template name is too long")
+	})
+
+	t.Run("Whitespace-only subject name", func(t *testing.T) {
+		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 2",
+				CertificateAuthorityId: 1,
+				SubjectName:            "   ",
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Certificate template subject name is required")
+		require.Contains(t, err.Error(), "Template 2")
 	})
 }

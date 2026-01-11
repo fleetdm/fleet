@@ -658,6 +658,7 @@ module.exports.routes = {
   'GET /handbook/business-operations/security': '/handbook/finance/security',
   'GET /handbook/business-operations/vendor-questionnaires': '/handbook/finance/security',
   'GET /handbook/handbook': '/handbook/company/handbook',
+  'GET /handbook/company/handbook': '/handbook/company/writing',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
   'GET /platform': '/',

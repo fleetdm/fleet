@@ -2620,6 +2620,14 @@ type Datastore interface {
 	// ResendWindowsMDMCommand marks the specified Windows MDM command for resend
 	// by inserting a new command entry, command queue, but also updates the host profile reference.
 	ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId string, newCmd *MDMWindowsCommand, oldCmd *MDMWindowsCommand) error
+
+	// GetHostVPPInstallByCommandUUID retrieves the Apple VPP app install record
+	// for the given command UUID.
+	GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*HostVPPSoftwareInstallLite, error)
+
+	// RetryVPPInstall retries a single VPP install that failed for the host.
+	// It makes sure to queue a new nano command and update the command_uuid in the host_vpp_software_installs table, as well as the execution ID for the activity.
+	RetryVPPInstall(ctx context.Context, vppInstall *HostVPPSoftwareInstallLite) error
 }
 
 type AndroidDatastore interface {

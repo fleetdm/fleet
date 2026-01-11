@@ -10,7 +10,7 @@ Entra conditional access is supported even if you're not using MDM features in F
 
 Migrating from your current MDM solution to Fleet? The best practice is to switch to Fleet for Entra conditional access at the same time as your MDM migration. Why? While end users are taking action to migrate from your old MDM solution to Fleet, in the same sitting, they can re-register with Platform SSO. 
 
-Before you switch to Fleet, let your team know that there will be a gap in conditional access coverage. Microsoft only allows one compliance partner to be configured for macOS hosts. Learn more [#step-2-configure-fleet-in-intune].
+Before you switch to Fleet, let your team know that there will be a gap in conditional access coverage. Microsoft only allows one compliance partner to be configured for macOS hosts. [Learn more]([#step-2-configure-fleet-in-intune]).
 
 ## Step 1: Create a "Fleet conditional access" group in Entra
 
