@@ -11,6 +11,9 @@ import (
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/go-kit/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,6 +33,79 @@ func NewSoapRequest(request []byte) (fleet.SoapRequest, error) {
 
 	// If there was no error, return the SoapRequest and a nil error
 	return req, nil
+}
+
+func TestIsValidAppruURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		appru    string
+		expected bool
+	}{
+		// Valid URLs
+		{
+			name:     "valid ms-app scheme",
+			appru:    "ms-app://windows.immersivecontrolpanel",
+			expected: true,
+		},
+		{
+			name:     "valid https scheme",
+			appru:    "https://example.com/callback",
+			expected: true,
+		},
+		{
+			name:     "valid http scheme",
+			appru:    "http://localhost/callback",
+			expected: true,
+		},
+		// Invalid URLs - XSS attempts
+		{
+			name:     "javascript injection",
+			appru:    ";for (var key in localStorage){ alert(key)};//",
+			expected: false,
+		},
+		{
+			name:     "javascript protocol",
+			appru:    "javascript:alert(1)",
+			expected: false,
+		},
+		{
+			name:     "data URI",
+			appru:    "data:text/html,<script>alert(1)</script>",
+			expected: false,
+		},
+		{
+			name:     "empty scheme",
+			appru:    "://example.com",
+			expected: false,
+		},
+		{
+			name:     "plain text",
+			appru:    "not-a-url",
+			expected: false,
+		},
+		{
+			name:     "empty string",
+			appru:    "",
+			expected: false,
+		},
+		{
+			name:     "file scheme",
+			appru:    "file:///etc/passwd",
+			expected: false,
+		},
+		{
+			name:     "ftp scheme",
+			appru:    "ftp://example.com",
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isValidAppru(tc.appru)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }
 
 func TestValidSoapResponse(t *testing.T) {
