@@ -40,24 +40,23 @@ var _ api.Service = (*Service)(nil)
 func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	// Convert public options to internal options (which include internal fields)
 	// Don't include metadata for cursor-based pagination (when After is set)
-	includeMetadata := opt.After == ""
 	internalOpt := types.ListOptions{
 		ListOptions:     opt,
-		IncludeMetadata: includeMetadata,
+		IncludeMetadata: opt.After == "",
 	}
 
-	// Authorization: use authz package with local authorization subject
-	if err := s.authz.Authorize(ctx, &activityAuthzSubject{}, actionRead); err != nil {
+	// Authorization check
+	if err := s.authz.Authorize(ctx, &api.Activity{}, actionRead); err != nil {
 		return nil, nil, err
 	}
 
 	// If searching, also search users table to get matching user IDs
-	// (matches legacy behavior for finding activities by updated user name/email)
 	if opt.MatchQuery != "" {
 		userIDs, err := s.users.SearchUsers(ctx, opt.MatchQuery)
 		if err != nil {
-			// Log but don't fail - we can still search activity table fields
-			level.Debug(s.logger).Log("msg", "failed to search users for activity query", "err", err)
+			// Log error but don't fail - we can still search activity table fields
+			level.Error(s.logger).Log("msg", "failed to search users for activity query", "err", err)
+			ctxerr.Handle(ctx, err)
 		} else {
 			internalOpt.MatchingUserIDs = userIDs
 		}
@@ -70,15 +69,15 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 
 	// Enrich activities with user data via ACL
 	if err := s.enrichWithUserData(ctx, activities); err != nil {
-		// Log but don't fail - user data enrichment is optional
-		level.Debug(s.logger).Log("msg", "failed to enrich activities with user data", "err", err)
+		// Log error but don't fail - user data enrichment is optional
+		level.Error(s.logger).Log("msg", "failed to enrich activities with user data", "err", err)
+		ctxerr.Handle(ctx, err)
 	}
 
 	return activities, meta, nil
 }
 
 // enrichWithUserData adds user data (gravatar, email, name, api_only) to activities by fetching via ACL.
-// This matches the legacy behavior in server/datastore/mysql/activities.go ListActivities.
 func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Activity) error {
 	// Collect unique user IDs and build lookup of activity indices per user
 	lookup := make(map[uint][]int)
@@ -92,13 +91,12 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 		return nil
 	}
 
-	// Fetch users via ACL (calls legacy service)
 	users, err := s.users.ListUsers(ctx, slices.Collect(maps.Keys(lookup)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list users for activity enrichment")
 	}
 
-	// Enrich activities with user data (matching legacy behavior)
+	// Enrich activities with user data
 	for _, user := range users {
 		entries, ok := lookup[user.ID]
 		if !ok {
@@ -115,17 +113,5 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 	return nil
 }
 
-// Authorization constants and types
-
 // actionRead is the authorization action for reading activities.
 const actionRead = "read"
-
-// activityAuthzSubject implements platform_authz.AuthzTyper for activity authorization.
-// This allows the activity bounded context to use authorization without
-// depending on fleet.Activity.
-type activityAuthzSubject struct{}
-
-// AuthzType returns the authorization type for activities.
-func (a *activityAuthzSubject) AuthzType() string {
-	return "activity"
-}

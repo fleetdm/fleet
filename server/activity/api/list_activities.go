@@ -36,6 +36,11 @@ type Activity struct {
 	Details        *json.RawMessage `json:"details" db:"details"`
 }
 
+// AuthzType implements the authorization type for activities.
+func (a *Activity) AuthzType() string {
+	return "activity"
+}
+
 // ListOptions defines options for listing activities.
 type ListOptions struct {
 	// Pagination
