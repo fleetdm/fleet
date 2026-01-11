@@ -17,10 +17,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// default number of items to include per page.
-// This matches the legacy default (1000000, effectively unlimited) when per_page is not specified.
-// When page is specified without per_page, a smaller default is used in listOptionsFromRequest.
-const defaultPerPage = 1000000
+const (
+	// defaultPerPage is used when per_page is not specified but page is specified.
+	defaultPerPage = 20
+
+	// unlimitedPerPage is used when neither page nor per_page is specified,
+	// effectively returning all results (legacy behavior for backwards compatibility).
+	unlimitedPerPage = 1000000
+)
 
 // encodeResponse encodes the response as JSON.
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) error {
@@ -84,11 +88,6 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 		if perPage <= 0 {
 			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "invalid per_page value"})
 		}
-	}
-
-	if perPage == 0 && pageString != "" {
-		// We explicitly set a non-zero default if a page is specified
-		perPage = defaultPerPage
 	}
 
 	if orderKey == "" && orderDirectionString != "" {
@@ -156,8 +155,14 @@ func fillListOptions(opt *api.ListOptions) {
 		opt.OrderKey = "created_at"
 		opt.OrderDirection = api.OrderDesc
 	}
-	// Default PerPage if not specified (matches legacy behavior)
+	// Default PerPage based on whether pagination was requested
 	if opt.PerPage == 0 {
-		opt.PerPage = defaultPerPage
+		if opt.Page == 0 {
+			// No pagination requested - return all results (legacy behavior)
+			opt.PerPage = unlimitedPerPage
+		} else {
+			// Page specified without per_page - use sensible default
+			opt.PerPage = defaultPerPage
+		}
 	}
 }
