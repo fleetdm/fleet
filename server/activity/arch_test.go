@@ -28,6 +28,18 @@ func TestActivityAPIPackageDependencies(t *testing.T) {
 		Check()
 }
 
+// TestActivityAPIHTTPPackageDependencies ensures the HTTP types package only depends on api.
+func TestActivityAPIHTTPPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/activity/api/http").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		ShouldNotDependOn(m + "/...").
+		IgnoreDeps(
+			m + "/server/activity/api",
+		).
+		Check()
+}
+
 func TestActivityInternalTypesDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, m+"/server/activity/internal/types").
@@ -64,9 +76,10 @@ func TestActivityInternalServiceDependencies(t *testing.T) {
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		ShouldNotDependOn(m+"/...").
 		IgnoreDeps(
-			// Activity packages (api is the public interface)
+			// Activity packages (api is the public interface, api/http has HTTP request/response types)
 			m+"/server/activity",
 			m+"/server/activity/api",
+			m+"/server/activity/api/http",
 			m+"/server/activity/internal/types",
 			// Platform/infra packages (allowed)
 			m+"/server/platform/...",

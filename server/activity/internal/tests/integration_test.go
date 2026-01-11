@@ -13,7 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/fleetdm/fleet/v4/server/activity"
-	"github.com/fleetdm/fleet/v4/server/activity/api"
+	api_http "github.com/fleetdm/fleet/v4/server/activity/api/http"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/service"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -199,13 +199,6 @@ func (s *integrationTestSuite) insertActivityWithTime(userID uint, activityType 
 	return uint(id)
 }
 
-// Response types for decoding
-
-type listActivitiesResponse struct {
-	Activities []*api.Activity         `json:"activities"`
-	Meta       *api.PaginationMetadata `json:"meta"`
-}
-
 // Integration tests
 
 func TestIntegration(t *testing.T) {
@@ -244,7 +237,7 @@ func testListActivities(t *testing.T, s *integrationTestSuite) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var result listActivitiesResponse
+	var result api_http.ListActivitiesResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
 
@@ -270,7 +263,7 @@ func testListActivitiesPagination(t *testing.T, s *integrationTestSuite) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	var result listActivitiesResponse
+	var result api_http.ListActivitiesResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
 
@@ -320,7 +313,7 @@ func testListActivitiesCursorPagination(t *testing.T, s *integrationTestSuite) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var result listActivitiesResponse
+	var result api_http.ListActivitiesResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
 
@@ -374,7 +367,7 @@ func testListActivitiesFilters(t *testing.T, s *integrationTestSuite) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	var result listActivitiesResponse
+	var result api_http.ListActivitiesResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
 
@@ -414,7 +407,7 @@ func testListActivitiesUserEnrichment(t *testing.T, s *integrationTestSuite) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	var result listActivitiesResponse
+	var result api_http.ListActivitiesResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
 

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
+	api_http "github.com/fleetdm/fleet/v4/server/activity/api/http"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
@@ -22,34 +23,16 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoin
 	// User-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, authMiddleware, opts, r, apiVersions()...)
 
-	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
+	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, api_http.ListActivitiesRequest{})
 }
 
 func apiVersions() []string {
 	return []string{"v1", "latest"}
 }
 
-// Request and response types
-
-type listActivitiesRequest struct {
-	ListOptions    api.ListOptions `url:"list_options"`
-	Query          string          `query:"query,optional"`
-	ActivityType   string          `query:"activity_type,optional"`
-	StartCreatedAt string          `query:"start_created_at,optional"`
-	EndCreatedAt   string          `query:"end_created_at,optional"`
-}
-
-type listActivitiesResponse struct {
-	Meta       *api.PaginationMetadata `json:"meta"`
-	Activities []*api.Activity         `json:"activities"`
-	Err        error                   `json:"error,omitempty"`
-}
-
-func (r listActivitiesResponse) Error() error { return r.Err }
-
 // listActivitiesEndpoint handles GET /api/_version_/fleet/activities
 func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
-	req := request.(*listActivitiesRequest)
+	req := request.(*api_http.ListActivitiesRequest)
 
 	// Build list options with activity-specific filters
 	opt := req.ListOptions
@@ -63,10 +46,10 @@ func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) p
 
 	activities, meta, err := svc.ListActivities(ctx, opt)
 	if err != nil {
-		return listActivitiesResponse{Err: err}
+		return api_http.ListActivitiesResponse{Err: err}
 	}
 
-	return listActivitiesResponse{
+	return api_http.ListActivitiesResponse{
 		Meta:       meta,
 		Activities: activities,
 	}

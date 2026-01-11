@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
+	api_http "github.com/fleetdm/fleet/v4/server/activity/api/http"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/gorilla/mux"
@@ -81,7 +82,7 @@ func testHandlerListActivitiesBasic(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	var response listActivitiesResponse
+	var response api_http.ListActivitiesResponse
 	err := json.NewDecoder(rr.Body).Decode(&response)
 	require.NoError(t, err)
 
