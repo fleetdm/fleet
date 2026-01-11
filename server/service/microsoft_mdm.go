@@ -11,13 +11,14 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"html/template"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -409,7 +410,7 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 	}
 }
 
-// getSTSAuthContent Retuns STS auth content
+// getSTSAuthContent Returns STS auth content
 func getSTSAuthContent(data string) mdm_types.Errorer {
 	return MDMAuthContainer{
 		Data: &data,
@@ -777,6 +778,17 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
+// isValidAppru validates that appru is a valid URL with an allowed scheme.
+// It returns true if appru is a valid URL with http, https, or ms-app scheme.
+func isValidAppru(appru string) bool {
+	parsed, err := url.Parse(appru)
+	if err != nil {
+		return false
+	}
+
+	return slices.Contains([]string{"http", "https", "ms-app"}, parsed.Scheme)
+}
+
 // mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
 func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
 	params := request.(*SoapRequestContainer).Params
@@ -791,6 +803,11 @@ func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc flee
 
 	if (len(appru) == 0) || (len(loginHint) == 0) {
 		return getSTSAuthContent(""), errors.New("expected STS params are empty")
+	}
+
+	// Validate that appru is a valid URL
+	if !isValidAppru(appru) {
+		return getSTSAuthContent(""), fmt.Errorf("non-URL appru parameter attempted: %q", appru)
 	}
 
 	// Getting the STS endpoint HTML content
