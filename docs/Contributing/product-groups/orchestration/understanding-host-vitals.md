@@ -908,6 +908,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT fu.*
 		FROM apps a
 		JOIN fileutil fu ON a.path = fu.path
+		WHERE fu.path NOT NULL
 ```
 
 ## software_macos_codesign
