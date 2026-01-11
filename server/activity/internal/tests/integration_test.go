@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/mysql"
@@ -18,7 +19,7 @@ import (
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
+	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log"
 	"github.com/gorilla/mux"
@@ -79,18 +80,18 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	t.Helper()
 
 	// Use UniqueTestName to avoid fragile runtime.Caller stack depth assumptions
-	opts := &testing_utils.DatastoreTestOptions{
+	opts := &mysql_testing_utils.DatastoreTestOptions{
 		UniqueTestName: "activity_integration_" + t.Name(),
 	}
-	testName, opts := testing_utils.ProcessOptions(t, opts)
+	testName, opts := mysql_testing_utils.ProcessOptions(t, opts)
 
 	// Load schema
 	_, thisFile, _, _ := runtime.Caller(0)
 	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
-	testing_utils.LoadSchema(t, testName, opts, schemaPath)
+	mysql_testing_utils.LoadSchema(t, testName, opts, schemaPath)
 
 	// Create DB connection
-	config := testing_utils.MysqlTestConfig(testName)
+	config := mysql_testing_utils.MysqlTestConfig(testName)
 	db, err := common_mysql.NewDB(config, &common_mysql.DBOptions{}, "")
 	require.NoError(t, err)
 
@@ -99,14 +100,16 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	})
 
 	// Create datastore
-	ds := mysql.NewDatastore(db, db)
+	logger := log.NewLogfmtLogger(&testutils.TestLogWriter{T: t})
+	conns := &common_mysql.DBConnections{Primary: db, Replica: db}
+	ds := mysql.NewDatastore(conns, logger)
 
 	// Create mocks
 	authorizer := &mockAuthorizer{}
 	userProvider := newMockUserProvider()
 
 	// Create service
-	svc := service.NewService(authorizer, ds, userProvider, log.NewNopLogger())
+	svc := service.NewService(authorizer, ds, userProvider, logger)
 
 	// Create router with routes
 	router := mux.NewRouter()
@@ -131,7 +134,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 }
 
 func (s *integrationTestSuite) truncateTables() {
-	testing_utils.TruncateTables(s.t, s.db, log.NewNopLogger(), nil, "activities", "users")
+	mysql_testing_utils.TruncateTables(s.t, s.db, log.NewNopLogger(), nil, "activities", "users")
 }
 
 func (s *integrationTestSuite) insertUser(name, email string) uint {

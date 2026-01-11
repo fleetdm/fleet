@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	activityapi "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
+	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
@@ -261,17 +262,17 @@ func testListActivitiesMatchQuery(t *testing.T, ds *Datastore) {
 func setupTestDatastore(t *testing.T) *Datastore {
 	t.Helper()
 
-	testName, opts := testing_utils.ProcessOptions(t, &testing_utils.DatastoreTestOptions{
+	testName, opts := mysql_testing_utils.ProcessOptions(t, &mysql_testing_utils.DatastoreTestOptions{
 		UniqueTestName: "activity_mysql_" + t.Name(),
 	})
 
 	// Load schema
 	_, thisFile, _, _ := runtime.Caller(0)
 	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
-	testing_utils.LoadSchema(t, testName, opts, schemaPath)
+	mysql_testing_utils.LoadSchema(t, testName, opts, schemaPath)
 
 	// Create DB connection
-	config := testing_utils.MysqlTestConfig(testName)
+	config := mysql_testing_utils.MysqlTestConfig(testName)
 	db, err := common_mysql.NewDB(config, &common_mysql.DBOptions{}, "")
 	require.NoError(t, err)
 
@@ -279,12 +280,14 @@ func setupTestDatastore(t *testing.T) *Datastore {
 		db.Close()
 	})
 
-	return NewDatastore(db, db)
+	logger := log.NewLogfmtLogger(&testutils.TestLogWriter{T: t})
+	conns := &common_mysql.DBConnections{Primary: db, Replica: db}
+	return NewDatastore(conns, logger)
 }
 
 func truncateTables(t *testing.T, ds *Datastore) {
 	t.Helper()
-	testing_utils.TruncateTables(t, ds.primary, log.NewNopLogger(), nil, "activities", "users")
+	mysql_testing_utils.TruncateTables(t, ds.primary, log.NewNopLogger(), nil, "activities", "users")
 }
 
 func insertTestUser(t *testing.T, ds *Datastore, name, email string) uint {

@@ -5,12 +5,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -18,11 +21,12 @@ import (
 type Datastore struct {
 	primary *sqlx.DB
 	replica *sqlx.DB
+	logger  kitlog.Logger
 }
 
 // NewDatastore creates a new MySQL datastore for activities.
-func NewDatastore(primary, replica *sqlx.DB) *Datastore {
-	return &Datastore{primary: primary, replica: replica}
+func NewDatastore(conns *platform_mysql.DBConnections, logger kitlog.Logger) *Datastore {
+	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 
 func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {
@@ -146,7 +150,7 @@ func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api
 	var details []activityDetails
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &details, detailsStmt, detailsArgs...)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return ctxerr.Wrap(ctx, err, "select activity details")
 	}
 
@@ -156,9 +160,12 @@ func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api
 	}
 
 	for _, a := range activities {
-		if det, ok := detailsLookup[a.ID]; ok {
-			a.Details = det
+		det, ok := detailsLookup[a.ID]
+		if !ok {
+			level.Warn(ds.logger).Log("msg", "Activity details not found", "activity_id", a.ID)
+			continue
 		}
+		a.Details = det
 	}
 
 	return nil

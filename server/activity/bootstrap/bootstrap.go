@@ -36,7 +36,7 @@ func New(
 	logger kitlog.Logger,
 ) (api.Service, func(authMiddleware AuthMiddleware) eu.HandlerRoutesFunc) {
 	// Create the datastore
-	ds := mysql.NewDatastore(dbConns.Primary, dbConns.Replica)
+	ds := mysql.NewDatastore(dbConns, logger)
 
 	// Create the service (implements api.Service)
 	svc := service.NewService(authorizer, ds, userProvider, logger)
