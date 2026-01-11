@@ -1,3 +1,9 @@
+## Fleet 4.78.2 (Jan 10, 2026)
+
+### Bug fixes
+
+- Added additional validation to URL parameter for MS MDM auth endpoint
+
 ## Fleet 4.78.1 (Jan 05, 2026)
 
 ### Bug fixes
