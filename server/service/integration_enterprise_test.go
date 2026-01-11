@@ -135,6 +135,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		SoftwareInstallStore:            softwareInstallStore,
 		SoftwareTitleIconStore:          softwareTitleIconStore,
 		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
+		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		config.Logger = kitlog.NewNopLogger()

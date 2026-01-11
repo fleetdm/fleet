@@ -409,13 +409,29 @@ func CreateMySQLDS(t testing.TB) *Datastore {
 }
 
 func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
+	ds, _ := CreateNamedMySQLDSWithConns(t, name)
+	return ds
+}
+
+// CreateNamedMySQLDSWithConns creates a MySQL datastore and returns both the datastore
+// and the underlying database connections. This matches the production flow where
+// DBConnections are created first and shared across datastores.
+func CreateNamedMySQLDSWithConns(t *testing.T, name string) (*Datastore, *common_mysql.DBConnections) {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
 
 	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
-	return ds
+
+	replica, ok := ds.replica.(*sqlx.DB)
+	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
+	dbConns := &common_mysql.DBConnections{
+		Primary: ds.primary,
+		Replica: replica,
+	}
+
+	return ds, dbConns
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
@@ -426,15 +442,6 @@ func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error
 
 func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) error {
 	return fn(ds.primary)
-}
-
-// DBConnectionsForTest returns the database connections for use in tests.
-// This allows tests to bootstrap bounded contexts that need direct DB access.
-func DBConnectionsForTest(ds *Datastore) *common_mysql.DBConnections {
-	return &common_mysql.DBConnections{
-		Primary: ds.primary,
-		Replica: ds.primary, // Use same connection for replica in tests
-	}
 }
 
 // EncryptWithPrivateKey encrypts data with the server private key associated

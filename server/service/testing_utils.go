@@ -31,7 +31,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
@@ -51,6 +50,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
@@ -421,6 +421,7 @@ type TestServerOpts struct {
 	androidMockClient               *android_mock.Client
 	androidModule                   android.Service
 	ConditionalAccess               *ConditionalAccess
+	DBConns                         *common_mysql.DBConnections
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -457,19 +458,14 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
 	}
 
-	// Add activity routes
-	if mysqlDS, ok := ds.(*mysql.Datastore); ok {
-		if len(opts) == 0 {
-			opts = []*TestServerOpts{{}}
-		}
-		dbConns := mysql.DBConnectionsForTest(mysqlDS)
-
+	// Add activity routes if DBConns is provided
+	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		activityAuthorizer := &testAuthorizerAdapter{authorizer: legacyAuthorizer}
 		activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
 		_, activityRoutesFn := activity_bootstrap.New(
-			dbConns,
+			opts[0].DBConns,
 			activityAuthorizer,
 			activityUserProvider,
 			logger,
