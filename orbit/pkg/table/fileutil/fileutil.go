@@ -21,6 +21,7 @@ import (
 
 const (
 	colPath    = "path"
+	colBinPath = "executable_path"
 	colBinHash = "binary_sha256"
 )
 
@@ -28,6 +29,7 @@ const (
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.TextColumn(colPath),
+		table.TextColumn(colBinPath),
 		table.TextColumn(colBinHash),
 	}
 }
@@ -65,6 +67,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	for _, res := range processed {
 		results = append(results, map[string]string{
 			colPath:    res.Path,
+			colBinPath: res.ExecutablePath,
 			colBinHash: res.BinSha256,
 		})
 	}
@@ -73,8 +76,9 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 }
 
 type fileInfo struct {
-	Path      string
-	BinSha256 string
+	Path           string
+	ExecutablePath string
+	BinSha256      string
 }
 
 func processFile(path string, wildcard bool) ([]fileInfo, error) {
@@ -83,19 +87,19 @@ func processFile(path string, wildcard bool) ([]fileInfo, error) {
 	if wildcard {
 		replacedPath := strings.ReplaceAll(path, "%", "*")
 
-		files, err := filepath.Glob(replacedPath)
+		resolvedPaths, err := filepath.Glob(replacedPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve filepaths for incoming path: %w", err)
 		}
-		for _, f := range files {
-			binPath := getExecutablePath(context.Background(), f)
+		for _, p := range resolvedPaths {
+			binPath := getExecutablePath(context.Background(), p)
 
 			hash, err := computeFileSHA256(binPath)
 			if err != nil {
 				return nil, fmt.Errorf("computing bin sha256 from wildcard path: %w", err)
 			}
 
-			output = append(output, fileInfo{Path: binPath, BinSha256: hash})
+			output = append(output, fileInfo{Path: p, ExecutablePath: binPath, BinSha256: hash})
 		}
 	} else {
 		binPath := getExecutablePath(context.Background(), path)
@@ -104,7 +108,7 @@ func processFile(path string, wildcard bool) ([]fileInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("computing bin sha256 from specific path: %w", err)
 		}
-		output = append(output, fileInfo{Path: path, BinSha256: hash})
+		output = append(output, fileInfo{Path: path, ExecutablePath: binPath, BinSha256: hash})
 	}
 	return output, nil
 }

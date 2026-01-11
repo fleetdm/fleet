@@ -19,6 +19,7 @@ func TestGenerateWithExactPath(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	path := filepath.Join(dir, "example.bin")
+	binPath := path
 	content := []byte("test file content for hashing")
 	require.NoError(t, os.WriteFile(path, content, 0o600))
 
@@ -39,6 +40,7 @@ func TestGenerateWithExactPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, path, rows[0][colPath])
+	require.Equal(t, binPath, rows[0][colBinPath])
 	require.Equal(t, expectedHash, rows[0][colBinHash])
 }
 
@@ -52,7 +54,7 @@ func TestGenerateWithWildcard(t *testing.T) {
 		"baz.bin": []byte("content of baz"),
 	}
 
-	expectedHashes := make(map[string]string)
+	expectedHashByBundlePath := make(map[string]string)
 
 	for filename, content := range testFiles {
 		path := filepath.Join(dir, filename)
@@ -60,7 +62,7 @@ func TestGenerateWithWildcard(t *testing.T) {
 
 		h := sha256.New()
 		h.Write(content)
-		expectedHashes[path] = hex.EncodeToString(h.Sum(nil))
+		expectedHashByBundlePath[path] = hex.EncodeToString(h.Sum(nil))
 	}
 
 	rows, err := Generate(context.Background(), table.QueryContext{
@@ -76,13 +78,20 @@ func TestGenerateWithWildcard(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, len(testFiles))
 
-	got := make(map[string]string, len(rows))
+	got := make(map[string]fileInfo, len(rows))
 	for _, row := range rows {
-		got[row[colPath]] = row[colBinHash]
+		got[row[colPath]] = fileInfo{
+			Path:           row[colPath],
+			ExecutablePath: row[colBinPath],
+			BinSha256:      row[colBinHash],
+		}
 	}
 
-	for path, expectedHash := range expectedHashes {
+	for path, expectedHash := range expectedHashByBundlePath {
 		require.Contains(t, got, path)
-		require.Equal(t, expectedHash, got[path])
+		info := got[path]
+		require.Equal(t, path, info.Path)
+		require.Equal(t, path, info.ExecutablePath)
+		require.Equal(t, expectedHash, info.BinSha256)
 	}
 }
