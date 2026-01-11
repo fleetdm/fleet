@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+// OrderDirection represents the sort direction for list queries.
+type OrderDirection string
+
+const (
+	OrderAsc  OrderDirection = "asc"
+	OrderDesc OrderDirection = "desc"
+)
+
 type ListActivitiesService interface {
 	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 }
@@ -36,8 +44,8 @@ type ListOptions struct {
 	After   string // Cursor-based pagination: start after this value (used with OrderKey)
 
 	// Sorting
-	OrderKey       string // Field to order by (e.g., "created_at", "id")
-	OrderDirection string // "asc" or "desc"
+	OrderKey       string         // Field to order by (e.g., "created_at", "id")
+	OrderDirection OrderDirection // OrderAsc or OrderDesc
 
 	// Filters
 	ActivityType   string // Filter by activity type

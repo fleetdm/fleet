@@ -91,7 +91,7 @@ func testHandlerListActivitiesBasic(t *testing.T) {
 
 	// Verify defaults were applied
 	assert.Equal(t, "created_at", mockSvc.lastOpt.OrderKey)
-	assert.Equal(t, "desc", mockSvc.lastOpt.OrderDirection)
+	assert.Equal(t, api.OrderDesc, mockSvc.lastOpt.OrderDirection)
 }
 
 func testHandlerListActivitiesQueryParams(t *testing.T) {
@@ -119,7 +119,7 @@ func testHandlerListActivitiesQueryParams(t *testing.T) {
 	assert.Equal(t, uint(2), mockSvc.lastOpt.Page)
 	assert.Equal(t, uint(25), mockSvc.lastOpt.PerPage)
 	assert.Equal(t, "id", mockSvc.lastOpt.OrderKey)
-	assert.Equal(t, "asc", mockSvc.lastOpt.OrderDirection)
+	assert.Equal(t, api.OrderAsc, mockSvc.lastOpt.OrderDirection)
 }
 
 func testHandlerListActivitiesServiceError(t *testing.T) {

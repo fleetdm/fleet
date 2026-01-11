@@ -95,12 +95,12 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 		return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "order_key must be specified with order_direction"})
 	}
 
-	var orderDirection string
+	var orderDirection api.OrderDirection
 	switch orderDirectionString {
 	case "desc":
-		orderDirection = "desc"
+		orderDirection = api.OrderDesc
 	case "asc", "":
-		orderDirection = "asc"
+		orderDirection = api.OrderAsc
 	default:
 		return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "unknown order_direction: " + orderDirectionString})
 	}
@@ -154,7 +154,7 @@ func fillListOptions(opt *api.ListOptions) {
 	// Default ordering by created_at descending (newest first) if not specified
 	if opt.OrderKey == "" {
 		opt.OrderKey = "created_at"
-		opt.OrderDirection = "desc"
+		opt.OrderDirection = api.OrderDesc
 	}
 	// Default PerPage if not specified (matches legacy behavior)
 	if opt.PerPage == 0 {
