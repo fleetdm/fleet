@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -96,8 +96,8 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 		}
 	}
 
-	// Apply pagination using common_mysql
-	activitiesQ, args = common_mysql.AppendListOptionsWithParams(activitiesQ, args, &listOptsAdapter{opt: opt})
+	// Apply pagination using platform_mysql
+	activitiesQ, args = platform_mysql.AppendListOptionsWithParams(activitiesQ, args, &listOptsAdapter{opt: opt})
 
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
 	if err != nil {
@@ -164,7 +164,7 @@ func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api
 	return nil
 }
 
-// listOptsAdapter adapts types.ListOptions to common_mysql.ListOptions interface.
+// listOptsAdapter adapts types.ListOptions to platform_mysql.ListOptions interface.
 type listOptsAdapter struct {
 	opt types.ListOptions
 }

@@ -73,15 +73,11 @@ func (a *LegacyServiceAdapter) SearchUsers(ctx context.Context, query string) ([
 }
 
 func convertUser(u *fleet.User) *activity.User {
-	gravatar := ""
-	if u.GravatarURL != "" {
-		gravatar = u.GravatarURL
-	}
 	return &activity.User{
 		ID:       u.ID,
 		Name:     u.Name,
 		Email:    u.Email,
-		Gravatar: gravatar,
+		Gravatar: u.GravatarURL,
 		APIOnly:  u.APIOnly,
 	}
 }

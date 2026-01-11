@@ -3,6 +3,8 @@ package service
 
 import (
 	"context"
+	"maps"
+	"slices"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
@@ -91,11 +93,7 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 	}
 
 	// Fetch users via ACL (calls legacy service)
-	ids := make([]uint, 0, len(lookup))
-	for id := range lookup {
-		ids = append(ids, id)
-	}
-	users, err := s.users.ListUsers(ctx, ids)
+	users, err := s.users.ListUsers(ctx, slices.Collect(maps.Keys(lookup)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list users for activity enrichment")
 	}
@@ -106,17 +104,11 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 		if !ok {
 			continue
 		}
-
-		email := user.Email
-		gravatar := user.Gravatar
-		name := user.Name
-		apiOnly := user.APIOnly
-
 		for _, idx := range entries {
-			activities[idx].ActorEmail = &email
-			activities[idx].ActorGravatar = &gravatar
-			activities[idx].ActorFullName = &name
-			activities[idx].ActorAPIOnly = &apiOnly
+			activities[idx].ActorEmail = &user.Email
+			activities[idx].ActorGravatar = &user.Gravatar
+			activities[idx].ActorFullName = &user.Name
+			activities[idx].ActorAPIOnly = &user.APIOnly
 		}
 	}
 

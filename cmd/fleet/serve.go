@@ -1665,6 +1665,7 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 	activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
+	// Note: the first return value below (_) will be used in legacy Service layer in next PR
 	_, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,
