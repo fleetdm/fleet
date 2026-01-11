@@ -17,6 +17,7 @@ import (
 )
 
 func TestListActivitiesValidation(t *testing.T) {
+	t.Parallel()
 	// These tests verify decoder validation logic that returns 400 Bad Request.
 	// Happy path and business logic are covered by integration tests.
 

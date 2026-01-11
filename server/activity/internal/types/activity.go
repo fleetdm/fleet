@@ -11,7 +11,7 @@ import (
 type ListOptions struct {
 	api.ListOptions
 
-	// Internal fields - set programmatically by service, not from query params
+	// Internal fields: set programmatically by service, not from query params
 	IncludeMetadata bool
 	MatchingUserIDs []uint // User IDs matching MatchQuery (populated by service via ACL)
 }

@@ -16,6 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Test fixtures
+var (
+	johnUser = &activity.User{ID: 100, Name: "John Doe", Email: "john@example.com", Gravatar: "gravatar1", APIOnly: false}
+	janeUser = &activity.User{ID: 200, Name: "Jane Smith", Email: "jane@example.com", Gravatar: "gravatar2", APIOnly: true}
+)
+
 // Mock implementations
 
 type mockAuthorizer struct {
@@ -57,61 +63,77 @@ func (m *mockUserProvider) SearchUsers(ctx context.Context, query string) ([]uin
 	return m.searchUserIDs, m.searchErr
 }
 
-func TestListActivities(t *testing.T) {
-	cases := []struct {
-		name string
-		fn   func(t *testing.T)
-	}{
-		{"AuthorizationDenied", testListActivitiesAuthorizationDenied},
-		{"Basic", testListActivitiesBasic},
-		{"WithUserEnrichment", testListActivitiesWithUserEnrichment},
-		{"WithMatchQuery", testListActivitiesWithMatchQuery},
-		{"DatastoreError", testListActivitiesDatastoreError},
-		{"UserEnrichmentError", testListActivitiesUserEnrichmentError},
-		{"SearchUsersError", testListActivitiesSearchUsersError},
-	}
-	for _, c := range cases {
-		t.Run(c.name, c.fn)
-	}
+// testSetup holds test dependencies with pre-configured mocks
+type testSetup struct {
+	svc   *Service
+	authz *mockAuthorizer
+	ds    *mockDatastore
+	users *mockUserProvider
 }
 
-func testListActivitiesAuthorizationDenied(t *testing.T) {
-	ctx := t.Context()
-
-	svc := NewService(
-		&mockAuthorizer{authErr: errors.New("forbidden")},
-		&mockDatastore{},
-		&mockUserProvider{},
-		log.NewNopLogger(),
-	)
-
-	activities, meta, err := svc.ListActivities(ctx, api.ListOptions{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "forbidden")
-	assert.Nil(t, activities)
-	assert.Nil(t, meta)
+// setupTest creates a service with default working mocks.
+// Use functional options to customize mock behavior.
+func setupTest(opts ...func(*testSetup)) *testSetup {
+	ts := &testSetup{
+		authz: &mockAuthorizer{},
+		ds:    &mockDatastore{},
+		users: &mockUserProvider{},
+	}
+	for _, opt := range opts {
+		opt(ts)
+	}
+	ts.svc = NewService(ts.authz, ts.ds, ts.users, log.NewNopLogger())
+	return ts
 }
 
-func testListActivitiesBasic(t *testing.T) {
-	ctx := t.Context()
+// Setup options
 
+func withAuthError(err error) func(*testSetup) {
+	return func(ts *testSetup) { ts.authz.authErr = err }
+}
+
+func withActivities(activities []*api.Activity) func(*testSetup) {
+	return func(ts *testSetup) { ts.ds.activities = activities }
+}
+
+func withMeta(meta *api.PaginationMetadata) func(*testSetup) {
+	return func(ts *testSetup) { ts.ds.meta = meta }
+}
+
+func withDatastoreError(err error) func(*testSetup) {
+	return func(ts *testSetup) { ts.ds.err = err }
+}
+
+func withUsers(users []*activity.User) func(*testSetup) {
+	return func(ts *testSetup) { ts.users.users = users }
+}
+
+func withListUsersError(err error) func(*testSetup) {
+	return func(ts *testSetup) { ts.users.listUsersErr = err }
+}
+
+func withSearchUserIDs(ids []uint) func(*testSetup) {
+	return func(ts *testSetup) { ts.users.searchUserIDs = ids }
+}
+
+func withSearchError(err error) func(*testSetup) {
+	return func(ts *testSetup) { ts.users.searchErr = err }
+}
+
+func TestListActivitiesBasic(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
 	details := json.RawMessage(`{"key": "value"}`)
-	mockDS := &mockDatastore{
-		activities: []*api.Activity{
+
+	ts := setupTest(
+		withActivities([]*api.Activity{
 			{ID: 1, Type: "test_activity", Details: &details},
 			{ID: 2, Type: "another_activity"},
-		},
-		meta: &api.PaginationMetadata{HasNextResults: true},
-	}
-
-	svc := NewService(
-		&mockAuthorizer{},
-		mockDS,
-		&mockUserProvider{},
-		log.NewNopLogger(),
+		}),
+		withMeta(&api.PaginationMetadata{HasNextResults: true}),
 	)
 
-	activities, meta, err := svc.ListActivities(ctx, api.ListOptions{
+	activities, meta, err := ts.svc.ListActivities(ctx, api.ListOptions{
 		PerPage: 10,
 		Page:    0,
 	})
@@ -121,56 +143,41 @@ func testListActivitiesBasic(t *testing.T) {
 	assert.True(t, meta.HasNextResults)
 
 	// Verify options were passed correctly
-	assert.Equal(t, uint(10), mockDS.lastOpt.PerPage)
-	assert.Equal(t, uint(0), mockDS.lastOpt.Page)
+	assert.Equal(t, uint(10), ts.ds.lastOpt.PerPage)
+	assert.Equal(t, uint(0), ts.ds.lastOpt.Page)
 }
 
-func testListActivitiesWithUserEnrichment(t *testing.T) {
+func TestListActivitiesWithUserEnrichment(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 
-	userIDOne := uint(100)
-	userIDTwo := uint(200)
-
-	mockDS := &mockDatastore{
-		activities: []*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: &userIDOne},
-			{ID: 2, Type: "another_activity", ActorID: &userIDTwo},
+	ts := setupTest(
+		withActivities([]*api.Activity{
+			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(johnUser.ID)},
+			{ID: 2, Type: "another_activity", ActorID: ptr.Uint(janeUser.ID)},
 			{ID: 3, Type: "system_activity"}, // No actor
-		},
-	}
-
-	mockUsers := &mockUserProvider{
-		users: []*activity.User{
-			{ID: 100, Name: "John Doe", Email: "john@example.com", Gravatar: "gravatar1", APIOnly: false},
-			{ID: 200, Name: "Jane Smith", Email: "jane@example.com", Gravatar: "gravatar2", APIOnly: true},
-		},
-	}
-
-	svc := NewService(
-		&mockAuthorizer{},
-		mockDS,
-		mockUsers,
-		log.NewNopLogger(),
+		}),
+		withUsers([]*activity.User{johnUser, janeUser}),
 	)
 
-	activities, _, err := svc.ListActivities(ctx, api.ListOptions{})
+	activities, _, err := ts.svc.ListActivities(ctx, api.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 
 	// Verify user IDs were passed to ListUsers
-	assert.ElementsMatch(t, []uint{100, 200}, mockUsers.lastIDs)
+	assert.ElementsMatch(t, []uint{johnUser.ID, janeUser.ID}, ts.users.lastIDs)
 
-	// Verify activity 1 was enriched with user 100's data
-	assert.Equal(t, "john@example.com", *activities[0].ActorEmail)
-	assert.Equal(t, "gravatar1", *activities[0].ActorGravatar)
-	assert.Equal(t, "John Doe", *activities[0].ActorFullName)
-	assert.Equal(t, false, *activities[0].ActorAPIOnly)
+	// Verify activity 1 was enriched with John's data
+	assert.Equal(t, johnUser.Email, *activities[0].ActorEmail)
+	assert.Equal(t, johnUser.Gravatar, *activities[0].ActorGravatar)
+	assert.Equal(t, johnUser.Name, *activities[0].ActorFullName)
+	assert.Equal(t, johnUser.APIOnly, *activities[0].ActorAPIOnly)
 
-	// Verify activity 2 was enriched with user 200's data
-	assert.Equal(t, "jane@example.com", *activities[1].ActorEmail)
-	assert.Equal(t, "gravatar2", *activities[1].ActorGravatar)
-	assert.Equal(t, "Jane Smith", *activities[1].ActorFullName)
-	assert.Equal(t, true, *activities[1].ActorAPIOnly)
+	// Verify activity 2 was enriched with Jane's data
+	assert.Equal(t, janeUser.Email, *activities[1].ActorEmail)
+	assert.Equal(t, janeUser.Gravatar, *activities[1].ActorGravatar)
+	assert.Equal(t, janeUser.Name, *activities[1].ActorFullName)
+	assert.Equal(t, janeUser.APIOnly, *activities[1].ActorAPIOnly)
 
 	// Verify activity 3 has no user enrichment (no actor)
 	assert.Nil(t, activities[2].ActorEmail)
@@ -179,120 +186,201 @@ func testListActivitiesWithUserEnrichment(t *testing.T) {
 	assert.Nil(t, activities[2].ActorAPIOnly)
 }
 
-func testListActivitiesWithMatchQuery(t *testing.T) {
+// TestListActivitiesWithMatchQuery verifies that user search queries are properly
+// translated into user ID filters for the datastore.
+//
+// When user searches for "john", the service:
+// 1. Calls SearchUsers("john") which returns matching user IDs (100, 200, 300)
+// 2. Passes ALL matching user IDs to the datastore query
+// 3. Datastore filters activities to those by any of the matching users
+//
+// Note: The search may return users who have no activities;
+// the datastore simply won't find any activities for those user IDs.
+func TestListActivitiesWithMatchQuery(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 
-	mockDS := &mockDatastore{
-		activities: []*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(100)},
-		},
-	}
-
-	mockUsers := &mockUserProvider{
-		searchUserIDs: []uint{100, 200, 300},
-		users: []*activity.User{
-			{ID: 100, Name: "John", Email: "john@example.com"},
-		},
-	}
-
-	svc := NewService(
-		&mockAuthorizer{},
-		mockDS,
-		mockUsers,
-		log.NewNopLogger(),
+	ts := setupTest(
+		withActivities([]*api.Activity{
+			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(johnUser.ID)},
+		}),
+		withSearchUserIDs([]uint{100, 200, 300}), // 3 users match "john", but only user 100 has activities
+		withUsers([]*activity.User{johnUser}),
 	)
 
-	_, _, err := svc.ListActivities(ctx, api.ListOptions{
+	_, _, err := ts.svc.ListActivities(ctx, api.ListOptions{
 		MatchQuery: "john",
 	})
 	require.NoError(t, err)
 
 	// Verify SearchUsers was called with the query
-	assert.Equal(t, "john", mockUsers.lastQuery)
+	assert.Equal(t, "john", ts.users.lastQuery)
 
-	// Verify MatchingUserIDs were set on the options passed to datastore
-	assert.ElementsMatch(t, []uint{100, 200, 300}, mockDS.lastOpt.MatchingUserIDs)
+	// Verify all matching user IDs were passed to datastore (even those without activities)
+	assert.ElementsMatch(t, []uint{100, 200, 300}, ts.ds.lastOpt.MatchingUserIDs)
 }
 
-func testListActivitiesDatastoreError(t *testing.T) {
+// TestListActivitiesWithMatchQueryNoMatchingUsers verifies behavior when the user
+// search returns no matching users. The empty user ID list should still be passed
+// to the datastore, which will then return no activities (since no users matched).
+func TestListActivitiesWithMatchQueryNoMatchingUsers(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 
-	mockDS := &mockDatastore{
-		err: errors.New("database error"),
-	}
-
-	svc := NewService(
-		&mockAuthorizer{},
-		mockDS,
-		&mockUserProvider{},
-		log.NewNopLogger(),
+	ts := setupTest(
+		withActivities([]*api.Activity{}), // Datastore returns nothing when filtering by empty user list
+		withSearchUserIDs([]uint{}),       // No users match "nonexistent"
 	)
 
-	activities, meta, err := svc.ListActivities(ctx, api.ListOptions{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "database error")
-	assert.Nil(t, activities)
-	assert.Nil(t, meta)
-}
-
-func testListActivitiesUserEnrichmentError(t *testing.T) {
-	ctx := t.Context()
-
-	userID := uint(100)
-	mockDS := &mockDatastore{
-		activities: []*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: &userID},
-		},
-	}
-
-	mockUsers := &mockUserProvider{
-		listUsersErr: errors.New("user service error"),
-	}
-
-	svc := NewService(
-		&mockAuthorizer{},
-		mockDS,
-		mockUsers,
-		log.NewNopLogger(),
-	)
-
-	// User enrichment errors are logged but don't fail the request
-	activities, _, err := svc.ListActivities(ctx, api.ListOptions{})
-	require.NoError(t, err)
-	assert.Len(t, activities, 1)
-
-	// User data not enriched due to error
-	assert.Nil(t, activities[0].ActorEmail)
-	assert.Nil(t, activities[0].ActorGravatar)
-}
-
-func testListActivitiesSearchUsersError(t *testing.T) {
-	ctx := t.Context()
-
-	mockDS := &mockDatastore{
-		activities: []*api.Activity{
-			{ID: 1, Type: "test_activity"},
-		},
-	}
-
-	mockUsers := &mockUserProvider{
-		searchErr: errors.New("search error"),
-	}
-
-	svc := NewService(
-		&mockAuthorizer{},
-		mockDS,
-		mockUsers,
-		log.NewNopLogger(),
-	)
-
-	// Search errors are logged but don't fail the request
-	activities, _, err := svc.ListActivities(ctx, api.ListOptions{
-		MatchQuery: "john",
+	activities, _, err := ts.svc.ListActivities(ctx, api.ListOptions{
+		MatchQuery: "nonexistent",
 	})
 	require.NoError(t, err)
-	assert.Len(t, activities, 1)
+	assert.Empty(t, activities)
 
-	// MatchingUserIDs should be nil (search failed)
-	assert.Nil(t, mockDS.lastOpt.MatchingUserIDs)
+	// Verify SearchUsers was called
+	assert.Equal(t, "nonexistent", ts.users.lastQuery)
+
+	// Empty slice should be passed to datastore (not nil)
+	assert.NotNil(t, ts.ds.lastOpt.MatchingUserIDs)
+	assert.Empty(t, ts.ds.lastOpt.MatchingUserIDs)
+}
+
+func TestListActivitiesWithDuplicateUserIDs(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	// Multiple activities by the same user
+	ts := setupTest(
+		withActivities([]*api.Activity{
+			{ID: 1, Type: "created_policy", ActorID: ptr.Uint(johnUser.ID)},
+			{ID: 2, Type: "deleted_policy", ActorID: ptr.Uint(johnUser.ID)},
+			{ID: 3, Type: "edited_policy", ActorID: ptr.Uint(johnUser.ID)},
+		}),
+		withUsers([]*activity.User{johnUser}),
+	)
+
+	activities, _, err := ts.svc.ListActivities(ctx, api.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, activities, 3)
+
+	// ListUsers should only be called with unique IDs (deduplication)
+	assert.Equal(t, []uint{johnUser.ID}, ts.users.lastIDs)
+
+	// All activities should be enriched with John's data
+	for i, a := range activities {
+		require.NotNil(t, a.ActorEmail, "activity %d should have ActorEmail", i)
+		assert.Equal(t, johnUser.Email, *a.ActorEmail)
+		assert.Equal(t, johnUser.Name, *a.ActorFullName)
+	}
+}
+
+func TestListActivitiesCursorPaginationMetadata(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	ts := setupTest(
+		withActivities([]*api.Activity{{ID: 1}}),
+		withMeta(&api.PaginationMetadata{HasNextResults: true}),
+	)
+
+	// Without cursor (After="") - should include metadata
+	_, meta, err := ts.svc.ListActivities(ctx, api.ListOptions{
+		PerPage: 10,
+	})
+	require.NoError(t, err)
+	assert.True(t, ts.ds.lastOpt.IncludeMetadata, "should include metadata when After is empty")
+	assert.NotNil(t, meta)
+
+	// With cursor (After="123") - should not include metadata
+	_, _, err = ts.svc.ListActivities(ctx, api.ListOptions{
+		PerPage: 10,
+		After:   "123",
+	})
+	require.NoError(t, err)
+	assert.False(t, ts.ds.lastOpt.IncludeMetadata, "should not include metadata when After is set")
+}
+
+// TestListActivitiesErrors consolidates all error handling tests.
+// These test graceful degradation: some errors fail the request, others are logged and continue.
+func TestListActivitiesErrors(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name           string
+		opts           []func(*testSetup)
+		listOpts       api.ListOptions
+		wantErr        bool
+		errContains    string
+		wantActivities int
+		checkFunc      func(t *testing.T, ts *testSetup, activities []*api.Activity)
+	}{
+		{
+			name:        "authorization denied",
+			opts:        []func(*testSetup){withAuthError(errors.New("forbidden"))},
+			wantErr:     true,
+			errContains: "forbidden",
+		},
+		{
+			name:        "datastore error",
+			opts:        []func(*testSetup){withDatastoreError(errors.New("database error"))},
+			wantErr:     true,
+			errContains: "database error",
+		},
+		{
+			name: "user enrichment error - graceful degradation",
+			opts: []func(*testSetup){
+				withActivities([]*api.Activity{
+					{ID: 1, Type: "test_activity", ActorID: ptr.Uint(100)},
+				}),
+				withListUsersError(errors.New("user service error")),
+			},
+			wantErr:        false,
+			wantActivities: 1,
+			checkFunc: func(t *testing.T, ts *testSetup, activities []*api.Activity) {
+				// User data not enriched due to error
+				assert.Nil(t, activities[0].ActorEmail)
+				assert.Nil(t, activities[0].ActorGravatar)
+			},
+		},
+		{
+			name: "search users error - graceful degradation",
+			opts: []func(*testSetup){
+				withActivities([]*api.Activity{
+					{ID: 1, Type: "test_activity"},
+				}),
+				withSearchError(errors.New("search error")),
+			},
+			listOpts:       api.ListOptions{MatchQuery: "john"},
+			wantErr:        false,
+			wantActivities: 1,
+			checkFunc: func(t *testing.T, ts *testSetup, activities []*api.Activity) {
+				// MatchingUserIDs should be nil (search failed)
+				assert.Nil(t, ts.ds.lastOpt.MatchingUserIDs)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			ts := setupTest(tc.opts...)
+
+			activities, meta, err := ts.svc.ListActivities(ctx, tc.listOpts)
+
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errContains)
+				assert.Nil(t, activities)
+				assert.Nil(t, meta)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Len(t, activities, tc.wantActivities)
+
+			if tc.checkFunc != nil {
+				tc.checkFunc(t, ts, activities)
+			}
+		})
+	}
 }

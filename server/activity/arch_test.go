@@ -10,7 +10,6 @@ import (
 const m = archtest.ModuleName
 
 // TestActivityRootPackageDependencies ensures the root activity package has NO Fleet dependencies.
-// This package only contains types needed by the ACL layer (User, UserProvider).
 func TestActivityRootPackageDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, m+"/server/activity").
@@ -81,21 +80,19 @@ func TestActivityInternalServiceDependencies(t *testing.T) {
 			m+"/server/activity/api",
 			m+"/server/activity/api/http",
 			m+"/server/activity/internal/types",
-			// Platform/infra packages (allowed)
+			// Platform/infra packages
 			m+"/server/platform/...",
 			m+"/server/contexts/ctxerr",
 			m+"/server/contexts/viewer",
 			m+"/server/contexts/license",
 			m+"/server/contexts/logging",
-			m+"/server/contexts/authz",    // transitive via authzcheck
-			m+"/server/contexts/publicip", // transitive via ratelimit
+			m+"/server/contexts/authz",
+			m+"/server/contexts/publicip",
 		).
 		Check()
 }
 
 // TestActivityBootstrapDependencies ensures bootstrap only depends on what's needed for wiring.
-// Note: endpoint_utils has transitive dependencies on fleet that we must allow.
-// This is acceptable as these are infra/platform packages, not business logic.
 func TestActivityBootstrapDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, m+"/server/activity/bootstrap").
@@ -104,14 +101,14 @@ func TestActivityBootstrapDependencies(t *testing.T) {
 		IgnoreDeps(
 			// Activity packages
 			m+"/server/activity...",
-			// Platform/infra packages (allowed) - including their transitive deps
+			// Platform/infra packages
 			m+"/server/platform/...",
 			m+"/server/contexts/ctxerr",
 			m+"/server/contexts/viewer",
 			m+"/server/contexts/license",
 			m+"/server/contexts/logging",
-			m+"/server/contexts/authz",    // transitive via authzcheck
-			m+"/server/contexts/publicip", // transitive via ratelimit
+			m+"/server/contexts/authz",
+			m+"/server/contexts/publicip",
 		).
 		Check()
 }
