@@ -2228,6 +2228,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Equal(t, "EQHXZ8M8AV", sigInfo0.TeamIdentifier)
 	assert.NotNil(t, sigInfo0.CDHashSHA256)
 	assert.Equal(t, testCdHash, *sigInfo0.CDHashSHA256)
+	assert.NotNil(t, *sigInfo0.BinarySHA256)
 	assert.Equal(t, testBinHash, *sigInfo0.BinarySHA256)
 
 	// Verify second signature information (user-level without team identifier)
