@@ -23,7 +23,7 @@ func Up_20260110184916(tx *sql.Tx) error {
 	CHANGE executable_sha256 cdhash_sha256 CHAR(64) COLLATE utf8mb4_unicode_ci NULL
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to update name of 'host_software_installed_paths' column 'binary_sha256' to `cdhash_sha256`: %w", err)
+		return fmt.Errorf("failed to update name of 'host_software_installed_paths' column 'executable_sha256' to `cdhash_sha256`: %w", err)
 	}
 
 	return nil
