@@ -3,166 +3,123 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
-	api_http "github.com/fleetdm/fleet/v4/server/activity/api/http"
-	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	platform_endpointer "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/go-kit/kit/endpoint"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// mockService is a mock implementation of api.Service for handler tests
-type mockService struct {
-	activities     []*api.Activity
-	meta           *api.PaginationMetadata
-	err            error
-	lastOpt        api.ListOptions
-	listCallsCount int
-}
+func TestListActivitiesValidation(t *testing.T) {
+	// These tests verify decoder validation logic that returns 400 Bad Request.
+	// Happy path and business logic are covered by integration tests.
 
-func (m *mockService) ListActivities(ctx context.Context, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	// Mark authorization as checked (authzcheck middleware requires this)
-	if authzCtx, ok := authz_ctx.FromContext(ctx); ok {
-		authzCtx.SetChecked()
+	cases := []struct {
+		name    string
+		query   string
+		wantErr string
+	}{
+		{
+			name:    "non-integer page",
+			query:   "page=abc",
+			wantErr: "non-int page value",
+		},
+		{
+			name:    "negative page",
+			query:   "page=-1",
+			wantErr: "negative page value",
+		},
+		{
+			name:    "non-integer per_page",
+			query:   "per_page=abc",
+			wantErr: "non-int per_page value",
+		},
+		{
+			name:    "zero per_page",
+			query:   "per_page=0",
+			wantErr: "invalid per_page value",
+		},
+		{
+			name:    "negative per_page",
+			query:   "per_page=-5",
+			wantErr: "invalid per_page value",
+		},
+		{
+			name:    "order_direction without order_key",
+			query:   "order_direction=desc",
+			wantErr: "order_key must be specified with order_direction",
+		},
+		{
+			name:    "invalid order_direction",
+			query:   "order_key=id&order_direction=invalid",
+			wantErr: "unknown order_direction: invalid",
+		},
 	}
 
-	m.listCallsCount++
-	m.lastOpt = opt
-	return m.activities, m.meta, m.err
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := setupTestRouter()
+
+			req := httptest.NewRequest("GET", "/api/v1/fleet/activities?"+tc.query, nil)
+			rr := httptest.NewRecorder()
+
+			r.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+			var response struct {
+				Message string `json:"message"`
+				Errors  []struct {
+					Name   string `json:"name"`
+					Reason string `json:"reason"`
+				} `json:"errors"`
+			}
+			err := json.NewDecoder(rr.Body).Decode(&response)
+			require.NoError(t, err)
+
+			// Check that the error message is in the errors array
+			require.Len(t, response.Errors, 1)
+			assert.Equal(t, "base", response.Errors[0].Name)
+			assert.Equal(t, tc.wantErr, response.Errors[0].Reason)
+		})
+	}
 }
 
-func setupTestRouter(svc api.Service) *mux.Router {
+// errorEncoder wraps platform_endpointer.EncodeError for use in tests.
+func errorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
+	platform_endpointer.EncodeError(ctx, err, w, nil)
+}
+
+func setupTestRouter() *mux.Router {
 	r := mux.NewRouter()
 
-	// Create a pass-through auth middleware for testing
+	// Mock service that should never be called (validation fails before reaching service)
+	mockSvc := &mockService{}
+
+	// Pass-through auth middleware
 	authMiddleware := func(e endpoint.Endpoint) endpoint.Endpoint { return e }
 
-	routesFn := GetRoutes(svc, authMiddleware)
-	routesFn(r, nil)
+	// Server options with proper error encoding
+	opts := []kithttp.ServerOption{
+		kithttp.ServerErrorEncoder(errorEncoder),
+	}
+
+	routesFn := GetRoutes(mockSvc, authMiddleware)
+	routesFn(r, opts)
 
 	return r
 }
 
-func TestHandlerListActivities(t *testing.T) {
-	cases := []struct {
-		name string
-		fn   func(t *testing.T)
-	}{
-		{"Basic", testHandlerListActivitiesBasic},
-		{"QueryParams", testHandlerListActivitiesQueryParams},
-		{"ServiceError", testHandlerListActivitiesServiceError},
-	}
-	for _, c := range cases {
-		t.Run(c.name, c.fn)
-	}
-}
+// mockService implements api.Service for handler tests.
+// For validation tests, this should never be called.
+type mockService struct{}
 
-func testHandlerListActivitiesBasic(t *testing.T) {
-	details := json.RawMessage(`{"key": "value"}`)
-	mockSvc := &mockService{
-		activities: []*api.Activity{
-			{ID: 1, Type: "test_activity", Details: &details},
-			{ID: 2, Type: "another_activity"},
-		},
-		meta: &api.PaginationMetadata{HasNextResults: true},
-	}
-
-	r := setupTestRouter(mockSvc)
-
-	req := httptest.NewRequest("GET", "/api/v1/fleet/activities", nil)
-	rr := httptest.NewRecorder()
-
-	r.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	var response api_http.ListActivitiesResponse
-	err := json.NewDecoder(rr.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Len(t, response.Activities, 2)
-	assert.NotNil(t, response.Meta)
-	assert.True(t, response.Meta.HasNextResults)
-
-	// Verify defaults were applied
-	assert.Equal(t, "created_at", mockSvc.lastOpt.OrderKey)
-	assert.Equal(t, api.OrderDesc, mockSvc.lastOpt.OrderDirection)
-}
-
-func testHandlerListActivitiesQueryParams(t *testing.T) {
-	mockSvc := &mockService{
-		activities: []*api.Activity{},
-		meta:       &api.PaginationMetadata{},
-	}
-
-	r := setupTestRouter(mockSvc)
-
-	req := httptest.NewRequest("GET", "/api/v1/fleet/activities?query=john&activity_type=mdm_enrolled&start_created_at=2024-01-01T00:00:00Z&end_created_at=2024-12-31T23:59:59Z&page=2&per_page=25&order_key=id&order_direction=asc", nil)
-	rr := httptest.NewRecorder()
-
-	r.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	// Verify filter params
-	assert.Equal(t, "john", mockSvc.lastOpt.MatchQuery)
-	assert.Equal(t, "mdm_enrolled", mockSvc.lastOpt.ActivityType)
-	assert.Equal(t, "2024-01-01T00:00:00Z", mockSvc.lastOpt.StartCreatedAt)
-	assert.Equal(t, "2024-12-31T23:59:59Z", mockSvc.lastOpt.EndCreatedAt)
-
-	// Verify pagination params
-	assert.Equal(t, uint(2), mockSvc.lastOpt.Page)
-	assert.Equal(t, uint(25), mockSvc.lastOpt.PerPage)
-	assert.Equal(t, "id", mockSvc.lastOpt.OrderKey)
-	assert.Equal(t, api.OrderAsc, mockSvc.lastOpt.OrderDirection)
-}
-
-func testHandlerListActivitiesServiceError(t *testing.T) {
-	mockSvc := &mockService{
-		err: errors.New("service error"),
-	}
-
-	r := setupTestRouter(mockSvc)
-
-	req := httptest.NewRequest("GET", "/api/v1/fleet/activities", nil)
-	rr := httptest.NewRecorder()
-
-	r.ServeHTTP(rr, req)
-
-	// Generic errors return 500 status with JSON error body
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-
-	var response map[string]any
-	err := json.NewDecoder(rr.Body).Decode(&response)
-	require.NoError(t, err)
-
-	// The response has an "errors" field (from the error encoder)
-	assert.NotNil(t, response["errors"])
-}
-
-func TestHandlerAPIVersions(t *testing.T) {
-	mockSvc := &mockService{
-		activities: []*api.Activity{},
-		meta:       &api.PaginationMetadata{},
-	}
-
-	r := setupTestRouter(mockSvc)
-
-	// Test v1 endpoint
-	req := httptest.NewRequest("GET", "/api/v1/fleet/activities", nil)
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	// Test latest endpoint
-	req = httptest.NewRequest("GET", "/api/latest/fleet/activities", nil)
-	rr = httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+func (m *mockService) ListActivities(_ context.Context, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	panic("mockService.ListActivities should not be called in validation tests")
 }
