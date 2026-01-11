@@ -163,6 +163,6 @@ func getExecutablePath(ctx context.Context, path string) string {
 		return path
 	}
 
-	log.Warn().Err(err).Str("path", path).Msg("path is not a regular file nor a .app bundle")
+	log.Warn().Str("path", path).Msg("path is not a regular file nor a .app bundle")
 	return ""
 }
