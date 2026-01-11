@@ -15,7 +15,12 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/activity/internal/mysql")
 
 // Datastore is the MySQL implementation of the activity datastore.
 type Datastore struct {
@@ -38,7 +43,9 @@ var _ types.Datastore = (*Datastore)(nil)
 
 // ListActivities returns a slice of activities performed across the organization.
 func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	activities := []*api.Activity{}
+	ctx, span := tracer.Start(ctx, "activity.mysql.ListActivities",
+		trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
 
 	activitiesQ := `
 		SELECT
@@ -66,7 +73,6 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 	}
 
 	// MatchQuery: search by user_name/user_email in activity table, plus user IDs from users table search
-	// This matches the legacy behavior in server/datastore/mysql/activities.go ListActivities
 	if opt.MatchQuery != "" {
 		activitiesQ += " AND (a.user_name LIKE ? OR a.user_email LIKE ?"
 		args = append(args, opt.MatchQuery+"%", opt.MatchQuery+"%")
@@ -101,8 +107,9 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 	}
 
 	// Apply pagination using platform_mysql
-	activitiesQ, args = platform_mysql.AppendListOptionsWithParams(activitiesQ, args, &listOptsAdapter{opt: opt})
+	activitiesQ, args = platform_mysql.AppendListOptionsWithParams(activitiesQ, args, &opt)
 
+	var activities []*api.Activity
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
@@ -170,17 +177,3 @@ func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api
 
 	return nil
 }
-
-// listOptsAdapter adapts types.ListOptions to platform_mysql.ListOptions interface.
-type listOptsAdapter struct {
-	opt types.ListOptions
-}
-
-func (a *listOptsAdapter) GetPage() uint                { return a.opt.Page }
-func (a *listOptsAdapter) GetPerPage() uint             { return a.opt.PerPage }
-func (a *listOptsAdapter) GetOrderKey() string          { return a.opt.OrderKey }
-func (a *listOptsAdapter) IsDescending() bool           { return a.opt.OrderDirection == "desc" }
-func (a *listOptsAdapter) GetCursorValue() string       { return a.opt.After }
-func (a *listOptsAdapter) WantsPaginationInfo() bool    { return a.opt.IncludeMetadata }
-func (a *listOptsAdapter) GetSecondaryOrderKey() string { return "" }
-func (a *listOptsAdapter) IsSecondaryDescending() bool  { return false }
