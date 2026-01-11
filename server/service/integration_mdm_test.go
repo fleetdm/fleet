@@ -7549,7 +7549,8 @@ func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
 	// Checking response content
 	resContent := string(resBytes)
 	require.Contains(t, resContent, "inputToken.name = 'wresult'")
-	require.Contains(t, resContent, "form.action = \"ms-app://windows.immersivecontrolpanel\"")
+	// we expect the URL to be escaped
+	require.Contains(t, resContent, `form.action = "ms-app:\/\/windows.immersivecontrolpanel"`)
 	require.Contains(t, resContent, "performPost()")
 
 	// Getting token content
@@ -7569,6 +7570,79 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.NoError(t, err)
 	require.NotEmpty(t, resBytes)
 	require.Contains(t, resContent, "forbidden")
+}
+
+func (s *integrationMDMTestSuite) TestAppruValidationInGetAuthRequest() {
+	t := s.T()
+
+	// Test cases with invalid appru values that should bail due to exiting before auth check
+	invalidAppruCases := []struct {
+		name  string
+		appru string
+	}{
+		{
+			name:  "javascript injection",
+			appru: "%3Bfor%20(var%20key%20in%20localStorage)%7B%20alert(key)%7D%3B%2F%2F",
+		},
+		{
+			name:  "javascript protocol",
+			appru: "javascript:alert(1)",
+		},
+		{
+			name:  "data URI",
+			appru: "data:text/html,<script>alert(1)</script>",
+		},
+		{
+			name:  "empty scheme",
+			appru: "://example.com",
+		},
+		{
+			name:  "plain text",
+			appru: "not-a-url",
+		},
+	}
+
+	for _, tc := range invalidAppruCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
+			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
+
+			resBytes, err := io.ReadAll(resp.Body)
+			resContent := string(resBytes)
+			require.NoError(t, err)
+			require.NotEmpty(t, resBytes)
+			require.Contains(t, resContent, "forbidden")
+
+			resp.Body.Close()
+		})
+	}
+
+	// Also verify valid URLs still work
+	validAppruCases := []struct {
+		name  string
+		appru string
+	}{
+		{
+			name:  "ms-app scheme",
+			appru: "ms-app%3A%2F%2Fwindows.immersivecontrolpanel",
+		},
+		{
+			name:  "https scheme",
+			appru: "https%3A%2F%2Fexample.com%2Fcallback",
+		},
+		{
+			name:  "http scheme",
+			appru: "http%3A%2F%2Flocalhost%2Fcallback",
+		},
+	}
+
+	for _, tc := range validAppruCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
+			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
+			resp.Body.Close()
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) TestValidGetTOC() {
