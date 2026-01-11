@@ -17,6 +17,7 @@ import (
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/open-policy-agent/opa/rego"
 )
 
@@ -131,14 +132,6 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	return nil
 }
 
-// AuthzTyper is the interface that may be implemented to get a `type`
-// property added during marshaling for authorization. Any struct that will be
-// used as a subject or object in authorization should implement this interface.
-type AuthzTyper interface {
-	// AuthzType returns the type as a snake_case string.
-	AuthzType() string
-}
-
 // ExtraAuthzer is the interface to implement extra fields for the policy.
 type ExtraAuthzer interface {
 	// ExtraAuthz returns the extra key/value pairs for the type.
@@ -173,7 +166,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	}
 
 	// Add the `type` property if the AuthzTyper interface is implemented.
-	if typer, ok := in.(AuthzTyper); ok {
+	if typer, ok := in.(platform_authz.AuthzTyper); ok {
 		out["type"] = typer.AuthzType()
 	}
 	// Add any extra key/values defined by the type.
@@ -201,4 +194,20 @@ func UserFromContext(ctx context.Context) *fleet.User {
 		return nil
 	}
 	return vc.User
+}
+
+// AuthorizerAdapter adapts the legacy Authorizer to the platform_authz.Authorizer interface.
+// This provides stronger typing via AuthzTyper (instead of `any`) while reusing the existing OPA-based authorization.
+type AuthorizerAdapter struct {
+	authorizer *Authorizer
+}
+
+// NewAuthorizerAdapter creates an adapter that wraps the legacy Authorizer.
+func NewAuthorizerAdapter(authorizer *Authorizer) *AuthorizerAdapter {
+	return &AuthorizerAdapter{authorizer: authorizer}
+}
+
+// Authorize implements platform_authz.Authorizer.
+func (a *AuthorizerAdapter) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action string) error {
+	return a.authorizer.Authorize(ctx, subject, action)
 }

@@ -48,7 +48,6 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -462,7 +461,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
-		activityAuthorizer := &testAuthorizerAdapter{authorizer: legacyAuthorizer}
+		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 		activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
 		_, activityRoutesFn := activity_bootstrap.New(
 			opts[0].DBConns,
@@ -1366,14 +1365,4 @@ func messageWithEnterpriseSpecificID(t *testing.T, notificationType android.Noti
 		},
 		Data: encodedData,
 	}
-}
-
-// testAuthorizerAdapter adapts the legacy authz.Authorizer to the platform_authz.Authorizer interface for tests.
-// This provides stronger typing via AuthzTyper (instead of `any`) while reusing the existing OPA-based authorization.
-type testAuthorizerAdapter struct {
-	authorizer *authz.Authorizer
-}
-
-func (a *testAuthorizerAdapter) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action string) error {
-	return a.authorizer.Authorize(ctx, subject, action)
 }

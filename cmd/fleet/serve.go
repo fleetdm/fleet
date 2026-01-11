@@ -61,8 +61,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
-	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -1266,23 +1266,7 @@ the way that the Fleet server works.
 			}
 
 			// Bootstrap activity bounded context
-			legacyAuthorizer, err := authz.NewAuthorizer()
-			if err != nil {
-				initFatal(err, "initializing activity authorizer")
-			}
-			activityAuthorizer := &authorizerAdapter{authorizer: legacyAuthorizer}
-			activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
-			_, activityRoutesFn := activity_bootstrap.New(
-				dbConns,
-				activityAuthorizer,
-				activityUserProvider,
-				logger,
-			)
-			// Create auth middleware for activity bounded context
-			activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-				return auth.AuthenticatedUser(svc, next)
-			}
-			activityRoutes := activityRoutesFn(activityAuthMiddleware)
+			activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
 
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
@@ -1674,14 +1658,25 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-// authorizerAdapter adapts the legacy authz.Authorizer to the platform_authz.Authorizer interface.
-// This provides stronger typing via AuthzTyper (instead of `any`) while reusing the existing OPA-based authorization.
-type authorizerAdapter struct {
-	authorizer *authz.Authorizer
-}
-
-func (a *authorizerAdapter) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action string) error {
-	return a.authorizer.Authorize(ctx, subject, action)
+func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) endpointer.HandlerRoutesFunc {
+	legacyAuthorizer, err := authz.NewAuthorizer()
+	if err != nil {
+		initFatal(err, "initializing activity authorizer")
+	}
+	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
+	activityUserProvider := activityacl.NewLegacyServiceAdapter(svc)
+	_, activityRoutesFn := activity_bootstrap.New(
+		dbConns,
+		activityAuthorizer,
+		activityUserProvider,
+		logger,
+	)
+	// Create auth middleware for activity bounded context
+	activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return auth.AuthenticatedUser(svc, next)
+	}
+	activityRoutes := activityRoutesFn(activityAuthMiddleware)
+	return activityRoutes
 }
 
 func printDatabaseNotInitializedError() {
