@@ -47,7 +47,11 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			return alreadyExists("In-house app", payload.Filename)
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+			return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
 		}
 
 		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
@@ -109,7 +113,11 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 	res, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		if IsDuplicate(err) {
-			err = alreadyExists("In-house app", payload.Filename)
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err)
+			}
+			err = alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
@@ -267,7 +275,11 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			if IsDuplicate(err) {
-				return alreadyExists("In-house app", payload.Filename)
+				teamName, err := ds.getTeamName(ctx, payload.TeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err)
+				}
+				return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
 			}
 			return ctxerr.Wrap(ctx, err, "update in house app")
 		}
