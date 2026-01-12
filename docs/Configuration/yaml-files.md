@@ -526,6 +526,7 @@ software:
         - Browsers
       self_service: true
       setup_experience: true
+      patch_policy: false
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "1091189122"
@@ -535,6 +536,7 @@ software:
       categories:
         - Communication
       setup_experience: true
+      patch_policy: false
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
@@ -551,9 +553,10 @@ software:
         - Communication
         - Productivity
       setup_experience: true
+      patch_policy: false
 ```
 
-#### self_service, labels, categories, and setup_experience
+#### self_service, labels, categories, setup_experience, and patch_policy
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_any` targets hosts that have **any** of the specified labels. `labels_exclude_any` targets hosts that have **none** of the specified labels. Only one of these fields can be set. If neither is set, all hosts are targeted.
@@ -565,6 +568,7 @@ software:
   - `Security`: shown as **🔐 Security**
   - `Utilities`: shown as **🛠️ Utilities**
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `patch_policy` specifies if patch policy is enabled (default: `false`). If enabled, the software will automatically be patched by this Fleet maintained policy.
 
 ### packages
 
