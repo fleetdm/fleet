@@ -46,6 +46,7 @@ controls:
   windows_updates:
     deadline_days: 95
     grace_period_days: 92
+labels:
 name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
@@ -86,6 +87,13 @@ software:
     platform: android
     self_service: true
     setup_experience: true
+  - app_store_id: com.example.ios-auto-update
+    auto_update_enabled: true
+    auto_update_end_time: "03:00"
+    auto_update_start_time: "01:00"
+    icon:
+      path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
+    platform: ios
   packages:
   - categories:
     - Browsers

@@ -48,11 +48,12 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Icon:** Upload a square icon that will be displayed as the app icon on the home screen.
 - **Full Screen:** Check this field.
 - **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in the search box, and select **Safari - com.apple.mobilesafari**.
+
 #### Download configuration profile
 
 You can also download the configuration profile (`.mobileconfig`) and change values in code editor. If you want to change the icon, use iMazing Profile Editor and follow the steps above.
 
-Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/Fleet-self-service.mobileconfig).
+Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/configuration-profiles/fleet-self-service.mobileconfig).
 ## IT admin experience
 
 How to view, update, install, or uninstall self-service software:

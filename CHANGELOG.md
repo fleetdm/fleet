@@ -1,3 +1,18 @@
+## Fleet 4.78.2 (Jan 10, 2026)
+
+### Bug fixes
+
+- Added additional validation to URL parameter for MS MDM auth endpoint
+
+## Fleet 4.78.1 (Jan 05, 2026)
+
+### Bug fixes
+
+- Fixed duplicate entry error when updating upgrade_code during software ingestion
+- Fixed case sensitivity mismatches causing duplicate titles during software ingestion
+- Added missing upgrade code persistence when adding Windows software to Fleet via GitOps
+- Fixed a bug where iOS and iPadOS hosts enrolling via ABM MDM Migration would not have VPP apps installed
+
 ## Fleet 4.78.0 (Dec 19, 2025)
 
 ### IT Admins

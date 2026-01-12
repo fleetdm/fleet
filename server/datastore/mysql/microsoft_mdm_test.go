@@ -2144,7 +2144,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
 	// break that profile by deleting the label
-	require.NoError(t, ds.DeleteLabel(ctx, label.Name))
+	require.NoError(t, ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	prof, err = ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
 	require.NoError(t, err)

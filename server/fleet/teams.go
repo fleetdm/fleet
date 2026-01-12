@@ -269,6 +269,10 @@ type TeamSpecAppStoreApp struct {
 	Platform           string                `json:"platform"`
 	DisplayName        string                `json:"display_name,omitempty"`
 	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
+	// Auto-update fields for VPP apps
+	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
+	AutoUpdateEndTime   *string `json:"auto_update_end_time,omitempty"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {
@@ -585,6 +589,14 @@ type TeamFilter struct {
 	// specified, they must met too (e.g. if a User is provided, that team ID
 	// must be part of their teams).
 	TeamID *uint
+}
+
+func (f TeamFilter) UserCanAccessSelectedTeam() bool {
+	if f.TeamID == nil { // this method doesn't make sense if there's no team ID specified
+		return false
+	}
+
+	return f.User.HasAnyGlobalRole() || f.User.HasAnyRoleInTeam(*f.TeamID)
 }
 
 const (

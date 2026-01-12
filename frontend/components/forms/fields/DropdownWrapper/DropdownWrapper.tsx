@@ -42,7 +42,7 @@ const CustomOption = (props: CustomOptionProps) => {
   const { data, ...rest } = props;
 
   const optionContent = (
-    <div className={`${baseClass}__option`}>
+    <div className={`${baseClass}__option`} data-testid="dropdown-option">
       {data.label}
       {data.helpText && (
         <span className={`${baseClass}__help-text`}>{data.helpText}</span>

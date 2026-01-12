@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	middleware_log "github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -104,6 +105,10 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authnMethod)
@@ -151,6 +156,10 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
@@ -193,6 +202,10 @@ func authenticatedOrbitHost(
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnOrbitToken)
@@ -212,7 +225,7 @@ func authenticatedOrbitHost(
 }
 
 func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
-	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
+	if onk, ok := r.(interface{ orbitHostNodeKey() string }); ok {
 		return onk.orbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")

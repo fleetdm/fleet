@@ -726,6 +726,112 @@ FLEET_FIREHOSE_STATUS_STREAM=s3-stream-status
 
 You can inspect logs by visiting `http://localhost:4566/s3-firehose` on your browser.
 
+## Testing NATS logging
+
+1. Install the `nats` CLI:
+
+```sh
+$ go install github.com/nats-io/natscli/nats@latest
+```
+
+2. Install the `nats-server` executable:
+
+```sh
+$ curl -fsSL https://binaries.nats.dev/nats-io/nats-server/v2@latest | sh
+```
+
+3. Open a terminal and run the `nats-server`:
+
+```sh
+$ ./nats-server
+```
+
+4. Run Fleet with the following flags:
+
+```sh
+$ FLEET_ACTIVITY_ENABLE_AUDIT_LOG=true \
+FLEET_ACTIVITY_AUDIT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_RESULT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_STATUS_LOG_PLUGIN=nats \
+FLEET_NATS_SERVER=nats://localhost:4222 \
+FLEET_NATS_STATUS_SUBJECT=osquery_status \
+FLEET_NATS_RESULT_SUBJECT=osquery_result \
+FLEET_NATS_AUDIT_SUBJECT=fleet_audit \
+./build/fleet serve --dev
+```
+
+5. Open another terminal and run the following command to subscribe to all subjects.
+This will print all messages received by the NATS server.
+
+```sh
+$ ./nats --server=nats://localhost:4222 subscribe ">"
+```
+
+### Using NKey authentication
+
+One authentication mechanism allowed by nats is using an [NKey](https://docs.nats.io/running-a-nats-service/configuration/securing_nats/auth_intro/nkey_auth).
+
+
+1. Install `nkey`:
+
+```sh
+$ go install github.com/nats-io/nkeys/nk@latest
+```
+
+2. Generate a `User NKey`:
+
+```sh
+$ nk -gen user -pubout
+```
+
+You should see an output with the following format:
+
+```
+SUxxx
+Uyyy
+```
+
+The first output line starts with the letter `S` for `Seed`. The second letter, `U` stands for `User`. Seeds are private keys; you should treat them as secrets and guard them with care.
+
+The second line starts with the letter U for User and is a public key which can be safely shared.
+
+3. Copy the keys to a txt file, e.g. `nkey-cred-file.txt`.
+
+Create a new NATS server config file, e.g. `nats-server-config.conf`, with this content:
+
+```
+authorization {
+  users = [
+    {
+      nkey: "Uyyy"
+    }
+  ]
+}
+```
+
+4. Run the NATS server providing the config file above:
+
+```sh
+$ ./nats-server -config nats-server-config.conf
+```
+
+You should see a log saying `Using configuration file: nats-server-config.conf`.
+
+5. Start Fleet with the following flags:
+
+```sh
+$ FLEET_ACTIVITY_ENABLE_AUDIT_LOG=true \
+FLEET_ACTIVITY_AUDIT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_RESULT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_STATUS_LOG_PLUGIN=nats \
+FLEET_NATS_SERVER=nats://localhost:4222 \
+FLEET_NATS_STATUS_SUBJECT=osquery_status \
+FLEET_NATS_RESULT_SUBJECT=osquery_result \
+FLEET_NATS_AUDIT_SUBJECT=fleet_audit \
+FLEET_NATS_NKEY_FILE="nkey-cred-file.txt" \
+./build/fleet serve --dev
+```
+
 ## Telemetry
 
 You can configure the server to record and report trace data using OpenTelemetry or Elastic APM and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.

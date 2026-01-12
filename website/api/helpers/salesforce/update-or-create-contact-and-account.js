@@ -39,6 +39,8 @@ module.exports = {
       type: 'string',
       isIn: [
         'Website - Contact forms',
+        'Website - Contact forms - Demo',
+        'Website - Contact forms - Demo - ICP',
         'Website - Sign up',
         'Website - Newsletter',
         'LinkedIn - Comment',

@@ -26,9 +26,9 @@ The Product Design department is responsible for reviewing and collecting feedba
 
 ### Unpacking the why
 
-The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "Inbox" column the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making the request (i.e. what problem are they trying to solve).
+The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "📨 Inbox" column the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making the request (i.e. what problem are they trying to solve).
 
-If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🏹 #g-customer-success](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board) board.
+If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🦄 #g-unicorns](https://github.com/orgs/fleetdm/projects/81) board.
 
 
 ### Unpacking the how
