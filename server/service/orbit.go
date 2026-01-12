@@ -914,21 +914,9 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	result.HostID = host.ID
 
 	// Calculate attempt_number for policy automation retries by counting existing attempts
-	var attemptNumber *int // nil for manual runs, calculated for policy automation
-	// First, check if this script execution already exists and has policy_id
-	// (to know if this is a policy automation)
-	existingResult, err := svc.ds.GetHostScriptExecutionResult(ctx, result.ExecutionID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get existing script result for attempt number calculation")
-	}
-
-	// Only calculate attempt_number for policy automation scripts
-	if existingResult != nil && existingResult.PolicyID != nil && existingResult.ScriptID != nil {
-		count, err := svc.ds.CountHostScriptAttempts(ctx, host.ID, *existingResult.ScriptID, *existingResult.PolicyID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "count previous script attempts")
-		}
-		attemptNumber = &count // count already includes current row since it was created when queued
+	attemptNumber, err := svc.getPolicyAutomationScriptAttemptNumber(ctx, host, result.ExecutionID)
+	if err != nil {
+		return err
 	}
 
 	hsr, action, err := svc.ds.SetHostScriptExecutionResult(ctx, result, attemptNumber)
@@ -1058,8 +1046,23 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	if hsr != nil && hsr.PolicyID != nil && hsr.ScriptID != nil {
 		scriptFailed := hsr.ExitCode == nil || *hsr.ExitCode != 0
 		if scriptFailed {
-			if err := svc.maybeRetryPolicyAutomationScript(ctx, host, hsr); err != nil {
-				return ctxerr.Wrap(ctx, err, "retry policy automation script")
+			shouldRetry, err := svc.shouldRetryPolicyAutomationScript(ctx, host, hsr)
+			if err != nil {
+				level.Error(svc.logger).Log(
+					"msg", "failed to check if policy automation script should retry",
+					"host_id", host.ID,
+					"policy_id", *hsr.PolicyID,
+					"err", err,
+				)
+			} else if shouldRetry {
+				if err := svc.retryPolicyAutomationScript(ctx, host, hsr); err != nil {
+					level.Error(svc.logger).Log(
+						"msg", "failed to queue policy automation script retry",
+						"host_id", host.ID,
+						"policy_id", *hsr.PolicyID,
+						"err", err,
+					)
+				}
 			}
 		}
 	}
@@ -1480,19 +1483,9 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 
 	// Calculate attempt_number for policy automation retries by counting existing attempts
-	var attemptNumber *int // nil for manual/self-service installs, calculated for policy automation
-	currentInstall, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get current install info for attempt number calculation")
-	}
-
-	// Only calculate attempt_number for policy automation installs
-	if currentInstall != nil && currentInstall.PolicyID != nil && currentInstall.SoftwareInstallerID != nil {
-		count, err := svc.ds.CountHostSoftwareInstallAttempts(ctx, host.ID, *currentInstall.SoftwareInstallerID, *currentInstall.PolicyID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "count previous install attempts")
-		}
-		attemptNumber = &count
+	attemptNumber, err := svc.getPolicyAutomationSoftwareInstallerAttemptNumber(ctx, host, result.InstallUUID)
+	if err != nil {
+		return err
 	}
 
 	var fromSetupExperience bool
@@ -1554,13 +1547,23 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 
 			if status == fleet.SoftwareInstallFailed {
-				if err := svc.maybeRetryPolicyAutomationSoftwareInstall(ctx, host, hsi); err != nil {
+				shouldRetry, err := svc.shouldRetryPolicyAutomationSoftwareInstall(ctx, host, hsi)
+				if err != nil {
 					level.Error(svc.logger).Log(
-						"msg", "failed to retry policy automation software install",
+						"msg", "failed to check if policy automation software install should retry",
 						"host_id", host.ID,
 						"policy_id", *hsi.PolicyID,
 						"err", err,
 					)
+				} else if shouldRetry {
+					if err := svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi); err != nil {
+						level.Error(svc.logger).Log(
+							"msg", "failed to queue policy automation software install retry",
+							"host_id", host.ID,
+							"policy_id", *hsi.PolicyID,
+							"err", err,
+						)
+					}
 				}
 
 				// Only create activity on final
@@ -1604,81 +1607,125 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	return nil
 }
 
-// maybeRetryPolicyAutomationSoftwareInstall checks if a failed policy automation software install should be retried
-func (svc *Service) maybeRetryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) error {
+// shouldRetryPolicyAutomationSoftwareInstall checks if a failed policy automation software install should be retried.
+// Returns true if retry should be queued
+func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) (bool, error) {
 	if hsi.AttemptNumber == nil {
 		// should not happen
-		return ctxerr.New(ctx, "attempt_number is nil for policy automation install")
+		return false, ctxerr.New(ctx, "attempt_number is nil for policy automation install")
 	}
 
 	currentAttempt := *hsi.AttemptNumber
 
 	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
-		return nil
+		return false, nil
 	}
 
-	// Check if policy is still failing for this host
-	policyStillFailing, err := svc.ds.IsPolicyFailing(ctx, *hsi.PolicyID, host.ID)
+	// Check if policy is failing for this host
+	policyFailing, err := svc.ds.IsPolicyFailing(ctx, *hsi.PolicyID, host.ID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "check if policy is still failing")
-	}
-	if !policyStillFailing {
-		return nil
+		return false, ctxerr.Wrap(ctx, err, "check if policy is failing")
 	}
 
-	// Queue the retry
+	return policyFailing, nil
+}
+
+// retryPolicyAutomationSoftwareInstall queues a retry for a policy automation software install.
+func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) error {
 	level.Info(svc.logger).Log(
 		"msg", "queuing policy automation software install retry",
 		"host_id", host.ID,
 		"policy_id", *hsi.PolicyID,
 		"software_installer_id", *hsi.SoftwareInstallerID,
-		"current_attempt", currentAttempt,
+		"current_attempt", *hsi.AttemptNumber,
 	)
-	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
 		PolicyID: hsi.PolicyID,
 	})
-
 	return err
 }
 
-// maybeRetryPolicyAutomationScript checks if a failed policy automation script should be retried
-func (svc *Service) maybeRetryPolicyAutomationScript(ctx context.Context, host *fleet.Host, hsr *fleet.HostScriptResult) error {
+// shouldRetryPolicyAutomationScript checks if a failed policy automation script should be retried.
+// Returns true if retry should be queued
+func (svc *Service) shouldRetryPolicyAutomationScript(ctx context.Context, host *fleet.Host, hsr *fleet.HostScriptResult) (bool, error) {
 	if hsr.AttemptNumber == nil {
 		// should not happen
-		return ctxerr.New(ctx, "attempt_number is nil for policy automation script")
+		return false, ctxerr.New(ctx, "attempt_number is nil for policy automation script")
 	}
 
 	currentAttempt := *hsr.AttemptNumber
 
 	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
-		return nil
+		return false, nil
 	}
 
-	// Check if policy is still failing for this host
-	policyStillFailing, err := svc.ds.IsPolicyFailing(ctx, *hsr.PolicyID, host.ID)
+	// Check if policy is failing for this host
+	policyFailing, err := svc.ds.IsPolicyFailing(ctx, *hsr.PolicyID, host.ID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "check if policy is still failing")
-	}
-	if !policyStillFailing {
-		return nil
+		return false, ctxerr.Wrap(ctx, err, "check if policy is failing")
 	}
 
-	// Queue the retry
+	return policyFailing, nil
+}
+
+// retryPolicyAutomationScript queues a retry for a policy automation script.
+func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet.Host, hsr *fleet.HostScriptResult) error {
 	level.Info(svc.logger).Log(
 		"msg", "queuing policy automation script retry",
 		"host_id", host.ID,
 		"policy_id", *hsr.PolicyID,
 		"script_id", *hsr.ScriptID,
-		"current_attempt", currentAttempt,
+		"current_attempt", *hsr.AttemptNumber,
 	)
-	_, err = svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         host.ID,
 		ScriptID:       hsr.ScriptID,
 		PolicyID:       hsr.PolicyID,
 		ScriptContents: hsr.ScriptContents,
 	})
-
 	return err
+}
+
+// getPolicyAutomationScriptAttemptNumber calculates the attempt number for a policy automation script.
+// Returns nil for manual script runs (not triggered by policy automation).
+func (svc *Service) getPolicyAutomationScriptAttemptNumber(ctx context.Context, host *fleet.Host, executionID string) (*int, error) {
+	// First, check if this script execution already exists and has policy_id
+	// (to know if this is a policy automation)
+	existingResult, err := svc.ds.GetHostScriptExecutionResult(ctx, executionID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get existing script result for attempt number calculation")
+	}
+
+	// Only calculate attempt_number for policy automation scripts
+	if existingResult != nil && existingResult.PolicyID != nil && existingResult.ScriptID != nil {
+		count, err := svc.ds.CountHostScriptAttempts(ctx, host.ID, *existingResult.ScriptID, *existingResult.PolicyID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "count previous script attempts")
+		}
+		return &count, nil // count already includes current row since it was created when queued
+	}
+
+	return nil, nil // nil for manual runs
+}
+
+// getPolicyAutomationSoftwareInstallerAttemptNumber calculates the attempt number for a policy automation software install.
+// Returns nil for manual/self-service installs (not triggered by policy automation).
+func (svc *Service) getPolicyAutomationSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, installUUID string) (*int, error) {
+	currentInstall, err := svc.ds.GetSoftwareInstallResults(ctx, installUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get current install info for attempt number calculation")
+	}
+
+	// Only calculate attempt_number for policy automation installs
+	if currentInstall != nil && currentInstall.PolicyID != nil && currentInstall.SoftwareInstallerID != nil {
+		count, err := svc.ds.CountHostSoftwareInstallAttempts(ctx, host.ID, *currentInstall.SoftwareInstallerID, *currentInstall.PolicyID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "count previous install attempts")
+		}
+		return &count, nil
+	}
+
+	return nil, nil // nil for manual/self-service installs
 }
 
 /////////////////////////////////////////////////////////////////////////////////

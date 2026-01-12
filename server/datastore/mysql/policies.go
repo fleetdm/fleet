@@ -29,6 +29,19 @@ const policyCols = `
 	p.vpp_apps_teams_id, p.conditional_access_enabled
 `
 
+const (
+	resetScriptAttemptsStmt = `
+		UPDATE host_script_results
+		SET attempt_number = 0
+		WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
+	`
+	resetInstallAttemptsStmt = `
+		UPDATE host_software_installs
+		SET attempt_number = 0
+		WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
+	`
+)
+
 var (
 	errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
 	errScriptIDOnGlobalPolicy        = errors.New("run script id can only be set on team or \"no team\" policies")
@@ -587,11 +600,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 
 			// Reset attempt_number to 0 only for policies that flipped failing -> passing.
 			if len(newPassing) > 0 {
-				query, args, err := sqlx.In(`
-					UPDATE host_script_results
-					SET attempt_number = 0
-					WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
-				`, host.ID, newPassing)
+				query, args, err := sqlx.In(resetScriptAttemptsStmt, host.ID, newPassing)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "building reset script attempts query")
 				}
@@ -599,11 +608,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 					return ctxerr.Wrap(ctx, err, "reset script attempt numbers")
 				}
 
-				query, args, err = sqlx.In(`
-					UPDATE host_software_installs
-					SET attempt_number = 0
-					WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
-				`, host.ID, newPassing)
+				query, args, err = sqlx.In(resetInstallAttemptsStmt, host.ID, newPassing)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "building reset install attempts query")
 				}
@@ -1458,11 +1463,7 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 
 			// Reset attempt_number to 0 for policies that flipped failing -> passing per host.
 			for hid, newPassing := range newPassingByHost {
-				q1, a1, err := sqlx.In(`
-					UPDATE host_script_results
-					SET attempt_number = 0
-					WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
-				`, hid, newPassing)
+				q1, a1, err := sqlx.In(resetScriptAttemptsStmt, hid, newPassing)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "building reset script attempts query (async)")
 				}
@@ -1470,11 +1471,7 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 					return ctxerr.Wrap(ctx, err, "reset script attempt numbers (async)")
 				}
 
-				q2, a2, err := sqlx.In(`
-					UPDATE host_software_installs
-					SET attempt_number = 0
-					WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
-				`, hid, newPassing)
+				q2, a2, err := sqlx.In(resetInstallAttemptsStmt, hid, newPassing)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "building reset install attempts query (async)")
 				}
