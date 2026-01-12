@@ -16,6 +16,12 @@
       width: 500px;
     }
 
+    &__self-service {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
     &__fleet {
       h1 {
         width: 400px;
