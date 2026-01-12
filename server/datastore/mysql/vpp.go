@@ -595,13 +595,9 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		vppTokenID = &vppToken.ID
 	}
 
-	teamName := fleet.TeamNameNoTeam
-	if teamID != nil && *teamID > 0 {
-		tm, err := ds.TeamLite(ctx, *teamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
-		}
-		teamName = tm.Name
+	teamName, err := ds.getTeamName(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
