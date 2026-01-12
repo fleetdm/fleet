@@ -1,3 +1,10 @@
+## Fleet 4.78.3 (Jan 12, 2026)
+
+### Bug fixes
+
+- Improved SOAP message validation on Windows MDM endpoints
+- Revised auth requirements for /debug endpoints
+
 ## Fleet 4.78.2 (Jan 10, 2026)
 
 ### Bug fixes
