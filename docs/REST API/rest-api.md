@@ -7483,7 +7483,7 @@ None.
 
 ### Get identity provider (IdP) details
 
-Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
+Get details about the most recent SCIM (System for Cross-domain Identity Management) request from your identity provider (IdP).
 
 `GET /api/v1/fleet/scim/details`
 
