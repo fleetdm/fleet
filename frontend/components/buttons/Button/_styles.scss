@@ -19,7 +19,7 @@ $base-class: "button";
   }
 }
 
-@mixin unstyled-button-focus-outline($offset: 0px) {
+@mixin unstyled-button-focus-outline($offset: 1px) {
   outline-color: $core-focused-outline;
   outline-offset: $offset;
   outline-style: solid;
@@ -71,8 +71,7 @@ $base-class: "button";
     &:focus-visible {
       @include button-focus-outline();
     }
-  }
-  @if $unstyled {
+  } @else if $unstyled {
     &:hover:not(.button--disabled) {
       background-color: $hover;
 
@@ -100,7 +99,6 @@ $base-class: "button";
 }
 
 .#{$base-class} {
-  @include button-variant($core-fleet-green);
   @include button-pad-8px-16px;
   transition: color 150ms ease-in-out, background 150ms ease-in-out,
     top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
@@ -466,7 +464,7 @@ $base-class: "button";
   }
 
   &--unstyled {
-    @include button-variant(transparent, null, null, false, true);
+    @include button-variant(transparent, null, null, false, $unstyled: true);
     border: 0;
     box-shadow: none;
     color: $core-fleet-black;
