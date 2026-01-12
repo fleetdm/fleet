@@ -1377,6 +1377,7 @@ None.
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+    "snooze_enabled": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1686,7 +1687,8 @@ Modifies the Fleet's configuration with the supplied information.
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
-    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "snooze_enabled": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -2268,6 +2270,7 @@ _Available in Fleet Premium._
 | okta_assertion_consumer_service_url | string  | The assertion consumer service URL found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
+| snooze_enabled                    | boolean  | Whether to allow end users the option to "snooze" conditional access blocking for a single login attempt. |
 
 When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
 
@@ -2766,6 +2769,8 @@ None.
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live query on host (ad hoc)](#run-live-query-on-host-ad-hoc)
 - [Run live query on host by identifier (ad hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
+- [Snooze host's conditional access](#snooze-hosts-conditional-access)
+
 
 #### About host timestamps
 
@@ -3886,6 +3891,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "display_text": "Annas-MacBook-Pro.local",
     "self_service": true,
     "org_logo_url": "https://example.com/logo.jpg",
+    "conditional_access_snoozed": false,
     "license": {
       "tier": "free",
       "expiration": "2031-01-01T00:00:00Z"
@@ -5356,6 +5362,28 @@ The live query will stop if the targeted host is offline, or if the query times 
 ```
 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
+
+
+## Snooze host's conditional access
+
+Grant a blocked host access for a single login. Requires Okta conditional access configured with `conditional_access.snooze_enabled` configured.
+
+`POST /api/v1/fleet/device/:token/snooze_conditional_access`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
+| ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| token        | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+
+
+#### Example 
+
+`POST /api/v1/fleet/device/abcdef012456789/snooze_conditional_access`
+
+#### Default response 
+
+`Status: 200` 
 
 ---
 
