@@ -122,6 +122,8 @@ Once Okta is configured in settings, head to **Policies**. Select the team that 
 2. Select the policies you want to block login via Okta.
 3. Save.
 
+Once enabled, if a user tries to log in to an app that requires Fleet as a factor and their host is failing a selected policy, they will be blocked from logging in. To regain access, the user must fix the issue on their host and then click **Refetch** on the **My device** page to verify the policy is now passing.
+
 ## Disabling Okta conditional access
 
 > **Warning:** You must disable conditional access on the Okta side first. If you only disable it on the Fleet side, users may be unable to log in to apps that still require Fleet as an authentication factor.
