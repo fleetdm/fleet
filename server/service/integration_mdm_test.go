@@ -1446,6 +1446,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	serialNumber := mdmtest.RandSerialNumber()
 	fleetHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:             uuid.NewString(),
 		HardwareSerial:   serialNumber,
 		HardwareModel:    model,
 		Platform:         platform,
@@ -1465,6 +1466,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
 	mdmDevice.SerialNumber = serialNumber
+	mdmDevice.UUID = fleetHost.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -20198,15 +20200,15 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 		{HostID: hostBYOD.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
 	}, commands)
 
-	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool) {
-		var installedAppCount int
+	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool, wantAppListCount int) {
+		var installedAppListCount int
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
 			switch cmd.Command.RequestType {
 			case "InstalledApplicationList":
-				installedAppCount++
+				installedAppListCount++
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 				require.NotNil(t, fullCmd.Command)
 				require.NotNil(t, fullCmd.Command.InstalledApplicationList)
@@ -20224,10 +20226,10 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 				require.NoError(t, err)
 			}
 		}
-		require.Equal(t, 1, installedAppCount)
+		require.Equal(t, wantAppListCount, installedAppListCount)
 	}
 
-	checkExpectedCommands(mdmClientBYOD, true)
+	checkExpectedCommands(mdmClientBYOD, true, 1)
 
 	// create a company-owned ios host
 	hostDEP, mdmClientDEP := s.createAppleMobileHostThenEnrollMDM("ios")
@@ -20245,5 +20247,29 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 		{HostID: hostDEP.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
 	}, commands)
 
-	checkExpectedCommands(mdmClientDEP, false)
+	checkExpectedCommands(mdmClientDEP, false, 1)
+
+	// run the cron-based refetch, will not do anything as the devices were just refetched
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
+	require.NoError(t, err)
+
+	checkExpectedCommands(mdmClientBYOD, true, 0)
+	checkExpectedCommands(mdmClientDEP, false, 0)
+
+	// change the detail_updated_at of the devices to > 1h ago, and run the refetch again
+	hostBYOD.DetailUpdatedAt = time.Now().Add(-24 * time.Hour)
+	hostDEP.DetailUpdatedAt = time.Now().Add(-24 * time.Hour)
+	require.NoError(t, s.ds.UpdateHost(ctx, hostBYOD))
+	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
+
+	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
+	require.NoError(t, err)
+
+	checkExpectedCommands(mdmClientBYOD, true, 1)
+	checkExpectedCommands(mdmClientDEP, false, 1)
 }
