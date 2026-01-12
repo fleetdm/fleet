@@ -218,7 +218,7 @@ func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
 	}
 
 	// Since we used the private key to sign the tokens, we use the public counterpart to verify the signature
-	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (any, error) {
 		return m.identityCert.PublicKey, nil
 	})
 	if err != nil {
@@ -267,7 +267,7 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 	if err != nil {
 		return AzureData{}, ctxerr.Wrap(ctx, err, "failed to retrieve Azure JWT signing keys")
 	}
-	token, err = jwt.Parse(string(tokenBytes), func(token *jwt.Token) (interface{}, error) {
+	token, err = jwt.Parse(string(tokenBytes), func(token *jwt.Token) (any, error) {
 		tokenAlg, ok := token.Header["alg"]
 		if !ok {
 			return nil, errors.New("Azure JWT missing alg header")
