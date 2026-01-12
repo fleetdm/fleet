@@ -33,12 +33,6 @@ module.exports = {
       type: {},
       description: 'An object containing the name of additional attributes to include in the API response.'
     },
-
-    vppToken: {
-      type: 'string',
-      description: 'A VPP token used to authenticate requests to the Apple API on behalf of a Fleet instance.',
-      required: true,
-    }
   },
 
 
@@ -62,7 +56,7 @@ module.exports = {
   },
 
 
-  fn: async function ({storeRegion, ids, platform, additionalPlatforms, extend, vppToken}) {
+  fn: async function ({storeRegion, ids, platform, additionalPlatforms, extend}) {
 
 
     // Validate the fleetServerSecret provided in the authorization header.
@@ -85,6 +79,12 @@ module.exports = {
     } catch(unusedErr) {
       // If there is an error parsing the provided fleetServerSecret, return a invalidFleetServerSecret response.
       throw 'invalidFleetServerSecret';
+    }
+
+    let vppToken = this.req.get('vpp-token');
+    if(!vppToken) {
+      // If no vpp-token header was included return a missingVppToken (badRequest) response to the Fleet instance.
+      throw 'missingVppToken';
     }
 
 
