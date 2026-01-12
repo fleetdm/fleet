@@ -31,6 +31,7 @@ type integrationTestSuite struct {
 	ds           *mysql.Datastore
 	server       *httptest.Server
 	userProvider *mockUserProvider
+	logger       log.Logger
 }
 
 // setupIntegrationTest creates a new test suite with a real database and HTTP server.
@@ -88,12 +89,13 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 		ds:           ds,
 		server:       server,
 		userProvider: userProvider,
+		logger:       logger,
 	}
 }
 
 // truncateTables clears all test data between tests.
 func (s *integrationTestSuite) truncateTables() {
-	mysql_testing_utils.TruncateTables(s.t, s.db, log.NewNopLogger(), nil, "activities", "users")
+	mysql_testing_utils.TruncateTables(s.t, s.db, s.logger, nil, "activities", "users")
 }
 
 // insertUser creates a user in the database and mock user provider.
@@ -169,7 +171,7 @@ func (s *integrationTestSuite) getActivities(t *testing.T, queryParams string) (
 	if queryParams != "" {
 		url += "?" + queryParams
 	}
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) //nolint:gosec // test server URL is safe
 	require.NoError(t, err)
 
 	var result api_http.ListActivitiesResponse
