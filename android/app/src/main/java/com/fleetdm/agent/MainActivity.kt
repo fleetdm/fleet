@@ -5,15 +5,13 @@ package com.fleetdm.agent
 import android.app.admin.DevicePolicyManager
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
-import android.content.Context.DEVICE_POLICY_SERVICE
-import android.content.Context.RESTRICTIONS_SERVICE
 import android.content.Intent
 import android.content.RestrictionsManager
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -24,19 +22,25 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -51,6 +55,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,8 +65,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.fleetdm.agent.ui.theme.FleetTextDark
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
 const val CLICKS_TO_DEBUG = 8
@@ -181,6 +198,23 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
     val baseUrl by ApiClient.baseUrlFlow.collectAsStateWithLifecycle(initialValue = null)
     val installedCerts by orchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
 
+    // Observe worker status
+    val workManager = remember { WorkManager.getInstance(context) }
+    val debugWorkInfoFlow = remember {
+        workManager
+            .getWorkInfosForUniqueWorkFlow("${CertificateEnrollmentWorker.WORK_NAME}_debug")
+            .map { workInfos -> workInfos.firstOrNull() }
+    }
+    val debugWorkInfo by debugWorkInfoFlow.collectAsStateWithLifecycle(initialValue = null)
+
+    // Observe periodic worker status
+    val periodicWorkInfoFlow = remember {
+        workManager
+            .getWorkInfosForUniqueWorkFlow(CertificateEnrollmentWorker.WORK_NAME)
+            .map { workInfos -> workInfos.firstOrNull() }
+    }
+    val periodicWorkInfo by periodicWorkInfoFlow.collectAsStateWithLifecycle(initialValue = null)
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -210,13 +244,212 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
                 KeyValue("server_url (MC)", fleetBaseUrl)
                 KeyValue("server_url (DS)", baseUrl)
                 KeyValue("host_certificates", hostCertificates?.map { "${it.id}:${it.operation}" }.toString())
+                Spacer(modifier = Modifier.height(16.dp))
                 DebugCertificateList(certificates = installedCerts)
-                PermissionList(
-                    permissionsList = permissionsList,
+                PermissionList(permissionsList = permissionsList)
+                ScheduledCertificateEnrollmentSection(workInfo = periodicWorkInfo)
+                Spacer(modifier = Modifier.height(16.dp))
+                CertificateEnrollmentDebugSection(
+                    workManager = workManager,
+                    workInfo = debugWorkInfo,
                 )
+                Spacer(modifier = Modifier.height(16.dp))
             }
         },
     )
+}
+
+@Composable
+private fun ScheduledCertificateEnrollmentSection(workInfo: WorkInfo?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+    ) {
+        Text(
+            text = "Scheduled Certificate Enrollment",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+
+        WorkerStatusDisplay(
+            workInfo = workInfo,
+            statusTextBuilder = { info ->
+                if (info == null) "Worker not scheduled" else buildScheduledWorkerStatusText(info)
+            },
+        )
+    }
+}
+
+@Composable
+private fun CertificateEnrollmentDebugSection(workManager: WorkManager, workInfo: WorkInfo?) {
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+    ) {
+        Text(
+            text = "Debug Certificate Enrollment",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+
+        // Button to trigger enrollment
+        Button(
+            onClick = {
+                val workRequest = OneTimeWorkRequestBuilder<CertificateEnrollmentWorker>()
+                    .setInputData(
+                        Data.Builder()
+                            .putBoolean(CertificateEnrollmentWorker.KEY_IS_DEBUG, true)
+                            .build(),
+                    )
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build(),
+                    )
+                    .build()
+
+                workManager.enqueueUniqueWork(
+                    "${CertificateEnrollmentWorker.WORK_NAME}_debug",
+                    ExistingWorkPolicy.REPLACE,
+                    workRequest,
+                )
+
+                Log.d("DebugScreen", "Triggered one-time certificate enrollment (debug mode)")
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = workInfo?.state != WorkInfo.State.RUNNING,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = androidx.compose.ui.graphics.Color(0xFF1976D2), // Material Blue 700
+                contentColor = androidx.compose.ui.graphics.Color.White,
+                disabledContainerColor = androidx.compose.ui.graphics.Color(0xFFE0E0E0), // Light gray
+                disabledContentColor = androidx.compose.ui.graphics.Color(0xFF9E9E9E), // Medium gray
+            ),
+        ) {
+            Text(
+                text = if (workInfo?.state == WorkInfo.State.RUNNING) {
+                    "Enrollment Running..."
+                } else {
+                    "Trigger Certificate Enrollment"
+                },
+                color = androidx.compose.ui.graphics.Color.White,
+            )
+        }
+
+        // Worker status display
+        Spacer(modifier = Modifier.height(8.dp))
+        WorkerStatusDisplay(
+            workInfo = workInfo,
+            statusTextBuilder = { info ->
+                if (info == null) "No enrollment worker queued" else buildWorkerStatusText(info)
+            },
+        )
+    }
+}
+
+@Composable
+private fun WorkerStatusDisplay(workInfo: WorkInfo?, statusTextBuilder: (WorkInfo?) -> String) {
+    val statusText = statusTextBuilder(workInfo)
+    val backgroundColor = getWorkerStateColor(workInfo?.state)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        color = backgroundColor,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Text(
+            text = statusText,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(12.dp),
+            fontFamily = FontFamily.Monospace,
+        )
+    }
+}
+
+@Composable
+private fun getWorkerStateColor(state: WorkInfo.State?) = when (state) {
+    WorkInfo.State.RUNNING -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    WorkInfo.State.SUCCEEDED -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.08f)
+    WorkInfo.State.FAILED -> MaterialTheme.colorScheme.error.copy(alpha = 0.08f)
+    WorkInfo.State.ENQUEUED -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
+    WorkInfo.State.BLOCKED -> MaterialTheme.colorScheme.surfaceVariant
+    WorkInfo.State.CANCELLED -> MaterialTheme.colorScheme.surfaceVariant
+    null -> MaterialTheme.colorScheme.surface
+}
+
+private fun buildWorkerStatusText(workInfo: WorkInfo): String {
+    val state = workInfo.state.name
+    val runAttempt = workInfo.runAttemptCount
+    val tags = workInfo.tags.joinToString(", ")
+
+    return buildString {
+        appendLine("Status: $state")
+        appendLine("Run Attempt: $runAttempt")
+
+        // Show next schedule time for periodic work
+        if (workInfo.nextScheduleTimeMillis != Long.MAX_VALUE) {
+            val nextRun = SimpleDateFormat("HH:mm:ss", Locale.US)
+                .format(Date(workInfo.nextScheduleTimeMillis))
+            appendLine("Next Run: $nextRun")
+        }
+
+        // Show output data if available
+        if (workInfo.outputData.keyValueMap.isNotEmpty()) {
+            appendLine("Output:")
+            workInfo.outputData.keyValueMap.forEach { (key, value) ->
+                appendLine("  $key: $value")
+            }
+        }
+
+        // Show tags
+        if (tags.isNotEmpty()) {
+            appendLine("Tags: $tags")
+        }
+    }.trim()
+}
+
+private fun buildScheduledWorkerStatusText(workInfo: WorkInfo): String {
+    val state = workInfo.state.name
+    val now = System.currentTimeMillis()
+
+    return buildString {
+        appendLine("Status: $state")
+
+        // Show next run time
+        if (workInfo.nextScheduleTimeMillis != Long.MAX_VALUE) {
+            val nextRunTime = workInfo.nextScheduleTimeMillis
+            val timeUntilRun = nextRunTime - now
+
+            val nextRunFormatted = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+                .format(Date(nextRunTime))
+            appendLine("Next Run: $nextRunFormatted")
+
+            // Show time until next run
+            if (timeUntilRun > 0) {
+                val minutes = TimeUnit.MILLISECONDS.toMinutes(timeUntilRun)
+                val seconds = TimeUnit.MILLISECONDS.toSeconds(timeUntilRun) % 60
+                appendLine("Time Until: ${minutes}m ${seconds}s")
+            }
+        }
+
+        // Show run attempt count
+        if (workInfo.runAttemptCount > 0) {
+            appendLine("Run Attempt: ${workInfo.runAttemptCount}")
+        }
+
+        // Show output data if available
+        if (workInfo.outputData.keyValueMap.isNotEmpty()) {
+            appendLine("Last Run Output:")
+            workInfo.outputData.keyValueMap.forEach { (key, value) ->
+                appendLine("  $key: $value")
+            }
+        }
+    }.trim()
 }
 
 @Composable
