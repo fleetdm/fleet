@@ -28,7 +28,7 @@ Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](http
 
 ### Device and user scope
 
-Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device-scoped) and user (user-scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles. User-scoped declaration (DDM) profiles for macOS are coming soon.
+Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles. User-scoped declaration (DDM) profiles for macOS are coming soon.
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
@@ -55,7 +55,7 @@ How to deliver user-scoped configuration profiles:
 #### Windows
 
 1. Head to the [Windows configuration profiles (CSPs) documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) to verify that all the settings in your Windows profile support the user scope. For example, the [SCEP setting](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescep) supports both the device and user scope.
-2. To make a Windows configuration profiles user-scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
+2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
 #### Upgrading from below 4.71.0
 
