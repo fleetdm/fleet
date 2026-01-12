@@ -32,6 +32,12 @@ module.exports = {
     extend: {
       type: {},
       description: 'An object containing the name of additional attributes to include in the API response.'
+    },
+
+    vppToken: {
+      type: 'string',
+      description: 'A VPP token used to authenticate requests to the Apple API on behalf of a Fleet instance.',
+      required: true,
     }
   },
 
@@ -56,12 +62,11 @@ module.exports = {
   },
 
 
-  fn: async function ({storeRegion, ids, platform, additionalPlatforms, extend}) {
+  fn: async function ({storeRegion, ids, platform, additionalPlatforms, extend, vppToken}) {
 
     // Validate the provided fleetServerSecret
     let authHeader = this.req.get('authorization');
     let fleetServerSecret;
-
     if (authHeader && authHeader.startsWith('Bearer')) {
       fleetServerSecret = authHeader.replace('Bearer', '').trim();
     } else {
@@ -76,11 +81,7 @@ module.exports = {
       throw 'invalidFleetServerSecret';
     }
 
-    let cookieHeader = this.req.get('cookie');
-    if(!cookieHeader) {
-      // If no cookie header was included return a missingVppToken (badRequest) response to the Fleet instance.
-      throw 'missingVppToken';
-    }
+
     let nowAt = Date.now();
     let nowAtInSeconds = Math.floor(nowAt / 1000);
 
@@ -99,6 +100,7 @@ module.exports = {
       }
     );
 
+
     let responseFromAppleApi = await sails.helpers.http.get.with({
       url: `https://api.ent.apple.com/v1/catalog/${storeRegion}/stoken-authenticated-apps`,
       data: {
@@ -109,7 +111,7 @@ module.exports = {
       },
       headers: {
         'Authorization': `Bearer ${tokenForThisRequest}`,
-        'Cookie': `${cookieHeader}`,
+        'Cookie': `${vppToken}`,
       }
     })
     .tolerate((err)=>{
