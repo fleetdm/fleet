@@ -44,13 +44,23 @@ const columns: Column<ISoftwareRow>[] = [
   },
 ];
 
+type ExampleSoftware = {
+  title: string;
+};
+
+const EXAMPLE_SOFTWARE_ROWS: ExampleSoftware[] = [
+  { title: "1Password" },
+  { title: "Adobe Acrobat Reader" },
+  { title: "Box Drive" },
+];
+
 const getData = (
   name: string,
   displayName: string,
   iconUrl: string | null,
   source?: string
-): ISoftwareRow[] => [
-  {
+): ISoftwareRow[] => {
+  const currentSoftwareRow: ISoftwareRow = {
     name: (
       <SoftwareNameCell
         name={name}
@@ -61,38 +71,24 @@ const getData = (
         isSelfService
       />
     ),
-  },
-  {
+  };
+
+  // Filters out the current software from the example rows to avoid duplication
+  const exampleSoftwareRows: ISoftwareRow[] = EXAMPLE_SOFTWARE_ROWS.filter(
+    (item) => item.title !== name
+  ).map((item) => ({
     name: (
       <SoftwareNameCell
-        name="1Password"
+        name={item.title}
         source="apps"
         pageContext="deviceUser"
         isSelfService
       />
     ),
-  },
-  {
-    name: (
-      <SoftwareNameCell
-        name="Adobe Acrobat Reader"
-        source="apps"
-        pageContext="deviceUser"
-        isSelfService
-      />
-    ),
-  },
-  {
-    name: (
-      <SoftwareNameCell
-        name="Box Drive"
-        source="apps"
-        pageContext="deviceUser"
-        isSelfService
-      />
-    ),
-  },
-];
+  }));
+
+  return [currentSoftwareRow, ...exampleSoftwareRows];
+};
 
 const EmptyState = () => <div>No software found</div>;
 
