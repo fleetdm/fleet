@@ -137,31 +137,30 @@
           </div>
         </ajax-form>
       </div>
-
-      <div v-if="formToDisplay === 'apply'">
+      <div v-else-if="formToDisplay === 'apply'">
         <ajax-form action="deliverApplicationSubmission" class="apply" :form-errors.sync="formErrors" :form-data="formData" :form-rules="applicationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedApplicationForm()">
           <div class="form-group">
             <div class="row">
               <div purpose="first-name-column" class="col-sm mb-4 mb-sm-0">
-                <label for="contact-first-name">First name</label>
-                <input class="form-control" id="contact-first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name" focus-first>
+                <label for="apply-first-name">First name</label>
+                <input class="form-control" id="apply-first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name" focus-first>
                 <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
               </div>
               <div purpose="last-name-column" class="col-sm">
-                <label for="contact-last-name">Last name</label>
-                <input class="form-control" id="contact-last-name" name="last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name">
+                <label for="apply-last-name">Last name</label>
+                <input class="form-control" id="apply-last-name" name="last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name">
                 <div class="invalid-feedback" v-if="formErrors.lastName">Please let us know what to call you.</div>
               </div>
             </div>
           </div>
           <div class="form-group">
-            <label for="contact-email-address">Email</label>
-            <input class="form-control" id="contact-email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : cloudError && cloudError === 'invalidEmailDomain' ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" >
+            <label for="apply-email-address">Email</label>
+            <input class="form-control" id="apply-email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : cloudError && cloudError === 'invalidEmailDomain' ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" >
             <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid email address</div>
           </div>
 
           <div class="form-group">
-            <label for="dropdownMenuSelectPurpose">Position</label>
+            <label for="apply-position">Position</label>
             <select class="form-control custom-select" v-model.trim="formData.position" :class="[formErrors.position ? 'is-invalid' : '']">
               <option :value="undefined">Select an option</option>
               <option :value="position" v-for="position in currentOpenPositionsForApplicationDropdown">{{position}}</option>
@@ -170,20 +169,20 @@
           </div>
 
           <div class="form-group">
-            <label for="contact-email-address">LinkedIn profile</label>
-            <input class="form-control" id="contact-linkedin-profile" name="LinkedIn profile" type="text" :class="[formErrors.linkedinProfileUrl ? 'is-invalid' : '']" v-model.trim="formData.linkedinProfileUrl" autocomplete="email">
+            <label for="apply-linkedin-profile">LinkedIn profile</label>
+            <input class="form-control" id="apply-linkedin-profile" name="LinkedIn profile" type="text" :class="[formErrors.linkedinProfileUrl ? 'is-invalid' : '']" v-model.trim="formData.linkedinProfileUrl" autocomplete="email">
             <div class="invalid-feedback" v-if="formErrors.linkedinProfileUrl">Please provide a link to your LinkedIn profile.</div>
           </div>
 
           <div class="form-group">
-            <label for="contact-email-address">Location</label>
-            <input class="form-control" id="contact-linkedin-profile" name="LinkedIn profile" type="text" :class="[formErrors.location ? 'is-invalid' : '']" v-model.trim="formData.location" >
+            <label for="apply-location">Location</label>
+            <input class="form-control" id="apply-location" name="location" type="text" :class="[formErrors.location ? 'is-invalid' : '']" v-model.trim="formData.location" >
             <div class="invalid-feedback" v-if="formErrors.location">Please let us know where you are located.</div>
           </div>
 
           <div class="form-group">
-            <label for="message">Cover letter</label>
-            <textarea class="form-control" id="message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" autocomplete="none"></textarea>
+            <label for="apply-message">Cover letter</label>
+            <textarea class="form-control" id="apply-message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" autocomplete="none"></textarea>
             <div class="invalid-feedback" v-if="formErrors.message">Cover letter cannot be empty.</div>
           </div>
           <cloud-error v-if="cloudError"></cloud-error>
