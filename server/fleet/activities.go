@@ -2459,8 +2459,8 @@ type ActivityEditedAppStoreApp struct {
 	SoftwareDisplayName string                    `json:"software_display_name"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
-	AutoUpdateStartTime *string                   `json:"auto_update_start_time,omitempty"`
-	AutoUpdateEndTime   *string                   `json:"auto_update_end_time,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -2480,8 +2480,8 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
 - "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
-- "auto_update_start_time": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
-- "auto_update_end_time": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 `, `{
   "software_title": "Logic Pro",
   "software_title_id": 123,
@@ -2503,8 +2503,8 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
   ]
   "software_display_name": "Logic Pro DAW"
   "auto_update_enabled": true
-  "auto_update_start_time": "22:00"
-  "auto_update_end_time": "02:00"
+  "auto_update_window_start": "22:00"
+  "auto_update_window_end": "02:00"
 }`
 }
 

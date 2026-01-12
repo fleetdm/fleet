@@ -83,4 +83,5 @@ module.exports.policies = {
   'view-okta-conditional-access-error': true,
   'view-fast-track': true,
   'vpp-proxy/*': true,
+  'deliver-application-submission': true,
 };

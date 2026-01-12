@@ -163,16 +163,14 @@ module.exports.custom = {
     // 🫧 Bulk operations dashboard
     'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
 
-    // 🫧 Pricing and features
+    // Handbook
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
     'handbook/company/product-maturity-assessment': 'allenhouchins',
     'handbook/company/testimonials.yml': 'mike-j-thomas',
-
-    // Dev process
     'handbook/company/product-groups.md': 'lukeheath',
+    'handbook/company/writing.md': 'mike-j-thomas',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',
-
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -182,9 +180,6 @@ module.exports.custom = {
     'CODEOWNERS': 'sampfluger88',
     'website/config/custom.js': 'sampfluger88',
     '.gitignore': 'sampfluger88',// « what files should not be checked in?
-
-    // 🌐 Handbook
-    //'handbook': 'sampfluger88', Covered in CODEOWNERS (#16972 2024-02-19)
 
 
     // 🌐 GitHub issue templates
@@ -285,7 +280,8 @@ module.exports.custom = {
     'handbook/company': 'mikermcneil',
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/company/communications.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
+    'handbook/company/communications.md': ['mikermcneil'],
+    'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil'],
     'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil'],
