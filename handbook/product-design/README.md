@@ -14,7 +14,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5))
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5)).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/93) for this department, including pending tasks and the status of new requests.
 
@@ -26,9 +26,9 @@ The Product Design department is responsible for reviewing and collecting feedba
 
 ### Unpacking the why
 
-The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "Inbox" column the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making the request (i.e. what problem are they trying to solve).
+The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "📨 Inbox" column the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making the request (i.e. what problem are they trying to solve).
 
-If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🏹 #g-customer-success](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board) board.
+If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🦄 #g-unicorns](https://github.com/orgs/fleetdm/projects/81) board.
 
 
 ### Unpacking the how
@@ -186,9 +186,9 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 Product Designers (PD) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
 
-If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81). The PD also moved the request to the "🗣️ Ready for feedback" column on the [💝 Customer requests](https://github.com/orgs/fleetdm/projects/82) board.
+If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81).
 
-If the story includes [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration) changes, the PD adds the dogfood issue to the `:help-customers` board, removes it from `:helpd-dogfooding`, and notifies the [SVP of Customer Success](https://fleetdm.com/handbook/customer-success). Up to Customer Success to decide if any changes to the server config in cloud environment is needed.
+If the story includes updates to [which endpoints to expose to the public internet](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet) or updates to [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration), the PD notifies the [SVP of Customer Success](https://fleetdm.com/handbook/customer-success). Up to Customer Success to decide if any changes to the server config in cloud environments is needed.
 
 ### Notify stakeholders when a user story is pushed to the next sprint
 

@@ -224,7 +224,7 @@ There are [several special email addresses](https://docs.google.com/document/d/1
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with the CEO, Executive Assitant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Executive Assistant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -250,6 +250,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
 > **Need an app that you don't see in Fleet Slack?** [Create a IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) to request an app be added to the Fleet Slack workspace.
 
@@ -357,6 +358,16 @@ In Figma:
   - Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
+#### Clearing cached images
+
+When replacing an existing image on the Fleet website, if the new version has the same filename as the old version, the image must be purged from the Cloudflare cache for the latest version to be visible to users.
+
+To purge an image from the Cloudflare cache:
+1. Copy the URL of the image hosted on fleetdm.com.
+2. Log into Cloudflare and select the Fleet account, then select fleetdm.com.
+3. Select **Caching** » **Configuration** in the navigation sidebar, and click the "Custom Purge" option.
+4. Select the option to purge by URL, paste the URL of the image, and select purge. After a few moments, Cloudflare will serve the new version of the image to users.
+
 
 ## Change management
 
@@ -411,8 +422,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [#g-it-and-enablement](https://github.com/fleetdm/confidential/issues#workspaces/g-it-and-enablement-6451748b4eb15200131d4bab/board) kanban board.
 
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/97ce6caa-4b21-4cc2-8fcb-91aa03dfc6d6">
 
 
 ### Process new requests
@@ -614,6 +623,7 @@ In brief, this means that as a Fleet team member, you may:
 - Spend company money like it is your own money.
 - [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).  Purchase what you need to do your job effectively.
 - Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
+- For purchases ≥ $1,000 in amount, please make sure there is a receipt/invoice in the transaction details. Brex sometimes does not automatically append those details to the transactions. 
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
 
@@ -685,7 +695,11 @@ Finance will review and process your request within 2 business days.
 - If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
 - If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact People](https://fleetdm.com/handbook/people#contact-us) for their help approving and booking additional event space.
 
+<!--
+
 > ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
+
+-->
 
 
 ### Attending conferences
@@ -715,7 +729,7 @@ From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of
 
 ### Coworking
 
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the Head of People. 
 
 
 ### Relocating
@@ -929,7 +943,7 @@ Learn how to write as Fleet:
 - [Writing style](https://fleetdm.com/handbook/company/communications#writing-style)
 - [Writing types](https://fleetdm.com/handbook/company/communications#writing-types)
 - [Editing and publishing](https://fleetdm.com/handbook/company/communications#editing-and-publishing)
-- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance).
+- [Writing assistance](https://fleetdm.com/handbook/company/communications#writing-assistance)
 - [Writing mechanics](https://fleetdm.com/handbook/company/communications#writing-mechanics)
 - [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown)
 
@@ -940,7 +954,7 @@ Fleet’s writing style is clear, simple, and welcoming. We use short sentences,
 
 We avoid "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)". For engineers, replace hype with real data. For business readers, translate it into clear outcomes such as time saved or return on investment. Links are better than long explanations, since they keep content short and point people to more detail when they need it.
 
-Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communication#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
+Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communications#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
 
 When in doubt, simplify. Read your draft, cut unnecessary words, and make it shorter. If something feels confusing, rewrite until it feels obvious.
 
@@ -1287,9 +1301,12 @@ Spell out international time zones:
 
 #### Lists
 
-Lists help readers scan content for essential information. They should be as concise and symmetrical as possible.
-If you find your list running long, or if each item contains several sentences, you may want to reconsider whether a list is the best approach.
-Use a numbered list if it follows a specific order or includes a set number of items. Otherwise, use bullet points.
+Lists should be as concise and symmetrical as possible. If you find your list running long, or if each item contains several sentences, consider whether a list is the best approach. 
+
+
+##### Ordered list vs. unordered list
+
+If your list follows a specific order or includes a set number of items, use an [ordered list](https://fleetdm.com/handbook/company/communications.md#ordered-lists) by numbering each item. Otherwise, use an [unordered list](https://fleetdm.com/handbook/company/communications.md#unordered-lists) represented by bullet points.
 
 
 ##### How to introduce a list 
@@ -1389,9 +1406,13 @@ Try to stay within three or four heading levels. Complicated documents may use m
 
 #### Line breaks and new lines
 
-Any time you need to add a line break in Markdown, add an extra line break.
+✅ **Do** use line breaks to separate paragraphs and break up large chunks of text for the reader.
 
-For example, if you were adding this section:
+❌ **Don’t** use line breaks to separate each sentence to optimize the code for the author.
+
+Overused line breaks cause irregular line spacing on our website and make it hard for the author to experience the content as the reader will.
+
+Whenever you need to add a line break in Markdown, simply add an extra blank line between the two pieces of content you want to separate. For example, if you were adding this section:
 
 ```
 line one
@@ -1423,6 +1444,8 @@ line two
 
 ##### Ordered lists
 
+Ordered lists are represented by numbering each line item. 
+
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
@@ -1449,6 +1472,8 @@ Paragraph about item one
 
 ##### Unordered lists
 
+Unordered lists are represented by using a hyphen at the beginning of each line item.
+
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>- Line one<br>- Line two  <br>- Line three<br>- Line four</pre> | - Line one<br>- Line two<br>- Line three<br>- Line four |
@@ -1456,6 +1481,10 @@ Paragraph about item one
 
 
 #### Links
+
+✅ **Do** use the full url when creating links, e.g. `[links](https://fleetdm.com/handbook/company/communications#links`. This ensures the link will work even if the content gets moved to another page. 
+
+❌ **Don’t** use relative links, e.g. `[links](#links)` to link to other content on the same page.
 
 The Fleet website currently supports the following Markdown link types.
 
@@ -1506,9 +1535,9 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 | Left alignment | Right alignment | Center Alignment |
 
 > When using tables to document API endpoint parameters, we use the following conventions:
-> + Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
-> + In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
-> + In the **Description** column for required parameters, begin the description with "**Required.**"
+> - Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
+> - In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
+> - In the **Description** column for required parameters, begin the description with "**Required.**"
 
 
 #### Blockquotes

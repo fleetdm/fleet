@@ -1,2 +1,0 @@
-- Improved handling of softawre install statuses in the UI, fixing a bug where "installed" software
-  sometimes showed up as "uninstalled" when certain other pieces of data were not also present

@@ -177,7 +177,7 @@ At Fleet, we use the contact form and email to communicate with future team memb
 
 > **Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet?**
 >
-> [Add their info to the spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) and leave a Google Doc comment @-mentioning the hiring manager or [Head of People](https://fleetdm.com/handbook/people#team). 
+> [Add their info to the spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) and leave a Google Doc comment @-mentioning the hiring manager and [Head of People](https://fleetdm.com/handbook/people#team). 
 
 Department-specific interviewing instructions:
 - [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
@@ -348,8 +348,14 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 From time to time, someone's job title changes. The hiring manager can use the following steps to change someone's position:
 
 1. Create Slack channel: Create a private "#YYYY-change-title-for-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Head of People.
-2. `@`mention the Head of People in the new channel with any context regarding the title change and share any related documents. 
-3. After review and approval, the [Head of People](https://fleetdm.com/handbook/people#team) will take the necessary steps to [change the fleetie's job title](https://fleetdm.com/handbook/people#change-a-fleeties-role).
+2. `@`mention the Head of People in the new channel and provide the following:
+- A proposed job description, including where the role reports to. 
+- Why it's in the best interests of the company to create this role and/or move a teammate into the role.
+- Whether any workspace changes are required (e.g., do we need to create new Kanban boards, Slack channels, etc.)
+3. If further review is required, the Head of People will bring the proposed change to the E-group for discussion. 
+4. After review and approval, the [Head of People](https://fleetdm.com/handbook/people#team) will take the necessary steps to [change the Fleetie's job title](https://fleetdm.com/handbook/people#change-a-fleeties-role).
+
+> Note: As a first step, managers should loop in the Head of People before communicating any potential or confirmed role changes.
 
 
 ## Delivering performance feedback

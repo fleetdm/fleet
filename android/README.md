@@ -47,25 +47,24 @@ Signing configuration is already set up in `build.gradle.kts`. You just need to 
 1. **Create a keystore:**
 
 ```bash
-keytool -genkey -v -keystore keystore.jks \
+keytool -genkeypair \
   -alias fleet-android \
-  -keyalg RSA -keysize 2048 -validity 10000
+  -keyalg RSA \
+  -keysize 4096 \
+  -validity 10000 \
+  -keystore keystore.jks \
+  -storepass YOUR_PASSWORD \
+  -dname "CN=Your Name, O=Your Org, L=City, ST=State, C=US"
 ```
-
-You'll be prompted for:
-- **Password** (enter twice for confirmation) - This will be used for both keystore and key
-- Your name, organization, location, etc.
 
 2. **Create `keystore.properties` file in the `android/` directory:**
 
 ```properties
-storeFile=path/to/keystore.jks
-storePassword=your-password
+storeFile=/path/to/keystore.jks
+storePassword=YOUR_PASSWORD
 keyAlias=fleet-android
-keyPassword=your-password
+keyPassword=YOUR_PASSWORD
 ```
-
-**Note:** Use the same password you entered during keystore creation for both `storePassword` and `keyPassword`.
 
 3. **Build signed release:**
 
@@ -102,21 +101,30 @@ The SHA256 fingerprint is required for MDM deployment. You can get it from your 
 
 ```bash
 keytool -list -v -keystore keystore.jks -alias fleet-android
-# Grab SHA256
-echo <SHA256> | xxd -r -p | base64
+# Grab SHA256 (remove colons and convert to base64)
+echo <SHA256> | tr -d ':' | xxd -r -p | base64
 ```
 
-Copy the fingerprint for use in `FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256`
+Copy the fingerprint for use in the `mdm.android_agent.signing_sha256` config option.
 
 ## Deploying via Android MDM (development)
 
-This feature is behind the feature flag `FLEET_DEV_ANDROID_AGENT_PACKAGE`. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea to get the Google Play URL.
+This feature requires setting the Android agent package config. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea to get the Google Play URL.
 
-1. **Set these env vars on your Fleet server:**
+1. **Configure your Fleet server with the Android agent settings:**
 
+Using environment variables:
 ```bash
-export FLEET_DEV_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
-export FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256=<SHA256 fingerprint>
+export FLEET_MDM_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
+export FLEET_MDM_ANDROID_AGENT_SIGNING_SHA256=<SHA256 fingerprint>
+```
+
+Or in your Fleet config file:
+```yaml
+mdm:
+  android_agent:
+    package: com.fleetdm.agent.private.<yourname>
+    signing_sha256: <SHA256 fingerprint>
 ```
 
 2. **Change the `applicationId` in `app/build.gradle.kts`:**

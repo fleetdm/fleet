@@ -2,7 +2,7 @@
 
 Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
+Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings. Note that when running the `fleetctl gitops` action for all teams, files are expected to use the `.yml` extension. Files ending in `.yaml` will not be evaluated unless passed in individually as arguments to `fleetctl gitops -f`.
 
 Users with global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only the teams they have permission to modify.
 
@@ -31,7 +31,7 @@ package_path: package_name.yml
 package_path: ../software/package_name.yml
 ```
 
-You may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
+You may also wish to create specialized API-only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
 
 ## labels
 
@@ -320,7 +320,8 @@ The `controls` section allows you to configure scripts and device management (MD
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
-- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution (default: `false`). Can only be configured for all teams (`default.yml`).
+- `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for all teams (`default.yml`).
+- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
 
@@ -333,6 +334,7 @@ controls:
     - path: ../lib/windows-script.ps1
     - path: ../lib/linux-script.sh
   windows_enabled_and_configured: true
+  enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
@@ -365,6 +367,10 @@ controls:
   android_settings:
     custom_settings:
       - path: ../lib/android-profile.json
+    certificates:
+      - name: wifi-certificate
+        certificate_authority_name: EST_WIFI
+        subject_name: /CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
@@ -397,14 +403,24 @@ controls:
 - `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
 - `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
-### macos_settings, windows_settings and android_settings
+### macos_settings and windows_settings
 
 - `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
-- `android_settings.custom_settings` is a list of paths to Android configuration profiles (.json).
-
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+### android_settings
+
+- `android_settings.custom_settings` is a list of paths to Android configuration profiles (.json).
+
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+#### android_settings.certificates
+
+- `name` is the name of the certificate. Name can be used as a certificate alias to reference in configuration profiles (custom settings).
+- `certificate_authority_name` is the name of the [certificate authority (CA)](#certificate-authorities) to issue the certificate from. Currently, only a custom SCEP CA is supported.
+- `subject_name` is the certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".
 
 #### Variables
 
@@ -425,6 +441,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`          | macOS, iOS, iPadOS, Windows | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_UUID`                             | macOS, iOS, iPadOS, Windows | Host's hardware UUID. |
 | `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS | Host's hardware serial number. |
+| `$FLEET_VAR_HOST_PLATFORM`                         | macOS, iOS, iPadOS, Windows | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [custom_scep_proxy](#custom-scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_SCEP_RENEWAL_ID`       | macOS, iOS, iPadOS | Fleet-managed ID that's required to automatically renew Smallstep, Microsoft NDES, and custom SCEP certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. |
@@ -436,7 +453,12 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 
 The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
 
+In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in a `.mobileconfig` configuration profile. For example, `&` will become `&amp;`.
+
 If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
+
+To hide variable values in the API and UI, you can use Fleet's [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles#gitops).
+
 
 ### macos_setup
 
@@ -482,13 +504,15 @@ Can only be configured for all teams (`default.yml`).
 
 The `software` section allows you to configure packages, store apps (Apple App Store and Google Play Store), and Fleet-maintained apps that you want to install on your hosts.
 
-- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1).
+- `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1).
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/29584) is coming soon.
 
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
+
+Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
 
 #### Example
 
@@ -538,17 +562,14 @@ software:
   - `Communication`: shown as **👬 Communication**
   - `Developer tools`: shown as **🧰 Developer tools**
   - `Productivity`: shown as **🖥️ Productivity**
+  - `Security`: shown as **🔐 Security**
+  - `Utilities`: shown as **🛠️ Utilities**
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
-- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
-
-> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
-
-> You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI or the API,. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
-
+- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and a package with that hash was already added to Fleet, the download will be skipped. This speeds up GitOps runs. If a package with that hash doesn't exist in Fleet, Fleet will download the package from the `url` and add the package if the hash matches. Fleet will error if the hash doesn't match. You can specify `hash_sha256` without `url` if the package was already added to Fleet via the UI or the API.
 - `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
@@ -583,8 +604,9 @@ You can view the hash for existing software in the software detail page in the F
 
 ### app_store_apps
 
-- `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
-  + Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
+- `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is "https://play.google.com/store/apps/details?id=com.android.chrome," so the `app_store_id` is "com.android.chrome."
+  + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
+- `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
@@ -1058,7 +1080,7 @@ org_settings:
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the teams in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
 
 - `location` is the name of the location in the Apple Business Manager account.
-- `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
+- `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps will not be available to install on any team. To apply it to all teams, use `- All teams`. 
 
 Can only be configured for all teams (`org_settings`).
 

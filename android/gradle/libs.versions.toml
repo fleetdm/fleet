@@ -1,5 +1,5 @@
 [versions]
-agp = "8.13.1"
+agp = "8.13.2"
 kotlin = "2.2.21"
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -13,6 +13,15 @@ detekt = "1.23.8"
 workManager = "2.11.0"
 amapi = "1.7.0"
 robolectric = "4.16"
+kotlinx = "1.9.0"
+jscep = "3.0.1"
+bouncycastle = "1.78.1"
+commonsCodec = "1.20.0"
+slf4j = "2.0.17"
+datastorePreferences = "1.2.0"
+navigationCompose = "2.9.6"
+json = "20231013"
+mockk = "1.13.13"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,11 +42,25 @@ androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx"
 androidx-work-testing = { group = "androidx.work", name = "work-testing", version.ref = "workManager" }
 amapi-sdk = { group = "com.google.android.libraries.enterprise.amapi", name = "amapi", version.ref = "amapi" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+jscep = { group = "com.google.code.jscep", name = "jscep", version.ref = "jscep" }
+bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
+bouncycastle-bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncycastle" }
+commons-codec = { group = "commons-codec", name = "commons-codec", version.ref = "commonsCodec" }
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
+slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx" }
+json = { group = "org.json", name = "json", version.ref = "json" }
+mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 

@@ -20,20 +20,30 @@
         android:description="@string/host_uuid_description" />
 
     <restriction
-        android:key="certificates"
-        android:title="@string/certificates_title"
-        android:description="@string/certificates_description"
+        android:key="certificate_templates"
+        android:title="@string/certificate_templates_title"
+        android:description="@string/certificate_templates_description"
         android:restrictionType="bundle_array" >
         <restriction
-            android:key="certificate"
-            android:title="@string/certificate_title"
-            android:description="@string/certificate_description"
+            android:key="certificate_template"
+            android:title="@string/certificate_template_title"
+            android:description="@string/certificate_template_description"
             android:restrictionType="bundle">
             <restriction
-                android:key="certificate_id"
-                android:title="@string/certificate_id_title"
-                android:description="@string/certificate_id_description"
+                android:key="id"
+                android:title="@string/certificate_template_id_title"
+                android:description="@string/certificate_template_id_description"
                 android:restrictionType="integer" />
+            <restriction
+                android:key="status"
+                android:title="@string/certificate_template_status_title"
+                android:description="@string/certificate_template_status_description"
+                android:restrictionType="string" />
+            <restriction
+                android:key="operation"
+                android:title="@string/certificate_template_operation_title"
+                android:description="@string/certificate_template_operation_description"
+                android:restrictionType="string" />
         </restriction>
     </restriction>
 </restrictions>

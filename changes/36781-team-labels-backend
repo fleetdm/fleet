@@ -1,0 +1,1 @@
+- Added support for team-specific labels. Currently team-specific labels must be created via spec endpoints, used by GitOps.

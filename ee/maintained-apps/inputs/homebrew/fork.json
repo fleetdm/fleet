@@ -1,0 +1,8 @@
+{
+  "name": "Fork",
+  "unique_identifier": "com.DanPristupov.Fork",
+  "token": "fork",
+  "installer_format": "dmg",
+  "slug": "fork/darwin",
+  "default_categories": ["Developer tools"]
+}

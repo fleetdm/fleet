@@ -1,0 +1,8 @@
+{
+  "name": "Surfshark",
+  "unique_identifier": "com.surfshark.vpnclient.macos.direct",
+  "token": "surfshark",
+  "installer_format": "dmg",
+  "slug": "surfshark/darwin",
+  "default_categories": ["Productivity"]
+}

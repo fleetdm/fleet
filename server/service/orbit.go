@@ -21,7 +21,6 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 )
@@ -65,7 +64,7 @@ func (r EnrollOrbitResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	enc.SetIndent("", "  ")
 
 	if err := enc.Encode(r); err != nil {
-		endpoint_utils.EncodeError(ctx, newOsqueryError(fmt.Sprintf("orbit enroll failed: %s", err)), w)
+		encodeError(ctx, newOsqueryError(fmt.Sprintf("orbit enroll failed: %s", err)), w)
 	}
 }
 
@@ -203,7 +202,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			if !ok {
 				level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
 			} else if !mp.Has(fleet.CapabilityEndUserAuth) {
-				level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+				// Quieting this error until https://github.com/fleetdm/fleet/issues/37134 has a proper fix.
+				level.Debug(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
 			} else {
 				// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
 				return "", fleet.NewOrbitIDPAuthRequiredError()
@@ -234,6 +234,16 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
+	}
+
+	// Associate the newly-enrolled host with a SCIM user if applicable.
+	// Do this only for linux and windows devices, as macOS devices
+	// are associated during MDM enrollment.
+	platform := host.FleetPlatform()
+	if platform == "linux" || platform == "windows" {
+		if err := svc.ds.MaybeAssociateHostWithScimUser(ctx, host.ID); err != nil {
+			level.Error(svc.logger).Log("msg", "failed to associate enrolled host with SCIM user", "err", err, "host_id", host.ID)
+		}
 	}
 
 	if err := svc.NewActivity(
@@ -582,7 +592,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 		adminTeamFilter := fleet.TeamFilter{
 			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 		}
-		acctCmds, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+		acctCmds, _, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier: host.UUID,
 				RequestType:    "AccountConfiguration",
@@ -601,7 +611,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 
 		// Enroll reference arg is not used in the release device task, passing empty string.
 		if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
-			host.UUID, host.Platform, host.TeamID, "", false, bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
+			host.UUID, host.Platform, host.TeamID, "", false, false, bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
 		}
 	}

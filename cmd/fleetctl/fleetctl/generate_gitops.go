@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -76,7 +77,7 @@ type generateGitopsClient interface {
 	GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
-	GetLabels() ([]*fleet.LabelSpec, error)
+	GetLabels(teamID uint) ([]*fleet.LabelSpec, error)
 	Me() (*fleet.User, error)
 	GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error)
 	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
@@ -84,7 +85,6 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
-	GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -360,15 +360,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
-
-			// Generate labels.
-			labels, err := cmd.generateLabels()
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
-				return ErrGeneric
-			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["labels"] = labels
-
 		} else {
 			// Generate team settings and agent options for the team (including "No team" with ID 0).
 			teamSettings, err := cmd.generateTeamSettings(fileName, team)
@@ -384,6 +375,16 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
 				mdmConfig = team.Config.MDM
 			}
+		}
+
+		// Generate labels.
+		if team == nil || team.ID != 0 {
+			labels, err := cmd.generateLabels(team)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]any)["labels"] = labels
 		}
 
 		// Generate controls.
@@ -1082,19 +1083,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	mdmT := reflect.TypeOf(fleet.TeamMDM{})
 
 	if len(certSummaries) > 0 {
-		androidSettingsType := reflect.TypeOf(fleet.AndroidSettings{})
-		certType := reflect.TypeOf(fleet.CertificateTemplateResponseFull{})
-		fullCerts := make([]map[string]interface{}, 0, len(certSummaries))
+		androidSettingsType := reflect.TypeFor[fleet.AndroidSettings]()
+		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
+		fullCerts := make([]map[string]any, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {
-			certFull, err := cmd.Client.GetCertificateTemplate(certSummary.ID, nil)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting certificate template details for ID %d: %s\n", certSummary.ID, err)
-				return nil, err
-			}
 			fullCerts = append(fullCerts, map[string]interface{}{
-				jsonFieldName(certType, "Name"):                     certFull.Name,
-				jsonFieldName(certType, "CertificateAuthorityName"): certFull.CertificateAuthorityName,
-				jsonFieldName(certType, "SubjectName"):              certFull.SubjectName,
+				jsonFieldName(certType, "Name"):                     certSummary.Name,
+				jsonFieldName(certType, "CertificateAuthorityName"): certSummary.CertificateAuthorityName,
+				jsonFieldName(certType, "SubjectName"):              certSummary.SubjectName,
 			})
 		}
 		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
@@ -1419,25 +1415,25 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
-	setupSoftwareByVppApp := make(map[string]struct{})
+	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
 
-	for _, platform := range []string{"macos", "windows", "linux"} {
-		// See if the team has setup software configured.
-		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platform, teamID)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
-			return nil, err
+	// Fill in InstallDuringSetup for software, as that information is only available
+	// from the setup experience endpoint
+	platforms := "macos,windows,linux,ios,ipados,android"
+	setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platforms, teamID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
+		return nil, err
+	}
+	for _, software := range setupSoftware {
+		pkg := software.SoftwarePackage
+		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 		}
-		for _, software := range setupSoftware {
-			pkg := software.SoftwarePackage
-			if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
-			}
-			if platform == "macos" {
-				appStoreApp := software.AppStoreApp
-				if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
-					setupSoftwareByVppApp[appStoreApp.AppStoreID] = struct{}{}
-				}
+		if software.AppStoreApp != nil {
+			appStoreApp := software.AppStoreApp
+			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+				setupSoftwareByPlatformAndAppID[appStoreApp.FullyQualifiedName()] = struct{}{}
 			}
 		}
 	}
@@ -1602,7 +1598,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
 				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
 				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["icon"] = map[string]interface{}{
+				softwareSpec["icon"] = map[string]any{
 					"path": path,
 				}
 				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
@@ -1613,6 +1609,26 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				// TODO write files immediately rather than queueing them up
 				cmd.FilesToWrite[fileName] = icon
+			}
+
+			config := softwareTitle.AppStoreApp.Configuration
+			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
+				// all per-team software-related artifacts are generated in lib/{team}/software
+				fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["configuration"] = map[string]any{
+					"path": path,
+				}
+
+				// format config because it is received with incorrect indentation
+				var buf bytes.Buffer
+				err := json.Indent(&buf, softwareTitle.AppStoreApp.Configuration, "", "  ")
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				cmd.FilesToWrite[fileName] = buf.Bytes()
 			}
 		}
 
@@ -1631,6 +1647,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["setup_experience"] = true
 			}
 		} else {
+			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()
+
 			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
 				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
 				labelKey = "labels_include_any"
@@ -1639,7 +1657,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
 				labelKey = "labels_exclude_any"
 			}
-			if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
+			if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}
@@ -1667,8 +1685,13 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, error) {
-	labels, err := cmd.Client.GetLabels()
+func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string]any, error) {
+	var tmID uint // default to 0 for pulling global-only labels
+	if team != nil {
+		tmID = team.ID
+	}
+
+	labels, err := cmd.Client.GetLabels(tmID)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting labels: %s\n", err)
 		return nil, err

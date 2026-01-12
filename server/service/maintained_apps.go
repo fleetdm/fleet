@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -19,6 +21,42 @@ type addFleetMaintainedAppRequest struct {
 	LabelsIncludeAny  []string `json:"labels_include_any"`
 	LabelsExcludeAny  []string `json:"labels_exclude_any"`
 	AutomaticInstall  bool     `json:"automatic_install"`
+	Categories        []string `json:"categories"`
+}
+
+// DecodeRequest implements the RequestDecoder interface to support base64-encoded
+// script fields. This allows bypassing WAF rules that may block requests containing
+// shell/PowerShell script patterns. When the X-Fleet-Scripts-Encoded header is set
+// to "base64", the script fields are decoded from base64.
+func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	var req addFleetMaintainedAppRequest
+
+	// Decode JSON body
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to decode request body",
+			InternalErr: err,
+		}
+	}
+
+	// Check if scripts are base64 encoded
+	if isScriptsEncoded(r) {
+		var err error
+		if req.InstallScript, err = decodeBase64Script(req.InstallScript); err != nil {
+			return nil, fleet.NewInvalidArgumentError("install_script", "invalid base64 encoding")
+		}
+		if req.UninstallScript, err = decodeBase64Script(req.UninstallScript); err != nil {
+			return nil, fleet.NewInvalidArgumentError("uninstall_script", "invalid base64 encoding")
+		}
+		if req.PostInstallScript, err = decodeBase64Script(req.PostInstallScript); err != nil {
+			return nil, fleet.NewInvalidArgumentError("post_install_script", "invalid base64 encoding")
+		}
+		if req.PreInstallQuery, err = decodeBase64Script(req.PreInstallQuery); err != nil {
+			return nil, fleet.NewInvalidArgumentError("pre_install_query", "invalid base64 encoding")
+		}
+	}
+
+	return &req, nil
 }
 
 type addFleetMaintainedAppResponse struct {

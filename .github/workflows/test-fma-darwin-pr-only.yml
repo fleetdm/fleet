@@ -23,6 +23,9 @@ on:
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+permissions:
+  contents: read
+
 jobs:
   test-fma-pr-only:
     env:
@@ -64,7 +67,9 @@ jobs:
       - name: Check if there are changes
         id: check-changes
         run: |
-          if [ "${{ steps.detect-changed.outputs.HAS_CHANGES }}" == "true" ]; then
+          # Default to no changes if detection step failed or didn't set output
+          HAS_CHANGES="${{ steps.detect-changed.outputs.HAS_CHANGES }}"
+          if [ "$HAS_CHANGES" == "true" ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "Changed apps detected: ${{ steps.detect-changed.outputs.CHANGED_APPS }}"
           else

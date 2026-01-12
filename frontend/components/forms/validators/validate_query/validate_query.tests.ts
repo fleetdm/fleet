@@ -27,10 +27,12 @@ describe("validateQuery", () => {
   });
 
   it("rejects blank queries", () => {
-    const { error, valid } = validateQuery();
-
-    expect(valid).toEqual(false);
-    expect(error).toEqual(EMPTY_QUERY_ERR);
+    const cases = [undefined, "", " ", "   ", "\t", "\n"];
+    cases.forEach((query) => {
+      const { error, valid } = validateQuery(query);
+      expect(valid).toEqual(false);
+      expect(error).toEqual(EMPTY_QUERY_ERR);
+    });
   });
 
   it("accepts valid queries", () => {

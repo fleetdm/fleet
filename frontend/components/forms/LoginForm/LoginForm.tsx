@@ -84,28 +84,28 @@ const LoginForm = ({
 
   const showLegendWithImage = () => {
     let legend = "Single sign-on";
-    if (idpName !== "") {
+    if (idpName) {
       legend = `Sign in with ${idpName}`;
     }
 
     return (
-      <div>
+      <>
         <img
           src={imageURL}
           alt={idpName}
           className={`${baseClass}__sso-image`}
         />
         <span className={`${baseClass}__sso-legend`}>{legend}</span>
-      </div>
+      </>
     );
   };
 
   const renderSingleSignOnButton = () => {
     let legend: string | JSX.Element = "Single sign-on";
-    if (idpName !== "") {
+    if (idpName) {
       legend = `Sign in with ${idpName}`;
     }
-    if (imageURL !== "") {
+    if (imageURL) {
       legend = showLegendWithImage();
     }
 
@@ -116,8 +116,9 @@ const LoginForm = ({
         title="Single sign-on"
         variant="inverse"
         onClick={handleSSOSignOn}
+        tabIndex={0}
       >
-        <div>{legend}</div>
+        {legend}
       </Button>
     );
   };
@@ -183,6 +184,7 @@ const LoginForm = ({
             className={`${baseClass}__login-btn`}
             isLoading={isSubmitting}
             type="submit"
+            tabIndex={0}
           >
             Log in
           </Button>

@@ -10,11 +10,6 @@ When creating software, handoffs between teams or contributors are one of the mo
 For a high-level view of where each category and stage stands today, see the [🧭 Product maturity assessment](https://fleetdm.com/handbook/company/product-maturity-assessment).
 
 
-## Product roadmap
-
-Fleet team members can read [Fleet's high-level product goals for the current quarter](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing) (confidential Google Sheet).
-
-
 ## What are product groups?
 
 Fleet organizes product development efforts into separate, cross-functional product groups that include product designers, developers, and quality engineers.  These product groups are organized by business goal, and designed to operate in parallel.
@@ -62,12 +57,11 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 
 **Areas of expertise**:
 - MDM protocol & configuration
+- Configuration profiles
 - New device onboarding
 - Scripts
-- Certificate Authorities (CAs)
-- Certificate delivery & renewal
 - Setup experience
-- OS updates
+- OS configuration & updates
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
 
@@ -105,7 +99,7 @@ The goal of the orchestration group is to increase and exceed [Fleet's product m
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_
 | Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
+| Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_, [Nicolás Ulmete](https://www.linkedin.com/in/nicolasulmete/) _([@nulmete](https://github.com/nulmete))_
 
 **Areas of expertise**:
 - Fleetd
@@ -139,14 +133,16 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 - Software inventory ingestion
 - CVE/CPE ingestion & matching
 - Vulnerability reporting
-- CIS benchmarks 
-- PCI ASV
-- Application blocking
+- Conditional access
+- Certificate Authorities (CAs)
+- Certificate delivery & renewal
 - Encryption
+- CIS benchmarks 
+
 
 ### Product group capacity 
 
-Product group capacity is allocated based on our [bug open time KPI](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing). If the average bug open time is greater than 32 days, 50% of each sprint's total capacity is allocated to bugs and [engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
+Product group capacity is allocated based on our [bug open time KPI](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing). If the average bug open time is greater than 32 days, 50% of each sprint's total capacity is allocated to bugs and [engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story). Allocating less than 50% when above our bug open time KPI requires approval from the CEO.
 
 
 ## Working groups
@@ -361,7 +357,7 @@ Anyone in the product group can initiate an air guitar session.
 
 #### T-shirt sizing (capacity planning)
 
-T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. Sometimes, T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting.
+T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting. That way, we can [plan releases](https://github.com/orgs/fleetdm/projects/87) weeks in advance.
 
 [Estimation points](https://fleetdm.com/handbook/company/communications#estimation-points) are used if a task has already gone through drafting.
 
@@ -508,15 +504,13 @@ To prioritize a new feature, it must meet one of these criteria:
 
 1. Bug
 2. Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
-3. Contributes to Fleet's Product roadmap (see [🎯 Key results (OKRs) spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041))
+3. Contributes to Fleet's [near-term roadmap](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063).
 4. Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
 5. Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
 
-Features that are core to Fleet are prioritized over context (mission critical) features. Mission critical features can be prioritized over core features only if they're a customer promise or a customer request is blocking a migration to Fleet.
+Features that are core to Fleet are prioritized over context (mission critical) features. Mission critical features can be prioritized over core features only if they're a customer promise (`~customer promise` label) or a [high-priority](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) customer request (`P0`, `P1`, or `P2` label).
 
 If an issue has the `~feature fest` label, then it's a new feature request that will be weighed at the next 🎁🗣 Feature Fest meeting.
-
-If an issue has the `~customer request` label, then it's a feature request that's already been prioritized. It will have one or more user stories that will be worked on in the current quarter.
 
 If an issue has the `:product` and `story` label, then it's a user story that is currently in progress ([drafting](https://fleetdm.com/handbook/company/development-groups#drafting)). The user story will include a link to the original feature request issue.
 
@@ -542,7 +536,7 @@ If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only 
 ### After the feature is accepted
 
 After the 🎁🗣 Feature fest meeting, the feature prioritization DRI will clear the 🎁 Feature fest board as follows:
-- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add the original request as parent issue in the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
+- Prioritized features: Remove the `~feature fest` label, create a new user story with the `:product` label, add the original request as parent issue in the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 - Put to the side features: Remove `~feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.
@@ -597,7 +591,7 @@ Then, it's the product group Product Designer's responsibility to decide if it's
 
 When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Production Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
-If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "New requests" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
+If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "📨 Inbox" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
 
 For bugs that may require fixes from a partner (e.g. osquery, Apple, Microsoft, etc.), a Fleet issue is always filed. For Apple and Microsoft bugs, the Product Designer should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
 
@@ -621,7 +615,7 @@ Take the following actions:
 
 1. Remove the `:reproduce` label and add the `~released bug` label if the bug is in a published version of Fleet or `~unreleased bug` if it is not yet published.
 2. If this is a `~released bug`, add the `:product` label to place the bug on the product drafting board and move the bug to the "Ready to estimate" column.
-3. If this is an `~unreleased bug`, add the `:release` label and add the bug to the prooduct group's release board so it is fixed before the next release.
+3. If this is an `~unreleased bug`, add the `:release` label and add the bug to the product group's release board so it is fixed before the next release.
 
 > **Fast for Fleeties:** Fleeties do not have to wait for additional reproduction. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 
@@ -673,9 +667,9 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 > Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find a solution quickly.
 
 - **Customer success meetings**
-The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the :help-customers Slack channel requesting invitations to upcoming meetings.
+The on-call developer is encouraged to attend some of the customer success meetings during the week. If oncall workload allows, pick 1–2 customer meetings to attend during the on-call week. See the [CSE calendar](https://calendar.google.com/calendar/u/0/embed?src=c_8f3e6225545624b0b056c3078ad9871dc66f9068f3d6f1c79f198994a625cd46@group.calendar.google.com) to find meetings that fit your schedule. Add yourself as an attendee to the meeting and let the call organizer know you will be shadowing the call.
 
-This has a dual purpose of providing more context for how our customers use Fleet. The developer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
+The primary goal is to learn more about how our customers use Fleet. If there are technical questions you can assist with, feel free to participate in the call.
 
 - **Documentation for contributors**
 Fleet's documentation for contributors can be found in the [Fleet GitHub repo](https://github.com/fleetdm/fleet/tree/main/docs/Contributing).
@@ -904,7 +898,7 @@ On the order form, customer promises are represented as [customer request](https
 - Review each proposed customer promise on the order form.
 - For each customer request, create user stories and [T-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) them.
   - If necessary, the EM takes up to 1 business day to gather information necessary to T-shirt size.
-- Review the [release planning roadmap](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
+- Review the [release planning project](https://github.com/orgs/fleetdm/projects/87/views/2) to determine available capacity in upcoming releases.
 - Decide which Fleet release can be targeted for each customer promise.
 - Update the order form to reflect targeted date of each release.
 
@@ -935,8 +929,7 @@ Start off cross-platform for every option, setting, and feature. If we **prove**
 
 Fleet product groups employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
 
-New tickets are estimated, specified, and prioritized on the roadmap:
-- [Roadmap](https://github.com/orgs/fleetdm/projects/67/views/4)
+New tickets are estimated, specified, and prioritized on the [drafting board](https://github.com/orgs/fleetdm/projects/67).
 
 
 ### Scrum items

@@ -19,6 +19,7 @@ import hostAPI, {
   IGetHostCertsRequestParams,
 } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import commandAPI from "services/entities/command";
 
 import {
   IHost,
@@ -44,18 +45,28 @@ import {
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
-  HOST_ABOUT_DATA,
+  HOST_VITALS_DATA,
   HOST_OSQUERY_DATA,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
-import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
+import {
+  isAppleDevice,
+  isMacOS,
+  isAndroid,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isWindows,
+  isChrome,
+} from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -84,8 +95,10 @@ import SoftwareUninstallDetailsModal, {
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
+import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
+
 import HostSummaryCard from "../cards/HostSummary";
-import AboutCard from "../cards/About";
+import VitalsCard from "../cards/Vitals";
 import UserCard from "../cards/User";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
@@ -96,7 +109,6 @@ import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
 import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
-import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 
@@ -137,6 +149,8 @@ const BYOD_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
+
+const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -184,12 +198,12 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
-    isGlobalObserver,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
+    isAnyMaintainerAdminObserverPlus,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -239,11 +253,13 @@ const HostDetailsPage = ({
     activityVPPInstallDetails,
     setActivityVPPInstallDetails,
   ] = useState<IVppInstallDetails | null>(null);
+  const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
+    null
+  );
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
-  const [packsState, setPackState] = useState<IPackStats[]>();
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [
@@ -264,6 +280,7 @@ const HostDetailsPage = ({
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
+  const [showMDMCommands, setShowMDMCommands] = useState(false);
 
   // certificates states
   const [
@@ -507,8 +524,9 @@ const HostDetailsPage = ({
       );
     },
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -547,7 +565,72 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
+    }
+  );
+
+  const {
+    data: pastMDMCommands,
+    isError: pastMDMCommandsIsError,
+    isFetching: pastMDMCommandsIsFetching,
+    isLoading: pastMDMCommandsIsLoading,
+  } = useQuery(
+    [
+      {
+        scope: "host-past-mdm-commands",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        hostUUID: host?.uuid,
+        activeTab: activeActivityTab,
+        commandStatus: "ran,failed",
+      },
+    ],
+    ({ queryKey: [{ pageIndex, perPage, hostUUID, commandStatus }] }) => {
+      return commandAPI.getCommands({
+        page: pageIndex,
+        per_page: perPage,
+        host_identifier: hostUUID,
+        command_status: commandStatus,
+      });
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isAppleDevice(host?.platform),
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
+    }
+  );
+
+  // request to get the host mdm commands
+  const {
+    data: upcomingMDMCommands,
+    isError: upcomingMDMCommandsIsError,
+    isFetching: upcomingMDMCommandsIsFetching,
+    isLoading: upcomingMDMCommandsIsLoading,
+  } = useQuery(
+    [
+      {
+        scope: "host-upcoming-mdm-commands",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        hostUUID: host?.uuid,
+        activeTab: activeActivityTab,
+        commandStatus: "pending",
+      },
+    ],
+    ({ queryKey: [{ pageIndex, perPage, hostUUID, commandStatus }] }) => {
+      return commandAPI.getCommands({
+        page: pageIndex,
+        per_page: perPage,
+        host_identifier: hostUUID,
+        command_status: commandStatus,
+      });
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isAppleDevice(host?.platform),
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -596,7 +679,7 @@ const HostDetailsPage = ({
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
+  const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
@@ -741,6 +824,7 @@ const HostDetailsPage = ({
             // the host object if it's available.
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
+            platform: details?.host_platform || host?.platform,
           });
           break;
         default: // do nothing
@@ -785,6 +869,10 @@ const HostDetailsPage = ({
 
   const onCancelVppInstallDetailsModal = useCallback(() => {
     setActivityVPPInstallDetails(null);
+  }, []);
+
+  const onCancelMdmCommandDetailsModal = useCallback(() => {
+    setMdmCommandDetails(null);
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -861,6 +949,15 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
+  const onClickAddQuery = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.NEW_QUERY, {
+        team_id: currentTeam?.id,
+        host_id: hostIdFromURL,
+      })
+    );
+  };
+
   const renderActionsDropdown = () => {
     if (!host) {
       return null;
@@ -921,7 +1018,9 @@ const HostDetailsPage = ({
     !host ||
     isLoadingHost ||
     pastActivitiesIsLoading ||
-    upcomingActivitiesIsLoading
+    upcomingActivitiesIsLoading ||
+    pastMDMCommandsIsLoading ||
+    upcomingMDMCommandsIsLoading
   ) {
     return <Spinner />;
   }
@@ -937,11 +1036,6 @@ const HostDetailsPage = ({
       name: "Software",
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
-    },
-    {
-      name: "Queries",
-      title: "queries",
-      pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
       name: "Policies",
@@ -996,35 +1090,23 @@ const HostDetailsPage = ({
     host?.team_id
   );
 
-  /*  Context team id might be different that host's team id
-  Observer plus must be checked against host's team id  */
-  const isGlobalOrHostsTeamObserverPlus =
-    currentUser && host?.team_id
-      ? permissions.isObserverPlus(currentUser, host.team_id)
-      : false;
-
-  const isHostsTeamObserver =
-    currentUser && host?.team_id
-      ? permissions.isTeamObserver(currentUser, host.team_id)
-      : false;
-
-  const canViewPacks =
-    !isGlobalObserver &&
-    !isGlobalOrHostsTeamObserverPlus &&
-    !isHostsTeamObserver;
-
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup?.bootstrap_package_status,
     details: host?.mdm.macos_setup?.details,
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  const isDarwinHost = host.platform === "darwin";
+  const isMacOSHost = isMacOS(host.platform);
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
+  const isWindowsHost = isWindows(host.platform);
+  const isChromeHost = isChrome(host.platform);
+
+  const isSupportedHostQueriesPlatform =
+    !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
-    isDarwinHost &&
+    (isMacOSHost || isWindowsHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isHostTeamAdmin ||
@@ -1036,8 +1118,7 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    (isIosOrIpadosHost || isDarwinHost) &&
-    !!hostCertificates?.certificates.length;
+    isAppleDevice(host.platform) && !!hostCertificates?.certificates.length;
 
   const renderSoftwareCard = () => {
     return (
@@ -1070,7 +1151,7 @@ const HostDetailsPage = ({
                 hostTeamId={host.team_id || 0}
                 hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               />
-              {isDarwinHost && macadmins?.munki?.version && (
+              {isMacOSHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
@@ -1144,7 +1225,7 @@ const HostDetailsPage = ({
               onShowInventoryVersions={onSetSelectedHostSWForInventoryVersions}
               hostTeamId={host.team_id || 0}
             />
-            {isDarwinHost && macadmins?.munki?.version && (
+            {isMacOSHost && macadmins?.munki?.version && (
               <MunkiIssuesCard
                 isLoading={isLoadingHost}
                 munkiIssues={macadmins.munki_issues}
@@ -1216,16 +1297,30 @@ const HostDetailsPage = ({
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
                   hostSettings={host?.mdm.profiles ?? []}
                   osSettings={host?.mdm.os_settings}
+                  className={fullWidthCardClass}
+                />
+                <VitalsCard
+                  className={fullWidthCardClass}
+                  vitalsData={vitalsData}
+                  munki={macadmins?.munki}
+                  mdm={mdm}
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
-                  className={fullWidthCardClass}
                 />
-                <AboutCard
-                  className={defaultCardClass}
-                  aboutData={aboutData}
-                  munki={macadmins?.munki}
-                  mdm={mdm}
+                <QueriesCard
+                  hostId={host.id}
+                  router={router}
+                  hostPlatform={host.platform}
+                  schedule={schedule}
+                  queryReportsDisabled={
+                    config?.server_settings?.query_reports_disabled
+                  }
+                  canAddQuery={
+                    isAnyMaintainerAdminObserverPlus &&
+                    isSupportedHostQueriesPlatform
+                  }
+                  onClickAddQuery={onClickAddQuery}
                 />
                 <UserCard
                   className={defaultCardClass}
@@ -1257,15 +1352,22 @@ const HostDetailsPage = ({
                         ? pastActivities
                         : upcomingActivities
                     }
+                    commands={
+                      activeActivityTab === "past"
+                        ? pastMDMCommands
+                        : upcomingMDMCommands
+                    }
                     isLoading={
                       activeActivityTab === "past"
-                        ? pastActivitiesIsFetching
-                        : upcomingActivitiesIsFetching
+                        ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
+                        : upcomingActivitiesIsFetching ||
+                          upcomingMDMCommandsIsFetching
                     }
                     isError={
                       activeActivityTab === "past"
-                        ? pastActivitiesIsError
-                        : upcomingActivitiesIsError
+                        ? pastActivitiesIsError || pastMDMCommandsIsError
+                        : upcomingActivitiesIsError ||
+                          upcomingMDMCommandsIsError
                     }
                     canCancelActivities={
                       isGlobalAdmin ||
@@ -1273,11 +1375,25 @@ const HostDetailsPage = ({
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
-                    upcomingCount={upcomingActivities?.count || 0}
+                    showMDMCommandsToggle={isAppleDevice(host.platform)}
+                    showMDMCommands={showMDMCommands}
+                    onShowMDMCommands={() => {
+                      setActivityPage(0);
+                      setShowMDMCommands(true);
+                    }}
+                    onHideMDMCommands={() => {
+                      setActivityPage(0);
+                      setShowMDMCommands(false);
+                    }}
+                    upcomingCount={
+                      (upcomingActivities?.count || 0) +
+                      (upcomingMDMCommands?.count || 0)
+                    }
                     onChangeTab={onChangeActivityTab}
                     onNextPage={() => setActivityPage(activityPage + 1)}
                     onPreviousPage={() => setActivityPage(activityPage - 1)}
                     onShowDetails={onShowActivityDetails}
+                    onShowCommandDetails={setMdmCommandDetails}
                     onCancel={onCancelActivity}
                   />
                 )}
@@ -1338,23 +1454,6 @@ const HostDetailsPage = ({
                 </TabNav>
               </TabPanel>
               <TabPanel>
-                <QueriesCard
-                  hostId={host.id}
-                  router={router}
-                  hostPlatform={host.platform}
-                  schedule={schedule}
-                  queryReportsDisabled={
-                    config?.server_settings?.query_reports_disabled
-                  }
-                />
-                {canViewPacks && (
-                  <PacksCard
-                    packsState={packsState}
-                    isLoading={isLoadingHost}
-                  />
-                )}
-              </TabPanel>
-              <TabPanel>
                 <PoliciesCard
                   policies={host?.policies || []}
                   isLoading={isLoadingHost}
@@ -1399,6 +1498,7 @@ const HostDetailsPage = ({
               teams={teams || []}
               isGlobalAdmin={isGlobalAdmin as boolean}
               isUpdating={isUpdating}
+              hostsTeamId={host.team_id}
             />
           )}
           {!!host && showPolicyDetailsModal && (
@@ -1483,6 +1583,12 @@ const HostDetailsPage = ({
             <VppInstallDetailsModal
               details={activityVPPInstallDetails}
               onCancel={onCancelVppInstallDetailsModal}
+            />
+          )}
+          {!!mdmCommandDetails && (
+            <CommandResultsModal
+              command={mdmCommandDetails}
+              onDone={onCancelMdmCommandDetailsModal}
             />
           )}
           {showLockHostModal && (

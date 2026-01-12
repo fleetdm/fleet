@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -37,10 +39,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -683,7 +686,8 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMCommandResultsRequest struct {
-	CommandUUID string `query:"command_uuid,optional"`
+	CommandUUID    string `query:"command_uuid,optional"`
+	HostIdentifier string `query:"host_identifier,optional"`
 }
 
 type getMDMCommandResultsResponse struct {
@@ -695,7 +699,8 @@ func (r getMDMCommandResultsResponse) Error() error { return r.Err }
 
 func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMCommandResultsRequest)
-	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
+
+	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, req.HostIdentifier)
 	if err != nil {
 		return getMDMCommandResultsResponse{
 			Err: err,
@@ -707,57 +712,46 @@ func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc 
 	}, nil
 }
 
-func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
 	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		return svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
 	}
 
+	level.Debug(svc.logger).Log("msg", "GetMDMCommandResults called with user authentication", "command_uuid", commandUUID, "host_identifier", hostIdentifier)
+
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
+	// branch if host identifier is provided to target results for a specific host
+	if hostIdentifier != "" {
+		return svc.getHostIdentifierMDMCommandResults(ctx, commandUUID, hostIdentifier)
 	}
 
-	// check that command exists first, to return 404 on invalid commands
-	// (the command may exist but have no results yet).
-	p, err := svc.ds.GetMDMCommandPlatform(ctx, commandUUID)
+	// otherwise, load all command results for the command UUID without any host filtering
+	results, err := svc.getMDMCommandResults(ctx, commandUUID, "")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	var results []*fleet.MDMCommandResult
-	switch p {
-	case "darwin":
-		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
-	case "windows":
-		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)
-	case "android":
-		// TODO(mna): maybe in the future we'll store responses from AMAPI commands, but for
-		// now we don't (they are very large), just return an empty list.
-		results = []*fleet.MDMCommandResult{}
-	default:
-		// this should never happen, but just in case
-		level.Debug(svc.logger).Log("msg", "unknown MDM command platform", "platform", p)
-	}
-
-	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "get mdm command results with authz")
 	}
 
 	// now we can load the hosts (lite) corresponding to those command results,
 	// and do the final authorization check with the proper team(s). Include observers,
 	// as they are able to view command results for their teams' hosts.
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 	hostUUIDs := make([]string, len(results))
 	for i, res := range results {
 		hostUUIDs[i] = res.HostUUID
 	}
+
+	// build team filter for the user from context
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true} // observers can view command results for their teams
+
 	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
 	if err != nil {
 		return nil, err
@@ -794,12 +788,65 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		}
 	}
 
-	// add the hostnames to the results
+	// add the hostnames to the results, and populate software_installed for VPP app installs
+	hasInstallApp := false
 	for _, res := range results {
 		if h := hostsByUUID[res.HostUUID]; h != nil {
 			res.Hostname = hostsByUUID[res.HostUUID].Hostname
 		}
+
+		if res.RequestType == "InstallApplication" {
+			hasInstallApp = true
+		}
 	}
+
+	if hasInstallApp {
+		// Get install status for the VPP app
+		installed, err := svc.ds.GetVPPAppInstallStatusByCommandUUID(ctx, commandUUID)
+		if err != nil {
+			level.Debug(svc.logger).Log("msg", "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
+		} else {
+			for _, res := range results {
+				if res.RequestType == "InstallApplication" {
+					if res.ResultsMetadata == nil {
+						res.ResultsMetadata = make(map[string]any)
+					}
+					res.ResultsMetadata["software_installed"] = installed
+				}
+			}
+		}
+	}
+
+	return results, nil
+}
+
+func (svc *Service) getMDMCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	// check that command exists first, to return 404 on invalid commands
+	// (the command may exist but have no results yet).
+	p, err := svc.ds.GetMDMCommandPlatform(ctx, commandUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	var results []*fleet.MDMCommandResult
+	switch p {
+	case "darwin":
+		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID, hostUUID)
+	case "windows":
+		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID, hostUUID)
+	case "android":
+		// TODO(mna): maybe in the future we'll store responses from AMAPI commands, but for
+		// now we don't (they are very large), just return an empty list.
+		results = []*fleet.MDMCommandResult{}
+	default:
+		// this should never happen, but just in case
+		level.Debug(svc.logger).Log("msg", "unknown MDM command platform", "platform", p)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
 	return results, nil
 }
 
@@ -822,6 +869,59 @@ func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, comm
 	return results, nil
 }
 
+func (svc *Service) getHostIdentifierMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
+	if hostIdentifier == "" {
+		// caller should ensure this doesn't happen, but just in case return an internal error
+		return nil, ctxerr.Errorf(ctx, "getHostIdentifierMDMCommandResults called without host identifier")
+	}
+
+	if commandUUID == "" {
+		return nil, fleet.NewInvalidArgumentError(
+			"command_uuid",
+			"command_uuid is required when host_identifier is provided",
+		).WithStatus(http.StatusBadRequest)
+	}
+
+	// build team filter for the user from context
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	tmFilter := fleet.TeamFilter{User: vc.User, IncludeObserver: true} // observers can view command results for their teams
+
+	hi, err := svc.ds.GetHostMDMIdentifiers(ctx, hostIdentifier, tmFilter)
+	switch {
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getHostIdentifierMDMCommandResults: searching host identifiers")
+	case len(hi) == 0 || hi[0] == nil || hi[0].UUID == "":
+		// this should never happen, but just in case
+		return nil, ctxerr.Errorf(ctx, "getHostIdentifierMDMCommandResults: unexpected result for host identifier %s", hostIdentifier)
+	case len(hi) > 1:
+		// FIXME: determine what to do in this unexpected case; for now just log it and use the first one.
+		level.Debug(svc.logger).Log("msg", "getHostIdentifierMDMCommandResults: multiple hosts found for host identifier", "host_identifier", hostIdentifier, "count", len(hi))
+	}
+
+	// authorize that the user can read commands for the host's team
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: hi[0].TeamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	results, err := svc.getMDMCommandResults(ctx, commandUUID, hi[0].UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm command results by platform")
+	}
+
+	// FIXME: we could potentially pass the hostname to the datastore method and plug it into the
+	// SELECT to avoid this loop, but for now we're following the same pattern as in
+	// GetMDMCommandResults and we're only expecting a single result here, so not a
+	// big deal.
+	for _, res := range results {
+		res.Hostname = hi[0].Hostname
+	}
+
+	return results, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // GET /mdm/commands
 ////////////////////////////////////////////////////////////////////////////////
@@ -830,52 +930,104 @@ type listMDMCommandsRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
 	HostIdentifier string            `query:"host_identifier,optional"`
 	RequestType    string            `query:"request_type,optional"`
+	CommandStatus  string            `query:"command_status,optional"`
 }
 
 type listMDMCommandsResponse struct {
-	Results []*fleet.MDMCommand `json:"results"`
-	Err     error               `json:"error,omitempty"`
+	Meta    *fleet.PaginationMetadata `json:"meta"`
+	Count   *int64                    `json:"count"`
+	Results []*fleet.MDMCommand       `json:"results"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r listMDMCommandsResponse) Error() error { return r.Err }
 
+// We the DecodeBody method to perform custom validation before hitting the service layer.
+func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	if req.CommandStatus != "" && req.HostIdentifier == "" {
+		return &fleet.BadRequestError{
+			Message: `"host_identifier" must be specified when filtering by "command_status".`,
+		}
+	}
+
+	if req.CommandStatus != "" {
+		statuses := strings.Split(req.CommandStatus, ",")
+		failed := false
+		for _, status := range statuses {
+			status = strings.TrimSpace(status)
+			if !slices.Contains(fleet.AllMDMCommandStatusFilters, fleet.MDMCommandStatusFilter(status)) {
+				failed = true
+				break
+			}
+		}
+
+		if failed {
+			allowed := make([]string, len(fleet.AllMDMCommandStatusFilters))
+			for i, v := range fleet.AllMDMCommandStatusFilters {
+				allowed[i] = string(v)
+			}
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("command_status only accepts the following values: %s", strings.Join(allowed, ", ")),
+			}
+		}
+	}
+
+	return nil
+}
+
 func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listMDMCommandsRequest)
-	results, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
+
+	// Convert comma-separated command statuses into a list of typed values
+	commandStatuses := []fleet.MDMCommandStatusFilter{}
+	if req.CommandStatus != "" {
+		for val := range strings.SplitSeq(req.CommandStatus, ",") {
+			commandStatuses = append(commandStatuses, fleet.MDMCommandStatusFilter(strings.TrimSpace(val)))
+		}
+	}
+
+	req.ListOptions.IncludeMetadata = true
+
+	results, total, meta, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
 		ListOptions: req.ListOptions,
-		Filters:     fleet.MDMCommandFilters{HostIdentifier: req.HostIdentifier, RequestType: req.RequestType},
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: req.HostIdentifier, RequestType: req.RequestType, CommandStatuses: commandStatuses},
 	})
-	if err != nil {
+	bre := &fleet.BadRequestError{}
+	if err != nil && !errors.As(err, &bre) {
 		return listMDMCommandsResponse{
 			Err: err,
 		}, nil
+	} else if errors.As(err, &bre) {
+		return nil, err
 	}
 
 	return listMDMCommandsResponse{
+		Meta:    meta,
 		Results: results,
+		Count:   total,
 	}, nil
 }
 
-func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		return nil, nil, nil, fleet.ErrNoContext
 	}
 
 	// get the list of commands so we know what hosts (and therefore what teams)
 	// we're dealing with. Including the observers as they are allowed to view
 	// MDM Apple commands.
-	results, err := svc.ds.ListMDMCommands(ctx, fleet.TeamFilter{
+	results, total, meta, err := svc.ds.ListMDMCommands(ctx, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	}, opts)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	// collect the different team IDs and verify that the user has access to view
@@ -933,11 +1085,10 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 		_, err := svc.ds.HostLiteByIdentifier(ctx, opts.Filters.HostIdentifier)
 		var nve fleet.NotFoundError
 		if errors.As(err, &nve) {
-			return nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
+			return nil, nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
 		}
 	}
-
-	return results, nil
+	return results, total, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1038,12 +1189,7 @@ func (svc *Service) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	hcts, err := svc.ds.GetMDMProfileSummaryFromHostCertificateTemplates(ctx, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	return ps.Add(hcts), nil
+	return ps, nil
 }
 
 // authorizeAllHostsTeams is a helper function that loads the hosts
@@ -1252,13 +1398,6 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// check that Windows MDM is enabled - the middleware of that endpoint checks
-	// only that any MDM is enabled, maybe it's just macOS
-	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-		err := fleet.NewInvalidArgumentError("profile_uuid", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-		return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
-	}
-
 	prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1334,13 +1473,6 @@ func (svc *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUU
 	// first we perform a perform basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
-	}
-
-	// check that Android MDM is enabled - the middleware of that endpoint checks
-	// only that any MDM is enabled, maybe it's just macOS
-	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
-		err := fleet.NewInvalidArgumentError("profile_uuid", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-		return ctxerr.Wrap(ctx, err, "check android MDM enabled")
 	}
 
 	prof, err := svc.ds.GetMDMAndroidConfigProfile(ctx, profileUUID)
@@ -1646,7 +1778,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
-	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	labelMap, err := svc.validateProfileLabels(ctx, &teamID, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
@@ -1662,7 +1794,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 
 	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
 	if err != nil {
-		var existsErr endpoint_utils.ExistsErrorInterface
+		var existsErr endpointer.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
 				WithStatus(http.StatusConflict)
@@ -1691,12 +1823,12 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
-func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
+func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
 
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
 	}
@@ -1715,6 +1847,13 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames [
 		}
 	}
 
+	// NOTE(lucas): To not break API error string returned above
+	// AND for code reusability we are a-ok with loading labels again in verifyLabelsToAssociate.
+	// This can definitely be optimized if need be.
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	profLabels := make(map[string]fleet.ConfigurationProfileLabel)
 	for labelName, labelID := range labels {
 		profLabels[labelName] = fleet.ConfigurationProfileLabel{
@@ -1725,8 +1864,8 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames [
 	return profLabels, nil
 }
 
-func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
-	labelMap, err := svc.batchValidateProfileLabels(ctx, labelNames)
+func (svc *Service) validateProfileLabels(ctx context.Context, teamID *uint, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
+	labelMap, err := svc.batchValidateProfileLabels(ctx, teamID, labelNames)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating profile labels")
 	}
@@ -1836,8 +1975,14 @@ func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) BatchSetMDMProfiles(
-	ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool,
-	assumeEnabled *bool, noCache bool,
+	ctx context.Context,
+	tmID *uint,
+	tmName *string,
+	profiles []fleet.MDMProfileBatchPayload,
+	dryRun bool,
+	skipBulkPending bool,
+	assumeEnabled *bool,
+	noCache bool,
 ) error {
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
@@ -1877,7 +2022,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 	var labelMap map[string]fleet.ConfigurationProfileLabel
 	if !dryRun {
-		labelMap, err = svc.batchValidateProfileLabels(ctx, labels)
+		labelMap, err = svc.batchValidateProfileLabels(ctx, tmID, labels)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validating labels")
 		}
@@ -2061,17 +2206,6 @@ func (svc *Service) BatchSetMDMProfiles(
 			return ctxerr.Wrap(ctx, err, "logging activity for edited android profile")
 		}
 	}
-
-	// // TODO(AP): Uncomment to enable activity logging for Android profiles once implemented
-	// 	if updates.AndroidProfile {
-	// 	if err := svc.NewActivity(
-	// 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
-	// 			TeamID:   tmID,
-	// 			TeamName: tmName,
-	// 		}); err != nil {
-	// 		return ctxerr.Wrap(ctx, err, "logging activity for edited android profiles")
-	// 	}
-	// }
 
 	return nil
 }
@@ -2331,11 +2465,7 @@ func getAppleProfiles(
 			return nil, nil, ctxerr.Wrap(ctx, iae)
 		}
 
-		if mdmProf.Name != prof.Name {
-			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),
-				"duplicate mobileconfig profile by name")
-		}
+		// Don't validate name here since we always use the PayloadDisplayName from the profile.
 
 		if _, ok := byName[mdmProf.Name]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
@@ -2802,7 +2932,18 @@ func getProfileToResendDetails(ctx context.Context, profileUUID string, svc *Ser
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
 		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.CantResendAppleDeclarationProfilesMessage).WithStatus(http.StatusBadRequest), "check apple declaration resend")
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
-		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.CantResendWindowsProfilesMessage).WithStatus(http.StatusBadRequest), "check windows profile resend")
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check windows mdm enabled")
+		}
+		if host.Platform != "windows" {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
+		}
+		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "getting windows config profile")
+		}
+		profileTeamID = prof.TeamID
+		profileName = prof.Name
 	default:
 		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Invalid profile UUID prefix.").WithStatus(http.StatusNotFound), "check profile UUID prefix")
 	}
@@ -3042,7 +3183,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "Please generate a private key first.",
+				Message: "Couldn't connect. Please download the certificate signing request (CSR) first, then upload APNs certificate.",
 			}, "uploading APNs certificate")
 		}
 
@@ -3412,4 +3553,93 @@ func (svc *Service) GetMDMConfigProfileStatus(ctx context.Context, profileUUID s
 		return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, err)
 	}
 	return status, nil
+}
+
+type mdmUnenrollRequest struct {
+	HostID uint `url:"id"`
+}
+
+type mdmUnenrollResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r mdmUnenrollResponse) Error() error { return r.Err }
+
+func (r mdmUnenrollResponse) Status() int { return http.StatusNoContent }
+
+func mdmUnenrollEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*mdmUnenrollRequest)
+	err := svc.UnenrollMDM(ctx, req.HostID)
+	if err != nil {
+		return mdmUnenrollResponse{Err: err}, nil
+	}
+	return mdmUnenrollResponse{}, nil
+}
+
+func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host for MDM unenroll")
+	}
+
+	// Check authorization again based on host info for team-based permissions.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	installedFromDEP := false
+	switch host.Platform {
+	case "windows":
+		return &fleet.BadRequestError{
+			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
+		}
+	case "ios", "ipados", "darwin":
+		if err := svc.enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "unenrolling apple host")
+		}
+
+		// We only use this call for activity logging purposes later.
+		info, err := svc.ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
+		}
+		installedFromDEP = info.InstalledFromDEP
+
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
+		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+			Action:   mdmlifecycle.HostActionTurnOff,
+			Platform: host.Platform,
+			UUID:     host.UUID,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "running turn off action in mdm lifecycle")
+		}
+	case "android":
+		// We need to pass host ID and let android look it up again, to avoid refercing the fleet. type for import cycles.
+		if err := svc.androidSvc.UnenrollAndroidHost(ctx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "unenrolling android host")
+		}
+	default:
+		level.Debug(svc.logger).Log("msg", "MDM unenrollment requested for host with unknown platform", "host_id", host.ID, "platform", host.Platform)
+		return &fleet.BadRequestError{
+			Message: "MDM unenrollment is not supported for this host platform",
+		}
+	}
+
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+			HostSerial:       host.HardwareSerial,
+			HostDisplayName:  host.DisplayName(),
+			InstalledFromDEP: installedFromDEP,
+			Platform:         host.Platform,
+		}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
+	}
+	return nil
 }

@@ -1,0 +1,8 @@
+{
+  "name": "Maccy",
+  "unique_identifier": "org.p0deje.Maccy",
+  "token": "maccy",
+  "installer_format": "zip",
+  "slug": "maccy/darwin",
+  "default_categories": ["Productivity"]
+}

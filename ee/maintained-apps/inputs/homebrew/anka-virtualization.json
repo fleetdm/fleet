@@ -1,0 +1,8 @@
+{
+  "name": "Anka",
+  "unique_identifier": "com.veertu.ankaview",
+  "token": "anka-virtualization",
+  "installer_format": "pkg",
+  "slug": "anka-virtualization/darwin",
+  "default_categories": ["Developer tools"]
+}

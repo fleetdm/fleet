@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "8.11.20",
+      "version": "8.11.22",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password';"
       },

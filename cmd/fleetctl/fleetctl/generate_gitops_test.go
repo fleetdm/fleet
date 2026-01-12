@@ -265,6 +265,16 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
 			},
+			{
+				ID:   6,
+				Name: "My Setup Experience App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID:         "com.example.setup-experience-software",
+					Platform:           string(fleet.AndroidPlatform),
+					InstallDuringSetup: ptr.Bool(true),
+				},
+				HashSHA256: ptr.String("app-setup-experience-hash"),
+			},
 		}, nil
 	case "available_for_install=1&team_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -398,6 +408,19 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			},
 			IconUrl: ptr.String("/api/icon2.png"),
 		}, nil
+	case 6:
+		if *teamID != 1 {
+			return nil, errors.New("team ID mismatch")
+		}
+		return &fleet.SoftwareTitle{
+			ID: 6,
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
+				LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
+				SelfService:      true,
+			},
+			IconUrl: ptr.String("/api/icon3.png"),
+		}, nil
 	default:
 		return nil, errors.New("software title not found")
 	}
@@ -407,7 +430,11 @@ func (MockClient) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error
 	return []byte(fmt.Sprintf("icon for title %d on team %d", titleID, teamID)), nil
 }
 
-func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
+func (MockClient) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
+	if teamID != 0 {
+		return nil, nil // simulate no team-specific labels
+	}
+
 	return []*fleet.LabelSpec{{
 		Name:                "Label A",
 		Platform:            "linux,macos",
@@ -460,6 +487,16 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 					Platform:           "darwin",
 					Version:            "13.37",
 				},
+			},
+			{
+				ID:   6,
+				Name: "My Setup Experience App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID:         "com.example.setup-experience-software",
+					Platform:           string(fleet.AndroidPlatform),
+					InstallDuringSetup: ptr.Bool(true),
+				},
+				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
 		}, nil
 	}
@@ -592,22 +629,8 @@ func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTe
 				ID:                       1,
 				CertificateAuthorityName: "DIGIDOO",
 				Name:                     "my_certypoo",
+				SubjectName:              "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 			},
-		}
-	}
-	return res, nil
-}
-
-func (MockClient) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
-	var res *fleet.CertificateTemplateResponseFull
-	if certificateID == 1 {
-		res = &fleet.CertificateTemplateResponseFull{
-			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-				ID:                       1,
-				CertificateAuthorityName: "DIGIDOO",
-				Name:                     "my_certypoo",
-			},
-			SubjectName: "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 		}
 	}
 	return res, nil
@@ -1545,25 +1568,28 @@ func TestGenerateLabels(t *testing.T) {
 		AppConfig:    appConfig,
 	}
 
-	labelsRaw, err := cmd.generateLabels()
+	labelsRaw, err := cmd.generateLabels(nil)
 	require.NoError(t, err)
 	require.NotNil(t, labelsRaw)
 	var labels []map[string]interface{}
 	b, err := yaml.Marshal(labelsRaw)
 	require.NoError(t, err)
-	fmt.Println("labels raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &labels)
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedLabels.yaml")
 	require.NoError(t, err)
-	var expectedlabels []map[string]interface{}
-	err = yaml.Unmarshal(b, &expectedlabels)
+	var expectedLabels []map[string]any
+	err = yaml.Unmarshal(b, &expectedLabels)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedlabels, labels)
+	require.Equal(t, expectedLabels, labels)
+
+	teamLabels, err := cmd.generateLabels(&fleet.Team{ID: 1})
+	require.NoError(t, err)
+	require.Empty(t, teamLabels)
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {

@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -190,21 +191,27 @@ type Datastore interface {
 	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
 	// ApplyLabelSpecs does the same as ApplyLabelSpecs, additionally allowing an author ID to be set for the labels.
 	ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*LabelSpec, authorId *uint) error
-	// GetLabelSpecs returns all of the stored LabelSpecs.
-	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
-	// GetLabelSpec returns the spec for the named label.
-	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
+	// SetAsideLabels moves a set of labels out of the way if those labels *aren't* on the specified team and *are*
+	// writable by the specified user
+	SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user User) error
+	// GetLabelSpecs returns all of the stored LabelSpecs that the user can see, optionally filtered to
+	// a specific team (or global-only); in this case the team filter does *not* include global
+	// labels if the user asks for a specific team
+	GetLabelSpecs(ctx context.Context, filter TeamFilter) ([]*LabelSpec, error)
+	// GetLabelSpec returns the spec for the named label, filtered by the provided team filter.
+	GetLabelSpec(ctx context.Context, filter TeamFilter, name string) (*LabelSpec, error)
 
-	// AddLabelsToHost adds the given label IDs membership to the host.
+	// AddLabelsToHost adds the given label IDs membership to the host, with the assumption that the label
+	// is available for the host (visibility checks are assumed to have been done prior to this call).
 	// If a host is already a member of the label then this will update the row's updated_at.
 	AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error
 	// RemoveLabelsFromHost removes the given label IDs membership from the host.
 	// If a host is already not a member of a label then such label will be ignored.
 	RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error
 
-	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
-	// IDs, applied in batches
-	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
+	// UpdateLabelMembershipByHostIDs updates the label membership for the given label with host
+	// IDs, applied in batches, then returns the updated label
+	UpdateLabelMembershipByHostIDs(ctx context.Context, label Label, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
 	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
 	// based on its host vitals criteria.
 	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
@@ -212,16 +219,17 @@ type Datastore interface {
 	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
 	// members of this label, or an error.
-	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*Label, []uint, error)
-	DeleteLabel(ctx context.Context, name string) error
+	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	DeleteLabel(ctx context.Context, name string, filter TeamFilter) error
+	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
 	// Label returns the label and an array of host IDs members of this label, or an error.
-	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*Label, []uint, error)
-	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
-	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
+	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions, includeHostCounts bool) ([]*Label, error)
+	LabelsSummary(ctx context.Context, filter TeamFilter) ([]*LabelSummary, error)
 
 	GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
 
-	// LabelQueriesForHost returns the label queries that should be executed for the given host.
+	// LabelQueriesForHost returns the (dynamic) label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
 	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
@@ -231,16 +239,12 @@ type Datastore interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) ([]*Host, error)
 
-	// ListUniqueHostsInLabels returns a slice of all of the hosts in the given label IDs. A host will only appear once
-	// in the results even if it is in multiple of the provided labels.
-	ListUniqueHostsInLabels(ctx context.Context, filter TeamFilter, labels []uint) ([]*Host, error)
-
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
 	// LabelIDsByName retrieves the IDs associated with the given label names
-	LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error)
+	LabelIDsByName(ctx context.Context, labels []string, filter TeamFilter) (map[string]uint, error)
 	// LabelsByName retrieves the labels associated with the given label names
-	LabelsByName(ctx context.Context, names []string) (map[string]*Label, error)
+	LabelsByName(ctx context.Context, names []string, filter TeamFilter) (map[string]*Label, error)
 
 	// Methods used for async processing of host label query results.
 	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
@@ -374,6 +378,10 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
+	// GetHostMDMIdentifiers searches for hosts with identifiers matching the provided identifier.
+	// It is intended as an optimization over existing host-by-identifier methods (e.g.,
+	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
+	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
 
 	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
 	// updated in the given `interval`).
@@ -589,6 +597,8 @@ type Datastore interface {
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
+	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
+	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
@@ -1248,8 +1258,9 @@ type Datastore interface {
 	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
-	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+	// GetMDMAppleCommandResults returns the execution results of a command identified by a
+	// CommandUUID. If a hostUUID is provided, it filters the results for that host.
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// GetVPPCommandResults returns the execution results of a command identified by a CommandUUID,
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
@@ -1440,6 +1451,9 @@ type Datastore interface {
 	// RecordHostBootstrapPackage records a command used to install a
 	// bootstrap package in a host.
 	RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error
+	// RecordSkippedHostBootstrapPackage records that a host skipped the
+	// installation of a bootstrap package.
+	RecordSkippedHostBootstrapPackage(ctx context.Context, hostUUID string) error
 	// GetHostBootstrapPackageCommand returns the MDM command uuid used to
 	// install a bootstrap package in a host.
 	GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error)
@@ -1561,8 +1575,8 @@ type Datastore interface {
 	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
 	MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
-	// for the host with the given serial number. The host must be DEP assigned to Fleet.
-	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*AppleOSUpdateSettings, error)
+	// for the host with the given serial number alongside the host's platform. The host must be DEP assigned to Fleet.
+	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (string, *AppleOSUpdateSettings, error)
 
 	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
 	// tx is optional and can be used to pass an existing transaction.
@@ -1709,10 +1723,10 @@ type Datastore interface {
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
 
 	// MDMWindowsSaveResponse saves a full response
-	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML) error
+	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) error
 
 	// GetMDMWindowsCommands returns the results of command
-	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
@@ -1768,7 +1782,8 @@ type Datastore interface {
 
 	// ListMDMCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
-	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, error)
+	// returns a non-nil count if filtering by command_status = pending
+	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
 	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
@@ -1931,6 +1946,10 @@ type Datastore interface {
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
 
+	// GetHostsLockWipeStatusBatch gets the lock/unlock and wipe status for multiple hosts in a single operation.
+	// Returns a map of host ID to HostLockWipeStatus.
+	GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*Host) (map[uint]*HostLockWipeStatus, error)
+
 	// LockHostViaScript sends a script to lock a host and updates the
 	// states in host_mdm_actions
 	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
@@ -2058,6 +2077,14 @@ type Datastore interface {
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
+	// on VPP installations for a host
+	//
+	// By pending verification it means that the installation command is not acknowledged, OR that the installation
+	// is acknowledged but not yet verified (installation is still ongoing on the device and/or Fleet hasn't verified
+	// the installation via InstalledApplicationList).
+	MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
+
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
 
@@ -2127,7 +2154,7 @@ type Datastore interface {
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]VPPAppTeam, error)
 	GetVPPApps(ctx context.Context, teamID *uint) ([]VPPAppResponse, error)
-	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
+	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error)
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 	GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error)
 
@@ -2139,6 +2166,11 @@ type Datastore interface {
 	// InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, opts HostSoftwareInstallOptions) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
+	// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
+	// is currently installed. Returns false if the command doesn't exist or app is not installed.
+	GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error)
+	// IsAutoUpdateVPPInstall determines whether a VPP install command was triggered by auto-update config
+	IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 
@@ -2339,12 +2371,20 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
-	// GetCertificateStatusSummary GetCertificateTemplatesSummary returns a summary of the current state of certificate templates on each host in
-	// the specified team (or, if no team is specified, each host that is not assigned to any team).
-	GetMDMProfileSummaryFromHostCertificateTemplates(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
-
 	// GetHostCertificateTemplates returns what certificate templates are currently associated with the specified host.
 	GetHostCertificateTemplates(ctx context.Context, hostUUID string) ([]HostCertificateTemplate, error)
+
+	// CreatePendingCertificateTemplatesForExistingHosts creates pending certificate template records
+	// for all enrolled Android hosts in the team when a new certificate template is added.
+	CreatePendingCertificateTemplatesForExistingHosts(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error)
+
+	// CreatePendingCertificateTemplatesForNewHost creates pending certificate template records
+	// for a newly enrolled Android host based on their team's certificate templates.
+	CreatePendingCertificateTemplatesForNewHost(ctx context.Context, hostUUID string, teamID uint) (int64, error)
+
+	// RevertStaleCertificateTemplates reverts certificate templates stuck in 'delivering' status
+	// for longer than the specified duration back to 'pending'.
+	RevertStaleCertificateTemplates(ctx context.Context, staleDuration time.Duration) (int64, error)
 
 	// GetHostMDMAndroidProfiles retrieves the Android MDM profiles for a specific host.
 	GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]HostMDMAndroidProfile, error)
@@ -2373,18 +2413,21 @@ type Datastore interface {
 	// VPP app install record for the setup experience flow.
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
-	// GetAndroidAppConfiguration retrieves the configuration for an Android app
-	// identified by adam_id and global_or_team_id.
-	GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*AndroidAppConfiguration, error)
+	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
 
-	// InsertAndroidAppConfiguration creates a new Android app configuration entry.
-	InsertAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
+	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
-	// UpdateAndroidAppConfiguration updates an existing Android app configuration.
-	UpdateAndroidAppConfiguration(ctx context.Context, config *AndroidAppConfiguration) error
+	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
+	// all provided apps and returns them indexed by the app id.
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
-	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) error
+	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
+
+	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -2427,6 +2470,8 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+	// MaybeAssociateHostWithScimUser links a host with a SCIM user based on MDM IdP and IdP user ID
+	MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Challenges
@@ -2513,36 +2558,83 @@ type Datastore interface {
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
 	// UpdateCertificateStatus allows a host to update the installation status of a certificate given its template.
-	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpsertCertificateStatus(ctx context.Context, hostUUID string, certificateTemplateID uint, status MDMDeliveryStatus, detail *string, operationType MDMOperationType) error
 
 	// BatchUpsertCertificateTemplates upserts a batch of certificates.
-	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) error
+	// Returns a map of team IDs that had certificates inserted or updated.
+	BatchUpsertCertificateTemplates(ctx context.Context, certificates []*CertificateTemplate) ([]uint, error)
 	// BatchDeleteCertificateTemplates deletes a batch of certificates.
-	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) error
+	// Returns true if any rows were deleted.
+	BatchDeleteCertificateTemplates(ctx context.Context, certificateTemplateIDs []uint) (bool, error)
 	// CreateCertificateTemplate creates a new certificate template.
-	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponseFull, error)
+	CreateCertificateTemplate(ctx context.Context, certificateTemplate *CertificateTemplate) (*CertificateTemplateResponse, error)
 	// DeleteCertificateTemplate deletes a certificate template by its ID.
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
-	// GetCertificateTemplateById gets a certificate template by its ID.
-	GetCertificateTemplateById(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
+	// GetCertificateTemplateById gets a certificate template by its ID (without host-specific data).
+	GetCertificateTemplateById(ctx context.Context, id uint) (*CertificateTemplateResponse, error)
+	// GetCertificateTemplateByIdForHost gets a certificate template by ID with host-specific status and challenge.
+	GetCertificateTemplateByIdForHost(ctx context.Context, id uint, hostUUID string) (*CertificateTemplateResponseForHost, error)
 	// GetCertificateTemplatesByTeamID gets all certificate templates for a team.
 	GetCertificateTemplatesByTeamID(ctx context.Context, teamID uint, opts ListOptions) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
+	// GetCertificateTemplateByTeamIDAndName gets a certificate template by team ID and name.
+	GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*CertificateTemplateResponse, error)
 	// ListAndroidHostUUIDsWithDeliverableCertificateTemplates returns a paginated list of Android host UUIDs that have certificate templates.
 	ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
 	// ListCertificateTemplatesForHosts returns ALL certificate templates for the given host UUIDs.
 	ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]CertificateTemplateForHost, error)
 	// GetCertificateTemplateForHost returns a certificate template for the given host UUID and certificate template ID.
 	GetCertificateTemplateForHost(ctx context.Context, hostUUID string, certificateTemplateID uint) (*CertificateTemplateForHost, error)
+	// GetHostCertificateTemplateRecord returns the host_certificate_templates record directly without
+	// requiring the parent certificate_template to exist. Used for status updates on orphaned records.
+	GetHostCertificateTemplateRecord(ctx context.Context, hostUUID string, certificateTemplateID uint) (*HostCertificateTemplate, error)
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records
 	// identified by (host_uuid, certificate_template_id) pairs.
 	DeleteHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
+	// DeleteHostCertificateTemplate deletes a single host_certificate_template record
+	// identified by host_uuid and certificate_template_id.
+	DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error
+
+	// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
+	// certificate templates in 'pending' status ready for delivery.
+	ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
+
+	// GetAndTransitionCertificateTemplatesToDelivering retrieves all certificate templates
+	// with operation_type='install' for a host, transitions any pending ones to 'delivering' status.
+	// If there are no pending certificate templates, then nothing is returned.
+	GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*HostCertificateTemplatesForDelivery, error)
+
+	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
+	// and sets the fleet_challenge for each template.
+	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error
+
+	// RevertHostCertificateTemplatesToPending reverts specific host certificate templates from 'delivering' back to 'pending'.
+	RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
+
+	// SetHostCertificateTemplatesToPendingRemove prepares certificate templates for removal.
+	// For a given certificate template ID, it deletes any rows with status=pending and
+	// updates all other rows to status=pending, operation_type=remove.
+	SetHostCertificateTemplatesToPendingRemove(ctx context.Context, certificateTemplateID uint) error
+
+	// SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
+	// for a specific host for removal.
+	SetHostCertificateTemplatesToPendingRemoveForHost(ctx context.Context, hostUUID string) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
 	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
+
+	// GetWindowsMDMCommandsForResending retrieves Windows MDM commands that failed to be delivered
+	// and need to be resent based on their command IDs.
+	//
+	// Returns a slice of MDMWindowsCommand pointers containing the commands to be resent.
+	GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*MDMWindowsCommand, error)
+
+	// ResendWindowsMDMCommand marks the specified Windows MDM command for resend
+	// by inserting a new command entry, command queue, but also updates the host profile reference.
+	ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId string, newCmd *MDMWindowsCommand, oldCmd *MDMWindowsCommand) error
 }
 
 type AndroidDatastore interface {
@@ -2763,19 +2855,11 @@ type AlreadyExistsError interface {
 	IsExists() bool
 }
 
-// ForeignKeyError is returned when the operation fails due to foreign key constraints.
-type ForeignKeyError interface {
-	error
-	IsForeignKey() bool
-}
+// ForeignKeyError is an alias for platform_http.ForeignKeyError.
+type ForeignKeyError = platform_http.ForeignKeyError
 
-func IsForeignKey(err error) bool {
-	var fke ForeignKeyError
-	if errors.As(err, &fke) {
-		return fke.IsForeignKey()
-	}
-	return false
-}
+// IsForeignKey is an alias for platform_http.IsForeignKey.
+var IsForeignKey = platform_http.IsForeignKey
 
 type OptionalArg func() interface{}
 

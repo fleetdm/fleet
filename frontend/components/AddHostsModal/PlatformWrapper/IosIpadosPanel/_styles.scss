@@ -5,4 +5,8 @@
   &__spinner {
     margin: $pad-xxlarge auto;
   }
+  &__enroll-link input {
+    font-family: "SourceCodePro", $monospace;
+    color: $core-fleet-blue;
+  }
 }

@@ -1,6 +1,7 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
+import { InstallerType } from "interfaces/software";
 
 import InstallerDetailsWidget from "./InstallerDetailsWidget";
 
@@ -19,7 +20,7 @@ const render = createCustomRenderer({ withBackendMock: true });
 describe("InstallerDetailsWidget", () => {
   const defaultProps = {
     softwareName: "Test Software",
-    installerType: "package" as const,
+    installerType: "package" as InstallerType,
     addedTimestamp: "2024-05-06T10:00:00Z",
     version: "v1.2.3",
     isFma: false,

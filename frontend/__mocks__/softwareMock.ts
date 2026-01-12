@@ -166,6 +166,32 @@ export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
   return { ...DEFAULT_APP_STORE_APP_MOCK, ...overrides };
 };
 
+const DEFAULT_APP_STORE_APP_ANDROID_MOCK: IAppStoreApp = {
+  name: "test app",
+  display_name: "Test App",
+  app_store_id: "com.test.app",
+  created_at: "2020-01-01T00:00:00.000Z",
+  platform: "android",
+  icon_url: "https://via.placeholder.com/512",
+  latest_version: "1.2.3",
+  self_service: true,
+  status: {
+    installed: 1,
+    pending: 2,
+    failed: 3,
+  },
+  categories: null,
+  labels_include_any: null,
+  labels_exclude_any: null,
+  configuration: '{ workProfileWidgets: "WORK_PROFILE_WIDGETS_ALLOWED" }',
+};
+
+export const createMockAppStoreAppAndroid = (
+  overrides?: Partial<IAppStoreApp>
+) => {
+  return { ...DEFAULT_APP_STORE_APP_ANDROID_MOCK, ...overrides };
+};
+
 const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   id: 1,
   name: "test.app",

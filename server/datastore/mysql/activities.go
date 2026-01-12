@@ -509,7 +509,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
-				'status', 'pending_install'
+				'status', 'pending_install',
+				'host_platform', h.platform
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
@@ -520,6 +521,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
 		LEFT OUTER JOIN
@@ -1658,7 +1661,7 @@ ORDER BY
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid
+	uuid, platform
 FROM
 	hosts
 WHERE
@@ -1683,7 +1686,7 @@ WHERE
 	ua.execution_id IN (:execution_ids)
 `
 
-	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
+	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -1692,7 +1695,7 @@ WHERE
 		<key>InstallAsManaged</key>
 		<true/>
         <key>ManagementFlags</key>
-        <integer>0</integer>
+        <integer>%d</integer>
         <key>ChangeManagementState</key>
         <string>Managed</string>
         <key>InstallAsManaged</key>
@@ -1739,9 +1742,21 @@ ORDER BY
 	}
 
 	// get the host uuid, requires for the nano tables
-	var hostUUID string
-	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+	var hostData struct {
+		UUID     string `db:"uuid"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	// Set management flags based on platform
+	if fleet.IsAppleMobilePlatform(hostData.Platform) {
+		// Remove app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
+	} else {
+		// Keep app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
 	}
 
 	// insert the host vpp app row
@@ -1775,7 +1790,7 @@ ORDER BY
 	}
 
 	// enqueue the nano command in the nano queue
-	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
+	stmt, args, err = sqlx.In(insNanoQueueStmt, hostData.UUID, hostID, execIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
 	}
@@ -1786,8 +1801,8 @@ ORDER BY
 	// best-effort APNs push notification to the host, not critical because we
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
-		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
+		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
 		}
 	}
 	return nil
@@ -1820,7 +1835,7 @@ ORDER BY
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid, team_id
+	uuid, team_id, platform
 FROM
 	hosts
 WHERE
@@ -1845,7 +1860,7 @@ WHERE
 	ua.execution_id IN (:execution_ids)
 `
 
-	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
+	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -1854,7 +1869,7 @@ WHERE
 		<key>InstallAsManaged</key>
 		<true/>
         <key>ManagementFlags</key>
-        <integer>0</integer>
+        <integer>%d</integer>
         <key>ChangeManagementState</key>
         <string>Managed</string>
         <key>InstallAsManaged</key>
@@ -1902,11 +1917,21 @@ ORDER BY
 
 	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID   string `db:"uuid"`
-		TeamID *uint  `db:"team_id"`
+		UUID     string `db:"uuid"`
+		TeamID   *uint  `db:"team_id"`
+		Platform string `db:"platform"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	// Set management flags based on platform
+	if fleet.IsAppleMobilePlatform(hostData.Platform) {
+		// Remove app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
+	} else {
+		// Keep app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
 	}
 
 	// insert the host in-house app row

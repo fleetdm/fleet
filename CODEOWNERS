@@ -66,7 +66,7 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                                   @rachaelshaw
-/docs/solutions                                         @ddribeiro
+/docs/solutions                                         @ddribeiro @lukeheath
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
@@ -75,6 +75,7 @@ go.mod @fleetdm/go
 /schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
+/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @BCTBB # « Infra: active notification of changes to IP Allowlists
 
 ################################################################################################
 #  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐

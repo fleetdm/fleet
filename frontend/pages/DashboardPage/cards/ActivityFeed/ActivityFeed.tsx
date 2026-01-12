@@ -16,6 +16,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { ActivityType, IActivityDetails } from "interfaces/activity";
+import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
@@ -141,7 +142,7 @@ const ActivityFeed = ({
   const [typeFilter, setTypeFilter] = useState<string[]>([""]);
 
   const queryShown = useRef("");
-  const queryImpact = useRef<string | undefined>(undefined);
+  const queryImpact = useRef<PerformanceImpactIndicator | undefined>(undefined);
   const scriptExecutionId = useRef("");
 
   const { startDate, endDate } = useMemo(() => generateDateFilter(dateFilter), [
@@ -258,9 +259,7 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        isAndroid(details?.platform || "")
-          ? setPackageInstallDetails({ ...details }) // Android Play Store installs
-          : setVppInstallDetails({ ...details }); // Apple VPP installs
+        setVppInstallDetails({ ...details }); // Apple VPP + Android installs
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -415,6 +414,7 @@ const ActivityFeed = ({
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: vppInstallDetails.host_display_name || "",
             commandUuid: vppInstallDetails.command_uuid || "",
+            platform: vppInstallDetails.host_platform,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />

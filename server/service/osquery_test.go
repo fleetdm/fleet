@@ -33,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/log"
@@ -992,7 +991,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	// Expect an error when unable to write to logging destination.
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
-	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*endpoint_utils.OsqueryError).Status())
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*OsqueryError).Status())
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -1475,9 +1474,9 @@ func TestLabelQueries(t *testing.T) {
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{
-			"label1": "query1",
-			"label2": "query2",
-			"label3": "query3",
+			"1": "query1",
+			"2": "query2",
+			"3": "query3",
 		}, nil
 	}
 
@@ -2908,7 +2907,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
-	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.True(t, err.(*OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1, HasHostIdentityCert: ptr.Bool(false)}, nil
@@ -2929,7 +2928,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
-	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.True(t, err.(*OsqueryError).NodeInvalid())
 
 	// return other error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2938,7 +2937,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
-	require.False(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.False(t, err.(*OsqueryError).NodeInvalid())
 }
 
 func TestGetHostIdentifier(t *testing.T) {
@@ -3037,6 +3036,9 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	}
 	ds.SaveHostAdditionalFunc = func(ctx context.Context, hostID uint, additional *json.RawMessage) error {
 		return errors.New("something went wrong")
+	}
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "SELECT 1;"}, nil
 	}
 
 	lCtx := &fleetLogging.LoggingContext{}

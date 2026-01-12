@@ -70,7 +70,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// no commands or devices enrolled => no results
-	cmds, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{})
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 
@@ -124,7 +124,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, macH, false)
 
 	// no commands => no results
-	cmds, err = ds.ListMDMCommands(
+	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{},
@@ -142,7 +142,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// we get one result
-	cmds, err = ds.ListMDMCommands(
+	cmds, total, _, err := ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{},
@@ -152,6 +152,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[0].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[0].RequestType)
 	require.Equal(t, "101", cmds[0].Status)
+	require.Nil(t, total)
 
 	appleCmdUUID := uuid.New().String()
 	appleCmd := createRawAppleCmd("ProfileList", appleCmdUUID)
@@ -160,7 +161,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// we get both commands
-	cmds, err = ds.ListMDMCommands(
+	cmds, total, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -174,6 +175,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "101", cmds[1].Status)
+	require.Nil(t, total)
 
 	// store results for both commands
 	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{
@@ -186,31 +188,19 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(
-			ctx,
-			`INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`,
-			windowsEnrollment.ID,
-			"",
-		)
-		if err != nil {
-			return err
-		}
-		resID, _ := res.LastInsertId()
-		_, err = tx.ExecContext(
-			ctx,
-			`INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id) VALUES (?, ?, ?, ?, ?)`,
-			windowsEnrollment.ID,
-			winCmd.CommandUUID,
-			"",
-			"200",
-			resID,
-		)
-		return err
-	})
+	err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment.MDMDeviceID, fleet.EnrichedSyncML{
+		SyncML: &fleet.SyncML{
+			Raw: []byte("<xml></xml>"),
+		},
+		CmdRefUUIDToStatus: map[string]fleet.SyncMLCmd{winCmd.CommandUUID: {
+			Data: ptr.String("200"),
+		}},
+		CmdRefUUIDs: []string{winCmd.CommandUUID},
+	}, []string{})
+	require.NoError(t, err)
 
 	// we get both commands
-	cmds, err = ds.ListMDMCommands(
+	cmds, total, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -224,6 +214,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "200", cmds[1].Status)
+	require.Nil(t, total)
 
 	// add more windows commands
 	winCmd2 := &fleet.MDMWindowsCommand{
@@ -253,7 +244,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// non-existent host identifier
-	cmds, err = ds.ListMDMCommands(
+	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -266,7 +257,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Len(t, cmds, 0)
 
 	// non-existent request type
-	cmds, err = ds.ListMDMCommands(
+	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -279,9 +270,11 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Len(t, cmds, 0)
 
 	for _, tc := range []struct {
-		name       string
-		identifier string
-		expected   []string
+		name          string
+		identifier    string
+		commandStatus *fleet.MDMCommandStatusFilter
+		expected      []string
+		requestType   string
 	}{
 		{
 			name:       "windows host by hostname ambiguous with macOS host",
@@ -297,6 +290,12 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 			expected:   []string{winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
 		},
 		{
+			name:        "windows host by UUID, filter by request type",
+			identifier:  windowsH.UUID,
+			expected:    []string{winCmd2.CommandUUID},
+			requestType: "./test/uri2",
+		},
+		{
 			name:       "windows host by hardware serial",
 			identifier: windowsH.HardwareSerial,
 			expected:   []string{winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
@@ -310,9 +309,10 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 			},
 		},
 		{
-			name:       "macOS host by UUID",
-			identifier: macH.UUID,
-			expected:   []string{appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+			name:          "macOS host by UUID",
+			identifier:    macH.UUID,
+			commandStatus: ptr.T(fleet.MDMCommandStatusFilterPending),
+			expected:      []string{appleCmdUUID2, appleCmdUUID3},
 		},
 		{
 			name:       "macOS host by hardware serial",
@@ -321,15 +321,22 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cmds, err := ds.ListMDMCommands(
+			commandStatuses := []fleet.MDMCommandStatusFilter{}
+			if tc.commandStatus != nil {
+				commandStatuses = append(commandStatuses, *tc.commandStatus)
+			}
+			cmds, total, _, err := ds.ListMDMCommands(
 				ctx,
 				fleet.TeamFilter{User: test.UserAdmin},
 				&fleet.MDMCommandListOptions{
 					Filters: fleet.MDMCommandFilters{
-						HostIdentifier: tc.identifier,
+						HostIdentifier:  tc.identifier,
+						CommandStatuses: commandStatuses,
+						RequestType:     tc.requestType,
 					},
 				},
 			)
+
 			require.NoError(t, err)
 			require.Len(t, cmds, len(tc.expected))
 			var got []string
@@ -337,6 +344,12 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 				got = append(got, cmd.CommandUUID)
 			}
 			require.ElementsMatch(t, tc.expected, got)
+
+			if tc.commandStatus != nil && *tc.commandStatus == fleet.MDMCommandStatusFilterPending {
+				require.Equal(t, int64(len(tc.expected)), *total)
+			} else {
+				require.Nil(t, total)
+			}
 		})
 	}
 
@@ -359,7 +372,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// filter by request_type
-	cmds, err = ds.ListMDMCommands(
+	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -375,7 +388,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, appleCmdUUID2, cmds[1].CommandUUID)
 
 	// filter by request_type and host_identifier
-	cmds, err = ds.ListMDMCommands(
+	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -388,6 +401,84 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
+
+	// filter by command status for windows host
+	cmds, total, _, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier:  "123456",
+				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterPending},
+			},
+		},
+	)
+	require.Error(t, err)
+	require.ErrorContains(t, err, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+	require.Nil(t, cmds)
+	require.Nil(t, total)
+
+	failedAppleCmdUUID := uuid.New().String()
+	appleCmd = createRawAppleCmd("ProfileList", failedAppleCmdUUID)
+	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, appleCmd)
+	require.NoError(t, err)
+
+	// store failed result for the command
+	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: macH.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: failedAppleCmdUUID,
+		Status:      "Error",
+		Raw:         []byte(appleCmd),
+	})
+	require.NoError(t, err)
+	// Update the timestamp to ensure there is enough difference for ordering to have it always come first
+	// using default list options
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(
+			ctx,
+			`UPDATE nano_command_results SET updated_at = updated_at + INTERVAL 1 SECOND WHERE command_uuid = ?`,
+			failedAppleCmdUUID,
+		)
+		return err
+	})
+
+	cmds, total, _, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier:  macH.UUID,
+				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterRan, fleet.MDMCommandStatusFilterFailed},
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Nil(t, total)
+	require.Len(t, cmds, 2)
+	var got []string
+	for _, cmd := range cmds {
+		got = append(got, cmd.CommandUUID)
+	}
+	require.Equal(t, []string{failedAppleCmdUUID, appleCmdUUID}, got)
+
+	// pagination and pagination meta data
+	cmds, _, meta, err := ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{Page: 0, PerPage: 1, IncludeMetadata: true},
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier:  macH.UUID,
+				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterRan, fleet.MDMCommandStatusFilterFailed},
+			},
+		},
+	)
+	require.Len(t, cmds, 1)
+	require.NoError(t, err)
+	require.Equal(t, true, meta.HasNextResults)
+	require.Equal(t, false, meta.HasPreviousResults)
 }
 
 // testListMDMCommandsWithTeamFilter tests listing MDM commands with team filters
@@ -427,7 +518,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	}
 
 	// List commands with team filter (no host identifier) - this would trigger the bug hit by customer
-	cmds, err := ds.ListMDMCommands(
+	cmds, _, _, err := ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser},
 		&fleet.MDMCommandListOptions{},
@@ -437,7 +528,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	require.Equal(t, teamCmdUUID, cmds[0].CommandUUID)
 
 	// Test with a specific team filter
-	cmds, err = ds.ListMDMCommands(
+	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser, TeamID: &team.ID},
 		&fleet.MDMCommandListOptions{},
@@ -465,7 +556,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Team user should only see team command
-	cmds, err = ds.ListMDMCommands(
+	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser},
 		&fleet.MDMCommandListOptions{},
@@ -476,7 +567,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 
 	// Test with admin user (should see all commands)
 	adminUser := test.UserAdmin
-	cmds, err = ds.ListMDMCommands(
+	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: adminUser},
 		&fleet.MDMCommandListOptions{},
@@ -800,9 +891,9 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 
 	// add fleet-managed Apple profiles for the team and globally
 	for idf := range mobileconfig.FleetPayloadIdentifiers() {
-		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, team.ID), nil)
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("name_"+idf, idf, team.ID), nil)
 		require.NoError(t, err)
-		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, 0), nil)
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("name_"+idf, idf, 0), nil)
 		require.NoError(t, err)
 	}
 
@@ -845,7 +936,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
 	// create a mac profile for global and a Windows profile for team
-	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("A", "A", 0), nil)
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("A", "A", 0), nil)
 	require.NoError(t, err)
 	profB, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
@@ -882,7 +973,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		inc := i * 6 // e.g. C, D, E, F, G, H on first loop, I, J, K, L, M, N on second loop, O, P, Q, R, S, T on third
 
 		// create label-based profiles for i==0, meaning CDEF will be label-based
-		acp := *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0) // C, I and O
+		acp := *generateAppleCP(string(rune('C'+inc)), string(rune('C'+inc)), 0) // C, I and O
 		if i == 0 {
 			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[0].Name, LabelID: labels[0].ID},
@@ -892,7 +983,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMAppleConfigProfile(ctx, acp, nil)
 		require.NoError(t, err)
 
-		acp = *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID) // D, J and P
+		acp = *generateAppleCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID) // D, J and P
 		if i == 0 {
 			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[2].Name, LabelID: labels[2].ID},
@@ -961,9 +1052,9 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 	// delete label 3, 4 and 8 so that profiles D, E and G are broken
-	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[8].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[8].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 	profLabels := map[string][]fleet.ConfigurationProfileLabel{
 		"C": {
 			{LabelName: labels[0].Name, LabelID: labels[0].ID, RequireAll: true},
@@ -3718,8 +3809,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// "break" the two G6 label-based profile by deleting labels[0] and [3]
-	require.NoError(t, ds.DeleteLabel(ctx, labels[0].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[0].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	// sync the affected profiles
 	updates, err = ds.BulkSetPendingMDMHostProfiles(
@@ -4777,8 +4868,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// "break" the team 2 label-based profile by deleting a label
-	require.NoError(t, ds.DeleteLabel(ctx, labels[1].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[1].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	// sync team 2, the label-based profile of team2 is left untouched (broken
 	// profiles are ignored)
@@ -5891,7 +5982,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.Len(t, profs, 3)
 
 		// Now delete label, we shouldn't see the related profile
-		err = ds.DeleteLabel(ctx, testLabel4.Name)
+		err = ds.DeleteLabel(ctx, testLabel4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.NoError(t, err)
 
 		return team.ID, host
@@ -6392,7 +6483,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.Len(t, profs, 3)
 
 		// Now delete label, we shouldn't see the related profile
-		err = ds.DeleteLabel(ctx, label.Name)
+		err = ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.NoError(t, err)
 
 		return team.ID, host
@@ -8184,13 +8275,13 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	})
 
 	// delete labels 0, 2, 3, and 6, breaking all profiles
-	err = ds.DeleteLabel(ctx, labels[0].Name)
+	err = ds.DeleteLabel(ctx, labels[0].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[2].Name)
+	err = ds.DeleteLabel(ctx, labels[2].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[3].Name)
+	err = ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[6].Name)
+	err = ds.DeleteLabel(ctx, labels[6].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
@@ -8347,11 +8438,11 @@ func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create some profiles , a and b for no team, c for team
-	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0), nil)
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
-	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0), nil)
+	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", 0), nil)
 	require.NoError(t, err)
-	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", team.ID), nil)
+	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("c", "c", team.ID), nil)
 	require.NoError(t, err)
 
 	t.Logf("profA=%s, profB=%s, profC=%s", profA.ProfileUUID, profB.ProfileUUID, profC.ProfileUUID)
@@ -8965,7 +9056,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.False(t, active)
 
 	// listing the MDM commands does not return the inactive one
-	cmds, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{
 		User:            test.UserAdmin,
 		IncludeObserver: true,
 	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})

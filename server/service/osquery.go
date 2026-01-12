@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -34,12 +33,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func newOsqueryErrorWithInvalidNode(msg string) *endpoint_utils.OsqueryError {
-	return endpoint_utils.NewOsqueryError(msg, true)
+func newOsqueryErrorWithInvalidNode(msg string) *OsqueryError {
+	return NewOsqueryError(msg, true)
 }
 
-func newOsqueryError(msg string) *endpoint_utils.OsqueryError {
-	return endpoint_utils.NewOsqueryError(msg, false)
+func newOsqueryError(msg string) *OsqueryError {
+	return NewOsqueryError(msg, false)
 }
 
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
@@ -138,7 +137,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	if !canEnroll {
 		deviceCount := "unknown"
 		if lic, _ := license.FromContext(ctx); lic != nil {
-			deviceCount = strconv.Itoa(lic.DeviceCount)
+			deviceCount = strconv.Itoa(lic.GetDeviceCount())
 		}
 		return "", newOsqueryErrorWithInvalidNode(fmt.Sprintf("enroll host failed: maximum number of hosts reached: %s", deviceCount))
 	}
@@ -1115,6 +1114,24 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
+		// Force clear results for labels that do not apply to the host anymore.
+		//
+		// There could be a timing bug where:
+		// 1. Host receives a "team label" query to run (distributed/read).
+		// 2. Host is transferred to another team (all its label/policy membership are cleared).
+		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
+		//    the label of the old team.
+		hostLabelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieve label queries")
+		}
+		for labelID := range labelResults {
+			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
+				level.Debug(svc.logger).Log("msg", "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				labelResults[labelID] = ptr.Bool(false)
+			}
+		}
+
 		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}

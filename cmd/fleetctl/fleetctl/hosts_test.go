@@ -67,6 +67,9 @@ func TestHostsTransferByHosts(t *testing.T) {
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
 		return nil, nil
 	}
+	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
 
 	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
@@ -98,8 +101,8 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.Equal(t, []string{"label1"}, labels)
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.Equal(t, []string{"label1"}, names)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
 
@@ -170,8 +173,8 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.Equal(t, []string{"label1"}, labels)
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.Equal(t, []string{"label1"}, names)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
 
@@ -229,8 +232,8 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.Equal(t, []string{"label1"}, labels)
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.Equal(t, []string{"label1"}, names)
 		return map[string]uint{"label1": uint(11)}, nil
 	}
 
