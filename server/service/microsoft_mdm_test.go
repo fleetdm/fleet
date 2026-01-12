@@ -11,8 +11,6 @@ import (
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
-	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
