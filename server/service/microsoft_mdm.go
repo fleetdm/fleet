@@ -1021,7 +1021,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 	if authToken.IsAzureJWTToken() {
 
 		// Validate the JWT Auth token by retreving its claims
-		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(authToken.Content)
+		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(ctx, authToken.Content)
 		if err != nil {
 			return "", "", fmt.Errorf("binary security token claim failed: %v", err)
 		}
