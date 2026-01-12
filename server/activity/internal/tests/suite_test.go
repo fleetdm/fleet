@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -100,7 +100,7 @@ func (s *integrationTestSuite) truncateTables() {
 
 // insertUser creates a user in the database and mock user provider.
 func (s *integrationTestSuite) insertUser(name, email string) uint {
-	ctx := context.Background()
+	ctx := s.t.Context()
 	result, err := s.db.ExecContext(ctx, `
 		INSERT INTO users (name, email, password, salt, created_at, updated_at)
 		VALUES (?, ?, 'password', 'salt', NOW(), NOW())
@@ -127,7 +127,7 @@ func (s *integrationTestSuite) insertActivity(userID uint, activityType string, 
 
 // insertActivityWithTime creates an activity in the database with a specific timestamp.
 func (s *integrationTestSuite) insertActivityWithTime(userID uint, activityType string, details map[string]any, createdAt time.Time) uint {
-	ctx := context.Background()
+	ctx := s.t.Context()
 
 	detailsJSON, err := json.Marshal(details)
 	require.NoError(s.t, err)
@@ -144,7 +144,7 @@ func (s *integrationTestSuite) insertActivityWithTime(userID uint, activityType 
 		userEmail = &user.Email
 	}
 
-	var result any
+	var result sql.Result
 	if userID > 0 {
 		result, err = s.db.ExecContext(ctx, `
 			INSERT INTO activities (user_id, user_name, user_email, activity_type, details, created_at, host_only, streamed)
@@ -158,7 +158,7 @@ func (s *integrationTestSuite) insertActivityWithTime(userID uint, activityType 
 	}
 	require.NoError(s.t, err)
 
-	id, err := result.(interface{ LastInsertId() (int64, error) }).LastInsertId()
+	id, err := result.LastInsertId()
 	require.NoError(s.t, err)
 	return uint(id)
 }

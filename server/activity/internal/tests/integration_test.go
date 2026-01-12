@@ -86,10 +86,9 @@ func testListActivitiesCursorPagination(t *testing.T, s *integrationTestSuite) {
 	s.insertActivity(userID, "deleted_pack", map[string]any{})
 	s.insertActivity(userID, "edited_pack", map[string]any{})
 
-	// Test cursor-based pagination with after=0 and table alias in order_key
-	// This should return the first activity and Meta should be nil (cursor-based pagination
-	// doesn't return metadata)
-	result, statusCode := s.getActivities(t, "per_page=1&order_key=a.id&after=0")
+	// Test cursor-based pagination with after=0
+	// Meta should be nil for cursor-based pagination (doesn't return metadata)
+	result, statusCode := s.getActivities(t, "per_page=1&order_key=id&after=0")
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Len(t, result.Activities, 1)
 	assert.Nil(t, result.Meta)
@@ -97,7 +96,7 @@ func testListActivitiesCursorPagination(t *testing.T, s *integrationTestSuite) {
 
 	// Test cursor pagination to get the next activity
 	firstID := result.Activities[0].ID
-	result, _ = s.getActivities(t, "per_page=1&order_key=a.id&after="+strconv.FormatUint(uint64(firstID), 10))
+	result, _ = s.getActivities(t, "per_page=1&order_key=id&after="+strconv.FormatUint(uint64(firstID), 10))
 	assert.Len(t, result.Activities, 1)
 	assert.Nil(t, result.Meta)
 	assert.Equal(t, "deleted_pack", result.Activities[0].Type)
