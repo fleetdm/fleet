@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -549,7 +550,7 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 			"scp":         "mdm_delegation",
 		}
 		if c.jwtSigningKey == nil || c.jwtSigningKeyID == "" {
-			return "", "", fmt.Errorf("jwt signing key is not set")
+			return "", "", errors.New("jwt signing key is not set")
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
