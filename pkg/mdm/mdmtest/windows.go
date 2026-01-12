@@ -2,13 +2,16 @@ package mdmtest
 
 import (
 	"bytes"
+	"crypto/rsa"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -38,6 +41,10 @@ type TestWindowsMDMClient struct {
 	// queuedCommandResponses tracks the commands that will be sent next
 	// time the device responds to the server.
 	queuedCommandResponses map[string]fleet.SyncMLCmd
+	// jwtSigningKey is the key used to sign JWTs
+	jwtSigningKey *rsa.PrivateKey
+	// jwtSigningKeyID is the ID to report in the header for the signing key
+	jwtSigningKeyID string
 }
 
 // This is a test-only enrollment type to force erroneous behavior.
@@ -52,6 +59,19 @@ type TestWindowsMDMClientOption func(*TestWindowsMDMClient)
 func TestWindowsMDMClientDebug() TestWindowsMDMClientOption {
 	return func(c *TestWindowsMDMClient) {
 		c.debug = true
+	}
+}
+
+func TestWindowsMDMClientNotInOOBE() TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.notInOOBE = true
+	}
+}
+
+func TestWindowsMDMClientWithSigningKey(signingKey *rsa.PrivateKey, signingKeyID string) TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.jwtSigningKey = signingKey
+		c.jwtSigningKeyID = signingKeyID
 	}
 }
 
@@ -364,8 +384,19 @@ YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
 </s:Envelope>
 `)
 
-	if _, err := c.request(microsoft_mdm.MDE2EnrollPath, enrollReq); err != nil {
+	resp, err := c.request(microsoft_mdm.MDE2EnrollPath, enrollReq)
+	if err != nil {
 		return err
+	}
+
+	// Check for SOAP fault
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(body), "s:fault") {
+		return fmt.Errorf("enroll request returned SOAP fault: %s", string(body))
 	}
 
 	return nil
@@ -406,8 +437,19 @@ func (c *TestWindowsMDMClient) Discovery() error {
 
 	// TODO: parse the response and store the policy and enroll endpoints instead
 	// of hardcoding them to truly test that the server is behaving as expected.
-	if _, err := c.request(microsoft_mdm.MDE2DiscoveryPath, discoveryReq); err != nil {
+	resp, err := c.request(microsoft_mdm.MDE2DiscoveryPath, discoveryReq)
+	if err != nil {
 		return err
+	}
+
+	// Check for SOAP fault
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(body), "s:fault") {
+		return fmt.Errorf("discovery request returned SOAP fault: %s", string(body))
 	}
 
 	return nil
@@ -457,8 +499,18 @@ func (c *TestWindowsMDMClient) Policy() error {
 
 	// TODO: store the policy requirements to generate a certificate and generate
 	// one on the fly using them instead of using hardcoded values.
-	if _, err := c.request(microsoft_mdm.MDE2PolicyPath, policyReq); err != nil {
+	resp, err := c.request(microsoft_mdm.MDE2PolicyPath, policyReq)
+	if err != nil {
 		return err
+	}
+	// Check for SOAP fault
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(body), "s:fault") {
+		return fmt.Errorf("policy request returned SOAP fault: %s", string(body))
 	}
 
 	return nil
@@ -493,9 +545,13 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 			"unique_name": "foo_bar",
 			"scp":         "mdm_delegation",
 		}
+		if c.jwtSigningKey == nil || c.jwtSigningKeyID == "" {
+			return "", "", errors.New("jwt signing key is not set")
+		}
 
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		tokenString, err := token.SignedString([]byte("foo"))
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		token.Header["kid"] = c.jwtSigningKeyID
+		tokenString, err := token.SignedString(c.jwtSigningKey)
 		if err != nil {
 			return "", "", err
 		}
