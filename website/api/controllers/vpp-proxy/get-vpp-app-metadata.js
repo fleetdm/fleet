@@ -64,20 +64,26 @@ module.exports = {
 
   fn: async function ({storeRegion, ids, platform, additionalPlatforms, extend, vppToken}) {
 
-    // Validate the provided fleetServerSecret
+
+    // Validate the fleetServerSecret provided in the authorization header.
     let authHeader = this.req.get('authorization');
     let fleetServerSecret;
     if (authHeader && authHeader.startsWith('Bearer')) {
       fleetServerSecret = authHeader.replace('Bearer', '').trim();
     } else {
+      // If no fleetServerSecret was sent, return a missingAuthHeader (unauthorized) response to the Fleet server.
       throw 'missingAuthHeader';
     }
 
-    let thisFleetInstance = await FleetInstanceUsingVpp.findOne({
-      fleetServerSecret: fleetServerSecret
-    });
-
-    if(!thisFleetInstance) {
+    // Validate the provided fleetServerSecret
+    try {
+      require('jsonwebtoken').verify(
+        fleetServerSecret,
+        sails.config.custom.vppProxyAuthenticationPublicKey,
+        { algorithm: 'ES256' }
+      );
+    } catch(unusedErr) {
+      // If there is an error parsing the provided fleetServerSecret, return a invalidFleetServerSecret response.
       throw 'invalidFleetServerSecret';
     }
 
