@@ -191,6 +191,9 @@ func (dc *DeviceClient) getMinDesktopPayload(token string) (fleetDesktopResponse
 	verb, path := "GET", "/api/latest/fleet/device/%s/desktop"
 	var r fleetDesktopResponse
 	err := dc.request(verb, path, token, "", nil, &r)
+	if err == nil {
+		dc.fleetAlternativeBrowserHost = "localhost:8080"
+	}
 	return r, err
 }
 
