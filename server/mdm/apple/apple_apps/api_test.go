@@ -50,6 +50,8 @@ func TestGetMetadataRetries(t *testing.T) {
 	t.Run("successful on first attempt", func(t *testing.T) {
 		var callCount int
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "vppToken", r.Header.Get("vpp-token"))
+
 			callCount++
 			w.WriteHeader(http.StatusOK)
 			resp := metadataResp{
