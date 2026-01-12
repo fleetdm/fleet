@@ -2736,3 +2736,143 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAppleProfilesSkipDeclarationValidation(t *testing.T) {
+	ctx := context.Background()
+
+	// Test declaration contents that would normally fail validation
+	forbiddenDecl := []byte(`{
+		"Type": "com.apple.configuration.services.configuration-files",
+		"Identifier": "test-forbidden-decl",
+		"Payload": {"test": "value"}
+	}`)
+
+	statusSubscriptionDecl := []byte(`{
+		"Type": "com.apple.configuration.management.status-subscriptions",
+		"Identifier": "test-status-subscription",
+		"Payload": {"test": "value"}
+	}`)
+
+	nonConfigDecl := []byte(`{
+		"Type": "com.apple.activation",
+		"Identifier": "test-non-config",
+		"Payload": {"test": "value"}
+	}`)
+
+	osUpdateDecl := []byte(`{
+		"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+		"Identifier": "test-os-update",
+		"Payload": {"test": "value"}
+	}`)
+
+	validDecl := []byte(`{
+		"Type": "com.apple.configuration.passcode.settings",
+		"Identifier": "test-valid",
+		"Payload": {"test": "value"}
+	}`)
+
+	t.Run("ForbiddenDeclarationBlockedByDefault", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "forbidden", Contents: forbiddenDecl},
+		}
+		_, _, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Only configuration declarations that don't require an asset reference are supported")
+	})
+
+	t.Run("ForbiddenDeclarationAllowedWhenSkipValidation", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "forbidden", Contents: forbiddenDecl},
+		}
+		_, decls, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, true)
+		require.NoError(t, err)
+		require.Len(t, decls, 1)
+		require.Equal(t, "test-forbidden-decl", decls[0].Identifier)
+	})
+
+	t.Run("StatusSubscriptionBlockedByDefault", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "status-sub", Contents: statusSubscriptionDecl},
+		}
+		_, _, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Declaration profile can't include status subscription type")
+	})
+
+	t.Run("StatusSubscriptionAllowedWhenSkipValidation", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "status-sub", Contents: statusSubscriptionDecl},
+		}
+		_, decls, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, true)
+		require.NoError(t, err)
+		require.Len(t, decls, 1)
+		require.Equal(t, "test-status-subscription", decls[0].Identifier)
+	})
+
+	t.Run("NonConfigDeclarationBlockedByDefault", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "non-config", Contents: nonConfigDecl},
+		}
+		_, _, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Only configuration declarations (com.apple.configuration.) are supported")
+	})
+
+	t.Run("NonConfigDeclarationAllowedWhenSkipValidation", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "non-config", Contents: nonConfigDecl},
+		}
+		_, decls, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, true)
+		require.NoError(t, err)
+		require.Len(t, decls, 1)
+		require.Equal(t, "test-non-config", decls[0].Identifier)
+	})
+
+	t.Run("OSUpdateDeclarationBlockedByDefault", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "os-update", Contents: osUpdateDecl},
+		}
+		_, _, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Declaration profile can't include OS updates settings")
+	})
+
+	t.Run("OSUpdateDeclarationAllowedWhenSkipValidation", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "os-update", Contents: osUpdateDecl},
+		}
+		_, decls, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, true)
+		require.NoError(t, err)
+		require.Len(t, decls, 1)
+		require.Equal(t, "test-os-update", decls[0].Identifier)
+	})
+
+	t.Run("OSUpdateDeclarationAllowedWithEnableCustomOSUpdates", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "os-update", Contents: osUpdateDecl},
+		}
+		// allowCustomOSUpdatesAndFileVault = true, skipDeclarationValidation = false
+		_, decls, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, true, false)
+		require.NoError(t, err)
+		require.Len(t, decls, 1)
+		require.Equal(t, "test-os-update", decls[0].Identifier)
+	})
+
+	t.Run("ValidDeclarationWorksWithAndWithoutSkip", func(t *testing.T) {
+		profiles := map[int]fleet.MDMProfileBatchPayload{
+			0: {Name: "valid", Contents: validDecl},
+		}
+
+		// Without skip
+		_, decls, err := getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, false)
+		require.NoError(t, err)
+		require.Len(t, decls, 1)
+		require.Equal(t, "test-valid", decls[0].Identifier)
+
+		// With skip
+		_, decls, err = getAppleProfiles(ctx, nil, &fleet.AppConfig{}, profiles, nil, false, true)
+		require.NoError(t, err)
+		require.Len(t, decls, 1)
+		require.Equal(t, "test-valid", decls[0].Identifier)
+	})
+}

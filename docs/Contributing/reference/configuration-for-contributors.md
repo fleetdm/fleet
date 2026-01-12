@@ -242,6 +242,32 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
     otel_logs_enabled: true
   ```
 
+### mdm.skip_declaration_validation
+
+> Experimental feature. Use with caution.
+
+If set to `true`, Fleet completely skips all declaration validation when adding or updating MDM
+Apple declarations (DDM profiles). This allows deploying any
+[declaration](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations)
+type without restriction.
+
+**Note:** Most declarations are not usable natively with Fleet as they may require additional components, for
+instance, any declaration that requires any additional
+[assets](https://developer.apple.com/documentation/devicemanagement/assetdata) like a
+[ServiceConfigurationFiles](https://developer.apple.com/documentation/devicemanagement/servicesconfigurationfiles) declaration.
+
+**Warning:** Enabling this option bypasses all safety checks for declarations, including checks for
+forbidden declaration types, reserved identifiers, and required prefixes. Use only when you need to
+deploy declarations that Fleet would otherwise block.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_SKIP_DECLARATION_VALIDATION`
+- Config file format:
+  ```yaml
+  mdm:
+    skip_declaration_validation: true
+  ```
+
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 
 Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors.md#report-an-agent-error). `fleetd` agents will always report vital errors to Fleet.
