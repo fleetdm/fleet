@@ -148,7 +148,7 @@ func getExecutablePath(ctx context.Context, path string) string {
 			return ""
 		}
 
-		return path + "/Contents/MacOS/" + executableName
+		return filepath.Join(path, "/Contents/MacOS/", executableName)
 	}
 
 	// For non-app paths, check if it's a regular file (binary)
