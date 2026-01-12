@@ -4793,8 +4793,8 @@ software:
     - app_store_id: "1234567890"
       platform: "ios"
       auto_update_enabled: true
-      auto_update_start_time: "01:00"
-      auto_update_end_time: "05:00"
+      auto_update_window_start: "01:00"
+      auto_update_window_end: "05:00"
       self_service: false
       labels_include_any: []
       labels_exclude_any: []
@@ -5055,8 +5055,8 @@ software:
     - app_store_id: "2"
       platform: "ios"
       auto_update_enabled: true
-      auto_update_start_time: "01:00"
-      auto_update_end_time: "05:00"
+      auto_update_window_start: "01:00"
+      auto_update_window_end: "05:00"
       self_service: false
 `)
 		require.NoError(t, err)
@@ -5156,8 +5156,8 @@ software:
     - app_store_id: "2"
       platform: "ios"
       auto_update_enabled: true
-      auto_update_start_time: "25:00"
-      auto_update_end_time: "05:00"
+      auto_update_window_start: "25:00"
+      auto_update_window_end: "05:00"
       self_service: false
 `)
 		require.NoError(t, err)
