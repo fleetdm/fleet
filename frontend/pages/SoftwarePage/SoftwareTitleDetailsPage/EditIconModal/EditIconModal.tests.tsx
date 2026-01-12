@@ -36,7 +36,7 @@ describe("EditIconModal", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<EditIconModal {...MOCK_PROPS} />);
 
-    expect(screen.getByText(/edit software/i)).toBeInTheDocument();
+    expect(screen.getByText("Edit appearance")).toBeInTheDocument();
     expect(screen.getByText("Choose file")).toBeInTheDocument();
     expect(screen.getByText("Preview")).toBeInTheDocument();
     expect(screen.getByText("Fleet")).toBeInTheDocument();
