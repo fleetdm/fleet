@@ -880,6 +880,16 @@ The `Authorization` header must be formatted as follows:
 Authorization: Node key <node_key>
 ```
 
+OR 
+
+```
+Authorization: Bearer <token>
+```
+
+When you pass a node key in the authorization header the server will look up the host and replace
+the `$FLEET_*` variables with the values associated to that host. If you use a regular bearer token
+the `$FLEET_*` variables will not be replaced.
+
 #### Example
 
 `GET /api/v1/fleet/certificates/`
@@ -888,6 +898,12 @@ Authorization: Node key <node_key>
 
 ```http
 Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+OR 
+
+```http
+Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
 ```
 
 ##### Default response
@@ -944,6 +960,16 @@ The `Authorization` header must be formatted as follows:
 Authorization: Node key <node_key>
 ```
 
+OR 
+
+```
+Authorization: Bearer <token>
+```
+
+When you pass a node key in the authorization header the server will look up the host and replace
+the `$FLEET_*` variables with the values associated to that host. If you use a regular bearer token
+the `$FLEET_*` variables will not be replaced.
+
 #### Example
 
 `GET /api/v1/fleet/certificates/1`
@@ -952,6 +978,12 @@ Authorization: Node key <node_key>
 
 ```http
 Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+OR
+
+```http
+Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
 ```
 
 ##### Default response
