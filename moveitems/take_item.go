@@ -65,6 +65,10 @@ func main() {
 		"sh":      "sharon-fdm",
 		"sharon":  "sharon-fdm",
 		"sc":      "sgress454",
+		"ia":      "iansltx",
+		"ni":      "nulmete",
+		"ti":      "mostlikelee",
+		"ko":      "ksykulev",
 		"scott":   "sgress454",
 	}
 
