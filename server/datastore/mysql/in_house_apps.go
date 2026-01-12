@@ -1487,14 +1487,23 @@ WHERE in_house_app_id = ?
 	return affectedHostIDs, nil
 }
 
-func (ds *Datastore) checkInstallerOrInHouseAppExists(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier string, swType softwareType) (bool, error) {
-	// TODO(mna): this is missing a platform-specific check? It shouldn't be a conflict if an installer exists
-	// for a different platform.
+func (ds *Datastore) CheckConflictingInstallerExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error) {
+	return ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), teamID, bundleIdentifier, platform, softwareTypeInstaller)
+}
+
+func (ds *Datastore) CheckConflictingInHouseAppExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error) {
+	return ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), teamID, bundleIdentifier, platform, softwareTypeInHouseApp)
+}
+
+func (ds *Datastore) checkInstallerOrInHouseAppExists(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier, platform string, swType softwareType) (bool, error) {
 	stmt := fmt.Sprintf(`
 SELECT 1
-FROM software_titles st
-INNER JOIN %[1]ss ON st.id = %[1]ss.title_id AND %[1]ss.global_or_team_id = ?
-WHERE st.unique_identifier = ?
+FROM 
+	software_titles st
+	INNER JOIN %[1]ss ON st.id = %[1]ss.title_id AND %[1]ss.global_or_team_id = ?
+WHERE 
+	st.unique_identifier = ?
+	AND %[1]ss.platform = ?
 `, swType)
 
 	var globalOrTeamID uint
@@ -1502,7 +1511,7 @@ WHERE st.unique_identifier = ?
 		globalOrTeamID = *teamID
 	}
 	var exists int
-	err := sqlx.GetContext(ctx, q, &exists, stmt, globalOrTeamID, bundleIdentifier)
+	err := sqlx.GetContext(ctx, q, &exists, stmt, globalOrTeamID, bundleIdentifier, platform)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("check %s exists", swType))
 	}
@@ -1540,29 +1549,4 @@ LIMIT 1
 		return false, "", err
 	}
 	return true, title, nil
-}
-
-// InHouseAppExistsByBundleIdentifier checks if an in-house app (IPA) with the given bundle
-// identifier exists in the given team. Returns the app name if it exists.
-func (ds *Datastore) InHouseAppExistsByBundleIdentifier(ctx context.Context, bundleIdentifier string, teamID *uint) (exists bool, appName string, err error) {
-	const stmt = `
-SELECT st.name
-FROM software_titles st
-INNER JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = ?
-WHERE st.bundle_identifier = ?
-LIMIT 1
-`
-	var globalOrTeamID uint
-	if teamID != nil {
-		globalOrTeamID = *teamID
-	}
-
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &appName, stmt, globalOrTeamID, bundleIdentifier)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, "", nil
-		}
-		return false, "", ctxerr.Wrap(ctx, err, "check if in-house app exists by bundle identifier")
-	}
-	return true, appName, nil
 }

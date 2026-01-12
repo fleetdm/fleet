@@ -645,14 +645,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if appID.Platform == fleet.MacOSPlatform {
-			// TODO(mna): goal would be to call checkInstallerOrInHouseAppExists here, but it can't as we
-			// are in the service and this is an unexported datastore method. Once this is exposed,
-			// UploadedSoftwareExists becomes unused and can be removed.
-
-			// Check if we've already added an installer for this app
-			exists, err := svc.ds.UploadedSoftwareExists(ctx, appFromApple.BundleIdentifier, teamID)
+			exists, err := svc.ds.CheckConflictingInstallerExists(ctx, teamID, appFromApple.BundleIdentifier, string(appID.Platform))
 			if err != nil {
-				return 0, ctxerr.Wrap(ctx, err, "checking existence of VPP app installer")
+				return 0, ctxerr.Wrap(ctx, err, "checking existence of conflicting installer")
 			}
 
 			if exists {
@@ -663,20 +658,15 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			}
 		} else if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
 			// Check if an in-house app (IPA) with the same bundle identifier already exists
-			exists, conflictingTitle, err := svc.ds.InHouseAppExistsByBundleIdentifier(ctx, appFromApple.BundleIdentifier, teamID)
+			exists, err := svc.ds.CheckConflictingInHouseAppExists(ctx, teamID, appFromApple.BundleIdentifier, string(appID.Platform))
 			if err != nil {
-				return 0, ctxerr.Wrap(ctx, err, "checking existence of in-house app for VPP app")
+				return 0, ctxerr.Wrap(ctx, err, "checking existence of conflicting installer")
 			}
 
 			if exists {
-				// Use the conflicting title name if available, otherwise use the VPP app name
-				titleName := conflictingTitle
-				if titleName == "" {
-					titleName = assetMD.Attributes.Name
-				}
 				return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
 					Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-						titleName, teamName),
+						assetMD.Attributes.Name, teamName),
 				}, "vpp app conflicts with existing in-house app")
 			}
 		}
