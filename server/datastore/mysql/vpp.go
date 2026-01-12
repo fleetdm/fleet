@@ -2475,7 +2475,7 @@ func (ds *Datastore) checkSoftwareConflictsForVPPApp(ctx context.Context, tx sql
 
 	// check if the vpp app conflicts with an existing in-house app
 	if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
-		exists, conflictingTitle, err := ds.checkInHouseAppExistsForAdamID(ctx, tx, teamID, appID.AdamID)
+		exists, conflictingTitle, err := ds.checkInHouseAppExistsForAdamID(ctx, tx, teamID, appID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "check if in-house app exists")
 		}
@@ -2490,7 +2490,7 @@ func (ds *Datastore) checkSoftwareConflictsForVPPApp(ctx context.Context, tx sql
 
 func (ds *Datastore) GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstallLite, error) {
 	const stmt = `
-	SELECT 
+	SELECT
 	command_uuid,
 	host_id,
 	retry_count

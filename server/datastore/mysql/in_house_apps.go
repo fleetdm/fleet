@@ -1061,13 +1061,9 @@ WHERE
 		}
 
 		// Get team name for error messages
-		teamName := "No team"
-		if tmID != nil && *tmID > 0 {
-			var err error
-			teamName, err = ds.getTeamName(ctx, tmID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get team name for conflict check")
-			}
+		teamName, err := ds.getTeamName(ctx, tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for conflict check")
 		}
 
 		var args []any
@@ -1498,10 +1494,10 @@ func (ds *Datastore) CheckConflictingInHouseAppExists(ctx context.Context, teamI
 func (ds *Datastore) checkInstallerOrInHouseAppExists(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier, platform string, swType softwareType) (bool, error) {
 	stmt := fmt.Sprintf(`
 SELECT 1
-FROM 
+FROM
 	software_titles st
 	INNER JOIN %[1]ss ON st.id = %[1]ss.title_id AND %[1]ss.global_or_team_id = ?
-WHERE 
+WHERE
 	st.unique_identifier = ?
 	AND %[1]ss.platform = ?
 `, swType)
@@ -1518,20 +1514,19 @@ WHERE
 	return exists == 1, nil
 }
 
-func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, adamID string) (exists bool, title string, err error) {
-	// TODO(mna): should this include conditions on the exact platform? It shouldn't be a conflict if e.g.
-	// the ipa is for ios and the vpp exists for ipad (even though it's not really possible today because we
-	// create entries for both, but still, the check should include a platform).
+func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
 	const stmt = `
 SELECT st.name
 FROM software_titles st
 INNER JOIN in_house_apps iha ON iha.title_id = st.id AND
 	iha.global_or_team_id = ?
 INNER JOIN vpp_apps va ON va.bundle_identifier = st.bundle_identifier
-INNER JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND
+INNER JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND
 	vat.global_or_team_id = ?
 WHERE
 	va.adam_id = ?
+	AND va.platform = ?
+	AND iha.platform = va.platform
 LIMIT 1
 `
 
@@ -1540,8 +1535,7 @@ LIMIT 1
 		globalOrTeamID = *teamID
 	}
 
-	// Scan to see if either ios/ipados IHAs exist
-	err = sqlx.GetContext(ctx, q, &title, stmt, globalOrTeamID, globalOrTeamID, adamID)
+	err = sqlx.GetContext(ctx, q, &title, stmt, globalOrTeamID, globalOrTeamID, appID.AdamID, appID.Platform)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, "", nil
