@@ -211,7 +211,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				if !ok {
 					level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
 				} else if !mp.Has(fleet.CapabilityEndUserAuth) {
-					level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+					level.Warn(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
 				} else {
 					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
 					return "", fleet.NewOrbitIDPAuthRequiredError()
