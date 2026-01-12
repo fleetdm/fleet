@@ -477,7 +477,7 @@ func TestDoRetries(t *testing.T) {
 			start := time.Now()
 			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL"), nil)
 			require.NoError(t, err)
-			err = do(req, "vppToken", func(forceRenew bool) (string, error) {
+			err = do(req, func(forceRenew bool) (string, error) {
 				if forceRenew {
 					return "foo", nil
 				}
