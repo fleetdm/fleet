@@ -533,7 +533,7 @@ type ReplaceInHouseAppInstallVerificationUUIDFunc func(ctx context.Context, oldV
 
 type GetPastActivityDataForInHouseAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error)
 
-type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
+type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error)
 
 type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error)
 
@@ -680,6 +680,12 @@ type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) (
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
 type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
+
+type IsPolicyFailingFunc func(ctx context.Context, policyID uint, hostID uint) (bool, error)
+
+type CountHostSoftwareInstallAttemptsFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) (int, error)
+
+type CountHostScriptAttemptsFunc func(ctx context.Context, hostID uint, scriptID uint, policyID uint) (int, error)
 
 type IncrementPolicyViolationDaysFunc func(ctx context.Context) error
 
@@ -1201,7 +1207,7 @@ type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *f
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
-type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error)
+type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
@@ -2720,6 +2726,15 @@ type DataStore struct {
 
 	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
 	CleanupPolicyMembershipFuncInvoked bool
+
+	IsPolicyFailingFunc        IsPolicyFailingFunc
+	IsPolicyFailingFuncInvoked bool
+
+	CountHostSoftwareInstallAttemptsFunc        CountHostSoftwareInstallAttemptsFunc
+	CountHostSoftwareInstallAttemptsFuncInvoked bool
+
+	CountHostScriptAttemptsFunc        CountHostScriptAttemptsFunc
+	CountHostScriptAttemptsFuncInvoked bool
 
 	IncrementPolicyViolationDaysFunc        IncrementPolicyViolationDaysFunc
 	IncrementPolicyViolationDaysFuncInvoked bool
@@ -6087,11 +6102,11 @@ func (s *DataStore) GetPastActivityDataForInHouseAppInstall(ctx context.Context,
 	return s.GetPastActivityDataForInHouseAppInstallFunc(ctx, commandResults)
 }
 
-func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
+func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error) {
 	s.mu.Lock()
 	s.SetHostSoftwareInstallResultFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostSoftwareInstallResultFunc(ctx, result)
+	return s.SetHostSoftwareInstallResultFunc(ctx, result, attemptNumber)
 }
 
 func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
@@ -6603,6 +6618,27 @@ func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) 
 	s.CleanupPolicyMembershipFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupPolicyMembershipFunc(ctx, now)
+}
+
+func (s *DataStore) IsPolicyFailing(ctx context.Context, policyID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.IsPolicyFailingFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsPolicyFailingFunc(ctx, policyID, hostID)
+}
+
+func (s *DataStore) CountHostSoftwareInstallAttempts(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) (int, error) {
+	s.mu.Lock()
+	s.CountHostSoftwareInstallAttemptsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountHostSoftwareInstallAttemptsFunc(ctx, hostID, softwareInstallerID, policyID)
+}
+
+func (s *DataStore) CountHostScriptAttempts(ctx context.Context, hostID uint, scriptID uint, policyID uint) (int, error) {
+	s.mu.Lock()
+	s.CountHostScriptAttemptsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountHostScriptAttemptsFunc(ctx, hostID, scriptID, policyID)
 }
 
 func (s *DataStore) IncrementPolicyViolationDays(ctx context.Context) error {
@@ -8425,11 +8461,11 @@ func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *
 	return s.NewHostScriptExecutionRequestFunc(ctx, request)
 }
 
-func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error) {
+func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (hsr *fleet.HostScriptResult, action string, err error) {
 	s.mu.Lock()
 	s.SetHostScriptExecutionResultFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostScriptExecutionResultFunc(ctx, result)
+	return s.SetHostScriptExecutionResultFunc(ctx, result, attemptNumber)
 }
 
 func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
