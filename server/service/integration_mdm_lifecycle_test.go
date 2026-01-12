@@ -438,7 +438,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				host := createOrbitEnrolledHost(t, "windows", "windows_automatic", s.ds)
 
 				azureMail := "foo.bar.baz@example.com"
-				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail)
+				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 				device.HardwareID = host.UUID
 				device.DeviceID = host.UUID
 				require.NoError(t, device.Enroll())
