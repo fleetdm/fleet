@@ -275,5 +275,3 @@ All campaigns must utilize the following status values. Custom statuses outside 
 
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing Ops">
-<meta name="maintainedBy" value="johnjeremiah">
-<meta name="title" value="🫧 Marketing Ops">
