@@ -33,7 +33,7 @@ func (m *mockUserProvider) AddUser(u *activity.User) {
 	m.users[u.ID] = u
 }
 
-func (m *mockUserProvider) ListUsers(ctx context.Context, ids []uint) ([]*activity.User, error) {
+func (m *mockUserProvider) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
 	var result []*activity.User
 	for _, id := range ids {
 		if u, ok := m.users[id]; ok {
@@ -43,7 +43,7 @@ func (m *mockUserProvider) ListUsers(ctx context.Context, ids []uint) ([]*activi
 	return result, nil
 }
 
-func (m *mockUserProvider) SearchUsers(ctx context.Context, query string) ([]uint, error) {
+func (m *mockUserProvider) FindUserIDs(ctx context.Context, query string) ([]uint, error) {
 	query = strings.ToLower(query)
 	var ids []uint
 	for _, u := range m.users {

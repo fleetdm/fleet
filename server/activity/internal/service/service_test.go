@@ -53,12 +53,12 @@ type mockUserProvider struct {
 	lastQuery     string
 }
 
-func (m *mockUserProvider) ListUsers(ctx context.Context, ids []uint) ([]*activity.User, error) {
+func (m *mockUserProvider) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
 	m.lastIDs = ids
 	return m.users, m.listUsersErr
 }
 
-func (m *mockUserProvider) SearchUsers(ctx context.Context, query string) ([]uint, error) {
+func (m *mockUserProvider) FindUserIDs(ctx context.Context, query string) ([]uint, error) {
 	m.lastQuery = query
 	return m.searchUserIDs, m.searchErr
 }
@@ -108,7 +108,7 @@ func withUsers(users []*activity.User) func(*testSetup) {
 	return func(ts *testSetup) { ts.users.users = users }
 }
 
-func withListUsersError(err error) func(*testSetup) {
+func withUsersByIDsError(err error) func(*testSetup) {
 	return func(ts *testSetup) { ts.users.listUsersErr = err }
 }
 
@@ -164,7 +164,7 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 
-	// Verify user IDs were passed to ListUsers
+	// Verify user IDs were passed to UsersByIDs
 	assert.ElementsMatch(t, []uint{johnUser.ID, janeUser.ID}, ts.users.lastIDs)
 
 	// Verify activity 1 was enriched with John's data
@@ -190,7 +190,7 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 // translated into user ID filters for the datastore.
 //
 // When user searches for "john", the service:
-// 1. Calls SearchUsers("john") which returns matching user IDs (100, 200, 300)
+// 1. Calls FindUserIDs("john") which returns matching user IDs (100, 200, 300)
 // 2. Passes ALL matching user IDs to the datastore query
 // 3. Datastore filters activities to those by any of the matching users
 //
@@ -213,7 +213,7 @@ func TestListActivitiesWithMatchQuery(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Verify SearchUsers was called with the query
+	// Verify FindUserIDs was called with the query
 	assert.Equal(t, "john", ts.users.lastQuery)
 
 	// Verify all matching user IDs were passed to datastore (even those without activities)
@@ -238,7 +238,7 @@ func TestListActivitiesWithMatchQueryNoMatchingUsers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, activities)
 
-	// Verify SearchUsers was called
+	// Verify FindUserIDs was called
 	assert.Equal(t, "nonexistent", ts.users.lastQuery)
 
 	// Empty slice should be passed to datastore (not nil)
@@ -264,7 +264,7 @@ func TestListActivitiesWithDuplicateUserIDs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 
-	// ListUsers should only be called with unique IDs (deduplication)
+	// UsersByIDs should only be called with unique IDs (deduplication)
 	assert.Equal(t, []uint{johnUser.ID}, ts.users.lastIDs)
 
 	// All activities should be enriched with John's data
@@ -332,7 +332,7 @@ func TestListActivitiesErrors(t *testing.T) {
 				withActivities([]*api.Activity{
 					{ID: 1, Type: "test_activity", ActorID: ptr.Uint(100)},
 				}),
-				withListUsersError(errors.New("user service error")),
+				withUsersByIDsError(errors.New("user service error")),
 			},
 			wantErr:        false,
 			wantActivities: 1,

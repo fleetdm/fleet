@@ -73,8 +73,18 @@ type OsqueryService interface {
 	YaraRuleByName(ctx context.Context, name string) (*YaraRule, error)
 }
 
+// UserLookupService provides methods for looking up users.
+// This interface is extracted for use by components that only need user lookup capabilities.
+type UserLookupService interface {
+	// ListUsers returns all users.
+	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
+	// UsersByIDs returns users matching the provided IDs.
+	UsersByIDs(ctx context.Context, ids []uint) ([]*User, error)
+}
+
 type Service interface {
 	OsqueryService
+	UserLookupService
 
 	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
 	GetTransparencyURL(ctx context.Context) (string, error)
@@ -135,13 +145,6 @@ type Service interface {
 
 	// AuthenticatedUser returns the current user from the viewer context.
 	AuthenticatedUser(ctx context.Context) (user *User, err error)
-
-	// ListUsers returns all users.
-	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
-
-	// UsersByIDs returns users matching the provided IDs. More efficient than
-	// ListUsers when only specific users are needed.
-	UsersByIDs(ctx context.Context, ids []uint) ([]*User, error)
 
 	// ChangePassword validates the existing password, and sets the new  password. User is retrieved from the viewer
 	// context.

@@ -1,4 +1,5 @@
-// Package http provides HTTP request and response types for the activity API.
+// Package http provides HTTP request and response types for the activity bounded context.
+// These types are used exclusively by the activities endpoint handler.
 package http
 
 import (

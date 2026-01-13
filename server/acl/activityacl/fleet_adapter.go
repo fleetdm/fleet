@@ -16,19 +16,19 @@ import (
 // FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
 type FleetServiceAdapter struct {
-	svc fleet.Service
+	svc fleet.UserLookupService
 }
 
 // NewFleetServiceAdapter creates a new adapter for the Fleet service.
-func NewFleetServiceAdapter(svc fleet.Service) *FleetServiceAdapter {
+func NewFleetServiceAdapter(svc fleet.UserLookupService) *FleetServiceAdapter {
 	return &FleetServiceAdapter{svc: svc}
 }
 
 // Ensure FleetServiceAdapter implements activity.UserProvider
 var _ activity.UserProvider = (*FleetServiceAdapter)(nil)
 
-// ListUsers fetches users by their IDs from the Fleet service.
-func (a *FleetServiceAdapter) ListUsers(ctx context.Context, ids []uint) ([]*activity.User, error) {
+// UsersByIDs fetches users by their IDs from the Fleet service.
+func (a *FleetServiceAdapter) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -47,8 +47,8 @@ func (a *FleetServiceAdapter) ListUsers(ctx context.Context, ids []uint) ([]*act
 	return result, nil
 }
 
-// SearchUsers searches for users by name/email prefix and returns their IDs.
-func (a *FleetServiceAdapter) SearchUsers(ctx context.Context, query string) ([]uint, error) {
+// FindUserIDs searches for users by name/email prefix and returns their IDs.
+func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]uint, error) {
 	if query == "" {
 		return nil, nil
 	}

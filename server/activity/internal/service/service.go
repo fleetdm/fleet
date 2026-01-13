@@ -52,7 +52,7 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 
 	// If searching, also search users table to get matching user IDs
 	if opt.MatchQuery != "" {
-		userIDs, err := s.users.SearchUsers(ctx, opt.MatchQuery)
+		userIDs, err := s.users.FindUserIDs(ctx, opt.MatchQuery)
 		if err != nil {
 			// Log error but don't fail - we can still search activity table fields
 			level.Error(s.logger).Log("msg", "failed to search users for activity query", "err", err)
@@ -91,7 +91,7 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 		return nil
 	}
 
-	users, err := s.users.ListUsers(ctx, slices.Collect(maps.Keys(lookup)))
+	users, err := s.users.UsersByIDs(ctx, slices.Collect(maps.Keys(lookup)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list users for activity enrichment")
 	}
