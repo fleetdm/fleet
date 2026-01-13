@@ -182,7 +182,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 					(existingLabel.TeamID != nil && spec.TeamID == nil ||
 						existingLabel.TeamID == nil && spec.TeamID != nil ||
 						(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID)) {
-					return ctxerr.Wrap(ctx, err, "one or more specified labels exists on another team")
+					return ctxerr.New(ctx, "one or more specified labels exists on another team")
 				}
 			}
 		}
@@ -276,13 +276,13 @@ DELETE FROM label_membership WHERE label_id = ?
 
 			intRegex := regexp.MustCompile(`^[0-9]+$`)
 			// Split hostnames into batches to avoid parameter limit in MySQL.
-			for _, hostIdentifiers := range batchHostnames(s.Hosts) {
+			for _, hostIdentifiersBatch := range batchHostnames(s.Hosts) {
 				var stringIdents []string
 				// Start with 0 so id IN (?) always has at least one element.
 				// id = 0 never matches any real host.
 				intIdents := []uint64{0}
 
-				for _, s := range hostIdentifiers {
+				for _, s := range hostIdentifiersBatch {
 					stringIdents = append(stringIdents, s)
 					// Use strconv to check if it's a valid integer
 					if intRegex.MatchString(s) {
@@ -291,10 +291,34 @@ DELETE FROM label_membership WHERE label_id = ?
 					}
 				}
 
+				hostsFilterClause := `(hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
+
+				if s.TeamID != nil {
+					// Team labels can only be applied to hosts on that team.
+					hostnames := stringIdents
+					serialNumbers := stringIdents
+					uuids := stringIdents
+					hostIDs := intIdents
+					if err := checkHostIdentifiersInTeam(ctx, tx,
+						*s.TeamID,
+						hostsFilterClause,
+						[]any{
+							hostnames,
+							serialNumbers,
+							uuids,
+							hostIDs,
+						},
+					); err != nil {
+						return ctxerr.Wrap(ctx, err, "check host identifiers in team")
+					}
+				}
+
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
-				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
+				sql = fmt.Sprintf(
+					`INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts WHERE %s)`,
+					hostsFilterClause,
+				)
 				sql, args, err := sqlx.In(sql, labelID, stringIdents, stringIdents, stringIdents, intIdents)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
@@ -310,6 +334,32 @@ INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id F
 	})
 
 	return ctxerr.Wrap(ctx, err, "ApplyLabelSpecs transaction")
+}
+
+var errLabelMismatchHostTeam = errors.New("supplied hosts are on a different team than the label")
+
+func checkHostIdentifiersInTeam(
+	ctx context.Context,
+	tx sqlx.QueryerContext,
+	teamID uint,
+	andFilter string,
+	args []any,
+) error {
+	hostTeamCheckSql, args, err := sqlx.In(
+		`SELECT COUNT(id) FROM hosts WHERE (team_id != ? OR team_id IS NULL) AND `+andFilter,
+		append([]any{teamID}, args...)...,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build host identifiers team membership check IN statement")
+	}
+	var hostCountOnWrongTeam int
+	if err := tx.QueryRowxContext(ctx, hostTeamCheckSql, args...).Scan(&hostCountOnWrongTeam); err != nil {
+		return ctxerr.Wrap(ctx, err, "execute host identifiers team membership check query")
+	}
+	if hostCountOnWrongTeam > 0 {
+		return ctxerr.Wrap(ctx, errLabelMismatchHostTeam)
+	}
+	return nil
 }
 
 func batchHostnames(hostnames []string) [][]string {
@@ -348,29 +398,24 @@ func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label f
 		}
 
 		// Split hostIds into batches to avoid parameter limit in MySQL.
-		for _, hostIds := range batchHostIds(hostIds) {
-			if label.TeamID != nil { // team labels can only be applied to hosts on that team
-				hostTeamCheckSql := `SELECT COUNT(id) FROM hosts WHERE (team_id != ? OR team_id IS NULL) AND id IN (?)`
-				hostTeamCheckSql, args, err := sqlx.In(hostTeamCheckSql, label.TeamID, hostIds)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "build host team membership check IN statement")
-				}
-
-				var hostCountOnWrongTeam int
-				if err := tx.QueryRowxContext(ctx, hostTeamCheckSql, args...).Scan(&hostCountOnWrongTeam); err != nil {
-					return ctxerr.Wrap(ctx, err, "execute host team membership check query")
-				}
-				if hostCountOnWrongTeam > 0 {
-					return ctxerr.Wrap(ctx, errors.New("supplied hosts are on a different team than the label"))
+		for _, hostIDsBatch := range batchHostIds(hostIds) {
+			if label.TeamID != nil {
+				// Team labels can only be applied to hosts on that team.
+				if err := checkHostIdentifiersInTeam(ctx, tx,
+					*label.TeamID,
+					`id IN (?)`,
+					[]any{hostIDsBatch},
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "check host IDs in team")
 				}
 			}
 
-			// Use ignore because duplicate hostIds could appear in
+			// Use ignore because duplicate host IDs could appear in
 			// different batches and would result in duplicate key errors.
 			var values []any
 			var placeholders []string
 
-			for _, hostID := range hostIds {
+			for _, hostID := range hostIDsBatch {
 				values = append(values, label.ID, hostID)
 				placeholders = append(placeholders, "(?, ?)")
 			}

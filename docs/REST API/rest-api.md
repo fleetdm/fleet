@@ -880,6 +880,16 @@ The `Authorization` header must be formatted as follows:
 Authorization: Node key <node_key>
 ```
 
+OR 
+
+```
+Authorization: Bearer <token>
+```
+
+When you pass a node key in the authorization header the server will look up the host and replace
+the `$FLEET_*` variables with the values associated to that host. If you use a regular bearer token
+the `$FLEET_*` variables will not be replaced.
+
 #### Example
 
 `GET /api/v1/fleet/certificates/`
@@ -888,6 +898,12 @@ Authorization: Node key <node_key>
 
 ```http
 Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+OR 
+
+```http
+Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
 ```
 
 ##### Default response
@@ -944,6 +960,16 @@ The `Authorization` header must be formatted as follows:
 Authorization: Node key <node_key>
 ```
 
+OR 
+
+```
+Authorization: Bearer <token>
+```
+
+When you pass a node key in the authorization header the server will look up the host and replace
+the `$FLEET_*` variables with the values associated to that host. If you use a regular bearer token
+the `$FLEET_*` variables will not be replaced.
+
 #### Example
 
 `GET /api/v1/fleet/certificates/1`
@@ -952,6 +978,12 @@ Authorization: Node key <node_key>
 
 ```http
 Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
+```
+
+OR
+
+```http
+Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
 ```
 
 ##### Default response
@@ -7483,7 +7515,7 @@ None.
 
 ### Get identity provider (IdP) details
 
-Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
+Get details about the most recent SCIM (System for Cross-domain Identity Management) request from your identity provider (IdP).
 
 `GET /api/v1/fleet/scim/details`
 
@@ -11197,11 +11229,11 @@ _Available in Fleet Premium._
 | ----            | ------- | ---- | --------------------------------------------     |
 | id   | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
-| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
+| alt             | string | query | **Required**. If specified and set to `"media"`, downloads the specified software package. |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+`GET /api/v1/fleet/software/titles/123/package?alt=media&team_id=2`
 
 ##### Default response
 

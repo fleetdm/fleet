@@ -112,11 +112,11 @@ type updateAppStoreAppRequest struct {
 	AutoUpdateEnabled *bool           `json:"auto_update_enabled,omitempty"`
 	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
 	// AutoUpdateStartTime is the end of the maintenance window for the software title.
 	// If the end time is less than the start time, the window wraps to the next day.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty"`
+	AutoUpdateEndTime *string `json:"auto_update_window_end,omitempty"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -136,6 +136,11 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		Categories:       req.Categories,
 		Configuration:    req.Configuration,
 		DisplayName:      req.DisplayName,
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   req.AutoUpdateEnabled,
+			AutoUpdateStartTime: req.AutoUpdateStartTime,
+			AutoUpdateEndTime:   req.AutoUpdateEndTime,
+		},
 	})
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil

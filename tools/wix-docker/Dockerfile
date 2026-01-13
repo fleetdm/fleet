@@ -10,6 +10,7 @@ RUN true \
     wget \
     unzip \
     osslsigncode \
+    && apt upgrade -y \
     && mkdir /wix \
     && rm -rf /var/lib/apt/lists/*
 

@@ -29,8 +29,19 @@ parasails.registerPage('contact', {
       emailAddress: {isEmail: true, required: true},
       firstName: {required: true},
       lastName: {required: true},
-      message: {required: false},
+      message: {required: true},
     },
+    // Application form rules
+    applicationFormRules: {
+      emailAddress: {isEmail: true, required: true},
+      firstName: {required: true},
+      lastName: {required: true},
+      linkedinProfileUrl: {required: true},
+      position: {required: true},
+      location: {required: true},
+      message: {required: true},
+    },
+
     formDataToPrefillForLoggedInUsers: {},
 
     // Server error state for the form
@@ -74,6 +85,9 @@ parasails.registerPage('contact', {
     if (window.location.hash === '#message') {// prefill from URL bar
       this.formToDisplay = 'contact';
     }
+    if (window.location.hash === '#apply') {// prefill from URL bar
+      this.formToDisplay = 'apply';
+    }
   },
   mounted: async function() {
     //…
@@ -97,15 +111,26 @@ parasails.registerPage('contact', {
     },
     handleSubmittingTalkToUsForm: async function(argins) {
       this.syncing = true;
-      if(typeof gtag !== 'undefined'){
-        gtag('event','fleet_website__contact_forms');
-      }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
-      let eventUrl = await Cloud.deliverTalkToUsFormSubmission.with(argins);
+      let report = await Cloud.deliverTalkToUsFormSubmission.with(argins);
 
-      this.goto(eventUrl);
+      if(typeof gtag !== 'undefined'){
+        // Look at result from talking to api and decide what event to track.
+        if(report.icp){
+          gtag('event','fleet_website__contact_forms__demo');
+        } else {
+          gtag('event','fleet_website__contact_forms__demo__icp');
+        }
+      }
+
+      this.goto(report.eventUrl);
+    },
+
+    submittedApplicationForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
     },
 
     clickSwitchForms: function(form) {
