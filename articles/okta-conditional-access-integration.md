@@ -22,7 +22,7 @@ Otherwise, you'll need to:
 
 Note: The certificate is provided in DER format. If your mTLS termination solution requires PEM format, you can convert it using the following command:
 
-`openssl x509 -inform der -in fleet-scep-ca.crt -out fleet-scep-ca.pem`
+`openssl x509 -inform der -in fleet-scep-ca.cer -out fleet-scep-ca.pem`
 
 Replace `fleet-scep-ca.crt` with the filename you used when downloading the certificate.
 
