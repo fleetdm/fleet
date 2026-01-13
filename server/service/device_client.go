@@ -20,7 +20,7 @@ type DeviceClient struct {
 	*baseClient
 
 	// fleetAlternativeBrowserHostFromServer serves the same purpose as fleetAlternativeBrowserHost, but this value is set
-	// on the Fleet server and takes precedence over it
+	// on the Fleet server and takes precedence over it.
 	fleetAlternativeBrowserHostFromServer string
 
 	// fleetAlternativeBrowserHost is an alternative host to use for the Fleet Desktop URLs generated for the browser.

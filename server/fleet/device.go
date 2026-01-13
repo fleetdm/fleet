@@ -8,7 +8,7 @@ type DesktopSummary struct {
 	AlternativeBrowserHost string               `json:"alternative_browser_host,omitempty"`
 	FailingPolicies        *uint                `json:"failing_policies_count,omitempty"`
 	SelfService            *bool                `json:"self_service"`
-	Notifications          DesktopNotifications `json:"notifications,omitempty"`
+	Notifications          DesktopNotifications `json:"notifications"`
 	Config                 DesktopConfig        `json:"config"`
 }
 
