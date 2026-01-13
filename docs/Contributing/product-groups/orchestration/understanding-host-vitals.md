@@ -926,7 +926,6 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT eh.*
 		FROM apps a
 		JOIN executable_hashes eh ON a.path = eh.path
-		WHERE eh.path NOT NULL
 ```
 
 ## software_macos_firefox
