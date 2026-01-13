@@ -73,6 +73,7 @@ Replace:
 
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, go to **Identity provider (IdP) signature certificate**. Click **Download certificate**.
+3. Rename certificate extention from `.cer` to `.crt` if needed.
 
 ### Step 3: Create IdP in Okta
 
@@ -86,7 +87,7 @@ Replace:
    - **IdP Single Sign-On URL**: `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso` (note the `okta.` prefix)
    - **Destination**: `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso` (note the `okta.` prefix)
 7. For **IdP Signature Certificate**, upload the IdP signature certificate downloaded from Fleet.
-8. Click **Save**.
+8. Click **Finish**.
 9. Back in **Security** > **Identity Providers**, select **Actions** for the Fleet identity provider and choose **Download certificate**.
 
 ### Step 4: Configure Okta settings in Fleet
