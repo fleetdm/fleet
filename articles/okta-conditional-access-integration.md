@@ -14,7 +14,9 @@ If your Fleet server is hosted by Fleet, contact your Fleet representative to se
 
 ### Self-hosted servers
 
-If you're self-hosting Fleet, you'll need to:
+If you use [fleet-terraform](https://github.com/fleetdm/fleet-terraform) modules for AWS hosting, see the [okta-conditional-access addon](https://github.com/fleetdm/fleet-terraform/tree/main/addons/okta-conditional-access) for streamlined mTLS proxy setup.
+
+Otherwise, you'll need to:
 
 1. **Get the mTLS CA certificate**: Download the CA certificate from Fleet's SCEP endpoint at `/api/fleet/conditional_access/scep?operation=GetCACert`. This is the certificate that signs the client certificates deployed to your hosts.
 
