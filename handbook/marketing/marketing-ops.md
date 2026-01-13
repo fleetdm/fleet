@@ -264,7 +264,7 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Meeting Requested:** The prospect has asked for a follow-up engagement/discussion 
 
 
-#### Email Marketing
+#### Email marketing
 
 *Goal: Move beyond "Open Rates."*
 
