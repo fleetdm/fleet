@@ -18,6 +18,12 @@ If you're self-hosting Fleet, you'll need to:
 
 1. **Get the mTLS CA certificate**: Download the CA certificate from Fleet's SCEP endpoint at `/api/fleet/conditional_access/scep?operation=GetCACert`. This is the certificate that signs the client certificates deployed to your hosts.
 
+Note: The certificate is provided in DER format. If your mTLS termination solution requires PEM format, you can convert it using the following command:
+
+`openssl x509 -inform der -in fleet-scep-ca.crt -out fleet-scep-ca.pem`
+
+Replace `fleet-scep-ca.crt` with the filename you used when downloading the certificate.
+
 2. **Create a DNS record**: Set up a subdomain with an `okta` prefix pointing to your mTLS proxy server (e.g., `okta.fleet.example.com`).
 
 3. **Configure an mTLS reverse proxy**: Set up a reverse proxy that:
