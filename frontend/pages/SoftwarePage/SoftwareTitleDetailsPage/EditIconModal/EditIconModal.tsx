@@ -480,6 +480,12 @@ const EditIconModal = ({
     );
   };
 
+  /**
+   * Preview matches preview in Edit Software modal > Categories End User Experience modal
+   * Non-mobile preview:
+   * - uses HTML/CSS instead for maintainability as the self-service UI changes
+   * - dynamic name/icon
+   */
   const renderPreviewSelfServiceCard = () => (
     <Card
       borderRadiusSize="medium"
@@ -544,6 +550,12 @@ const EditIconModal = ({
     </Card>
   );
 
+  /**
+   * Preview matches preview in Edit Software modal > Categories End User Experience modal
+   * Mobile preview modal:
+   * - uses a screenshot
+   * - dynamic name/icon/version
+   */
   const renderPreviewSelfServiceMobileCard = () => (
     <Card
       borderRadiusSize="medium"

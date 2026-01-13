@@ -1,9 +1,16 @@
-/** Mobile preview modal uses a screenshot
- * Non-mobile now uses HTML/CSS instead for
- * maintainability as the self-selvice UI changes
+/**
+ * Previews match preview in Edit Appearance modal for Edit Appearance modal
+ *
+ * Non-mobile preview modal:
+ * - uses HTML/CSS instead for maintainability as the self-service UI changes
+ * - dynamic name/icon
+ *
+ * Mobile preview modal:
+ * - uses a screenshot
+ * - dynamic name/icon/version
  *
  * Currently only shown from the edit UI, though wired through the Add UI
- * Users currently can set categories only when editing a curent installer
+ * Users currently can set categories only when editing a current installer
  */
 
 import React, { useContext } from "react";
@@ -133,7 +140,7 @@ interface ICategoriesEndUserExperienceModal {
   isIosOrIpadosApp?: boolean;
   name?: string;
   displayName?: string;
-  iconUrl?: string;
+  iconUrl?: string | null;
   source?: string;
   mobileVersion?: string;
 }
