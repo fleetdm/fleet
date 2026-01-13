@@ -1331,6 +1331,8 @@ type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[st
 
 type MapAdamIDsPendingInstallVerificationFunc func(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
 
+type MapAdamIDsRecentInstallsFunc func(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
 type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
 type GetVPPAppMetadataByAdamIDPlatformTeamIDFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error)
@@ -3701,6 +3703,9 @@ type DataStore struct {
 
 	MapAdamIDsPendingInstallVerificationFunc        MapAdamIDsPendingInstallVerificationFunc
 	MapAdamIDsPendingInstallVerificationFuncInvoked bool
+
+	MapAdamIDsRecentInstallsFunc        MapAdamIDsRecentInstallsFunc
+	MapAdamIDsRecentInstallsFuncInvoked bool
 
 	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
 	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
@@ -8893,6 +8898,13 @@ func (s *DataStore) MapAdamIDsPendingInstallVerification(ctx context.Context, ho
 	s.MapAdamIDsPendingInstallVerificationFuncInvoked = true
 	s.mu.Unlock()
 	return s.MapAdamIDsPendingInstallVerificationFunc(ctx, hostID)
+}
+
+func (s *DataStore) MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error) {
+	s.mu.Lock()
+	s.MapAdamIDsRecentInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MapAdamIDsRecentInstallsFunc(ctx, hostID, seconds)
 }
 
 func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {
