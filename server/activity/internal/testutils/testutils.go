@@ -73,29 +73,32 @@ func (tdb *TestDB) InsertUser(t *testing.T, name, email string) uint {
 }
 
 // InsertActivity creates an activity in the database and returns the activity ID.
-func (tdb *TestDB) InsertActivity(t *testing.T, userID uint, activityType string, details map[string]any) uint {
+// Pass nil for userID to create a system activity (no associated user).
+func (tdb *TestDB) InsertActivity(t *testing.T, userID *uint, activityType string, details map[string]any) uint {
 	t.Helper()
 	return tdb.InsertActivityWithTime(t, userID, activityType, details, time.Now().UTC())
 }
 
 // InsertActivityWithTime creates an activity with a specific timestamp.
-func (tdb *TestDB) InsertActivityWithTime(t *testing.T, userID uint, activityType string, details map[string]any, createdAt time.Time) uint {
+// Pass nil for userID to create a system activity (no associated user).
+func (tdb *TestDB) InsertActivityWithTime(t *testing.T, userID *uint, activityType string, details map[string]any, createdAt time.Time) uint {
 	t.Helper()
 	ctx := t.Context()
 
 	detailsJSON, err := json.Marshal(details)
 	require.NoError(t, err)
 
-	var userName, userEmail *string
-	if userID > 0 {
+	var userName *string
+	var userEmail string // NOT NULL DEFAULT '' in schema
+	if userID != nil {
 		var user struct {
 			Name  string `db:"name"`
 			Email string `db:"email"`
 		}
-		err = sqlx.GetContext(ctx, tdb.DB, &user, "SELECT name, email FROM users WHERE id = ?", userID)
+		err = sqlx.GetContext(ctx, tdb.DB, &user, "SELECT name, email FROM users WHERE id = ?", *userID)
 		require.NoError(t, err)
 		userName = &user.Name
-		userEmail = &user.Email
+		userEmail = user.Email
 	}
 
 	result, err := tdb.DB.ExecContext(ctx, `
