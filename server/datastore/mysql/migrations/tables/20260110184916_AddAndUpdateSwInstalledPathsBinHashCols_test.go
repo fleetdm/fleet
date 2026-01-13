@@ -23,10 +23,6 @@ func TestUp_20260110184916(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	// confirm old column name no longer exists
-	_, err = db.Exec(`SELECT executable_sha256 FROM host_software_installed_paths`)
-	require.Error(t, err)
-
 	var paths []fleet.HostSoftwareInstalledPath
 	// binary_sha256 is left empty for old rows
 	err = sqlx.Select(db, &paths, `
@@ -36,9 +32,11 @@ func TestUp_20260110184916(t *testing.T) {
 			installed_path,
 			team_identifier,
 			cdhash_sha256,
-			binary_sha256
+			executable_sha256,
+			executable_path
 		FROM host_software_installed_paths
 	`)
+
 	// confirms both new and updated column names are present
 	require.NoError(t, err)
 	require.Len(t, paths, 1)
@@ -48,14 +46,16 @@ func TestUp_20260110184916(t *testing.T) {
 	require.Equal(t, "goteam", paths[0].TeamIdentifier)
 	require.Equal(t, cdHash1, *paths[0].CDHashSHA256)
 	require.Nil(t, paths[0].ExecutableSHA256)
+	require.Nil(t, paths[0].ExecutablePath)
 
 	cdHash2 := "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
-	binaryHash := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	executableHash := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	executablePath := "/Applications/Go.app/Contents/MacOS/Go"
 
 	_, err = db.Exec(`
-		INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier, cdhash_sha256, binary_sha256)
-		VALUES (2, 2, "/Applications/Go.app", "goteam", ?, ?)
-	`, cdHash2, binaryHash)
+		INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier, cdhash_sha256, executable_sha256, executable_path)
+		VALUES (2, 2, "/Applications/Go.app", "goteam", ?, ?, ?)
+	`, cdHash2, executableHash, executablePath)
 	require.NoError(t, err)
 
 	err = sqlx.Select(db, &paths, `
@@ -65,17 +65,22 @@ func TestUp_20260110184916(t *testing.T) {
 			installed_path,
 			team_identifier,
 			cdhash_sha256,
-			binary_sha256
+			executable_sha256,
+			executable_path
 		FROM host_software_installed_paths
 	`)
 	require.NoError(t, err)
 	require.Len(t, paths, 2)
 
-	// old row
-	require.Equal(t, uint(1), paths[0].HostID)
-	require.Equal(t, cdHash1, *paths[0].CDHashSHA256)
-	// new row
-	require.Equal(t, uint(2), paths[1].HostID)
-	require.Equal(t, cdHash2, *paths[1].CDHashSHA256)
-	require.Equal(t, binaryHash, *paths[1].ExecutableSHA256)
+	oldRow := paths[0]
+	require.Equal(t, uint(1), oldRow.HostID)
+	require.Equal(t, cdHash1, *oldRow.CDHashSHA256)
+	require.Nil(t, oldRow.ExecutableSHA256)
+	require.Nil(t, oldRow.ExecutablePath)
+
+	newRow := paths[1]
+	require.Equal(t, uint(2), newRow.HostID)
+	require.Equal(t, cdHash2, *newRow.CDHashSHA256)
+	require.Equal(t, executableHash, *newRow.ExecutableSHA256)
+	require.Equal(t, executablePath, *newRow.ExecutablePath)
 }
