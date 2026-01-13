@@ -28,19 +28,14 @@ import Card from "components/Card";
 import Button from "components/buttons/Button";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TableCount from "components/TableContainer/TableCount";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
-import SearchField from "components/forms/fields/SearchField";
 
 import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
-import { CATEGORIES_NAV_ITEMS } from "pages/hosts/details/cards/Software/SelfService/helpers";
-import CategoriesMenu from "pages/hosts/details/cards/Software/SelfService/components/CategoriesMenu";
-import SelfServiceHeader from "pages/hosts/details/cards/Software/SelfService/components/SelfServiceHeader";
+import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
 
 import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
-import PreviewSelfServiceMobileIcon from "../../../../../assets/images/preview-self-service-mobile-icon.png";
 
 const baseClass = "edit-icon-modal";
 
@@ -485,127 +480,77 @@ const EditIconModal = ({
    * Non-mobile preview:
    * - uses HTML/CSS instead for maintainability as the self-service UI changes
    * - dynamic name/icon
-   */
-  const renderPreviewSelfServiceCard = () => (
-    <Card
-      borderRadiusSize="medium"
-      color="grey"
-      className={`${baseClass}__preview-card`}
-      paddingSize="xlarge"
-    >
-      <div className={`${baseClass}__disabled-overlay`} />
-      <Card
-        className={`${baseClass}__preview-card__self-service`}
-        borderRadiusSize="xxlarge"
-      >
-        <SelfServiceHeader
-          contactUrl={config?.org_info.contact_url || ""}
-          variant="preview"
-        />
-        <SearchField placeholder="Search by name" onChange={noop} disabled />
-        <div className={`${baseClass}__table`}>
-          <CategoriesMenu
-            categories={CATEGORIES_NAV_ITEMS}
-            queryParams={{
-              query: "",
-              order_direction: "asc",
-              order_key: "name",
-              page: 0,
-              per_page: 100,
-            }}
-            readOnly
-          />
-          <BasicSoftwareTable
-            name={displayName || previewInfo.titleName}
-            displayName={displayName || previewInfo.titleName}
-            source={previewInfo.source}
-            iconUrl={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
-            previewIcon={
-              iconState.previewUrl &&
-              isSafeImagePreviewUrl(iconState.previewUrl) ? (
-                <img
-                  src={iconState.previewUrl}
-                  alt="Uploaded self-service icon"
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "4px",
-                    overflow: "hidden",
-                  }}
-                />
-              ) : (
-                // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
-                // is set as VPP icon is not returned by the API if a custom icon is returned
-                <SoftwareIcon
-                  name={previewInfo.titleName}
-                  source={previewInfo.source}
-                  url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
-                  uploadedAt={iconUploadedAt}
-                />
-              )
-            }
-          />
-        </div>
-      </Card>
-    </Card>
-  );
-
-  /**
-   * Preview matches preview in Edit Software modal > Categories End User Experience modal
+   *
    * Mobile preview modal:
    * - uses a screenshot
    * - dynamic name/icon/version
    */
-  const renderPreviewSelfServiceMobileCard = () => (
-    <Card
-      borderRadiusSize="medium"
-      color="white"
-      className={`${baseClass}__preview-card`}
-      paddingSize="xlarge"
-    >
-      <div className={`${baseClass}__preview-img-container--mobile`}>
-        <img
-          className={`${baseClass}__preview-img--mobile`}
-          src={PreviewSelfServiceMobileIcon}
-          alt="Preview icon on Fleet Desktop > Self-service"
-        />
-      </div>
-      <div className={`${baseClass}__self-service-preview--mobile`}>
-        {iconState.previewUrl && isSafeImagePreviewUrl(iconState.previewUrl) ? (
+
+  const renderPreviewSelfServiceCard = () => (
+    <SelfServicePreview
+      isIosOrIpadosApp={isIosOrIpadosApp}
+      contactUrl={config?.org_info.contact_url || ""}
+      name={previewInfo.name}
+      displayName={displayName || previewInfo.titleName}
+      versionLabel={
+        "latest_version" in software
+          ? software.latest_version
+          : software.version ||
+            previewInfo.selfServiceVersion ||
+            "Version (unknown)"
+      }
+      renderIcon={() =>
+        iconState.previewUrl && isSafeImagePreviewUrl(iconState.previewUrl) ? (
           <img
             src={iconState.previewUrl}
             alt="Uploaded self-service icon"
             style={{
-              width: 20,
-              height: 20,
+              width: 24,
+              height: 24,
               borderRadius: "4px",
               overflow: "hidden",
             }}
           />
         ) : (
-          // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
-          // is set as VPP icon is not returned by the API if a custom icon is returned
           <SoftwareIcon
             name={previewInfo.name}
             source={previewInfo.source}
             url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
             uploadedAt={iconUploadedAt}
           />
-        )}
-        <div
-          className={`${baseClass}__self-service-preview-name-version--mobile`}
-        >
-          <div className={`${baseClass}__self-service-preview-name--mobile`}>
-            <TooltipTruncatedText value={displayName || previewInfo.name} />
-          </div>
-          <div className={`${baseClass}__self-service-preview-version--mobile`}>
-            {"latest_version" in software
-              ? software.latest_version
-              : software.version || "Version (unknown)"}
-          </div>
-        </div>
-      </div>
-    </Card>
+        )
+      }
+      renderTable={() => (
+        <BasicSoftwareTable
+          name={displayName || previewInfo.titleName}
+          displayName={displayName || previewInfo.titleName}
+          source={previewInfo.source}
+          iconUrl={isSoftwarePackage ? undefined : software.icon_url}
+          previewIcon={
+            iconState.previewUrl &&
+            isSafeImagePreviewUrl(iconState.previewUrl) ? (
+              <img
+                src={iconState.previewUrl}
+                alt="Uploaded self-service icon"
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                }}
+              />
+            ) : (
+              <SoftwareIcon
+                name={previewInfo.titleName}
+                source={previewInfo.source}
+                url={isSoftwarePackage ? undefined : software.icon_url}
+                uploadedAt={iconUploadedAt}
+              />
+            )
+          }
+        />
+      )}
+    />
   );
 
   const renderForm = () => (
@@ -650,11 +595,7 @@ const EditIconModal = ({
             </Tab>
           </TabList>
           <TabPanel>{renderPreviewFleetCard()}</TabPanel>
-          <TabPanel>
-            {isIosOrIpadosApp
-              ? renderPreviewSelfServiceMobileCard()
-              : renderPreviewSelfServiceCard()}
-          </TabPanel>
+          <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
         </Tabs>
       </TabNav>
     </>
