@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260110184916(t *testing.T) {
+func TestUp_20260113012054(t *testing.T) {
 	cdHash1 := "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
 
 	db := applyUpToPrev(t)
