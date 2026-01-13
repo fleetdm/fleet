@@ -1,3 +1,51 @@
+## Fleet 4.80.0 (Jan 13, 2026)
+
+### Bug fixes
+
+- Fixed an issue that allowed uploading invalid Android profiles.
+- Added feature to automatically uninstall managed apps when iOS/iPadOS devices are unenrolled from MDM.
+- Added ability to schedule automated software updates for ipad/ios VPP apps via the Fleet admin interface.
+- Updated UI to show a generic error message when attempting to delete setup experience software.
+- Fix spacing and alignment for author on edit query and edit policy pages
+-  Fixed an issue where VPP apps would fail with 9610 errors, by implementing a retry mechanism for VPP app installations.
+* The macOS bootstrap package is no longer installed during MDM migration, only initial setup
+* Script and software installer policy automations will retry up to three times if attempts to run them fail.
+* Fixed VPP versions refresh to update the latest version for all platforms of an Adam ID.
+- tweak host status tag styles on host details page
+* Fixed a bug where failed software installs showed up in the host library page after transferring it to a team without that installer. 
+- Improved error message for user-scoped profiles on iOS/iPadOS hosts
+- add better errro message when trying to apply certificate authorities via gitops without the correct license
+- Fixed fleetctl config get/set to show proper usage information when called without required arguments
+Refactored common endpoint_utils package to support bounded contexts inside Fleet codebase. Moved it to server/platform/endpointer.
+* Added space trimming of `displayVersion` when processing VPP apps (found in some production apps).
+* Added custom VPP apps to available VPP apps listing
+* Fixed cases where Fleet would show the wrong current VPP app version when app versions varied by platform
+- Updated UI for Controls > Setup experience > Bootstrap package to fix inconsistent styling.
+Software version search now includes results that match the software title name in addition to the version name.
+Updated NDES SCEP proxy to auto-detect response encoding, enabling compatibility with Okta CA and other UTF-8-based CAs.
+- Added validation and harmonized the error message displayed when an installer (FMA, custom package, VPP app, in-house app) conflicts with another one on the same team targeting the same platform.
+- Updated software ingestion of manually-enrolled (BYOD) iPhone/iPad devices to only ingest (and display in software inventory) Fleet-installed software.
+- Fleet UI: Adjust the read-only SQL editor to appear non-interactive
+- adds a tooltip to and expired abm token and also correctly removes the banner when an expired abm token is deleted.
+* Added support for in-house apps to use Cloudfront signed URLs in manifest if Cloudfront is configured.
+- Randomized APNS query to ensure all pending Apple hosts gets a push notification
+- Remove Queries tab from Host Details page.
+- Surface Queries within the Details tab.
+* Omit software `last_opened_at` in API responses when the data source does not support it. Return an empty string when the source does have support but there is no value.
+- Updated UI for Controls > Setup experience > Install software > Android to fix inconsistent loading state.
+* Added scheduled updates functionality to iOS/iPadOS managed devices.
+* Rolled back the change to ingest legacy Entra "device ID" from the keychain (for silent migrations) because it's not supported by Entra.
+Refactored common_mysql package to support bounded contexts inside Fleet codebase. Moved it to server/platform/mysql.
+- Added NATS as a logging destination.
+- Added information about auto-update configuration to the "edited_app_store_app" activity.
+- Fixed the metadata of the "Windows App" macOS installer, as it was reported as "Microsoft AutoUpdate" instead of "Windows App".
+- Revised software batch upload timeout to be 4 minutes, refreshed as every software package is downloaded from source or uploaded to object storage, from 24 hours, allowing for quicker detection of when a software batch fails due to the underlying server going offline.
+- Updated UI to inform admins of the need to accept terms and conditions for multiple Apple Business
+  Manager accounts.
+- Added the ability to get and set auto-update schedule for VPP apps via the API.
+- Updated error message to clarify that Fleet requires Apple (macOS, iOS, and iPadOS) configuration
+  profiles have a unique identifier (PayloadIdentifier) and scope (PayloadScope) across teams.
+
 ## Fleet 4.79.0 (Jan 14, 2025)
 
 ### IT Admins
