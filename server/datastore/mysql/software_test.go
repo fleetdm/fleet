@@ -86,6 +86,7 @@ func TestSoftware(t *testing.T) {
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 		{"CreateIntermediateInstallFailureRecord", testCreateIntermediateInstallFailureRecord},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
+		{"ListHostSoftwareFailInstallThenTransferTeam", testListHostSoftwareFailInstallThenTransferTeam},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
@@ -6264,6 +6265,116 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		require.Nil(t, sw[1].AppStoreApp)
 		require.Nil(t, sw[1].SoftwarePackage)
 	}
+
+}
+func testListHostSoftwareFailInstallThenTransferTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		OnlyAvailableForInstall: true,
+	}
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team1.ID
+
+	// create a software installer for both teams
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	payloadBoth := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Version:         "1.0",
+		Source:          "apps",
+		Platform:        string(fleet.MacOSPlatform),
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+
+	payloadBoth.TeamID = &team1.ID
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, payloadBoth)
+	require.NoError(t, err)
+	payloadBoth.TeamID = &team2.ID
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, payloadBoth)
+	require.NoError(t, err)
+
+	// create software installer for only team 1
+	payloadOnly1 := fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "bar.pkg",
+		Title:           "bar",
+		Version:         "1.0",
+		Source:          "apps",
+		Platform:        string(fleet.MacOSPlatform),
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+
+	installerTm1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadOnly1)
+	require.NoError(t, err)
+
+	// Fail to install bar that is only scoped to team 1 on the host
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(1),
+	}, nil)
+	require.NoError(t, err)
+
+	// add a VPP app for team 1
+	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, &team1.ID)
+	require.NoError(t, err)
+
+	// install it on the host
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user)
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// listing available for install should include "foo", "vpp1",
+	// and the failed attempt for "bar"
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	require.Equal(t, sw[0].Name, "bar")
+	require.NotNil(t, sw[0].SoftwarePackage)
+	require.Equal(t, sw[1].Name, "foo")
+	require.NotNil(t, sw[1].SoftwarePackage)
+	require.Equal(t, sw[2].Name, "vpp1")
+	require.NotNil(t, sw[2].AppStoreApp)
+
+	// move host to team 2
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team2.ID
+
+	// listing available for install now should not include the failed install
+	// of "bar" because the installer is scoped to only team 1.
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, sw[0].Name, "foo")
+	require.NotNil(t, sw[0].SoftwarePackage)
 }
 
 func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore) {
