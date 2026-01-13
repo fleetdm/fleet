@@ -4201,7 +4201,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	// The main reason we must do this filtering is because if the target application is currently in use
 	// by the end-user, then the app installation has been acknowledged and verified, but the reported version
 	// by InstalledApplicationList is still the old version until the user closes the app or the device goes to
-	// sleep and the app is closed and reopend automatically.
+	// sleep and the app is closed and reopened automatically.
 	//
 	adamIDsRecentInstallForHost, err := svc.ds.MapAdamIDsRecentInstalls(ctx, host.ID, 3600)
 	if err != nil {
