@@ -6433,58 +6433,89 @@ func TestIsTimezoneInWindow(t *testing.T) {
 
 func TestToValidSemVer(t *testing.T) {
 	testVersions := []struct {
-		rawVersion      string
-		expectedVersion string
+		rawVersion                           string
+		expectedVersion                      string
+		versionToSemverVersionExpectedToFail bool
 	}{
 		{
 			"25.48.0",
 			"25.48.0",
+			false,
 		},
 		{
 			" 353.0 ", // Meta Horizon like version.
 			"353.0",
+			false,
 		},
 		{
 			"18.14.0",
 			"18.14.0",
+			false,
 		},
 		{
 			"412.0.0",
 			"412.0.0",
+			false,
 		},
 		{
-			"00.00.01",
-			"0.0.1",
+			"00.001010.01",
+			"0.1010.1",
+			false,
 		},
 		{
 			"6.0.251229",
 			"6.0.251229",
+			false,
 		},
 		{
 			"4.2602.11600",
 			"4.2602.11600",
+			false,
 		},
 		{
 			"144.0.7559.53", // Google Chrome like version.
 			"144.0.7559-53",
+			false,
+		},
+		{
+			"144.0.7559.03", // Google Chrome like version, leading zeros.
+			"144.0.7559-3",
+			false,
+		},
+		{
+			"4.9999999999999999999999999.11600", // Not a valid semantic version, so we leave unchanged.
+			"4.9999999999999999999999999.11600",
+			true,
+		},
+		{
+			"04.0000099999999999999999999999990.011600", // Not a valid semantic version, but we clean it anyway.
+			"4.99999999999999999999999990.11600",
+			true,
 		},
 		{
 			"21.02.3", // YouTube like version.
 			"21.2.3",
+			false,
 		},
 		{
 			"21", // Just major version.
 			"21",
+			false,
 		},
 		{
 			"v2.3.4", // Remove leading v.
 			"2.3.4",
+			false,
 		},
 	}
 	for _, tc := range testVersions {
 		cleanedVersion := toValidSemVer(tc.rawVersion)
 		require.Equal(t, tc.expectedVersion, cleanedVersion)
 		_, err := fleet.VersionToSemverVersion(cleanedVersion)
-		assert.NoError(t, err, tc.rawVersion)
+		if !tc.versionToSemverVersionExpectedToFail {
+			require.NoError(t, err, tc.rawVersion)
+		} else {
+			require.Error(t, err, tc.rawVersion)
+		}
 	}
 }

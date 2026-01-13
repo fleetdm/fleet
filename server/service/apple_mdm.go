@@ -3964,14 +3964,11 @@ var versionPattern = regexp.MustCompile(
 
 // trimLeadingZeros converts "00123" → "123", "000" → "0", "0" → "0"
 func trimLeadingZeros(s string) string {
+	s = strings.TrimLeft(s, "0")
 	if s == "" {
 		return "0"
 	}
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return s // fallback - should not happen with our regex
-	}
-	return strconv.FormatInt(n, 10)
+	return s
 }
 
 // toValidSemVer is a best effort transformation to make `version` a valid semantic version.
