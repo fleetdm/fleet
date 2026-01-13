@@ -844,6 +844,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		LabelsExcludeAny:   spec.LabelsExcludeAny,
 		InstallDuringSetup: spec.InstallDuringSetup,
 		Icon:               spec.Icon,
+		Categories:         spec.Categories,
 	}
 }
 
