@@ -6430,3 +6430,61 @@ func TestIsTimezoneInWindow(t *testing.T) {
 		})
 	}
 }
+
+func TestToValidSemVer(t *testing.T) {
+	testVersions := []struct {
+		rawVersion      string
+		expectedVersion string
+	}{
+		{
+			"25.48.0",
+			"25.48.0",
+		},
+		{
+			" 353.0 ", // Meta Horizon like version.
+			"353.0",
+		},
+		{
+			"18.14.0",
+			"18.14.0",
+		},
+		{
+			"412.0.0",
+			"412.0.0",
+		},
+		{
+			"00.00.01",
+			"0.0.1",
+		},
+		{
+			"6.0.251229",
+			"6.0.251229",
+		},
+		{
+			"4.2602.11600",
+			"4.2602.11600",
+		},
+		{
+			"144.0.7559.53", // Google Chrome like version.
+			"144.0.7559-53",
+		},
+		{
+			"21.02.3", // YouTube like version.
+			"21.2.3",
+		},
+		{
+			"21", // Just major version.
+			"21",
+		},
+		{
+			"v2.3.4", // Remove leading v.
+			"2.3.4",
+		},
+	}
+	for _, tc := range testVersions {
+		cleanedVersion := toValidSemVer(tc.rawVersion)
+		require.Equal(t, tc.expectedVersion, cleanedVersion)
+		_, err := fleet.VersionToSemverVersion(cleanedVersion)
+		assert.NoError(t, err, tc.rawVersion)
+	}
+}
