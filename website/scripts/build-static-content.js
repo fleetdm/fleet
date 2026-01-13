@@ -350,8 +350,9 @@ module.exports = {
               .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
 
-            // If this page is in the docs/contributing/ folder, skip it.
-            if(sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'contributing/')){
+            // Only build markdown pages from the Get started, Configuration, Deploy, and REST API subfolders.
+            let subfolderName = pageRelSourcePath.split('/')[0];
+            if(sectionRepoPath === 'docs/' && !['Get started', 'Deploy', 'REST API', 'Configuration'].includes(subfolderName)){
               continue;
             }
             // Skip pages in folders starting with an underscore character.
