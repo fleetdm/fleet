@@ -28,6 +28,7 @@ Conditional access with Okta requires changing the Fleet infrastructure (new red
 6. Set **IdP Issuer URI**, **IdP Single Sign-On URL**, and **Destination** to [TODO]
 7. For **IdP Signature Certificate**, upload the IdP signature certificate downloaded from Fleet.
 8. After saving, you'll see the Fleet IdP listed in **Security** > **Identity Providers**.
+9. Download the certificate by clicking on **Actions** > **Download Certificate**
 
 
 ## Step 4: Configure Okta settings in Fleet
