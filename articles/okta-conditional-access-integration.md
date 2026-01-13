@@ -39,6 +39,7 @@ Once you've created the identity provider in Okta, you'll need to copy its value
 2. Copy the **IdP ID** from Okta to the **IdP ID** field.
 3. Copy the **Assertion Consumer Service URL** from Okta to the **Assertion consumer service URL** field.
 3. Copy the **Audience URI** from Okta to the **Audience URI** field.
+4. Upload the certificate downloaded from Okta.
 
 ## Step 5: Configure conditional access policies
 
