@@ -129,13 +129,50 @@
     );
 
     &--fleet {
-      bottom: 156px;
+      bottom: 130px;
       height: 135px;
     }
     &--self-service {
       bottom: 200px;
       height: 75px;
     }
+  }
+
+  // New styles copied from CategoriesEndUserExperienceModal
+  &__preview-card {
+    max-height: 230px;
+    overflow: hidden;
+
+    .card-header__header {
+      font-size: initial;
+    }
+
+    &__self-service {
+      width: 515px;
+      height: 310px;
+      @include vertical-card-layout;
+    }
+
+    .categories-menu {
+      top: 0;
+      width: 200px;
+    }
+
+    .data-table__table {
+      width: 325px;
+    }
+  }
+
+  &__table {
+    display: flex;
+    flex-direction: row;
+  }
+
+  &__disabled-overlay {
+    position: absolute;
+    width: 540px;
+    height: 335px;
+    z-index: 1000;
   }
 
   .modal-footer__content-wrapper {

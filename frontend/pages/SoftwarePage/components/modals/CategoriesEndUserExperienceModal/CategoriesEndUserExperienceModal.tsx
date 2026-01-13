@@ -58,7 +58,8 @@ const getData = (
   name: string,
   displayName: string,
   iconUrl: string | null,
-  source?: string
+  source?: string,
+  previewIcon?: JSX.Element
 ): ISoftwareRow[] => {
   const currentSoftwareRow: ISoftwareRow = {
     name: (
@@ -69,6 +70,7 @@ const getData = (
         iconUrl={iconUrl}
         pageContext="deviceUser"
         isSelfService
+        previewIcon={previewIcon}
       />
     ),
   };
@@ -97,18 +99,21 @@ interface BasicSoftwareTableProps {
   displayName: string;
   source?: string;
   iconUrl?: string | null;
+  /** Render a preview icon instead for edit icon preview */
+  previewIcon?: JSX.Element;
 }
 
-const BasicSoftwareTable = ({
+export const BasicSoftwareTable = ({
   name,
   displayName,
   source,
   iconUrl = null,
+  previewIcon,
 }: BasicSoftwareTableProps) => {
   return (
     <TableContainer<ISoftwareRow>
       columnConfigs={columns}
-      data={getData(name, displayName, iconUrl, source)}
+      data={getData(name, displayName, iconUrl, source, previewIcon)}
       isLoading={false}
       emptyComponent={EmptyState}
       showMarkAllPages={false}
