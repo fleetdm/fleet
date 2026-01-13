@@ -77,24 +77,9 @@ type Authenticator func(forceRenew bool) (string, error)
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
 func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator) (map[string]Metadata, error) {
-	baseURL := getBaseURL()
-	reqURL, err := url.Parse(baseURL)
+	req, err := buildMetadataRequest(adamIDs, vppToken)
 	if err != nil {
-		return nil, fmt.Errorf("parsing base VPP app details URL: %w", err)
-	}
-
-	query := reqURL.Query()
-	query.Add("ids", strings.Join(adamIDs, ","))
-	reqURL.RawQuery = query.Encode()
-
-	req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request to VPP app details endpoint: %w", err)
-	}
-	if strings.HasPrefix(baseURL, appleHostAndScheme) { // Apple requires providing the token as a cookie
-		req.Header.Set("Cookie", fmt.Sprintf("itvt=%s", vppToken))
-	} else { // Fleet proxy requires providing the token as a header
-		req.Header.Set("vpp-token", vppToken)
+		return nil, err
 	}
 
 	// small max attempts count because in many cases we're calling this from a UI that does
@@ -124,6 +109,30 @@ func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator
 	}
 
 	return metadata, nil
+}
+
+func buildMetadataRequest(adamIDs []string, vppToken string) (*http.Request, error) {
+	baseURL := getBaseURL()
+	reqURL, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing base VPP app details URL: %w", err)
+	}
+
+	query := reqURL.Query()
+	query.Add("ids", strings.Join(adamIDs, ","))
+	reqURL.RawQuery = query.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request to VPP app details endpoint: %w", err)
+	}
+	if strings.HasPrefix(baseURL, appleHostAndScheme) { // Apple requires providing the token as a cookie
+		req.Header.Set("Cookie", fmt.Sprintf("itvt=%s", vppToken))
+	} else { // Fleet proxy requires providing the token as a header
+		req.Header.Set("vpp-token", vppToken)
+	}
+
+	return req, nil
 }
 
 func do(req *http.Request, getBearerToken Authenticator, forceRenew bool, dest *metadataResp) error {

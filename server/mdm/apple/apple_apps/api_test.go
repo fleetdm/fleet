@@ -15,16 +15,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetBaseURL(t *testing.T) {
+func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	t.Run("Default URL", func(t *testing.T) {
 		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "")
 		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+
+		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		require.NoError(t, err)
+		require.Equal(t, "this-is-a-token", req.Header.Get("vpp-token"))
+		require.Empty(t, req.Header.Get("Cookie"))
 	})
 
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
 		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL)
 		require.Equal(t, customURL, getBaseURL())
+
+		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		require.NoError(t, err)
+		require.Equal(t, "this-is-a-token", req.Header.Get("vpp-token"))
+		require.Empty(t, req.Header.Get("Cookie"))
 	})
 
 	t.Run("Custom Region", func(t *testing.T) {
@@ -37,6 +47,11 @@ func TestGetBaseURL(t *testing.T) {
 		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple")
 		os.Setenv("FLEET_DEV_VPP_REGION", "")
 		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+
+		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		require.NoError(t, err)
+		require.Equal(t, "itvt=this-is-a-token", req.Header.Get("Cookie"))
+		require.Empty(t, req.Header.Get("vpp-token"))
 	})
 }
 
