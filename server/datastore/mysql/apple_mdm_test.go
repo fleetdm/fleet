@@ -7162,7 +7162,7 @@ func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore
 	// Get a list of pending ID's 3 times and match against the first list, to avoid test flakiness.
 	// In a real world scenario it's okay for it to be the same as we will fetch it again later.
 	allAttemptsWereEqual := true
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		secondIds, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 		require.NoError(t, err)
 		isIdsEqual := assert.ObjectsAreEqualValues(firstIds, secondIds)
