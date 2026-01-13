@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // MDMWindowsBitLockerSummary reports the number of Windows hosts being managed by Fleet with
@@ -45,6 +46,34 @@ type MDMWindowsConfigProfile struct {
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
+type windowsProfileValidator struct {
+	// Validator for SCEP profiles, to keep track of SCEP-specific profile validation
+	scepValidator *windowsSCEPProfileValidator
+	// Boolean indicating whether the profile is an Atomic profile, if so don't allow other top level elements.
+	// Starts out as nil until we encounter the first element, to avoid Atomic coming later
+	isAtomicProfile *bool
+
+	// The current element being processed, e.g., "LocURI", "Target", etc.
+	// Will also be top-level elements before we get to inner elements
+	currentElement string
+	// The current top-level element being processed, e.g., "Replace", "Add", etc.
+	// can be empty if not within a top-level element.
+	currentTopLevelElement string
+
+	// The decoder which is used for reading the XML tokens.
+	decoder *xml.Decoder
+
+	// Whether to enable validation for custom OS updates loc URIs.
+	enableCustomOSUpdates bool
+}
+
+var validTopLevelElements = map[string]struct{}{
+	"Replace": {},
+	"Add":     {},
+	"Exec":    {},
+	"Atomic":  {},
+}
+
 // ValidateUserProvided ensures that the SyncML content in the profile is valid
 // for Windows.
 //
@@ -69,107 +98,145 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
-	dec := xml.NewDecoder(bytes.NewReader(m.SyncML))
+	validator := newWindowsProfileValidator(m.SyncML, enableCustomOSUpdates)
+	return validator.validate()
+}
+
+func newWindowsProfileValidator(syncML []byte, enableCustomOSUpdates bool) *windowsProfileValidator {
+	dec := xml.NewDecoder(bytes.NewReader(syncML))
 	// use strict mode to check for a variety of common mistakes like
 	// unclosed tags, etc.
 	dec.Strict = true
 
-	// keep track of certain elements to perform Fleet-validations.
-	//
-	// NOTE: since we're only checking for well-formedness
-	// we don't need to validate the required nesting
-	// structure (Target>Item>LocURI) so we don't need to track all the tags.
-	var inValidNode bool
-	var inExec bool
-	var inLocURI bool
-	var inComment bool
+	return &windowsProfileValidator{
+		scepValidator:         newWindowsSCEPProfileValidator(),
+		decoder:               dec,
+		enableCustomOSUpdates: enableCustomOSUpdates,
+	}
+}
 
-	windowSCEPProfileValidator := newWindowsSCEPProfileValidator()
-
+func (v *windowsProfileValidator) validate() error {
 	for {
-		tok, err := dec.Token()
+		tok, err := v.decoder.Token()
 		if err != nil {
 			if err != io.EOF {
 				return fmt.Errorf("The file should include valid XML: %w", err)
 			}
-			// EOF means no more tokens to process
 			break
 		}
 
-		switch t := tok.(type) {
-		// no processing instructions allowed (<?target inst?>)
-		// see #16316 for details
-		case xml.ProcInst:
-			return errors.New("The file should include valid XML: processing instructions are not allowed.")
-
-		case xml.Comment:
-			inComment = true
-			continue
-
-		case xml.StartElement:
-			// Top-level comments should be followed by <Replace> or <Add> elements
-			if inComment {
-				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" && t.Name.Local != "Exec" {
-					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements after comments")
-				}
-				inValidNode = true
-				inComment = false
-			}
-
-			switch t.Name.Local {
-			case "Replace", "Add":
-				inValidNode = true
-			case "Exec":
-				inValidNode = true
-				inExec = true
-			case "LocURI":
-				if !inValidNode {
-					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.")
-				}
-				inLocURI = true
-
-			default:
-				if !inValidNode {
-					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.")
-				}
-			}
-
-		case xml.EndElement:
-			switch t.Name.Local {
-			case "Replace", "Add":
-				inValidNode = false
-			case "Exec":
-				inValidNode = false
-				inExec = false
-			case "LocURI":
-				inLocURI = false
-			}
-
-		case xml.CharData:
-			if inLocURI {
-				if inExec {
-					if err := windowSCEPProfileValidator.validateExecLocURI(string(t)); err != nil {
-						return err
-					}
-					continue
-				}
-
-				if err := windowSCEPProfileValidator.validateLocURI(string(t)); err != nil {
-					return err
-				}
-
-				if err := validateFleetProvidedLocURI(string(t), enableCustomOSUpdates); err != nil {
-					return err
-				}
-			}
+		if err := v.processToken(tok); err != nil {
+			return err
 		}
 	}
 
-	if err := windowSCEPProfileValidator.finalizeValidation(); err != nil {
-		return err
+	return v.scepValidator.finalizeValidation()
+}
+
+func (v *windowsProfileValidator) processToken(tok xml.Token) error {
+	switch t := tok.(type) {
+	// no processing instructions allowed (<?target inst?>)
+	// see #16316 for details
+	case xml.ProcInst:
+		return errors.New("The file should include valid XML: processing instructions are not allowed.")
+	case xml.Comment:
+		// TODO: Do we really care about comments? Why not allow them everywhere?
+	case xml.StartElement:
+		return v.handleStartElement(t)
+	case xml.EndElement:
+		v.handleEndElement(t)
+	case xml.CharData:
+		return v.handleCharData(t)
+
+	}
+	return nil
+}
+
+func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error {
+	elementName := el.Name.Local
+
+	if v.isAtTopLevel() {
+
+		if _, valid := validTopLevelElements[elementName]; !valid {
+			// We agreed with Design that it's okay to not include <Atomic> in the msg here.
+			return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+		}
+
+		// We have an atomic profile and we see another top level element, we don't care what it is.
+		if v.isAtomicProfile != nil && *v.isAtomicProfile {
+			return errors.New("<Atomic> element must wrap all the elements in a Windows configuration profile.")
+		}
+
+		if elementName == "Atomic" && v.isAtomicProfile == nil {
+			// We are at top level, and we see Atomic, mark the entire profile.
+			v.isAtomicProfile = ptr.Bool(true)
+		} else if elementName == "Atomic" && v.isAtomicProfile != nil && !*v.isAtomicProfile {
+			// We are at top level, we have already seen other top level elements, and now we see Atomic
+			return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+		}
+
+		v.currentTopLevelElement = elementName
+		if v.isAtomicProfile == nil {
+			// We are at top level, and we see a non-Atomic element first, mark the profile as non-Atomic.
+			v.isAtomicProfile = ptr.Bool(false)
+		}
+	} else {
+		if v.currentElement == "Atomic" && !v.isValidNestedAtomicElement(elementName) {
+			return errors.New("Windows configuration profiles can only include <Replace> or <Add> within the <Atomic> element.")
+		}
 	}
 
+	v.currentElement = elementName
 	return nil
+}
+
+func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) {
+	elementName := el.Name.Local
+
+	if elementName == v.currentTopLevelElement {
+		// We are closing a top-level element.
+		v.currentTopLevelElement = ""
+	}
+
+	v.currentElement = ""
+}
+
+func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
+	// We only care about LocURI elements.
+	if !v.isInLocURI() {
+		return nil
+	}
+
+	locURI := string(el)
+
+	if v.isInExec() {
+		if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
+			return err
+		}
+	} else {
+		if err := v.scepValidator.validateLocURI(locURI); err != nil {
+			return err
+		}
+	}
+
+	return validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates)
+}
+
+func (v *windowsProfileValidator) isAtTopLevel() bool {
+	return v.currentTopLevelElement == ""
+}
+
+func (v *windowsProfileValidator) isValidNestedAtomicElement(elementName string) bool {
+	_, valid := validTopLevelElements[elementName]
+	return valid && elementName != "Atomic"
+}
+
+func (v *windowsProfileValidator) isInLocURI() bool {
+	return v.currentElement == "LocURI"
+}
+
+func (v *windowsProfileValidator) isInExec() bool {
+	return v.currentTopLevelElement == "Exec"
 }
 
 var fleetProvidedLocURIValidationMap = map[string][]string{
