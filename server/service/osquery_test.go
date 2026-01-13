@@ -4478,10 +4478,10 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			name: "macos executable_hashes query with sha256 column",
 			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "software_macos_executable_hashes": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos_executable_sha256": fleet.StatusOK,
 			},
 			resultsIn: fleet.OsqueryDistributedQueryResults{
-				hostDetailQueryPrefix + "software_macos_executable_hashes": []map[string]string{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": []map[string]string{
 					{
 						"path":   "/Applications/Slack.app",
 						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
@@ -4489,7 +4489,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 			resultsExpected: fleet.OsqueryDistributedQueryResults{
-				hostDetailQueryPrefix + "software_macos_executable_hashes": []map[string]string{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": []map[string]string{
 					{
 						"path":   "/Applications/Slack.app",
 						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
