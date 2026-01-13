@@ -200,7 +200,7 @@ terraform workspace delete <workspace_name>
 | <a name="input_fleet_task_memory"></a> [fleet\_task\_memory](#input\_fleet\_task\_memory) | The memory configuration for Fleet containers | `number` | `4096` | no |
 | <a name="input_redis_instance_count"></a> [redis\_instance\_count](#input\_redis\_instance\_count) | The number of Elasticache nodes | `number` | `3` | no |
 | <a name="input_redis_instance_size"></a> [redis\_instance\_size](#input\_redis\_instance\_size) | The instance size for Elasticache nodes | `string` | `"cache.t4g.micro"` | no |
-| <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.76.1"` | no |
+| <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.76.2"` | no |
 
 ## Outputs
 
