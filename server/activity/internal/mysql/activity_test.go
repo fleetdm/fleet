@@ -221,6 +221,7 @@ func testListActivitiesMatchQuery(t *testing.T, ds *Datastore) {
 		{"by email prefix", "jane@", nil, 1},
 		{"no match", "nomatch", nil, 0},
 		{"via matching user IDs", "nomatch", []uint{johnUserID}, 1},
+		{"via multiple matching user IDs", "nomatch", []uint{johnUserID, janeUserID}, 2},
 	}
 
 	for _, tc := range cases {
