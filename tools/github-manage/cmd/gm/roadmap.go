@@ -156,5 +156,5 @@ func init() {
 	roadmapCmd.AddCommand(roadmapSyncEstimatesCmd)
 	roadmapSyncEstimatesCmd.Flags().IntP("issue", "i", 0, "Only sync for the given issue number; must be on the Roadmap project")
 	roadmapSyncEstimatesCmd.Flags().BoolP("overwrite", "o", false, "Overwrite existing Roadmap estimates (by default, issues with estimates are skipped)")
-	roadmapSyncEstimatesCmd.Flags().StringP("sprint", "s", "", "Only process issues in this sprint (iteration title), e.g., 4.77.0")
+	roadmapSyncEstimatesCmd.Flags().StringP("sprint", "s", "", "Only process issues in this sprint (iteration title), e.g., 4.77.1")
 }
