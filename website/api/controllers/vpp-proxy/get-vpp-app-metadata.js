@@ -81,6 +81,7 @@ module.exports = {
       throw 'invalidFleetServerSecret';
     }
 
+    // Note: The VPP token is provided by the Fleet server through a 'vpp-token' header instead of a query string.
     let vppToken = this.req.get('vpp-token');
     if(!vppToken) {
       // If no vpp-token header was included return a missingVppToken (badRequest) response to the Fleet instance.
