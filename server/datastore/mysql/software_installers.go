@@ -1420,6 +1420,7 @@ SELECT
 	hsi.host_id AS host_id,
 	COALESCE(st.name, hsi.software_title_name) AS software_title,
 	hsi.software_title_id,
+	hsi.software_installer_id,
 	COALESCE(hsi.execution_status, '') AS status,
 	hsi.installer_filename AS software_package,
 	hsi.user_id AS user_id,
@@ -1430,7 +1431,8 @@ SELECT
 	hsi.policy_id,
 	hsi.created_at as created_at,
 	hsi.updated_at as updated_at,
-	st.source
+	st.source,
+	hsi.attempt_number
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
@@ -1449,6 +1451,7 @@ SELECT
 	ua.host_id AS host_id,
 	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
 	siua.software_title_id,
+	siua.software_installer_id,
 	'pending_install' AS status,
 	ua.payload->>'$.installer_filename' AS software_package,
 	ua.user_id AS user_id,
@@ -1459,7 +1462,8 @@ SELECT
 	siua.policy_id AS policy_id,
 	ua.created_at as created_at,
 	ua.updated_at as updated_at,
-	st.source
+	st.source,
+	NULL AS attempt_number
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua

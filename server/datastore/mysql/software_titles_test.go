@@ -2184,7 +2184,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 		HostID:                host1.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})

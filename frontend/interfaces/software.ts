@@ -192,8 +192,8 @@ export interface ISoftwareTitleDetails {
   bundle_identifier?: string;
   versions_count?: number;
   auto_update_enabled?: boolean;
-  auto_update_start_time?: string;
-  auto_update_end_time?: string;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }

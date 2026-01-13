@@ -2,12 +2,17 @@
   <div purpose="page-container" class="container-fluid">
     <div class="d-flex flex-lg-row flex-column justify-content-center">
     <div purpose="form-container" v-if="!cloudSuccess">
-      <h2>Get in touch</h2>
-      <p v-if="userHasPremiumSubscription" style="margin-bottom: 40px;">Dedicated professional support from the Fleet team.</p>
-      <p v-else-if="psychologicalStage === '4 - Has use case'">Let us help you deploy and evaluate Fleet quickly for yourself. We’d love to save you some time.</p>
-      <p v-else-if="psychologicalStage === '5 - Personally confident'">Schedule a personalized demo for your team and get support or training.</p>
-      <p v-else>Schedule a personalized demo, or ask us anything. We’d love to chat.</p>
-      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto" v-if="!userHasPremiumSubscription">
+      <div v-if="formToDisplay !== 'apply'">
+        <h2>Get in touch</h2>
+        <p v-if="userHasPremiumSubscription" style="margin-bottom: 40px;">Dedicated professional support from the Fleet team.</p>
+        <p v-else-if="psychologicalStage === '4 - Has use case'">Let us help you deploy and evaluate Fleet quickly for yourself. We’d love to save you some time.</p>
+        <p v-else-if="psychologicalStage === '5 - Personally confident'">Schedule a personalized demo for your team and get support or training.</p>
+        <p v-else>Schedule a personalized demo, or ask us anything. We’d love to chat.</p>
+      </div>
+      <div v-else>
+        <h2 purpose="application-form-heading">Apply for an open position</h2>
+      </div>
+      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto" v-if="!userHasPremiumSubscription && formToDisplay !== 'apply'">
         <div purpose="switch-option" :class="[formToDisplay === 'talk-to-us' ? 'selected' : '']" @click="clickSwitchForms('talk-to-us')">Get a demo</div>
         <div purpose="switch-option" :class="[formToDisplay === 'contact' ? 'selected' : '']" @click="clickSwitchForms('contact')">Send a message</div>
         <div purpose="switch" :class="formToDisplay+'-selected'"></div>
@@ -65,7 +70,7 @@
           </div>
         </ajax-form>
       </div>
-      <div v-else>
+      <div v-else-if="formToDisplay === 'talk-to-us'">
         <ajax-form :handle-submitting="handleSubmittingTalkToUsForm" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="talkToUsFormRules"  :cloud-error.sync="cloudError">
           <div class="form-group">
             <label for="email-address">Work email *</label>
@@ -132,6 +137,65 @@
           </div>
         </ajax-form>
       </div>
+      <div v-else-if="formToDisplay === 'apply'">
+        <ajax-form action="deliverApplicationSubmission" class="apply" :form-errors.sync="formErrors" :form-data="formData" :form-rules="applicationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedApplicationForm()">
+          <div class="form-group">
+            <div class="row">
+              <div purpose="first-name-column" class="col-sm mb-4 mb-sm-0">
+                <label for="apply-first-name">First name</label>
+                <input class="form-control" id="apply-first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name" focus-first>
+                <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
+              </div>
+              <div purpose="last-name-column" class="col-sm">
+                <label for="apply-last-name">Last name</label>
+                <input class="form-control" id="apply-last-name" name="last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name">
+                <div class="invalid-feedback" v-if="formErrors.lastName">Please let us know what to call you.</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="apply-email-address">Email</label>
+            <input class="form-control" id="apply-email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : cloudError && cloudError === 'invalidEmailDomain' ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" >
+            <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid email address</div>
+          </div>
+
+          <div class="form-group">
+            <label for="apply-position">Position</label>
+            <select class="form-control custom-select" v-model.trim="formData.position" :class="[formErrors.position ? 'is-invalid' : '']">
+              <option :value="undefined">Select an option</option>
+              <option :value="position" v-for="position in currentOpenPositionsForApplicationDropdown">{{position}}</option>
+            </select>
+            <div class="invalid-feedback">Please select an open position.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="apply-linkedin-profile">LinkedIn profile</label>
+            <input class="form-control" id="apply-linkedin-profile" name="LinkedIn profile" type="text" :class="[formErrors.linkedinProfileUrl ? 'is-invalid' : '']" v-model.trim="formData.linkedinProfileUrl" autocomplete="email">
+            <div class="invalid-feedback" v-if="formErrors.linkedinProfileUrl">Please provide a link to your LinkedIn profile.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="apply-location">Location</label>
+            <input class="form-control" id="apply-location" name="location" type="text" :class="[formErrors.location ? 'is-invalid' : '']" v-model.trim="formData.location" >
+            <div class="invalid-feedback" v-if="formErrors.location">Please let us know where you are located.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="apply-message">Cover letter</label>
+            <textarea class="form-control" id="apply-message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" autocomplete="none"></textarea>
+            <div class="invalid-feedback" v-if="formErrors.message">Cover letter cannot be empty.</div>
+          </div>
+          <cloud-error v-if="cloudError"></cloud-error>
+          <div class="form-group btn-container">
+            <ajax-button purpose="submit-button" type="submit" :syncing="syncing" class="btn btn-primary">Send</ajax-button>
+          </div>
+        </ajax-form>
+      </div>
+
+    </div>
+    <div purpose="success-message" v-else-if="cloudSuccess && formToDisplay === 'apply'">
+      <h2>Thanks for applying</h2>
+      <p class="mt-3">If your background is a good fit, we’ll be in touch within about a week. If not, please feel free to apply again in the future.</p>
     </div>
     <div purpose="success-message" v-else>
       <h2>Thank you!</h2>

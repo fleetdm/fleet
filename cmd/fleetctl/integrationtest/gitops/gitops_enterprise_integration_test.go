@@ -2763,14 +2763,14 @@ software:
       platform: ios
       self_service: false
       auto_update_enabled: true
-      auto_update_start_time: "02:00"
-      auto_update_end_time: "06:00"
+      auto_update_window_start: "02:00"
+      auto_update_window_end: "06:00"
     - app_store_id: "2"
       platform: ipados
       self_service: false
       auto_update_enabled: true
-      auto_update_start_time: "03:00"
-      auto_update_end_time: "07:00"
+      auto_update_window_start: "03:00"
+      auto_update_window_end: "07:00"
 queries:
 policies:
 agent_options:
@@ -2865,8 +2865,8 @@ software:
       platform: ios
       self_service: false
       auto_update_enabled: true
-      auto_update_start_time: "02:00"
-      auto_update_end_time: "06:00"
+      auto_update_window_start: "02:00"
+      auto_update_window_end: "06:00"
     - app_store_id: "2"
       platform: ipados
       self_service: false

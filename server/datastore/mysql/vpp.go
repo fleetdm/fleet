@@ -1157,7 +1157,22 @@ func (ds *Datastore) MapAdamIDsPendingInstallVerification(ctx context.Context, h
 					AND hvsi.verification_failed_at IS NULL
 				)
 			)`, hostID); err != nil && err != sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, err, "list pending VPP install verifications")
+		return nil, ctxerr.Wrap(ctx, err, "list host pending VPP install verifications")
+	}
+	adamIDs = make(map[string]struct{})
+	for _, id := range adamIDsList {
+		adamIDs[id] = struct{}{}
+	}
+	return adamIDs, nil
+}
+
+func (ds *Datastore) MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error) {
+	var adamIDsList []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIDsList,
+		`SELECT DISTINCT(adam_id) FROM host_vpp_software_installs
+		WHERE host_id = ? AND canceled = 0 AND created_at >= NOW() - INTERVAL ? SECOND`,
+		hostID, seconds); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list host recent VPP install attempts")
 	}
 	adamIDs = make(map[string]struct{})
 	for _, id := range adamIDsList {
