@@ -13,22 +13,22 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// LegacyServiceAdapter provides access to legacy service methods
+// FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
-type LegacyServiceAdapter struct {
+type FleetServiceAdapter struct {
 	svc fleet.Service
 }
 
-// NewLegacyServiceAdapter creates a new adapter for the legacy service.
-func NewLegacyServiceAdapter(svc fleet.Service) *LegacyServiceAdapter {
-	return &LegacyServiceAdapter{svc: svc}
+// NewFleetServiceAdapter creates a new adapter for the Fleet service.
+func NewFleetServiceAdapter(svc fleet.Service) *FleetServiceAdapter {
+	return &FleetServiceAdapter{svc: svc}
 }
 
-// Ensure LegacyServiceAdapter implements activity.UserProvider
-var _ activity.UserProvider = (*LegacyServiceAdapter)(nil)
+// Ensure FleetServiceAdapter implements activity.UserProvider
+var _ activity.UserProvider = (*FleetServiceAdapter)(nil)
 
-// ListUsers fetches users by their IDs from the legacy service.
-func (a *LegacyServiceAdapter) ListUsers(ctx context.Context, ids []uint) ([]*activity.User, error) {
+// ListUsers fetches users by their IDs from the Fleet service.
+func (a *FleetServiceAdapter) ListUsers(ctx context.Context, ids []uint) ([]*activity.User, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -48,12 +48,12 @@ func (a *LegacyServiceAdapter) ListUsers(ctx context.Context, ids []uint) ([]*ac
 }
 
 // SearchUsers searches for users by name/email prefix and returns their IDs.
-func (a *LegacyServiceAdapter) SearchUsers(ctx context.Context, query string) ([]uint, error) {
+func (a *FleetServiceAdapter) SearchUsers(ctx context.Context, query string) ([]uint, error) {
 	if query == "" {
 		return nil, nil
 	}
 
-	// Search users via legacy service with the query
+	// Search users via Fleet service with the query
 	users, err := a.svc.ListUsers(ctx, fleet.UserListOptions{
 		ListOptions: fleet.ListOptions{
 			MatchQuery: query,
