@@ -1435,43 +1435,51 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return mainSoftwareResults
 		},
 	},
-	// macos_bin_sha256 collects a binary's sha256 hash via the fleetd `fileutil` table.
-	"macos_bin_sha256": {
+	// macos_executable_sha256 collects an executable's sha256 hash via the fleetd `executable_hashes` table.
+	"macos_executable_sha256": {
 		Query: `
-		SELECT fu.*
+		SELECT eh.*
 		FROM apps a
-		JOIN fileutil fu ON a.path = fu.path
-		WHERE fu.path NOT NULL
+		JOIN executable_hashes eh ON a.path = eh.path
+		WHERE eh.path NOT NULL
 		`,
 		Description: "A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`",
 		Platforms:   []string{"darwin"},
-		Discovery:   discoveryTable("fileutil"),
-		SoftwareProcessResults: func(mainSoftwareResults, fileUtilResults []map[string]string) []map[string]string {
-			if len(fileUtilResults) == 0 {
+		Discovery:   discoveryTable("executable_hashes"),
+		SoftwareProcessResults: func(mainSoftwareResults, results []map[string]string) []map[string]string {
+			if len(results) == 0 {
 				return mainSoftwareResults
 			}
 
-			type fileUtilResultRow struct {
-				binSHA256 string
+			type resultRow struct {
+				execSHA256 string
+				execPath   string
 			}
 
-			furByPath := make(map[string]fileUtilResultRow)
-			for _, fur := range fileUtilResults {
-				var binHash string
-				if hash, ok := fur["binary_sha256"]; ok {
-					binHash = hash
+			// assuming one executable per app bundle path for now
+			resultByBundlePath := make(map[string]resultRow)
+			for _, r := range results {
+				var execHash string
+				if hash, ok := r["executable_sha256"]; ok {
+					execHash = hash
 				}
-				furByPath[fur["path"]] = fileUtilResultRow{
-					binSHA256: binHash,
+				var execPath string
+				if ePath, ok := r["executable_path"]; ok {
+					execPath = ePath
+				}
+				resultByBundlePath[r["path"]] = resultRow{
+					execSHA256: execHash,
+					execPath:   execPath,
 				}
 			}
 			for _, swRes := range mainSoftwareResults {
-				fur, ok := furByPath[swRes["installed_path"]]
+				rBBP, ok := resultByBundlePath[swRes["installed_path"]]
 				if !ok {
 					// No fileutil information for this software
 					continue
 				}
-				swRes["binary_sha256"] = fur.binSHA256
+				swRes["executable_sha256"] = rBBP.execSHA256
+				swRes["executable_path"] = rBBP.execPath
 			}
 			return mainSoftwareResults
 		},
@@ -2048,13 +2056,17 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			if cdHash, ok := row["cdhash_sha256"]; ok {
 				cdhashSHA256 = cdHash
 			}
-			var binarySHA256 string
-			if binHash, ok := row["binary_sha256"]; ok {
-				binarySHA256 = binHash
+			var execSHA256 string
+			if eHash, ok := row["executable_sha256"]; ok {
+				execSHA256 = eHash
+			}
+			var execPath string
+			if epath, ok := row["executable_path"]; ok {
+				execPath = epath
 			}
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, binarySHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, execSHA256, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			sPaths[key] = struct{}{}
 		}

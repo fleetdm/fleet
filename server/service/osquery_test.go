@@ -1119,7 +1119,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
 		hostDetailQueryPrefix + "battery":                                 {},
 		hostDetailQueryPrefix + "software_macos_codesign":                 {},
-		hostDetailQueryPrefix + "software_macos_bin_sha256":               {},
+		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
 		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 	}
@@ -4475,13 +4475,13 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "macos fileutil query with sha256 column",
+			name: "macos executable_hashes query with sha256 column",
 			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "software_macos_fileutil": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos_executable_hashes": fleet.StatusOK,
 			},
 			resultsIn: fleet.OsqueryDistributedQueryResults{
-				hostDetailQueryPrefix + "software_macos_fileutil": []map[string]string{
+				hostDetailQueryPrefix + "software_macos_executable_hashes": []map[string]string{
 					{
 						"path":   "/Applications/Slack.app",
 						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
@@ -4489,7 +4489,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 			resultsExpected: fleet.OsqueryDistributedQueryResults{
-				hostDetailQueryPrefix + "software_macos_fileutil": []map[string]string{
+				hostDetailQueryPrefix + "software_macos_executable_hashes": []map[string]string{
 					{
 						"path":   "/Applications/Slack.app",
 						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",

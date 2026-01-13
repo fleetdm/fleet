@@ -224,10 +224,10 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 		InstalledPaths: []string{"/usr/local/bin/test", "/opt/test"},
 		PathSignatureInformation: []PathSignatureInformation{
 			{
-				InstalledPath:  "/usr/local/bin/test",
-				TeamIdentifier: "ABCDE12345",
-				CDHashSHA256:   &cdHashValue,
-				BinarySHA256:   &binHashValue,
+				InstalledPath:    "/usr/local/bin/test",
+				TeamIdentifier:   "ABCDE12345",
+				CDHashSHA256:     &cdHashValue,
+				ExecutableSHA256: &binHashValue,
 			},
 		},
 	}

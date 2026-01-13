@@ -2170,10 +2170,10 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 	for _, ip := range installedPaths {
 		installedPathsList[ip.SoftwareID] = append(installedPathsList[ip.SoftwareID], ip.InstalledPath)
 		pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
-			InstalledPath:  ip.InstalledPath,
-			TeamIdentifier: ip.TeamIdentifier,
-			CDHashSHA256:   ip.CDHashSHA256,
-			BinarySHA256:   ip.BinarySHA256,
+			InstalledPath:    ip.InstalledPath,
+			TeamIdentifier:   ip.TeamIdentifier,
+			CDHashSHA256:     ip.CDHashSHA256,
+			ExecutableSHA256: ip.BinarySHA256,
 		})
 	}
 
@@ -5530,10 +5530,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		for _, ip := range installedPaths {
 			installedPathBySoftwareId[ip.SoftwareID] = append(installedPathBySoftwareId[ip.SoftwareID], ip.InstalledPath)
 			pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
-				InstalledPath:  ip.InstalledPath,
-				TeamIdentifier: ip.TeamIdentifier,
-				CDHashSHA256:   ip.CDHashSHA256,
-				BinarySHA256:   ip.BinarySHA256,
+				InstalledPath:    ip.InstalledPath,
+				TeamIdentifier:   ip.TeamIdentifier,
+				CDHashSHA256:     ip.CDHashSHA256,
+				ExecutableSHA256: ip.BinarySHA256,
 			})
 		}
 

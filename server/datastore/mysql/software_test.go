@@ -1366,7 +1366,7 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 
 	require.Equal(t, "/the/path", host.Software[0].PathSignatureInformation[0].InstalledPath)
 	require.Equal(t, "frog", *host.Software[0].PathSignatureInformation[0].CDHashSHA256)
-	require.Equal(t, "toad", *host.Software[0].PathSignatureInformation[0].BinarySHA256)
+	require.Equal(t, "toad", *host.Software[0].PathSignatureInformation[0].ExecutableSHA256)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {

@@ -613,8 +613,9 @@ type PathSignatureInformation struct {
 	InstalledPath  string `json:"installed_path"`
 	TeamIdentifier string `json:"team_identifier"`
 	// json struct tag difference here is for backwards compatibility. API field was initially "hash_sha256", though it is specifically the CD hash (sha256).
-	CDHashSHA256 *string `json:"hash_sha256"`
-	BinarySHA256 *string `json:"binary_sha256"`
+	CDHashSHA256     *string `json:"hash_sha256"`
+	ExecutableSHA256 *string `json:"executable_sha256"`
+	ExecutablePath   *string `json:"executable_path"`
 }
 
 // HostSoftware is the set of software installed on a specific host

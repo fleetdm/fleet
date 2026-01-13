@@ -13,7 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/corestorage"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fileutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/executable_hashes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_prk"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_status"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/find_cmd"
@@ -112,7 +112,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("santa_status", santa.StatusColumns(), santa.GenerateStatus),
 		table.NewPlugin("santa_allowed", santa.LogColumns(), santa.GenerateAllowed),
 		table.NewPlugin("santa_denied", santa.LogColumns(), santa.GenerateDenied),
-		table.NewPlugin("fileutil", fileutil.Columns(), fileutil.Generate),
+		table.NewPlugin("executable_hashes", executable_hashes.Columns(), executable_hashes.Generate),
 	}
 
 	// append platform specific tables
