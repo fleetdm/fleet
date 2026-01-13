@@ -41,7 +41,7 @@ $base-class: "button";
 // Size small buttons (with and without background colors)
 @mixin button-pad-4px-8px {
   padding: $pad-xsmall $pad-small;
-  height: 24px;
+  height: 28px;
 }
 
 @mixin button-variant(
@@ -428,7 +428,7 @@ $base-class: "button";
     width: 36px; // Matches Figma design for icon-only buttons
 
     &__small {
-      width: 24px; // Matches Figma design for small icon-only buttons
+      width: 28px; // Matches Figma design for small icon-only buttons
     }
   }
 
@@ -482,7 +482,7 @@ $base-class: "button";
   }
 
   &--unstyled-modal-query {
-    @include button-variant(transparent);
+    @include button-variant(transparent, null, null, false, $unstyled: true);
     border: 0;
     box-shadow: none;
     color: $core-fleet-black;
