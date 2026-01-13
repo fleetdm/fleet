@@ -25,19 +25,19 @@ func TestIntegration(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer s.truncateTables()
+			defer s.truncateTables(t)
 			c.fn(t, s)
 		})
 	}
 }
 
 func testListActivities(t *testing.T, s *integrationTestSuite) {
-	userID := s.insertUser("admin", "admin@example.com")
+	userID := s.insertUser(t, "admin", "admin@example.com")
 
 	// Insert activities
-	s.insertActivity(userID, "applied_spec_pack", map[string]any{})
-	s.insertActivity(userID, "deleted_pack", map[string]any{})
-	s.insertActivity(userID, "edited_pack", map[string]any{})
+	s.InsertActivity(t, userID, "applied_spec_pack", map[string]any{})
+	s.InsertActivity(t, userID, "deleted_pack", map[string]any{})
+	s.InsertActivity(t, userID, "edited_pack", map[string]any{})
 
 	result, statusCode := s.getActivities(t, "per_page=100")
 
@@ -52,11 +52,11 @@ func testListActivities(t *testing.T, s *integrationTestSuite) {
 }
 
 func testListActivitiesPagination(t *testing.T, s *integrationTestSuite) {
-	userID := s.insertUser("admin", "admin@example.com")
+	userID := s.insertUser(t, "admin", "admin@example.com")
 
 	// Insert 5 activities
 	for i := range 5 {
-		s.insertActivity(userID, "test_activity", map[string]any{"index": i})
+		s.InsertActivity(t, userID, "test_activity", map[string]any{"index": i})
 	}
 
 	// First page
@@ -79,12 +79,12 @@ func testListActivitiesPagination(t *testing.T, s *integrationTestSuite) {
 }
 
 func testListActivitiesCursorPagination(t *testing.T, s *integrationTestSuite) {
-	userID := s.insertUser("admin", "admin@example.com")
+	userID := s.insertUser(t, "admin", "admin@example.com")
 
 	// Insert 3 activities
-	s.insertActivity(userID, "applied_spec_pack", map[string]any{})
-	s.insertActivity(userID, "deleted_pack", map[string]any{})
-	s.insertActivity(userID, "edited_pack", map[string]any{})
+	s.InsertActivity(t, userID, "applied_spec_pack", map[string]any{})
+	s.InsertActivity(t, userID, "deleted_pack", map[string]any{})
+	s.InsertActivity(t, userID, "edited_pack", map[string]any{})
 
 	// Test cursor-based pagination with after=0
 	// Meta should be nil for cursor-based pagination (doesn't return metadata)
@@ -110,15 +110,15 @@ func testListActivitiesCursorPagination(t *testing.T, s *integrationTestSuite) {
 }
 
 func testListActivitiesFilters(t *testing.T, s *integrationTestSuite) {
-	johnUserID := s.insertUser("john_doe", "john@example.com")
-	janeUserID := s.insertUser("jane_smith", "jane@example.com")
+	johnUserID := s.insertUser(t, "john_doe", "john@example.com")
+	janeUserID := s.insertUser(t, "jane_smith", "jane@example.com")
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Insert activities with different types, times, and users
-	s.insertActivityWithTime(johnUserID, "type_a", map[string]any{}, now.Add(-48*time.Hour))
-	s.insertActivityWithTime(johnUserID, "type_a", map[string]any{}, now.Add(-24*time.Hour))
-	s.insertActivityWithTime(johnUserID, "type_b", map[string]any{}, now)
-	s.insertActivityWithTime(janeUserID, "type_a", map[string]any{}, now) // Jane's activity
+	s.InsertActivityWithTime(t, johnUserID, "type_a", map[string]any{}, now.Add(-48*time.Hour))
+	s.InsertActivityWithTime(t, johnUserID, "type_a", map[string]any{}, now.Add(-24*time.Hour))
+	s.InsertActivityWithTime(t, johnUserID, "type_b", map[string]any{}, now)
+	s.InsertActivityWithTime(t, janeUserID, "type_a", map[string]any{}, now) // Jane's activity
 
 	// Filter by type
 	result, _ := s.getActivities(t, "per_page=100&activity_type=type_a")
@@ -148,9 +148,9 @@ func testListActivitiesFilters(t *testing.T, s *integrationTestSuite) {
 }
 
 func testListActivitiesUserEnrichment(t *testing.T, s *integrationTestSuite) {
-	userID := s.insertUser("John Doe", "john@example.com")
+	userID := s.insertUser(t, "John Doe", "john@example.com")
 
-	s.insertActivity(userID, "test_activity", map[string]any{})
+	s.InsertActivity(t, userID, "test_activity", map[string]any{})
 
 	result, _ := s.getActivities(t, "per_page=100")
 	require.Len(t, result.Activities, 1)

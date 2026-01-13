@@ -9,106 +9,117 @@ import (
 
 const m = archtest.ModuleName
 
-// TestActivityRootPackageDependencies ensures the root activity package has NO Fleet dependencies.
-func TestActivityRootPackageDependencies(t *testing.T) {
-	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/activity").
-		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn(m + "/...").
-		Check()
-}
+var (
+	fleetDeps = regexp.MustCompile(`^github\.com/fleetdm/`)
 
-// TestActivityAPIPackageDependencies ensures the public API activity package has NO Fleet dependencies.
-func TestActivityAPIPackageDependencies(t *testing.T) {
-	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/activity/api").
-		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn(m + "/...").
-		Check()
-}
+	// Common allowed dependencies across activity packages
+	activityPkgs = []string{
+		m + "/server/activity",
+		m + "/server/activity/api",
+		m + "/server/activity/api/http",
+		m + "/server/activity/internal/types",
+	}
 
-// TestActivityAPIHTTPPackageDependencies ensures the HTTP types package only depends on api.
-func TestActivityAPIHTTPPackageDependencies(t *testing.T) {
-	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/activity/api/http").
-		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn(m + "/...").
-		IgnoreDeps(
-			m + "/server/activity/api",
-		).
-		Check()
-}
+	platformPkgs = []string{
+		m + "/server/platform/...",
+		m + "/server/contexts/ctxerr",
+		m + "/server/contexts/viewer",
+		m + "/server/contexts/license",
+		m + "/server/contexts/logging",
+		m + "/server/contexts/authz",
+		m + "/server/contexts/publicip",
+	}
+)
 
-func TestActivityInternalTypesDependencies(t *testing.T) {
+// TestActivityPackageDependencies runs architecture tests for all activity packages.
+// Each package has specific rules about what dependencies are allowed.
+func TestActivityPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/activity/internal/types").
-		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn(m + "/...").
-		IgnoreDeps(
-			m + "/server/activity/api",
-		).
-		Check()
-}
 
-// TestActivityInternalMySQLDependencies ensures the mysql package doesn't depend on legacy packages.
-func TestActivityInternalMySQLDependencies(t *testing.T) {
-	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/activity/internal/mysql").
-		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn(m+"/...").
-		IgnoreDeps(
-			// Activity packages (api is the public interface)
-			m+"/server/activity/api",
-			m+"/server/activity/internal/types",
-			// Platform/infra packages (allowed)
-			m+"/server/platform/http",
-			m+"/server/platform/mysql",
-			m+"/server/contexts/ctxerr",
-		).
-		Check()
-}
+	cases := []struct {
+		name            string
+		pkg             string
+		shouldNotDepend []string // defaults to m + "/..." if empty
+		ignoreDeps      []string
+	}{
+		{
+			name: "root package has no Fleet dependencies",
+			pkg:  m + "/server/activity",
+		},
+		{
+			name: "api package has no Fleet dependencies",
+			pkg:  m + "/server/activity/api",
+		},
+		{
+			name:       "api/http only depends on api",
+			pkg:        m + "/server/activity/api/http",
+			ignoreDeps: []string{m + "/server/activity/api"},
+		},
+		{
+			name:       "internal/types only depends on api",
+			pkg:        m + "/server/activity/internal/types",
+			ignoreDeps: []string{m + "/server/activity/api"},
+		},
+		{
+			name: "internal/mysql depends on api, types, and platform",
+			pkg:  m + "/server/activity/internal/mysql",
+			ignoreDeps: []string{
+				m + "/server/activity/api",
+				m + "/server/activity/internal/types",
+				m + "/server/activity/internal/testutils",
+				m + "/server/platform/http",
+				m + "/server/platform/mysql",
+				m + "/server/platform/mysql/testing_utils",
+				m + "/server/contexts/ctxerr",
+				m + "/server/ptr",
+			},
+		},
+		{
+			name: "internal/service depends on activity and platform packages",
+			pkg:  m + "/server/activity/internal/service",
+			ignoreDeps: append(append([]string{
+				m + "/server/ptr",
+			}, activityPkgs...), platformPkgs...),
+		},
+		{
+			name: "bootstrap depends on activity and platform packages",
+			pkg:  m + "/server/activity/bootstrap",
+			ignoreDeps: append(append([]string{
+				m + "/server/activity/internal/mysql",
+				m + "/server/activity/internal/service",
+			}, activityPkgs...), platformPkgs...),
+		},
+		{
+			name: "all packages only depend on activity and platform",
+			pkg:  m + "/server/activity/...",
+			ignoreDeps: append(append([]string{
+				m + "/server/ptr",
+				m + "/server/activity/internal/mysql",
+				m + "/server/activity/internal/service",
+				m + "/server/activity/internal/testutils",
+			}, activityPkgs...), platformPkgs...),
+		},
+	}
 
-// TestActivityInternalServiceDependencies ensures the service package doesn't depend on legacy packages.
-func TestActivityInternalServiceDependencies(t *testing.T) {
-	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/activity/internal/service").
-		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn(m+"/...").
-		IgnoreDeps(
-			// Activity packages (api is the public interface, api/http has HTTP request/response types)
-			m+"/server/activity",
-			m+"/server/activity/api",
-			m+"/server/activity/api/http",
-			m+"/server/activity/internal/types",
-			// Platform/infra packages
-			m+"/server/platform/...",
-			m+"/server/contexts/ctxerr",
-			m+"/server/contexts/viewer",
-			m+"/server/contexts/license",
-			m+"/server/contexts/logging",
-			m+"/server/contexts/authz",
-			m+"/server/contexts/publicip",
-		).
-		Check()
-}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-// TestActivityBootstrapDependencies ensures bootstrap only depends on what's needed for wiring.
-func TestActivityBootstrapDependencies(t *testing.T) {
-	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/activity/bootstrap").
-		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn(m+"/...").
-		IgnoreDeps(
-			// Activity packages
-			m+"/server/activity...",
-			// Platform/infra packages
-			m+"/server/platform/...",
-			m+"/server/contexts/ctxerr",
-			m+"/server/contexts/viewer",
-			m+"/server/contexts/license",
-			m+"/server/contexts/logging",
-			m+"/server/contexts/authz",
-			m+"/server/contexts/publicip",
-		).
-		Check()
+			shouldNotDepend := tc.shouldNotDepend
+			if len(shouldNotDepend) == 0 {
+				shouldNotDepend = []string{m + "/..."}
+			}
+
+			test := archtest.NewPackageTest(t, tc.pkg).
+				OnlyInclude(fleetDeps).
+				ShouldNotDependOn(shouldNotDepend...).
+				WithTests()
+
+			if len(tc.ignoreDeps) > 0 {
+				test.IgnoreDeps(tc.ignoreDeps...)
+			}
+
+			test.Check()
+		})
+	}
 }

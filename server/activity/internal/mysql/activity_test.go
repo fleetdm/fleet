@@ -1,32 +1,32 @@
 package mysql
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	activityapi "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/activity/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
-	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// testEnv holds test dependencies.
+type testEnv struct {
+	*testutils.TestDB
+	ds *Datastore
+}
+
 func TestListActivities(t *testing.T) {
-	ds := setupTestDatastore(t)
+	tdb := testutils.SetupTestDB(t, "activity_mysql")
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	env := &testEnv{TestDB: tdb, ds: ds}
 
 	cases := []struct {
 		name string
-		fn   func(t *testing.T, ds *Datastore)
+		fn   func(t *testing.T, env *testEnv)
 	}{
 		{"Basic", testListActivitiesBasic},
 		{"Streamed", testListActivitiesStreamed},
@@ -40,21 +40,21 @@ func TestListActivities(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer truncateTables(t, ds)
-			c.fn(t, ds)
+			defer env.TruncateTables(t)
+			c.fn(t, env)
 		})
 	}
 }
 
-func testListActivitiesBasic(t *testing.T, ds *Datastore) {
+func testListActivitiesBasic(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	userID := insertTestUser(t, ds, "testuser", "test@example.com")
+	userID := env.InsertUser(t, "testuser", "test@example.com")
 
 	for i := range 3 {
-		insertTestActivity(t, ds, userID, fmt.Sprintf("test_activity_%d", i), map[string]any{"detail": i})
+		env.InsertActivity(t, userID, fmt.Sprintf("test_activity_%d", i), map[string]any{"detail": i})
 	}
 
-	activities, meta, err := ds.ListActivities(ctx, listOpts(withMetadata()))
+	activities, meta, err := env.ds.ListActivities(ctx, listOpts(withMetadata()))
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 	assert.NotNil(t, meta)
@@ -68,18 +68,18 @@ func testListActivitiesBasic(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
+func testListActivitiesStreamed(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	userID := insertTestUser(t, ds, "testuser", "test@example.com")
+	userID := env.InsertUser(t, "testuser", "test@example.com")
 
 	var activityIDs []uint
 	for i := range 3 {
-		id := insertTestActivity(t, ds, userID, "test_activity", map[string]any{"detail": i})
+		id := env.InsertActivity(t, userID, "test_activity", map[string]any{"detail": i})
 		activityIDs = append(activityIDs, id)
 	}
 
 	// Mark first activity as streamed
-	_, err := ds.primary.ExecContext(ctx, "UPDATE activities SET streamed = true WHERE id = ?", activityIDs[0])
+	_, err := env.DB.ExecContext(ctx, "UPDATE activities SET streamed = true WHERE id = ?", activityIDs[0])
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -94,7 +94,7 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			activities, _, err := ds.ListActivities(ctx, listOpts(withStreamed(tc.streamed)))
+			activities, _, err := env.ds.ListActivities(ctx, listOpts(withStreamed(tc.streamed)))
 			require.NoError(t, err)
 			gotIDs := make([]uint, len(activities))
 			for i, a := range activities {
@@ -105,12 +105,12 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testListActivitiesPaginationMetadata(t *testing.T, ds *Datastore) {
+func testListActivitiesPaginationMetadata(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	userID := insertTestUser(t, ds, "testuser", "test@example.com")
+	userID := env.InsertUser(t, "testuser", "test@example.com")
 
 	for i := range 3 {
-		insertTestActivity(t, ds, userID, fmt.Sprintf("test_%d", i), map[string]any{})
+		env.InsertActivity(t, userID, fmt.Sprintf("test_%d", i), map[string]any{})
 	}
 
 	cases := []struct {
@@ -128,7 +128,7 @@ func testListActivitiesPaginationMetadata(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			activities, meta, err := ds.ListActivities(ctx, listOpts(withPerPage(tc.perPage), withPage(tc.page), withMetadata()))
+			activities, meta, err := env.ds.ListActivities(ctx, listOpts(withPerPage(tc.perPage), withPage(tc.page), withMetadata()))
 			require.NoError(t, err)
 			assert.Len(t, activities, tc.wantCount)
 			require.NotNil(t, meta)
@@ -138,13 +138,13 @@ func testListActivitiesPaginationMetadata(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testListActivitiesActivityTypeFilter(t *testing.T, ds *Datastore) {
+func testListActivitiesActivityTypeFilter(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	userID := insertTestUser(t, ds, "testuser", "test@example.com")
+	userID := env.InsertUser(t, "testuser", "test@example.com")
 
-	insertTestActivity(t, ds, userID, "edited_script", map[string]any{})
-	insertTestActivity(t, ds, userID, "edited_script", map[string]any{})
-	insertTestActivity(t, ds, userID, "mdm_enrolled", map[string]any{})
+	env.InsertActivity(t, userID, "edited_script", map[string]any{})
+	env.InsertActivity(t, userID, "edited_script", map[string]any{})
+	env.InsertActivity(t, userID, "mdm_enrolled", map[string]any{})
 
 	cases := []struct {
 		activityType string
@@ -157,7 +157,7 @@ func testListActivitiesActivityTypeFilter(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.activityType, func(t *testing.T) {
-			activities, _, err := ds.ListActivities(ctx, listOpts(withActivityType(tc.activityType)))
+			activities, _, err := env.ds.ListActivities(ctx, listOpts(withActivityType(tc.activityType)))
 			require.NoError(t, err)
 			assert.Len(t, activities, tc.wantCount)
 			for _, a := range activities {
@@ -167,9 +167,9 @@ func testListActivitiesActivityTypeFilter(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testListActivitiesDateRangeFilter(t *testing.T, ds *Datastore) {
+func testListActivitiesDateRangeFilter(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	userID := insertTestUser(t, ds, "testuser", "test@example.com")
+	userID := env.InsertUser(t, "testuser", "test@example.com")
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Only create activities in the past/present (activities can't have future creation dates)
@@ -179,7 +179,7 @@ func testListActivitiesDateRangeFilter(t *testing.T, ds *Datastore) {
 		now,
 	}
 	for _, dt := range dates {
-		insertTestActivityWithTime(t, ds, userID, "test_activity", map[string]any{}, dt)
+		env.InsertActivityWithTime(t, userID, "test_activity", map[string]any{}, dt)
 	}
 
 	cases := []struct {
@@ -196,21 +196,21 @@ func testListActivitiesDateRangeFilter(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			activities, _, err := ds.ListActivities(ctx, listOpts(withDateRange(tc.start, tc.end)))
+			activities, _, err := env.ds.ListActivities(ctx, listOpts(withDateRange(tc.start, tc.end)))
 			require.NoError(t, err)
 			assert.Len(t, activities, tc.wantCount)
 		})
 	}
 }
 
-func testListActivitiesMatchQuery(t *testing.T, ds *Datastore) {
+func testListActivitiesMatchQuery(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 
-	johnUserID := insertTestUser(t, ds, "john_doe", "john@example.com")
-	janeUserID := insertTestUser(t, ds, "jane_smith", "jane@example.com")
+	johnUserID := env.InsertUser(t, "john_doe", "john@example.com")
+	janeUserID := env.InsertUser(t, "jane_smith", "jane@example.com")
 
-	insertTestActivity(t, ds, johnUserID, "test_activity", map[string]any{})
-	insertTestActivity(t, ds, janeUserID, "test_activity", map[string]any{})
+	env.InsertActivity(t, johnUserID, "test_activity", map[string]any{})
+	env.InsertActivity(t, janeUserID, "test_activity", map[string]any{})
 
 	cases := []struct {
 		name            string
@@ -229,21 +229,21 @@ func testListActivitiesMatchQuery(t *testing.T, ds *Datastore) {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := listOpts(withMatchQuery(tc.query))
 			opts.MatchingUserIDs = tc.matchingUserIDs
-			activities, _, err := ds.ListActivities(ctx, opts)
+			activities, _, err := env.ds.ListActivities(ctx, opts)
 			require.NoError(t, err)
 			assert.Len(t, activities, tc.wantCount)
 		})
 	}
 }
 
-func testListActivitiesOrdering(t *testing.T, ds *Datastore) {
+func testListActivitiesOrdering(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	userID := insertTestUser(t, ds, "testuser", "test@example.com")
+	userID := env.InsertUser(t, "testuser", "test@example.com")
 
 	now := time.Now().UTC().Truncate(time.Second)
-	insertTestActivityWithTime(t, ds, userID, "activity_oldest", map[string]any{}, now.Add(-2*time.Hour))
-	insertTestActivityWithTime(t, ds, userID, "activity_middle", map[string]any{}, now.Add(-1*time.Hour))
-	insertTestActivityWithTime(t, ds, userID, "activity_newest", map[string]any{}, now)
+	env.InsertActivityWithTime(t, userID, "activity_oldest", map[string]any{}, now.Add(-2*time.Hour))
+	env.InsertActivityWithTime(t, userID, "activity_middle", map[string]any{}, now.Add(-1*time.Hour))
+	env.InsertActivityWithTime(t, userID, "activity_newest", map[string]any{}, now)
 
 	cases := []struct {
 		name      string
@@ -258,7 +258,7 @@ func testListActivitiesOrdering(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			activities, _, err := ds.ListActivities(ctx, listOpts(withOrder(tc.orderKey, tc.orderDir)))
+			activities, _, err := env.ds.ListActivities(ctx, listOpts(withOrder(tc.orderKey, tc.orderDir)))
 			require.NoError(t, err)
 			require.Len(t, activities, 3)
 			assert.Equal(t, tc.wantFirst, activities[0].Type)
@@ -267,29 +267,29 @@ func testListActivitiesOrdering(t *testing.T, ds *Datastore) {
 	}
 
 	// Verify ID ordering works
-	activities, _, err := ds.ListActivities(ctx, listOpts(withOrder("id", activityapi.OrderAsc)))
+	activities, _, err := env.ds.ListActivities(ctx, listOpts(withOrder("id", activityapi.OrderAsc)))
 	require.NoError(t, err)
 	require.Len(t, activities, 3)
 	assert.Less(t, activities[0].ID, activities[1].ID)
 	assert.Less(t, activities[1].ID, activities[2].ID)
 }
 
-func testListActivitiesCursorPagination(t *testing.T, ds *Datastore) {
+func testListActivitiesCursorPagination(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	userID := insertTestUser(t, ds, "testuser", "test@example.com")
+	userID := env.InsertUser(t, "testuser", "test@example.com")
 
 	for i := range 5 {
-		insertTestActivity(t, ds, userID, fmt.Sprintf("activity_%d", i), map[string]any{})
+		env.InsertActivity(t, userID, fmt.Sprintf("activity_%d", i), map[string]any{})
 	}
 
 	// Get first page
-	activities, _, err := ds.ListActivities(ctx, listOpts(withPerPage(2), withOrder("id", activityapi.OrderAsc)))
+	activities, _, err := env.ds.ListActivities(ctx, listOpts(withPerPage(2), withOrder("id", activityapi.OrderAsc)))
 	require.NoError(t, err)
 	require.Len(t, activities, 2)
 	lastID := activities[1].ID
 
 	// Get next page using cursor
-	activities, _, err = ds.ListActivities(ctx, listOpts(withPerPage(2), withOrder("id", activityapi.OrderAsc), withAfter(fmt.Sprintf("%d", lastID))))
+	activities, _, err = env.ds.ListActivities(ctx, listOpts(withPerPage(2), withOrder("id", activityapi.OrderAsc), withAfter(fmt.Sprintf("%d", lastID))))
 	require.NoError(t, err)
 	require.Len(t, activities, 2)
 	for _, a := range activities {
@@ -297,28 +297,27 @@ func testListActivitiesCursorPagination(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testListActivitiesHostOnlyExcluded(t *testing.T, ds *Datastore) {
+func testListActivitiesHostOnlyExcluded(t *testing.T, env *testEnv) {
 	ctx := t.Context()
-	userID := insertTestUser(t, ds, "testuser", "test@example.com")
+	userID := env.InsertUser(t, "testuser", "test@example.com")
 
-	insertTestActivity(t, ds, userID, "regular_activity", map[string]any{})
+	env.InsertActivity(t, userID, "regular_activity", map[string]any{})
 
 	// Create host-only activity directly (should be excluded)
-	_, err := ds.primary.ExecContext(ctx, `
+	_, err := env.DB.ExecContext(ctx, `
 		INSERT INTO activities (user_id, user_name, user_email, activity_type, details, created_at, host_only, streamed)
 		VALUES (?, 'testuser', 'test@example.com', 'host_only_activity', '{}', NOW(), true, false)
 	`, userID)
 	require.NoError(t, err)
 
-	activities, _, err := ds.ListActivities(ctx, listOpts())
+	activities, _, err := env.ds.ListActivities(ctx, listOpts())
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "regular_activity", activities[0].Type)
 }
 
-// Test helpers
+// Test helpers for building ListOptions
 
-// listOptsFunc is a functional option for building ListOptions.
 type listOptsFunc func(*types.ListOptions)
 
 func listOpts(opts ...listOptsFunc) types.ListOptions {
@@ -369,79 +368,4 @@ func withOrder(key string, dir activityapi.OrderDirection) listOptsFunc {
 
 func withAfter(cursor string) listOptsFunc {
 	return func(o *types.ListOptions) { o.After = cursor }
-}
-
-func setupTestDatastore(t *testing.T) *Datastore {
-	t.Helper()
-
-	testName, opts := mysql_testing_utils.ProcessOptions(t, &mysql_testing_utils.DatastoreTestOptions{
-		UniqueTestName: "activity_mysql_" + t.Name(),
-	})
-
-	_, thisFile, _, _ := runtime.Caller(0)
-	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
-	mysql_testing_utils.LoadSchema(t, testName, opts, schemaPath)
-
-	config := mysql_testing_utils.MysqlTestConfig(testName)
-	db, err := common_mysql.NewDB(config, &common_mysql.DBOptions{SqlMode: common_mysql.TestSQLMode}, "")
-	require.NoError(t, err)
-
-	t.Cleanup(func() { db.Close() })
-
-	logger := log.NewLogfmtLogger(&testutils.TestLogWriter{T: t})
-	conns := &common_mysql.DBConnections{Primary: db, Replica: db}
-	return NewDatastore(conns, logger)
-}
-
-func truncateTables(t *testing.T, ds *Datastore) {
-	t.Helper()
-	mysql_testing_utils.TruncateTables(t, ds.primary, log.NewNopLogger(), nil, "activities", "users")
-}
-
-func insertTestUser(t *testing.T, ds *Datastore, name, email string) uint {
-	t.Helper()
-	result, err := ds.primary.ExecContext(context.Background(), `
-		INSERT INTO users (name, email, password, salt, created_at, updated_at)
-		VALUES (?, ?, 'password', 'salt', NOW(), NOW())
-	`, name, email)
-	require.NoError(t, err)
-
-	id, err := result.LastInsertId()
-	require.NoError(t, err)
-	return uint(id)
-}
-
-func insertTestActivity(t *testing.T, ds *Datastore, userID uint, activityType string, details map[string]any) uint {
-	t.Helper()
-	return insertTestActivityWithTime(t, ds, userID, activityType, details, time.Now().UTC())
-}
-
-func insertTestActivityWithTime(t *testing.T, ds *Datastore, userID uint, activityType string, details map[string]any, createdAt time.Time) uint {
-	t.Helper()
-	ctx := t.Context()
-
-	detailsJSON, err := json.Marshal(details)
-	require.NoError(t, err)
-
-	var userName, userEmail *string
-	if userID > 0 {
-		var user struct {
-			Name  string `db:"name"`
-			Email string `db:"email"`
-		}
-		err = sqlx.GetContext(ctx, ds.primary, &user, "SELECT name, email FROM users WHERE id = ?", userID)
-		require.NoError(t, err)
-		userName = &user.Name
-		userEmail = &user.Email
-	}
-
-	result, err := ds.primary.ExecContext(ctx, `
-		INSERT INTO activities (user_id, user_name, user_email, activity_type, details, created_at, host_only, streamed)
-		VALUES (?, ?, ?, ?, ?, ?, false, false)
-	`, userID, userName, userEmail, activityType, detailsJSON, createdAt)
-	require.NoError(t, err)
-
-	id, err := result.LastInsertId()
-	require.NoError(t, err)
-	return uint(id)
 }
