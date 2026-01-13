@@ -202,6 +202,7 @@ const SoftwareSummaryCard = ({
           name={softwareTitle.name}
           displayName={softwareTitle.display_name || softwareTitle.name}
           source={softwareTitle.source}
+          iconUrl={softwareTitle.icon_url}
         />
       )}
       {showEditConfigurationModal && hasValidTeamId && softwareInstaller && (

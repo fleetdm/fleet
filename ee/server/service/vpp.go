@@ -543,7 +543,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
 	}
 
-	var teamName string
+	teamName := fleet.TeamNameNoTeam
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if fleet.IsNotFound(err) {
@@ -645,10 +645,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if appID.Platform == fleet.MacOSPlatform {
-			// Check if we've already added an installer for this app
-			exists, err := svc.ds.UploadedSoftwareExists(ctx, appFromApple.BundleIdentifier, teamID)
+			exists, err := svc.ds.CheckConflictingInstallerExists(ctx, teamID, appFromApple.BundleIdentifier, string(appID.Platform))
 			if err != nil {
-				return 0, ctxerr.Wrap(ctx, err, "checking existence of VPP app installer")
+				return 0, ctxerr.Wrap(ctx, err, "checking existence of conflicting installer")
 			}
 
 			if exists {
@@ -656,6 +655,19 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 					Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
 						assetMD.Attributes.Name, teamName),
 				}, "vpp app conflicts with existing software installer")
+			}
+		} else if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+			// Check if an in-house app (IPA) with the same bundle identifier already exists
+			exists, err := svc.ds.CheckConflictingInHouseAppExists(ctx, teamID, appFromApple.BundleIdentifier, string(appID.Platform))
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "checking existence of conflicting installer")
+			}
+
+			if exists {
+				return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+					Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+						assetMD.Attributes.Name, teamName),
+				}, "vpp app conflicts with existing in-house app")
 			}
 		}
 

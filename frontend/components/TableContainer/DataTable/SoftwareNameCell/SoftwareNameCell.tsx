@@ -158,6 +158,8 @@ interface ISoftwareNameCellProps {
   iconUrl?: string | null;
   isIosOrIpadosApp?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  /** Only used on Edit icon modal to render a preview of the chosen unsaved icon */
+  previewIcon?: JSX.Element;
 }
 
 const SoftwareNameCell = ({
@@ -173,8 +175,11 @@ const SoftwareNameCell = ({
   iconUrl,
   isIosOrIpadosApp = false,
   isAndroidPlayStoreApp = false,
+  previewIcon,
 }: ISoftwareNameCellProps) => {
-  const icon = <SoftwareIcon name={name} source={source} url={iconUrl} />;
+  const icon = previewIcon || (
+    <SoftwareIcon name={name} source={source} url={iconUrl} />
+  );
   // My device page > Software fake link as entire row opens a modal
   if (pageContext === "deviceUser" && !isSelfService) {
     return (

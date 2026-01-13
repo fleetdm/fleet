@@ -327,6 +327,16 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				// the ack of the message should be the only returned command
 				require.Len(t, cmds, 1)
 
+				// Simulate the host having fleetd installed and reporting back in as un-enrolled
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(context.Background(), `
+	              UPDATE host_mdm
+	              SET enrolled = 0, server_url = ''
+	              WHERE host_id = ?
+		`, host.ID)
+					return err
+				})
+
 				// re-enroll
 				require.NoError(t, device.Enroll())
 			},
@@ -359,13 +369,28 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					&orbitScriptResp,
 				)
 
+				// Simulate the host having fleetd installed after being wiped and reporting back in as un-enrolled
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(context.Background(), `
+	              UPDATE host_mdm
+	              SET enrolled = 0, server_url = ''
+	              WHERE host_id = ?
+		`, host.ID)
+					return err
+				})
+
 				require.NoError(t, device.Enroll())
 			},
 		},
 		{
 			"host turns on MDM features out of the blue",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
-				require.NoError(t, device.Enroll())
+				if strings.Contains(t.Name(), "automatic") {
+					require.NoError(t, device.Enroll())
+				} else {
+					// A programatically-enrolled host that randomly turns on MDM after already enabled will get a SOAP fault
+					require.Error(t, device.Enroll())
+				}
 			},
 		},
 		{
@@ -438,7 +463,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				host := createOrbitEnrolledHost(t, "windows", "windows_automatic", s.ds)
 
 				azureMail := "foo.bar.baz@example.com"
-				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail)
+				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 				device.HardwareID = host.UUID
 				device.DeviceID = host.UUID
 				require.NoError(t, device.Enroll())

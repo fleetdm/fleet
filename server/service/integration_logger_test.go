@@ -371,7 +371,7 @@ func (s *integrationLoggerTestSuite) TestWindowsMDMEnrollEmptyBinarySecurityToke
 	host := createOrbitEnrolledHost(t, "windows", "", s.ds)
 	mdmDevice := mdmtest.NewTestMDMClientWindowsEmptyBinarySecurityToken(s.server.URL, *host.OrbitNodeKey)
 	err = mdmDevice.Enroll()
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	t.Log(s.buf.String())
 
@@ -394,12 +394,11 @@ func (s *integrationLoggerTestSuite) TestWindowsMDMEnrollEmptyBinarySecurityToke
 			require.Equal(t, "info", m["level"])
 			require.Equal(t, "binarySecurityToken is empty", m["soap_fault"])
 		case microsoft_mdm.MDE2EnrollPath:
-			require.Equal(t, "info", m["level"])
-			require.Equal(t, "binarySecurityToken is empty", m["soap_fault"])
-			foundEnroll = true
+			foundEnroll = false
 		}
 	}
 	require.True(t, foundDiscovery)
 	require.True(t, foundPolicy)
-	require.True(t, foundEnroll)
+	// Will not enroll due to soap fault on prior request
+	require.False(t, foundEnroll)
 }

@@ -86,6 +86,7 @@ func TestSoftware(t *testing.T) {
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 		{"CreateIntermediateInstallFailureRecord", testCreateIntermediateInstallFailureRecord},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
+		{"ListHostSoftwareFailInstallThenTransferTeam", testListHostSoftwareFailInstallThenTransferTeam},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
@@ -103,6 +104,7 @@ func TestSoftware(t *testing.T) {
 		{"LongestCommonPrefix", testLongestCommonPrefix},
 		{"ListHostSoftwareInHouseApps", testListHostSoftwareInHouseApps},
 		{"ListHostSoftwareAndroidVPPAppMatching", testListHostSoftwareAndroidVPPAppMatching},
+		{"CountHostSoftwareInstallAttempts", testCountHostSoftwareInstallAttempts},
 		{"ListSoftwareVersionsSearchByTitleName", testListSoftwareVersionsSearchByTitleName},
 	}
 	for _, c := range cases {
@@ -4178,7 +4180,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			PreInstallConditionOutput: ptr.String("ok"),
 			InstallScriptExitCode:     ptr.Int(0),
 			PostInstallScriptExitCode: ptr.Int(0),
-		})
+		}, nil)
 		if err != nil {
 			return err
 		}
@@ -4218,7 +4220,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			InstallUUID:               hostSwi3InstallUUID,
 			PreInstallConditionOutput: ptr.String("ok"),
 			InstallScriptExitCode:     ptr.Int(1),
-		})
+		}, nil)
 		if err != nil {
 			return err
 		}
@@ -4254,7 +4256,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			PreInstallConditionOutput: ptr.String("ok"),
 			InstallScriptExitCode:     ptr.Int(0),
 			PostInstallScriptExitCode: ptr.Int(0),
-		})
+		}, nil)
 		if err != nil {
 			return err
 		}
@@ -4281,7 +4283,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			HostID:      host.ID,
 			ExecutionID: hostSwi7UninstallUUID,
 			ExitCode:    1,
-		})
+		}, nil)
 		if err != nil {
 			return err
 		}
@@ -4304,7 +4306,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			PreInstallConditionOutput: ptr.String("ok"),
 			InstallScriptExitCode:     ptr.Int(0),
 			PostInstallScriptExitCode: ptr.Int(0),
-		})
+		}, nil)
 		if err != nil {
 			return err
 		}
@@ -4325,7 +4327,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			HostID:      host.ID,
 			ExecutionID: hostSwi8UninstallUUID,
 			ExitCode:    0,
-		})
+		}, nil)
 		if err != nil {
 			return err
 		}
@@ -4462,7 +4464,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		HostID:                host.ID,
 		InstallUUID:           hostSwi1InstallUUID,
 		InstallScriptExitCode: ptr.Int(2),
-	})
+	}, nil)
 	require.NoError(t, err)
 	ds.testActivateSpecificNextActivities = []string{"-"}
 	// swi3 has a new install request pending
@@ -6113,7 +6115,7 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		PostInstallScriptExitCode: ptr.Int(0),
 		PostInstallScriptOutput:   ptr.String("ok"),
 	}
-	wasCanceled, err := ds.SetHostSoftwareInstallResult(ctx, want)
+	wasCanceled, err := ds.SetHostSoftwareInstallResult(ctx, want, nil)
 	require.NoError(t, err)
 	require.False(t, wasCanceled)
 	checkResults(want)
@@ -6124,7 +6126,7 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		InstallUUID:               "uuid1",
 		PreInstallConditionOutput: ptr.String(""),
 	}
-	_, err = ds.SetHostSoftwareInstallResult(ctx, want)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, want, nil)
 	require.NoError(t, err)
 	checkResults(want)
 
@@ -6135,7 +6137,7 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		InstallScriptExitCode: ptr.Int(1),
 		InstallScriptOutput:   ptr.String("fail"),
 	}
-	_, err = ds.SetHostSoftwareInstallResult(ctx, want)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, want, nil)
 	require.NoError(t, err)
 	checkResults(want)
 
@@ -6145,7 +6147,7 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		InstallUUID:           "uuid-no-such",
 		InstallScriptExitCode: ptr.Int(0),
 		InstallScriptOutput:   ptr.String("ok"),
-	})
+	}, nil)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 }
@@ -6202,7 +6204,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		HostID:                host.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// add a VPP app for team 1
@@ -6263,6 +6265,116 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		require.Nil(t, sw[1].AppStoreApp)
 		require.Nil(t, sw[1].SoftwarePackage)
 	}
+
+}
+func testListHostSoftwareFailInstallThenTransferTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		OnlyAvailableForInstall: true,
+	}
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team1.ID
+
+	// create a software installer for both teams
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	payloadBoth := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Version:         "1.0",
+		Source:          "apps",
+		Platform:        string(fleet.MacOSPlatform),
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+
+	payloadBoth.TeamID = &team1.ID
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, payloadBoth)
+	require.NoError(t, err)
+	payloadBoth.TeamID = &team2.ID
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, payloadBoth)
+	require.NoError(t, err)
+
+	// create software installer for only team 1
+	payloadOnly1 := fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "bar.pkg",
+		Title:           "bar",
+		Version:         "1.0",
+		Source:          "apps",
+		Platform:        string(fleet.MacOSPlatform),
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+
+	installerTm1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadOnly1)
+	require.NoError(t, err)
+
+	// Fail to install bar that is only scoped to team 1 on the host
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(1),
+	}, nil)
+	require.NoError(t, err)
+
+	// add a VPP app for team 1
+	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, &team1.ID)
+	require.NoError(t, err)
+
+	// install it on the host
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user)
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// listing available for install should include "foo", "vpp1",
+	// and the failed attempt for "bar"
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	require.Equal(t, sw[0].Name, "bar")
+	require.NotNil(t, sw[0].SoftwarePackage)
+	require.Equal(t, sw[1].Name, "foo")
+	require.NotNil(t, sw[1].SoftwarePackage)
+	require.Equal(t, sw[2].Name, "vpp1")
+	require.NotNil(t, sw[2].AppStoreApp)
+
+	// move host to team 2
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team2.ID
+
+	// listing available for install now should not include the failed install
+	// of "bar" because the installer is scoped to only team 1.
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, sw[0].Name, "foo")
+	require.NotNil(t, sw[0].SoftwarePackage)
 }
 
 func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore) {
@@ -6315,7 +6427,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 		HostID:                host.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(1),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// add a VPP app for team 1
@@ -6882,7 +6994,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		HostID:                thirdHost.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 	installedSoftware := []fleet.Software{
 		{
@@ -7488,7 +7600,7 @@ func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 		HostID:                tmHost.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 	software = append(software, fleet.Software{
 		Name:    "file1",
@@ -9134,7 +9246,7 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 		PreInstallConditionOutput: ptr.String("ok"),
 		InstallScriptExitCode:     ptr.Int(0),
 		PostInstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Successfully installed, however not inventoried by osquery
@@ -9217,7 +9329,7 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 		InstallUUID:               host2SoftwareInstallUUID,
 		PreInstallConditionOutput: ptr.String("ok"),
 		InstallScriptExitCode:     ptr.Int(1),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Failed install
@@ -9388,7 +9500,7 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 			HostID:                host1.ID,
 			InstallUUID:           hostInstall1,
 			InstallScriptExitCode: ptr.Int(0),
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
@@ -9425,7 +9537,7 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 				HostID:                host.ID,
 				InstallUUID:           hostInstall1,
 				InstallScriptExitCode: ptr.Int(0),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			_, err = ds.applyChangesForNewSoftwareDB(ctx, host.ID, []fleet.Software{*updateSw})
@@ -10341,6 +10453,159 @@ func testListHostSoftwareAndroidVPPAppMatching(t *testing.T, ds *Datastore) {
 		assert.True(t, *amazonApp.AppStoreApp.SelfService)
 		assert.NotNil(t, amazonApp.IconUrl)
 	}
+}
+
+func testCountHostSoftwareInstallAttempts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create test data
+	host := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// software installer
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("content"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo 'installing'",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "installer.pkg",
+		Title:           "Software",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// no attempts exist
+	count, err := ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// 1 attempt
+	install1UUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
+		PolicyID: &policy.ID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, install1UUID)
+
+	// Set result
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           install1UUID,
+		InstallScriptExitCode: ptr.Int(1), // failed
+		InstallScriptOutput:   ptr.String("install failed"),
+	}, nil)
+	require.NoError(t, err)
+
+	// 1 attempt, count 1
+	count, err = ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	// retry
+	install2UUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
+		PolicyID: &policy.ID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, install2UUID)
+
+	// Set result for second attempt
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           install2UUID,
+		InstallScriptExitCode: ptr.Int(1), // failed
+		InstallScriptOutput:   ptr.String("install failed"),
+	}, ptr.Int(2))
+	require.NoError(t, err)
+
+	// 2 attempts, count is 2
+	count, err = ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	// Test 4: Create third attempt (success this time)
+	install3UUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
+		PolicyID: &policy.ID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, install3UUID)
+
+	// retry
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           install3UUID,
+		InstallScriptExitCode: ptr.Int(0), // success
+		InstallScriptOutput:   ptr.String("install succeeded"),
+	}, ptr.Int(3))
+	require.NoError(t, err)
+
+	// 3 attempts, count is 3
+	count, err = ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
+
+	// same software but without policy_id
+	install4UUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
+		PolicyID: nil,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, install4UUID)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           install4UUID,
+		InstallScriptExitCode: ptr.Int(0),
+		InstallScriptOutput:   ptr.String("user install succeeded"),
+	}, nil)
+	require.NoError(t, err)
+
+	// Count should not change
+	count, err = ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
+
+	// Different host, same installer and policy
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2Key", "host2UUID", time.Now())
+	count, err = ds.CountHostSoftwareInstallAttempts(ctx, host2.ID, installerID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// Same host, different policy
+	policy2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "test policy 2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+	count, err = ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// Same host and policy, different installer
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("installer2 content"), t.TempDir)
+	require.NoError(t, err)
+	installer2ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo install2",
+		InstallerFile:   tfr2,
+		StorageID:       "storage2",
+		Filename:        "installer2.pkg",
+		Title:           "Test Software 2",
+		Version:         "2.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	count, err = ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installer2ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
 }
 
 // testListSoftwareVersionsSearchByTitleName tests that searching software versions

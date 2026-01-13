@@ -1,0 +1,1 @@
+* Added space trimming of `displayVersion` when processing VPP apps (found in some production apps).
