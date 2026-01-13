@@ -118,6 +118,7 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 				return 0, ctxerr.Wrap(ctx, err)
 			}
 			err = alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
