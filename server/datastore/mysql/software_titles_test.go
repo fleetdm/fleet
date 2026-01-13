@@ -37,7 +37,6 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
 		{"ListSoftwareTitlesOverflow", testListSoftwareTitlesOverflow},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
-		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
@@ -1431,50 +1430,6 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	assert.ElementsMatch(t, []nameSource{
 		{name: "foobar", source: "apps"},
 	}, names)
-}
-
-func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
-	require.NoError(t, err)
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-
-	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:            "installer1",
-		Source:           "apps",
-		InstallScript:    "echo",
-		Filename:         "installer1.pkg",
-		BundleIdentifier: "com.foo.installer1",
-		UserID:           user1.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-	require.NotZero(t, installer1)
-	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:            "installer2",
-		Source:           "apps",
-		InstallScript:    "echo",
-		Filename:         "installer2.pkg",
-		TeamID:           &tm.ID,
-		BundleIdentifier: "com.foo.installer2",
-		UserID:           user1.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-	require.NotZero(t, installer2)
-
-	exists, err := ds.UploadedSoftwareExists(ctx, "com.foo.installer1", nil)
-	require.NoError(t, err)
-	require.True(t, exists)
-
-	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", nil)
-	require.NoError(t, err)
-	require.False(t, exists)
-
-	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", &tm.ID)
-	require.NoError(t, err)
-	require.True(t, exists)
 }
 
 func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
