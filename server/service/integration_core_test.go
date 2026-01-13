@@ -2233,7 +2233,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.NotNil(t, *sigInfo0.ExecutableSHA256)
 	assert.Equal(t, testExecHash, *sigInfo0.ExecutableSHA256)
 	assert.NotNil(t, *sigInfo0.ExecutablePath)
-	assert.Equal(t, testExecHash, *sigInfo0.ExecutablePath)
+	assert.Equal(t, testExecPath, *sigInfo0.ExecutablePath)
 
 	// Verify second signature information (user-level without team identifier)
 	sigInfo1 := sw.PathSignatureInformation[1]
