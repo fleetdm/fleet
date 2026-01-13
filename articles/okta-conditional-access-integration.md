@@ -25,10 +25,13 @@ Conditional access with Okta requires changing the Fleet infrastructure (new red
 3. Select **SAML 2.0 IdP**.
 4. Set **Name** to "Fleet".
 5. Set **IdP Usage** to **Factor only**
-6. Set **IdP Issuer URI**, **IdP Single Sign-On URL**, and **Destination** to [TODO]
-7. For **IdP Signature Certificate**, upload the IdP signature certificate downloaded from Fleet.
-8. After saving, you'll see the Fleet IdP listed in **Security** > **Identity Providers**.
-9. Download the certificate by clicking on **Actions** > **Download Certificate**
+6. Set **IdP Issuer URI**, **IdP Single Sign-On URL**, and **Destination**:
+   - **IdP Issuer URI**: `https://fleet.example.com/api/fleet/conditional_access/idp/metadata`
+   - **IdP Single Sign-On URL**: `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso`
+   - **Destination**: `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso`
+8. For **IdP Signature Certificate**, upload the IdP signature certificate downloaded from Fleet.
+9. After saving, you'll see the Fleet IdP listed in **Security** > **Identity Providers**.
+10. Download the certificate by clicking on **Actions** > **Download Certificate**
 
 
 ## Step 4: Configure Okta settings in Fleet
