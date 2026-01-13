@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	agentinstallerservice "github.com/fleetdm/fleet/v4/pkg/agent_installer_service"
+	"github.com/fleetdm/fleet/v4/pkg/agent_installer_service"
 )
 
 func main() {
@@ -15,8 +15,7 @@ func main() {
 		port = "8080"
 	}
 
-	server := agentinstallerservice.NewServer()
-
+	server := agent_installer_service.NewServer()
 	log.Printf("Starting agent installer service on port %s", port)
 	if err := http.ListenAndServe(":"+port, server); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

@@ -1,10 +1,11 @@
-// Package agentinstallerservice provides an HTTP server for generating fleetd installers.
-package agentinstallerservice
+// Package agent_installer_service provides an HTTP server for generating fleetd installers.
+package agent_installer_service
 
 import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 )
 
@@ -69,7 +70,7 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	validTypes := []string{"pkg", "msi", "deb", "rpm", "pkg.tar.zst"}
-	if !contains(validTypes, req.Type) {
+	if !slices.Contains(validTypes, req.Type) {
 		http.Error(w, "invalid type", http.StatusBadRequest)
 		return
 	}
@@ -132,13 +133,4 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", "attachment; filename=installer")
 	w.WriteHeader(http.StatusOK)
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if strings.EqualFold(s, item) {
-			return true
-		}
-	}
-	return false
 }
