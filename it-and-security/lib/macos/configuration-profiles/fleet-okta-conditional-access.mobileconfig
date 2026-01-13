@@ -9,7 +9,7 @@
             <key>PayloadCertificateFileName</key>
             <string>conditional_access_ca.der</string>
             <key>PayloadContent</key>
-            <data>$DOGFOOD_OKTA_CERTIFICATE</data>
+            <data>$DOGFOOD_OKTA_CA_CERTIFICATE</data>
             <key>PayloadDescription</key>
             <string>Fleet conditional access CA certificate</string>
             <key>PayloadDisplayName</key>
