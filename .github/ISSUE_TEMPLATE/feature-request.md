@@ -9,7 +9,7 @@ assignees: ''
 
 <!-- 
 
-If you're a Fleetie and filling out this request on behalf of a Fleet customer, please uncomment, fill out this section, and remove the "Screenshots" section. Otherwise, please fill out the "Screenshots" section. You can ignore this section.
+If you're a Fleetie and filling out this request on behalf of a Fleet customer, please uncomment this section, fill it out, and remove the "Screenshots" section. Otherwise, please fill out the "Screenshots" section. You can ignore this section.
 
 - [ ] Unpacked: TODO: Head of Product Design (HPD) checks this box when the request goes through "Unpacking the why": https://fleetdm.com/handbook/product-design#unpacking-the-why
 - [ ] Gong snippet: TODO
