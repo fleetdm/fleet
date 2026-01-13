@@ -90,20 +90,18 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 		activitiesQ += ")"
 	}
 
-	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
-		start := opt.StartCreatedAt
-		end := opt.EndCreatedAt
-		switch {
-		case start == "" && end != "":
-			activitiesQ += " AND a.created_at <= ?"
-			args = append(args, end)
-		case start != "" && end == "":
-			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
-			args = append(args, start, time.Now().UTC())
-		case start != "" && end != "":
-			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
-			args = append(args, start, end)
-		}
+	if opt.StartCreatedAt != "" {
+		activitiesQ += " AND a.created_at >= ?"
+		args = append(args, opt.StartCreatedAt)
+	}
+
+	if opt.EndCreatedAt != "" {
+		activitiesQ += " AND a.created_at <= ?"
+		args = append(args, opt.EndCreatedAt)
+	} else if opt.StartCreatedAt != "" {
+		// When filtering by start date, cap at now to ensure consistent results
+		activitiesQ += " AND a.created_at <= ?"
+		args = append(args, time.Now().UTC())
 	}
 
 	// Apply pagination using platform_mysql

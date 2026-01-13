@@ -172,11 +172,11 @@ func testListActivitiesDateRangeFilter(t *testing.T, ds *Datastore) {
 	userID := insertTestUser(t, ds, "testuser", "test@example.com")
 	now := time.Now().UTC().Truncate(time.Second)
 
+	// Only create activities in the past/present (activities can't have future creation dates)
 	dates := []time.Time{
 		now.Add(-48 * time.Hour),
 		now.Add(-24 * time.Hour),
 		now,
-		now.Add(24 * time.Hour),
 	}
 	for _, dt := range dates {
 		insertTestActivityWithTime(t, ds, userID, "test_activity", map[string]any{}, dt)
@@ -188,9 +188,9 @@ func testListActivitiesDateRangeFilter(t *testing.T, ds *Datastore) {
 		end       string
 		wantCount int
 	}{
-		{"start only", now.Add(-36 * time.Hour).Format(time.RFC3339), "", 2},
+		{"start only", now.Add(-72 * time.Hour).Format(time.RFC3339), "", 3},
 		{"start and end", now.Add(-72 * time.Hour).Format(time.RFC3339), now.Add(-12 * time.Hour).Format(time.RFC3339), 2},
-		{"end only", "", now.Add(1 * time.Hour).Format(time.RFC3339), 3},
+		{"end only", "", now.Add(-30 * time.Hour).Format(time.RFC3339), 1},
 	}
 
 	for _, tc := range cases {

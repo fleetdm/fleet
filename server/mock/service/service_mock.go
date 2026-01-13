@@ -35,6 +35,10 @@ type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err
 
 type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
 
+type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
+
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+
 type GetTransparencyURLFunc func(ctx context.Context) (string, error)
 
 type AuthenticateOrbitHostFunc func(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error)
@@ -64,10 +68,6 @@ type NewUserFunc func(ctx context.Context, p fleet.UserPayload) (*fleet.User, er
 type UserUnauthorizedFunc func(ctx context.Context, id uint) (user *fleet.User, err error)
 
 type AuthenticatedUserFunc func(ctx context.Context) (user *fleet.User, err error)
-
-type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
-
-type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
 
 type ChangePasswordFunc func(ctx context.Context, oldPass string, newPass string) error
 
@@ -900,6 +900,12 @@ type Service struct {
 	YaraRuleByNameFunc        YaraRuleByNameFunc
 	YaraRuleByNameFuncInvoked bool
 
+	ListUsersFunc        ListUsersFunc
+	ListUsersFuncInvoked bool
+
+	UsersByIDsFunc        UsersByIDsFunc
+	UsersByIDsFuncInvoked bool
+
 	GetTransparencyURLFunc        GetTransparencyURLFunc
 	GetTransparencyURLFuncInvoked bool
 
@@ -944,12 +950,6 @@ type Service struct {
 
 	AuthenticatedUserFunc        AuthenticatedUserFunc
 	AuthenticatedUserFuncInvoked bool
-
-	ListUsersFunc        ListUsersFunc
-	ListUsersFuncInvoked bool
-
-	UsersByIDsFunc        UsersByIDsFunc
-	UsersByIDsFuncInvoked bool
 
 	ChangePasswordFunc        ChangePasswordFunc
 	ChangePasswordFuncInvoked bool
@@ -2219,6 +2219,20 @@ func (s *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraR
 	return s.YaraRuleByNameFunc(ctx, name)
 }
 
+func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error) {
+	s.mu.Lock()
+	s.ListUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListUsersFunc(ctx, opt)
+}
+
+func (s *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+	s.mu.Lock()
+	s.UsersByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UsersByIDsFunc(ctx, ids)
+}
+
 func (s *Service) GetTransparencyURL(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	s.GetTransparencyURLFuncInvoked = true
@@ -2322,20 +2336,6 @@ func (s *Service) AuthenticatedUser(ctx context.Context) (user *fleet.User, err 
 	s.AuthenticatedUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.AuthenticatedUserFunc(ctx)
-}
-
-func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error) {
-	s.mu.Lock()
-	s.ListUsersFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListUsersFunc(ctx, opt)
-}
-
-func (s *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
-	s.mu.Lock()
-	s.UsersByIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UsersByIDsFunc(ctx, ids)
 }
 
 func (s *Service) ChangePassword(ctx context.Context, oldPass string, newPass string) error {
