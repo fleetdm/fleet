@@ -285,13 +285,10 @@ func TestAuthentication(t *testing.T) {
 
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Verify the license key is in the Authorization header
-			require.Equal(t, "Bearer test-license-key", r.Header.Get("Authorization"))
-
-			// Verify the URL is set
+			// Verify the URL and license key are set
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
-			require.JSONEq(t, `{"fleetServerUrl": "https://fleet.example.com"}`, string(body))
+			require.JSONEq(t, `{"fleetServerUrl": "https://fleet.example.com", "fleetLicenseKey": "test-license-key"}`, string(body))
 
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"fleetServerSecret": "new-token-from-auth"}`))
@@ -333,7 +330,10 @@ func TestAuthentication(t *testing.T) {
 
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, "Bearer my-license-key", r.Header.Get("Authorization"))
+			// Verify the URL and license key are set
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			require.JSONEq(t, `{"fleetServerUrl": "https://fleet.example.com", "fleetLicenseKey": "my-license-key"}`, string(body))
 
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"fleetServerSecret": "fresh-token"}`))

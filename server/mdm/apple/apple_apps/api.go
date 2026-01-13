@@ -290,8 +290,9 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 		}
 
 		body, err := json.Marshal(struct {
-			ServerURL string `json:"fleetServerUrl"`
-		}{appConfig.ServerSettings.ServerURL})
+			ServerURL  string `json:"fleetServerUrl"`
+			LicenseKey string `json:"fleetLicenseKey"`
+		}{appConfig.ServerSettings.ServerURL, licenseKey})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "encoding authentication request for VPP metadata service")
 		}
@@ -302,7 +303,7 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 		}
 
 		var authResponse authResp
-		if err = doAuth(req, licenseKey, &authResponse); err != nil {
+		if err = doAuth(req, &authResponse); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "authenticating to VPP metadata service")
 		}
 
@@ -320,9 +321,7 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 	}
 }
 
-func doAuth(req *http.Request, licenseKey string, dest *authResp) error {
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", licenseKey))
-
+func doAuth(req *http.Request, dest *authResp) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("authenticating to VPP metadata service: %w", err)
