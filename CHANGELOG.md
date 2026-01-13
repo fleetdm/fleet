@@ -40,6 +40,9 @@
 - Updated S3 username/password when running in dev mode to remove outdated mentions of MinIO.
 - Hid option to transfer hosts to their current team.
 - Updated setup experience links to point to add software page relevant to platform.
+- Revised auth requirements for /debug endpoints.
+- Added additional validation to URL parameter for MS MDM auth endpoint.
+- Improved SOAP message validation on Windows MDM endpoints.
 - Fixed host query report to display "Report clipped" when a query has reached the 1k result limit.
 - Fixed UI error message regarding adding software to a team with a duplicate title.
 - Fixed an issue where batch uploading .mobileconfig profiles failed due to display name checks.
