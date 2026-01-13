@@ -50,7 +50,7 @@ func testListActivitiesBasic(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	userID := insertTestUser(t, ds, "testuser", "test@example.com")
 
-	for i := 1; i <= 3; i++ {
+	for i := range 3 {
 		insertTestActivity(t, ds, userID, fmt.Sprintf("test_activity_%d", i), map[string]any{"detail": i})
 	}
 
@@ -73,7 +73,7 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	userID := insertTestUser(t, ds, "testuser", "test@example.com")
 
 	var activityIDs []uint
-	for i := 1; i <= 3; i++ {
+	for i := range 3 {
 		id := insertTestActivity(t, ds, userID, "test_activity", map[string]any{"detail": i})
 		activityIDs = append(activityIDs, id)
 	}
@@ -83,24 +83,24 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	cases := []struct {
-		name            string
-		streamed        *bool
-		expectedCount   int
-		expectedFirstID uint
+		name        string
+		streamed    *bool
+		expectedIDs []uint
 	}{
-		{"all", nil, 3, 0},
-		{"non-streamed only", ptr.Bool(false), 2, 0},
-		{"streamed only", ptr.Bool(true), 1, activityIDs[0]},
+		{"all", nil, activityIDs},
+		{"non-streamed only", ptr.Bool(false), activityIDs[1:]},
+		{"streamed only", ptr.Bool(true), activityIDs[:1]},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			activities, _, err := ds.ListActivities(ctx, listOpts(withStreamed(tc.streamed)))
 			require.NoError(t, err)
-			assert.Len(t, activities, tc.expectedCount)
-			if tc.expectedFirstID != 0 {
-				assert.Equal(t, tc.expectedFirstID, activities[0].ID)
+			gotIDs := make([]uint, len(activities))
+			for i, a := range activities {
+				gotIDs[i] = a.ID
 			}
+			assert.ElementsMatch(t, tc.expectedIDs, gotIDs)
 		})
 	}
 }
@@ -277,7 +277,7 @@ func testListActivitiesCursorPagination(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	userID := insertTestUser(t, ds, "testuser", "test@example.com")
 
-	for i := 1; i <= 5; i++ {
+	for i := range 5 {
 		insertTestActivity(t, ds, userID, fmt.Sprintf("activity_%d", i), map[string]any{})
 	}
 
