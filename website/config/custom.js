@@ -477,6 +477,7 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
   // cloudCustomerCompliancePartnerSharedSecret: '…',
+  // alternateCompliancePartnerSharedSecret: '…',
 
 
   // Android proxy
