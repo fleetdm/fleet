@@ -80,6 +80,9 @@ func TestPolicies(t *testing.T) {
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
 		{"SimultaneousSavePolicy", testSimultaneousSavePolicy},
+		{"IsPolicyFailing", testIsPolicyFailing},
+		{"ResetAttemptsOnFailingToPassingSync", testResetAttemptsOnFailingToPassingSync},
+		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6406,4 +6409,235 @@ func testSimultaneousSavePolicy(t *testing.T, ds *Datastore) {
 
 	err = g.Wait()
 	require.NoError(t, err)
+}
+
+func testIsPolicyFailing(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create test data
+	host := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// No policy membership record exists
+	// Edge case, should consider it as failing
+	isFailing, err := ds.IsPolicyFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with no membership record is considered failing")
+
+	// Exists with passes = NULL
+	// failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: nil}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with NULL passes should be considered still failing")
+
+	// exists with passes = false
+	// failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with passes=false should be considered still failing")
+
+	// exists with passes = true
+	// Not failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.False(t, isFailing, "policy with passes=true should NOT be considered still failing")
+
+	// Different host
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2Key", "host2UUID", time.Now())
+	isFailing, err = ds.IsPolicyFailing(ctx, policy.ID, host2.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with no membership record for different host should be considered still failing")
+
+	// Different policy for the same host
+	policy2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy 2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyFailing(ctx, policy2.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "different policy with no membership record should be considered still failing")
+}
+
+func testResetAttemptsOnFailingToPassingSync(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	// Create policies
+	p1, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy-sync-1",
+		Query: "SELECT 1",
+	})
+	require.NoError(t, err)
+	p2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy-sync-2",
+		Query: "SELECT 2",
+	})
+	require.NoError(t, err)
+
+	// Enroll a host
+	host, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("hsync1"),
+		fleet.WithEnrollOsqueryNodeKey("nsync1"),
+	)
+	require.NoError(t, err)
+
+	// p1 will be failing
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{p1.ID: ptr.Bool(false)}, time.Now(), false))
+
+	// Create rows with attempt_number > 0 and attempt_number IS NULL (pending)
+	// p1 - completed attempt
+	execID1 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, 1)`, host.ID, execID1, p1.ID)
+	require.NoError(t, err)
+	execID2 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, 1, 'x', '1.0.0')`, execID2, host.ID, p1.ID)
+	require.NoError(t, err)
+	execID1Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, NULL)`, host.ID, execID1Pending, p1.ID)
+	require.NoError(t, err)
+	execID2Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, NULL, 'x-pending', '1.0.0')`, execID2Pending, host.ID, p1.ID)
+	require.NoError(t, err)
+	// p2 - completed attempt
+	execID3 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, 1)`, host.ID, execID3, p2.ID)
+	require.NoError(t, err)
+	execID4 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, 1, 'y', '2.0.0')`, execID4, host.ID, p2.ID)
+	require.NoError(t, err)
+	execID3Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, NULL)`, host.ID, execID3Pending, p2.ID)
+	require.NoError(t, err)
+	execID4Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, NULL, 'y-pending', '2.0.0')`, execID4Pending, host.ID, p2.ID)
+	require.NoError(t, err)
+
+	// p1 is now passing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{p1.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// p1 rows should be reset to 0 (both completed and pending)
+	var cnt int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number = 0`, host.ID, p1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "both completed and pending script attempts should be reset to 0")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number = 0`, host.ID, p1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "both completed and pending install attempts should be reset to 0")
+
+	// p2 rows should remain unchanged (no transition, first execution was passing)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number = 1`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number = 1`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt, "p2 pending script should remain NULL")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt, "p2 pending install should remain NULL")
+}
+
+func testResetAttemptsOnFailingToPassingAsync(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Carol", "carol@example.com", true)
+
+	// Create policies
+	p1, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy-async-1",
+		Query: "SELECT 1",
+	})
+	require.NoError(t, err)
+	p2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy-async-2",
+		Query: "SELECT 2",
+	})
+	require.NoError(t, err)
+
+	// Enroll a host
+	host, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("hasync1"),
+		fleet.WithEnrollOsqueryNodeKey("nasync1"),
+	)
+	require.NoError(t, err)
+
+	// p1 is failing
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{p1.ID: ptr.Bool(false)}, time.Now(), false))
+
+	// Create rows with attempt_number > 0 and attempt_number IS NULL (pending)
+	// p1 - completed attempt
+	execID1 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, 1)`, host.ID, execID1, p1.ID)
+	require.NoError(t, err)
+	execID2 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, 1, 'z', '3.0.0')`, execID2, host.ID, p1.ID)
+	require.NoError(t, err)
+	execID1Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, NULL)`, host.ID, execID1Pending, p1.ID)
+	require.NoError(t, err)
+	execID2Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, NULL, 'z-pending', '3.0.0')`, execID2Pending, host.ID, p1.ID)
+	require.NoError(t, err)
+	// p2 - completed attempt
+	execID3 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, 1)`, host.ID, execID3, p2.ID)
+	require.NoError(t, err)
+	execID4 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, 1, 'w', '4.0.0')`, execID4, host.ID, p2.ID)
+	require.NoError(t, err)
+	execID3Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, NULL)`, host.ID, execID3Pending, p2.ID)
+	require.NoError(t, err)
+	execID4Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, NULL, 'w-pending', '4.0.0')`, execID4Pending, host.ID, p2.ID)
+	require.NoError(t, err)
+
+	// flip p1 to passing
+	batch := []fleet.PolicyMembershipResult{
+		{HostID: host.ID, PolicyID: p1.ID, Passes: ptr.Bool(true)},
+		{HostID: host.ID, PolicyID: p2.ID, Passes: ptr.Bool(true)},
+	}
+	require.NoError(t, ds.AsyncBatchInsertPolicyMembership(ctx, batch))
+
+	// p1 rows should be reset to 0 (both completed and pending)
+	var cnt int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number = 0`, host.ID, p1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "both completed and pending script attempts should be reset to 0")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number = 0`, host.ID, p1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "both completed and pending install attempts should be reset to 0")
+
+	// p2 rows should remain unchanged (no transition, first execution was passing)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number = 1`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number = 1`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt, "p2 pending script should remain NULL")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt, "p2 pending install should remain NULL")
 }

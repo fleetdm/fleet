@@ -1284,7 +1284,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	// set a script result, will activate both VPP apps
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// get host script result now returns the result
@@ -1427,7 +1427,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	swRes, err := ds.GetSoftwareInstallResults(ctx, sw1_1)
@@ -1449,7 +1449,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:      h1.ID,
 		ExecutionID: sw1_2,
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// because the install and uninstall are for the same software installer,
@@ -1679,7 +1679,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending script execution request
@@ -1693,7 +1693,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	// set a result for the script
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending uninstall request
@@ -1706,7 +1706,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		HostID:      h1.ID,
 		ExecutionID: sw1_2,
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending vpp app install

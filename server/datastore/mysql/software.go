@@ -5859,7 +5859,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	return software, metaData, nil
 }
 
-func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
+func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error) {
 	const stmt = `
 		UPDATE
 			host_software_installs
@@ -5868,7 +5868,8 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			install_script_exit_code = ?,
 			install_script_output = ?,
 			post_install_script_exit_code = ?,
-			post_install_script_output = ?
+			post_install_script_output = ?,
+			attempt_number = ?
 		WHERE
 			execution_id = ? AND
 			host_id = ?
@@ -5888,6 +5889,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			truncateOutput(result.InstallScriptOutput),
 			result.PostInstallScriptExitCode,
 			truncateOutput(result.PostInstallScriptOutput),
+			attemptNumber,
 			result.InstallUUID,
 			result.HostID,
 		)
@@ -5912,6 +5914,28 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	})
 	return wasCanceled, err
+}
+
+func (ds *Datastore) CountHostSoftwareInstallAttempts(ctx context.Context, hostID, softwareInstallerID, policyID uint) (int, error) {
+	var count int
+	// Only count attempts from the current retry sequence.
+	// When a policy passes, all attempt_number values are reset to 0 to mark them as "old sequence".
+	// We count attempts where attempt_number > 0 (current sequence) OR attempt_number IS NULL (currently being processed).
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+		SELECT COUNT(*)
+		FROM host_software_installs
+		WHERE host_id = ?
+		  AND software_installer_id = ?
+		  AND policy_id = ?
+		  AND removed = 0
+		  AND canceled = 0
+		  AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, hostID, softwareInstallerID, policyID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count host software install attempts")
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
