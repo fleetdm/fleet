@@ -5050,16 +5050,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	// Apply label filtering for install-attempt-only software in ALL cases
+	// Apply label filtering for FAILED install-attempt-only software in ALL cases
 	// (not just OnlyAvailableForInstall).
 	for titleID, st := range bySoftwareTitleID {
 		if st.InstallerID != nil {
 			// Check if software is NOT actually installed (not in osquery inventory)
 			if _, isInstalled := hostInstalledSoftwareTitleSet[titleID]; !isInstalled {
-				// This came ONLY from an install attempt (not from osquery inventory)
-				if _, inScope := filteredBySoftwareTitleID[titleID]; !inScope {
-					// Installer is out of scope -> remove
-					delete(bySoftwareTitleID, titleID)
+				// Only remove if install FAILED and installer is out of scope
+				if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+					if _, inScope := filteredBySoftwareTitleID[titleID]; !inScope {
+						delete(bySoftwareTitleID, titleID)
+					}
 				}
 			}
 		}
