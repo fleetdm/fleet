@@ -32,6 +32,8 @@ Replace `fleet-scep-ca.crt` with the filename you used when downloading the cert
    - Requires client certificate authentication using your CA certificate
    - Forwards the `X-Client-Cert-Serial` header to your Fleet backend
 
+4. **Redirect the SSO endpoint**: Configure your main Fleet server to redirect `/api/fleet/conditional_access/idp/sso` to the mTLS proxy (e.g., `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso`). This ensures all authentication requests go through mTLS verification.
+
 #### Example Caddy configuration
 
 Here's an example `Caddyfile` for setting up the mTLS proxy:
@@ -92,7 +94,7 @@ Replace:
 
 ### Step 4: Configure Okta settings in Fleet
 
-Once you've created the identity provider in Okta, you'll need to copy its values into your Fleet settings.
+Once you've created the identity provider in Okta, click on the Fleet identity provider to view its settings. You'll need to copy these values into Fleet.
 
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. Copy the **IdP ID** from Okta to the **IdP ID** field.
