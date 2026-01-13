@@ -170,6 +170,21 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
 ];
 
+/**
+ * Normalizes software names for display purposes.
+ * Maps known problematic names to their user-friendly display names.
+ */
+export const normalizeSoftwareDisplayName = (
+  name: string | undefined
+): string => {
+  if (!name) return "";
+  // Microsoft Company Portal (Windows)
+  if (name.startsWith("Microsoft.CompanyPortal")) {
+    return name.replace("Microsoft.CompanyPortal", "Company Portal");
+  }
+  return name;
+};
+
 export const getSelfServiceTooltip = (
   isIosOrIpadosApp: boolean,
   isAndroidPlayStoreApp: boolean

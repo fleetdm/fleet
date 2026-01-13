@@ -26,7 +26,10 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+import {
+  isSafeImagePreviewUrl,
+  normalizeSoftwareDisplayName,
+} from "pages/SoftwarePage/helpers";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
@@ -159,6 +162,9 @@ const SoftwareDetailsSummary = ({
 
   const { config } = useContext(AppContext);
 
+  // Normalize display name for known problematic names
+  const normalizedDisplayName = normalizeSoftwareDisplayName(displayName);
+
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
   const repoURL = config?.gitops.repository_url;
   const isRollingArch = ROLLING_ARCH_LINUX_VERSIONS.includes(displayName);
@@ -233,11 +239,11 @@ const SoftwareDetailsSummary = ({
               {isRollingArch ? (
                 // wrap a tooltip around the "rolling" suffix
                 <>
-                  {displayName.slice(0, -8)}
+                  {normalizedDisplayName.slice(0, -8)}
                   <TooltipWrapperArchLinuxRolling />
                 </>
               ) : (
-                <TooltipTruncatedText value={displayName} />
+                <TooltipTruncatedText value={normalizedDisplayName} />
               )}
             </h1>
             {canManageSoftware && (
