@@ -1284,7 +1284,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		Title:    "DummyApp",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has a package or app available for install on the Team 1 team.")
+	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has an installer available for the Team 1 team.")
 
 	// Add VPP app 2 with bundle ID com.example.noversion (conflicts with NoVersion)
 	vppApp2 := &fleet.VPPApp{
@@ -1298,7 +1298,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 
 	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusConflict)
 	txt := extractServerErrorText(res.Body)
-	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
+	require.Contains(t, txt, "NoVersion already has an installer available for the Team 1 team.")
 
 	// --- test with batch-set (gitops) ---
 
@@ -1326,7 +1326,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
 	batchResp := waitBatchSetSoftwareInstallers(t, &s.withServer, team.Name, batchResponse.RequestUUID)
 	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusFailed, batchResp.Status)
-	require.Contains(t, batchResp.Message, "DummyApp already has a package or app available for install on the Team 1 team.")
+	require.Contains(t, batchResp.Message, "DummyApp already has an installer available for the Team 1 team.")
 
 	// batch-set the VPP apps, including one in conflict
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -1334,7 +1334,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		{AppStoreID: "2"},
 	}}, http.StatusConflict, "team_name", team.Name)
 	txt = extractServerErrorText(res.Body)
-	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
+	require.Contains(t, txt, "NoVersion already has an installer available for the Team 1 team.")
 
 	// listing software available to install only lists the dummy app and noversion installer
 	var listSw listSoftwareTitlesResponse
@@ -2771,7 +2771,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 		Platform:   "ios",
 	}, http.StatusConflict)
 	txt := extractServerErrorText(res.Body)
-	require.Contains(t, txt, "already has a package or app available for install on the IPA Conflict Team team.")
+	require.Contains(t, txt, "already has an installer available for the IPA Conflict Team team.")
 
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:     &team.ID,
@@ -2779,7 +2779,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 		Platform:   "ipados",
 	}, http.StatusConflict)
 	txt = extractServerErrorText(res.Body)
-	require.Contains(t, txt, "already has a package or app available for install on the IPA Conflict Team team.")
+	require.Contains(t, txt, "already has an installer available for the IPA Conflict Team team.")
 
 	var addAppResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
@@ -2807,7 +2807,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
 		Filename: "ipa_test.ipa",
 		TeamID:   &team2.ID,
-	}, http.StatusConflict, "already has a package or app available for install on the IPA Conflict Team 2 team.")
+	}, http.StatusConflict, "already has an installer available for the IPA Conflict Team 2 team.")
 
 	// Test Case 3: Verify "No team" works correctly
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
@@ -2828,5 +2828,5 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 		Platform:   "ios",
 	}, http.StatusConflict)
 	txt = extractServerErrorText(res.Body)
-	require.Contains(t, txt, "already has a package or app available for install on the No team team.")
+	require.Contains(t, txt, "already has an installer available for the No team team.")
 }
