@@ -188,8 +188,6 @@ Product Designers (PD) review the checkboxes in user stories we shipped but have
 
 If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81).
 
-If the story includes updates to [which endpoints to expose to the public internet](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet) or updates to [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration), the PD notifies the [SVP of Customer Success](https://fleetdm.com/handbook/customer-success). Up to Customer Success to decide if any changes to the server config in cloud environments is needed.
-
 ### Notify stakeholders when a user story is pushed to the next sprint
 
 [User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be [drafted](#drafting) and estimated in a single sprint. When the Product Designers (PD) knows a user story will be pushed, it is the PD's responsibility to notify stakeholders:
