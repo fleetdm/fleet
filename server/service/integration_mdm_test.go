@@ -17730,7 +17730,8 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	// Set up 3 apps - macOS, iOS, and iPadOS (using new VPP proxy format)
 	s.appleVPPProxySrvData = map[string]string{
 		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac"]}}`,
-		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
+		// Add a space to the version and make sure we are trimming it (we've seen that in Meta Horizon app `"versionDisplay":" 353.0"`)
+		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": " 2.0.0 "}}}, "deviceFamilies": ["iphone"]}}`,
 		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["ipad"]}}`,
 	}
 

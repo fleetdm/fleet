@@ -3315,6 +3315,8 @@ func filterSoftwareInstallersByLabel(
 	}
 
 	if len(softwareInstallersIDsToCheck) > 0 {
+		globalOrTeamID := ptr.ValOrZero(host.TeamID)
+
 		labelSqlFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -3398,7 +3400,8 @@ func filterSoftwareInstallersByLabel(
 			LEFT JOIN exclude_any
 				ON exclude_any.installer_id = software_installers.id
 			WHERE
-				software_installers.id IN (:software_installer_ids)
+				software_installers.global_or_team_id = :global_or_team_id
+				AND software_installers.id IN (:software_installer_ids)
 				AND (
 					no_labels.installer_id IS NOT NULL
 					OR include_any.installer_id IS NOT NULL
@@ -3409,6 +3412,7 @@ func filterSoftwareInstallersByLabel(
 			"host_id":                host.ID,
 			"host_label_updated_at":  host.LabelUpdatedAt,
 			"software_installer_ids": softwareInstallersIDsToCheck,
+			"global_or_team_id":      globalOrTeamID,
 		})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "filterSoftwareInstallersByLabel building named query args")
