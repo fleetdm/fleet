@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1161,7 +1162,22 @@ func (ds *Datastore) MapAdamIDsPendingInstallVerification(ctx context.Context, h
 					AND hvsi.verification_failed_at IS NULL
 				)
 			)`, hostID); err != nil && err != sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, err, "list pending VPP install verifications")
+		return nil, ctxerr.Wrap(ctx, err, "list host pending VPP install verifications")
+	}
+	adamIDs = make(map[string]struct{})
+	for _, id := range adamIDsList {
+		adamIDs[id] = struct{}{}
+	}
+	return adamIDs, nil
+}
+
+func (ds *Datastore) MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error) {
+	var adamIDsList []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIDsList,
+		`SELECT DISTINCT(adam_id) FROM host_vpp_software_installs
+		WHERE host_id = ? AND canceled = 0 AND created_at >= NOW() - INTERVAL ? SECOND`,
+		hostID, seconds); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list host recent VPP install attempts")
 	}
 	adamIDs = make(map[string]struct{})
 	for _, id := range adamIDsList {
@@ -2451,4 +2467,187 @@ WHERE execution_id = ?
 		return false, ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
 	}
 	return isAutoUpdate, nil
+}
+
+func (ds *Datastore) GetHostVPPInstallByCommandUUID(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstallLite, error) {
+	const stmt = `
+	SELECT 
+	command_uuid,
+	host_id,
+	retry_count
+	FROM host_vpp_software_installs
+	WHERE command_uuid = ?`
+	var vppSoftwareInstalls []fleet.HostVPPSoftwareInstallLite
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppSoftwareInstalls, stmt, commandUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get VPP host install")
+	}
+
+	// This should not happen, since the command_uuid is unique, but we put it here as a safe guard.
+	if len(vppSoftwareInstalls) > 1 {
+		return nil, ctxerr.Wrap(ctx, errors.New("multiple VPP software installs found for command UUID"), "get VPP install by command UUID")
+	}
+
+	if len(vppSoftwareInstalls) == 0 {
+		return nil, nil // Not an error
+	}
+
+	return &vppSoftwareInstalls[0], nil
+}
+
+func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstallLite) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		newCommandUUID := uuid.New().String()
+
+		if _, err := tx.ExecContext(ctx, `UPDATE host_vpp_software_installs
+			SET command_uuid = ?, retry_count = retry_count + 1, verification_at = NULL, verification_failed_at = NULL
+			WHERE command_uuid = ? AND host_id = ?`, newCommandUUID, vppInstall.InstallCommandUUID, vppInstall.HostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating vpp install with new command uuid")
+		}
+
+		if _, err := tx.ExecContext(ctx, `UPDATE upcoming_activities SET execution_id = ? WHERE execution_id = ? AND host_id = ?`, newCommandUUID, vppInstall.InstallCommandUUID, vppInstall.HostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating upcoming activities with new execution id")
+		}
+
+		return ds.nanoEnqueueVPPInstall(ctx, tx, vppInstall.HostID, []string{newCommandUUID})
+	})
+}
+
+func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+
+	const getHostUUIDStmt = `
+SELECT
+	uuid, platform
+FROM
+	hosts
+WHERE
+	id = ?
+`
+	// get the host uuid, requires for the nano tables
+	var hostData struct {
+		UUID     string `db:"uuid"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	const insCmdStmt = `
+INSERT INTO
+	nano_commands
+(command_uuid, request_type, command, subtype)
+SELECT
+	ua.execution_id,
+	'InstallApplication',
+	CONCAT(:raw_cmd_part1, vaua.adam_id, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
+	:subtype
+FROM
+	upcoming_activities ua
+	INNER JOIN vpp_app_upcoming_activities vaua
+		ON vaua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = :host_id AND
+	ua.execution_id IN (:execution_ids)
+`
+
+	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+		<key>InstallAsManaged</key>
+		<true/>
+        <key>ManagementFlags</key>
+        <integer>%d</integer>
+        <key>ChangeManagementState</key>
+        <string>Managed</string>
+        <key>InstallAsManaged</key>
+        <true />
+        <key>Options</key>
+        <dict>
+            <key>PurchaseMethod</key>
+            <integer>1</integer>
+        </dict>
+        <key>RequestType</key>
+        <string>InstallApplication</string>
+        <key>iTunesStoreID</key>
+        <integer>`
+
+	const rawCmdPart2 = `</integer>
+    </dict>
+    <key>CommandUUID</key>
+    <string>`
+
+	const rawCmdPart3 = `</string>
+</dict>
+</plist>`
+
+	// Set management flags based on platform
+	if fleet.IsAppleMobilePlatform(hostData.Platform) {
+		// Remove app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
+	} else {
+		// Keep app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
+	}
+
+	// insert the nano command
+	namedArgs := map[string]any{
+		"raw_cmd_part1": rawCmdPart1,
+		"raw_cmd_part2": rawCmdPart2,
+		"raw_cmd_part3": rawCmdPart3,
+		"subtype":       mdm.CommandSubtypeNone,
+		"host_id":       hostID,
+		"execution_ids": execIDs,
+	}
+	stmt, args, err := sqlx.Named(insCmdStmt, namedArgs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+	}
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert nano commands")
+	}
+
+	const insNanoQueueStmt = `
+INSERT INTO
+	nano_enrollment_queue
+(id, command_uuid, created_at)
+SELECT
+	?,
+	execution_id,
+	created_at -- force same timestamp to keep ordering
+FROM
+	upcoming_activities
+WHERE
+	host_id = ? AND
+	execution_id IN (?)
+ORDER BY
+	priority DESC, created_at ASC
+`
+
+	// enqueue the nano command in the nano queue
+	stmt, args, err = sqlx.In(insNanoQueueStmt, hostData.UUID, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert nano queue")
+	}
+
+	// best-effort APNs push notification to the host, not critical because we
+	// have a cron job that will retry for hosts with pending MDM commands.
+	if ds.pusher != nil {
+		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
+		}
+	}
+	return nil
 }

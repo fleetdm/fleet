@@ -1872,6 +1872,17 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			)
 	}
 
+	// LEFT JOIN software_titles when searching, to allow searching by title name
+	// in addition to software name. This ensures consistency with the titles endpoint.
+	// See: https://github.com/fleetdm/fleet/issues/35028
+	if opts.ListOptions.MatchQuery != "" {
+		ds = ds.
+			InnerJoin(
+				goqu.I("software_titles").As("st"),
+				goqu.On(goqu.I("s.title_id").Eq(goqu.I("st.id"))),
+			)
+	}
+
 	if opts.IncludeCVEScores {
 
 		baseJoinConditions := goqu.Ex{
@@ -1922,6 +1933,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.I("s.name").ILike(match),
 				goqu.I("s.version").ILike(match),
 				goqu.I("scv.cve").ILike(match),
+				goqu.I("st.name").ILike(match), // Also search by software title name
 			),
 		)
 	}
@@ -2036,6 +2048,7 @@ func countSoftwareDB(
 	// For listing all software, use optimized query starting from software_host_counts
 	// Add joins only if needed for filtering
 	needsSoftwareJoin := opts.ListOptions.MatchQuery != ""
+	needsTitleJoin := opts.ListOptions.MatchQuery != "" // Join software_titles for search by title name
 	needsCVEJoin := opts.VulnerableOnly || opts.ListOptions.MatchQuery != ""
 	needsCVEMetaJoin := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
 
@@ -2047,7 +2060,7 @@ func countSoftwareDB(
 	// Use COUNT(*) when no joins are needed (faster since primary key guarantees uniqueness)
 	// Use COUNT(DISTINCT) when joins could create duplicate rows
 	countFunc := "COUNT(*)"
-	if needsSoftwareJoin || needsCVEJoin {
+	if needsSoftwareJoin || needsCVEJoin || needsTitleJoin {
 		countFunc = "COUNT(DISTINCT shc.software_id)"
 	}
 
@@ -2058,6 +2071,12 @@ func countSoftwareDB(
 
 	if needsSoftwareJoin {
 		countSQL += ` INNER JOIN software s ON s.id = shc.software_id`
+	}
+
+	// Join software_titles to search by title name (consistency with titles endpoint)
+	// See: https://github.com/fleetdm/fleet/issues/35028
+	if needsTitleJoin {
+		countSQL += ` LEFT JOIN software_titles st ON s.title_id = st.id`
 	}
 
 	if needsCVEJoin {
@@ -2100,11 +2119,12 @@ func countSoftwareDB(
 		args = append(args, opts.MaximumCVSS)
 	}
 
-	// Apply search filter
+	// Apply search filter (also search by software title name for consistency with titles endpoint)
+	// See: https://github.com/fleetdm/fleet/issues/35028
 	if match := opts.ListOptions.MatchQuery; match != "" {
 		match = likePattern(match)
-		whereClauses = append(whereClauses, "(s.name LIKE ? OR s.version LIKE ? OR scv.cve LIKE ?)")
-		args = append(args, match, match, match)
+		whereClauses = append(whereClauses, "(s.name LIKE ? OR s.version LIKE ? OR scv.cve LIKE ? OR st.name LIKE ?)")
+		args = append(args, match, match, match, match)
 	}
 
 	// Add all WHERE clauses
@@ -5839,7 +5859,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	return software, metaData, nil
 }
 
-func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
+func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error) {
 	const stmt = `
 		UPDATE
 			host_software_installs
@@ -5848,7 +5868,8 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			install_script_exit_code = ?,
 			install_script_output = ?,
 			post_install_script_exit_code = ?,
-			post_install_script_output = ?
+			post_install_script_output = ?,
+			attempt_number = ?
 		WHERE
 			execution_id = ? AND
 			host_id = ?
@@ -5868,6 +5889,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			truncateOutput(result.InstallScriptOutput),
 			result.PostInstallScriptExitCode,
 			truncateOutput(result.PostInstallScriptOutput),
+			attemptNumber,
 			result.InstallUUID,
 			result.HostID,
 		)
@@ -5892,6 +5914,28 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	})
 	return wasCanceled, err
+}
+
+func (ds *Datastore) CountHostSoftwareInstallAttempts(ctx context.Context, hostID, softwareInstallerID, policyID uint) (int, error) {
+	var count int
+	// Only count attempts from the current retry sequence.
+	// When a policy passes, all attempt_number values are reset to 0 to mark them as "old sequence".
+	// We count attempts where attempt_number > 0 (current sequence) OR attempt_number IS NULL (currently being processed).
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+		SELECT COUNT(*)
+		FROM host_software_installs
+		WHERE host_id = ?
+		  AND software_installer_id = ?
+		  AND policy_id = ?
+		  AND removed = 0
+		  AND canceled = 0
+		  AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, hostID, softwareInstallerID, policyID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count host software install attempts")
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {

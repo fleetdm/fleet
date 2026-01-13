@@ -315,11 +315,11 @@ type SoftwareAutoUpdateConfig struct {
 	AutoUpdateEnabled *bool `json:"auto_update_enabled,omitempty" db:"auto_update_enabled"`
 	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty" db:"auto_update_start_time"`
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty" db:"auto_update_window_start"`
 	// AutoUpdateEndTime is the end of the maintenance window for the software title.
 	// If the end time is less than the start time, the window wraps to the next day.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty" db:"auto_update_end_time"`
+	AutoUpdateEndTime *string `json:"auto_update_window_end,omitempty" db:"auto_update_window_end"`
 }
 
 type SoftwareAutoUpdateSchedule struct {
@@ -329,9 +329,6 @@ type SoftwareAutoUpdateSchedule struct {
 }
 
 func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
-	if s.AutoUpdateEnabled == nil || !*s.AutoUpdateEnabled {
-		return nil
-	}
 	if s.AutoUpdateStartTime == nil || s.AutoUpdateEndTime == nil || *s.AutoUpdateStartTime == "" || *s.AutoUpdateEndTime == "" {
 		return errors.New("Start and end time must both be set")
 	}
@@ -797,12 +794,15 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories    []string                  `json:"categories"`
-	DisplayName   string                    `json:"display_name"`
-	IconPath      string                    `json:"-"`
-	IconHash      string                    `json:"-"`
-	Platform      InstallableDevicePlatform `json:"platform"`
-	Configuration json.RawMessage           `json:"configuration,omitempty"`
+	Categories          []string                  `json:"categories"`
+	DisplayName         string                    `json:"display_name"`
+	IconPath            string                    `json:"-"`
+	IconHash            string                    `json:"-"`
+	Platform            InstallableDevicePlatform `json:"platform"`
+	Configuration       json.RawMessage           `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 }
 
 func (v VPPBatchPayload) GetPlatform() string {
@@ -823,9 +823,12 @@ type VPPBatchPayloadWithPlatform struct {
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs   []uint          `json:"-"`
-	DisplayName   string          `json:"display_name"`
-	Configuration json.RawMessage `json:"configuration,omitempty"`
+	CategoryIDs         []uint          `json:"-"`
+	DisplayName         string          `json:"display_name"`
+	Configuration       json.RawMessage `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string         `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string         `json:"auto_update_window_end,omitempty"`
 }
 
 type SoftwareCategory struct {

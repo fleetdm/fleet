@@ -4,6 +4,8 @@ import com.fleetdm.agent.CertificateApiClient
 import com.fleetdm.agent.CertificateTemplateResult
 import com.fleetdm.agent.UpdateCertificateStatusOperation
 import com.fleetdm.agent.UpdateCertificateStatusStatus
+import java.math.BigInteger
+import java.util.Date
 
 /**
  * Represents a captured call to updateCertificateStatus for test assertions.
@@ -13,6 +15,9 @@ data class UpdateStatusCall(
     val status: UpdateCertificateStatusStatus,
     val operationType: UpdateCertificateStatusOperation,
     val detail: String?,
+    val notAfter: Date?,
+    val notBefore: Date?,
+    val serialNumber: BigInteger?,
 )
 
 /**
@@ -41,8 +46,19 @@ class FakeCertificateApiClient : CertificateApiClient {
         status: UpdateCertificateStatusStatus,
         operationType: UpdateCertificateStatusOperation,
         detail: String?,
+        notAfter: Date?,
+        notBefore: Date?,
+        serialNumber: BigInteger?,
     ): Result<Unit> {
-        val call = UpdateStatusCall(certificateId, status, operationType, detail)
+        val call = UpdateStatusCall(
+            certificateId,
+            status,
+            operationType,
+            detail,
+            notAfter,
+            notBefore,
+            serialNumber,
+        )
         _updateStatusCalls.add(call)
         return updateCertificateStatusHandler(call)
     }

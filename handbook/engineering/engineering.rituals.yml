@@ -145,12 +145,18 @@
   description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#change-the-integrations-admin-salesforce-account-password"
   dri: "eashaw"
-
-
-
-
-
-
-
+-
+  task: "Pre-sprint prioritization"
+  startedOn: "2024-02-27" 
+  frequency: "Triweekly"
+  description: "Decide which stories and bugs to bring in to the upcoming sprint. Ahead of the call, Engineering Managers (EM) for each product group prepare their team's estimated capacity that factors in time off (PTO) and the on-call rotation."
+  dri: "lukeheath"
+-
+  task: "Sprint kickoff review"
+  startedOn: "2024-03-07" 
+  frequency: "Triweekly" 
+  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams." 
+  moreInfoUrl: 
+  dri: "lukeheath"
 
 

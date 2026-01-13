@@ -3782,6 +3782,27 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
 
+			for _, errorChain := range cmdResult.ErrorChain {
+				if errorChain.ErrorCode != apple_mdm.VPPLicenseNotFound {
+					// We only want to retry on license not found errors
+					continue
+				}
+
+				// Fetch the host vpp install info
+				vppInstall, err := svc.ds.GetHostVPPInstallByCommandUUID(r.Context, cmdResult.CommandUUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "fetching host vpp install by command uuid")
+				}
+				if vppInstall.RetryCount < 3 {
+					// Requeue the app for installation
+					if err := svc.ds.RetryVPPInstall(r.Context, vppInstall); err != nil {
+						return nil, ctxerr.Wrap(r.Context, err, "retrying VPP install for host")
+					}
+					level.Info(svc.logger).Log("msg", "re-queued VPP app installation due to missing license", "host_id", vppInstall.HostID, "command_uuid", cmdResult.CommandUUID, "retry_count", vppInstall.RetryCount+1)
+					return nil, nil
+				}
+			}
+
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
 			var fromSetupExperience bool
 			if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
@@ -4175,12 +4196,18 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		"count", len(softwaresWithinUpdateWindowThatNeedUpdate),
 	)
 
-	// 3. Filter out software that already has a pending installation (update).
-	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
+	// 3. Filter out software that has been issued an install on this host in the last hour.
+	//
+	// The main reason we must do this filtering is because if the target application is currently in use
+	// by the end-user, then the app installation has been acknowledged and verified, but the reported version
+	// by InstalledApplicationList is still the old version until the user closes the app or the device goes to
+	// sleep and the app is closed and reopened automatically.
+	//
+	adamIDsRecentInstallForHost, err := svc.ds.MapAdamIDsRecentInstalls(ctx, host.ID, 3600)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+		return ctxerr.Wrap(ctx, err, "get Adam IDs recent installs for host")
 	}
-	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
+	var softwaresWithinUpdateScheduleNoRecentInstalls []fleet.SoftwareAutoUpdateSchedule
 	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateWindowThatNeedUpdate {
 		softwareTitle, ok := softwareTitles[softwareWithinUpdateSchedule.TitleID]
 		if !ok {
@@ -4191,8 +4218,42 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
+		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+			level.Debug(logger).Log(
+				"msg", "skipping software, recent install for title",
+				"software_title_id", softwareTitle.ID,
+				"adam_id", softwareTitle.AppStoreApp.AdamID,
+			)
+			continue
+		}
+		softwaresWithinUpdateScheduleNoRecentInstalls = append(softwaresWithinUpdateScheduleNoRecentInstalls, softwareWithinUpdateSchedule)
+	}
+	if len(softwaresWithinUpdateScheduleNoRecentInstalls) == 0 {
+		// Nothing else to do.
+		return nil
+	}
+	level.Debug(logger).Log(
+		"msg", "found software with auto update scheduled, with host local time currently in window, that need update, no recent install",
+		"count", len(softwaresWithinUpdateScheduleNoRecentInstalls),
+	)
+
+	// 4. Filter out software that already has a pending installation.
+	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+	}
+	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
+	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateScheduleNoRecentInstalls {
+		softwareTitle, ok := softwareTitles[softwareWithinUpdateSchedule.TitleID]
+		if !ok {
+			// "Should not happen", so we log it just in case.
+			level.Error(logger).Log(
+				"msg", "missing title ID from map",
+				"software_title_id", softwareWithinUpdateSchedule.TitleID,
+			)
+			continue
+		}
 		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
-			// Skip this software title because there's already a pending install for this title.
 			level.Debug(logger).Log(
 				"msg", "skipping software, pending install for title",
 				"software_title_id", softwareTitle.ID,
@@ -4207,11 +4268,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		return nil
 	}
 	level.Debug(logger).Log(
-		"msg", "found software with auto update scheduled, with host local time currently in window, that need update, no pending installation",
+		"msg", "found software with auto update scheduled, with host local time currently in window, that need update, no recent install, no pending installation",
 		"count", len(softwaresWithinUpdateScheduleToInstall),
 	)
 
-	// 4. Issue installation of the software titles to update.
+	// 5. Issue installation of the software titles to update.
 	for _, softwareTitle := range softwaresWithinUpdateScheduleToInstall {
 		var bundleIdentifier string
 		if softwareTitle.BundleIdentifier != nil {
