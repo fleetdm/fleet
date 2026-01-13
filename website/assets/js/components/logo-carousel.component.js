@@ -60,7 +60,6 @@ parasails.registerComponent('logoCarousel', {
         <img alt="Fastly logo" src="/images/logo-fastly-60x32@2x.png">
         <img alt="Reddit logo" src="/images/logo-reddit-80x32@2x.png">
         <img alt="Dropbox logo" src="/images/logo-dropbox-122x32@2x.png">
-        <img alt="Northwestern logo" src="/images/logo-northwestern-147x32@2x.png">
         <img alt="Nutanix logo" src="/images/logo-nutanix-125x32@2x.png">
         <img alt="Vibe logo" src="/images/logo-vibe-72x32@2x.png">
         </a>
