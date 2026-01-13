@@ -219,7 +219,9 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 			BundleIdentifier: data.BundleID,
 			IconURL:          data.IconURL(),
 			Name:             app.Attributes.Name,
-			LatestVersion:    data.LatestVersionInfo.DisplayVersion,
+			// The "Meta Horizon" app was at some point returned by Apple with `"versionDisplay":" 353.0"`,
+			// so we trim the spaces here.
+			LatestVersion: strings.TrimSpace(data.LatestVersionInfo.DisplayVersion),
 		}
 	}
 	return platforms
