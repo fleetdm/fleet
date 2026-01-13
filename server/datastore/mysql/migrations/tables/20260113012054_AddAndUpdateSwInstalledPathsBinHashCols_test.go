@@ -24,7 +24,7 @@ func TestUp_20260113012054(t *testing.T) {
 	applyNext(t, db)
 
 	var paths []fleet.HostSoftwareInstalledPath
-	// binary_sha256 is left empty for old rows
+	// executable_sha256 and exectuable_path are left empty for old rows
 	err = sqlx.Select(db, &paths, `
 		SELECT 
 			host_id,

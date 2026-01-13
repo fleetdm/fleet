@@ -5542,7 +5542,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				TeamIdentifier:   ip.TeamIdentifier,
 				CDHashSHA256:     ip.CDHashSHA256,
 				ExecutableSHA256: ip.ExecutableSHA256,
-				ExecutablePath:   ip.CDHashSHA256,
+				ExecutablePath:   ip.ExecutablePath,
 			})
 		}
 
