@@ -1441,7 +1441,6 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		SELECT eh.*
 		FROM apps a
 		JOIN executable_hashes eh ON a.path = eh.path
-		WHERE eh.path NOT NULL
 		`,
 		Description: "A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`",
 		Platforms:   []string{"darwin"},
