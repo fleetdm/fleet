@@ -9,6 +9,7 @@ This guide provides instructions for migrating devices from your current MDM sol
 - A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet)
 - Fleet is connected to Apple Push Notification service (APNs) and Apple Business Manager (ABM). [See macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
 - For the end-user workflow: A service is required that can receive a webhook to send an unenroll request to the existing MDM server. See [this example](https://victoronsoftware.com/posts/webhook-flow-with-tines/) using Fleet webhooks with Tines.
+- Do not block Safari from functioning on hosts. Apple's enrollment process utilizes a web view, which requires Safari to work properly.
 
 ## Migrate hosts
 
