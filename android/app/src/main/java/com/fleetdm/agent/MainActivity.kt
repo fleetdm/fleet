@@ -175,16 +175,16 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
 fun DebugScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
 
-    val restrictionsManager = context.getSystemService(RestrictionsManager::class.java)
-        ?: error("RestrictionsManager not available")
-    val appRestrictions = restrictionsManager.applicationRestrictions
     val dpm = context.getSystemService(DevicePolicyManager::class.java)
         ?: error("DevicePolicyManager not available")
 
     val orchestrator = remember { AgentApplication.getCertificateOrchestrator(context) }
     val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
-    val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.let { "****" + it.takeLast(4) } }
-    val hostCertificates = remember { orchestrator.getHostCertificates(context) }
+    val managedConfigRepo = remember { ManagedConfigurationRepository(context) }
+    val managedConfig by managedConfigRepo.configFlow.collectAsStateWithLifecycle(ManagedConfig(null, null, null))
+    val enrollmentSpecificID = managedConfig.hostUUID?.let { "****" + it.takeLast(4) }
+    val hostCertificates = managedConfig.hostCertificates
+    val fleetBaseUrl = managedConfig.serverUrl
     val permissionsList = remember {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
         val permissions = packageInfo.requestedPermissions ?: return@remember emptyList()
@@ -194,7 +194,6 @@ fun DebugScreen(onNavigateBack: () -> Unit) {
             .filter { (_, flag) -> flag and PackageInfo.REQUESTED_PERMISSION_GRANTED != 0 }
             .map { (permission, _) -> permission }
     }
-    val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
     val baseUrl by ApiClient.baseUrlFlow.collectAsStateWithLifecycle(initialValue = null)
     val installedCerts by orchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
 
