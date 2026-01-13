@@ -90,6 +90,27 @@
       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Cybersecurity or IT background.
+      
+ - jobTitle: Product Education Manager
+    department: Marketing
+    hiringManagerName: Ashish Kuthiala
+    hiringManagerLinkedInUrl: https://www.linkedin.com/in/ashishkuthiala/
+    hiringManagerGithubUsername: akuthiala
+    onTargetEarnings:
+    responsibilities: |
+        - 🖥️ Be the Subject Matter Expert (SME): Serve as the technical authority within the marketing team. You will validate product messaging to ensure it resonates with technical practitioners (IT and Security Ops).
+        - 📦 Create Technical Content: Author and review technical assets, including deep-dive blog posts, articles, guides, whitepapers, architectural diagrams, documentation, and video tutorials.
+        - 🔐 Build Demos & Workshops: Don’t just write about it—build it. Create sandbox environments, technical demos, and "how-to" guides that show users exactly how to gain value by using Fleet.
+        - 🛠️ Translate & Articulate: Develop or provide input into messaging that work for the following audiences:
+           - 📊 The Practitioner: Deep technical specs, API capabilities, and deployment guides.
+           - 🚀 The Executive: Business value, security compliance, and ROI.
+        - 📋 Sales & Internal Enablement: Train the sales, partner and marketing teams on the technical nuances of the product. If a sales rep is stumped by a technical question, you are their lifeline.
+        - 🔄 Evangelism: Represent Fleet at industry conferences, webinars, and in the open-source community as needed.
+    experience: |
+        - 💼 Domain Experience: 5+ years of experience in technical marketing, sales engineering, or a practitioner role (SysAdmin, DevOps, SecOps). You understand the pain points of managing thousands of laptops and servers.
+        - 🖥️ Technical Chops: You understand the concepts of MDM (Mobile Device Management) and infrastructure-as-code.
+        - 🍎 Writing Excellence: You can take a complex engineering concept and turn it into clear, engaging, and educational prose.
+        - 🔐 Authenticity: You understand that developers and IT teams hate being "sold to" but love being "taught." You prioritize education over promotion.
 
 
 #- jobTitle: 🌐 Solutions Consultant
@@ -273,24 +294,4 @@
   #    - ➕ Bonus: Experience with Fleet, osquery, or other open-source IT tools. Familiarity with automation tools and scripting (Bash, PowerShell). Experience working in GitHub, with git, or in a code repository.
 
 
- - jobTitle: Product Education Manager
-    department: Marketing
-    hiringManagerName: Ashish Kuthiala
-    hiringManagerLinkedInUrl: https://www.linkedin.com/in/ashishkuthiala/
-    hiringManagerGithubUsername: akuthiala
-    onTargetEarnings:
-   responsibilities: |
-    - 🖥️ Be the Subject Matter Expert (SME): Serve as the technical authority within the marketing team. You will validate product messaging to ensure it resonates with technical practitioners (IT and Security Ops).
-    - 📦 Create Technical Content: Author and review technical assets, including deep-dive blog posts, articles, guides, whitepapers, architectural diagrams, documentation, and video tutorials.
-    - 🔐 Build Demos & Workshops: Don’t just write about it—build it. Create sandbox environments, technical demos, and "how-to" guides that show users exactly how to gain value by using Fleet.
-    - 🛠️ Translate & Articulate: Develop or provide input into messaging that work for the following audiences:
-       - 📊 The Practitioner: Deep technical specs, API capabilities, and deployment guides.
-       - 🚀 The Executive: Business value, security compliance, and ROI.
-    - 📋 Sales & Internal Enablement: Train the sales, partner and marketing teams on the technical nuances of the product. If a sales rep is stumped by a technical question, you are their lifeline.
-    - 🔄 Evangelism: Represent Fleet at industry conferences, webinars, and in the open-source community as needed.
-   experience: |
-      - 💼 Domain Experience: 5+ years of experience in technical marketing, sales engineering, or a practitioner role (SysAdmin, DevOps, SecOps). You understand the pain points of managing thousands of laptops and servers.
-      - 🖥️ Technical Chops: You understand the concepts of MDM (Mobile Device Management) and infrastructure-as-code.
-      - 🍎 Writing Excellence: You can take a complex engineering concept and turn it into clear, engaging, and educational prose.
-      - 🔐 Authenticity: You understand that developers and IT teams hate being "sold to" but love being "taught." You prioritize education over promotion.
 
