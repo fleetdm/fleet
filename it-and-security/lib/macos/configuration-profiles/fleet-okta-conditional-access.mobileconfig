@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+        <!-- Trusted CA certificate -->
+        <dict>
+            <key>PayloadCertificateFileName</key>
+            <string>conditional_access_ca.der</string>
+            <key>PayloadContent</key>
+            <data>$DOGFOOD_OKTA_CERTIFICATE</data>
+            <key>PayloadDescription</key>
+            <string>Fleet conditional access CA certificate</string>
+            <key>PayloadDisplayName</key>
+            <string>Fleet conditional access CA</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.conditional-access-ca</string>
+            <key>PayloadType</key>
+            <string>com.apple.security.root</string>
+            <key>PayloadUUID</key>
+            <string>c6d7357b-5b6b-5577-bd3f-e6c886bad550</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+		<!-- SCEP configuration -->
+		<dict>
+			<key>PayloadContent</key>
+			<dict>
+				<key>URL</key>
+				<string>https://dogfood.fleetdm.com/api/fleet/conditional_access/scep</string>
+				<key>Challenge</key>
+				<string>$DOGFOOD_GLOBAL_ENROLL_SECRET</string>
+				<key>Keysize</key>
+				<integer>2048</integer>
+				<key>Key Type</key>
+				<string>RSA</string>
+				<key>Key Usage</key>
+				<integer>5</integer>
+                <key>ExtendedKeyUsage</key>
+                <array>
+                    <string>1.3.6.1.5.5.7.3.2</string>
+                </array>
+				<key>Subject</key>
+				<array>
+					<array>
+						<array>
+							<string>CN</string>
+							<string>Fleet conditional access for Okta</string>
+						</array>
+					</array>
+				</array>
+				<key>SubjectAltName</key>
+				<dict>
+					<key>uniformResourceIdentifier</key>
+					<array>
+						<string>urn:device:apple:uuid:%HardwareUUID%</string>
+					</array>
+				</dict>
+				<key>Retries</key>
+				<integer>3</integer>
+				<key>RetryDelay</key>
+				<integer>10</integer>
+                <!-- ACL for browser access -->
+                <key>AllowAllAppsAccess</key>
+                <true/>
+                <key>KeyIsExtractable</key>
+                <false/>
+			</dict>
+			<key>PayloadDescription</key>
+			<string>Configures SCEP for Fleet conditional access for Okta certificate</string>
+			<key>PayloadDisplayName</key>
+			<string>Fleet conditional access SCEP</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.conditional-access-scep</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.scep</string>
+			<key>PayloadUUID</key>
+			<string>478f8ebd-ded5-5808-962d-36da7aa06afe</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+        <!-- Identity preference for mTLS endpoint -->
+        <dict>
+            <key>Name</key>
+            <string>https://okta.dogfood.fleetdm.com</string>
+            <key>PayloadCertificateUUID</key>
+            <string>478f8ebd-ded5-5808-962d-36da7aa06afe</string>
+            <key>PayloadDescription</key>
+            <string>Identity preference for mTLS endpoints</string>
+            <key>PayloadDisplayName</key>
+            <string>Fleet mTLS identity preference</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.conditional-access-preference</string>
+            <key>PayloadType</key>
+            <string>com.apple.security.identitypreference</string>
+            <key>PayloadUUID</key>
+            <string>686b683a-9052-5fe5-8dca-31b51b17bb2c</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+        <!-- Chrome web browser configuration -->
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.ManagedClient.preferences</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.chrome.certs</string>
+            <key>PayloadUUID</key>
+            <string>1c1ab10a-e7b5-5c76-937e-03001cc9bffb</string>
+            <key>PayloadDisplayName</key>
+            <string>Chrome mTLS auto-select</string>
+            <key>PayloadContent</key>
+            <dict>
+                <key>com.google.Chrome</key>
+                <dict>
+                    <key>Forced</key>
+                    <array>
+                        <dict>
+                            <key>mcx_preference_settings</key>
+                            <dict>
+                                <key>AllowPolicyInIncognito</key>
+                                <true/>
+                                <key>AutoSelectCertificateForUrls</key>
+                                <array>
+                                    <!-- MUST be stringified JSON -->
+                                    <string>{"pattern":"https://okta.dogfood.fleetdm.com","filter":{"SUBJECT":{"CN":"Fleet conditional access for Okta"}}}</string>
+                                </array>
+                            </dict>
+                        </dict>
+                    </array>
+                </dict>
+            </dict>
+        </dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Configures SCEP enrollment for Okta conditional access</string>
+	<key>PayloadDisplayName</key>
+	<string>Fleet conditional access for Okta</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.conditional-access-okta</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet Device Management</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>User</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>fa49f664-378e-5098-bc32-d8160215f873</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+
