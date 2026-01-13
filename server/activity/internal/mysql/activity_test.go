@@ -188,6 +188,7 @@ func testListActivitiesDateRangeFilter(t *testing.T, ds *Datastore) {
 		end       string
 		wantCount int
 	}{
+		{"no filter", "", "", 3},
 		{"start only", now.Add(-72 * time.Hour).Format(time.RFC3339), "", 3},
 		{"start and end", now.Add(-72 * time.Hour).Format(time.RFC3339), now.Add(-12 * time.Hour).Format(time.RFC3339), 2},
 		{"end only", "", now.Add(-30 * time.Hour).Format(time.RFC3339), 1},
