@@ -105,6 +105,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareAndroidVPPAppMatching", testListHostSoftwareAndroidVPPAppMatching},
 		{"CountHostSoftwareInstallAttempts", testCountHostSoftwareInstallAttempts},
 		{"ListSoftwareVersionsSearchByTitleName", testListSoftwareVersionsSearchByTitleName},
+		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -10560,4 +10561,64 @@ func testListSoftwareVersionsSearchByTitleName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, software, 1, "Search by software name should still work")
 	assert.Equal(t, "Office Runtime Libraries", software[0].Name)
+}
+
+// This test verifies the fix for https://github.com/fleetdm/fleet/issues/33815
+func testListSoftwareInventoryDeletedHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("content"), t.TempDir)
+	require.NoError(t, err)
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo 'installing'",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "installer.pkg",
+		Title:           "Software",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		Platform:        host.Platform,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// install the software on the host
+	installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host.ID,
+		InstallUUID:               installUUID,
+		PreInstallConditionOutput: ptr.String("ok"),
+		InstallScriptExitCode:     ptr.Int(0),
+		PostInstallScriptExitCode: ptr.Int(0),
+	}, nil)
+	require.NoError(t, err)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "name",
+		},
+		OnlyAvailableForInstall: true,
+	}
+	software, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, "Software", software[0].Name)
+	require.Equal(t, titleID, software[0].ID)
+
+	err = ds.DeleteHost(ctx, host.ID)
+	require.NoError(t, err)
+
+	// it should still show up as available for install (still part of the inventory
+	// and the datastore layer does not check if host exists)
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, "Software", software[0].Name)
+	require.Equal(t, titleID, software[0].ID)
 }
