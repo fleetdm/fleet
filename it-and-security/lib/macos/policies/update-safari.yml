@@ -1,15 +1,5 @@
 - name: macOS - Safari up to date
-  query: |
-    SELECT 1 WHERE 
-      NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari')
-      OR (
-        EXISTS (SELECT 1 FROM os_version WHERE version LIKE '26.%')
-        AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '26.1') >= 0)
-      )
-      OR (
-        EXISTS (SELECT 1 FROM os_version WHERE version LIKE '15.%')
-        AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '18.6') >= 0)
-      );
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari') OR (EXISTS (SELECT 1 FROM os_version WHERE version LIKE '26.%') AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '26.1') >= 0)) OR (EXISTS (SELECT 1 FROM os_version WHERE version LIKE '15.%') AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.Safari' AND version_compare(bundle_short_version, '18.6') >= 0));
   critical: false
   description: The host may have an outdated version of Safari, potentially risking security vulnerabilities or compatibility issues.
   resolution: Update Safari by running the Safari update package from self-service, or manually run Software Update ( > System Settings > Software Update).
