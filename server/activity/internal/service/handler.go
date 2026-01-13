@@ -34,14 +34,7 @@ func apiVersions() []string {
 func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.ListActivitiesRequest)
 
-	// Build list options with activity-specific filters
-	opt := req.ListOptions
-	opt.MatchQuery = req.Query
-	opt.ActivityType = req.ActivityType
-	opt.StartCreatedAt = req.StartCreatedAt
-	opt.EndCreatedAt = req.EndCreatedAt
-
-	// Fill in defaults
+	opt := req.ListOptions // Access the embedded api.ListOptions
 	fillListOptions(&opt)
 
 	activities, meta, err := svc.ListActivities(ctx, opt)

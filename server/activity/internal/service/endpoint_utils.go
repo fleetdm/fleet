@@ -60,17 +60,12 @@ func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (
 
 // listOptionsFromRequest parses list options from query parameters.
 func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
-	var err error
-
-	pageString := r.URL.Query().Get("page")
-	perPageString := r.URL.Query().Get("per_page")
-	orderKey := r.URL.Query().Get("order_key")
-	orderDirectionString := r.URL.Query().Get("order_direction")
-	after := r.URL.Query().Get("after")
+	q := r.URL.Query()
 
 	var page int
-	if pageString != "" {
-		page, err = strconv.Atoi(pageString)
+	if val := q.Get("page"); val != "" {
+		var err error
+		page, err = strconv.Atoi(val)
 		if err != nil {
 			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "non-int page value"})
 		}
@@ -80,8 +75,9 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 	}
 
 	var perPage int
-	if perPageString != "" {
-		perPage, err = strconv.Atoi(perPageString)
+	if val := q.Get("per_page"); val != "" {
+		var err error
+		perPage, err = strconv.Atoi(val)
 		if err != nil {
 			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "non-int per_page value"})
 		}
@@ -90,6 +86,8 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 		}
 	}
 
+	orderKey := q.Get("order_key")
+	orderDirectionString := q.Get("order_direction")
 	if orderKey == "" && orderDirectionString != "" {
 		return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "order_key must be specified with order_direction"})
 	}
@@ -109,7 +107,11 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 		PerPage:        uint(perPage), //nolint:gosec // dismiss G115
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
-		After:          after,
+		After:          q.Get("after"),
+		ActivityType:   q.Get("activity_type"),
+		StartCreatedAt: q.Get("start_created_at"),
+		EndCreatedAt:   q.Get("end_created_at"),
+		MatchQuery:     q.Get("query"),
 	}, nil
 }
 

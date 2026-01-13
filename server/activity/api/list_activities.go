@@ -42,6 +42,8 @@ func (a *Activity) AuthzType() string {
 }
 
 // ListOptions defines options for listing activities.
+// Note: Query parameter decoding is handled by listOptionsFromRequest in the service layer,
+// not via struct tags. This keeps the API package free of HTTP-specific concerns.
 type ListOptions struct {
 	// Pagination
 	Page    uint
