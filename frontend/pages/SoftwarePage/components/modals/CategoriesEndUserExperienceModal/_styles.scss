@@ -5,19 +5,14 @@
     gap: $pad-large;
   }
 
-  &__preview {
-    img {
-      width: 100%;
-    }
-  }
-
   .modal-cta-wrap {
     margin-top: 0; // Defer to new gap styling
   }
 
   &__preview-card {
-    max-height: 300px;
+    max-height: 290px;
     overflow: hidden;
+    padding: $pad-xlarge 0 0;
 
     .card-header__header {
       font-size: initial;
@@ -48,6 +43,43 @@
     width: 540px;
     height: 335px;
     z-index: 1000;
+  }
+
+  &__preview-img-container--mobile {
+    img {
+      width: 100%;
+    }
+  }
+
+  &__self-service-preview--mobile {
+    position: relative;
+    top: -94px;
+    left: 175px;
+    display: flex;
+    gap: $pad-small;
+    font-size: 12px;
+    align-items: center;
+    max-width: 210px;
+
+    .software-icon__xsmall {
+      border-radius: $border-radius-small;
+    }
+  }
+
+  &__self-service-preview-name-version--mobile {
+    display: flex;
+    flex-direction: column;
+    font-size: 8px;
+  }
+
+  // Required for tooltip truncating long software names
+  &__self-service-preview-name--mobile {
+    max-width: 115px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    font-weight: $bold;
   }
 }
 

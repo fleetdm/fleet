@@ -8,7 +8,7 @@
   }
 
   &__preview-card {
-    max-height: 203px;
+    max-height: 230px;
     overflow: hidden;
 
     &__fleet,
@@ -30,19 +30,28 @@
     }
 
     &__self-service {
-      height: 350px;
+      width: 515px;
+      height: 310px;
+      @include vertical-card-layout;
     }
-  }
 
-  &__preview-img-container {
-    img {
-      width: 124%;
+    .card-header__header {
+      font-size: initial;
+    }
+
+    .categories-menu {
+      top: 0;
+      width: 200px;
+    }
+
+    .data-table__table {
+      width: 325px;
     }
   }
 
   &__preview-img-container--mobile {
     img {
-      width: 100%; // TODO
+      width: 100%;
     }
   }
 
@@ -104,7 +113,7 @@
   &__self-service-preview-name-version--mobile {
     display: flex;
     flex-direction: column;
-    font-size: $xxx-small;
+    font-size: 8px;
   }
 
   // Required for tooltip truncating long software names
@@ -132,34 +141,10 @@
       bottom: 130px;
       height: 135px;
     }
+
     &--self-service {
       bottom: 200px;
       height: 75px;
-    }
-  }
-
-  // New styles copied from CategoriesEndUserExperienceModal
-  &__preview-card {
-    max-height: 230px;
-    overflow: hidden;
-
-    .card-header__header {
-      font-size: initial;
-    }
-
-    &__self-service {
-      width: 515px;
-      height: 310px;
-      @include vertical-card-layout;
-    }
-
-    .categories-menu {
-      top: 0;
-      width: 200px;
-    }
-
-    .data-table__table {
-      width: 325px;
     }
   }
 

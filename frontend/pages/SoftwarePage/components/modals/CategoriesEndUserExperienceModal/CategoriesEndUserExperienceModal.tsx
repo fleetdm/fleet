@@ -22,9 +22,11 @@ import SelfServiceHeader from "pages/hosts/details/cards/Software/SelfService/co
 import SearchField from "components/forms/fields/SearchField";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import CategoriesMenu from "pages/hosts/details/cards/Software/SelfService/components/CategoriesMenu";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { CATEGORIES_NAV_ITEMS } from "pages/hosts/details/cards/Software/SelfService/helpers";
 
-import CategoriesEndUserExperiencePreviewMobile from "../../../../../../assets/images/categories-end-user-experience-preview-mobile@2x.png";
+import SoftwareIcon from "../../icons/SoftwareIcon";
+import PreviewSelfServiceMobileIcon from "../../../../../../assets/images/preview-self-service-mobile-icon.png";
 
 const baseClass = "categories-end-user-experience-preview-modal";
 
@@ -133,6 +135,7 @@ interface ICategoriesEndUserExperienceModal {
   displayName?: string;
   iconUrl?: string;
   source?: string;
+  mobileVersion?: string;
 }
 
 const CategoriesEndUserExperienceModal = ({
@@ -142,6 +145,7 @@ const CategoriesEndUserExperienceModal = ({
   displayName = "Software name",
   iconUrl,
   source,
+  mobileVersion,
 }: ICategoriesEndUserExperienceModal): JSX.Element => {
   const { config } = useContext(AppContext);
   return (
@@ -150,12 +154,37 @@ const CategoriesEndUserExperienceModal = ({
         <span>What end users see:</span>
 
         {isIosOrIpadosApp ? (
-          <div className={`${baseClass}__preview`}>
-            <img
-              src={CategoriesEndUserExperiencePreviewMobile}
-              alt="Categories end user experience preview"
-            />
-          </div>
+          <Card
+            borderRadiusSize="medium"
+            color="white"
+            className={`${baseClass}__preview-card`}
+            paddingSize="xlarge"
+          >
+            <div className={`${baseClass}__preview-img-container--mobile`}>
+              <img
+                className={`${baseClass}__preview-img--mobile`}
+                src={PreviewSelfServiceMobileIcon}
+                alt="Preview icon on Fleet Desktop > Self-service"
+              />
+            </div>
+            <div className={`${baseClass}__self-service-preview--mobile`}>
+              <SoftwareIcon name={name} source={source} url={iconUrl} />
+              <div
+                className={`${baseClass}__self-service-preview-name-version--mobile`}
+              >
+                <div
+                  className={`${baseClass}__self-service-preview-name--mobile`}
+                >
+                  <TooltipTruncatedText value={displayName || name} />
+                </div>
+                <div
+                  className={`${baseClass}__self-service-preview-version--mobile`}
+                >
+                  {mobileVersion || "Version (unknown)"}
+                </div>
+              </div>
+            </div>
+          </Card>
         ) : (
           <Card
             borderRadiusSize="medium"
