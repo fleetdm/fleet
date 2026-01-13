@@ -1,1 +1,0 @@
-- Fixed the metadata of the "Windows App" macOS installer, as it was reported as "Microsoft AutoUpdate" instead of "Windows App".
