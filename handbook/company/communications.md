@@ -372,7 +372,8 @@ To process intake team members will:
 
 ### Propose an event
 
-Fleet's Marketing team is responsible for deciding/signing off on the events Fleet will participate in. To propose an event, complete the steps in the [Propose event issue](https://github.com/fleetdm/confidential/issues/new?template=prepare-event.md). Once the requester has completed all steps, the marketing team will decide if it's an approved event and proceed with the rest of the issue.
+Fleet's Marketing team is responsible for deciding/signing off on the events Fleet will participate in. To propose an event, complete the steps in the [Propose event issue](https://github.com/fleetdm/confidential/issues/new?template=prepare-event.md). Once the requester has completed all steps, the marketing team will process your request within 72 business hours.
+
 
 
 ### Estimation points
