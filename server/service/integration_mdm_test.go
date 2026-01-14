@@ -20377,8 +20377,7 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	t := s.T()
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
-
-	// test.CreateInsertGlobalVPPToken(t, s.ds)
+	test.CreateInsertGlobalVPPToken(t, s.ds)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
@@ -20399,7 +20398,7 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	fmt.Println("-----------")
 	fmt.Println("profiles: ", profiles)
 	fmt.Println("-----------")
-	fmt.Println("host connected: ", hostConnected)
+	fmt.Println("host connected step 1: ", hostConnected)
 	fmt.Println("-----------")
 
 	ac, err := s.ds.AppConfig(context.Background())
@@ -20407,6 +20406,48 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{}, nil)
 
+	sendMDMDetailsQuery := func(enrolled, serverURL string) {
+		// simulate osquery reporting mdm information
+		rows := []map[string]string{
+			{
+				"enrolled":           enrolled,
+				"installed_from_dep": "false",
+				"server_url":         serverURL,
+				"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+			},
+		}
+		err = detailQueries["mdm"].DirectIngestFunc(
+			context.Background(),
+			kitlog.NewNopLogger(),
+			host,
+			s.ds,
+			rows,
+		)
+		require.NoError(t, err)
+
+	}
+
 	fmt.Println("detail query \"mdm\": ", detailQueries["mdm"])
 	fmt.Println("-----------")
+
+	sendMDMDetailsQuery("true", "https://text.example.com")
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "host_mdm")
+		mysql.DumpTable(t, q, "nano_enrollments")
+		return nil
+	})
+
+	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, host)
+	require.NoError(t, err)
+	fmt.Println("host connected step 2: ", hostConnected)
+	fmt.Println("-----------")
+
+	sendMDMDetailsQuery("false", "")
+
+	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, host)
+	require.NoError(t, err)
+	fmt.Println("host connected step 3: ", hostConnected)
+	fmt.Println("-----------")
+
 }
