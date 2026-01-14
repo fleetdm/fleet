@@ -122,8 +122,8 @@ module.exports = {
       }
     })
     .tolerate((err)=>{
-      // Ignore bad request and invalid stoken vpp token responses when loggin a warning.
-      if(![400, 403].includes(err.statusCode)) {
+      // Ignore invalid stoken vpp token responses when logging errors returned by the Apple API.
+      if(err.statusCode !== 403) {
         sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
       }
       return err;
