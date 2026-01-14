@@ -323,6 +323,7 @@ type TestCommand struct {
 	Data   string
 }
 
+// Wraps the commands in an <Atomic> element for testing purposes
 func ForTestWithData(commands []TestCommand) []byte {
 	var syncMLBuf bytes.Buffer
 	for _, command := range commands {
@@ -336,5 +337,5 @@ func ForTestWithData(commands []TestCommand) []byte {
   </Item>
 </%s>`, command.Verb, command.LocURI, command.Data, command.Verb))
 	}
-	return syncMLBuf.Bytes()
+	return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", syncMLBuf.Bytes())
 }

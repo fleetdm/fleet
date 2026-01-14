@@ -565,8 +565,8 @@ func syncMLForTest(locURI string) []byte {
 
 func atomicSyncMLForTest(locURI string) []byte {
 	data := syncMLForTest(locURI)
-	return []byte(fmt.Sprintf(`
-<Atomic>%s</Atomic>`, data))
+	return fmt.Appendf([]byte{}, `
+<Atomic>%s</Atomic>`, data)
 }
 
 func syncMLForTestWithExec(locURI string) []byte {
@@ -596,8 +596,8 @@ func syncMLForTestWithExec(locURI string) []byte {
 
 func atomicSyncMLForTestWithExec(locURI string) []byte {
 	data := syncMLForTestWithExec(locURI)
-	return []byte(fmt.Sprintf(`
-<Atomic>%s</Atomic>`, data))
+	return fmt.Appendf([]byte{}, `
+<Atomic>%s</Atomic>`, data)
 }
 
 // Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
