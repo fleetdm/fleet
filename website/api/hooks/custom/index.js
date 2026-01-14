@@ -157,7 +157,6 @@ will be disabled and/or hidden in the UI.
           fn: async function(req, res, next){
 
             var url = require('url');
-
             // First, if this is a GET request (and thus potentially a view) or a HEAD request,
             // attach a couple of guaranteed locals.
             if (req.method === 'GET' || req.method === 'HEAD') {
@@ -190,7 +189,7 @@ will be disabled and/or hidden in the UI.
             // Check for query parameters set by ad clicks.
             // This is used to track the reason behind a psychological stage change.
             // If the user performs any action that causes a stage change
-            // within 30 minutes of visiting the website from an ad, their psychological
+            // within 24 hour of visiting the website from an ad, their psychological
             // stage change will be attributed to the ad campaign that brought them here.
             if(req.param('utm_source') && req.param('creative_id') && req.param('campaign_id')){
               req.session.adAttributionString = `${req.param('utm_source')} ads - ${req.param('campaign_id')} - ${_.trim(req.param('creative_id'), '?')}`;// Trim questionmarks from the end of creative_id parameters.
@@ -198,6 +197,23 @@ will be disabled and/or hidden in the UI.
               req.session.visitedSiteFromAdAt = Date.now();
             }
 
+
+            // If a user does not have a marketingAttriution cookie set, check for UTM parameters
+            if(!req.cookies.marketingAttribution) {
+              let marketingAttributionCookieInformation = {
+                source: req.param('utm_source'),// will be undefined if this is not set
+                medium: req.param('utm_medium'),// will be undefined if this is not set
+                campaign: req.param('utm_campaign'),// will be undefined if this is not set
+                referrer: req.get('referer'),
+              };
+              // Add the information to a new cookie for this user that expires 30 days from when it is set.
+              res.cookie('marketingAttribution', marketingAttributionCookieInformation, {maxAge: (1000 * 60 * 60 * 24 * 30)});
+            }
+
+            // FUTURE: remove this code used for testing.
+            if(req.param('clearCookie')){
+              res.clearCookie('marketingAttribution');
+            }
             // Check for website personalization parameter, and if valid, absorb it in the session.
             // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters
