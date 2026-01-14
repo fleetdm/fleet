@@ -138,17 +138,39 @@ In the Google Admin console:
 
 ### Unenroll
 
-You can unenroll a macOS, Windows, or Linux host from Fleet (iOS, iPadOS, and Android hosts coming soon).
-
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
-2. For macOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. For Windows hosts with MDM turned on, follow the [instructions for turning off MDM](https://fleetdm.com/guides/windows-mdm-setup#turn-off-windows-mdm). For iOS, iPadOS hosts with MDM turned on, select **Actions > Turn off MDM**.
+2. If MDM is turned on, for macOS, Windows, iOS/iPadOS, and Android hosts:
+  - For macOS hosts, select **Actions > Turn off MDM** on the host's details page to turn MDM off. 
+  - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's team on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
+  - For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
 
-4. For macOS, Windows, and Linux hosts [uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
+3. Next, for macOS, Windows, and Linux hosts [uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
-5. Select **Actions > Delete** to delete the host from Fleet.
+4. Last, select **Actions > Delete** to delete the host from Fleet.
 
 > If an end user wants to switch their workstation's operating system (e.g. Windows to Linux), before they switch, delete the host from Fleet. Then, re-enroll the host.
+
+## Debugging
+
+If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. Fleetd will send stdout/stderr logs to the following directories:
+
+  - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
+  - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
+  - Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora).
+
+If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
+  - Windows: `C:\Program Files\Orbit\osquery_log`
+  - macOS: `/opt/orbit/osquery_log`
+  - Linux: `/opt/orbit/osquery_log`
+
+The Fleet Desktop log files can be found in the following directories depending on the platform:
+
+  - Linux: `$XDG_STATE_HOME/Fleet or $HOME/.local/state/Fleet`
+  - macOS: `$HOME/Library/Logs/Fleet`
+  - Windows: `%LocalAppData%/Fleet`
+
+The log file name is `fleet-desktop.log`.
 
 ## Advanced
 
@@ -161,7 +183,6 @@ You can unenroll a macOS, Windows, or Linux host from Fleet (iOS, iPadOS, and An
 - [Using host identity certificates](#using-host-identity-certificates)
 - [Specifying update channels](#specifying-update-channels)
 - [Testing osquery queries locally](#testing-osquery-queries-locally)
-- [Finding fleetd logs](#finding-fleetd-logs)
 - [Using system keystore for enroll secret](#using-system-keystore-for-enroll-secret)
 - [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
@@ -418,27 +439,6 @@ When a new version of osquery is released, it's added to the `edge` channel for 
 Fleet comes packaged with `osqueryi` which is a tool for testing osquery queries locally.
 
 With fleetd installed on your host, run `orbit osqueryi` or `orbit shell` to open the `osqueryi`.
-
-### Finding fleetd logs
-
-Fleetd will send stdout/stderr logs to the following directories:
-
-  - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
-  - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
-  - Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora).
-
-If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
-  - Windows: `C:\Program Files\Orbit\osquery_log`
-  - macOS: `/opt/orbit/osquery_log`
-  - Linux: `/opt/orbit/osquery_log`
-
-The Fleet Desktop log files can be found in the following directories depending on the platform:
-
-  - Linux: `$XDG_STATE_HOME/Fleet or $HOME/.local/state/Fleet`
-  - macOS: `$HOME/Library/Logs/Fleet`
-  - Windows: `%LocalAppData%/Fleet`
-
-The log file name is `fleet-desktop.log`.
 
 ### Using system keystore for enroll secret
 

@@ -1,0 +1,1 @@
+- adds a tooltip to and expired abm token and also correctly removes the banner when an expired abm token is deleted.

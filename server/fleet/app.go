@@ -1284,6 +1284,27 @@ func (l ListOptions) UsesCursorPagination() bool {
 	return l.After != "" && l.OrderKey != ""
 }
 
+// DefaultPerPage is the default limit for list queries when no limit is specified.
+const DefaultPerPage = 1000000
+
+// Interface methods for common_mysql.ListOptions
+
+func (l ListOptions) GetPage() uint { return l.Page }
+func (l ListOptions) GetPerPage() uint {
+	if l.PerPage == 0 {
+		return DefaultPerPage
+	}
+	return l.PerPage
+}
+func (l ListOptions) GetOrderKey() string          { return l.OrderKey }
+func (l ListOptions) IsDescending() bool           { return l.OrderDirection == OrderDescending }
+func (l ListOptions) GetCursorValue() string       { return l.After }
+func (l ListOptions) WantsPaginationInfo() bool    { return l.IncludeMetadata }
+func (l ListOptions) GetSecondaryOrderKey() string { return l.TestSecondaryOrderKey }
+func (l ListOptions) IsSecondaryDescending() bool {
+	return l.TestSecondaryOrderDirection == OrderDescending
+}
+
 type ListQueryOptions struct {
 	ListOptions
 
@@ -1476,6 +1497,24 @@ func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
 	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
+// Tier returns the license tier.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetTier() string {
+	return l.Tier
+}
+
+// Organization returns the name of the licensed organization.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetOrganization() string {
+	return l.Organization
+}
+
+// DeviceCount returns the number of licensed devices.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetDeviceCount() int {
+	return l.DeviceCount
+}
+
 const (
 	HeaderLicenseKey          = "X-Fleet-License"
 	HeaderLicenseValueExpired = "Expired"
@@ -1567,6 +1606,14 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	AuditTopic  string `json:"audit_topic"`
 	ProxyHost   string `json:"proxyhost"`
+}
+
+// NatsConfig shadows config.NatsConfig only exposing a subset of fields
+type NatsConfig struct {
+	Server        string `json:"server"`
+	StatusSubject string `json:"status_subject"`
+	ResultSubject string `json:"result_subject"`
+	AuditSubject  string `json:"audit_subject"`
 }
 
 // DeviceGlobalConfig is a subset of AppConfig with information used by the

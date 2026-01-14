@@ -2314,8 +2314,8 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the added software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.
@@ -2359,8 +2359,8 @@ func (a ActivityDeletedAppStoreApp) ActivityName() string {
 func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is deleted from Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -2396,6 +2396,7 @@ type ActivityInstalledAppStoreApp struct {
 	PolicyName          *string `json:"policy_name"`
 	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"-"`
+	FromAutoUpdate      bool    `json:"from_auto_update"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -2407,7 +2408,7 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 }
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
-	return a.PolicyID != nil || a.FromSetupExperience
+	return a.PolicyID != nil || a.FromSetupExperience || a.FromAutoUpdate
 }
 
 func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
@@ -2428,7 +2429,7 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
@@ -2457,6 +2458,9 @@ type ActivityEditedAppStoreApp struct {
 	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 	SoftwareDisplayName string                    `json:"software_display_name"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -2467,14 +2471,18 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
 	return "Generated when an App Store app is updated in Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team on which this App Store app was updated, or ` + "`null`" + ` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or ` + "`null`" + `if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
-- "software_display_name": Display name of the software title.`, `{
+- "software_display_name": Display name of the software title.
+- "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
+- "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+`, `{
   "software_title": "Logic Pro",
   "software_title_id": 123,
   "app_store_id": "1234567",
@@ -2494,6 +2502,9 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
     }
   ]
   "software_display_name": "Logic Pro DAW"
+  "auto_update_enabled": true
+  "auto_update_window_start": "22:00"
+  "auto_update_window_end": "02:00"
 }`
 }
 
@@ -3221,22 +3232,22 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 }`
 }
 
-type ActivityTypeCreatedCertificate struct {
+type ActivityTypeAddedCertificate struct {
 	Name     string  `json:"name"`
 	TeamID   *uint   `json:"team_id"`
 	TeamName *string `json:"team_name"`
 }
 
-func (a ActivityTypeCreatedCertificate) ActivityName() string {
-	return "created_certificate"
+func (a ActivityTypeAddedCertificate) ActivityName() string {
+	return "added_certificate"
 }
 
-func (a ActivityTypeCreatedCertificate) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when an user creates a Certificate Template.`,
+func (a ActivityTypeAddedCertificate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user adds a Certificate Template.`,
 		`This activity contains the following fields:
 - "name": Name of the certificate.
-- "team_id": The ID of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.
-- "team_name": The name of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team where the certificate was added, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was added, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "certificate_name": "WiFi cert",
   "team_id": 123,
   "team_name": "Mobile devices"

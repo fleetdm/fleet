@@ -2072,7 +2072,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedHostIdpData: {
       return TAGGED_TEMPLATES.editedHostIdpData(activity);
     }
-    case ActivityType.CreatedCertificate: {
+    case ActivityType.AddedCertificate: {
       return TAGGED_TEMPLATES.createdCert(activity);
     }
     case ActivityType.DeletedCertificate: {
