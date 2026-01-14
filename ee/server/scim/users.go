@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
@@ -41,14 +43,15 @@ const (
 
 type UserHandler struct {
 	ds     fleet.Datastore
+	svc    fleet.Service
 	logger kitlog.Logger
 }
 
 // Compile-time check
 var _ scim.ResourceHandler = &UserHandler{}
 
-func NewUserHandler(ds fleet.Datastore, logger kitlog.Logger) scim.ResourceHandler {
-	return &UserHandler{ds: ds, logger: logger}
+func NewUserHandler(ds fleet.Datastore, svc fleet.Service, logger kitlog.Logger) scim.ResourceHandler {
+	return &UserHandler{ds: ds, svc: svc, logger: logger}
 }
 
 func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
@@ -443,12 +446,33 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.6
 // MUST return a 404 (Not Found) error code for all operations associated with the previously deleted resource
 func (u *UserHandler) Delete(r *http.Request, id string) error {
+	ctx := r.Context()
+
 	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return errors.ScimErrorResourceNotFound(id)
 	}
-	err = u.ds.DeleteScimUser(r.Context(), idUint)
+
+	// Get the SCIM user first to retrieve their email(s) for matching
+	scimUser, err := u.ds.ScimUserByID(ctx, idUint)
+	if fleet.IsNotFound(err) {
+		level.Info(u.logger).Log("msg", "failed to find scim user to delete", "id", id)
+		return errors.ScimErrorResourceNotFound(id)
+	}
+	if err != nil {
+		level.Error(u.logger).Log("msg", "failed to get scim user", "id", id, "err", err)
+		return err
+	}
+
+	// Try to delete matching Fleet user (always enabled, no feature flag)
+	if err := u.deleteMatchingFleetUser(ctx, scimUser); err != nil {
+		// Log but don't fail - SCIM deletion should still proceed
+		level.Error(u.logger).Log("msg", "failed to delete matching fleet user", "err", err)
+	}
+
+	// Delete the SCIM user (original behavior)
+	err = u.ds.DeleteScimUser(ctx, idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user to delete", "id", id)
@@ -457,6 +481,104 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 		level.Error(u.logger).Log("msg", "failed to delete user", "id", id, "err", err)
 		return err
 	}
+
+	return nil
+}
+
+// deleteMatchingFleetUser attempts to find and delete a Fleet user matching the SCIM user's email.
+// This is called when a SCIM user is deleted from the IdP.
+func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) error {
+	// Collect all emails from SCIM user (including userName if it looks like an email)
+	emails := make([]string, 0, len(scimUser.Emails)+1)
+
+	// userName is often the email in many IdP configurations (especially Okta)
+	// Check this FIRST since scim_user_emails may be empty
+	if strings.Contains(scimUser.UserName, "@") {
+		emails = append(emails, strings.ToLower(scimUser.UserName))
+	}
+
+	// Also check scim_user_emails table entries
+	for _, e := range scimUser.Emails {
+		email := strings.ToLower(e.Email)
+		if !slices.Contains(emails, email) {
+			emails = append(emails, email)
+		}
+	}
+
+	if len(emails) == 0 {
+		level.Debug(u.logger).Log("msg", "no emails found for scim user",
+			"scim_user_id", scimUser.ID, "user_name", scimUser.UserName)
+		return nil
+	}
+
+	// Find matching Fleet user by email
+	var fleetUser *fleet.User
+	for _, email := range emails {
+		user, err := u.ds.UserByEmail(ctx, email)
+		if err == nil {
+			fleetUser = user
+			break
+		}
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "lookup fleet user by email")
+		}
+	}
+
+	if fleetUser == nil {
+		// No matching Fleet user found - this is fine, just log and return
+		level.Debug(u.logger).Log("msg", "no matching fleet user found for scim user",
+			"scim_user_id", scimUser.ID, "user_name", scimUser.UserName)
+		return nil
+	}
+
+	// Skip API-only users
+	if fleetUser.APIOnly {
+		level.Info(u.logger).Log("msg", "skipping deletion of API-only user",
+			"user_id", fleetUser.ID, "email", fleetUser.Email)
+		return nil
+	}
+
+	// Check if user is a global admin - if so, ensure we're not deleting the last one
+	if fleetUser.GlobalRole != nil && *fleetUser.GlobalRole == fleet.RoleAdmin {
+		count, err := u.ds.CountGlobalAdmins(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "count global admins")
+		}
+
+		// Don't delete if this would leave no global admins
+		if count <= 1 {
+			level.Warn(u.logger).Log("msg", "cannot delete last global admin via SCIM",
+				"user_id", fleetUser.ID, "email", fleetUser.Email)
+			return ctxerr.New(ctx, "cannot delete last global admin")
+		}
+	}
+
+	// Delete the Fleet user
+	level.Info(u.logger).Log("msg", "deleting fleet user via SCIM deletion",
+		"user_id", fleetUser.ID, "email", fleetUser.Email)
+
+	// Note: We call the datastore directly, not the service, because:
+	// 1. AuthZ is not applicable for fleet-initiated deletions
+	// 2. We handle the activity creation ourselves with FromScimUserDeletion=true
+	if err := u.ds.DeleteUser(ctx, fleetUser.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete fleet user")
+	}
+
+	// Create activity with fleet_initiated = true
+	if err := u.svc.NewActivity(
+		ctx,
+		nil, // No user performing the action - fleet initiated
+		fleet.ActivityTypeDeletedUser{
+			UserID:               fleetUser.ID,
+			UserName:             fleetUser.Name,
+			UserEmail:            fleetUser.Email,
+			FromScimUserDeletion: true,
+		},
+	); err != nil {
+		// Log but don't fail - user is already deleted
+		level.Error(u.logger).Log("msg", "failed to create activity for fleet user deletion", "err", err)
+	}
+
 	return nil
 }
 

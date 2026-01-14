@@ -352,6 +352,15 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return ds.deleteEntity(ctx, usersTable, id)
 }
 
+func (ds *Datastore) CountGlobalAdmins(ctx context.Context) (int, error) {
+	var count int
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM users WHERE global_role = 'admin'`)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count global admins")
+	}
+	return count, nil
+}
+
 func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {
 	var count int
 	err := sqlx.GetContext(ctx, db, &count, fmt.Sprintf(`SELECT count(*) FROM %s`, tableName))

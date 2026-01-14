@@ -506,9 +506,34 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if p.Teams != nil && len(*p.Teams) > 0 {
 			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
 		}
+
+		// Check if demoting from admin - ensure we're not demoting the last one
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			if *p.GlobalRole != fleet.RoleAdmin {
+				count, err := svc.ds.CountGlobalAdmins(ctx)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "count global admins")
+				}
+				if count <= 1 {
+					return nil, fleet.NewInvalidArgumentError("global_role", "cannot demote the last global admin")
+				}
+			}
+		}
+
 		user.GlobalRole = p.GlobalRole
 		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
+		// Check if demoting from admin by assigning teams (which removes global role)
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			count, err := svc.ds.CountGlobalAdmins(ctx)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "count global admins")
+			}
+			if count <= 1 {
+				return nil, fleet.NewInvalidArgumentError("teams", "cannot demote the last global admin")
+			}
+		}
+
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
 			return nil, authz.ForbiddenWithInternal(
 				"cannot modify teams in that way",
@@ -561,24 +586,10 @@ func (r deleteUserResponse) Error() error { return r.Err }
 
 func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteUserRequest)
-	err := svc.DeleteUser(ctx, req.ID)
+
+	user, err := svc.DeleteUser(ctx, req.ID)
 	if err != nil {
 		return deleteUserResponse{Err: err}, nil
-	}
-	return deleteUserResponse{}, nil
-}
-
-func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
-	user, err := svc.ds.UserByID(ctx, id)
-	if err != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return ctxerr.Wrap(ctx, err)
-	}
-	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
-		return err
-	}
-	if err := svc.ds.DeleteUser(ctx, id); err != nil {
-		return err
 	}
 
 	adminUser := authz.UserFromContext(ctx)
@@ -591,10 +602,38 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 			UserEmail: user.Email,
 		},
 	); err != nil {
-		return err
+		return deleteUserResponse{Err: err}, nil
 	}
 
-	return nil
+	return deleteUserResponse{}, nil
+}
+
+func (svc *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error) {
+	user, err := svc.ds.UserByID(ctx, id)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// prevent deleting admin if they are the last one
+	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+		count, err := svc.ds.CountGlobalAdmins(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "count global admins")
+		}
+		if count <= 1 {
+			return nil, fleet.NewInvalidArgumentError("id", "cannot delete the last global admin")
+		}
+	}
+
+	if err := svc.ds.DeleteUser(ctx, id); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

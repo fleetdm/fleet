@@ -840,13 +840,18 @@ func (a ActivityTypeCreatedUser) Documentation() (activity string, details strin
 }
 
 type ActivityTypeDeletedUser struct {
-	UserID    uint   `json:"user_id"`
-	UserName  string `json:"user_name"`
-	UserEmail string `json:"user_email"`
+	UserID               uint   `json:"user_id"`
+	UserName             string `json:"user_name"`
+	UserEmail            string `json:"user_email"`
+	FromScimUserDeletion bool   `json:"-"`
 }
 
 func (a ActivityTypeDeletedUser) ActivityName() string {
 	return "deleted_user"
+}
+
+func (a ActivityTypeDeletedUser) WasFromAutomation() bool {
+	return a.FromScimUserDeletion
 }
 
 func (a ActivityTypeDeletedUser) Documentation() (activity string, details string, detailsExample string) {

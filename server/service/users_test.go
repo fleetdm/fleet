@@ -95,6 +95,9 @@ func TestUserAuth(t *testing.T) {
 	) error {
 		return nil
 	}
+	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+		return 2, nil // Return 2 to allow operations that check for last admin
+	}
 
 	testCases := []struct {
 		name string
@@ -409,10 +412,10 @@ func TestUserAuth(t *testing.T) {
 			_, err = svc.User(ctx, userTeamMaintainerID)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			err = svc.DeleteUser(ctx, userGlobalMaintainerID)
+			_, err = svc.DeleteUser(ctx, userGlobalMaintainerID)
 			checkAuthErr(t, tt.shouldFailGlobalDelete, err)
 
-			err = svc.DeleteUser(ctx, userTeamMaintainerID)
+			_, err = svc.DeleteUser(ctx, userTeamMaintainerID)
 			checkAuthErr(t, tt.shouldFailTeamDelete, err)
 
 			_, err = svc.RequirePasswordReset(ctx, userGlobalMaintainerID, false)
@@ -1458,4 +1461,298 @@ func testUsersCreateUserWithAPIOnly(t *testing.T, ds *mysql.Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host.ID, hosts[0].ID)
+}
+
+func TestDeleteUserLastAdminProtection(t *testing.T) {
+	t.Run("prevents deleting last global admin", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return adminUser, nil
+		}
+		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+			return 1, nil
+		}
+
+		_, err := svc.DeleteUser(ctx, adminUser.ID)
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		assert.Contains(t, err.Error(), "cannot delete the last global admin")
+	})
+
+	t.Run("allows deleting admin when multiple admins exist", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return adminUser, nil
+		}
+		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+			return 3, nil
+		}
+		ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+
+		_, err := svc.DeleteUser(ctx, adminUser.ID)
+		require.NoError(t, err)
+		assert.True(t, ds.DeleteUserFuncInvoked)
+	})
+
+	t.Run("prevents deleting last global admin even if api-only user", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		apiOnlyAdmin := &fleet.User{
+			ID:         2,
+			Email:      "api-admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    true,
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return apiOnlyAdmin, nil
+		}
+		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+			return 1, nil
+		}
+
+		_, err := svc.DeleteUser(ctx, apiOnlyAdmin.ID)
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		assert.Contains(t, err.Error(), "cannot delete the last global admin")
+	})
+
+	t.Run("allows deleting non-admin user", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		maintainerUser := &fleet.User{
+			ID:         3,
+			Email:      "maintainer@example.com",
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+			APIOnly:    false,
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return maintainerUser, nil
+		}
+		ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+
+		_, err := svc.DeleteUser(ctx, maintainerUser.ID)
+		require.NoError(t, err)
+		assert.True(t, ds.DeleteUserFuncInvoked)
+		assert.False(t, ds.CountGlobalAdminsFuncInvoked)
+	})
+}
+
+func TestModifyUserLastAdminProtection(t *testing.T) {
+	t.Run("prevents demoting last global admin via global_role change", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return adminUser, nil
+		}
+		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+			return 1, nil
+		}
+
+		// Try to demote from admin to maintainer
+		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+		})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		assert.Contains(t, err.Error(), "cannot demote the last global admin")
+	})
+
+	t.Run("prevents demoting last global admin via teams assignment", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return adminUser, nil
+		}
+		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+			return 1, nil
+		}
+		ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+			return []*fleet.TeamSummary{{ID: 1}}, nil
+		}
+
+		// Try to assign teams (which removes global role)
+		teams := []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}
+		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
+			Teams: &teams,
+		})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		assert.Contains(t, err.Error(), "cannot demote the last global admin")
+	})
+
+	t.Run("allows demoting admin when multiple admins exist", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return adminUser, nil
+		}
+		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+			return 3, nil
+		}
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("allows changing admin to admin (no demotion)", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return adminUser, nil
+		}
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		// Change from admin to admin (no actual demotion)
+		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		})
+		require.NoError(t, err)
+		// CountGlobalAdmins should NOT have been called since role isn't changing
+		assert.False(t, ds.CountGlobalAdminsFuncInvoked)
+	})
+
+	t.Run("prevents demoting last global admin even if api-only user", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		adminUser := &fleet.User{
+			ID:         1,
+			Email:      "admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    false,
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+
+		apiOnlyAdmin := &fleet.User{
+			ID:         2,
+			Email:      "api-admin@example.com",
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+			APIOnly:    true,
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return apiOnlyAdmin, nil
+		}
+		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+			return 1, nil
+		}
+
+		_, err := svc.ModifyUser(ctx, apiOnlyAdmin.ID, fleet.UserPayload{
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+		})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		assert.Contains(t, err.Error(), "cannot demote the last global admin")
+	})
 }
