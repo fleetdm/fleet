@@ -23,7 +23,7 @@ On the **Host details** page for macOS, iOS, and iPadOS hosts, you’ll now see 
 
 ### Android software configuration
 
-IT Admins can now configure Android software (`managedConfiguration`) directly in the Fleet UI, via GitOps (YAML), or via Fleet's API. This makes it easier to customize behavior across your Android hosts. For example, you can configure the default `portal` for Palo Alto's [GlobalProtect app](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android) to automatically navigate end users to your VPN. Learn more about configuring Android software in [the guide](TODO).
+IT Admins can now configure Android software (`managedConfiguration`) directly in the Fleet UI, via GitOps (YAML), or via Fleet's API. This makes it easier to customize behavior across your Android hosts. For example, you can configure the default `portal` for Palo Alto's [GlobalProtect app](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android) to automatically navigate end users to your VPN. Learn more in Fleet's [GitOps reference docs](https://fleetdm.com/docs/configuration/yaml-files#app-store-apps).
 
 ### Cross-platform certificate deployment
 
