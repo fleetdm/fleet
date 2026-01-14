@@ -20365,3 +20365,48 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	checkExpectedCommands(mdmClientBYOD, true, 1)
 	checkExpectedCommands(mdmClientDEP, false, 1)
 }
+
+func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
+	// - Create an MDM enrolled host
+	// - Check host_mdm values
+	// - Find out how to run directIngestMDMMac
+	//   - MDMTurnOff itself doesn't need to be tested, just see if it got invoked
+	//
+	// - Check host_mdm values
+
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	// test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	s.awaitTriggerProfileSchedule(t)
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+
+	hostConnected, err := s.ds.IsHostConnectedToFleetMDM(ctx, host)
+	require.NoError(t, err)
+
+	fmt.Println("-----------")
+	fmt.Println("team: ", team)
+	fmt.Println("-----------")
+	fmt.Println("mdm device: ", mdmDevice)
+	fmt.Println("-----------")
+	fmt.Println("profiles: ", profiles)
+	fmt.Println("-----------")
+	fmt.Println("host connected: ", hostConnected)
+	fmt.Println("-----------")
+
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{}, nil)
+
+	fmt.Println("detail query \"mdm\": ", detailQueries["mdm"])
+	fmt.Println("-----------")
+}
