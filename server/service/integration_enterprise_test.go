@@ -12360,6 +12360,69 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
 			"team_id", fmt.Sprintf("%d", *payload.TeamID))
 	})
+
+	t.Run("patch software installer categories", func(t *testing.T) {
+		var labelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "some install script",
+			PreInstallQuery:   "some pre install query",
+			PostInstallScript: "some post install script",
+			Filename:          "ruby.deb",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:            "ruby",
+			Version:          "1:2.5.1",
+			Source:           "deb_packages",
+			StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:         "linux",
+			LabelsIncludeAny: []string{t.Name()},
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// check the software installer
+		_, titleID := checkSoftwareInstaller(t, s.ds, payload)
+
+		// patch the software installer to change the categories and self-service
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":      {"0"},
+			"categories":   {"Browsers", "Productivity"},
+			"self_service": {"true"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		expectedPayload := *payload
+		expectedPayload.Categories = []string{"Browsers", "Productivity"}
+		expectedPayload.SelfService = true
+		checkSoftwareInstaller(t, s.ds, payload)
+
+		meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), nil, titleID, false)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+
+		// patch the software installer to change the categories and nothing else
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":    {"0"},
+			"categories": {"Browsers"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		expectedPayload.Categories = []string{"Browsers"}
+		checkSoftwareInstaller(t, s.ds, payload)
+
+		meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), nil, titleID, false)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+	})
 }
 
 func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
@@ -23604,7 +23667,21 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		require.NoError(t, err)
 		require.Equal(t, expectedPayload.Filename, meta.Name)
 		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
-		require.Equal(t, expectedPayload.Categories, meta.Categories)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+
+		// patch only the categories (test fix for https://github.com/fleetdm/fleet/issues/36069)
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":    {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"categories": {"Browsers"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		expectedPayload.Categories = []string{"Browsers"}
+
+		meta, err = s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
