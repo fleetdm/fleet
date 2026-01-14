@@ -319,6 +319,51 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	hostTeam1 := "123"
 	hostTeam2 := "456"
 	hostTeam3 := "789"
+	hostTeam1Old := "000"
+
+	// No enroll date. This should be treated as a new host and have items enqueued.
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-1",
+		OsqueryHostID:  ptr.String("osquery-macos-1"),
+		NodeKey:        ptr.String("node-key-macos-1"),
+		UUID:           hostTeam1,
+		Platform:       "darwin",
+		HardwareSerial: "654321a",
+	})
+	require.NoError(t, err)
+
+	// Enroll date < 24 hours ago. This should be treated as a new host and have items enqueued.
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-2",
+		OsqueryHostID:  ptr.String("osquery-macos-2"),
+		NodeKey:        ptr.String("node-key-macos-2"),
+		UUID:           hostTeam2,
+		Platform:       "darwin",
+		HardwareSerial: "654321a-2",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-1*time.Hour), hostTeam2)
+		return err
+	})
+
+	// Deliberately not adding a record for the third host, to verify that
+	// we still enqueue items for it if it doesn't exist in the database.
+
+	// Enroll date > 24 hours ago. This should NOT have items enqueued.
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-4",
+		OsqueryHostID:  ptr.String("osquery-macos-4"),
+		NodeKey:        ptr.String("node-key-macos-4"),
+		UUID:           hostTeam1Old,
+		Platform:       "darwin",
+		HardwareSerial: "654321a-4",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), hostTeam1Old)
+		return err
+	})
 
 	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1, team1.ID)
 	require.NoError(t, err)
@@ -340,6 +385,15 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	// Nothing is configured for setup experience in team 3, so we do not set
 	// host_mdm_apple_awaiting_configuration.
 	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam3)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+	require.False(t, awaitingConfig)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1Old, team1.ID)
+	require.NoError(t, err)
+	require.False(t, anythingEnqueued)
+	// This host enrolled > 24 hours ago, so we shouldn't enqueue any items for it.
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam1Old)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 	require.False(t, awaitingConfig)
