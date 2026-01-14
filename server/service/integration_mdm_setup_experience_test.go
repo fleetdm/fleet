@@ -1351,12 +1351,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
-	// Set up some additional VPP apps on the mock Apple servers
-	s.appleITunesSrvData["6"] = `{"bundleId": "f-6", "artworkUrl512": "https://example.com/images/6", "version": "6.0.0", "trackName": "App 6", "TrackID": 6}`
-	s.appleITunesSrvData["7"] = `{"bundleId": "g-7", "artworkUrl512": "https://example.com/images/7", "version": "7.0.0", "trackName": "App 7", "TrackID": 7}`
-	s.appleITunesSrvData["8"] = `{"bundleId": "h-8", "artworkUrl512": "https://example.com/images/8", "version": "8.0.0", "trackName": "App 8", "TrackID": 8}`
-	s.appleITunesSrvData["9"] = `{"bundleId": "i-9", "artworkUrl512": "https://example.com/images/9", "version": "9.0.0", "trackName": "App 9", "TrackID": 9}`
-	s.appleITunesSrvData["10"] = `{"bundleId": "j-10", "artworkUrl512": "https://example.com/images/10", "version": "10.0.0", "trackName": "App 10", "TrackID": 10}`
+	s.registerResetVPPProxyData(t)
+
+	// Set up some additional VPP apps on the mock the Fleet proxy to Apple servers
+	s.appleVPPProxySrvData["6"] = `{"id": "6", "attributes": {"name": "App 6", "platformAttributes": {"osx": {"bundleId": "f-6", "artwork": {"url": "https://example.com/images/6/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "6.0.0"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["7"] = `{"id": "7", "attributes": {"name": "App 7", "platformAttributes": {"osx": {"bundleId": "g-7", "artwork": {"url": "https://example.com/images/7/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "7.0.0"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["8"] = `{"id": "8", "attributes": {"name": "App 8", "platformAttributes": {"osx": {"bundleId": "h-8", "artwork": {"url": "https://example.com/images/8/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "8.0.0"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["9"] = `{"id": "9", "attributes": {"name": "App 9", "platformAttributes": {"osx": {"bundleId": "i-9", "artwork": {"url": "https://example.com/images/9/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.0.0"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["10"] = `{"id": "10", "attributes": {"name": "App 10", "platformAttributes": {"osx": {"bundleId": "j-10", "artwork": {"url": "https://example.com/images/10/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.0.0"}}}, "deviceFamilies": ["mac"]}}`
 
 	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, []vpp.Asset{
 		{
@@ -1387,11 +1389,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	}...)
 
 	t.Cleanup(func() {
-		delete(s.appleITunesSrvData, "6")
-		delete(s.appleITunesSrvData, "7")
-		delete(s.appleITunesSrvData, "8")
-		delete(s.appleITunesSrvData, "9")
-		delete(s.appleITunesSrvData, "10")
 		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
 	})
 
@@ -2241,17 +2238,25 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	for _, enableReleaseManually := range []bool{false, true} {
 		for _, enrollmentProfileFromDEPUsingPost := range []bool{false, true} {
-			for _, device := range devices {
-				t.Run(fmt.Sprintf("%sSetupExperience;enableReleaseManually=%t;EnrollmentProfileFromDEPUsingPost=%t", device.DeviceFamily, enableReleaseManually, enrollmentProfileFromDEPUsingPost), func(t *testing.T) {
-					s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
-						ABMOrg:                            abmOrgName,
-						EnableReleaseManually:             enableReleaseManually,
-						TeamID:                            &team.ID,
-						CustomProfileIdent:                "N1",
-						EnrollmentProfileFromDEPUsingPost: enrollmentProfileFromDEPUsingPost,
-						VppAppsToInstall:                  vppAppIDsByDeviceFamily[device.DeviceFamily],
+			for _, mdmMigrationDeadline := range []bool{false, true} {
+				for _, device := range devices {
+					t.Run(fmt.Sprintf("%sSetupExperience;enableReleaseManually=%t;EnrollmentProfileFromDEPUsingPost=%t;WithMDMMigrationDeadline=%t", device.DeviceFamily, enableReleaseManually, enrollmentProfileFromDEPUsingPost, mdmMigrationDeadline), func(t *testing.T) {
+						if mdmMigrationDeadline {
+							deadline := time.Now().Add(24 * time.Hour)
+							device.MDMMigrationDeadline = &deadline
+						} else {
+							device.MDMMigrationDeadline = nil
+						}
+						s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
+							ABMOrg:                            abmOrgName,
+							EnableReleaseManually:             enableReleaseManually,
+							TeamID:                            &team.ID,
+							CustomProfileIdent:                "N1",
+							EnrollmentProfileFromDEPUsingPost: enrollmentProfileFromDEPUsingPost,
+							VppAppsToInstall:                  vppAppIDsByDeviceFamily[device.DeviceFamily],
+						})
 					})
-				})
+				}
 			}
 		}
 	}
@@ -3384,25 +3389,31 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		return nil, &notFoundError{}
 	}
 
-	// should be called twice - once with the 2 Android apps to make available for self-install,
-	// and once for the setup experience with only the app to install at setup (and install type
-	// PREINSTALLED)
+	// should be called three times:
+	// 1. Fleet agent added during enrollment (via ensureHostSpecificPolicyIsApplied)
+	// 2. The 2 Android apps made available for self-install
+	// 3. Setup experience with only the app to install at setup (PREINSTALLED)
 	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 		patchAppsCallCount++
 		switch patchAppsCallCount {
 		case 1:
-			// first call to make apps available for self-install
-			require.Len(t, appPolicies, 2, "initial call to make apps available for self-install should have 2 apps")
-			require.Equal(t, appPolicies[0].InstallType, "AVAILABLE")
-			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
-			require.Equal(t, appPolicies[1].InstallType, "AVAILABLE")
-			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+			// first call adds Fleet agent during enrollment
+			require.Len(t, appPolicies, 1, "first call should add the Fleet agent")
+			require.Equal(t, "FORCE_INSTALLED", appPolicies[0].InstallType)
+			require.Equal(t, "com.fleetdm.agent", appPolicies[0].PackageName)
 		case 2:
-			// second call for setup experience, should have only app1 with PREINSTALLED
-			require.Len(t, appPolicies, 1, "second call for setup experience should have only 1 app")
-			require.Equal(t, appPolicies[0].InstallType, "PREINSTALLED")
-			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
+			// second call makes apps available for self-install
+			require.Len(t, appPolicies, 2, "second call to make apps available for self-install should have 2 apps")
+			require.Equal(t, "AVAILABLE", appPolicies[0].InstallType)
+			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
+			require.Equal(t, "AVAILABLE", appPolicies[1].InstallType)
+			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
+		case 3:
+			// third call for setup experience, should have only app1 with PREINSTALLED
+			require.Len(t, appPolicies, 1, "third call for setup experience should have only 1 app")
+			require.Equal(t, "PREINSTALLED", appPolicies[0].InstallType)
+			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
 		default:
 			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
 		}
@@ -3474,6 +3485,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	// 2. The Fleet-enforced per-device policy
 	// 3. The patch applications to make apps available for self-service
 	// 4. The patch applications to force install at setup experience
+	// (Note: Fleet agent install call is not recorded in the database)
 	require.Equal(t, 4, count)
 
 	// the pending install should show up in the host software
@@ -3498,7 +3510,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			Name:                 deviceInfo.Name,
 			EnrollmentTokenData:  deviceInfo.EnrollmentTokenData,
 			AppliedPolicyName:    policyName,
-			AppliedPolicyVersion: 2,
+			AppliedPolicyVersion: 3, // policy version 3 is after Fleet agent (1), self-service apps (2), and setup experience (3)
 			ApplicationReports: []*androidmanagement.ApplicationReport{
 				{PackageName: app1.AdamID, State: "INSTALLED"},
 			},
@@ -3509,8 +3521,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	req := android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
 	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q,
-		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
-		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName(), host.ID, app1.Name, fleet.SoftwareInstalled), 0)
+		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "from_auto_update": false, "software_title":%q,
+		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName(), host.ID, host.Platform, app1.Name, fleet.SoftwareInstalled), 0)
 
 	// the pending install should now be verified
 	getHostSw = getHostSoftwareResponse{}
@@ -3553,19 +3565,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		patchAppsCallCount++
 		switch patchAppsCallCount {
 		case 1:
-			// first call to make apps available for self-install
-			require.Len(t, appPolicies, 2, "initial call to make apps available for self-install should have 2 apps")
-			require.Equal(t, appPolicies[0].InstallType, "AVAILABLE")
-			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
-			require.Equal(t, appPolicies[1].InstallType, "AVAILABLE")
-			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+			// first call adds Fleet agent during enrollment
+			require.Len(t, appPolicies, 1, "first call should add the Fleet agent")
+			require.Equal(t, "FORCE_INSTALLED", appPolicies[0].InstallType)
+			require.Equal(t, "com.fleetdm.agent", appPolicies[0].PackageName)
 		case 2:
-			// second call for setup experience, should have both apps
-			require.Len(t, appPolicies, 2, "second call for setup experience should have 2 apps")
-			require.Equal(t, appPolicies[0].InstallType, "PREINSTALLED")
-			require.Equal(t, appPolicies[0].PackageName, app1.VPPAppID.AdamID)
-			require.Equal(t, appPolicies[1].InstallType, "PREINSTALLED")
-			require.Equal(t, appPolicies[1].PackageName, app2.VPPAppID.AdamID)
+			// second call to make apps available for self-install
+			require.Len(t, appPolicies, 2, "second call to make apps available for self-install should have 2 apps")
+			require.Equal(t, "AVAILABLE", appPolicies[0].InstallType)
+			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
+			require.Equal(t, "AVAILABLE", appPolicies[1].InstallType)
+			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
+		case 3:
+			// third call for setup experience, should have both apps
+			require.Len(t, appPolicies, 2, "third call for setup experience should have 2 apps")
+			require.Equal(t, "PREINSTALLED", appPolicies[0].InstallType)
+			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
+			require.Equal(t, "PREINSTALLED", appPolicies[1].InstallType)
+			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
 		default:
 			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
 		}
@@ -3682,8 +3699,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
 	// turn off MDM for that host, should fail the pending install
-	var unenrollResp android.DefaultResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm/unenroll", host1.ID), nil, http.StatusOK, &unenrollResp)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host1.ID), nil, http.StatusNoContent)
 
 	// app install is still pending as the device hasn't reported back its unenrollment yet
 	getHostSw = getHostSoftwareResponse{}
@@ -3724,8 +3740,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	{"enrollment_id": null, "host_display_name": %q, "host_serial": %q, "installed_from_dep": false, "platform": %q}`,
 		host1.DisplayName(), "", host1.Platform), 0) // for some reason the serial is force-set to empty string when we create this activity
 	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q,
-		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
-		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, app1.Name, fleet.SoftwareInstallFailed), 0)
+		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "from_auto_update": false, "software_title":%q,
+		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, host1.Platform, app1.Name, fleet.SoftwareInstallFailed), 0)
 
 	// host2 and host3 haven't been unenrolled, app install is still pending
 	getHostSw = getHostSoftwareResponse{}
@@ -3881,23 +3897,28 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// worker should have:
 	// 1. made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
 	// (this is because I made the worker run after host enrollment, if there were no host, the task would have nothing to do)
-	// 2. made all apps available to the enrolled host (for self-service), from the host enrollment
-	// 3. installed the apps, from the host enrollment
-	require.Len(t, patchAppsPolicies, 4)
+	// 2. added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
+	// 3. made all apps available to the enrolled host (for self-service), from the host enrollment
+	// 4. installed the apps, from the host enrollment
+	require.Len(t, patchAppsPolicies, 5)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
 		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
 	}, patchAppsPolicies[0])
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
 		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
 	}, patchAppsPolicies[1])
+	// Fleet agent is added during enrollment before self-service apps
+	require.Len(t, patchAppsPolicies[2], 1)
+	require.Equal(t, "com.fleetdm.agent", patchAppsPolicies[2][0].PackageName)
+	require.Equal(t, "FORCE_INSTALLED", patchAppsPolicies[2][0].InstallType)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
 		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
 		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[2])
+	}, patchAppsPolicies[3])
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
 		{PackageName: app1.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`1`)},
 		{PackageName: app2.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[3])
+	}, patchAppsPolicies[4])
 
 	patchAppsPolicies = nil
 

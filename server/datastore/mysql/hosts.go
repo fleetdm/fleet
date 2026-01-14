@@ -18,9 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -572,6 +572,7 @@ var hostRefs = []string{
 	// needed for in-house apps as the activity contains the MDM command UUID and
 	// can access the request/response without this table's entry.
 	"host_in_house_software_installs",
+	"host_last_known_locations",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -741,6 +742,7 @@ SELECT
   t.name AS team_name,
   COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
   h.last_restarted_at,
+  h.timezone,
   (
     SELECT
       additional
@@ -1031,7 +1033,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-	h.last_restarted_at
+    h.last_restarted_at,
+    h.timezone
 	`
 
 	sql += hostMDMSelect
@@ -1840,6 +1843,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
             host_mdm_apple_bootstrap_packages hmabp ON hmabp.host_uuid = hh.uuid
         LEFT JOIN
             nano_command_results ncr ON ncr.command_uuid = hmabp.command_uuid
+        LEFT JOIN
+            host_dep_assignments hda ON hda.host_id = hh.id
         WHERE
 	      hh.id = h.id AND hmdm.installed_from_dep = 1`
 
@@ -1850,7 +1855,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 	case fleet.MDMBootstrapPackageFailed:
 		subquery += ` AND ncr.status = 'Error'`
 	case fleet.MDMBootstrapPackagePending:
-		subquery += ` AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
+		// Pending hosts exclude those that were skipped due to migration or will be skipped due to migration
+		subquery += ` AND (hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
 	case fleet.MDMBootstrapPackageInstalled:
 		subquery += ` AND ncr.status = 'Acknowledged'`
 	}
@@ -2223,6 +2229,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		Hostname:       hostInfo.Hostname,
 		HardwareModel:  hostInfo.HardwareModel,
 		HardwareSerial: hostInfo.HardwareSerial,
+		Platform:       hostInfo.Platform,
+		PlatformLike:   hostInfo.PlatformLike,
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		serialToMatch := hostInfo.HardwareSerial
@@ -2698,7 +2706,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
-	  h.last_restarted_at,
+      h.last_restarted_at,
+      h.timezone,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
@@ -3232,6 +3241,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
+      h.timezone,
       t.name AS team_name,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
@@ -4417,6 +4427,7 @@ func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID 
 	checkExistingSQL := `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, hostID)
 	if err == nil {
+		level.Debug(ds.logger).Log("msg", "MaybeAssociateHostWithScimUser: existing SCIM user association found for host", "host_id", hostID, "scim_user_id", existingSCIMUserID)
 		// Existing SCIM user association found, nothing to do.
 		// Bail early so that we don't trigger side-effects downstream like resending profiles.
 		return nil
@@ -4445,6 +4456,7 @@ WHERE
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No MDM IdP account for this host, nothing to do.
+			level.Debug(ds.logger).Log("msg", "MaybeAssociateHostWithScimUser: no MDM IdP account found for host", "host_id", hostID)
 			return nil
 		}
 		return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: get MDM IdP account for host")
@@ -4459,6 +4471,7 @@ WHERE
 func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
 	if idp == nil {
 		// TODO: confirm desired behavior here
+		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: MDM IdP account is nil, skipping association", "host_id", hostID)
 		return nil
 	}
 
@@ -4468,6 +4481,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		return ctxerr.Wrap(ctx, err, "get scim user")
 	case fleet.IsNotFound(err) || scimUser == nil:
 		// There is no SCIM association possible at this time
+		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: no SCIM user found for MDM IdP account", "host_id", hostID, "mdm_idp_username", idp.Username, "mdm_idp_email", idp.Email)
 		return nil
 	}
 
@@ -4475,6 +4489,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
+	level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: associated host with SCIM user", "host_id", hostID, "scim_user_id", scimUser.ID)
 	return nil
 }
 
@@ -5302,7 +5317,8 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			refetch_requested = ?,
 			orbit_node_key = ?,
 			refetch_critical_queries_until = ?,
-			last_restarted_at = COALESCE(?, last_restarted_at)
+			last_restarted_at = COALESCE(?, last_restarted_at),
+			timezone = ?
 		WHERE id = ?
 	`
 
@@ -5350,6 +5366,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 				host.OrbitNodeKey,
 				host.RefetchCriticalQueriesUntil,
 				lastRestartedAt,
+				host.TimeZone,
 				host.ID,
 			)
 			if err != nil {

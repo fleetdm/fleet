@@ -1,0 +1,946 @@
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''MSS: (DisableSavePassword) Prevent the dialup password from being saved (recommended)'' is set to ''Enabled'''
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\RasMan\Parameters\DisableSavePassword' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.4
+  description: 'When you dial a phonebook or VPN entry in Dial-Up Networking, you can use the "Save Password" option so that your Dial-Up Networking password is cached and you will not need to enter it on successive dial attempts. For security, administrators may want to prevent users from caching passwords. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\MSS (Legacy)\MSS:(DisableSavePassword) Prevent the dial-up password from being saved (recommended)
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'' is set to ''Enabled: 300,000 or 5 minutes (recommended)'''
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\KeepAliveTime' AND CAST(data AS INTEGER) <= 300000;
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.6
+  description: 'This value controls how often TCP attempts to verify that an idle connection is still intact by sending a keep-alive packet. If the remote computer is still reachable, it acknowledges the keep-alive packet. The recommended state for this setting is: Enabled: 300,000 or 5 minutes (recommended).'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 300,000 or 5 minutes (recommended). Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keepalive packets are sent in milliseconds'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)'' is set to ''Disabled'''
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\PerformRouterDiscovery' AND data = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.8
+  description: 'This setting is used to enable or disable the Internet Router Discovery Protocol (IRDP), which allows the system to detect and configure default gateway addresses automatically as described in RFC 1256 on a per-interface basis. The recommended state for this setting is: Disabled.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\MSS (Legacy)\MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''MSS: (TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted'' is set to ''Enabled: 3'''
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\TCPIP6\Parameters\TcpMaxDataRetransmissions' AND CAST(data AS INTEGER) <= 3;
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.11
+  description: 'This setting controls the number of times that TCP retransmits an individual data segment (non-connect segment) before the connection is aborted. The retransmission time-out is doubled with each successive retransmission on a connection. It is reset when responses resume. The base time-out value is dynamically determined by the measured round-trip time on the connection. The recommended state for this setting is: Enabled: 3.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 3. Administrative Templates\MSS (Legacy)\MSS:(TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''MSS: (TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted'' is set to ''Enabled: 3'''
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\TcpMaxDataRetransmissions' AND CAST(data AS INTEGER) <= 3;
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.12
+  description: 'This setting controls the number of times that TCP retransmits an individual data segment (non-connect segment) before the connection is aborted. The retransmission time-out is doubled with each successive retransmission on a connection. It is reset when responses resume. The base time-out value is dynamically determined by the measured round-trip time on the connection. The recommended state for this setting is: Enabled: 3.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 3. Administrative Templates\MSS (Legacy)\MSS:(TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn on Mapper I/O (LLTDIO) driver' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'LLTDIO'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.6.8.1
+  description: 'This policy setting changes the operational behavior of the Mapper I/O network protocol driver. LLTDIO allows a computer to discover the topology of a network it''s connected to. It also allows a computer to initiate Quality-of-Service requests such as bandwidth estimation and network health analysis. The recommended state for this setting is: Disabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Network\Link-Layer Topology Discovery\Turn on Mapper I/O (LLTDIO) driver
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn on Responder (RSPNDR) driver' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'RSPNDR'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.6.8.2
+  description: 'This policy setting changes the operational behavior of the Responder network protocol driver. The Responder allows a computer to participate in Link Layer Topology Discovery requests so that it can be discovered and located on the network. It also allows a computer to participate in Quality-of-Service activities such as bandwidth estimation and network health analysis. The recommended state for this setting is: Disabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Network\Link-Layer Topology Discovery\Turn on Responder
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Configuration of wireless settings using Windows Connect Now' is set to 'Disabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_WindowsConnectNow/WCN_EnableRegistrar</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Disabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.6.17.1
+  description: 'This policy setting allows the configuration of wireless settings using Windows Connect Now (WCN). The WCN Registrar enables the discovery and configuration of devices over Ethernet (UPnP) over in-band 802.11 Wi-Fi through the Windows Portable Device API (WPD) and via USB Flash drives. Additional options are available to allow discovery and configuration over a specific medium. The recommended state for this setting is: Disabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Network\Windows Connect Now\Configuration of wireless settings using Windows Connect Now
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Prohibit access of the Windows Connect Now wizards' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_WindowsConnectNow/WCN_DisableWcnUi_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.6.17.2
+  description: 'This policy setting prohibits access to Windows Connect Now (WCN) wizards. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Network\Windows Connect Now\Prohibit access of the Windows Connect Now wizards
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off access to the Store' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\device\ApplicationManagement\DisableStoreOriginatedApps' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.1
+  description: 'This policy setting specifies whether to use the Store service for finding an application to open a file with an unhandled file type or protocol association. When a user opens a file type or protocol that is not associated with any applications on the computer, the user is given the choice to select a local application or use the Store service to find an application. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off Help Experience Improvement Program (User)' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Assistance\Client\1.0\NoImplicitFeedback' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.3
+  description: 'This policy setting specifies whether users can participate in the Help Experience Improvement program. The Help Experience Improvement program collects information about how customers use Windows Help so that Microsoft can improve it. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication Settings\Turn off Help Experience Improvement Program
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/NC_ExitOnISP</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.4
+  description: 'This policy setting specifies whether the Internet Connection Wizard can connect to Microsoft to download a list of Internet Service Providers (ISPs). The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off printing over HTTP' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Connectivity/DiablePrintingOverHTTP</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.6
+  description: 'This policy setting allows you to disable the client computer''s ability to print over HTTP, which allows the computer to print to printers on the intranet as well as the Internet. The recommended state for this setting is: Enabled. Note: This control affects printing over both HTTP and HTTPS.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off printing over HTTP
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off Registration if URL connection is referring to Microsoft.com' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/NC_NoRegistration</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.7
+  description: 'This policy setting specifies whether the Windows Registration Wizard connects to Microsoft.com for online registration. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Registration if URL connection is referring to Microsoft.com
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off Search Companion content file updates' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/SearchCompanion_DisableFileUpdates</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.8
+  description: 'This policy setting specifies whether Search Companion should automatically download content updates during local and Internet searches. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Search Companion content file updates
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off the "Order Prints" picture task' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/ShellRemoveOrderPrints_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.9
+  description: 'This policy setting specifies whether the "Order Prints Online" task is available from Picture Tasks in Windows folders. The Order Prints Online Wizard is used to download a list of providers and allow users to order prints online. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Order Prints" picture task
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off the "Publish to Web" task for files and folders' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/ShellRemovePublishToWeb_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.10
+  description: 'This policy setting specifies whether the tasks Publish this file to the Web, Publish this folder to the Web, and Publish the selected items to the Web are available from File and Folder Tasks in Windows folders. The Web Publishing wizard is used to download a list of providers and allow users to publish content to the Web. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Publish to Web" task for files and folders
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off the Windows Messenger Customer Experience Improvement Program' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/WinMSG_NoInstrumentation_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.11
+  description: 'This policy setting specifies whether the Windows Customer Experience Improvement Program can collect anonymous information about how Windows is used. Microsoft uses information collected through the Windows Customer Experience Improvement Program to improve features that are most used and to detect flaws so that they can be corrected more quickly. Enabling this setting will reduce the amount of data Microsoft is able to gather for this purpose. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the Windows Messenger Customer Experience Improvement Program
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off Windows Customer Experience Improvement Program' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/CEIPEnable</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.12
+  description: 'This policy setting specifies whether Windows Messenger can collect anonymous information about how the Windows Messenger software and service is used. Microsoft uses information collected through the Windows Customer Experience Improvement Program to detect software flaws so that they can be corrected more quickly, enabling this setting will reduce the amount of data Microsoft is able to gather for this purpose. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Customer Experience Improvement Program
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off Windows Error Reporting' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Disabled' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.13
+  description: 'This policy setting controls whether or not errors are reported to Microsoft. Error Reporting is used to report information about a system or application that has failed or has stopped responding and is used to improve the quality of the product. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Error Reporting
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''Support device authentication using certificate'' is set to ''Enabled: Automatic'''
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_Kerberos/DevicePKInitEnabled</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.23.1
+  description: 'This policy setting allows you to set support for Kerberos to attempt authentication using the certificate for the device to the domain. Support for device authentication using certificate will require connectivity to a DC in the device account domain which supports certificate authentication for computer accounts. The recommended state for this setting is: Enabled: Automatic.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Automatic. Administrative Templates\System\Kerberos\Support device authentication using certificate'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Control Panel\International\BlockUserInputMethodsForSignIn' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.25.1
+  description: 'This policy prevents automatic copying of user input methods to the system account for use on the sign-in screen. The user is restricted to the set of input methods that are enabled in the system account. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider'' is set to ''Disabled'''
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_MSDT/MsdtSupportProvider</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<disabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.40.5.1
+  description: 'This policy setting configures Microsoft Support Diagnostic Tool (MSDT) interactive communication with the support provider. MSDT gathers diagnostic data for analysis by support professionals. The recommended state for this setting is: Disabled.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\System\Troubleshooting and Diagnostics\Microsoft Support Diagnostic Tool\Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Block launching Universal Windows apps with Windows Runtime API access from hosted content.' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_AppxRuntime/AppxRuntimeBlockHostedAppAccessWinRT</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Enabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.3.2
+  description: 'This policy setting controls whether Microsoft Store apps with Windows Runtime API access directly from web content can be launched. The recommended state for this setting is: Enabled.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\App runtime\Block launching Universal Windows apps with Windows Runtime API access from hosted content. Note: A reboot may be required after the setting is applied.'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Join Microsoft MAPS' is set to 'Disabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_MicrosoftDefenderAntivirus/SpynetReporting</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<disabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.28.3.2
+  description: 'This policy setting allows you to join Microsoft Active Protection Service (MAPS), which Microsoft renamed to Windows Defender Antivirus Cloud Protection Service and then Microsoft Defender Antivirus Cloud Protection Service. Microsoft MAPS / Microsoft Defender Antivirus Cloud Protection Service is the online community that helps you choose how to respond to potential threats. The community also helps stop the spread of new malicious software infections. You can choose to send basic or additional information about detected software. Additional information helps Microsoft create new definitions and help it to protect your computer. Possible options are: • • • (0x0) Disabled (default) (0x1) Basic membership (0x2) Advanced membership Basic membership will send basic information to Microsoft about software that has been detected including where the software came from the actions that you apply or that are applied automatically and whether the actions were successful. Advanced
+    membership in addition to basic information will send more information to Microsoft about malicious software spyware and potentially unwanted software including the location of the software file names how the software operates and how it has impacted your computer. The recommended state for this setting is: Disabled. Note: In Windows 10 and above, Basic membership is no longer available, so setting the value to 1 Basic, or 2 Advanced, enrolls the device into Advanced membership. For more information, please visit: Turn on cloud protection in Microsoft Defender Antivirus Microsoft Defender for Endpoint | Microsoft Learn.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Microsoft Defender Antivirus\MAPS\Join Microsoft MAPS
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Configure Watson events' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Disabled' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.28.10.1
+  description: 'This policy setting allows you to configure whether or not Watson events are sent. The recommended state for this setting is: Disabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Microsoft Defender Antivirus\Reporting\Configure Watson events
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off Push To Install service' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ApplicationManagement/DisableStoreOriginatedApps</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.35.1
+  description: 'This policy setting controls whether users can push Apps to the device from the Microsoft Store App running on other devices or the web. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Push to Install\Turn off Push To Install service
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow users to connect remotely by using Remote Desktop Services' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server\fDenyTSConnections' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.2.1
+  description: 'This policy setting allows you to configure remote access to computers by using Remote Desktop Services. The recommended state for this setting is: Disabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Connections\Allow users to connect remotely by using Remote Desktop Services
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Do not allow COM port redirection' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fDisableCcm' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.3.1
+  description: 'This policy setting specifies whether to prevent the redirection of data to client COM ports from the remote computer in a Remote Desktop Services session. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Do not allow COM port redirection
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Do not allow LPT port redirection' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fDisableLPT' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.3.3
+  description: 'This policy setting specifies whether to prevent the redirection of data to client LPT ports during a Remote Desktop Services session. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Do not allow LPT port redirection
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Do not allow supported Plug and Play device redirection' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fDisablePNPRedir' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.3.4
+  description: 'This policy setting allows you to control the redirection of supported Plug and Play devices, such as Windows Portable Devices, to the remote computer in a Remote Desktop Services session. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Do not allow supported Plug and Play device redirection
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''Restrict clipboard transfer from server to client'' is set to ''Enabled: Disable clipboard transfers from server to client'''
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fDisableClip' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.3.5
+  description: 'This policy setting controls whether the clipboard can be used to transfer data from the Remote Desktop session to the client. The recommended state for this setting is: Enabled: Disable clipboard transfers from server to client.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Disable clipboard transfers from server to client. Administrative Templates\Windows Components\Remote Desktop Session Host\Device and Resource Redirection\Restrict clipboard transfer from server to client'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''Set time limit for active but idle Remote Desktop Services sessions'' is set to ''Enabled: 15 minutes or less, but not Never (0)'''
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_TerminalServer/TS_SESSIONS_Idle_Limit_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%' AND CAST(SUBSTR(mdm_command_output, INSTR(mdm_command_output, 'value="') + 7, INSTR(SUBSTR(mdm_command_output, INSTR(mdm_command_output, 'value="') + 7), '"') - 1) AS INTEGER) BETWEEN 1 AND 900000;
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.10.1
+  description: 'This policy setting allows you to specify the maximum amount of time that an active Remote Desktop Services session can be idle (without user input) before it is automatically disconnected. The recommended state for this setting is: Enabled: 15 minutes or less, but not Never (0).'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 15 minutes or less, but not Never (0). Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active but idle Remote Desktop Services sessions'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''Set time limit for disconnected sessions'' is set to ''Enabled: 1 minute'''
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_TerminalServer/TS_SESSIONS_Disconnected_Timeout_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%' AND mdm_command_output LIKE '%value="60000"%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.10.2
+  description: 'This policy setting allows you to configure a time limit for disconnected Remote Desktop Services sessions. The recommended state for this setting is: Enabled: 1 minute.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 1 minute. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for disconnected sessions'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn off the Store application' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_WindowsStore/RemoveWindowsStore_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.42.2
+  description: 'This setting denies or allows access to the Store application. The recommended state for this setting is: Enabled. Note: Per Microsoft TechNet and MSKB 3135657, this policy setting does not apply to any Windows 10 editions other than Enterprise and Education.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Store\Turn off the Store application
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Prevent Internet Explorer security prompt for Windows Installer scripts' is set to 'Disabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_MSI/SafeForScripting</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<disabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.49.1
+  description: 'This policy setting controls whether Web-based programs are allowed to install software on the computer without notifying the user. The recommended state for this setting is: Disabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Windows Installer\Prevent Internet Explorer security prompt for Windows Installer scripts
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Prevent Codec Download (User)' is set to 'Enabled'
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\\S-1-5-21-%\\SOFTWARE\\Policies\\Microsoft\\WindowsMediaPlayer\\PreventCodecDownload' AND data = '1') OR EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsMediaPlayer\\PreventCodecDownload' AND data = '1');
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.52.2.1
+  description: 'This setting controls whether Windows Media Player is allowed to download additional codecs for decoding media files it does not already understand. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Windows Media Player\Playback\Prevent Codec Download (User)
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn on PowerShell Script Block Logging' is set to 'Enabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<Enabled/>%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.54.1
+  description: 'This policy setting enables logging of all PowerShell script input to the Applications and Services Logs\Microsoft\Windows\PowerShell\Operational Event Log channel. The recommended state for this setting is: Enabled. Note: If logging of Script Block Invocation Start/Stop Events is enabled (option box checked), PowerShell will log additional events when invocation of a command, script block, function, or script starts or stops. Enabling this option generates a high volume of event logs. CIS has intentionally chosen not to make a recommendation for this option, since it generates a large volume of events. If an organization chooses to enable the optional setting (checked), this also conforms to the benchmark.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Windows PowerShell\Turn on PowerShell Script Block Logging
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Turn on PowerShell Transcription' is set to 'Enabled'
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/WindowsPowerShell/TurnOnPowerShellTranscription</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%') OR EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription\EnableTranscripting' AND data = '1');
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.54.2
+  description: 'This Policy setting lets you capture the input and output of Windows PowerShell commands into text-based transcripts. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Windows PowerShell\Turn on PowerShell Transcription
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow remote server management through WinRM' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service\AllowAutoConfig' AND data = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.55.2.2
+  description: 'This policy setting allows you to manage whether the Windows Remote Management (WinRM) service automatically listens on the network for requests on the HTTP transport over the default HTTP port. The recommended state for this setting is: Disabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Windows Remote Management (WinRM)\WinRM Service\Allow remote server management through WinRM
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Remote Shell Access' is set to 'Disabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/RemoteShell/AllowRemoteShellAccess</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Disabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.56.1
+  description: 'This policy setting allows you to manage configuration of remote access to all supported shells to execute scripts and commands. The recommended state for this setting is: Disabled. Note: The GPME help text for this setting is incorrectly worded, implying that configuring it to Enabled will reject new Remote Shell connections, and setting it to Disabled will allow Remote Shell connections. The opposite is true (and is consistent with the title of the setting). This is a wording mistake by Microsoft in the Administrative Template.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Windows Remote Shell\Allow Remote Shell Access
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Camera' is set to 'Not allowed'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Camera/AllowCamera</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS12.1
+  description: 'This policy setting controls whether the use of Camera devices on the machine are permitted. The recommended state for this setting is: Not allowed.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Not allowed: Camera\Allow Camera'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Enable Convert Warn To Block' is set to 'Warn verdicts are converted to block'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Configuration/EnableConvertWarnToBlock</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS22.24
+  description: 'This policy setting controls whether Microsoft Defender Antivirus network protection will display a warning, or block network traffic. The recommended state for this setting is: Warn verdicts are converted to block.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Warn verdicts are converted to block. Defender\Enable Convert Warn To Block
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Enable File Hash Computation' is set to 'Enable'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Configuration/EnableFileHashComputation</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS22.25
+  description: 'This setting determines whether hash values are computed for files scanned by Microsoft Defender. The recommended state for this setting is: Enable.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enable. Defender\Enable File Hash Computation
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Remote Encryption Protection Aggressiveness' is set to 'Medium' or higher
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Configuration/RemoteEncryptionProtectionAggressiveness</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output IN ('1', '2')) OR EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Defender\\Configuration\\BehavioralNetworkBlocks\\RemoteEncryptionProtection\\RemoteEncryptionProtectionAggressiveness' AND data IN ('1', '2'));
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS22.31
+  description: 'This policy setting configures how aggressively Remote Encryption Prevention Protection blocks malicious IP addresses. The recommended state for this setting is: Medium: Use cloud aggregation and block when confidence level is above 99% or higher. Configuring this setting to High: Use cloud intel and context, and block when confidence level is above 90% also conforms to the benchmark. Note: As of the publication of this Benchmark, the setting configuration state in Intune is the sentence above after The recommended state for this setting is: and not Medium or higher as the title states. This was done to keep title length to a minimum.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Medium: Use cloud aggregation and block when confidence level is above 99% or High: Use cloud intel and context, and block when confidence level is above 90%. Defender\Remote Encryption Protection Aggressiveness'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Windows Spotlight (User)' is set to 'Block'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\S-1-%\SOFTWARE\Policies\Microsoft\Windows\CloudContent\DisableWindowsSpotlightFeatures' AND data = '1' LIMIT 1;
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS34.3
+  description: 'This policy setting determines whether the all Windows Spotlight features are turned on/off (together). The recommended state for this setting is: Block. Note: Per Microsoft TechNet, this policy setting only applies to Windows 10 Enterprise and Windows 10 Education editions. Note #2: Setting this recommendation to Block also disables the Recommendation Allow Tailored Experiences With Diagnostic Data which was is included in the onprem Workstation Benchmarks. It was not included in the Intune version since this setting is automatically disabled.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block: Experience\Allow Windows Spotlight (User)'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Disallow KMS Client Online AVS Validation' is set to 'Allow'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Licensing/DisallowKMSClientOnlineAVSValidation</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS47.1
+  description: 'The Key Management Service (KMS) is a Microsoft license activation method that entails setting up a local server to store the software licenses. The KMS server itself needs to connect to Microsoft to activate the KMS service, but subsequent on-network clients can activate Microsoft Windows OS and/or their Microsoft Office via the KMS server instead of connecting directly to Microsoft. This policy setting lets you opt-out of sending KMS client activation data to Microsoft automatically. The recommended state for this setting is: Allow.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Allow: Licensing\Disallow KMS Client Online AVS Validation'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''Devices: Prevent users from installing printerdrivers when connecting to shared printers'' is set to ''Enable'''
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Providers\LanMan Print Services\Servers\AddPrinterDrivers' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS49.5
+  description: 'For a computer to print to a shared printer, the driver for that shared printer must be installed on the local computer. This security setting determines who is allowed to install a printer driver as part of connecting to a shared printer. The recommended state for this setting is: Enable. Note: This setting does not affect the ability to add a local printer. This setting does not affect Administrators.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enable: Local Policies Security Options\Devices: Prevent users from installing printer drivers when connecting to shared printers'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Message Sync' is set to 'message sync is not allowed and cannot be changed by the user.'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Messaging/AllowMessageSync</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS54.1
+  description: 'This policy setting allows backup and restore of cellular text messages to Microsoft''s cloud services. The recommended state for this setting is: message sync is not allowed and cannot be changed by the user..'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to message sync is not allowed and cannot be changed by the user.: Messaging\Allow Message Sync'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Shared User App Data' is set to 'Block'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ApplicationManagement/AllowSharedUserAppData</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS55.3
+  description: 'Manages a Windows app''s ability to share data between users who have installed the app. Data is shared through the SharedLocal folder. This folder is available through the Windows.Storage API. The recommended state for this setting is: Block.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block. Microsoft App Store\Allow Shared User App Data
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Disable Store Originated Apps' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\device\ApplicationManagement\DisableStoreOriginatedApps' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS55.5
+  description: 'This setting configures the launch of all apps from the Microsoft Store that came preinstalled or were downloaded. The recommended state for this setting is: Enabled. Note: This policy setting only applies to Windows 10 Enterprise and Windows 10 Education editions.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Microsoft App Store\Disable Store Originated Apps'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Disallow Cloud Notification' is set to 'Allow'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Notifications/DisallowCloudNotification</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS61.1
+  description: 'This policy setting blocks applications from using the network to send notifications to update tiles, tile badges, toast, or raw notifications. This policy setting turns off the connection between Windows and the Windows Push Notification Service (WNS). This policy setting also stops applications from being able to poll application services to update tiles. The recommended state for this setting is: Allow.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Allow. Notifications\Disallow Cloud Notification
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Cross Device Clipboard' is set to 'Block'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Privacy/AllowCrossDeviceClipboard</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS68.1
+  description: 'This setting determines whether Clipboard contents can be synchronized across devices. The recommended state for this setting is: Block.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block: Privacy\Allow Cross Device Clipboard'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Disable Advertising ID' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo\DisabledByGroupPolicy' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS68.3
+  description: 'This policy setting turns off the advertising ID, preventing apps from using the ID for experiences across apps. The recommended state for this setting is: Enabled.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Privacy\Disable Advertising ID'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Upload User Activities' is set to 'Disabled'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Privacy/UploadUserActivities</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS68.5
+  description: 'This policy setting determines whether published User Activities can be uploaded to the cloud. The recommended state for this setting is: Disabled.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled: Privacy\Upload User Activities'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Cloud Search' is set to 'Not allowed'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Search/AllowCloudSearch</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS72.1
+  description: 'This policy setting allows search and Cortana to search cloud sources like OneDrive and SharePoint. The recommended state for this setting is: Not allowed.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Not allowed: Search\Allow Cloud Search'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow search highlights' is set to '0'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Search\EnableDynamicContentInWSB' AND data = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS72.4
+  description: 'This policy setting controls search highlights in the start menu search box and in search home. The recommended state for this setting is: 0. Note: As of February 2024 this setting does not deploy correctly on Windows 10 via Intune and only applies to Windows 11.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to 0: Search\Allow search highlights'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Online Tips' is set to 'Block'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Settings/AllowOnlineTips</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS74.1
+  description: 'This policy setting configures the retrieval of online tips and help for the Settings app. The recommended state for this setting is: Block.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block. Settings\Allow Online Tips
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Font Providers' is set to 'Not allowed'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/System/AllowFontProviders</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS80.1
+  description: 'This policy setting determines whether Windows is allowed to download fonts and font catalog data from an online font provider. The recommended state for this setting is: Not allowed.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Not allowed: System\Allow Font Providers'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Location' is set to 'Force Location Off...'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/System/AllowLocation</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS80.2
+  description: 'This policy setting turns off the location feature for the computer. The recommended state for this setting is: Force Location Off Force Location Off. All Location Privacy settings are toggled off and grayed out. Users can''t change the settings, and no apps are allowed access to the Location service, including Cortana and Search..'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Force Location Off.... System\Allow Location
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Disable Enterprise Auth Proxy' is set to 'Enable'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet\DisableEnterpriseAuthProxy' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS80.4
+  description: 'This policy setting controls whether the Connected User Experience and Telemetry service can automatically use an authenticated proxy to send data back to Microsoft. The recommended state for this setting is: Enable.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enable. System\Disable Enterprise Auth Proxy
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Disable One Drive File Sync' is set to 'Sync Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\OneDrive\DisableFileSyncNGSC' AND data = '1';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS80.5
+  description: 'This policy setting lets you prevent apps and features from working with files on OneDrive using the Next Generation Sync Client. The recommended state for this setting is: Sync Disabled.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Sync Disabled: System\Disable One Drive File Sync'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'BTAGService'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.1
+  description: 'Service supporting the audio gateway role of the Bluetooth Handsfree Profile. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name BTAGService -StartupType Disabled Note: This service was first introduced in Windows 10 Release 1803. It appears to have replaced the older Bluetooth Handsfree Service (BthHFSrv), which was removed from Windows in that release (it is not simply a rename, but a different service).'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Bluetooth Support Service (bthserv)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'bthserv'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.2
+  description: 'The Bluetooth service supports discovery and association of remote Bluetooth devices. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name bthserv -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\MapsBroker\Start' AND data = '4';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.4
+  description: Windows service for application access to downloaded maps. This service is started ondemand by application accessing downloaded maps.
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name MapsBroker -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'GameInput Service (GameInputSvc)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'GameInputSvc'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.5
+  description: 'This service enables the use of keyboards, mice, gamepads, and other input devices to be used with the GameInput API. The recommended state for this setting is: Disabled. Note: GameInput service runs as LocalSystem in its own process of GameInputSvc.exe and doesn''t share its process with other services.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name GameInputSvc -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'lfsvc') OR EXISTS (SELECT 1 FROM services WHERE name = 'lfsvc' AND start_type = 'DISABLED');
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.6
+  description: 'This service monitors the current location of the system and manages geofences (a geographical location with associated events). The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name lfsvc -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'lltdsvc'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.9
+  description: 'Creates a Network Map, consisting of PC and device topology (connectivity) information, and metadata describing each PC and device. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name lltdsvc -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'
+  query: SELECT 1 FROM services WHERE name = 'MSiSCSI' AND UPPER(start_type) = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.12
+  description: 'Manages Internet SCSI (iSCSI) sessions from this computer to remote target devices. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name MSiSCSI -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Print Spooler (Spooler)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'Spooler'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.14
+  description: 'This service spools print jobs and handles interaction with printers. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name Spooler -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'wercplsupport'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.15
+  description: 'This service provides support for viewing, sending and deletion of system-level problem reports for the Problem Reports and Solutions control panel. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name wercplsupport -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'RasAuto'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.16
+  description: 'Creates a connection to a remote network whenever a program references a remote DNS or NetBIOS name or address. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name RasAuto -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'SessionEnv'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.17
+  description: 'Remote Desktop Configuration service (RDCS) is responsible for all Remote Desktop related configuration and session maintenance activities that require SYSTEM context. These include per-session temporary folders, RD themes, and RD certificates. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name SessionEnv -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'TermService'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.18
+  description: 'Allows users to connect interactively to a remote computer. Remote Desktop and Remote Desktop Session Host Server depend on this service. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name TermService -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Remote Desktop Services UserMode Port Redirector (UmRdpService)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'UmRdpService'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.19
+  description: 'Allows the redirection of Printers/Drives/Ports for RDP connections. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name UmRdpService -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Remote Registry (RemoteRegistry)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'RemoteRegistry'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.21
+  description: 'Enables remote users to view and modify registry settings on this computer. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name RemoteRegistry -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Server (LanmanServer)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'LanmanServer'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.23
+  description: 'Supports file, print, and named-pipe sharing over the network for this computer. If this service is stopped, these functions will be unavailable. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name LanmanServer -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'SNMP Service (SNMP)' is set to 'Disabled' or 'Not Installed'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'SNMP'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.25
+  description: 'Enables Simple Network Management Protocol (SNMP) requests to be processed by this computer. The recommended state for this setting is: Disabled or Not Installed. Note: This service is not installed by default. It is supplied with Windows, but is installed by enabling an optional Windows feature (Simple Network Management Protocol (SNMP)).'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name SNMP -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Windows Error Reporting Service (WerSvc)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'WerSvc'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.30
+  description: 'Allows errors to be reported when programs stop working or responding and allows existing solutions to be delivered. Also allows logs to be generated for diagnostic and repair services. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name WerSvc -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Windows Event Collector (Wecsvc)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'Wecsvc'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.31
+  description: 'This service manages persistent subscriptions to events from remote sources that support WS-Management protocol. This includes Windows Vista event logs, hardware and IPMI-enabled event sources. The service stores forwarded events in a local Event Log. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name Wecsvc -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Windows Push Notifications System Service (WpnService)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'WpnService'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.34
+  description: 'This service runs in session 0 and hosts the notification platform and connection provider which handles the connection between the device and WNS server. The recommended state for this setting is: Disabled. Note: In the first two releases of Windows 10 (R1507 & R1511), the display name of this service was initially named Windows Push Notifications Service - but it was renamed to Windows Push Notifications System Service starting with Windows 10 R1607.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name WpnService -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Windows PushToInstall Service (PushToInstall)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'PushToInstall'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.35
+  description: 'This service manages Apps that are pushed to the device from the Microsoft Store App running on other devices or the web. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name PushToInstall -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Windows Remote Management (WSManagement) (WinRM)' is set to 'Disabled'
+  query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'WinRM'), 'DISABLED') = 'DISABLED';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.36
+  description: 'Windows Remote Management (WinRM) service implements the WS-Management protocol for remote management. WS-Management is a standard web services protocol used for remote software and hardware management. The WinRM service listens on the network for WS-Management requests and processes them. The recommended state for this setting is: Disabled.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name WinRM -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'WinHTTP Web Proxy Auto-Discovery Service (WinHttpAutoProxySvc)' is set to 'Disabled'
+  query: SELECT 1 FROM services WHERE name = 'WinHttpAutoProxySvc' AND UPPER(start_type) IN ('DISABLED', 'DEMAND_START');
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.37
+  description: 'WinHTTP implements the client HTTP stack and provides developers with a Win32 API and COM Automation component for sending HTTP requests and receiving responses. In addition, WinHTTP provides support for auto-discovering a proxy configuration via its implementation of the Web Proxy Auto-Discovery (WPAD) protocol. The recommended state for this setting is: Disabled. Note: Although CIS categorizes this as a L2 recommendation, if none of the cases listed in the Impact Section apply, we highly recommend disabling this service.'
+  resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name WinHttpAutoProxySvc -StartupType Disabled'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Log On As Batch Job' is set to 'Administrators'
+  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/LogOnAsBatchJob</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Administrators%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS89.24
+  description: 'This policy setting allows accounts to log on using the task scheduler service. Because the task scheduler is often used for administrative purposes, it may be needed in enterprise environments. However, its use should be restricted in high security environments to prevent misuse of system resources or to prevent attackers from using the right to launch malicious code after gaining user level access to a computer. The recommended state for this setting is: *S-1-5-32-544 (Administrators).'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to *S-1-5-32-544 (Administrators). User Rights\Log On As Batch Job
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Block'
+  platform: windows
+  description: 'This policy setting determines whether suggested apps in Windows Ink Workspace are allowed. The recommended state for this setting is: Block.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block. Windows Ink Workspace\Allow suggested apps in Windows Ink Workspace
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\device\WindowsInkWorkspace\AllowSuggestedAppsInWindowsInkWorkspace' AND data = '0';
+  tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS98.1
+  purpose: Enforcement

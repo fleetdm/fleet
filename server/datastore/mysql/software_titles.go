@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -24,15 +24,21 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		softwareInstallerGlobalOrTeamIDFilter string
 		vppAppsTeamsGlobalOrTeamIDFilter      string
 		inHouseAppsTeamsGlobalOrTeamIDFilter  string
+		autoUpdatesJoin                       string
+		autoUpdatesSelect                     string
+		autoUpdatesGroupBy                    string
 	)
 
 	if teamID != nil {
+		autoUpdatesSelect = `sus.enabled as auto_update_enabled, sus.start_time as auto_update_window_start, sus.end_time as auto_update_window_end, `
+		autoUpdatesJoin = fmt.Sprintf("LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %d", *teamID)
+		autoUpdatesGroupBy = "auto_update_enabled, auto_update_window_start, auto_update_window_end, "
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
 		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
-		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
+		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "sthc")
 		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
 		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
 		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
@@ -54,8 +60,10 @@ SELECT
 	COUNT(si.id) as software_installers_count,
 	COUNT(vat.adam_id) AS vpp_apps_count,
 	COUNT(iha.id) AS in_house_apps_count,
+	%s
 	vap.icon_url AS icon_url
 FROM software_titles st
+%s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
@@ -70,8 +78,9 @@ GROUP BY
 	st.extension_for,
 	st.bundle_identifier,
 	hosts_count,
+	%s
 	vap.icon_url
-	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter,
+	`, autoUpdatesSelect, autoUpdatesJoin, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
 	)
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
@@ -639,7 +648,7 @@ func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tm
 	if teamID != nil {
 		teamFilter = fmt.Sprintf("shc.team_id = %d", *teamID)
 	} else {
-		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "shc")
+		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "shc")
 	}
 
 	selectVersionsStmt := `
@@ -823,28 +832,70 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 	return nil
 }
 
-func (ds *Datastore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {
+func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
+	// Validate schedule if enabled.
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
+		schedule := fleet.SoftwareAutoUpdateSchedule{
+			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+				AutoUpdateEnabled:   config.AutoUpdateEnabled,
+				AutoUpdateStartTime: config.AutoUpdateStartTime,
+				AutoUpdateEndTime:   config.AutoUpdateEndTime,
+			},
+		}
+		if err := schedule.WindowIsValid(); err != nil {
+			return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+		}
+	}
+	var startTime, endTime string
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
+		startTime = *config.AutoUpdateStartTime
+	}
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
+		endTime = *config.AutoUpdateEndTime
+	}
+
+	stmt := `
+INSERT INTO software_update_schedules
+	(title_id, team_id, enabled, start_time, end_time)
+VALUES (?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	enabled = VALUES(enabled),
+	start_time = IF(VALUES(start_time) = '', start_time, VALUES(start_time)),
+	end_time = IF(VALUES(end_time) = '', end_time, VALUES(end_time))
+`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
+	}
+	return nil
+}
+
+func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	stmt := `
 SELECT
-	1
-FROM
-	software_titles st JOIN software_installers si ON si.title_id = st.id
-WHERE
-	st.bundle_identifier = ? AND si.global_or_team_id = ?
-	`
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
+	sus.team_id,
+	sus.title_id,
+	sus.enabled AS auto_update_enabled,
+	sus.start_time AS auto_update_window_start,
+	sus.end_time AS auto_update_window_end
+FROM software_update_schedules sus
+JOIN software_titles st ON st.id = sus.title_id
+WHERE sus.team_id = ? AND st.source = ?
+`
 
-	var titleExists bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleExists, stmt, bundleIdentifier, tmID); err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
+	args := []any{teamID, source}
+
+	if len(optionalFilter) > 0 {
+		filter := optionalFilter[0]
+		if filter.Enabled != nil {
+			stmt += " AND enabled = ?"
+			args = append(args, *filter.Enabled)
 		}
-
-		return false, ctxerr.Wrap(ctx, err, "checking if software installer exists")
 	}
 
-	return titleExists, nil
+	var schedules []fleet.SoftwareAutoUpdateSchedule
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &schedules, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software update schedules")
+	}
+	return schedules, nil
 }

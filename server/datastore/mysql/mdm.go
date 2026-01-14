@@ -246,12 +246,31 @@ WHERE
 	if len(winUUIDs) > 0 {
 		winParams = []any{winUUIDs}
 		winStmt = `
-SELECT
-	mwe.host_uuid,
-	wq.command_uuid,
-	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
-	COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
-	CASE
+	SELECT
+		mwe.host_uuid,
+		wq.command_uuid,
+		wc.created_at AS updated_at,
+		'101' AS status,
+		'pending' AS command_status,
+		wc.target_loc_uri AS request_type
+	FROM
+		windows_mdm_command_queue wq
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
+		JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
+
+	WHERE
+		mwe.host_uuid IN (?)
+
+		%[1]s
+
+	UNION
+
+	SELECT
+		mwe.host_uuid,
+		wcr.command_uuid,
+		COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
+		COALESCE(NULLIF(wcr.status_code, ''), '101') AS status,
+		CASE
         WHEN COALESCE(
             NULLIF(wcr.status_code, ''),
             '101'
@@ -261,7 +280,7 @@ SELECT
                 NULLIF(wcr.status_code, ''),
                 '101'
             ) AS UNSIGNED
-        ) BETWEEN 200 AND 399  THEN 'ran'
+        ) BETWEEN 200 AND 399 THEN 'ran'
         WHEN CAST(
             COALESCE(
                 NULLIF(wcr.status_code, ''),
@@ -269,17 +288,28 @@ SELECT
             ) AS UNSIGNED
         ) >= 400 THEN 'failed'
     END AS command_status,
-	wc.target_loc_uri AS request_type
-FROM
-	windows_mdm_command_queue wq
-	JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
-	JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
-	LEFT JOIN windows_mdm_command_results wcr ON wcr.command_uuid = wq.command_uuid
-		AND wcr.enrollment_id = wq.enrollment_id
-WHERE
-	mwe.host_uuid IN (?)`
+		wc.target_loc_uri AS request_type
+	FROM
+		windows_mdm_command_results wcr
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wcr.enrollment_id
+		JOIN windows_mdm_commands wc ON wc.command_uuid = wcr.command_uuid
+	WHERE
+		mwe.host_uuid IN (?)
 
-		winStmt, winParams = addRequestTypeFilter(winStmt, &listOpts.Filters, winParams)
+		%[1]s
+
+	`
+
+		var filterSQL string
+		if listOpts.Filters.RequestType != "" {
+			filterSQL = " AND wc.target_loc_uri = ?"
+			winParams = append(winParams, listOpts.Filters.RequestType, winUUIDs, listOpts.Filters.RequestType)
+		} else {
+			winParams = append(winParams, winUUIDs)
+		}
+
+		winStmt = fmt.Sprintf(winStmt, filterSQL)
+
 		winStmt, winParams, err = sqlx.In(winStmt, winParams...)
 		if err != nil {
 			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
@@ -2766,7 +2796,11 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		limit := 1000
 		for hostPlatform, table := range hostProfileTables {
 			if limit == 0 {
-				level.Debug(ds.logger).Log("msg", "Skipping check of %s certificates on %s hosts to renew - limit exceeded by prior platform", hostCertType, hostPlatform)
+				level.Debug(ds.logger).Log(
+					"msg", "skipping check of certificates hosts to renew, limit exceeded by prior platform",
+					"host_cert_type", hostCertType,
+					"host_platform", hostPlatform,
+				)
 				continue
 			}
 			// This will trigger a resend next time profiles are checked
@@ -2807,7 +2841,11 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}
 			if len(hostCertsToRenew) == 0 {
-				level.Debug(ds.logger).Log("msg", "No %s certificates on %s hosts to renew", hostCertType, hostPlatform)
+				level.Debug(ds.logger).Log(
+					"msg", "No certificates on hosts to renew",
+					"host_cert_type", hostCertType,
+					"host_platform", hostPlatform,
+				)
 				continue
 			}
 			limit -= len(hostCertsToRenew)

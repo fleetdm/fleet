@@ -978,7 +978,8 @@ func TestApplyQuerySpec(t *testing.T) {
 	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		return nil
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		require.NotNil(t, filter.User)
 		labels := make(map[string]*fleet.Label, len(names))
 		for _, name := range names {
 			if name == "foo" {
