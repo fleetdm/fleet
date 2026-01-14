@@ -170,7 +170,7 @@ module.exports = {
         // dt: 'Direct traffic',
         // wr: 'Web referral',
         // soc: 'Organic social',
-        // Digital sources
+        // "Digital" sources:
         ps: 'Paid search',
         so: 'Paid social',
         pm: 'Paid media',
@@ -180,7 +180,7 @@ module.exports = {
       attibutionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
 
       if(['ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
-        // If a medium variable is set on the marketing attribution cookie, we'll assume there is also a campaign set.
+        // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
         attibutionDetails.campaign = marketingAttributionCookie.campaign;
         attibutionDetails.sourceChannel = 'Digital';
       } else {
@@ -188,7 +188,7 @@ module.exports = {
         attibutionDetails.sourceChannel = 'Organic';
 
         if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
-          // If no referrer is set, we'll assume this user came to the website directly
+          // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
           attibutionDetails.sourceChannelDetails = 'Direct Traffic';
           attibutionDetails.campaign = 'Default-DT-Direct';
         } else {
