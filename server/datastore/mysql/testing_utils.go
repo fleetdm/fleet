@@ -539,7 +539,7 @@ func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileCon
 }
 
 func generateDummyWindowsProfile(uuid string) []byte {
-	return []byte(fmt.Sprintf(`<Atomic><Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace></Atomic>`, uuid))
+	return fmt.Appendf([]byte{}, `<Atomic><Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace></Atomic>`, uuid)
 }
 
 // TODO(roberto): update when we have datastore functions and API methods for this
