@@ -32,7 +32,7 @@ module.exports = {
     extend: {
       type: {},
       description: 'An object containing the name of additional attributes to include in the API response.'
-    }
+    },
   },
 
 
@@ -58,29 +58,37 @@ module.exports = {
 
   fn: async function ({storeRegion, ids, platform, additionalPlatforms, extend}) {
 
-    // Validate the provided fleetServerSecret
+
+    // Validate the fleetServerSecret provided in the authorization header.
     let authHeader = this.req.get('authorization');
     let fleetServerSecret;
-
     if (authHeader && authHeader.startsWith('Bearer')) {
       fleetServerSecret = authHeader.replace('Bearer', '').trim();
     } else {
+      // If no fleetServerSecret was sent, return a missingAuthHeader (unauthorized) response to the Fleet server.
       throw 'missingAuthHeader';
     }
 
-    let thisFleetInstance = await FleetInstanceUsingVpp.findOne({
-      fleetServerSecret: fleetServerSecret
-    });
-
-    if(!thisFleetInstance) {
+    // Validate the provided fleetServerSecret
+    try {
+      require('jsonwebtoken').verify(
+        fleetServerSecret,
+        sails.config.custom.vppProxyAuthenticationPublicKey,
+        { algorithm: 'ES256' }
+      );
+    } catch(unusedErr) {
+      // If there is an error parsing the provided fleetServerSecret, return a invalidFleetServerSecret response.
       throw 'invalidFleetServerSecret';
     }
 
-    let cookieHeader = this.req.get('cookie');
-    if(!cookieHeader) {
-      // If no cookie header was included return a missingVppToken (badRequest) response to the Fleet instance.
+    // Note: The VPP token is provided by the Fleet server through a 'vpp-token' header instead of a query string.
+    let vppToken = this.req.get('vpp-token');
+    if(!vppToken) {
+      // If no vpp-token header was included return a missingVppToken (badRequest) response to the Fleet instance.
       throw 'missingVppToken';
     }
+
+
     let nowAt = Date.now();
     let nowAtInSeconds = Math.floor(nowAt / 1000);
 
@@ -99,6 +107,7 @@ module.exports = {
       }
     );
 
+
     let responseFromAppleApi = await sails.helpers.http.get.with({
       url: `https://api.ent.apple.com/v1/catalog/${storeRegion}/stoken-authenticated-apps`,
       data: {
@@ -109,7 +118,7 @@ module.exports = {
       },
       headers: {
         'Authorization': `Bearer ${tokenForThisRequest}`,
-        'Cookie': `${cookieHeader}`,
+        'Cookie': `${vppToken}`,
       }
     })
     .tolerate((err)=>{

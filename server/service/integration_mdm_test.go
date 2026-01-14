@@ -35,12 +35,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
+	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/api/androidmanagement/v1"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -131,6 +133,7 @@ type integrationMDMTestSuite struct {
 	androidAPIClient          *android_mock.Client
 	androidSvc                android.Service
 	proxyCallbackURL          string
+	jwtSigningKey             *rsa.PrivateKey
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -157,6 +160,8 @@ var defaultVPPAssetList = []vpp.Asset{
 		AvailableCount: 1,
 	},
 }
+
+const defaultFakeJWTKeyID = "fleetdefaultkeyid"
 
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
@@ -734,6 +739,37 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
 	s.T().Cleanup(s.appleVPPProxySrv.Close)
 	s.T().Cleanup(s.appleGDMFSrv.Close)
+
+	// Setup fake JWKs server for Azure JWT verification
+	metadata := jwkset.JWKMetadataOptions{
+		KID: defaultFakeJWTKeyID,
+	}
+	options := jwkset.JWKOptions{
+		Metadata: metadata,
+	}
+
+	// Create the JWK from the key and options.
+	jwk, err := jwkset.NewJWKFromKey(testKey, options)
+	require.NoError(s.T(), err)
+
+	jwkSet := jwkset.NewMemoryStorage()
+
+	err = jwkSet.KeyWrite(ctx, jwk)
+	require.NoError(s.T(), err)
+
+	jwksServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jwks.json" {
+			response, err := jwkSet.JSONPublic(r.Context())
+			require.NoError(s.T(), err)
+
+			w.Header().Set("Content-Type", "application/json")
+			_, err = w.Write(response)
+			require.NoError(s.T(), err)
+		}
+	}))
+	s.T().Cleanup(jwksServer.Close)
+	s.jwtSigningKey = testKey
+	s.T().Setenv("FLEET_DEV_AZURE_JWT_JWKS_URI", jwksServer.URL+"/jwks.json")
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -1446,6 +1482,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	serialNumber := mdmtest.RandSerialNumber()
 	fleetHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:             uuid.NewString(),
 		HardwareSerial:   serialNumber,
 		HardwareModel:    model,
 		Platform:         platform,
@@ -1465,6 +1502,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
 	mdmDevice.SerialNumber = serialNumber
+	mdmDevice.UUID = fleetHost.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -1489,25 +1527,25 @@ func enrollWindowsHostInMDMViaOrbit(t *testing.T, host *fleet.Host, ds fleet.Dat
 }
 
 // Simulates a host being orbit enrolled first then an MDM enrollment coming via the settings app
-func createWindowsHostThenEnrollMDMViaSettingsApp(ds fleet.Datastore, fleetServerURL, email string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
-	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), ds)
-	mdmDevice := enrollWindowsMDMViaSettingsApp(t, ds, fleetServerURL, email)
+func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(fleetServerURL, email string) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
+	host := createOrbitEnrolledHost(s.T(), "windows", uuid.NewString(), s.ds)
+	mdmDevice := s.enrollWindowsMDMViaSettingsApp(fleetServerURL, email)
 	return host, mdmDevice
 }
 
 // Note that this method only creates the MDM Enrollment but it will still need to be linked to the host record either
 // via DS methods or by simualting a refetch.
-func enrollWindowsMDMViaSettingsApp(t *testing.T, ds fleet.Datastore, fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE())
+func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 	err := mdmDevice.Enroll()
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
-func enrollWindowsHostInMDMViaAutopilot(t *testing.T, ds fleet.Datastore, fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email)
+func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 	err := mdmDevice.Enroll()
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
@@ -7661,7 +7699,20 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 	t := s.T()
 
 	// Preparing the GetPolicies Request message with Azure JWT token
-	azureADTok := "ZXlKMGVYQWlPaUpLVjFRaUxDSmhiR2NpT2lKU1V6STFOaUlzSW5nMWRDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUlzSW10cFpDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUo5LmV5SmhkV1FpT2lKb2RIUndjem92TDIxaGNtTnZjMnhoWW5NdWIzSm5MeUlzSW1semN5STZJbWgwZEhCek9pOHZjM1J6TG5kcGJtUnZkM011Ym1WMEwyWmhaVFZqTkdZekxXWXpNVGd0TkRRNE15MWlZelptTFRjMU9UVTFaalJoTUdFM01pOGlMQ0pwWVhRaU9qRTJPRGt4TnpBNE5UZ3NJbTVpWmlJNk1UWTRPVEUzTURnMU9Dd2laWGh3SWpveE5qZzVNVGMxTmpZeExDSmhZM0lpT2lJeElpd2lZV2x2SWpvaVFWUlJRWGt2T0ZSQlFVRkJOV2gwUTNFMGRERjNjbHBwUTIxQmVEQlpWaTloZGpGTVMwRkRPRXM1Vm10SGVtNUdXVGxzTUZoYWVrZHVha2N6VVRaMWVIUldNR3QxT1hCeFJXdFRZeUlzSW1GdGNpSTZXeUp3ZDJRaUxDSnljMkVpWFN3aVlYQndhV1FpT2lJeU9XUTVaV1E1T0MxaE5EWTVMVFExTXpZdFlXUmxNaTFtT1RneFltTXhaRFl3TldVaUxDSmhjSEJwWkdGamNpSTZJakFpTENKa1pYWnBZMlZwWkNJNkltRXhNMlkzWVdVd0xURXpPR0V0TkdKaU1pMDVNalF5TFRka09USXlaVGRqTkdGak15SXNJbWx3WVdSa2NpSTZJakU0Tmk0eE1pNHhPRGN1TWpZaUxDSnVZVzFsSWpvaVZHVnpkRTFoY21OdmMweGhZbk1pTENKdmFXUWlPaUpsTTJNMU5XVmtZeTFqTXpRNExUUTBNVFl0T0dZd05TMHlOVFJtWmpNd05qVmpOV1VpTENKd2QyUmZkWEpzSWpvaWFIUjBjSE02THk5d2IzSjBZV3d1YldsamNtOXpiMlowYjI1c2FXNWxMbU52YlM5RGFHRnVaMlZRWVhOemQyOXlaQzVoYzNCNElpd2ljbWdpT2lJd0xrRldTVUU0T0ZSc0xXaHFlbWN3VXpoaU0xZFdXREJ2UzJOdFZGRXpTbHB1ZUUxa1QzQTNUbVZVVm5OV2FYVkhOa0ZRYnk0aUxDSnpZM0FpT2lKdFpHMWZaR1ZzWldkaGRHbHZiaUlzSW5OMVlpSTZJa1pTUTJ4RldURk9ObXR2ZEdWblMzcFplV0pFTjJkdFdGbGxhVTVIUkZrd05FSjJOV3R6ZDJGeGJVRWlMQ0owYVdRaU9pSm1ZV1UxWXpSbU15MW1NekU0TFRRME9ETXRZbU0yWmkwM05UazFOV1kwWVRCaE56SWlMQ0oxYm1seGRXVmZibUZ0WlNJNkluUmxjM1JBYldGeVkyOXpiR0ZpY3k1dmNtY2lMQ0oxY0c0aU9pSjBaWE4wUUcxaGNtTnZjMnhoWW5NdWIzSm5JaXdpZFhScElqb2lNVGg2WkVWSU5UZFRSWFZyYWpseGJqRm9aMlJCUVNJc0luWmxjaUk2SWpFdU1DSjkuVG1FUlRsZktBdWo5bTVvQUc2UTBRblV4VEFEaTNFamtlNHZ3VXo3UTdqUUFVZVZGZzl1U0pzUXNjU2hFTXVxUmQzN1R2VlpQanljdEVoRFgwLVpQcEVVYUlSempuRVEyTWxvc21SZURYZzhrYkhNZVliWi1jb0ZucDEyQkVpQnpJWFBGZnBpaU1GRnNZZ0hSSF9tSWxwYlBlRzJuQ2p0LTZSOHgzYVA5QS1tM0J3eV91dnV0WDFNVEVZRmFsekhGa04wNWkzbjZRcjhURnlJQ1ZUYW5OanlkMjBBZFRMbHJpTVk0RVBmZzRaLThVVTctZkcteElycWVPUmVWTnYwOUFHV192MDd6UkVaNmgxVk9tNl9nelRGcElVVURuZFdabnFLTHlySDlkdkF3WnFFSG1HUmlTNElNWnRFdDJNTkVZSnhDWHhlSi1VbWZJdV9tUVhKMW9R"
+	// Preparing the SecurityToken Request message with Azure JWT token
+	claims := &jwt.MapClaims{
+		"upn":         "fleetie@example.com",
+		"tid":         "tenant_id",
+		"unique_name": "foo_bar",
+		"scp":         "mdm_delegation",
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = defaultFakeJWTKeyID
+	tokenString, err := token.SignedString(s.jwtSigningKey)
+	require.NoError(t, err)
+
+	azureADTok := base64.URLEncoding.EncodeToString([]byte(tokenString))
 	requestBytes, err := s.newGetPoliciesMsg(false, azureADTok)
 	require.NoError(t, err)
 
@@ -7824,7 +7875,19 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	t := s.T()
 
 	// Preparing the SecurityToken Request message with Azure JWT token
-	azureADTok := "ZXlKMGVYQWlPaUpLVjFRaUxDSmhiR2NpT2lKU1V6STFOaUlzSW5nMWRDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUlzSW10cFpDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUo5LmV5SmhkV1FpT2lKb2RIUndjem92TDIxaGNtTnZjMnhoWW5NdWIzSm5MeUlzSW1semN5STZJbWgwZEhCek9pOHZjM1J6TG5kcGJtUnZkM011Ym1WMEwyWmhaVFZqTkdZekxXWXpNVGd0TkRRNE15MWlZelptTFRjMU9UVTFaalJoTUdFM01pOGlMQ0pwWVhRaU9qRTJPRGt4TnpBNE5UZ3NJbTVpWmlJNk1UWTRPVEUzTURnMU9Dd2laWGh3SWpveE5qZzVNVGMxTmpZeExDSmhZM0lpT2lJeElpd2lZV2x2SWpvaVFWUlJRWGt2T0ZSQlFVRkJOV2gwUTNFMGRERjNjbHBwUTIxQmVEQlpWaTloZGpGTVMwRkRPRXM1Vm10SGVtNUdXVGxzTUZoYWVrZHVha2N6VVRaMWVIUldNR3QxT1hCeFJXdFRZeUlzSW1GdGNpSTZXeUp3ZDJRaUxDSnljMkVpWFN3aVlYQndhV1FpT2lJeU9XUTVaV1E1T0MxaE5EWTVMVFExTXpZdFlXUmxNaTFtT1RneFltTXhaRFl3TldVaUxDSmhjSEJwWkdGamNpSTZJakFpTENKa1pYWnBZMlZwWkNJNkltRXhNMlkzWVdVd0xURXpPR0V0TkdKaU1pMDVNalF5TFRka09USXlaVGRqTkdGak15SXNJbWx3WVdSa2NpSTZJakU0Tmk0eE1pNHhPRGN1TWpZaUxDSnVZVzFsSWpvaVZHVnpkRTFoY21OdmMweGhZbk1pTENKdmFXUWlPaUpsTTJNMU5XVmtZeTFqTXpRNExUUTBNVFl0T0dZd05TMHlOVFJtWmpNd05qVmpOV1VpTENKd2QyUmZkWEpzSWpvaWFIUjBjSE02THk5d2IzSjBZV3d1YldsamNtOXpiMlowYjI1c2FXNWxMbU52YlM5RGFHRnVaMlZRWVhOemQyOXlaQzVoYzNCNElpd2ljbWdpT2lJd0xrRldTVUU0T0ZSc0xXaHFlbWN3VXpoaU0xZFdXREJ2UzJOdFZGRXpTbHB1ZUUxa1QzQTNUbVZVVm5OV2FYVkhOa0ZRYnk0aUxDSnpZM0FpT2lKdFpHMWZaR1ZzWldkaGRHbHZiaUlzSW5OMVlpSTZJa1pTUTJ4RldURk9ObXR2ZEdWblMzcFplV0pFTjJkdFdGbGxhVTVIUkZrd05FSjJOV3R6ZDJGeGJVRWlMQ0owYVdRaU9pSm1ZV1UxWXpSbU15MW1NekU0TFRRME9ETXRZbU0yWmkwM05UazFOV1kwWVRCaE56SWlMQ0oxYm1seGRXVmZibUZ0WlNJNkluUmxjM1JBYldGeVkyOXpiR0ZpY3k1dmNtY2lMQ0oxY0c0aU9pSjBaWE4wUUcxaGNtTnZjMnhoWW5NdWIzSm5JaXdpZFhScElqb2lNVGg2WkVWSU5UZFRSWFZyYWpseGJqRm9aMlJCUVNJc0luWmxjaUk2SWpFdU1DSjkuVG1FUlRsZktBdWo5bTVvQUc2UTBRblV4VEFEaTNFamtlNHZ3VXo3UTdqUUFVZVZGZzl1U0pzUXNjU2hFTXVxUmQzN1R2VlpQanljdEVoRFgwLVpQcEVVYUlSempuRVEyTWxvc21SZURYZzhrYkhNZVliWi1jb0ZucDEyQkVpQnpJWFBGZnBpaU1GRnNZZ0hSSF9tSWxwYlBlRzJuQ2p0LTZSOHgzYVA5QS1tM0J3eV91dnV0WDFNVEVZRmFsekhGa04wNWkzbjZRcjhURnlJQ1ZUYW5OanlkMjBBZFRMbHJpTVk0RVBmZzRaLThVVTctZkcteElycWVPUmVWTnYwOUFHV192MDd6UkVaNmgxVk9tNl9nelRGcElVVURuZFdabnFLTHlySDlkdkF3WnFFSG1HUmlTNElNWnRFdDJNTkVZSnhDWHhlSi1VbWZJdV9tUVhKMW9R"
+	claims := &jwt.MapClaims{
+		"upn":         "fleetie@example.com",
+		"tid":         "tenant_id",
+		"unique_name": "foo_bar",
+		"scp":         "mdm_delegation",
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = defaultFakeJWTKeyID
+	tokenString, err := token.SignedString(s.jwtSigningKey)
+	require.NoError(t, err)
+
+	azureADTok := base64.URLEncoding.EncodeToString([]byte(tokenString))
 	requestBytes, err := s.newSecurityTokenMsg(azureADTok, false, false)
 	require.NoError(t, err)
 
@@ -7917,7 +7980,8 @@ func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
 	// Checking response content
 	resContent := string(resBytes)
 	require.Contains(t, resContent, "inputToken.name = 'wresult'")
-	require.Contains(t, resContent, "form.action = \"ms-app://windows.immersivecontrolpanel\"")
+	// we expect the URL to be escaped
+	require.Contains(t, resContent, `form.action = "ms-app:\/\/windows.immersivecontrolpanel"`)
 	require.Contains(t, resContent, "performPost()")
 
 	// Getting token content
@@ -7937,6 +8001,79 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.NoError(t, err)
 	require.NotEmpty(t, resBytes)
 	require.Contains(t, resContent, "forbidden")
+}
+
+func (s *integrationMDMTestSuite) TestAppruValidationInGetAuthRequest() {
+	t := s.T()
+
+	// Test cases with invalid appru values that should bail due to exiting before auth check
+	invalidAppruCases := []struct {
+		name  string
+		appru string
+	}{
+		{
+			name:  "javascript injection",
+			appru: "%3Bfor%20(var%20key%20in%20localStorage)%7B%20alert(key)%7D%3B%2F%2F",
+		},
+		{
+			name:  "javascript protocol",
+			appru: "javascript:alert(1)",
+		},
+		{
+			name:  "data URI",
+			appru: "data:text/html,<script>alert(1)</script>",
+		},
+		{
+			name:  "empty scheme",
+			appru: "://example.com",
+		},
+		{
+			name:  "plain text",
+			appru: "not-a-url",
+		},
+	}
+
+	for _, tc := range invalidAppruCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
+			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
+
+			resBytes, err := io.ReadAll(resp.Body)
+			resContent := string(resBytes)
+			require.NoError(t, err)
+			require.NotEmpty(t, resBytes)
+			require.Contains(t, resContent, "forbidden")
+
+			resp.Body.Close()
+		})
+	}
+
+	// Also verify valid URLs still work
+	validAppruCases := []struct {
+		name  string
+		appru string
+	}{
+		{
+			name:  "ms-app scheme",
+			appru: "ms-app%3A%2F%2Fwindows.immersivecontrolpanel",
+		},
+		{
+			name:  "https scheme",
+			appru: "https%3A%2F%2Fexample.com%2Fcallback",
+		},
+		{
+			name:  "http scheme",
+			appru: "http%3A%2F%2Flocalhost%2Fcallback",
+		},
+	}
+
+	for _, tc := range validAppruCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
+			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
+			resp.Body.Close()
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) TestValidGetTOC() {
@@ -8320,7 +8457,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	require.NoError(t, err)
 
 	azureMail := "foo.bar.baz@example.com"
-	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail)
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 	require.NoError(t, d.Enroll())
 
 	checkinAndAck := func(expectFleetdCmds bool) {
@@ -8411,6 +8548,36 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	checkinAndAck(false)
 }
 
+func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
+	t := s.T()
+	ctx := context.Background()
+
+	// define a global enroll secret
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	// We could generate the key differently, this just ensures it's generated the same as the "happy path" tests
+	_, badKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+
+	autopilotUserMail := "swan@example.com"
+
+	// Bad key
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(badKey, defaultFakeJWTKeyID))
+	err = mdmDevice.Enroll()
+	require.Error(s.T(), err)
+
+	// Good key but wrong ID
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, "bad-key-id"))
+	err = mdmDevice.Enroll()
+	require.Error(s.T(), err)
+
+	// Happy path to ensure the setup is correct
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+	err = mdmDevice.Enroll()
+	require.NoError(s.T(), err)
+}
+
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping() {
 	t := s.T()
 	ctx := context.Background()
@@ -8427,11 +8594,11 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// Enroll another host to ensure the wires don't get crossed somehow
 	autopilotUserMail := "swan@example.com"
-	autopilotDevice := enrollWindowsHostInMDMViaAutopilot(t, s.ds, s.server.URL, autopilotUserMail)
+	autopilotDevice := s.enrollWindowsHostInMDMViaAutopilot(s.server.URL, autopilotUserMail)
 	require.NoError(t, autopilotDevice.Enroll())
 
 	settingsAppUserMail := "fleetie@example.com"
-	settingsAppHost, settingsAppDevice := createWindowsHostThenEnrollMDMViaSettingsApp(s.ds, s.server.URL, settingsAppUserMail, t)
+	settingsAppHost, settingsAppDevice := s.createWindowsHostThenEnrollMDMViaSettingsApp(s.server.URL, settingsAppUserMail)
 	require.NoError(t, settingsAppDevice.Enroll())
 
 	// Transfer the host to the team. Ensure it doesn't wind up in "No team" at the end
@@ -13090,6 +13257,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			http.StatusOK, &addAppResp)
 	}
 
+	var failedCmdUUID string
+	errorOnInstallApplicationCommand := func(errorCode int) {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		assert.NotNil(t, cmd)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+			case "InstallApplication":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				failedCmdUUID = cmd.CommandUUID
+				t.Logf("Failed command UUID: %s", failedCmdUUID)
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: errorCode}})
+				require.NoError(t, err)
+			}
+		}
+	}
+
 	// Trigger install to the host
 	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
@@ -13109,21 +13294,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate failed installation on the host
-	cmd, err := mdmDevice.Idle()
-	var failedCmdUUID string
-	require.NoError(t, err)
-	assert.NotNil(t, cmd)
-	for cmd != nil {
-		var fullCmd micromdm.CommandPayload
-		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
-		case "InstallApplication":
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			failedCmdUUID = cmd.CommandUUID
-			t.Logf("Failed command UUID: %s", failedCmdUUID)
-			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
-			require.NoError(t, err)
-		}
-	}
+	errorOnInstallApplicationCommand(1234)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
@@ -13150,6 +13321,95 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		0,
 	)
 
+	// We store the old failedCmdUUID to restore after this 9610, since it's used further down.
+	storedFailedCmdUUID := failedCmdUUID
+
+	// Trigger a 9610 failure to see retry happening
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	s.runWorker()
+
+	// Simulate failed installation on the host
+	errorOnInstallApplicationCommand(9610)
+
+	// Verify the retry_count was increased to 1 for the failedCmdUUID
+	var retryCount int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 1, retryCount)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 0)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 0, countResp.Count)
+
+	oldFailedCmdUUID := failedCmdUUID
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, oldFailedCmdUUID, failedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 2, retryCount)
+
+	oldFailedCmdUUID = failedCmdUUID
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 3, retryCount)
+
+	oldFailedCmdUUID = failedCmdUUID
+	// Final time where we mark the app as failed
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 3, retryCount)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_auto_update": false}`,
+			mdmHost.ID,
+			mdmHost.DisplayName(),
+			macOSApp.Name,
+			macOSApp.AdamID,
+			failedCmdUUID,
+			fleet.SoftwareInstallFailed,
+			mdmHost.Platform,
+		),
+		0,
+	)
+
+	// Restore failedCmdUUID to the original failed command UUID for further processing.
+	failedCmdUUID = storedFailedCmdUUID
+
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
@@ -13163,7 +13423,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Simulate successful installation on the host
 	var installCmdUUID string
-	cmd, err = mdmDevice.Idle()
+	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
@@ -17470,7 +17730,8 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	// Set up 3 apps - macOS, iOS, and iPadOS (using new VPP proxy format)
 	s.appleVPPProxySrvData = map[string]string{
 		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac"]}}`,
-		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
+		// Add a space to the version and make sure we are trimming it (we've seen that in Meta Horizon app `"versionDisplay":" 353.0"`)
+		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": " 2.0.0 "}}}, "deviceFamilies": ["iphone"]}}`,
 		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["ipad"]}}`,
 	}
 
@@ -20031,15 +20292,15 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 		{HostID: hostBYOD.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
 	}, commands)
 
-	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool) {
-		var installedAppCount int
+	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool, wantAppListCount int) {
+		var installedAppListCount int
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
 			switch cmd.Command.RequestType {
 			case "InstalledApplicationList":
-				installedAppCount++
+				installedAppListCount++
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 				require.NotNil(t, fullCmd.Command)
 				require.NotNil(t, fullCmd.Command.InstalledApplicationList)
@@ -20057,10 +20318,10 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 				require.NoError(t, err)
 			}
 		}
-		require.Equal(t, 1, installedAppCount)
+		require.Equal(t, wantAppListCount, installedAppListCount)
 	}
 
-	checkExpectedCommands(mdmClientBYOD, true)
+	checkExpectedCommands(mdmClientBYOD, true, 1)
 
 	// create a company-owned ios host
 	hostDEP, mdmClientDEP := s.createAppleMobileHostThenEnrollMDM("ios")
@@ -20078,5 +20339,29 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 		{HostID: hostDEP.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
 	}, commands)
 
-	checkExpectedCommands(mdmClientDEP, false)
+	checkExpectedCommands(mdmClientDEP, false, 1)
+
+	// run the cron-based refetch, will not do anything as the devices were just refetched
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
+	require.NoError(t, err)
+
+	checkExpectedCommands(mdmClientBYOD, true, 0)
+	checkExpectedCommands(mdmClientDEP, false, 0)
+
+	// change the detail_updated_at of the devices to > 1h ago, and run the refetch again
+	hostBYOD.DetailUpdatedAt = time.Now().Add(-24 * time.Hour)
+	hostDEP.DetailUpdatedAt = time.Now().Add(-24 * time.Hour)
+	require.NoError(t, s.ds.UpdateHost(ctx, hostBYOD))
+	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
+
+	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
+	require.NoError(t, err)
+
+	checkExpectedCommands(mdmClientBYOD, true, 1)
+	checkExpectedCommands(mdmClientDEP, false, 1)
 }

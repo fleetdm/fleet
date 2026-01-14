@@ -144,6 +144,14 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
 		return err
 	})
+
+	vppTokens, err := s.DS.ListVPPTokens(ctx)
+	require.NoError(t, err)
+	for _, tok := range vppTokens {
+		err := s.DS.DeleteVPPToken(ctx, tok.ID)
+		require.NoError(t, err)
+	}
+
 	mysql.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
@@ -2710,4 +2718,213 @@ func labelTeamIDResult(t *testing.T, s *enterpriseIntegrationGitopsTestSuite, ct
 		got[r.Name] = teamID
 	}
 	return got
+}
+
+// TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
+// are properly applied via GitOps.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsVPPAppAutoUpdate() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Create a global VPP token (location is "Jungle")
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+
+	// Generate team name upfront since we need it in the global template
+	teamName := uuid.NewString()
+
+	// The global template includes VPP token assignment to the team
+	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
+	globalTemplate := fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        teams:
+          - %s
+policies:
+queries:
+`, teamName)
+
+	teamTemplate := `
+controls:
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: ios
+      self_service: false
+      auto_update_enabled: true
+      auto_update_window_start: "02:00"
+      auto_update_window_end: "06:00"
+    - app_store_id: "2"
+      platform: ipados
+      self_service: false
+      auto_update_enabled: true
+      auto_update_window_start: "03:00"
+      auto_update_window_end: "07:00"
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, teamName))
+	require.NoError(t, err)
+	err = teamFile.Close()
+	require.NoError(t, err)
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	testing_utils.StartAndServeVPPServer(t)
+
+	dryRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	require.Contains(t, dryRunOutput, "gitops dry run succeeded")
+
+	realRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
+	require.Contains(t, realRunOutput, "gitops succeeded")
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	// Verify VPP apps were added
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &team.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 2) // One for iOS, one for iPadOS
+
+	// Verify auto-update schedules were created in the database
+	type autoUpdateSchedule struct {
+		TitleID   uint   `db:"title_id"`
+		TeamID    uint   `db:"team_id"`
+		Enabled   bool   `db:"enabled"`
+		StartTime string `db:"start_time"`
+		EndTime   string `db:"end_time"`
+	}
+	var schedules []autoUpdateSchedule
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &schedules,
+			`SELECT title_id, team_id, enabled, start_time, end_time
+			FROM software_update_schedules
+			WHERE team_id = ?
+			ORDER BY title_id`, team.ID)
+	})
+
+	require.Len(t, schedules, 2)
+
+	for _, schedule := range schedules {
+		require.Equal(t, team.ID, schedule.TeamID)
+		require.True(t, schedule.Enabled)
+
+		var foundTitle *fleet.SoftwareTitleListResult
+		for i := range titles {
+			if titles[i].ID == schedule.TitleID {
+				foundTitle = &titles[i]
+				break
+			}
+		}
+		require.NotNil(t, foundTitle, "should find title for schedule")
+
+		// Verify the correct start/end times based on source
+		switch foundTitle.Source {
+		case "ios_apps":
+			require.Equal(t, "02:00", schedule.StartTime)
+			require.Equal(t, "06:00", schedule.EndTime)
+		case "ipados_apps":
+			require.Equal(t, "03:00", schedule.StartTime)
+			require.Equal(t, "07:00", schedule.EndTime)
+		default:
+			t.Fatalf("unexpected source: %s", foundTitle.Source)
+		}
+	}
+
+	// Now apply a config without auto-update fields for the iPadOS app and verify they're cleared
+	teamTemplateNoAutoUpdate := `
+controls:
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: ios
+      self_service: false
+      auto_update_enabled: true
+      auto_update_window_start: "02:00"
+      auto_update_window_end: "06:00"
+    - app_store_id: "2"
+      platform: ipados
+      self_service: false
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+
+	teamFileNoAutoUpdate, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFileNoAutoUpdate.WriteString(fmt.Sprintf(teamTemplateNoAutoUpdate, teamName))
+	require.NoError(t, err)
+	err = teamFileNoAutoUpdate.Close()
+	require.NoError(t, err)
+
+	// Apply the updated config
+	realRunOutput = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileNoAutoUpdate.Name()})
+	require.Contains(t, realRunOutput, "gitops succeeded")
+
+	// Verify auto-update schedules: iOS should still have settings, iPadOS should be disabled
+	var updatedSchedules []autoUpdateSchedule
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &updatedSchedules,
+			`SELECT title_id, team_id, enabled, start_time, end_time
+			FROM software_update_schedules
+			WHERE team_id = ?
+			ORDER BY title_id`, team.ID)
+	})
+
+	require.Len(t, updatedSchedules, 2)
+
+	for _, schedule := range updatedSchedules {
+		var foundTitle *fleet.SoftwareTitleListResult
+		for i := range titles {
+			if titles[i].ID == schedule.TitleID {
+				foundTitle = &titles[i]
+				break
+			}
+		}
+		require.NotNil(t, foundTitle, "should find title for schedule")
+
+		switch foundTitle.Source {
+		case "ios_apps":
+			// iOS app should still have auto-update enabled
+			require.True(t, schedule.Enabled)
+			require.Equal(t, "02:00", schedule.StartTime)
+			require.Equal(t, "06:00", schedule.EndTime)
+		case "ipados_apps":
+			// iPadOS app should now have auto-update disabled (fields removed from config)
+			// but the previous start/end times should still be preserved in the database
+			require.False(t, schedule.Enabled)
+			require.Equal(t, "03:00", schedule.StartTime)
+			require.Equal(t, "07:00", schedule.EndTime)
+		default:
+			t.Fatalf("unexpected source: %s", foundTitle.Source)
+		}
+	}
 }

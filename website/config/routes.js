@@ -658,6 +658,7 @@ module.exports.routes = {
   'GET /handbook/business-operations/security': '/handbook/finance/security',
   'GET /handbook/business-operations/vendor-questionnaires': '/handbook/finance/security',
   'GET /handbook/handbook': '/handbook/company/handbook',
+  'GET /handbook/company/handbook': '/handbook/company/writing',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
   'GET /platform': '/',
@@ -1088,7 +1089,7 @@ module.exports.routes = {
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
-  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
+  'GET /learn-more-about/renew-apns': '/docs/using-fleet/apple-mdm-setup#turn-on-apple-mdm',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
@@ -1161,6 +1162,7 @@ module.exports.routes = {
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#automatic-enrollment',
   'GET /learn-more-about/macos-configuration-profiles-same-scope': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
+  'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
 
   // Sitemap
   // =============================================================================================================
@@ -1259,6 +1261,7 @@ module.exports.routes = {
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+  'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
 
 
 
