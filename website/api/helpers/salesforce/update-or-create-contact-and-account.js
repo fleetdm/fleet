@@ -180,6 +180,7 @@ module.exports = {
 
       attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
 
+      attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
 
       if(['ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
@@ -385,9 +386,11 @@ module.exports = {
         valuesToSet.Source_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
         valuesToSet.Source_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
         valuesToSet.Source_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+        valuesToSet.Source_campaign_initial_url__c = attributionDetails.initialUrl; // eslint-disable-line camelcase
         valuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
         valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
         valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+        valuesToSet.Most_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
       }
 
 
@@ -449,6 +452,7 @@ module.exports = {
           delete valuesToSet.Source_channel__c;
           delete valuesToSet.Source_channel_detail__c;
           delete valuesToSet.Source_campaign__c;
+          delete valuesToSet.Source_campaign_initial_url__c;
         }
         // If a contact souce was provided, since we found an existing contact when trying to create one, remove it from the valuesToSet.
         if(contactSource) {
@@ -496,6 +500,7 @@ module.exports = {
           valuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
           valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
           valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+          valuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         }
       }
 

@@ -155,7 +155,6 @@ will be disabled and/or hidden in the UI.
         '/*': {
           skipAssets: true,
           fn: async function(req, res, next){
-
             var url = require('url');
             // First, if this is a GET request (and thus potentially a view) or a HEAD request,
             // attach a couple of guaranteed locals.
@@ -205,6 +204,7 @@ will be disabled and/or hidden in the UI.
                 medium: req.param('utm_medium'),// will be undefined if this is not set
                 campaign: req.param('utm_campaign'),// will be undefined if this is not set
                 referrer: req.get('referer'),
+                initialUrl: req.url,
               };
               // Add the information to a new cookie for this user that expires 30 days from when it is set.
               res.cookie('marketingAttribution', marketingAttributionCookieInformation, {maxAge: (1000 * 60 * 60 * 24 * 30)});
