@@ -20409,7 +20409,7 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	fmt.Println("host connected step 1: ", hostConnected)
 	fmt.Println("-----------")
 
-	// Add some VPP apps
+	// add some VPP apps for the host to install
 	s.setVPPTokenForTeam(team.ID)
 
 	app1 := &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}}
@@ -20432,6 +20432,19 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 		fmt.Println("install resp: ", installResp)
 		fmt.Println("-----------")
 	}
+
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 2)
+	fmt.Println("______________________ getHostSw __________________")
+	for _, v := range getHostSw.Software {
+		fmt.Println("get host software: ", v.AppStoreApp.AppStoreID, ", status: ", *v.Status)
+	}
+	// TODO: make sure app store apps have correct id's
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[1].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[1].Status)
 
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -20458,8 +20471,9 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 		require.NoError(t, err)
 	}
 
-	// simulate the host deleting MDM enrollment while offline, then
-	// sending that mdm is off through osquery
+	// simulate the host deleting MDM enrollment profile
+	// while offline, then osquery reporting that mdm is off
+	// when the host is online again
 
 	fmt.Println("detail query \"mdm\": ", detailQueries["mdm"])
 	fmt.Println("-----------")
@@ -20494,4 +20508,16 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 		mysql.DumpTable(t, q, "nano_enrollments", "device_id", "type", "enabled", "last_seen_at")
 		return nil
 	})
+
+	// There should be no pending activities/installs now
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	// TODO: make sure app store apps have correct id's
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
+	fmt.Println("______________________ getHostSw __________________")
+	for _, v := range getHostSw.Software {
+		fmt.Println("get host software: ", v.AppStoreApp.AppStoreID, ", status: ", *v.Status)
+	}
 }
