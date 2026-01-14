@@ -88,6 +88,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
 		{"ListHostSoftwareFailInstallThenTransferTeam", testListHostSoftwareFailInstallThenTransferTeam},
 		{"ListHostSoftwareFailInstallThenLabelExclude", testListHostSoftwareFailInstallThenLabelExclude},
+		{"ListHostSoftwareFailVPPInstallThenLabelExclude", testListHostSoftwareFailVPPInstallThenLabelExclude},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
@@ -6466,6 +6467,67 @@ func testListHostSoftwareFailInstallThenLabelExclude(t *testing.T, ds *Datastore
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Len(t, sw, 0, "Software with failed install should not appear when installer targeting excludes the host")
+}
+
+func testListHostSoftwareFailVPPInstallThenLabelExclude(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false,
+		IsMDMEnrolled:              true,
+	}
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+
+	vppApp := &fleet.VPPApp{Name: "vpp_app_fail_test", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "999", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "com.test.vppfail"}
+	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	require.NoError(t, err)
+	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
+
+	excludeLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-vpp-label", Query: "select 1"})
+	require.NoError(t, err)
+
+	// Create a FAILED VPP install request
+	vppCmdUUID := createVPPAppInstallRequest(t, ds, host, vppApp.AdamID, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host, vppCmdUUID, fleet.MDMAppleStatusError)
+
+	// Verify VPP app appears in "All software" view (failed install should show initially)
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, "vpp_app_fail_test", sw[0].Name)
+
+	// Add host to exclude label
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// Add exclude label to VPP app targeting
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, 1)`,
+			vppAppTeamID, excludeLabel.ID)
+		return err
+	})
+
+	// Now, the VPP app should NOT appear because it failed and is out of scope
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 0, "VPP app with failed install should not appear when targeting excludes the host")
 }
 
 func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore) {

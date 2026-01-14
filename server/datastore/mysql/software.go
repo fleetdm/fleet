@@ -5050,8 +5050,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	// Apply label filtering for FAILED install-attempt-only software in ALL cases
-	// (not just OnlyAvailableForInstall).
+	// Filter out-of-scope FAILED installs from all app types.
+	// Only remove if not in inventory AND status is failed AND out of label scope.
 	for titleID, st := range bySoftwareTitleID {
 		if st.InstallerID != nil {
 			// Check if software is NOT actually installed (not in osquery inventory)
@@ -5061,6 +5061,24 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					if _, inScope := filteredBySoftwareTitleID[titleID]; !inScope {
 						delete(bySoftwareTitleID, titleID)
 					}
+				}
+			}
+		}
+	}
+	for adamID, st := range byVPPAdamID {
+		if _, isInstalled := hostInstalledSoftwareTitleSet[st.ID]; !isInstalled {
+			if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+				if _, inScope := filteredByVPPAdamID[adamID]; !inScope {
+					delete(byVPPAdamID, adamID)
+				}
+			}
+		}
+	}
+	for appID, st := range byInHouseID {
+		if _, isInstalled := hostInstalledSoftwareTitleSet[st.ID]; !isInstalled {
+			if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+				if _, inScope := filteredByInHouseID[appID]; !inScope {
+					delete(byInHouseID, appID)
 				}
 			}
 		}
