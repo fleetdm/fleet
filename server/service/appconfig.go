@@ -181,12 +181,20 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		agentOptions = appConfig.AgentOptions
 	}
 
-	transparencyURL := fleet.DefaultTransparencyURL
 	// Fleet Premium license is required for custom transparency url
+	transparencyURL := fleet.DefaultTransparencyURL
 	if lic.IsPremium() && appConfig.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = appConfig.FleetDesktop.TransparencyURL
 	}
-	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
+	// Fleet Premium license is required for server side alternative browser host URL
+	var alternativeBrowserHostURL string
+	if lic.IsPremium() && appConfig.FleetDesktop.TransparencyURL != "" {
+		alternativeBrowserHostURL = appConfig.FleetDesktop.AlternativeBrowserHostURL
+	}
+	fleetDesktop := fleet.FleetDesktopSettings{
+		TransparencyURL:           transparencyURL,
+		AlternativeBrowserHostURL: alternativeBrowserHostURL,
+	}
 
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
