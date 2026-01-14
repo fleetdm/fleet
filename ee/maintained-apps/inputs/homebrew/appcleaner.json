@@ -4,5 +4,5 @@
   "token": "appcleaner",
   "installer_format": "zip",
   "slug": "appcleaner/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Utilities"]
 }
