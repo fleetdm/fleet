@@ -168,7 +168,7 @@ func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error 
 		}
 
 		if elementName == "Atomic" && v.isAtomicProfile == nil {
-			// We are at top level, and we see Atomic, mark the entire profile.
+			// We are at top level, and we see Atomic element first, mark the entire profile as atomic.
 			v.isAtomicProfile = ptr.Bool(true)
 		} else if elementName == "Atomic" && v.isAtomicProfile != nil && !*v.isAtomicProfile {
 			// We are at top level, we have already seen other top level elements, and now we see Atomic
