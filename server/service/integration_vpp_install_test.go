@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
@@ -81,7 +83,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 
@@ -94,7 +96,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
+		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 
@@ -107,7 +109,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		},
 		Name:             "App 3",
 		BundleIdentifier: "c-3",
-		IconURL:          "https://example.com/images/3",
+		IconURL:          "https://example.com/images/3/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 	var addAppResp addAppStoreAppResponse
@@ -166,8 +168,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
-		LatestVersion:    "2.0.0",
+		IconURL:          "https://example.com/images/2/512x512.png",
+		LatestVersion:    "2.0.1", // macOS has different version than iOS
 	}
 	expectedApps := []*fleet.VPPApp{macOSApp, errApp, iOSApp, iPadOSApp}
 	expectedAppsByBundleID := map[string]*fleet.VPPApp{
@@ -337,7 +339,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.Equal(t, expected.Name, got.Name)
 		require.NotNil(t, got.AppStoreApp)
 		require.Equal(t, expected.AdamID, got.AppStoreApp.AppStoreID)
-		require.Equal(t, ptr.String(expected.IconURL), got.IconUrl)
+		require.Equal(t, expected.IconURL, *got.IconUrl)
 		require.Empty(t, got.AppStoreApp.Name) // Name is only present for installer packages
 		require.Equal(t, expected.LatestVersion, got.AppStoreApp.Version)
 		require.NotNil(t, got.Status)
@@ -400,7 +402,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			errApp.Name,
@@ -448,7 +450,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			addedApp.Name,
@@ -565,7 +567,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			addedApp.Name,
@@ -615,7 +617,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			addedApp.Name,
@@ -852,7 +854,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
 			iosHost.ID,
 			iosHost.DisplayName(),
 			iOSApp.Name,
@@ -936,7 +938,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	ssVppData := []SSVPPTestData{
 		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111)},
-		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)}}
+		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)},
+	}
 
 	for i, data := range ssVppData {
 		// Enroll device, add serial number to fake Apple server, and transfer to team
@@ -1005,7 +1008,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		s.lastActivityMatches(
 			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(
-				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": true, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": true, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_auto_update": false}`,
 				data.host.ID,
 				data.host.DisplayName(),
 				data.app.Name,
@@ -1040,7 +1043,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 
@@ -1053,7 +1056,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
+		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 
@@ -1240,11 +1243,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 
-	s.registerResetITunesData(t)
+	s.registerResetVPPProxyData(t)
 
-	s.appleITunesSrvData = map[string]string{
-		"1": `{"bundleId": "com.example.dummy", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "DummyApp", "TrackID": 1}`,
-		"2": `{"bundleId": "com.example.noversion", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "NoVersion", "TrackID": 2}`,
+	s.appleVPPProxySrvData = map[string]string{
+		"1": `{"id": "1", "attributes": {"name": "DummyApp", "platformAttributes": {"osx": {"bundleId": "com.example.dummy", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac"]}}`,
+		"2": `{"id": "2", "attributes": {"name": "NoVersion", "platformAttributes": {"osx": {"bundleId": "com.example.noversion", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["mac"]}}`,
 	}
 
 	var newTeamResp teamResponse
@@ -1281,7 +1284,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		Title:    "DummyApp",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has a package or app available for install on the Team 1 team.")
+	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has an installer available for the Team 1 team.")
 
 	// Add VPP app 2 with bundle ID com.example.noversion (conflicts with NoVersion)
 	vppApp2 := &fleet.VPPApp{
@@ -1295,7 +1298,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 
 	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusConflict)
 	txt := extractServerErrorText(res.Body)
-	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
+	require.Contains(t, txt, "NoVersion already has an installer available for the Team 1 team.")
 
 	// --- test with batch-set (gitops) ---
 
@@ -1323,7 +1326,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
 	batchResp := waitBatchSetSoftwareInstallers(t, &s.withServer, team.Name, batchResponse.RequestUUID)
 	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusFailed, batchResp.Status)
-	require.Contains(t, batchResp.Message, "DummyApp already has a package or app available for install on the Team 1 team.")
+	require.Contains(t, batchResp.Message, "DummyApp already has an installer available for the Team 1 team.")
 
 	// batch-set the VPP apps, including one in conflict
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -1331,7 +1334,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		{AppStoreID: "2"},
 	}}, http.StatusConflict, "team_name", team.Name)
 	txt = extractServerErrorText(res.Body)
-	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
+	require.Contains(t, txt, "NoVersion already has an installer available for the Team 1 team.")
 
 	// listing software available to install only lists the dummy app and noversion installer
 	var listSw listSoftwareTitlesResponse
@@ -1699,7 +1702,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	// update the app to have a label condition
 	clr := createLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
-		LabelPayload: fleet.LabelPayload{Name: "L1", HostIDs: []uint{}}}, http.StatusOK, &clr)
+		LabelPayload: fleet.LabelPayload{Name: "L1", HostIDs: []uint{}},
+	}, http.StatusOK, &clr)
 
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID: titleID, TeamID: nil, LabelsIncludeAny: []string{"L1"},
@@ -1713,10 +1717,41 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	// add the label to the host, so it can be installed
 	var addLabelsToHostResp addLabelsToHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", iosHost.ID), addLabelsToHostRequest{
-		Labels: []string{"L1"}}, http.StatusOK, &addLabelsToHostResp)
+		Labels: []string{"L1"},
+	}, http.StatusOK, &addLabelsToHostResp)
 
 	// self-install request is now accepted
 	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+}
+
+func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
+	// Test that the Fleet URL is used if cloudfrontsigner is nil
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	teamID := ptr.Uint(0)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	var titleResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &titleResp, "team_id", "0")
+	require.Len(t, titleResp.SoftwareTitles, 1)
+	require.Equal(t, "ipa_test", titleResp.SoftwareTitles[0].Name)
+	titleID := titleResp.SoftwareTitles[0].ID
+
+	readManifest := func(res *http.Response) []byte {
+		buf, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		return buf
+	}
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
+		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+
+	manifest := readManifest(res)
+	require.NotNil(t, manifest)
+	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app?team_id=%d", titleID, *teamID))
 }
 
 func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {
@@ -1759,4 +1794,113 @@ func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, ce
 		`, hostUUID, certHash)
 		return err
 	})
+}
+
+// TestInHouseAppVPPConflict tests that IPA (in-house apps) and VPP iOS/iPadOS apps
+// with the same bundle identifier cannot coexist on the same team.
+func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	s.registerResetVPPProxyData(t)
+
+	s.appleVPPProxySrvData = map[string]string{
+		"100": `{"id": "100", "attributes": {"name": "IPA Test App", "platformAttributes": {"ios": {"bundleId": "com.ipa-test.ipa-test", "artwork": {"url": "https://example.com/images/100/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
+		"101": `{"id": "101", "attributes": {"name": "IPA Test App iPad", "platformAttributes": {"ios": {"bundleId": "com.ipa-test.ipa-test", "artwork": {"url": "https://example.com/images/101/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["ipad"]}}`,
+		"102": `{"id": "102", "attributes": {"name": "Different App", "platformAttributes": {"ios": {"bundleId": "com.example.different", "artwork": {"url": "https://example.com/images/102/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
+	}
+
+	originalAssets := s.appleVPPConfigSrvConfig.Assets
+	t.Cleanup(func() { s.appleVPPConfigSrvConfig.Assets = originalAssets })
+
+	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, vpp.Asset{
+		AdamID:         "100",
+		PricingParam:   "STDQ",
+		AvailableCount: 10,
+	}, vpp.Asset{
+		AdamID:         "101",
+		PricingParam:   "STDQ",
+		AvailableCount: 10,
+	}, vpp.Asset{
+		AdamID:         "102",
+		PricingParam:   "STDQ",
+		AvailableCount: 10,
+	})
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.setVPPTokenForTeam(team.ID)
+
+	// Test Case 1: Upload IPA first, then try to add VPP iOS app with same bundle ID
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "ipa_test.ipa",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: "100",
+		Platform:   "ios",
+	}, http.StatusConflict)
+	txt := extractServerErrorText(res.Body)
+	require.Contains(t, txt, "already has an installer available for the IPA Conflict Team team.")
+
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: "101",
+		Platform:   "ipados",
+	}, http.StatusConflict)
+	txt = extractServerErrorText(res.Body)
+	require.Contains(t, txt, "already has an installer available for the IPA Conflict Team team.")
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: "102",
+		Platform:   "ios",
+	}, http.StatusOK, &addAppResp)
+
+	// Test Case 2: Add VPP iOS app first, then try to upload IPA with same bundle ID
+	var newTeamResp2 teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team 2")}}, http.StatusOK, &newTeamResp2)
+	team2 := newTeamResp2.Team
+
+	var tokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID}}, http.StatusOK, &resPatchVPP)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team2.ID,
+		AppStoreID: "100",
+		Platform:   "ios",
+	}, http.StatusOK, &addAppResp)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "ipa_test.ipa",
+		TeamID:   &team2.ID,
+	}, http.StatusConflict, "already has an installer available for the IPA Conflict Team 2 team.")
+
+	// Test Case 3: Verify "No team" works correctly
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "ipa_test.ipa",
+		TeamID:   nil,
+	}, http.StatusOK, "")
+
+	var newTeamResp3 teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team 3")}}, http.StatusOK, &newTeamResp3)
+	team3 := newTeamResp3.Team
+
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID, team3.ID, 0}}, http.StatusOK, &resPatchVPP)
+
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     nil,
+		AppStoreID: "100",
+		Platform:   "ios",
+	}, http.StatusConflict)
+	txt = extractServerErrorText(res.Body)
+	require.Contains(t, txt, "already has an installer available for the No team team.")
 }

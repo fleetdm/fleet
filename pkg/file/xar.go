@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -333,6 +334,8 @@ var idTranslations = map[string]string{
 	"corp.sap.privileges.pkg": "corp.sap.privileges",
 }
 
+var rxMicrosoftAutoUpdateBundleID = regexp.MustCompile(`^com\.microsoft\.autoupdate\d+$`)
+
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
 func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
 	var appVersion string
@@ -396,7 +399,11 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 			identifier = bundle.ID
 			name = strings.TrimSuffix(base, ".app")
 			appVersion = bundle.CFBundleShortVersionString
-			break
+
+			// if the found bundle is microsoft auto-update, keep looking for a better match
+			if !rxMicrosoftAutoUpdateBundleID.MatchString(identifier) {
+				break
+			}
 		}
 	}
 

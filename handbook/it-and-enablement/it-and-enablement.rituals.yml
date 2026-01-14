@@ -7,17 +7,17 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "allenhouchins" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   
-    labels: [ ":help-it-and-enablement" ]
+    labels: [ ":help-solutions-consulting" ]
     repo: "confidential"
 - 
-  task: "Complete IT & Enablement KPIs"
+  task: "Complete GTM KPIs"
   startedOn: "2024-08-30" 
   frequency: "Weekly"
-  description: "Complete IT & Enablement KPIs for this week"
+  description: "Complete GTM KPIs for this week"
   moreInfoUrl: 
   dri: "sampfluger88"
   autoIssue:   
-    labels: [ ":help-it-and-enablement" ]
+    labels: [ ":gtm-ops" ]
     repo: "fleet"
 -
   task: "Confirm closed lost is happening within 30 days"
@@ -27,7 +27,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
   dri: "Sampfluger88"
   autoIssue:   
-    labels: [ ":help-it-and-enablement","#g-unicorns" ]
+    labels: [ ":gtm-ops","#g-unicorns" ]
     repo: "confidential"
 - 
   task: "Measure intent signals"
@@ -63,5 +63,5 @@
   description: "Review [list of active instances](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud) to see what can be shutdown and deleted."
   dri: "allenhouchins"
   autoIssue:   
-    labels: [ ":help-it-and-enablement",":solutions" ]
+    labels: [ ":help-solutions-consulting" ]
     repo: "confidential"

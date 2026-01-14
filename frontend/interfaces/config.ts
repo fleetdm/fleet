@@ -229,7 +229,8 @@ export type LogDestination =
   | "kinesis"
   | "lambda"
   | "pubsub"
-  | "kafta"
+  | "kafka"
+  | "nats"
   | "stdout"
   | "webhook"
   | "";

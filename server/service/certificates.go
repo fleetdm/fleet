@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -21,6 +22,13 @@ const (
 
 // certificateTemplateNameRegex allows only letters, numbers, spaces, dashes, and underscores
 var certificateTemplateNameRegex = regexp.MustCompile(`^[a-zA-Z0-9 \-_]+$`)
+
+func validateCertificateTemplateSubjectName(subjectName string) error {
+	if strings.TrimSpace(subjectName) == "" {
+		return &fleet.BadRequestError{Message: "Certificate template subject name is required."}
+	}
+	return nil
+}
 
 // validateCertificateTemplateName validates the certificate template name.
 // Returns a BadRequestError if validation fails.
@@ -77,6 +85,10 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 
 	// Validate certificate template name
 	if err := validateCertificateTemplateName(name); err != nil {
+		return nil, err
+	}
+
+	if err := validateCertificateTemplateSubjectName(subjectName); err != nil {
 		return nil, err
 	}
 
@@ -232,14 +244,13 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 	if err != nil {
 		// If the certificate variables cannot be replaced, mark the certificate as failed.
 		errorMsg := fmt.Sprintf("Could not replace certificate variables: %s", err.Error())
-		if err := svc.ds.UpsertCertificateStatus(
-			ctx,
-			host.UUID,
-			certificate.ID,
-			fleet.MDMDeliveryFailed,
-			&errorMsg,
-			fleet.MDMOperationTypeInstall,
-		); err != nil {
+		if err := svc.ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: certificate.ID,
+			Status:                fleet.MDMDeliveryFailed,
+			Detail:                &errorMsg,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		}); err != nil {
 			return nil, err
 		}
 		certificate.Status = fleet.CertificateTemplateFailed
@@ -425,6 +436,10 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 			return err
 		}
 
+		if err := validateCertificateTemplateSubjectName(spec.SubjectName); err != nil {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
+		}
+
 		// Get the CA to validate its existence and type.
 		ca, ok := casByID[spec.CertificateAuthorityId]
 		if !ok {
@@ -567,6 +582,10 @@ type updateCertificateStatusRequest struct {
 	// Detail provides additional information about the status change.
 	// For example, it can be used to provide a reason for a failed status change.
 	Detail *string `json:"detail,omitempty"`
+	// Certificate validity fields - reported by device after successful enrollment
+	NotValidBefore *time.Time `json:"not_valid_before,omitempty"`
+	NotValidAfter  *time.Time `json:"not_valid_after,omitempty"`
+	Serial         *string    `json:"serial,omitempty"`
 }
 
 type updateCertificateStatusResponse struct {
@@ -581,7 +600,21 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 		return nil, errors.New("invalid request")
 	}
 
-	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status), req.Detail, req.OperationType)
+	// Default operation_type to "install" if not provided.
+	opType := fleet.MDMOperationTypeInstall
+	if req.OperationType != nil && *req.OperationType != "" {
+		opType = fleet.MDMOperationType(*req.OperationType)
+	}
+
+	err := svc.UpdateCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+		CertificateTemplateID: req.CertificateTemplateID,
+		Status:                fleet.MDMDeliveryStatus(req.Status),
+		Detail:                req.Detail,
+		OperationType:         opType,
+		NotValidBefore:        req.NotValidBefore,
+		NotValidAfter:         req.NotValidAfter,
+		Serial:                req.Serial,
+	})
 	if err != nil {
 		return updateCertificateStatusResponse{Err: err}, nil
 	}
@@ -589,58 +622,49 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 	return updateCertificateStatusResponse{}, nil
 }
 
-func (svc *Service) UpdateCertificateStatus(
-	ctx context.Context,
-	certificateTemplateID uint,
-	status fleet.MDMDeliveryStatus,
-	detail *string,
-	operationType *string,
-) error {
+func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return err
+		return ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 	}
 
 	// Validate the status.
-	if !status.IsValid() {
-		return fleet.NewInvalidArgumentError("status", string(status))
+	if !update.Status.IsValid() {
+		return fleet.NewInvalidArgumentError("status", string(update.Status))
 	}
 
-	// Default operation_type to "install" if not provided.
-	opType := fleet.MDMOperationTypeInstall
-	if operationType != nil && *operationType != "" {
-		opType = fleet.MDMOperationType(*operationType)
-	}
-
-	if !opType.IsValid() {
-		return fleet.NewInvalidArgumentError("operation_type", string(opType))
+	if !update.OperationType.IsValid() {
+		return fleet.NewInvalidArgumentError("operation_type", string(update.OperationType))
 	}
 
 	// Use GetHostCertificateTemplateRecord to query the host_certificate_templates table directly,
 	// allowing status updates even when the parent certificate_template has been deleted.
-	record, err := svc.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certificateTemplateID)
+	record, err := svc.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, update.CertificateTemplateID)
 	if err != nil {
 		return err
 	}
 
+	if record.OperationType != update.OperationType {
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", update.OperationType)
+		return nil
+	}
+
+	// If operation_type is "remove" and status is "verified", delete the host_certificate_template row.
+	// This allows deletions even when there are race conditions or status sync issues
+	// (e.g., device reports removal before server transitions status).
+	if update.OperationType == fleet.MDMOperationTypeRemove && update.Status == fleet.MDMDeliveryVerified {
+		return svc.ds.DeleteHostCertificateTemplate(ctx, host.UUID, update.CertificateTemplateID)
+	}
+
 	if record.Status != fleet.CertificateTemplateDelivered {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_status", record.Status, "new_status", status)
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_status", record.Status, "new_status", update.Status)
 		return nil
 	}
 
-	if record.OperationType != opType {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", certificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", opType)
-		return nil
-	}
-
-	// If operation_type is "remove" and status is "verified", delete the host_certificate_template row
-	if opType == fleet.MDMOperationTypeRemove && status == fleet.MDMDeliveryVerified {
-		return svc.ds.DeleteHostCertificateTemplate(ctx, host.UUID, certificateTemplateID)
-	}
-
-	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail, opType)
+	// Fill in HostUUID from context
+	update.HostUUID = host.UUID
+	return svc.ds.UpsertCertificateStatus(ctx, update)
 }

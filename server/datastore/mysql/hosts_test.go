@@ -23,11 +23,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -184,11 +184,12 @@ func TestHosts(t *testing.T) {
 		{"UpdateHostIssues", testUpdateHostIssues},
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
 		{"GetHostEmails", testGetHostEmails},
-		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
+		{"GetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
-		{"TestMaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
+		{"MaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
+		{"HostTimeZone", testHostTimeZone},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4201,7 +4202,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: host1Upcoming[0].ExecutionID,
 		Output:      "foo",
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Simulate that host2 errored out
@@ -4212,7 +4213,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Simulate that host3 cancelled the script execution
@@ -8491,7 +8492,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, _, err = ds.SetHostScriptExecutionResult(context.Background(), &fleet.HostScriptResultPayload{
 		HostID:      host.ID,
 		ExecutionID: hsr.ExecutionID,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
@@ -8662,6 +8663,10 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		INSERT INTO conditional_access_scep_certificates (serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, revoked)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`, caCertSerial, host.ID, "test-ca-host", time.Now().Add(-1*time.Hour), time.Now().Add(24*time.Hour), "-----BEGIN CERTIFICATE-----", false)
+	require.NoError(t, err)
+
+	locData := fleet.HostLocationData{HostID: host.ID, Latitude: 42.42, Longitude: -42.42}
+	err = ds.InsertHostLocationData(ctx, locData)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -12383,4 +12388,65 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	emptyStatusMap, err := ds.GetHostsLockWipeStatusBatch(ctx, []*fleet.Host{})
 	require.NoError(t, err)
 	require.Empty(t, emptyStatusMap)
+}
+
+func testHostTimeZone(t *testing.T, ds *Datastore) {
+	uuid := uuid.NewString()
+	host, err := ds.NewHost(t.Context(), &fleet.Host{
+		NodeKey:  ptr.String(uuid),
+		UUID:     uuid,
+		Hostname: uuid,
+	})
+	require.NoError(t, err)
+	require.Nil(t, host.TimeZone)
+	host, err = ds.Host(t.Context(), host.ID)
+	require.NoError(t, err)
+	require.Nil(t, host.TimeZone)
+	timeZone := "Asia/Tokyo"
+	host.TimeZone = &timeZone
+	err = ds.UpdateHost(t.Context(), host)
+	require.NoError(t, err)
+	host, err = ds.Host(t.Context(), host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, host.TimeZone)
+	require.Equal(t, timeZone, *host.TimeZone)
+	hosts, err := ds.ListHosts(t.Context(), fleet.TeamFilter{
+		User: test.UserAdmin,
+	}, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: uuid,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.NotNil(t, hosts[0].TimeZone)
+	require.Equal(t, timeZone, *hosts[0].TimeZone)
+	host, err = ds.LoadHostByNodeKey(t.Context(), *host.NodeKey)
+	require.NoError(t, err)
+	require.NotNil(t, host.TimeZone)
+	require.Equal(t, timeZone, *host.TimeZone)
+	host, err = ds.HostByIdentifier(t.Context(), uuid)
+	require.NoError(t, err)
+	require.NotNil(t, host.TimeZone)
+	require.Equal(t, timeZone, *host.TimeZone)
+
+	l1s := &fleet.LabelSpec{
+		Name:                "foobar",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts:               []string{host.Hostname},
+	}
+	err = ds.ApplyLabelSpecs(t.Context(), []*fleet.LabelSpec{l1s})
+	require.NoError(t, err)
+	l1, err := ds.LabelByName(t.Context(), l1s.Name, fleet.TeamFilter{
+		User: test.UserAdmin,
+	})
+	require.NoError(t, err)
+	hosts, err = ds.ListHostsInLabel(t.Context(), fleet.TeamFilter{
+		User: test.UserAdmin,
+	}, l1.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.NotNil(t, hosts[0].TimeZone)
+	require.Equal(t, timeZone, *hosts[0].TimeZone)
 }

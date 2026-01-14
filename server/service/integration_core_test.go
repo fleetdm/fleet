@@ -30,10 +30,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
@@ -2106,9 +2106,9 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
 	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
 
-	// With "populate_device_status" query param
+	// With "include_device_status" query param
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_device_status", "true")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "include_device_status", "true")
 	require.Len(t, resp.Hosts, 1)
 	require.Contains(t, resp.Hosts[0].Hostname, "local0")
 	require.Equal(t, string(fleet.DeviceStatusUnlocked), *resp.Hosts[0].MDM.DeviceStatus)
@@ -2153,18 +2153,23 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 
 	// Add installed paths and signature information
 	swPaths := map[string]struct{}{}
+	testCdHash := "abc123hash"
+	testExecHash := "def456hash"
+	testExecPath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 	for _, s := range software {
-		pathItems := [][3]string{
-			{"/Applications/Google Chrome.app", "EQHXZ8M8AV", "abc123hash"},
-			{"/Users/test/Applications/Google Chrome.app", "", ""},
+		pathItems := [][5]string{
+			{"/Applications/Google Chrome.app", "EQHXZ8M8AV", testCdHash, testExecHash, testExecPath},
+			{"/Users/test/Applications/Google Chrome.app", "", "", "", ""},
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
 			cdHash := pathItem[2]
+			eHash := pathItem[3]
+			ePath := pathItem[4]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, eHash, fleet.SoftwareFieldSeparator, ePath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -2223,14 +2228,20 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	sigInfo0 := sw.PathSignatureInformation[0]
 	assert.Equal(t, "/Applications/Google Chrome.app", sigInfo0.InstalledPath)
 	assert.Equal(t, "EQHXZ8M8AV", sigInfo0.TeamIdentifier)
-	assert.NotNil(t, sigInfo0.HashSha256)
-	assert.Equal(t, "abc123hash", *sigInfo0.HashSha256)
+	assert.NotNil(t, sigInfo0.CDHashSHA256)
+	assert.Equal(t, testCdHash, *sigInfo0.CDHashSHA256)
+	assert.NotNil(t, *sigInfo0.ExecutableSHA256)
+	assert.Equal(t, testExecHash, *sigInfo0.ExecutableSHA256)
+	assert.NotNil(t, *sigInfo0.ExecutablePath)
+	assert.Equal(t, testExecPath, *sigInfo0.ExecutablePath)
 
 	// Verify second signature information (user-level without team identifier)
 	sigInfo1 := sw.PathSignatureInformation[1]
 	assert.Equal(t, "/Users/test/Applications/Google Chrome.app", sigInfo1.InstalledPath)
 	assert.Equal(t, "", sigInfo1.TeamIdentifier)
-	assert.Nil(t, sigInfo1.HashSha256)
+	assert.Nil(t, sigInfo1.CDHashSHA256)
+	assert.Nil(t, sigInfo1.ExecutableSHA256)
+	assert.Nil(t, sigInfo1.ExecutablePath)
 
 	// Also verify the JSON marshaling by checking the raw JSON response
 	rawResp := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, "populate_software", "true")
@@ -5295,9 +5306,9 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
 
-	// Do request with populate_device_status, since it's an additional feature
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "populate_device_status", "true")
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "populate_device_status", "true")
+	// Do request with include_device_status, since it's an additional feature
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "include_device_status", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "include_device_status", "true")
 
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ = json.MarshalIndent(hostsResp, "", "  ")
@@ -10890,7 +10901,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	})
 	require.NoError(t, err)
 
-	var resp endpoint_utils.JsonError
+	var resp endpointer.JsonError
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
@@ -11677,7 +11688,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 		NodeKey:         ptr.String(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
-		Platform:        "darwin",
+		Platform:        "windows",
 	})
 	require.NoError(t, err)
 
@@ -13789,7 +13800,6 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	}, http.StatusOK, &removeLabelsFromHostResp)
 	teamHost2Labels = getHostLabels(teamHost2)
 	require.Empty(t, teamHost2Labels)
-
 }
 
 func (s *integrationTestSuite) TestDebugDB() {
@@ -13997,26 +14007,31 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	// Google Chrome.app will have two installed paths one with team identifier set
 	// the other one set to empty.
 	swPaths := map[string]struct{}{}
+	testCdHash := "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
+	testExecHash := "f5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
+	testExecPath := "/some/path/Google Chrome.app/Contents/MacOS/Google Chrome"
 	for _, s := range software {
-		pathItems := [][3]string{{fmt.Sprintf("/some/path/%s", s.Name), "", ""}}
+		pathItems := [][5]string{{fmt.Sprintf("/some/path/%s", s.Name), "", "", "", ""}}
 		if s.Name == "Safari.app" {
-			pathItems = [][3]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "", "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"},
+			pathItems = [][5]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "", testCdHash, testExecHash, testExecPath},
 			}
 		}
 		if s.Name == "Google Chrome.app" {
-			pathItems = [][3]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", ""},
-				{fmt.Sprintf("/some/other/path/%s", s.Name), "", ""},
+			pathItems = [][5]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", "", "", ""},
+				{fmt.Sprintf("/some/other/path/%s", s.Name), "", "", "", ""},
 			}
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
 			cdHash := pathItem[2]
+			execHash := pathItem[3]
+			execPath := pathItem[4]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, execHash, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -14041,7 +14056,9 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation, 1)
 	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
-	require.Equal(t, "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb", *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].HashSha256)
+	require.Equal(t, testCdHash, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
+	require.Equal(t, testExecHash, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, testExecPath, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].ExecutablePath)
 
 	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
@@ -14057,8 +14074,12 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	})
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
-	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].HashSha256)
-	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].HashSha256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].ExecutableSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].ExecutablePath)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].CDHashSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].ExecutableSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].ExecutablePath)
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
@@ -15163,7 +15184,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 		// Verified status - should be updated to pending/remove
 		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certificateTemplateID, "verified", "install", "challenge2", certTemplateName)
 		require.NoError(t, err)
-		// Failed status - should be updated to pending/remove
+		// Failed status - should be deleted (never successfully installed)
 		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID, "failed", "install", "challenge3", certTemplateName)
 		require.NoError(t, err)
 		return nil
@@ -15224,23 +15245,28 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK, &deleteResp)
 
 	// After deletion:
-	// - hostPending (pending/install) should have NO profile (record was deleted)
-	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
 	//   (kept for cron job to process removal from devices)
 
-	// Verify hostPending has no profile after deletion
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
 	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
 	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
 
-	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
 	for _, tc := range []struct {
 		host     *fleet.Host
 		hostName string
 	}{
 		{hostDelivered, "hostDelivered"},
 		{hostVerified, "hostVerified"},
-		{hostFailed, "hostFailed"},
 	} {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 		profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
@@ -15416,16 +15442,22 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	require.True(t, fleet.IsNotFound(err), "certificate template 2 should be deleted")
 
 	// After deletion:
-	// - hostPending (pending/install) should have NO profile (record was deleted)
-	// - hostDelivered, hostVerified, hostFailed should have pending/remove profiles
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
 	//   (kept for cron job to process removal from devices)
 
-	// Verify hostPending has no profile after deletion
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
 	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName1)
 	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
 
-	// Verify hosts that had delivered/verified/failed status now have pending/remove profiles
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName2)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
 	for _, tc := range []struct {
 		host         *fleet.Host
 		hostName     string
@@ -15433,7 +15465,6 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	}{
 		{hostDelivered, "hostDelivered", certTemplateName1},
 		{hostVerified, "hostVerified", certTemplateName2},
-		{hostFailed, "hostFailed", certTemplateName2},
 	} {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 		profile := findProfile(getHostResp.Host.MDM.Profiles, tc.templateName)
