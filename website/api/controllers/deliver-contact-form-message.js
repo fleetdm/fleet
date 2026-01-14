@@ -109,6 +109,8 @@ Fleet Premium subscription details:
       },
     });
 
+    let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
+
     sails.helpers.flow.build(async ()=>{
       let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
@@ -116,6 +118,7 @@ Fleet Premium subscription details:
         lastName: lastName,
         contactSource: 'Website - Contact forms',
         description: `Sent a contact form message: ${message}`,
+        marketingAttributionCookie: attributionCookieOrUndefined
       }).intercept((err)=>{
         return new Error(`Could not create/update a contact or account. Full error: ${require('util').inspect(err)}`);
       });
