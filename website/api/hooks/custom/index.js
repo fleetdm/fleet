@@ -357,12 +357,15 @@ will be disabled and/or hidden in the UI.
                       sails.log.verbose('Skipping Salesforce integration...');
                       return;
                     }
+                    let attributionCookieOrUndefined = req.cookies.marketingAttribution;// Will be undefined if this is not set.
+
                     let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
                       emailAddress: sanitizedUser.emailAddress,
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
                       organization: sanitizedUser.organization,
                       contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
+                      marketingAttributionCookie: attributionCookieOrUndefined,
                     });
                     let websiteVisitReason;
                     if(req.session.adAttributionString && req.session.visitedSiteFromAdAt) {
@@ -386,9 +389,9 @@ will be disabled and/or hidden in the UI.
                   .exec((err)=>{
                     if(err && typeof err.errorCode !== 'undefined' && err.errorCode === 'DUPLICATES_DETECTED') {
                       // Swallow errors related to duplicate records.
-                      sails.log.verbose(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, err);
+                      sails.log.verbose(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, require('util').inspect(err));
                     } else if(err){
-                      sails.log.warn(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, err);
+                      sails.log.warn(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, require('util').inspect(err));
                     }
                     return;
                   });//_∏_
