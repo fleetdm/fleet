@@ -20,7 +20,7 @@ Otherwise, you'll need to:
 
 1. **Get the mTLS CA certificate**: Download the CA certificate from Fleet's SCEP endpoint at `/api/fleet/conditional_access/scep?operation=GetCACert`. This is the certificate that signs the client certificates deployed to your hosts.
 
-Note: The certificate is provided in DER format. If your mTLS termination solution requires PEM format, you can convert it using the following command:
+> Note: The certificate is provided in DER format. If your mTLS termination solution requires PEM format, you can convert it using the following command:
 
 `openssl x509 -inform der -in fleet-scep-ca.cer -out fleet-scep-ca.pem`
 
