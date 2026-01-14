@@ -3170,13 +3170,13 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                     hsi.software_installer_id = hsi2.software_installer_id AND
                     hsi.uninstall = hsi2.uninstall AND
                     hsi2.removed = 0 AND
-					hsi2.canceled = 0 AND
+                    hsi2.canceled = 0 AND
                     hsi2.host_deleted_at IS NULL AND
                     (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
             WHERE
                 hsi.host_id = ? AND
                 hsi.removed = 0 AND
-				hsi.canceled = 0 AND
+                hsi.canceled = 0 AND
                 hsi.uninstall = 0 AND
                 hsi.host_deleted_at IS NULL AND
                 hsi2.id IS NULL AND
@@ -3250,14 +3250,14 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                     hsi.software_installer_id = hsi2.software_installer_id AND
                     hsi.uninstall = hsi2.uninstall AND
                     hsi2.removed = 0 AND
-					hsi2.canceled = 0 AND
+                    hsi2.canceled = 0 AND
                     hsi2.host_deleted_at IS NULL AND
                     (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
             WHERE
                 hsi.host_id = ? AND
                 hsi.removed = 0 AND
                 hsi.uninstall = 1 AND
-				hsi.canceled = 0 AND
+                hsi.canceled = 0 AND
                 hsi.host_deleted_at IS NULL AND
                 hsi2.id IS NULL AND
                 NOT EXISTS (
@@ -3315,6 +3315,8 @@ func filterSoftwareInstallersByLabel(
 	}
 
 	if len(softwareInstallersIDsToCheck) > 0 {
+		globalOrTeamID := ptr.ValOrZero(host.TeamID)
+
 		labelSqlFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -3398,7 +3400,8 @@ func filterSoftwareInstallersByLabel(
 			LEFT JOIN exclude_any
 				ON exclude_any.installer_id = software_installers.id
 			WHERE
-				software_installers.id IN (:software_installer_ids)
+				software_installers.global_or_team_id = :global_or_team_id
+				AND software_installers.id IN (:software_installer_ids)
 				AND (
 					no_labels.installer_id IS NOT NULL
 					OR include_any.installer_id IS NOT NULL
@@ -3409,6 +3412,7 @@ func filterSoftwareInstallersByLabel(
 			"host_id":                host.ID,
 			"host_label_updated_at":  host.LabelUpdatedAt,
 			"software_installer_ids": softwareInstallersIDsToCheck,
+			"global_or_team_id":      globalOrTeamID,
 		})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "filterSoftwareInstallersByLabel building named query args")
@@ -4507,7 +4511,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						hsi.host_id = :host_id AND
 						hsi.software_installer_id = si.id AND
 						hsi.removed = 0 AND
-						hsi.canceled = 0
+						hsi.canceled = 0 AND
+						hsi.host_deleted_at IS NULL
 				) AND
 				-- sofware install/uninstall is not upcoming on host
 				NOT EXISTS (
@@ -5929,6 +5934,7 @@ func (ds *Datastore) CountHostSoftwareInstallAttempts(ctx context.Context, hostI
 		  AND policy_id = ?
 		  AND removed = 0
 		  AND canceled = 0
+		  AND host_deleted_at IS NULL
 		  AND (attempt_number > 0 OR attempt_number IS NULL)
 	`, hostID, softwareInstallerID, policyID)
 	if err != nil {
@@ -6057,7 +6063,7 @@ SELECT
 FROM software_titles st
 INNER JOIN software_installers si ON si.title_id = st.id
 INNER JOIN host_software_installs hsi ON hsi.host_id = :host_id AND hsi.software_installer_id = si.id
-WHERE hsi.removed = 0 AND hsi.canceled = 0 AND hsi.status = :software_status_installed
+WHERE hsi.removed = 0 AND hsi.canceled = 0 AND hsi.host_deleted_at IS NULL AND hsi.status = :software_status_installed
 
 UNION
 
@@ -6073,9 +6079,9 @@ FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
 INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
 LEFT JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-WHERE 
-	hvsi.removed = 0 AND 
-	hvsi.canceled = 0 AND 
+WHERE
+	hvsi.removed = 0 AND
+	hvsi.canceled = 0 AND
 	(ncr.status = :mdm_status_acknowledged OR hvsi.verification_at IS NOT NULL)
 `
 	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
