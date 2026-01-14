@@ -180,10 +180,8 @@ func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error 
 			// We are at top level, and we see a non-Atomic element first, mark the profile as non-Atomic.
 			v.isAtomicProfile = ptr.Bool(false)
 		}
-	} else {
-		if v.currentElement == "Atomic" && !v.isValidNestedAtomicElement(elementName) {
-			return errors.New("Windows configuration profiles can only include <Replace> or <Add> within the <Atomic> element.")
-		}
+	} else if v.currentElement == "Atomic" && !v.isValidNestedAtomicElement(elementName) {
+		return errors.New("Windows configuration profiles can only include <Replace> or <Add> within the <Atomic> element.")
 	}
 
 	v.currentElement = elementName
