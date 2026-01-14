@@ -60,7 +60,7 @@ export const getInstallerCardInfo = (
     isScriptPackage:
       SCRIPT_PACKAGE_SOURCES.includes(softwareTitle.source) || false,
     autoUpdateEnabled: softwareTitle.auto_update_enabled,
-    autoUpdateStartTime: softwareTitle.auto_update_start_time,
-    autoUpdateEndTime: softwareTitle.auto_update_end_time,
+    autoUpdateStartTime: softwareTitle.auto_update_window_start,
+    autoUpdateEndTime: softwareTitle.auto_update_window_end,
   };
 };
