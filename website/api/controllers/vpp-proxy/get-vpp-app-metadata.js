@@ -122,7 +122,10 @@ module.exports = {
       }
     })
     .tolerate((err)=>{
-      sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
+      // Ignore bad request and invalid stoken vpp token responses when loggin a warning.
+      if(![400, 403].includes(err.statusCode)) {
+        sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
+      }
       return err;
     });
 
