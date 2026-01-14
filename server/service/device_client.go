@@ -119,42 +119,47 @@ func (dc *DeviceClient) requestAttempt(verb string, path string, query string, p
 	return dc.parseResponse(verb, path, response, responseDest)
 }
 
-func (dc *DeviceClient) getFleetHost(defaultHost string) string {
+func (dc *DeviceClient) getAlternativeBrowserHost() string {
 	if dc.fleetAlternativeBrowserHostFromServer != "" {
 		return dc.fleetAlternativeBrowserHostFromServer
 	}
-	if dc.fleetAlternativeBrowserHost != "" {
-		return dc.fleetAlternativeBrowserHost
-	}
-	return defaultHost
+	return dc.fleetAlternativeBrowserHost
 }
 
 // BrowserTransparencyURL returns a URL for the browser that the server
 // will use to redirect to the transparency URL configured by the user.
 func (dc *DeviceClient) BrowserTransparencyURL(token string) string {
 	transparencyURL := dc.baseClient.url("/api/latest/fleet/device/"+token+"/transparency", "")
-	transparencyURL.Host = dc.getFleetHost(transparencyURL.Host)
+	if alt := dc.getAlternativeBrowserHost(); alt != "" {
+		transparencyURL.Host = alt
+	}
 	return transparencyURL.String()
 }
 
 // BrowserSelfServiceURL returns the "Self-service" URL for the browser.
 func (dc *DeviceClient) BrowserSelfServiceURL(token string) string {
 	selfServiceURL := dc.baseClient.url("/device/"+token+"/self-service", "")
-	selfServiceURL.Host = dc.getFleetHost(selfServiceURL.Host)
+	if alt := dc.getAlternativeBrowserHost(); alt != "" {
+		selfServiceURL.Host = alt
+	}
 	return selfServiceURL.String()
 }
 
 // BrowserDeviceURL returns the "My device" URL for the browser.
 func (dc *DeviceClient) BrowserDeviceURL(token string) string {
 	deviceURL := dc.baseClient.url("/device/"+token, "")
-	deviceURL.Host = dc.getFleetHost(deviceURL.Host)
+	if alt := dc.getAlternativeBrowserHost(); alt != "" {
+		deviceURL.Host = alt
+	}
 	return deviceURL.String()
 }
 
 // BrowserPoliciesURL returns the "Policies" URL for the browser.
 func (dc *DeviceClient) BrowserPoliciesURL(token string) string {
 	policiesURL := dc.baseClient.url(fmt.Sprintf(`/device/%s/policies`, token), "")
-	policiesURL.Host = dc.getFleetHost(policiesURL.Host)
+	if alt := dc.getAlternativeBrowserHost(); alt != "" {
+		policiesURL.Host = alt
+	}
 	return policiesURL.String()
 }
 

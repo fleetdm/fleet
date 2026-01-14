@@ -114,7 +114,7 @@ func TestDeviceClientGetFleetHost(t *testing.T) {
 		client, err := NewDeviceClient("", true, "", nil, tc.alternativeBrowserHostFromEnv)
 		require.NoError(t, err)
 		client.fleetAlternativeBrowserHostFromServer = tc.alternativeBrowserHostFromServer
-		require.Equal(t, tc.expected, client.getFleetHost(""))
+		require.Equal(t, tc.expected, client.getAlternativeBrowserHost())
 	}
 }
 
