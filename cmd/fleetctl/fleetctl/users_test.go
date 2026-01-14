@@ -30,6 +30,11 @@ func TestUserDelete(t *testing.T) {
 		}, nil
 	}
 
+	// Allow deletion by returning multiple admins exist
+	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+		return 2, nil
+	}
+
 	deletedUser := uint(0)
 
 	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
@@ -224,11 +229,24 @@ func TestDeleteBulkUsers(t *testing.T) {
 		deletedUserIds = append(deletedUserIds, id)
 	}
 
-	for _, user := range users {
-		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-			return &user, nil
-		}
+	// Create a map for looking up users by email
+	usersByEmail := make(map[string]*fleet.User)
+	for i := range users {
+		usersByEmail[users[i].Email] = &users[i]
 	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if u, ok := usersByEmail[email]; ok {
+			return u, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	// Allow deletion by returning multiple admins exist
+	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+		return 2, nil
+	}
+
 	deletedUser := uint(0)
 
 	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
