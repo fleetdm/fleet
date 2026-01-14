@@ -3955,6 +3955,28 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
+func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrowserHostURL() {
+	t := s.T()
+
+	// confirm intitial default url
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "", acResp.FleetDesktop.AlternativeBrowserHostURL)
+
+	// set custom url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host_url": "example.com"}}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHostURL)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHostURL)
+
+}
+
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	t := s.T()
 
