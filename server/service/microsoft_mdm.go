@@ -1642,12 +1642,14 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
 			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
 		}
-		cmd := new(mdm_types.SyncMLCmd)
-		if err := xml.Unmarshal([]byte(rawCommandWithSecret), cmd); err != nil {
+		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
+		if err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
 			continue
 		}
-		cmds = append(cmds, cmd)
+		for _, pcmd := range parsedCmds {
+			cmds = append(cmds, &pcmd)
+		}
 	}
 
 	return cmds, nil
@@ -2523,43 +2525,81 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 // Windows equivalent of Apple's Commander struct, but I'd like
 // to keep it simpler for now until we understand more.
 func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fleet.MDMWindowsCommand, error) {
-	rawCommand := []byte(fmt.Sprintf(`<Atomic>%s</Atomic>`, profileBytes))
-	cmd := new(mdm_types.SyncMLCmd)
-	if err := xml.Unmarshal(rawCommand, cmd); err != nil {
-		return nil, fmt.Errorf("unmarshalling profile: %w", err)
-	}
-	// set the CmdID for the <Atomic> command
-	cmd.CmdID = mdm_types.CmdID{
-		Value:               commandUUID,
-		IncludeFleetComment: true,
-	}
-	// generate a CmdID for any nested <Replace>
-	for i := range cmd.ReplaceCommands {
-		cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	// generate a CmdID for any nested <Add>
-	for i := range cmd.AddCommands {
-		cmd.AddCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	// generate a CmdID for any nested <Exec>
-	for i := range cmd.ExecCommands {
-		cmd.ExecCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	rawCommand, err := xml.Marshal(cmd)
+	rawCommand := profileBytes
+	cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(rawCommand)
 	if err != nil {
-		return nil, fmt.Errorf("marshalling command: %w", err)
+		return nil, fmt.Errorf("unmarshalling profile bytes: %w", err)
+	}
+
+	if len(cmds) == 0 {
+		return nil, errors.New("no commands found in profile")
+	}
+
+	if len(cmds) == 1 {
+		// We know it's either atomic or just a single command, so just set the commandUUID to the first top level element.
+		cmd := cmds[0]
+		cmd.CmdID = mdm_types.CmdID{
+			Value:               commandUUID,
+			IncludeFleetComment: true,
+		}
+
+		if cmd.XMLName.Local == mdm_types.CmdAtomic {
+			// Iterate through all nested commands and set their CmdID as well
+			// generate a CmdID for any nested <Replace>
+			for i := range cmd.ReplaceCommands {
+				cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+
+			// generate a CmdID for any nested <Add>
+			for i := range cmd.AddCommands {
+				cmd.AddCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+
+			// generate a CmdID for any nested <Exec>
+			for i := range cmd.ExecCommands {
+				cmd.ExecCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+		}
+
+		marshalledRawCommand, err := xml.Marshal(cmd)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling command: %w", err)
+		}
+		rawCommand = marshalledRawCommand
+	} else {
+		// We know this is non-atomic, since we have a list of commands, which only happens with multiple top-level elements.
+		for i, cmd := range cmds {
+
+			cmd.CmdID = mdm_types.CmdID{
+				Value:               uuid.NewString(),
+				IncludeFleetComment: true,
+			}
+
+			if i == 0 {
+				// First element in a non-atomic profile
+				cmd.CmdID = mdm_types.CmdID{
+					Value:               commandUUID,
+					IncludeFleetComment: true,
+				}
+			}
+
+			cmds[i] = cmd
+		}
+
+		marshalledRawCommand, err := xml.Marshal(cmds)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling commands: %w", err)
+		}
+		rawCommand = marshalledRawCommand
 	}
 
 	command := &fleet.MDMWindowsCommand{

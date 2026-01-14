@@ -1631,3 +1631,25 @@ func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 
 	return MDMDeliveryFailed
 }
+
+// xml.Unmarshal expects a single top-level element, or all top-level elements to have the same <Tag>
+// We therefore wrap the incoming profile bytes with Root, and then parse the individual commands into an array for further processing.
+func UnmarshallMultiTopLevelXMLProfile(profileBytes []byte) ([]SyncMLCmd, error) {
+	// Wrap the profile bytes in a root element to handle multiple top-level commands
+	wrappedXML := "<root>" + string(profileBytes) + "</root>"
+
+	// Parse the XML to extract individual command elements
+	var root struct {
+		Commands []SyncMLCmd `xml:",any"`
+	}
+
+	if err := xml.Unmarshal([]byte(wrappedXML), &root); err != nil {
+		return nil, fmt.Errorf("unmarshalling wrapped profile: %w", err)
+	}
+
+	if len(root.Commands) == 0 {
+		return nil, errors.New("no commands found in profile")
+	}
+
+	return root.Commands, nil
+}
