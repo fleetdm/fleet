@@ -552,6 +552,10 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleCustomIconsPermissions() {
 	// do the next steps as team maintainer
 	s.setTokenForTest(t, teamMaintainerUser.Email, test.GoodPassword)
 
+	// list software titles on "No team" to confirm we're the team maintainer (doesn't have access)
+	var listTitlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles?team_id=", listSoftwareTitlesRequest{}, http.StatusForbidden, &listTitlesResp)
+
 	// get the custom icon
 	res := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
 		nil, http.StatusOK)
