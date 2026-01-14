@@ -2320,6 +2320,9 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	serverURL.RawQuery = ""
 
 	// TODO(JK): maybe we can failed the VPP apps here
+	if !enrolled && !installedFromDep && serverURL.String() == "" {
+		ds.MDMTurnOff(ctx, host.UUID)
+	}
 
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
