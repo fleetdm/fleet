@@ -118,11 +118,14 @@ module.exports = {
       },
       headers: {
         'Authorization': `Bearer ${tokenForThisRequest}`,
-        'Cookie': `${vppToken}`,
+        'Cookie': `itvt=${vppToken}`,
       }
     })
     .tolerate((err)=>{
-      sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
+      // Ignore invalid stoken vpp token responses when logging errors returned by the Apple API.
+      if(err.statusCode !== 403) {
+        sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
+      }
       return err;
     });
 
