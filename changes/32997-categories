@@ -1,1 +1,1 @@
-- Fixed bug where `fleetctl` was not sending software categories correctly in all cases.
+- Fixed bug where `fleetctl gitops` was not sending software categories correctly in all cases.
