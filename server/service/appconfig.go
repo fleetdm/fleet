@@ -367,16 +367,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		})
 	}
 
-	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
-	if newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL {
-		if !lic.IsPremium() {
-			invalid.Append("transparency_url", ErrMissingLicense.Error())
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
-		if _, err := url.Parse(newAppConfig.FleetDesktop.TransparencyURL); err != nil {
-			invalid.Append("transparency_url", err.Error())
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
+	fleetDesktopSettingsInvalid := validateFleetDesktopSettings(newAppConfig, lic)
+	if fleetDesktopSettingsInvalid.HasErrors() {
+		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalid)
 	}
 
 	if newAppConfig.SSOSettings != nil {
@@ -778,8 +771,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if !lic.IsPremium() {
-		// reset transparency url to empty for downgraded licenses
+		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
+		appConfig.FleetDesktop.AlternativeBrowserHostURL = ""
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
@@ -1105,6 +1099,38 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	return obfuscatedAppConfig, nil
+}
+
+func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.LicenseInfo) *fleet.InvalidArgumentError {
+	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
+	transparencyURLModified := newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL
+	alternativeBrowserHostURLModified := newAppConfig.FleetDesktop.AlternativeBrowserHostURL != ""
+
+	fleetDesktopSettingsInvalid := &fleet.InvalidArgumentError{}
+	if !lic.IsPremium() {
+		if transparencyURLModified {
+			fleetDesktopSettingsInvalid.Append("transparency_url", ErrMissingLicense.Error())
+		}
+		if alternativeBrowserHostURLModified {
+			fleetDesktopSettingsInvalid.Append("alternative_browser_host_url", ErrMissingLicense.Error())
+		}
+	}
+	// No point in validating that the URLs are valid if the license is not premium
+	if fleetDesktopSettingsInvalid.HasErrors() {
+		return fleetDesktopSettingsInvalid
+	}
+
+	if transparencyURLModified {
+		if _, err := url.Parse(newAppConfig.FleetDesktop.TransparencyURL); err != nil {
+			fleetDesktopSettingsInvalid.Append("transparency_url", err.Error())
+		}
+	}
+	if alternativeBrowserHostURLModified {
+		if _, err := url.Parse(newAppConfig.FleetDesktop.AlternativeBrowserHostURL); err != nil {
+			fleetDesktopSettingsInvalid.Append("alternative_browser_host_url", err.Error())
+		}
+	}
+	return fleetDesktopSettingsInvalid
 }
 
 // processAppleOSUpdateSettings updates the OS updates configuration if the minimum version+deadline are updated.

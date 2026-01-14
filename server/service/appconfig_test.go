@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -681,60 +682,63 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPConfigured)
 }
 
-// TestTransparencyURL tests that Fleet Premium licensees can use custom transparency urls and Fleet
-// Free licensees are restricted to the default transparency url.
-func TestTransparencyURL(t *testing.T) {
+// TestAppConfigFleetDesktopSettings tests that Fleet Premium licensees can set Fleet Desktop custom settings and that
+// Fleet Free licensees are restricted.
+func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
-		if shouldFail {
-			require.Error(t, err)
-			require.ErrorContains(t, err, "missing or invalid license")
-		} else {
-			require.NoError(t, err)
-		}
-	}
 	testCases := []struct {
 		name             string
 		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		initialSettings  fleet.FleetDesktopSettings
+		newSettings      fleet.FleetDesktopSettings
+		expectedSettings fleet.FleetDesktopSettings
+		invalid          []map[string]string
 	}{
 		{
-			name:             "customURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "",
-			shouldFailModify: true,
+			name:             "modifying Desktop settings on Free Tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHostURL: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "missing or invalid license"},
+				{"name": "alternative_browser_host_url", "reason": "missing or invalid license"},
+			},
 		},
 		{
-			name:             "customURL",
+			name:             "modifying Desktop settings on Premium Tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "customURL",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHostURL: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHostURL: "something.com"},
 		},
 		{
-			name:             "emptyURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			name:             "empty values on Free tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
 		},
 		{
-			name:             "emptyURL",
+			name:             "empty values on Premium tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "customURL",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
+		},
+		{
+			name:             "using invalid URLs",
+			licenseTier:      fleet.TierPremium,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "@:13.com", AlternativeBrowserHostURL: "@:12.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "parse \"@:13.com\": first path segment in URL cannot contain colon"},
+				{"name": "alternative_browser_host_url", "reason": "parse \"@:12.com\": first path segment in URL cannot contain colon"},
+			},
 		},
 	}
 
@@ -750,13 +754,12 @@ func TestTransparencyURL(t *testing.T) {
 				ServerSettings: fleet.ServerSettings{
 					ServerURL: "https://example.org",
 				},
-				FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.initialURL},
+				FleetDesktop: tt.initialSettings,
 			}
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return dsAppConfig, nil
 			}
-
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 				*dsAppConfig = *conf
 				return nil
@@ -765,37 +768,44 @@ func TestTransparencyURL(t *testing.T) {
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 				return nil
 			}
-
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 				return []*fleet.VPPTokenDB{}, nil
 			}
-
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				return []*fleet.ABMToken{}, nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
-			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.AlternativeBrowserHostURL, ac.FleetDesktop.AlternativeBrowserHostURL)
 
-			raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: tt.newURL})
+			raw, err := json.Marshal(tt.newSettings)
 			require.NoError(t, err)
 			raw = []byte(`{"fleet_desktop":` + string(raw) + `}`)
 			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
-			checkLicenseErr(t, tt.shouldFailModify, err)
 
+			if len(tt.invalid) != 0 {
+				var invalid *fleet.InvalidArgumentError
+				ok := errors.As(err, &invalid)
+				require.True(t, ok)
+				require.Equal(t, tt.invalid, invalid.Invalid())
+			}
 			if modified != nil {
-				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHostURL, modified.FleetDesktop.AlternativeBrowserHostURL)
+
 				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
-				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHostURL, ac.FleetDesktop.AlternativeBrowserHostURL)
 			}
 
 			expectedURL := fleet.DefaultTransparencyURL
 			expectedSecureframeURL := fleet.SecureframeTransparencyURL
-			if tt.expectedURL != "" {
-				expectedURL = tt.expectedURL
-				expectedSecureframeURL = tt.expectedURL
+			if tt.expectedSettings.TransparencyURL != "" {
+				expectedURL = tt.expectedSettings.TransparencyURL
+				expectedSecureframeURL = tt.expectedSettings.TransparencyURL
 			}
 
 			transparencyURL, err := svc.GetTransparencyURL(ctx)
