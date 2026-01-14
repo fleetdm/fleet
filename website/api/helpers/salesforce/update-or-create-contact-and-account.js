@@ -159,9 +159,9 @@ module.exports = {
     //  ╔═╗╔═╗╔═╗╦╔═╦╔═╗
     //  ║  ║ ║║ ║╠╩╗║║╣
     //  ╚═╝╚═╝╚═╝╩ ╩╩╚═╝
-    let attibutionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
+    let attributionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
     if(marketingAttributionCookie) {
-      attibutionDetails = {};
+      attributionDetails = {};
       // Determine if this user is "Digital" or "Organic"
       let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
       let sourceFriendlyNameByCodeName = {
@@ -177,20 +177,22 @@ module.exports = {
         cs: 'Content syndication',
         em: 'Email marketing',
       };
-      attibutionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
+
+      attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
+
 
       if(['ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
-        attibutionDetails.campaign = marketingAttributionCookie.campaign;
-        attibutionDetails.sourceChannel = 'Digital';
+        attributionDetails.campaign = marketingAttributionCookie.campaign;
+        attributionDetails.sourceChannel = 'Digital';
       } else {
         // If no medium was provided via utm parameter, set the source channel to "Organic".
-        attibutionDetails.sourceChannel = 'Organic';
+        attributionDetails.sourceChannel = 'Organic';
 
         if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
           // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
-          attibutionDetails.sourceChannelDetails = 'Direct Traffic';
-          attibutionDetails.campaign = 'Default-DT-Direct';
+          attributionDetails.sourceChannelDetails = 'Direct Traffic';
+          attributionDetails.campaign = 'Default-DT-Direct';
         } else {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.
           let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
@@ -220,16 +222,16 @@ module.exports = {
 
           if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.includes(marketingAttributionCookie.referrer)) {
             // If search engine » Organic search
-            attibutionDetails.sourceChannelDetails = 'Organic search';
-            attibutionDetails.campaign = 'Default-OS-Organic';
+            attributionDetails.sourceChannelDetails = 'Organic search';
+            attributionDetails.campaign = 'Default-OS-Organic';
           } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.includes(marketingAttributionCookie.referrer)) {
             // If social media » Organic social
-            attibutionDetails.sourceChannelDetails = 'Organic social';
-            attibutionDetails.campaign = 'Default-SOC-Social';
+            attributionDetails.sourceChannelDetails = 'Organic social';
+            attributionDetails.campaign = 'Default-SOC-Social';
           } else {
             // If not either of those » Web referral
-            attibutionDetails.sourceChannelDetails = 'Web referral';
-            attibutionDetails.campaign = 'Default-WR-Referral';
+            attributionDetails.sourceChannelDetails = 'Web referral';
+            attributionDetails.campaign = 'Default-WR-Referral';
           }
         }
       }
@@ -379,10 +381,13 @@ module.exports = {
       //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╝╚╝╚═╝╚╩╝  ╚═╝╚═╝╝╚╝ ╩ ╩ ╩╚═╝ ╩
 
       // If we're creating a new contact, and this user has a marketing attribution cookie, update the valuesToSet to include information from the cookie.
-      if(attibutionDetails) {
-        valuesToSet.Source_channel_detail__c = attibutionDetails.sourceChannelDetails;// eslint-disable-line camelcase
-        valuesToSet.Source_channel__c = attibutionDetails.sourceChannel;// eslint-disable-line camelcase
-        valuesToSet.Source_campaign__c = attibutionDetails.campaign;// eslint-disable-line camelcase
+      if(attributionDetails) {
+        valuesToSet.Source_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+        valuesToSet.Source_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+        valuesToSet.Source_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+        valuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+        valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+        valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
       }
 
 
@@ -439,7 +444,7 @@ module.exports = {
           delete valuesToSet.Email;
           valuesToSet.Last_email_associated_by_fleetdm_com__c =  emailAddress;// eslint-disable-line camelcase
         }
-        if(attibutionDetails) {
+        if(attributionDetails) {
           // If we found an existing record after attempting to create a new record, remove the source details and campaign, these will be set as different values if we are updating a record.
           delete valuesToSet.Source_channel__c;
           delete valuesToSet.Source_channel_detail__c;
@@ -485,12 +490,12 @@ module.exports = {
       }
 
       // Set the most recent source, source details, and campaign.
-      if(attibutionDetails) {
+      if(attributionDetails) {
         // IF attribution details were set, check to see if this contact has a source campaign set to the current campaign.
-        if(existingContactRecord.Source_campaign__c !== attibutionDetails.campaign) {
-          valuesToSet.Most_recent_channel_detail__c = attibutionDetails.sourceChannelDetails;// eslint-disable-line camelcase
-          valuesToSet.Most_recent_channel__c = attibutionDetails.sourceChannel;// eslint-disable-line camelcase
-          valuesToSet.Most_recent_campaign__c = attibutionDetails.campaign;// eslint-disable-line camelcase
+        if(existingContactRecord.Source_campaign__c !== attributionDetails.campaign) {
+          valuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+          valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+          valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
         }
       }
 
