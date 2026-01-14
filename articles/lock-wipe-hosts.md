@@ -25,7 +25,7 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 ### Get location of locked iOS/iPadOS host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the locked device. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
-2. Click the host to open the **Host Overview** page
+2. Click the host to open the **Host details** page
 3. Under **Vitals**, click **Show location**, then click **Open in Google Maps**. This will open a new tab with the device's location shown in Google Maps.
 4. While the device is locked, you can refetch device location data by clicking **Refetch**.
 
