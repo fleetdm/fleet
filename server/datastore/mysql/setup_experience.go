@@ -47,6 +47,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 	}
 	// If the host was enrolled more than 24 hours ago, don't enqueue any items.
 	if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) {
+		level.Debug(ds.logger).Log("msg", "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
 		return false, nil
 	}
 
