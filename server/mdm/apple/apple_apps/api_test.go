@@ -15,16 +15,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetBaseURL(t *testing.T) {
+func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	t.Run("Default URL", func(t *testing.T) {
 		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "")
 		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+
+		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		require.NoError(t, err)
+		require.Equal(t, "this-is-a-token", req.Header.Get("vpp-token"))
+		require.Empty(t, req.Header.Get("Cookie"))
 	})
 
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
 		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL)
 		require.Equal(t, customURL, getBaseURL())
+
+		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		require.NoError(t, err)
+		require.Equal(t, "this-is-a-token", req.Header.Get("vpp-token"))
+		require.Empty(t, req.Header.Get("Cookie"))
 	})
 
 	t.Run("Custom Region", func(t *testing.T) {
@@ -37,6 +47,11 @@ func TestGetBaseURL(t *testing.T) {
 		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple")
 		os.Setenv("FLEET_DEV_VPP_REGION", "")
 		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+
+		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		require.NoError(t, err)
+		require.Equal(t, "itvt=this-is-a-token", req.Header.Get("Cookie"))
+		require.Empty(t, req.Header.Get("vpp-token"))
 	})
 }
 
@@ -50,6 +65,8 @@ func TestGetMetadataRetries(t *testing.T) {
 	t.Run("successful on first attempt", func(t *testing.T) {
 		var callCount int
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "vppToken", r.Header.Get("vpp-token"))
+
 			callCount++
 			w.WriteHeader(http.StatusOK)
 			resp := metadataResp{
@@ -268,13 +285,10 @@ func TestAuthentication(t *testing.T) {
 
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Verify the license key is in the Authorization header
-			require.Equal(t, "Bearer test-license-key", r.Header.Get("Authorization"))
-
-			// Verify the URL is set
+			// Verify the URL and license key are set
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
-			require.JSONEq(t, `{"fleetServerUrl": "https://fleet.example.com"}`, string(body))
+			require.JSONEq(t, `{"fleetServerUrl": "https://fleet.example.com", "fleetLicenseKey": "test-license-key"}`, string(body))
 
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"fleetServerSecret": "new-token-from-auth"}`))
@@ -316,7 +330,10 @@ func TestAuthentication(t *testing.T) {
 
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, "Bearer my-license-key", r.Header.Get("Authorization"))
+			// Verify the URL and license key are set
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			require.JSONEq(t, `{"fleetServerUrl": "https://fleet.example.com", "fleetLicenseKey": "my-license-key"}`, string(body))
 
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"fleetServerSecret": "fresh-token"}`))
@@ -477,7 +494,7 @@ func TestDoRetries(t *testing.T) {
 			start := time.Now()
 			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL"), nil)
 			require.NoError(t, err)
-			err = do(req, "vppToken", func(forceRenew bool) (string, error) {
+			err = do(req, func(forceRenew bool) (string, error) {
 				if forceRenew {
 					return "foo", nil
 				}
