@@ -96,7 +96,6 @@ Additionally:
 >
 >For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
 
-
 ### Prepare for design review
 
 1. Link to your draft in the user story issue.
@@ -118,7 +117,6 @@ If the story is tied to a customer feature request, the Head of Product Design (
 
 Sometimes, a Product Designer from one product group will draft a user story or bug that is implemented by a different product group. This happens when the original product group is constrained by design or engineering capacity. If this happens, the Product Designer from the product group that implements the story/bug is the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) for that story/bug. This means, the product group members always reach out to their product group's Product Designer with any questions. It's up to this Product Designer to answer questions or reach out to other team members if necessary.
 
-
 ### Revise a draft currently in development
 
 Expedited drafting is the revision of drafted changes currently being developed by
@@ -129,6 +127,7 @@ You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Designer (PD) wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
 - A user story on the drafting board won't reach "Ready for spec" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
+
 
 What happens during expedited drafting?
 
@@ -191,7 +190,6 @@ Product Designers (PD) review the checkboxes in user stories we shipped but have
 
 If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `#g-unicorns` label to add the customer request to the [🦄 #g-unicorns board](https://github.com/orgs/fleetdm/projects/81).
 
-
 ### Notify stakeholders when a user story is pushed to the next sprint
 
 [User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be [drafted](#drafting) and estimated in a single sprint. When the Product Designers (PD) knows a user story will be pushed, it is the PD's responsibility to notify stakeholders:
@@ -207,7 +205,6 @@ If the original request is a customer request, the PD also assigns the relevant 
 Fleet has several brand fronts that need to be updated from time to time. Check each [brand front](https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0) for consistency and update as needed with the following: 
 - The current pitch, found in the blurbs section of the [🎐 Why Fleet?](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.uovxedjegxdc) doc. 
 - The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
-
 
 ### Notify Customer Success about new macOS features
 
