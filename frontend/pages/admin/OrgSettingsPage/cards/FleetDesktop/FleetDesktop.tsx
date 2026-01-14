@@ -76,19 +76,7 @@ const FleetDesktop = ({
       <PageDescription
         variant="right-panel"
         content={
-          <>
-            {" "}
-            When an end user clicks “About Fleet” in the Fleet Desktop menu, by
-            default they are taken to{" "}
-            <CustomLink
-              url="https://fleetdm.com/transparency"
-              text="https://fleetdm.com/transparency"
-              newTab
-              multiline
-            />{" "}
-            . You can override the URL to take them to a resource of your
-            choice.
-          </>
+          <>Override default URLs to customize the Fleet Desktop experience.</>
         }
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
@@ -102,6 +90,19 @@ const FleetDesktop = ({
           error={formErrors.transparency_url}
           placeholder="https://fleetdm.com/transparency"
           disabled={gitOpsModeEnabled}
+          helpText={
+            <>
+              {" "}
+              By default, end users who click &quot;About Fleet&quot; in the
+              Fleet Desktop menu are taken to{" "}
+              <CustomLink
+                url="https://fleetdm.com/transparency"
+                text="https://fleetdm.com/transparency"
+                newTab
+                multiline
+              />{" "}
+            </>
+          }
         />
         <GitOpsModeTooltipWrapper
           tipOffset={-8}
