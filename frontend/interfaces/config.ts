@@ -101,6 +101,7 @@ export interface IDeviceGlobalConfig {
 
 export interface IFleetDesktopSettings {
   transparency_url: string;
+  alternative_browser_host_url: string;
 }
 
 export interface IConfigFeatures {
