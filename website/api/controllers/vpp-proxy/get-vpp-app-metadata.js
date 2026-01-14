@@ -118,7 +118,7 @@ module.exports = {
       },
       headers: {
         'Authorization': `Bearer ${tokenForThisRequest}`,
-        'Cookie': `${vppToken}`,
+        'Cookie': `itvt=${vppToken}`,
       }
     })
     .tolerate((err)=>{
