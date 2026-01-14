@@ -137,6 +137,8 @@ type SoftwareInstaller struct {
 
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name"`
+
+	Slug string `json:"slug" db:"slug"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
