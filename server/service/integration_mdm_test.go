@@ -20377,19 +20377,27 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	t := s.T()
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
-	test.CreateInsertGlobalVPPToken(t, s.ds)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
 
-	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	key := setOrbitEnrollment(t, mdmHost, s.ds)
+	mdmHost.OrbitNodeKey = &key
+	s.runWorker()
+
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
 	setupPusher(s, t, mdmDevice)
 	s.awaitTriggerProfileSchedule(t)
-	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, mdmHost.UUID)
 	require.NoError(t, err)
 
-	hostConnected, err := s.ds.IsHostConnectedToFleetMDM(ctx, host)
+	hostConnected, err := s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
 	require.NoError(t, err)
+	require.True(t, hostConnected)
 
 	fmt.Println("-----------")
 	fmt.Println("team: ", team)
@@ -20400,6 +20408,30 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	fmt.Println("-----------")
 	fmt.Println("host connected step 1: ", hostConnected)
 	fmt.Println("-----------")
+
+	// Add some VPP apps
+	s.setVPPTokenForTeam(team.ID)
+
+	app1 := &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}}
+	app2 := &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}}
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app1.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app2.AdamID, SelfService: false}, http.StatusOK, &addAppResp)
+
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	require.NoError(t, listSw.Err)
+	require.Len(t, listSw.SoftwareTitles, 2)
+
+	// TODO: doesn't need to be loop
+	for _, title := range listSw.SoftwareTitles {
+		var installResp installSoftwareResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, title.ID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+		fmt.Println("install resp: ", installResp)
+		fmt.Println("-----------")
+	}
 
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -20419,13 +20451,15 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 		err = detailQueries["mdm"].DirectIngestFunc(
 			context.Background(),
 			kitlog.NewNopLogger(),
-			host,
+			mdmHost,
 			s.ds,
 			rows,
 		)
 		require.NoError(t, err)
-
 	}
+
+	// simulate the host deleting MDM enrollment while offline, then
+	// sending that mdm is off through osquery
 
 	fmt.Println("detail query \"mdm\": ", detailQueries["mdm"])
 	fmt.Println("-----------")
@@ -20433,21 +20467,31 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	sendMDMDetailsQuery("true", "https://text.example.com")
 
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm")
-		mysql.DumpTable(t, q, "nano_enrollments")
+		mysql.DumpTable(t, q, "host_mdm", "host_id", "enrolled", "server_url", "mdm_id")
+		mysql.DumpTable(t, q, "nano_enrollments", "device_id", "type", "enabled", "last_seen_at")
+		mysql.DumpTable(t, q, "vpp_apps")
+		mysql.DumpTable(t, q, "host_vpp_software_installs")
+		mysql.DumpTable(t, q, "upcoming_activities")
 		return nil
 	})
 
-	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, host)
+	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
 	require.NoError(t, err)
+	require.True(t, hostConnected)
 	fmt.Println("host connected step 2: ", hostConnected)
 	fmt.Println("-----------")
 
 	sendMDMDetailsQuery("false", "")
 
-	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, host)
+	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
 	require.NoError(t, err)
+	require.False(t, hostConnected)
 	fmt.Println("host connected step 3: ", hostConnected)
 	fmt.Println("-----------")
 
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "host_mdm", "host_id", "enrolled", "server_url", "mdm_id")
+		mysql.DumpTable(t, q, "nano_enrollments", "device_id", "type", "enabled", "last_seen_at")
+		return nil
+	})
 }
