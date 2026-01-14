@@ -153,7 +153,7 @@ $shadow-transition-width: 10px;
         .sortable-header {
           .column-header {
             .header-cell {
-              min-height: 36px;
+              min-height: 32px; // Leave room for outline on keyboard focus
             }
           }
 
