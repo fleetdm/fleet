@@ -2001,6 +2001,14 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 
 	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
 	if err != nil {
+		// Return user-friendly message for generic not found error
+		if strings.Contains(err.Error(), "MaintainedApp was not found in the datastore") {
+			// Must return low-level error in order to be properly handled upstream
+			return fleet.NewUserMessageError(
+				fmt.Errorf("%s isn't a supported Fleet-maintained app. See supported apps: https://fleetdm.com/learn-more-about/supported-fleet-maintained-app-slugs", *slug),
+				http.StatusNotFound,
+			)
+		}
 		return err
 	}
 	_, err = maintained_apps.Hydrate(ctx, app)
