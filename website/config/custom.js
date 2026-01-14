@@ -177,13 +177,13 @@ module.exports.custom = {
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
     // 🌐 Repo automation and change control settings
-    'CODEOWNERS': 'sampfluger88',
-    'website/config/custom.js': 'sampfluger88',
-    '.gitignore': 'sampfluger88',// « what files should not be checked in?
+    'CODEOWNERS': 'ireedy',
+    'website/config/custom.js': 'eashaw',
+    '.gitignore': 'lukeheath',// « what files should not be checked in?
 
 
     // 🌐 GitHub issue templates
-    '.github/ISSUE_TEMPLATE': 'sampfluger88',
+    '.github/ISSUE_TEMPLATE': 'ireedy',
 
     // 💝 Fleet-maintained apps
     'ee/maintained-apps/inputs': 'allenhouchins',
@@ -337,7 +337,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.20.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.21.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -477,6 +477,7 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
   // cloudCustomerCompliancePartnerSharedSecret: '…',
+  // alternateCompliancePartnerSharedSecret: '…',
 
 
   // Android proxy
@@ -485,6 +486,9 @@ module.exports.custom = {
   // androidEnterpriseServiceAccountPrivateKey: '…',
 
   // VPP proxy
+  // vppProxyAuthenticationPrivateKey: '',
+  // vppProxyAuthenticationPublicKey: '',
+  // vppProxyAuthenticationPassphrase: '',
   // vppProxyTokenTeamId: '',
   // vppProxyTokenKeyId: '',
   // vppProxyTokenPrivateKey: '',
