@@ -1574,19 +1574,30 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
 	var details []string
 	if status.Data != nil && commandStatus == MDMDeliveryFailed {
-		syncML := new(SyncMLCmd)
-		if err := xml.Unmarshal(cmdWithSecret.RawCommand, syncML); err != nil {
+		cmds, err := UnmarshallMultiTopLevelXMLProfile(cmdWithSecret.RawCommand)
+		if err != nil {
 			return nil, err
 		}
-		for _, nested := range syncML.ReplaceCommands {
-			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
-			}
-		}
 
-		for _, nested := range syncML.AddCommands {
-			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+		if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+			// atomic profile
+			for _, nested := range cmds[0].ReplaceCommands {
+				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+				}
+			}
+
+			for _, nested := range cmds[0].AddCommands {
+				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+				}
+			}
+		} else {
+			// non atomic profile, loop over all commands
+			for _, cmd := range cmds {
+				if status, ok := statuses[cmd.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", cmd.GetTargetURI(), *status.Data))
+				}
 			}
 		}
 	}
