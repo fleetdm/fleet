@@ -210,8 +210,8 @@ will be disabled and/or hidden in the UI.
               res.cookie('marketingAttribution', marketingAttributionCookieInformation, {maxAge: (1000 * 60 * 60 * 24 * 30)});
             }
 
-            // FUTURE: remove this code used for testing.
-            if(req.param('clearCookie')){
+            // FUTURE: Remove this code used for testing
+            if(req.param('clearAttributionCookie')){
               res.clearCookie('marketingAttribution');
             }
             // Check for website personalization parameter, and if valid, absorb it in the session.
