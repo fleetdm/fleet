@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -164,19 +163,27 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	// Get the mapping of category names to IDs, filtering out categories that don't exist
+	// This allows apps to be added even if some categories (like "Security" or "Utilities")
+	// don't exist in older versions of Fleet.
+	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, payload.Categories)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "getting software category ids")
+		return 0, ctxerr.Wrap(ctx, err, "getting software category name to id map")
 	}
 
-	if len(catIDs) != len(payload.Categories) {
-		return 0, &fleet.BadRequestError{
-			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+	// Filter payload.Categories to only include categories that exist in the database
+	var existingCategories []string
+	var existingCategoryIDs []uint
+	for _, catName := range payload.Categories {
+		if catID, exists := categoryMap[catName]; exists {
+			existingCategories = append(existingCategories, catName)
+			existingCategoryIDs = append(existingCategoryIDs, catID)
 		}
 	}
 
-	payload.CategoryIDs = catIDs
+	// Update payload with only the existing categories
+	payload.Categories = existingCategories
+	payload.CategoryIDs = existingCategoryIDs
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)

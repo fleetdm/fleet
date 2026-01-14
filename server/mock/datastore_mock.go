@@ -541,6 +541,8 @@ type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.Soft
 
 type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uint, error)
 
+type GetSoftwareCategoryNameToIDMapFunc func(ctx context.Context, names []string) (map[string]uint, error)
+
 type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
 type AssociateMDMInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error
@@ -2520,6 +2522,9 @@ type DataStore struct {
 
 	GetSoftwareCategoryIDsFunc        GetSoftwareCategoryIDsFunc
 	GetSoftwareCategoryIDsFuncInvoked bool
+
+	GetSoftwareCategoryNameToIDMapFunc        GetSoftwareCategoryNameToIDMapFunc
+	GetSoftwareCategoryNameToIDMapFuncInvoked bool
 
 	GetCategoriesForSoftwareTitlesFunc        GetCategoriesForSoftwareTitlesFunc
 	GetCategoriesForSoftwareTitlesFuncInvoked bool
@@ -6138,6 +6143,13 @@ func (s *DataStore) GetSoftwareCategoryIDs(ctx context.Context, names []string) 
 	s.GetSoftwareCategoryIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareCategoryIDsFunc(ctx, names)
+}
+
+func (s *DataStore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error) {
+	s.mu.Lock()
+	s.GetSoftwareCategoryNameToIDMapFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareCategoryNameToIDMapFunc(ctx, names)
 }
 
 func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
