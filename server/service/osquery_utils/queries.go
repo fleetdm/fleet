@@ -2319,6 +2319,8 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
+	// TODO(JK): maybe we can failed the VPP apps here
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		false,

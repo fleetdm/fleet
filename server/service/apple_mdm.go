@@ -3543,10 +3543,16 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/check_out
 func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.CheckOut) error {
+
+	fmt.Println("------------------------- DEBUG: -------------------------")
+	fmt.Println("------------------------- apple_mdm.CheckOut -------------------------")
+
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.Identifier())
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("info: ", *info)
 
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
@@ -4440,6 +4446,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+
+	fmt.Println("------------------------- DEBUG: -------------------------")
+	fmt.Println("------------------------- handleRefetchDeviceResults -------------------------")
+	fmt.Println("host: ", host.ID, ", ", host.UUID, ", ", host.DisplayName())
+
 	if !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix) {
 		// Caller should have checked this, but just in case we'll return an error.
 		return nil, ctxerr.New(ctx, fmt.Sprintf("expected REFETCH-DEVICE- prefix but got %s", cmdResult.CommandUUID))
@@ -4518,6 +4529,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	}
 
 	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Pending" {
+		fmt.Println("mdm.enrollmentstatus = Pending")
 		// Since the device has been refetched, we can assume it's enrolled.
 		if err := svc.ds.UpdateMDMData(ctx, host.ID, true); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to update MDM data")

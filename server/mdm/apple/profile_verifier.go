@@ -2,6 +2,7 @@ package apple_mdm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -53,6 +54,9 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 	// situation for the host is NULL (no command sent yet), not "pending" or
 	// something else.
 
+	fmt.Println("------------------------- DEBUG: -------------------------")
+	fmt.Println("------------------------- VerifyHostMDMProfiles -------------------------")
+
 	expectedByProfIdentifier, err := ds.GetHostMDMProfilesExpectedForVerification(ctx, host)
 	if err != nil {
 		return err
@@ -103,6 +107,11 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 			}
 		}
 	}
+
+	fmt.Println("host: ", *host)
+	fmt.Println("verified:", verified)
+	fmt.Println("toFail: ", toFail)
+	fmt.Println("toRetry: ", toRetry)
 
 	return ds.UpdateHostMDMProfilesVerification(ctx, host, verified, toFail, toRetry)
 }
