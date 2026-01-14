@@ -979,7 +979,7 @@ Each sprint is marked by five essential ceremonies:
 
 At sprint kickoff, the EM or TL may assign planned issues to specific contributors. Other planned sprint work may remain unassigned until a contributor is ready to pick it up.
 
-1. **Aim for one issue in progress at a time.** When possible, complete the current task before starting another. Leave issues unassigned until you begin work on them.
+1. **Aim for one issue in progress at a time.** When possible, complete the current task before starting another. Do not self-assign issues until you are ready to work on them.
 2. **Pick up unassigned sprint work as tasks complete.** When an issue moves to the next stage (e.g., ready for QA), select the next unassigned item from the sprint board.
 3. **Help finish sprint work when all planned items are assigned.** If no unassigned sprint work remains:
    - Assist with engineering QA for in-flight issues.
