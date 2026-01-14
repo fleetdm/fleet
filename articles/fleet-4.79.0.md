@@ -1,6 +1,5 @@
 # Fleet 4.79.0 | Latest macOS only at enrollment, MDM command history, and more...
 
-
 Fleet 4.79.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.79.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
@@ -94,5 +93,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2026-01-14">
-<meta name="articleTitle" value="Fleet 4.79.0 | TODO">
+<meta name="articleTitle" value="Fleet 4.79.0 | macOS versioning, MDM command history, Android software config, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.79.0-1600x900@2x.png">
