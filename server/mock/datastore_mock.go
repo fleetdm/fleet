@@ -5894,15 +5894,10 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 }
 
 func (s *DataStore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (string, error) {
-    s.mu.Lock()
-    s.SoftwareTitleNameForHostFilterFuncInvoked = true
-    fn := s.SoftwareTitleNameForHostFilterFunc
-    s.mu.Unlock()
-
-    if fn != nil {
-        return fn(ctx, id)
-    }
-    return "", nil
+	s.mu.Lock()
+	s.SoftwareTitleNameForHostFilterFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftwareTitleNameForHostFilterFunc(ctx, id)
 }
 
 func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error {
