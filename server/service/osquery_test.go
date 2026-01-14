@@ -1119,6 +1119,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
 		hostDetailQueryPrefix + "battery":                                 {},
 		hostDetailQueryPrefix + "software_macos_codesign":                 {},
+		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
 		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 	}
@@ -4002,7 +4003,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		messagesIn map[string]string
 		overrides  map[string]osquery_utils.DetailQuery
 
-		resultsOut fleet.OsqueryDistributedQueryResults
+		resultsExpected fleet.OsqueryDistributedQueryResults
 	}{
 		{
 			name: "python packages using original query in extras adds results",
@@ -4019,7 +4020,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					pythonPackageOne,
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					pythonPackageOne,
@@ -4041,7 +4042,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					pythonPackageTwo,
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					pythonPackageTwo,
@@ -4070,7 +4071,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4101,7 +4102,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4128,7 +4129,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4151,7 +4152,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{},
 		},
 		{
 			name: "software query works, but vscode_extensions table doesn't exist",
@@ -4168,7 +4169,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					zoobarApp,
@@ -4190,7 +4191,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{},
 			},
 		},
@@ -4206,7 +4207,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{},
 			},
 		},
@@ -4222,7 +4223,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4245,7 +4246,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					appThatOverrides,
@@ -4299,7 +4300,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4355,7 +4356,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4405,7 +4406,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4440,7 +4441,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
 					{
 						"path":            "/Applications/Slack.app",
@@ -4464,7 +4465,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
 					{
 						"path":            "/Applications/Slack.app",
@@ -4473,15 +4474,38 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "macos executable_hashes query with sha256 column",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": []map[string]string{
+					{
+						"path":   "/Applications/Slack.app",
+						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": []map[string]string{
+					{
+						"path":   "/Applications/Slack.app",
+						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}
 			if tc.host != nil {
 				host = tc.host
 			}
+			// mutates tc.resultsIn
 			preProcessSoftwareResults(host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, log.NewNopLogger())
-			require.Equal(t, tc.resultsOut, tc.resultsIn)
+			require.Equal(t, tc.resultsExpected, tc.resultsIn)
 		})
 	}
 }
