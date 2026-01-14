@@ -486,18 +486,14 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 }
 
 // deleteMatchingFleetUser attempts to find and delete a Fleet user matching the SCIM user's email.
-// This is called when a SCIM user is deleted from the IdP.
 func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) error {
-	// Collect all emails from SCIM user (including userName if it looks like an email)
+	// Collect all emails from SCIM user (userName is often the email in many IdP configurations, e.g. Okta)
 	emails := make([]string, 0, len(scimUser.Emails)+1)
 
-	// userName is often the email in many IdP configurations (especially Okta)
-	// Check this FIRST since scim_user_emails may be empty
 	if strings.Contains(scimUser.UserName, "@") {
 		emails = append(emails, strings.ToLower(scimUser.UserName))
 	}
 
-	// Also check scim_user_emails table entries
 	for _, e := range scimUser.Emails {
 		email := strings.ToLower(e.Email)
 		if !slices.Contains(emails, email) {
@@ -511,7 +507,6 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 		return nil
 	}
 
-	// Find matching Fleet user by email
 	var fleetUser *fleet.User
 	for _, email := range emails {
 		user, err := u.ds.UserByEmail(ctx, email)
@@ -525,7 +520,6 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 	}
 
 	if fleetUser == nil {
-		// No matching Fleet user found - this is fine, just log and return
 		level.Debug(u.logger).Log("msg", "no matching fleet user found for scim user",
 			"scim_user_id", scimUser.ID, "user_name", scimUser.UserName)
 		return nil
@@ -545,7 +539,6 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 			return ctxerr.Wrap(ctx, err, "count global admins")
 		}
 
-		// Don't delete if this would leave no global admins
 		if count <= 1 {
 			level.Warn(u.logger).Log("msg", "cannot delete last global admin via SCIM",
 				"user_id", fleetUser.ID, "email", fleetUser.Email)
@@ -553,21 +546,16 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 		}
 	}
 
-	// Delete the Fleet user
 	level.Info(u.logger).Log("msg", "deleting fleet user via SCIM deletion",
 		"user_id", fleetUser.ID, "email", fleetUser.Email)
 
-	// Note: We call the datastore directly, not the service, because:
-	// 1. AuthZ is not applicable for fleet-initiated deletions
-	// 2. We handle the activity creation ourselves with FromScimUserDeletion=true
 	if err := u.ds.DeleteUser(ctx, fleetUser.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete fleet user")
 	}
 
-	// Create activity with fleet_initiated = true
 	if err := u.svc.NewActivity(
 		ctx,
-		nil, // No user performing the action - fleet initiated
+		nil,
 		fleet.ActivityTypeDeletedUser{
 			UserID:               fleetUser.ID,
 			UserName:             fleetUser.Name,
@@ -575,7 +563,6 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 			FromScimUserDeletion: true,
 		},
 	); err != nil {
-		// Log but don't fail - user is already deleted
 		level.Error(u.logger).Log("msg", "failed to create activity for fleet user deletion", "err", err)
 	}
 
