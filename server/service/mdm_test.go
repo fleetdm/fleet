@@ -1352,7 +1352,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements."},
+		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{
 			"BitLocker profile", 0,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
@@ -1368,7 +1368,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements."},
+		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{
 			"team BitLocker profile", 1,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
