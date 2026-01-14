@@ -3975,6 +3975,13 @@ func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrow
 	require.NotNil(t, acResp)
 	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHostURL)
 
+	// try setting invalid value
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host_url": "@:mon's_spagetti.com"}}`), http.StatusUnprocessableEntity, &acResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHostURL)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
