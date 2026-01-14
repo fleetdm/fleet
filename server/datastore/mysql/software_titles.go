@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -30,9 +30,9 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 	)
 
 	if teamID != nil {
-		autoUpdatesSelect = `sus.enabled as auto_update_enabled, sus.start_time as auto_update_start_time, sus.end_time as auto_update_end_time, `
+		autoUpdatesSelect = `sus.enabled as auto_update_enabled, sus.start_time as auto_update_window_start, sus.end_time as auto_update_window_end, `
 		autoUpdatesJoin = fmt.Sprintf("LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %d", *teamID)
-		autoUpdatesGroupBy = "auto_update_enabled, auto_update_start_time, auto_update_end_time, "
+		autoUpdatesGroupBy = "auto_update_enabled, auto_update_window_start, auto_update_window_end, "
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
 		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
@@ -805,56 +805,25 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 	return nil
 }
 
-func (ds *Datastore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {
-	stmt := `
-SELECT
-	1
-FROM
-	software_titles st JOIN software_installers si ON si.title_id = st.id
-WHERE
-	st.bundle_identifier = ? AND si.global_or_team_id = ?
-	`
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
-	var titleExists bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleExists, stmt, bundleIdentifier, tmID); err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
-		}
-
-		return false, ctxerr.Wrap(ctx, err, "checking if software installer exists")
-	}
-
-	return titleExists, nil
-}
-
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	// Validate start and end time.
-	invalidTimeErr := "invalid auto-update time format: must be in HH:MM 24-hour format"
-	for _, t := range []*string{config.AutoUpdateStartTime, config.AutoUpdateEndTime} {
-		if t == nil {
-			if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
-				return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-			}
-			continue
+	// Validate schedule if enabled.
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
+		schedule := fleet.SoftwareAutoUpdateSchedule{
+			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+				AutoUpdateEnabled:   config.AutoUpdateEnabled,
+				AutoUpdateStartTime: config.AutoUpdateStartTime,
+				AutoUpdateEndTime:   config.AutoUpdateEndTime,
+			},
 		}
-		duration, err := time.Parse("15:04", *t)
-		if err != nil {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
-		}
-		if duration.Hour() < 0 || duration.Hour() > 23 || duration.Minute() < 0 || duration.Minute() > 59 {
-			return fleet.NewInvalidArgumentError("auto_update_time", invalidTimeErr)
+		if err := schedule.WindowIsValid(); err != nil {
+			return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
 		}
 	}
-
 	var startTime, endTime string
-	if config.AutoUpdateStartTime != nil {
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
 		startTime = *config.AutoUpdateStartTime
 	}
-	if config.AutoUpdateEndTime != nil {
+	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
 		endTime = *config.AutoUpdateEndTime
 	}
 
@@ -880,8 +849,8 @@ SELECT
 	sus.team_id,
 	sus.title_id,
 	sus.enabled AS auto_update_enabled,
-	sus.start_time AS auto_update_start_time,
-	sus.end_time AS auto_update_end_time
+	sus.start_time AS auto_update_window_start,
+	sus.end_time AS auto_update_window_end
 FROM software_update_schedules sus
 JOIN software_titles st ON st.id = sus.title_id
 WHERE sus.team_id = ? AND st.source = ?

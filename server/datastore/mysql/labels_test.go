@@ -105,6 +105,7 @@ func TestLabels(t *testing.T) {
 		{"UpdateLabelMembershipForTransferredHost", testUpdateLabelMembershipForTransferredHost},
 		{"SetAsideLabels", testSetAsideLabels},
 		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
+		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -3305,6 +3306,55 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+}
+
+func testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_label_conflict"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_label_conflict"})
+	require.NoError(t, err)
+
+	// Create a label on team1
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "conflicting-label", Query: "SELECT 1", TeamID: &team1.ID},
+	})
+	require.NoError(t, err)
+
+	// Try to create a label with the same name on team2 - should error
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "conflicting-label", Query: "SELECT 2", TeamID: &team2.ID},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+
+	// Try to create a label with the same name globally (no team) - should error
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "conflicting-label", Query: "SELECT 3"},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+
+	// Create a global label
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "global-label", Query: "SELECT 4"},
+	})
+	require.NoError(t, err)
+
+	// Try to create a label with the same name on a team - should error
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "global-label", Query: "SELECT 5", TeamID: &team2.ID},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+
+	// Updating the original label on the same team should still work
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "conflicting-label", Query: "SELECT 1 updated", TeamID: &team1.ID},
+	})
+	require.NoError(t, err)
 }
 
 func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {

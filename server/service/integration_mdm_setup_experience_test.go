@@ -1351,14 +1351,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
-	s.registerResetITunesData(t)
+	s.registerResetVPPProxyData(t)
 
-	// Set up some additional VPP apps on the mock Apple servers
-	s.appleITunesSrvData["6"] = `{"bundleId": "f-6", "artworkUrl512": "https://example.com/images/6", "version": "6.0.0", "trackName": "App 6", "TrackID": 6}`
-	s.appleITunesSrvData["7"] = `{"bundleId": "g-7", "artworkUrl512": "https://example.com/images/7", "version": "7.0.0", "trackName": "App 7", "TrackID": 7}`
-	s.appleITunesSrvData["8"] = `{"bundleId": "h-8", "artworkUrl512": "https://example.com/images/8", "version": "8.0.0", "trackName": "App 8", "TrackID": 8}`
-	s.appleITunesSrvData["9"] = `{"bundleId": "i-9", "artworkUrl512": "https://example.com/images/9", "version": "9.0.0", "trackName": "App 9", "TrackID": 9}`
-	s.appleITunesSrvData["10"] = `{"bundleId": "j-10", "artworkUrl512": "https://example.com/images/10", "version": "10.0.0", "trackName": "App 10", "TrackID": 10}`
+	// Set up some additional VPP apps on the mock the Fleet proxy to Apple servers
+	s.appleVPPProxySrvData["6"] = `{"id": "6", "attributes": {"name": "App 6", "platformAttributes": {"osx": {"bundleId": "f-6", "artwork": {"url": "https://example.com/images/6/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "6.0.0"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["7"] = `{"id": "7", "attributes": {"name": "App 7", "platformAttributes": {"osx": {"bundleId": "g-7", "artwork": {"url": "https://example.com/images/7/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "7.0.0"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["8"] = `{"id": "8", "attributes": {"name": "App 8", "platformAttributes": {"osx": {"bundleId": "h-8", "artwork": {"url": "https://example.com/images/8/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "8.0.0"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["9"] = `{"id": "9", "attributes": {"name": "App 9", "platformAttributes": {"osx": {"bundleId": "i-9", "artwork": {"url": "https://example.com/images/9/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.0.0"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["10"] = `{"id": "10", "attributes": {"name": "App 10", "platformAttributes": {"osx": {"bundleId": "j-10", "artwork": {"url": "https://example.com/images/10/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.0.0"}}}, "deviceFamilies": ["mac"]}}`
 
 	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, []vpp.Asset{
 		{

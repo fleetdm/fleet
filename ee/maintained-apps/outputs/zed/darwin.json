@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "0.217.4",
+      "version": "0.218.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed';"
       },
-      "installer_url": "https://zed.dev/api/releases/stable/0.217.4/Zed-aarch64.dmg",
+      "installer_url": "https://zed.dev/api/releases/stable/0.218.7/Zed-aarch64.dmg",
       "install_script_ref": "5782c47f",
       "uninstall_script_ref": "a96df5e9",
-      "sha256": "741dd4bdedd4042d96d1090f98b511fdffc28815696425561a60c3bbfbfd9f52",
+      "sha256": "cff3e27875373b390862548a6a3a93705316c0410e763873dcdff84da384d213",
       "default_categories": [
         "Developer tools"
       ]

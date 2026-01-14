@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3.2",
+      "version": "2025.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bohemiancoding.sketch3';"
       },
-      "installer_url": "https://download.sketch.com/sketch-2025.3.2-221149.zip",
+      "installer_url": "https://download.sketch.com/sketch-2025.3.3-221254.zip",
       "install_script_ref": "b2b64a37",
       "uninstall_script_ref": "113ba819",
-      "sha256": "249c388ef62aee62352e63c103fe1d1f383d8efa9f25d12fe34ad458a6dfdbe9",
+      "sha256": "24093bf6b9b66a7d0efb7013426b8eff036d0476be51966ed23d0f561769d666",
       "default_categories": [
         "Productivity"
       ]

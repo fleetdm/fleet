@@ -530,6 +530,7 @@ func (c *Client) ApplyGroup(
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
+	filename *string,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.VPPAppResponse, map[string][]fleet.ScriptResponse, error) {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -578,6 +579,10 @@ func (c *Client) ApplyGroup(
 
 	if specs.CertificateAuthorities != nil {
 		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
+			// only do this custom message for gitops as we reference the applying filename which only makes sense in gitops
+			if err.Error() == "missing or invalid license" && viaGitOps && filename != nil {
+				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.", *filename)
+			}
 			return nil, nil, nil, nil, fmt.Errorf("applying certificate authorities: %w", err)
 		}
 		// TODO(hca): is more detailed logging a hard requirement or can it be a follow up improvement?
@@ -888,16 +893,19 @@ func (c *Client) ApplyGroup(
 				}
 
 				payload := fleet.VPPBatchPayload{
-					AppStoreID:         app.AppStoreID,
-					SelfService:        app.SelfService,
-					InstallDuringSetup: installDuringSetup,
-					LabelsExcludeAny:   app.LabelsExcludeAny,
-					LabelsIncludeAny:   app.LabelsIncludeAny,
-					Categories:         app.Categories,
-					DisplayName:        app.DisplayName,
-					IconPath:           app.Icon.Path,
-					IconHash:           iconHash,
-					Platform:           fleet.InstallableDevicePlatform(app.Platform),
+					AppStoreID:          app.AppStoreID,
+					SelfService:         app.SelfService,
+					InstallDuringSetup:  installDuringSetup,
+					LabelsExcludeAny:    app.LabelsExcludeAny,
+					LabelsIncludeAny:    app.LabelsIncludeAny,
+					Categories:          app.Categories,
+					DisplayName:         app.DisplayName,
+					IconPath:            app.Icon.Path,
+					IconHash:            iconHash,
+					Platform:            fleet.InstallableDevicePlatform(app.Platform),
+					AutoUpdateEnabled:   app.AutoUpdateEnabled,
+					AutoUpdateStartTime: app.AutoUpdateStartTime,
+					AutoUpdateEndTime:   app.AutoUpdateEndTime,
 				}
 				if androidConfig != nil {
 					payload.Configuration = androidConfig
@@ -2300,7 +2308,7 @@ func (c *Client) DoGitOps(
 			Overwrite: true,
 		},
 		ExpandEnvConfigProfiles: true,
-	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &filename)
 	if err != nil {
 		return nil, err
 	}
@@ -2516,40 +2524,44 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 
 	var appsPayload []fleet.VPPBatchPayload
 	appsByAppID := make(map[string]fleet.TeamSpecAppStoreApp, len(config.Software.AppStoreApps))
-	for _, vppApp := range config.Software.AppStoreApps {
-		if vppApp != nil {
+	for _, appStoreApp := range config.Software.AppStoreApps {
+		if appStoreApp != nil {
 			// can be referenced by macos_setup.software
-			appsByAppID[vppApp.AppStoreID] = *vppApp
+			appsByAppID[appStoreApp.AppStoreID] = *appStoreApp
 
-			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: vppApp.AppStoreID}]
-			if vppApp.InstallDuringSetup.Valid {
+			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: appStoreApp.AppStoreID}]
+			if appStoreApp.InstallDuringSetup.Valid {
 				if len(noTeamSoftwareMacOSSetup) > 0 {
 					return nil, nil, errConflictingVPPSetupExperienceDeclarations
 				}
-				installDuringSetup = vppApp.InstallDuringSetup.Value
+				installDuringSetup = appStoreApp.InstallDuringSetup.Value
 			}
 
-			iconHash, err := getIconHashIfValid(vppApp.Icon.Path)
+			iconHash, err := getIconHashIfValid(appStoreApp.Icon.Path)
 			if err != nil {
-				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", vppApp.AppStoreID, vppApp.Icon.Path, err)
+				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", appStoreApp.AppStoreID, appStoreApp.Icon.Path, err)
 			}
 
 			var androidConfig json.RawMessage
-			if vppApp.Platform == string(fleet.AndroidPlatform) {
-				androidConfig, err = getAndroidAppConfig(vppApp.Configuration.Path)
+			if appStoreApp.Platform == string(fleet.AndroidPlatform) {
+				androidConfig, err = getAndroidAppConfig(appStoreApp.Configuration.Path)
 				if err != nil {
-					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", vppApp.AppStoreID, vppApp.Configuration.Path, err)
+					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, appStoreApp.Configuration.Path, err)
 				}
 			}
 
 			payload := fleet.VPPBatchPayload{
-				AppStoreID:         vppApp.AppStoreID,
-				SelfService:        vppApp.SelfService,
-				InstallDuringSetup: &installDuringSetup,
-				DisplayName:        vppApp.DisplayName,
-				IconPath:           vppApp.Icon.Path,
-				IconHash:           iconHash,
-				Platform:           fleet.InstallableDevicePlatform(vppApp.Platform),
+				AppStoreID:          appStoreApp.AppStoreID,
+				SelfService:         appStoreApp.SelfService,
+				InstallDuringSetup:  &installDuringSetup,
+				DisplayName:         appStoreApp.DisplayName,
+				IconPath:            appStoreApp.Icon.Path,
+				IconHash:            iconHash,
+				Platform:            fleet.InstallableDevicePlatform(appStoreApp.Platform),
+				AutoUpdateEnabled:   appStoreApp.AutoUpdateEnabled,
+				AutoUpdateStartTime: appStoreApp.AutoUpdateStartTime,
+				AutoUpdateEndTime:   appStoreApp.AutoUpdateEndTime,
+				Categories:          appStoreApp.Categories,
 			}
 			if androidConfig != nil {
 				payload.Configuration = androidConfig

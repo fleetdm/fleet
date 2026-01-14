@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -214,7 +217,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 
@@ -488,4 +491,92 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		}
 	}
 
+}
+
+func (s *integrationMDMTestSuite) TestSoftwareTitleCustomIconsPermissions() {
+	t := s.T()
+	ctx := context.Background()
+
+	user, err := s.ds.UserByEmail(ctx, "admin1@example.com")
+	require.NoError(t, err)
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// add a team maintainer
+	teamMaintainerUser := fleet.User{
+		Name:       "test team user",
+		Email:      "user1+team@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *tm,
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	require.NoError(t, teamMaintainerUser.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, &teamMaintainerUser)
+	require.NoError(t, err)
+
+	// set an installer
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "hello",
+		InstallerFile:    tfr1,
+		StorageID:        "storage1",
+		Filename:         "foo.pkg",
+		Title:            "foo",
+		Version:          "0.0.3",
+		Source:           "apps",
+		TeamID:           &tm.ID,
+		UserID:           user.ID,
+		BundleIdentifier: "foo.bundle.id",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// no custom icon set yet, this returns 404
+	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil, http.StatusNotFound)
+
+	// get a custom icon
+	iconBytes, err := os.ReadFile("testdata/icons/valid-icon.png")
+	require.NoError(t, err)
+
+	// set the custom icon, as global admin
+	body, headers := generateMultipartRequest(t, "icon", "icon.png", iconBytes, s.token, nil)
+	s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		body.Bytes(), http.StatusOK, headers)
+
+	// do the next steps as team maintainer
+	s.setTokenForTest(t, teamMaintainerUser.Email, test.GoodPassword)
+
+	// list software titles on "No team" to confirm we're the team maintainer (doesn't have access)
+	var listTitlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles?team_id=", listSoftwareTitlesRequest{}, http.StatusForbidden, &listTitlesResp)
+
+	// get the custom icon
+	res := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil, http.StatusOK)
+	b, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, iconBytes, b)
+
+	// get another custom icon and set it as team maintainer
+	otherIconBytes, err := os.ReadFile("testdata/icons/other-icon.png")
+	require.NoError(t, err)
+
+	body, headers = generateMultipartRequest(t, "icon", "icon.png", otherIconBytes, s.token, nil)
+	s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		body.Bytes(), http.StatusOK, headers)
+
+	// delete the custom icon as team maintainer
+	var delIconResp deleteSoftwareTitleIconResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil, http.StatusOK, &delIconResp)
+
+	// get the custom icon, it is back to not found
+	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil, http.StatusNotFound)
 }
