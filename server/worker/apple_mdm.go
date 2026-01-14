@@ -372,8 +372,10 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 
 		var completed bool
 		for _, r := range res {
-			// succeeded or failed, it is done (final state)
-			if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError ||
+			// succeeded or failed, it is done (final state). We also consider "NotNow"
+			// as completed, as it means the device is not going to process that command
+			// now, and we don't want to block the DEP device release because of that.
+			if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusNotNow ||
 				r.Status == fleet.MDMAppleStatusCommandFormatError {
 				completed = true
 				break
