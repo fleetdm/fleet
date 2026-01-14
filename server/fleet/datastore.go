@@ -693,10 +693,6 @@ type Datastore interface {
 	// persistence/bookkeeping only and must not be used to trigger user-visible side effects.
 	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, error)
 
-	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
-	// the given team.
-	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
-
 	// NewSoftwareCategory creates a new category for software.
 	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
 	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
@@ -723,6 +719,9 @@ type Datastore interface {
 	// it was installed on the host).
 	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
 	MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context.Context, jobName string) error
+
+	CheckConflictingInstallerExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error)
+	CheckConflictingInHouseAppExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
@@ -2059,6 +2058,9 @@ type Datastore interface {
 	// is acknowledged but not yet verified (installation is still ongoing on the device and/or Fleet hasn't verified
 	// the installation via InstalledApplicationList).
 	MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
+
+	// MapAdamIDsRecentInstalls returns a set of Adam IDs for the host that have been installed within the provided seconds.
+	MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
 
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)

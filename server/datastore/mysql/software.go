@@ -129,7 +129,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	error,
 ) {
 	stmt := `
-		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier, t.executable_sha256
+		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier, t.cdhash_sha256, t.executable_sha256, t.executable_path
 		FROM host_software_installed_paths t
 		WHERE t.host_id = ?
 	`
@@ -176,32 +176,38 @@ func hostSoftwareInstalledPathsDelta(
 	}
 
 	iSPathLookup := make(map[string]fleet.HostSoftwareInstalledPath)
-	for _, r := range stored {
-		s, ok := sIDLookup[r.SoftwareID]
-		// Software currently not found on the host, should be deleted ...
+	for _, iP := range stored {
+		s, ok := sIDLookup[iP.SoftwareID]
 		if !ok {
-			toDelete = append(toDelete, r.ID)
+			// Software currently not found on the host, should be deleted ...
+			toDelete = append(toDelete, iP.ID)
 			continue
 		}
-		var sha256 string
-		if r.ExecutableSHA256 != nil {
-			sha256 = *r.ExecutableSHA256
+		var cdHashSHA256, execHashSHA256, execPath string
+		if iP.CDHashSHA256 != nil {
+			cdHashSHA256 = *iP.CDHashSHA256
+		}
+		if iP.ExecutableSHA256 != nil {
+			execHashSHA256 = *iP.ExecutableSHA256
+		}
+		if iP.ExecutablePath != nil {
+			execPath = *iP.ExecutablePath
 		}
 		key := fmt.Sprintf(
-			"%s%s%s%s%s%s%s",
-			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, sha256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			"%s%s%s%s%s%s%s%s%s%s%s",
+			iP.InstalledPath, fleet.SoftwareFieldSeparator, iP.TeamIdentifier, fleet.SoftwareFieldSeparator, cdHashSHA256, fleet.SoftwareFieldSeparator, execHashSHA256, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 		)
-		iSPathLookup[key] = r
+		iSPathLookup[key] = iP
 
 		// Anything stored but not reported should be deleted
 		if _, ok := reported[key]; !ok {
-			toDelete = append(toDelete, r.ID)
+			toDelete = append(toDelete, iP.ID)
 		}
 	}
 
 	for key := range reported {
-		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 4)
-		installedPath, teamIdentifier, cdHash, unqStr := parts[0], parts[1], parts[2], parts[3]
+		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 6)
+		installedPath, teamIdentifier, cdHash, execHash, ePath, unqStr := parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
 
 		// Shouldn't be a common occurence ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
@@ -216,9 +222,15 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 
-		var executableSHA256 *string
+		var cdHashSHA256, execSHA256, execPath *string
 		if cdHash != "" {
-			executableSHA256 = ptr.String(cdHash)
+			cdHashSHA256 = ptr.String(cdHash)
+		}
+		if execHash != "" {
+			execSHA256 = ptr.String(execHash)
+		}
+		if ePath != "" {
+			execPath = ptr.String(ePath)
 		}
 
 		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
@@ -226,7 +238,9 @@ func hostSoftwareInstalledPathsDelta(
 			SoftwareID:       s.ID,
 			InstalledPath:    installedPath,
 			TeamIdentifier:   teamIdentifier,
-			ExecutableSHA256: executableSHA256,
+			CDHashSHA256:     cdHashSHA256,
+			ExecutableSHA256: execSHA256,
+			ExecutablePath:   execPath,
 		})
 	}
 
@@ -263,7 +277,7 @@ func insertHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier, executable_sha256) VALUES %s"
+	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier, cdhash_sha256, executable_sha256, executable_path) VALUES %s"
 	batchSize := 500
 
 	for i := 0; i < len(toInsert); i += batchSize {
@@ -275,10 +289,10 @@ func insertHostSoftwareInstalledPaths(
 
 		var args []interface{}
 		for _, v := range batch {
-			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier, v.ExecutableSHA256)
+			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier, v.CDHashSHA256, v.ExecutableSHA256, v.ExecutablePath)
 		}
 
-		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?), ", len(batch)), ", ")
+		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?), ", len(batch)), ", ")
 		stmt := fmt.Sprintf(stmt, placeHolders)
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
@@ -2163,9 +2177,11 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 	for _, ip := range installedPaths {
 		installedPathsList[ip.SoftwareID] = append(installedPathsList[ip.SoftwareID], ip.InstalledPath)
 		pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
-			InstalledPath:  ip.InstalledPath,
-			TeamIdentifier: ip.TeamIdentifier,
-			HashSha256:     ip.ExecutableSHA256,
+			InstalledPath:    ip.InstalledPath,
+			TeamIdentifier:   ip.TeamIdentifier,
+			CDHashSHA256:     ip.CDHashSHA256,
+			ExecutableSHA256: ip.ExecutableSHA256,
+			ExecutablePath:   ip.ExecutablePath,
 		})
 	}
 
@@ -3170,13 +3186,13 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                     hsi.software_installer_id = hsi2.software_installer_id AND
                     hsi.uninstall = hsi2.uninstall AND
                     hsi2.removed = 0 AND
-					hsi2.canceled = 0 AND
+                    hsi2.canceled = 0 AND
                     hsi2.host_deleted_at IS NULL AND
                     (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
             WHERE
                 hsi.host_id = ? AND
                 hsi.removed = 0 AND
-				hsi.canceled = 0 AND
+                hsi.canceled = 0 AND
                 hsi.uninstall = 0 AND
                 hsi.host_deleted_at IS NULL AND
                 hsi2.id IS NULL AND
@@ -3250,14 +3266,14 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                     hsi.software_installer_id = hsi2.software_installer_id AND
                     hsi.uninstall = hsi2.uninstall AND
                     hsi2.removed = 0 AND
-					hsi2.canceled = 0 AND
+                    hsi2.canceled = 0 AND
                     hsi2.host_deleted_at IS NULL AND
                     (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
             WHERE
                 hsi.host_id = ? AND
                 hsi.removed = 0 AND
                 hsi.uninstall = 1 AND
-				hsi.canceled = 0 AND
+                hsi.canceled = 0 AND
                 hsi.host_deleted_at IS NULL AND
                 hsi2.id IS NULL AND
                 NOT EXISTS (
@@ -3315,6 +3331,8 @@ func filterSoftwareInstallersByLabel(
 	}
 
 	if len(softwareInstallersIDsToCheck) > 0 {
+		globalOrTeamID := ptr.ValOrZero(host.TeamID)
+
 		labelSqlFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -3398,7 +3416,8 @@ func filterSoftwareInstallersByLabel(
 			LEFT JOIN exclude_any
 				ON exclude_any.installer_id = software_installers.id
 			WHERE
-				software_installers.id IN (:software_installer_ids)
+				software_installers.global_or_team_id = :global_or_team_id
+				AND software_installers.id IN (:software_installer_ids)
 				AND (
 					no_labels.installer_id IS NOT NULL
 					OR include_any.installer_id IS NOT NULL
@@ -3409,6 +3428,7 @@ func filterSoftwareInstallersByLabel(
 			"host_id":                host.ID,
 			"host_label_updated_at":  host.LabelUpdatedAt,
 			"software_installer_ids": softwareInstallersIDsToCheck,
+			"global_or_team_id":      globalOrTeamID,
 		})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "filterSoftwareInstallersByLabel building named query args")
@@ -4507,7 +4527,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						hsi.host_id = :host_id AND
 						hsi.software_installer_id = si.id AND
 						hsi.removed = 0 AND
-						hsi.canceled = 0
+						hsi.canceled = 0 AND
+						hsi.host_deleted_at IS NULL
 				) AND
 				-- sofware install/uninstall is not upcoming on host
 				NOT EXISTS (
@@ -5046,6 +5067,40 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
+	// Filter out-of-scope FAILED installs from all app types.
+	// Only remove if not in inventory AND status is failed AND out of label scope.
+	for titleID, st := range bySoftwareTitleID {
+		if st.InstallerID != nil {
+			// Check if software is NOT actually installed (not in osquery inventory)
+			if _, isInstalled := hostInstalledSoftwareTitleSet[titleID]; !isInstalled {
+				// Only remove if install FAILED and installer is out of scope
+				if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+					if _, inScope := filteredBySoftwareTitleID[titleID]; !inScope {
+						delete(bySoftwareTitleID, titleID)
+					}
+				}
+			}
+		}
+	}
+	for adamID, st := range byVPPAdamID {
+		if _, isInstalled := hostInstalledSoftwareTitleSet[st.ID]; !isInstalled {
+			if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+				if _, inScope := filteredByVPPAdamID[adamID]; !inScope {
+					delete(byVPPAdamID, adamID)
+				}
+			}
+		}
+	}
+	for appID, st := range byInHouseID {
+		if _, isInstalled := hostInstalledSoftwareTitleSet[st.ID]; !isInstalled {
+			if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+				if _, inScope := filteredByInHouseID[appID]; !inScope {
+					delete(byInHouseID, appID)
+				}
+			}
+		}
+	}
+
 	if opts.OnlyAvailableForInstall {
 		bySoftwareTitleID = filteredBySoftwareTitleID
 		byVPPAdamID = filteredByVPPAdamID
@@ -5522,9 +5577,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		for _, ip := range installedPaths {
 			installedPathBySoftwareId[ip.SoftwareID] = append(installedPathBySoftwareId[ip.SoftwareID], ip.InstalledPath)
 			pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
-				InstalledPath:  ip.InstalledPath,
-				TeamIdentifier: ip.TeamIdentifier,
-				HashSha256:     ip.ExecutableSHA256,
+				InstalledPath:    ip.InstalledPath,
+				TeamIdentifier:   ip.TeamIdentifier,
+				CDHashSHA256:     ip.CDHashSHA256,
+				ExecutableSHA256: ip.ExecutableSHA256,
+				ExecutablePath:   ip.ExecutablePath,
 			})
 		}
 
@@ -5929,6 +5986,7 @@ func (ds *Datastore) CountHostSoftwareInstallAttempts(ctx context.Context, hostI
 		  AND policy_id = ?
 		  AND removed = 0
 		  AND canceled = 0
+		  AND host_deleted_at IS NULL
 		  AND (attempt_number > 0 OR attempt_number IS NULL)
 	`, hostID, softwareInstallerID, policyID)
 	if err != nil {
@@ -6057,7 +6115,7 @@ SELECT
 FROM software_titles st
 INNER JOIN software_installers si ON si.title_id = st.id
 INNER JOIN host_software_installs hsi ON hsi.host_id = :host_id AND hsi.software_installer_id = si.id
-WHERE hsi.removed = 0 AND hsi.canceled = 0 AND hsi.status = :software_status_installed
+WHERE hsi.removed = 0 AND hsi.canceled = 0 AND hsi.host_deleted_at IS NULL AND hsi.status = :software_status_installed
 
 UNION
 
@@ -6073,9 +6131,9 @@ FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
 INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
 LEFT JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-WHERE 
-	hvsi.removed = 0 AND 
-	hvsi.canceled = 0 AND 
+WHERE
+	hvsi.removed = 0 AND
+	hvsi.canceled = 0 AND
 	(ncr.status = :mdm_status_acknowledged OR hvsi.verification_at IS NOT NULL)
 `
 	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{

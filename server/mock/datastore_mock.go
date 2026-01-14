@@ -537,8 +537,6 @@ type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.Ho
 
 type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error)
 
-type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
-
 type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.SoftwareCategory, error)
 
 type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uint, error)
@@ -558,6 +556,10 @@ type GetUnverifiedVPPInstallsForHostFunc func(ctx context.Context, verificationU
 type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
 
 type MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc func(ctx context.Context, jobName string) error
+
+type CheckConflictingInstallerExistsFunc func(ctx context.Context, teamID *uint, bundleIdentifier string, platform string) (bool, error)
+
+type CheckConflictingInHouseAppExistsFunc func(ctx context.Context, teamID *uint, bundleIdentifier string, platform string) (bool, error)
 
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
@@ -1330,6 +1332,8 @@ type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uin
 type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
 type MapAdamIDsPendingInstallVerificationFunc func(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
+
+type MapAdamIDsRecentInstallsFunc func(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
 
 type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
@@ -2511,9 +2515,6 @@ type DataStore struct {
 	CreateIntermediateInstallFailureRecordFunc        CreateIntermediateInstallFailureRecordFunc
 	CreateIntermediateInstallFailureRecordFuncInvoked bool
 
-	UploadedSoftwareExistsFunc        UploadedSoftwareExistsFunc
-	UploadedSoftwareExistsFuncInvoked bool
-
 	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
 	NewSoftwareCategoryFuncInvoked bool
 
@@ -2543,6 +2544,12 @@ type DataStore struct {
 
 	MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc        MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc
 	MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFuncInvoked bool
+
+	CheckConflictingInstallerExistsFunc        CheckConflictingInstallerExistsFunc
+	CheckConflictingInstallerExistsFuncInvoked bool
+
+	CheckConflictingInHouseAppExistsFunc        CheckConflictingInHouseAppExistsFunc
+	CheckConflictingInHouseAppExistsFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -3701,6 +3708,9 @@ type DataStore struct {
 
 	MapAdamIDsPendingInstallVerificationFunc        MapAdamIDsPendingInstallVerificationFunc
 	MapAdamIDsPendingInstallVerificationFuncInvoked bool
+
+	MapAdamIDsRecentInstallsFunc        MapAdamIDsRecentInstallsFunc
+	MapAdamIDsRecentInstallsFuncInvoked bool
 
 	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
 	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
@@ -6116,13 +6126,6 @@ func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, 
 	return s.CreateIntermediateInstallFailureRecordFunc(ctx, result)
 }
 
-func (s *DataStore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {
-	s.mu.Lock()
-	s.UploadedSoftwareExistsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UploadedSoftwareExistsFunc(ctx, bundleIdentifier, teamID)
-}
-
 func (s *DataStore) NewSoftwareCategory(ctx context.Context, name string) (*fleet.SoftwareCategory, error) {
 	s.mu.Lock()
 	s.NewSoftwareCategoryFuncInvoked = true
@@ -6191,6 +6194,20 @@ func (s *DataStore) MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx context
 	s.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFuncInvoked = true
 	s.mu.Unlock()
 	return s.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc(ctx, jobName)
+}
+
+func (s *DataStore) CheckConflictingInstallerExists(ctx context.Context, teamID *uint, bundleIdentifier string, platform string) (bool, error) {
+	s.mu.Lock()
+	s.CheckConflictingInstallerExistsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CheckConflictingInstallerExistsFunc(ctx, teamID, bundleIdentifier, platform)
+}
+
+func (s *DataStore) CheckConflictingInHouseAppExists(ctx context.Context, teamID *uint, bundleIdentifier string, platform string) (bool, error) {
+	s.mu.Lock()
+	s.CheckConflictingInHouseAppExistsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CheckConflictingInHouseAppExistsFunc(ctx, teamID, bundleIdentifier, platform)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
@@ -8893,6 +8910,13 @@ func (s *DataStore) MapAdamIDsPendingInstallVerification(ctx context.Context, ho
 	s.MapAdamIDsPendingInstallVerificationFuncInvoked = true
 	s.mu.Unlock()
 	return s.MapAdamIDsPendingInstallVerificationFunc(ctx, hostID)
+}
+
+func (s *DataStore) MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error) {
+	s.mu.Lock()
+	s.MapAdamIDsRecentInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MapAdamIDsRecentInstallsFunc(ctx, hostID, seconds)
 }
 
 func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {

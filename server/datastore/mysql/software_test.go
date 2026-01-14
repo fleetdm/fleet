@@ -86,6 +86,9 @@ func TestSoftware(t *testing.T) {
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 		{"CreateIntermediateInstallFailureRecord", testCreateIntermediateInstallFailureRecord},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
+		{"ListHostSoftwareFailInstallThenTransferTeam", testListHostSoftwareFailInstallThenTransferTeam},
+		{"ListHostSoftwareFailInstallThenLabelExclude", testListHostSoftwareFailInstallThenLabelExclude},
+		{"ListHostSoftwareFailVPPInstallThenLabelExclude", testListHostSoftwareFailVPPInstallThenLabelExclude},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
@@ -105,6 +108,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareAndroidVPPAppMatching", testListHostSoftwareAndroidVPPAppMatching},
 		{"CountHostSoftwareInstallAttempts", testCountHostSoftwareInstallAttempts},
 		{"ListSoftwareVersionsSearchByTitleName", testListSoftwareVersionsSearchByTitleName},
+		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1348,12 +1352,15 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 	mutation, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 
+	cdHash, execHash, execPath := "frog", "toad", "/path/to/executable"
 	installpaths := []fleet.HostSoftwareInstalledPath{
 		{
 			HostID:           host.ID,
 			SoftwareID:       mutation.Inserted[0].ID,
 			InstalledPath:    "/the/path",
-			ExecutableSHA256: ptr.String("frog"),
+			CDHashSHA256:     ptr.String(cdHash),
+			ExecutableSHA256: ptr.String(execHash),
+			ExecutablePath:   ptr.String(execPath),
 		},
 	}
 
@@ -1364,7 +1371,9 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 	require.NoError(t, err)
 
 	require.Equal(t, "/the/path", host.Software[0].PathSignatureInformation[0].InstalledPath)
-	require.Equal(t, "frog", *host.Software[0].PathSignatureInformation[0].HashSha256)
+	require.Equal(t, cdHash, *host.Software[0].PathSignatureInformation[0].CDHashSHA256)
+	require.Equal(t, execHash, *host.Software[0].PathSignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, execPath, *host.Software[0].PathSignatureInformation[0].ExecutablePath)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
@@ -1428,7 +1437,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software1
 	s1Paths := map[string]struct{}{}
 	for _, s := range software1 {
-		key := fmt.Sprintf("%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s1Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
@@ -1439,7 +1448,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software2
 	s2Paths := map[string]struct{}{}
 	for _, s := range software2 {
-		key := fmt.Sprintf("%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s2Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
@@ -3263,10 +3272,14 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	t.Run("nothing reported from osquery", func(t *testing.T) {
 		var stored []fleet.HostSoftwareInstalledPath
 		for i, s := range software {
-			var executableSHA256 *string
+			var cdHashSHA256, execHashSHA256, execPath *string
 			if i%2 == 0 {
-				hash := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("hash-%d", s.ID))))
-				executableSHA256 = &hash
+				cdhash := fmt.Sprintf("%x", sha256.Sum256(fmt.Appendf(nil, "cdhash-%d", s.ID)))
+				cdHashSHA256 = &cdhash
+				execHash := fmt.Sprintf("%x", sha256.Sum256(fmt.Appendf(nil, "exechash-%d", s.ID)))
+				execHashSHA256 = &execHash
+				ePath := fmt.Sprintf("/some/path/%d", s.ID)
+				execPath = &ePath
 			}
 
 			stored = append(stored, fleet.HostSoftwareInstalledPath{
@@ -3274,7 +3287,9 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 				HostID:           host.ID,
 				SoftwareID:       s.ID,
 				InstalledPath:    fmt.Sprintf("/some/path/%d", s.ID),
-				ExecutableSHA256: executableSHA256,
+				CDHashSHA256:     cdHashSHA256,
+				ExecutableSHA256: execHashSHA256,
+				ExecutablePath:   execPath,
 			})
 		}
 
@@ -3305,8 +3320,12 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("we have some deltas", func(t *testing.T) {
-		hash1 := fmt.Sprintf("%x", sha256.Sum256([]byte("hash-1")))
-		hash2 := fmt.Sprintf("%x", sha256.Sum256([]byte("hash-2")))
+		cdHash1 := fmt.Sprintf("%x", sha256.Sum256([]byte("cdhash-1")))
+		cdHash2 := fmt.Sprintf("%x", sha256.Sum256([]byte("cdhash-2")))
+		eHash1 := fmt.Sprintf("%x", sha256.Sum256([]byte("binhash-1")))
+		eHash2 := fmt.Sprintf("%x", sha256.Sum256([]byte("binhash-2")))
+		ePath1 := fmt.Sprintf("/some/path/%d", software[1].ID)
+		ePath2 := fmt.Sprintf("/some/new/path/%d", software[1].ID)
 
 		getKey := func(s fleet.Software, change uint) string {
 			var key string
@@ -3314,18 +3333,18 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			switch s.ID {
 			case 3:
 				key = fmt.Sprintf(
-					"%s%d%s%s%s%s%s%s",
-					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, hash1, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+					"%s%d%s%s%s%s%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, cdHash1, fleet.SoftwareFieldSeparator, eHash1, fleet.SoftwareFieldSeparator, ePath1, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 				)
 			case 5:
 				key = fmt.Sprintf(
-					"%s%d%s%s%s%s%s%s",
-					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, hash2, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+					"%s%d%s%s%s%s%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, cdHash2, fleet.SoftwareFieldSeparator, eHash2, fleet.SoftwareFieldSeparator, ePath2, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 				)
 			default:
 				key = fmt.Sprintf(
-					"%s%d%s%s%s%s%s%s",
-					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+					"%s%d%s%s%s%s%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 				)
 			}
 
@@ -3350,7 +3369,9 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			SoftwareID:       software[1].ID,
 			TeamIdentifier:   "corp1",
 			InstalledPath:    fmt.Sprintf("/some/path/%d", software[1].ID),
-			ExecutableSHA256: &hash1,
+			CDHashSHA256:     &cdHash1,
+			ExecutableSHA256: &eHash1,
+			ExecutablePath:   &ePath1,
 		})
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
 			ID:             3,
@@ -3365,7 +3386,9 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			SoftwareID:       software[3].ID,
 			TeamIdentifier:   "corp1",
 			InstalledPath:    fmt.Sprintf("/some/path/%d", software[3].ID),
-			ExecutableSHA256: &hash2,
+			CDHashSHA256:     &cdHash2,
+			ExecutableSHA256: &eHash2,
+			ExecutablePath:   &ePath2,
 		})
 
 		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, software, nil)
@@ -3391,8 +3414,16 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			[]string{fmt.Sprintf("/some/path/%d", software[1].ID+1), fmt.Sprintf("/some/path/%d", software[2].ID)},
 		)
 		require.ElementsMatch(t,
+			[]*string{toI[0].CDHashSHA256, toI[1].CDHashSHA256},
+			[]*string{&cdHash1, nil},
+		)
+		require.ElementsMatch(t,
 			[]*string{toI[0].ExecutableSHA256, toI[1].ExecutableSHA256},
-			[]*string{&hash1, nil},
+			[]*string{&eHash1, nil},
+		)
+		require.ElementsMatch(t,
+			[]*string{toI[0].ExecutablePath, toI[1].ExecutablePath},
+			[]*string{&ePath1, nil},
 		)
 	})
 }
@@ -3468,27 +3499,33 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 			SoftwareID:       1,
 			InstalledPath:    "1",
 			TeamIdentifier:   "corp1",
+			CDHashSHA256:     nil,
 			ExecutableSHA256: nil,
+			ExecutablePath:   nil,
 		},
 		{
 			HostID:           1,
 			SoftwareID:       2,
 			InstalledPath:    "2",
 			TeamIdentifier:   "corp2",
-			ExecutableSHA256: ptr.String("c32f12fc330236fcef22a4c776b001da75e6a54d68aa4f1fd3f24ad66be76f63"),
+			CDHashSHA256:     ptr.String("c32f12fc330236fcef22a4c776b001da75e6a54d68aa4f1fd3f24ad66be76f63"),
+			ExecutableSHA256: ptr.String("d32f12fc330236fcef22a4c776b001da75e6a54d68aa4f1fd3f24ad66be76f63"),
+			ExecutablePath:   ptr.String("/some/path/2"),
 		},
 		{
 			HostID:           1,
 			SoftwareID:       3,
 			InstalledPath:    "3",
 			TeamIdentifier:   "",
+			CDHashSHA256:     nil,
 			ExecutableSHA256: nil,
+			ExecutablePath:   nil,
 		},
 	}
 	require.NoError(t, insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), toInsert))
 
 	var actual []fleet.HostSoftwareInstalledPath
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path, team_identifier, executable_sha256 FROM host_software_installed_paths`))
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path, team_identifier, cdhash_sha256, executable_sha256, executable_path FROM host_software_installed_paths`))
 
 	require.ElementsMatch(t, actual, toInsert)
 }
@@ -3912,7 +3949,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	installPaths := make([]string, 0, len(software))
 	for _, s := range software {
 		path := fmt.Sprintf("/some/path/%s", s.Name)
-		key := fmt.Sprintf("%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		swPaths[key] = struct{}{}
 		installPaths = append(installPaths, path)
 	}
@@ -6264,6 +6301,267 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		require.Nil(t, sw[1].AppStoreApp)
 		require.Nil(t, sw[1].SoftwarePackage)
 	}
+
+}
+func testListHostSoftwareFailInstallThenTransferTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		OnlyAvailableForInstall: true,
+	}
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team1.ID
+
+	// create a software installer for both teams
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	payloadBoth := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Version:         "1.0",
+		Source:          "apps",
+		Platform:        string(fleet.MacOSPlatform),
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+
+	payloadBoth.TeamID = &team1.ID
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, payloadBoth)
+	require.NoError(t, err)
+	payloadBoth.TeamID = &team2.ID
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, payloadBoth)
+	require.NoError(t, err)
+
+	// create software installer for only team 1
+	payloadOnly1 := fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "bar.pkg",
+		Title:           "bar",
+		Version:         "1.0",
+		Source:          "apps",
+		Platform:        string(fleet.MacOSPlatform),
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+
+	installerTm1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadOnly1)
+	require.NoError(t, err)
+
+	// Fail to install bar that is only scoped to team 1 on the host
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(1),
+	}, nil)
+	require.NoError(t, err)
+
+	// add a VPP app for team 1
+	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, &team1.ID)
+	require.NoError(t, err)
+
+	// install it on the host
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user)
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// listing available for install should include "foo", "vpp1",
+	// and the failed attempt for "bar"
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	require.Equal(t, sw[0].Name, "bar")
+	require.NotNil(t, sw[0].SoftwarePackage)
+	require.Equal(t, sw[1].Name, "foo")
+	require.NotNil(t, sw[1].SoftwarePackage)
+	require.Equal(t, sw[2].Name, "vpp1")
+	require.NotNil(t, sw[2].AppStoreApp)
+
+	// move host to team 2
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team2.ID
+
+	// listing available for install now should not include the failed install
+	// of "bar" because the installer is scoped to only team 1.
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, sw[0].Name, "foo")
+	require.NotNil(t, sw[0].SoftwarePackage)
+}
+
+// testListHostSoftwareFailInstallThenLabelExclude tests that when a host has a failed
+// install attempt and then the installer's label targeting is changed to exclude the host,
+// the software no longer appears in the host's "All software" list (IncludeAvailableForInstall=true).
+func testListHostSoftwareFailInstallThenLabelExclude(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	// Use IncludeAvailableForInstall (not OnlyAvailableForInstall) - this is the "All software" view
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false, // Explicitly false - we want "All software" view
+	}
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team1.ID
+
+	// Create a label that we'll use to exclude the host
+	excludeLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:  "exclude-label",
+		Query: "select 1",
+	})
+	require.NoError(t, err)
+
+	// Create a software installer with NO label targeting (available to all hosts in team)
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "exit 1", // Will fail
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "bar.pkg",
+		Title:           "bar",
+		Version:         "1.0",
+		Source:          "apps",
+		Platform:        string(fleet.MacOSPlatform),
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{}, // No labels initially
+	}
+
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+	require.NoError(t, err)
+
+	// Fail to install the software on the host
+	hostInstall, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall,
+		InstallScriptExitCode: ptr.Int(1), // Failed
+	}, nil)
+	require.NoError(t, err)
+
+	// Verify software appears in "All software" view (failed install should show)
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, "bar", sw[0].Name)
+	require.NotNil(t, sw[0].SoftwarePackage)
+
+	// Now add the host to the exclude label
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// Add the exclude label to the installer's targeting
+	// This simulates changing the installer's targeting to exclude hosts with this label
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, 1)`,
+			installerID, excludeLabel.ID)
+		return err
+	})
+
+	// Now the software should NOT appear in "All software" view because:
+	// 1. The software is not installed (failed install)
+	// 2. The installer is out of scope (host is in the exclude label)
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 0, "Software with failed install should not appear when installer targeting excludes the host")
+}
+
+func testListHostSoftwareFailVPPInstallThenLabelExclude(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false,
+		IsMDMEnrolled:              true,
+	}
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+
+	vppApp := &fleet.VPPApp{Name: "vpp_app_fail_test", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "999", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "com.test.vppfail"}
+	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	require.NoError(t, err)
+	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
+
+	excludeLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-vpp-label", Query: "select 1"})
+	require.NoError(t, err)
+
+	// Create a FAILED VPP install request
+	vppCmdUUID := createVPPAppInstallRequest(t, ds, host, vppApp.AdamID, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host, vppCmdUUID, fleet.MDMAppleStatusError)
+
+	// Verify VPP app appears in "All software" view (failed install should show initially)
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, "vpp_app_fail_test", sw[0].Name)
+
+	// Add host to exclude label
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// Add exclude label to VPP app targeting
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, 1)`,
+			vppAppTeamID, excludeLabel.ID)
+		return err
+	})
+
+	// Now, the VPP app should NOT appear because it failed and is out of scope
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 0, "VPP app with failed install should not appear when targeting excludes the host")
 }
 
 func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore) {
@@ -10560,4 +10858,64 @@ func testListSoftwareVersionsSearchByTitleName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, software, 1, "Search by software name should still work")
 	assert.Equal(t, "Office Runtime Libraries", software[0].Name)
+}
+
+// This test verifies the fix for https://github.com/fleetdm/fleet/issues/33815
+func testListSoftwareInventoryDeletedHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("content"), t.TempDir)
+	require.NoError(t, err)
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo 'installing'",
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "installer.pkg",
+		Title:           "Software",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		Platform:        host.Platform,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// install the software on the host
+	installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host.ID,
+		InstallUUID:               installUUID,
+		PreInstallConditionOutput: ptr.String("ok"),
+		InstallScriptExitCode:     ptr.Int(0),
+		PostInstallScriptExitCode: ptr.Int(0),
+	}, nil)
+	require.NoError(t, err)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "name",
+		},
+		OnlyAvailableForInstall: true,
+	}
+	software, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, "Software", software[0].Name)
+	require.Equal(t, titleID, software[0].ID)
+
+	err = ds.DeleteHost(ctx, host.ID)
+	require.NoError(t, err)
+
+	// it should still show up as available for install (still part of the inventory
+	// and the datastore layer does not check if host exists)
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, "Software", software[0].Name)
+	require.Equal(t, titleID, software[0].ID)
 }
