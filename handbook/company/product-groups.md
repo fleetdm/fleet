@@ -136,7 +136,7 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 - Conditional access
 - Certificate Authorities (CAs)
 - Certificate delivery & renewal
-- Encryption
+- Host disk encryption
 - CIS benchmarks 
 
 
