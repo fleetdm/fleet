@@ -3,7 +3,7 @@
 
 Bootstrap packages let you install custom software during device enrollment. This guide shows you how to manage them through GitOps using Fleet's API.
 
-**Note:** Each team needs its own bootstrap package. Teams can't share bootstrap packages.
+> **Note:** Each team needs its own bootstrap package. Teams can't share bootstrap packages.
 
 
 ## Prerequisites
