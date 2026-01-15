@@ -576,9 +576,9 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 		return nil
 	}
 
-	// Skip API-only users
-	if fleetUser.APIOnly {
-		level.Info(u.logger).Log("msg", "skipping deletion of API-only user",
+	// Skip API-only users or non-SSO users
+	if fleetUser.APIOnly || !fleetUser.SSOEnabled {
+		level.Info(u.logger).Log("msg", "skipping deletion of API-only or non-SSO user",
 			"user_id", fleetUser.ID, "email", fleetUser.Email)
 		return nil
 	}

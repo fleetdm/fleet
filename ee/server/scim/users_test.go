@@ -48,6 +48,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 			Email:      "john@example.com",
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -100,6 +101,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 			Email:      "api@example.com",
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 			APIOnly:    true,
+			SSOEnabled: true,
 		}
 
 		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -121,6 +123,38 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		assert.False(t, ds.DeleteUserFuncInvoked)
 	})
 
+	t.Run("skips deletion of non-SSO user", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := new(mockservice.Service)
+
+		fleetUser := &fleet.User{
+			ID:         100,
+			Name:       "Non-SSO User",
+			Email:      "nonsso@example.com",
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+			APIOnly:    false,
+			SSOEnabled: false,
+		}
+
+		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+			return fleetUser, nil
+		}
+
+		handler := &UserHandler{ds: ds, svc: svc, logger: logger}
+
+		scimUser := &fleet.ScimUser{
+			ID:       1,
+			UserName: "nonsso@example.com",
+			Emails:   []fleet.ScimUserEmail{},
+		}
+
+		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
+		require.NoError(t, err)
+
+		assert.True(t, ds.UserByEmailFuncInvoked)
+		assert.False(t, ds.DeleteUserFuncInvoked)
+	})
+
 	t.Run("prevents deleting last global admin", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := new(mockservice.Service)
@@ -131,6 +165,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 			Email:      "admin@example.com",
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -168,6 +203,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 			Email:      "admin@example.com",
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -210,6 +246,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 			Email:      "jane@work.com",
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -277,6 +314,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 			Email:      "user@example.com", // lowercase
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		var emailQueried string
@@ -331,6 +369,7 @@ func TestUserHandlerDelete(t *testing.T) {
 			Email:      "user@example.com",
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
@@ -380,6 +419,7 @@ func TestUserHandlerDelete(t *testing.T) {
 			Email:      "admin@example.com",
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
@@ -519,6 +559,7 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 			Email:      "user@example.com",
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
@@ -678,6 +719,7 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 			Email:      "user@example.com",
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
@@ -742,6 +784,7 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 			Email:      "user@example.com",
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 			APIOnly:    false,
+			SSOEnabled: true,
 		}
 
 		ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
