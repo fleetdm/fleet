@@ -20367,13 +20367,6 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 }
 
 func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
-	// - Create an MDM enrolled host
-	// - Check host_mdm values
-	// - Find out how to run directIngestMDMMac
-	//   - MDMTurnOff itself doesn't need to be tested, just see if it got invoked
-	//
-	// - Check host_mdm values
-
 	t := s.T()
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
@@ -20381,6 +20374,7 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
 
+	// enroll host to mdm
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	key := setOrbitEnrollment(t, mdmHost, s.ds)
 	mdmHost.OrbitNodeKey = &key
@@ -20392,22 +20386,10 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 
 	setupPusher(s, t, mdmDevice)
 	s.awaitTriggerProfileSchedule(t)
-	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, mdmHost.UUID)
-	require.NoError(t, err)
 
 	hostConnected, err := s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
 	require.NoError(t, err)
 	require.True(t, hostConnected)
-
-	fmt.Println("-----------")
-	fmt.Println("team: ", team)
-	fmt.Println("-----------")
-	fmt.Println("mdm device: ", mdmDevice)
-	fmt.Println("-----------")
-	fmt.Println("profiles: ", profiles)
-	fmt.Println("-----------")
-	fmt.Println("host connected step 1: ", hostConnected)
-	fmt.Println("-----------")
 
 	// add some VPP apps for the host to install
 	s.setVPPTokenForTeam(team.ID)
@@ -20424,27 +20406,23 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	require.NoError(t, listSw.Err)
 	require.Len(t, listSw.SoftwareTitles, 2)
 
-	// TODO: doesn't need to be loop
-	for _, title := range listSw.SoftwareTitles {
-		var installResp installSoftwareResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, title.ID), &installSoftwareRequest{},
-			http.StatusAccepted, &installResp)
-		fmt.Println("install resp: ", installResp)
-		fmt.Println("-----------")
-	}
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, listSw.SoftwareTitles[0].ID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, listSw.SoftwareTitles[1].ID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
 
 	var getHostSw getHostSoftwareResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	require.Len(t, getHostSw.Software, 2)
-	fmt.Println("______________________ getHostSw __________________")
-	for _, v := range getHostSw.Software {
-		fmt.Println("get host software: ", v.AppStoreApp.AppStoreID, ", status: ", *v.Status)
-	}
-	// TODO: make sure app store apps have correct id's
 	require.NotNil(t, getHostSw.Software[0].Status)
 	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 	require.NotNil(t, getHostSw.Software[1].Status)
 	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[1].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
 
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -20475,49 +20453,35 @@ func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
 	// while offline, then osquery reporting that mdm is off
 	// when the host is online again
 
-	fmt.Println("detail query \"mdm\": ", detailQueries["mdm"])
-	fmt.Println("-----------")
-
 	sendMDMDetailsQuery("true", "https://text.example.com")
-
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm", "host_id", "enrolled", "server_url", "mdm_id")
-		mysql.DumpTable(t, q, "nano_enrollments", "device_id", "type", "enabled", "last_seen_at")
-		mysql.DumpTable(t, q, "vpp_apps")
-		mysql.DumpTable(t, q, "host_vpp_software_installs")
-		mysql.DumpTable(t, q, "upcoming_activities")
-		return nil
-	})
 
 	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
 	require.NoError(t, err)
 	require.True(t, hostConnected)
-	fmt.Println("host connected step 2: ", hostConnected)
-	fmt.Println("-----------")
 
 	sendMDMDetailsQuery("false", "")
 
 	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
 	require.NoError(t, err)
 	require.False(t, hostConnected)
-	fmt.Println("host connected step 3: ", hostConnected)
-	fmt.Println("-----------")
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm", "host_id", "enrolled", "server_url", "mdm_id")
-		mysql.DumpTable(t, q, "nano_enrollments", "device_id", "type", "enabled", "last_seen_at")
-		return nil
-	})
-
-	// There should be no pending activities/installs now
-
+	// there should be no pending activities/installs now
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
-	// TODO: make sure app store apps have correct id's
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
 	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
-	fmt.Println("______________________ getHostSw __________________")
-	for _, v := range getHostSw.Software {
-		fmt.Println("get host software: ", v.AppStoreApp.AppStoreID, ", status: ", *v.Status)
-	}
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+
+	var listPastResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost.ID), nil, http.StatusOK, &listPastResp)
+	require.Len(t, listPastResp.Activities, 1)
+	require.Equal(t, "installed_app_store_app", listPastResp.Activities[0].Type)
+	act, err := listPastResp.Activities[0].Details.MarshalJSON()
+	require.Contains(t, string(act), "failed_install")
+
+	// test sending more osquery reports from the unenrolled host
+	sendMDMDetailsQuery("false", "")
+	sendMDMDetailsQuery("false", "")
+	sendMDMDetailsQuery("false", "")
 }

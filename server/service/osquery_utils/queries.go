@@ -26,6 +26,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -2319,9 +2320,34 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
-	// TODO(JK): maybe we can failed the VPP apps here
+	// if MDM profiles were deleted by a macOS host while offline or it
+	// silently unenrolled otherwise, try to turn MDM off to clear it properly.
 	if !enrolled && !installedFromDep && serverURL.String() == "" {
-		ds.MDMTurnOff(ctx, host.UUID)
+		connected, err := ds.IsHostConnectedToFleetMDM(ctx, host)
+		if err != nil {
+			logger.Log("component", "service", "method", "ingestMDM", "err",
+				ctxerr.Wrap(ctx, err, "checking if host is connected to fleet mdm"))
+		}
+		if connected {
+			// new activities might need to be created, but the service
+			// layer method isn't available.
+			activityModule := activities.NewActivityModule(ds, logger)
+
+			users, activities, err := ds.MDMTurnOff(ctx, host.UUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "turning off mdm")
+			}
+			if len(users) != len(activities) {
+				return ctxerr.New(ctx, "number of users and activities must match")
+			}
+			for i, act := range activities {
+				err := activityModule.NewActivity(ctx, users[i], act)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "creating new activity")
+				}
+			}
+			return nil
+		}
 	}
 
 	return ds.SetOrUpdateMDMData(ctx,
