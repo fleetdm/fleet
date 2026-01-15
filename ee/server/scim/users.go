@@ -66,12 +66,31 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 		level.Info(u.logger).Log("msg", "userName is empty")
 		return scim.Resource{}, errors.ScimErrorBadParams([]string{userNameAttr})
 	}
-	_, err = u.ds.ScimUserByUserName(r.Context(), userName)
+	existingUser, err := u.ds.ScimUserByUserName(r.Context(), userName)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		level.Error(u.logger).Log("msg", "failed to check for userName uniqueness", userNameAttr, userName, "err", err)
 		return scim.Resource{}, err
 	case err == nil:
+		// User exists - check if it's a deactivated user being reactivated
+		// Reactivation ONLY happens when existing user has active=false AND incoming request has active=true
+		incomingActive, _ := getOptionalResource[bool](attributes, activeAttr)
+		if existingUser.Active != nil && !*existingUser.Active && incomingActive != nil && *incomingActive {
+			// Reactivate the user by updating their record
+			level.Info(u.logger).Log("msg", "reactivating deactivated user", userNameAttr, userName)
+			user, err := u.createUserFromAttributes(attributes)
+			if err != nil {
+				level.Error(u.logger).Log("msg", "failed to create user from attributes for reactivation", userNameAttr, userName, "err", err)
+				return scim.Resource{}, err
+			}
+			user.ID = existingUser.ID
+			err = u.ds.ReplaceScimUser(r.Context(), user)
+			if err != nil {
+				level.Error(u.logger).Log("msg", "failed to reactivate user", userNameAttr, userName, "err", err)
+				return scim.Resource{}, err
+			}
+			return createUserResource(user), nil
+		}
 		level.Info(u.logger).Log("msg", "user already exists", userNameAttr, userName)
 		return scim.Resource{}, errors.ScimErrorUniqueness
 	}
@@ -405,6 +424,8 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 }
 
 func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.ResourceAttributes) (scim.Resource, error) {
+	ctx := r.Context()
+
 	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
@@ -417,8 +438,11 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		return scim.Resource{}, err
 	}
 	user.ID = idUint
+
 	// Username is unique, so we must check if another user already exists with that username to return a clear error
-	userWithSameUsername, err := u.ds.ScimUserByUserName(r.Context(), user.UserName)
+	// We also use this to get the previous active state when the username isn't changing
+	var previousActive *bool
+	userWithSameUsername, err := u.ds.ScimUserByUserName(ctx, user.UserName)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		level.Error(u.logger).Log("msg", "failed to check for userName uniqueness", userNameAttr, user.UserName, "err", err)
@@ -426,10 +450,24 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 	case err == nil && user.ID != userWithSameUsername.ID:
 		level.Info(u.logger).Log("msg", "user already exists with this username", userNameAttr, user.UserName)
 		return scim.Resource{}, errors.ScimErrorUniqueness
-		// Otherwise, we assume that we are replacing the username with this operation.
+	case err == nil && user.ID == userWithSameUsername.ID:
+		// Same user, username not changing - use this for previous active state
+		previousActive = userWithSameUsername.Active
+	case fleet.IsNotFound(err):
+		// Username is being changed - need to fetch existing user by ID for previous active state
+		existingUser, err := u.ds.ScimUserByID(ctx, idUint)
+		if fleet.IsNotFound(err) {
+			level.Info(u.logger).Log("msg", "failed to find scim user by id", "id", id)
+			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+		}
+		if err != nil {
+			level.Error(u.logger).Log("msg", "failed to get existing scim user by id", "id", id, "err", err)
+			return scim.Resource{}, err
+		}
+		previousActive = existingUser.Active
 	}
 
-	err = u.ds.ReplaceScimUser(r.Context(), user)
+	err = u.ds.ReplaceScimUser(ctx, user)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user to replace", "id", id)
@@ -437,6 +475,13 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 	case err != nil:
 		level.Error(u.logger).Log("msg", "failed to replace user", "id", id, "err", err)
 		return scim.Resource{}, err
+	}
+
+	// Check if user was deactivated and delete matching Fleet user if so
+	if wasDeactivated(previousActive, user.Active) {
+		if err := u.deleteMatchingFleetUser(ctx, user); err != nil {
+			level.Error(u.logger).Log("msg", "failed to delete fleet user on deactivation", "err", err)
+		}
 	}
 
 	return createUserResource(user), nil
@@ -480,6 +525,16 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 	}
 
 	return nil
+}
+
+// wasDeactivated returns true if the user was deactivated (active changed from true/nil to false)
+func wasDeactivated(previous, current *bool) bool {
+	// Not deactivated if current is nil or true
+	if current == nil || *current {
+		return false
+	}
+	// current is false - deactivated if previous was nil or true
+	return previous == nil || *previous
 }
 
 func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) error {
@@ -567,12 +622,14 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 
 // Patch - https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.2
 func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
+	ctx := r.Context()
+
 	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	user, err := u.ds.ScimUserByID(r.Context(), idUint)
+	user, err := u.ds.ScimUserByID(ctx, idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
@@ -581,6 +638,9 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		level.Error(u.logger).Log("msg", "failed to get user to patch", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
+
+	// Store previous active state before applying patches
+	previousActive := user.Active
 
 	for _, op := range operations {
 		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
@@ -698,7 +758,7 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	}
 
 	if len(operations) != 0 {
-		err = u.ds.ReplaceScimUser(r.Context(), user)
+		err = u.ds.ReplaceScimUser(ctx, user)
 		switch {
 		case fleet.IsNotFound(err):
 			level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
@@ -706,6 +766,13 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		case err != nil:
 			level.Error(u.logger).Log("msg", "failed to patch user", "id", id, "err", err)
 			return scim.Resource{}, err
+		}
+
+		// Check if user was deactivated and delete matching Fleet user if so
+		if wasDeactivated(previousActive, user.Active) {
+			if err := u.deleteMatchingFleetUser(ctx, user); err != nil {
+				level.Error(u.logger).Log("msg", "failed to delete fleet user on deactivation", "err", err)
+			}
 		}
 	}
 
