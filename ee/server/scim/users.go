@@ -454,7 +454,6 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 		return errors.ScimErrorResourceNotFound(id)
 	}
 
-	// Get the SCIM user first to retrieve their email(s) for matching
 	scimUser, err := u.ds.ScimUserByID(ctx, idUint)
 	if fleet.IsNotFound(err) {
 		level.Info(u.logger).Log("msg", "failed to find scim user to delete", "id", id)
@@ -465,13 +464,11 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 		return err
 	}
 
-	// Try to delete matching Fleet user (always enabled, no feature flag)
 	if err := u.deleteMatchingFleetUser(ctx, scimUser); err != nil {
 		// Log but don't fail - SCIM deletion should still proceed
 		level.Error(u.logger).Log("msg", "failed to delete matching fleet user", "err", err)
 	}
 
-	// Delete the SCIM user (original behavior)
 	err = u.ds.DeleteScimUser(ctx, idUint)
 	switch {
 	case fleet.IsNotFound(err):
@@ -485,7 +482,6 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 	return nil
 }
 
-// deleteMatchingFleetUser attempts to find and delete a Fleet user matching the SCIM user's email.
 func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) error {
 	// Collect all emails from SCIM user (userName is often the email in many IdP configurations, e.g. Okta)
 	emails := make([]string, 0, len(scimUser.Emails)+1)
