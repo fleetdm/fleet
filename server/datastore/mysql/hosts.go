@@ -2924,6 +2924,18 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 	return nil
 }
 
+// GetDeviceAuthToken returns the current auth token for a given host
+func (ds *Datastore) GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error) {
+	const stmt = `SELECT token FROM host_device_auth WHERE host_id = ?`
+
+	var token string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, hostID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting device auth token")
+	}
+
+	return token, nil
+}
+
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	if len(hostIDs) == 0 {
 		return nil
