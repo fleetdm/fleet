@@ -144,7 +144,7 @@ const FleetDesktop = ({
           tooltip={getAlternativeBrowserHostUrlTooltip()}
           label="Browser host"
           onChange={onInputChange}
-          name="alternativeBrowserHostURL"
+          name="alternativeBrowserHost"
           value={formData.alternativeBrowserHost}
           parseTarget
           onBlur={validateForm}
