@@ -1,7 +1,5 @@
 # Software self-service
 
-![Software self-service](../website/assets/images/articles/software-self-service-1335x757@2x.png)
-
 _Available in Fleet Premium_
 
 Fleet’s self-service software lets end users update and install approved apps from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive. This guide covers how to add, install, and update self-service software in Fleet.
@@ -48,6 +46,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Icon:** Upload a square icon that will be displayed as the app icon on the home screen.
 - **Full Screen:** Check this field.
 - **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in the search box, and select **Safari - com.apple.mobilesafari**.
+
 #### Download configuration profile
 
 You can also download the configuration profile (`.mobileconfig`) and change values in code editor. If you want to change the icon, use iMazing Profile Editor and follow the steps above.

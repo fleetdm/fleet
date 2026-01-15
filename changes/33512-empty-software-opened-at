@@ -1,0 +1,1 @@
+* Omit software `last_opened_at` in API responses when the data source does not support it. Return an empty string when the source does have support but there is no value.

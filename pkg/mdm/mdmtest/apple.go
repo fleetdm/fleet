@@ -1001,6 +1001,19 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+func (c *TestAppleMDMClient) AcknowledgeDeviceLocation(udid, cmdUUID string) (*mdm.Command, error) {
+
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        udid,
+		"CommandUUID": cmdUUID,
+		"Latitude":    42.42,
+		"Longitude":   -42.42,
+	}
+
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID string, software []fleet.Software) (*mdm.Command, error) {
 	mdmSoftware := make([]map[string]interface{}, 0, len(software))
 	for _, s := range software {

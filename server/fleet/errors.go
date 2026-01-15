@@ -32,7 +32,7 @@ var (
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
-	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has a package or app available for install on the %s team."
+	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s team."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -510,10 +510,8 @@ func (e ConflictError) IsConflict() bool {
 	return true
 }
 
-// Errorer interface is implemented by response structs to encode business logic errors
-type Errorer interface {
-	Error() error
-}
+// Errorer is an alias for platform_http.Errorer.
+type Errorer = platform_http.Errorer
 
 type VPPIconAvailable struct {
 	IconURL string

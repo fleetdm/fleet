@@ -58,6 +58,7 @@ interface IEditSoftwareModalProps {
   name: string;
   displayName: string;
   source?: string;
+  iconUrl?: string | null;
 }
 
 const EditSoftwareModal = ({
@@ -73,6 +74,7 @@ const EditSoftwareModal = ({
   name,
   displayName,
   source,
+  iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
@@ -404,9 +406,14 @@ const EditSoftwareModal = ({
           name={name}
           displayName={displayName}
           source={source}
-          iconUrl={softwareInstaller.icon_url || undefined}
+          iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
           isIosOrIpadosApp={isIosOrIpadosApp}
+          mobileVersion={
+            ("latest_version" in softwareInstaller &&
+              softwareInstaller.latest_version) ||
+            softwareInstaller.version
+          }
         />
       )}
       {!!pendingPackageUpdates.software && showFileProgressModal && (
