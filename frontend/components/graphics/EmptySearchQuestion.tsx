@@ -37,7 +37,7 @@ export const renderEmptySearch = (
     <svg width="55" height="71" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M25.73 49.4c13.123 0 23.762-10.638 23.762-23.761S38.853 1.878 25.73 1.878c-13.123 0-23.761 10.638-23.761 23.76C1.97 38.763 12.608 49.4 25.73 49.4Z"
-        fill="#F1F0FF"
+        fill={COLORS["ui-fleet-black-5"]}
         stroke="#fff"
         strokeWidth="1.199"
       />
