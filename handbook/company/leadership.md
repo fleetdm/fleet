@@ -59,33 +59,19 @@ Ultimately, the CEO is responsible for the success or failure of the company. Th
 
 ## Outline of departmental page structure
 
-Departmental pages are for reference, not philosophy.  For philosophy, use "Communications" (for all fleeties), "Leadership" (for managers), "Product groups" (for core product and website contributors), and "Why this way?" (for key decisions).
+Departmental pages outline intake, people, responsibilities, recurring rituals, and .  They always follow the structure below.  Changes to departmental pages can be merged when the change results in a page consistent with this structure.
 
-Departmental pages exist to outline people, responsibilities, recurring rituals, and intake.  They always follow the structure below.
-
-Changes to departmental pages can be merged when the change results in a page consistent with this structure.
-
-> Please see https://fleetdm.com/handbook/it-and-enablement for an example of what this structure should look like in practice.
-
-<blockquote purpose="large-quote">
-Biggest learning is that we federated carte blanche edit permissions a bit too early back in 2021, and it’s resulted in the need for a lot of cleanup as different people have had their hands in the content prior to introducing a framework for organizing that content.  
-
-For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and were dealing with the consequences.
+> For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and were dealing with the consequences.
 It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
 
-The audience for the “Communications” page is every Fleetie.
-
-The audience for the “Leadership” page is every manager.
-
-The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
-This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there was still a lot of duplication, and it’s easier to deal with when everything is on a single page.
+We structure handbook pages based on audience. 
+- The audience for the “Communications” page is every Fleetie.
+- The audience for the “Leadership” page is every manager.
+- The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
 
 
-If you have any questions or feedback, please make a pull request.
-</blockquote>
+**Departmental page structure:**
 
-
-Departmental page structure:
 - `# Name of department`
   - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
 
@@ -93,15 +79,32 @@ Departmental page structure:
     - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/it-and-enablement#team](https://fleetdm.com/handbook/it-and-enablement#team) for example.
 
   - `## Contact us`
-    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=1-custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day. (If urgent, mention a `[team member](#team)` in `[#g-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`.)"
+  - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=1-custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[:help-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`.)"
       - "Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://github.com/orgs/fleetdm/projects/{PROJECT_ID})` for this department, including pending tasks and the status of new requests."
 
-- `## Responsibilities`
+  - `## Philisophical heading that matter to all roles in your department`
+  - Department leaders can add sections to their own README.md pages between "contact us" and "responsibilities".  e.g. P0,P1 levels for CS.
+
+  - `## Responsibilities`
   - The "Responsibilities" section consists of a flat list of H3 sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" of each department.  
 
 
 - `## Rituals`
+
+It may make sense to have per-role pages (e.g. cse, csa). But only when the role is very well defined and there are 3+ people at Fleet who have that job title.  The priority isn't to make a role page for the VP of Customer Success role, but there could be a role page for Customer Support Engineer. 
+
+**Role-specific sub page structure**
+
+- `# Job title`
+  - Definition of this role in 1-2 sentences. 
+
+  - `## Onboarding`
+  - Any info that could help a new Fleetie be successful in this particular role. 
+
+  - `## Responsibilities`
+  - The "Responsibilities" section consists of a flat list of H3 sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" for this role.
+  
 
 
 ## Board meeting and OKR planning
