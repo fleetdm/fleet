@@ -1,0 +1,1 @@
+* Added 'AlternativeBrowserHost' to Desktop Summary payload and updated Fleet Desktop to use it over the alternative browser host set via the env.

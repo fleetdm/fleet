@@ -369,7 +369,27 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			"host_id", p.hostID,
 			"failing_conditional_access_policies_count", failingConditionalAccessCount,
 		)
-		http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+		authToken, err := p.ds.GetDeviceAuthToken(ctx, host.ID)
+		if err != nil {
+			// The auth token is unavailable for some reason, redirect to the non-device-specific
+			// remediation page and log the error. Could happen if fleet desktop was never able to
+			// create a token?
+			level.Error(p.logger).Log(
+				"msg", "device auth token not found",
+				"err", err,
+				"host_id", p.hostID,
+			)
+			http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+			return nil
+		}
+
+		config, err := p.ds.AppConfig(ctx)
+		if err != nil {
+			handleInternalServerError(ctx, w, p.logger, "failed to get app config", err, "host_id", p.hostID)
+			return nil
+		}
+
+		http.Redirect(w, r, fmt.Sprintf("%s/device/%s/policies", config.ServerSettings.ServerURL, authToken), http.StatusSeeOther)
 		return nil
 	}
 

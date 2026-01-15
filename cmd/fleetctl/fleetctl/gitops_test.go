@@ -1735,6 +1735,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	vppToken := &fleet.VPPTokenDB{
 		Location:  "Foobar",
 		RenewDate: time.Now().Add(24 * 365 * time.Hour),
+		Token:     "vpp-token",
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{vppToken}, nil

@@ -127,7 +127,7 @@ parasails.registerPage('basic-handbook', {
     // Add links to the responsibilities under the responsibilities heading.
     if($('h2#responsibilities')){
       let responsibilitiesLinksHtml = '<ul>\n';
-      $('h3').each((unused, el)=>{ responsibilitiesLinksHtml += '<li><a href="#'+_.escape($(el).attr('id'))+'">'+_.escape($(el).text())+'</a></li>\n';  });
+      $('#body-content').find('h3').each((unused, el)=>{ responsibilitiesLinksHtml += '<li><a href="#'+_.escape($(el).attr('id'))+'">'+_.escape($(el).text())+'</a></li>\n';  });
       responsibilitiesLinksHtml+= '</ul>';
       $('h2#responsibilities + p').after(responsibilitiesLinksHtml);
     }

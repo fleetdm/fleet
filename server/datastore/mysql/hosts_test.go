@@ -149,6 +149,7 @@ func TestHosts(t *testing.T) {
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
 		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
+		{"GetDeviceAuthToken", testHostsGetDeviceAuthToken},
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
@@ -8035,6 +8036,66 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h2T3 := loadUpdatedAt(host2.ID)
 	require.True(t, h2T2.Equal(h2T3))
+}
+
+func testHostsGetDeviceAuthToken(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "2",
+		OsqueryHostID:   ptr.String("2"),
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-61",
+	})
+	require.NoError(t, err)
+
+	token1 := "token1"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
+	require.NoError(t, err)
+
+	token2 := "token2"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2)
+	require.NoError(t, err)
+
+	t1, err := ds.GetDeviceAuthToken(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Equal(t, t1, token1)
+
+	t2, err := ds.GetDeviceAuthToken(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, t2, token2)
+
+	token2Updated := "token2_updated"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
+	require.NoError(t, err)
+
+	t1, err = ds.GetDeviceAuthToken(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Equal(t, t1, token1)
+
+	t2, err = ds.GetDeviceAuthToken(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, t2, token2Updated)
+
+	_, err = ds.GetDeviceAuthToken(context.Background(), 99)
+	require.Error(t, err)
 }
 
 func testOSVersions(t *testing.T, ds *Datastore) {

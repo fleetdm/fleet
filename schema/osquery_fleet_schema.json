@@ -3279,8 +3279,8 @@
       },
       {
         "name": "size",
-        "description": "Size of the carved archive",
-        "type": "integer",
+        "description": "Size in bytes of the carved archive",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -3334,6 +3334,94 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/carves.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fcarves.yml&value=name%3A%20carves%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "certificate_trust_settings",
+    "description": "Certificate Authorities trust settings installed in Keychains/ca-bundles.",
+    "url": "https://fleetdm.com/tables/certificate_trust_settings",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from certificate_trust_settings where trust_domain = 'admin'\n```",
+    "columns": [
+      {
+        "name": "common_name",
+        "description": "Certificate common name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "serial",
+        "description": "Certificate serial number",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_domain",
+        "description": "Certificate trust settings domain",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "trust_policy_name",
+        "description": "Certificate trust policy name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_policy_data",
+        "description": "Certificate trust policy data",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_allowed_error",
+        "description": "Certificate trust allowed error",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_key_usage",
+        "description": "Certificate trust key usage",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_result",
+        "description": "Certificate trust result",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/certificate_trust_settings.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fcertificate_trust_settings.yml&value=name%3A%20certificate_trust_settings%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "certificates",
@@ -20145,7 +20233,7 @@
   },
   {
     "name": "password_policy",
-    "description": "Password Policies for macOS.",
+    "description": "OpenDirectory account policies for macOS including password content, authentication, and password change policies.",
     "url": "https://fleetdm.com/tables/password_policy",
     "platforms": [
       "darwin"
@@ -20185,6 +20273,24 @@
       {
         "name": "policy_description",
         "description": "Policy description, such as `Contain at least 10 characters.`",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_category",
+        "description": "Policy category: passwordPolicyAuthentication, passwordPolicyPasswordChange, or passwordPolicyPasswordContent",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_parameters",
+        "description": "Policy parameters serialized as JSON",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26923,7 +27029,7 @@
   },
   {
     "name": "startup_items",
-    "description": "Applications and binaries set as user/login startup items.",
+    "description": "Applications and binaries set as startup items.",
     "url": "https://fleetdm.com/tables/startup_items",
     "platforms": [
       "darwin",
@@ -26964,7 +27070,7 @@
       },
       {
         "name": "type",
-        "description": "Startup Item or Login Item",
+        "description": "Type of startup item. On macOS this can be app, agent (LaunchAgent), daemon (LaunchDaemon), login item, or user item.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26973,7 +27079,7 @@
       },
       {
         "name": "source",
-        "description": "Directory or plist containing startup item",
+        "description": "Directory containing startup item (on macOS, the subsystem providing it)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26982,7 +27088,7 @@
       },
       {
         "name": "status",
-        "description": "Startup status; either enabled or disabled",
+        "description": "Startup status. On Linux: enabled or disabled. On macOS: Combination of enabled, allowed, notified, and hidden. Apple does not seem to document these status values, but allowed seems to indicate whether it is enabled in System Settings.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -29674,10 +29780,28 @@
       },
       {
         "name": "last_connected",
-        "description": "Last time this network was connected to as a unix_time",
+        "description": "Last time this network was connected to as a unix_time (max of last_connected_automatic and last_connected_manual, if available)",
         "type": "integer",
         "notes": "",
         "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "last_connected_automatic",
+        "description": "Last time this network was automatically connected to by the system as a unix_time",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "last_connected_manual",
+        "description": "Last time this network was manually connected to by the user as a unix_time",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
         "required": false,
         "index": false
       },

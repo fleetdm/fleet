@@ -1,7 +1,5 @@
 # Software self-service
 
-![Software self-service](../website/assets/images/articles/software-self-service-1335x757@2x.png)
-
 _Available in Fleet Premium_
 
 Fleet’s self-service software lets end users update and install approved apps from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive. This guide covers how to add, install, and update self-service software in Fleet.

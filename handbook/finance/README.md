@@ -12,7 +12,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH)).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH) Slack channel.)
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
@@ -328,7 +328,7 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 
 ### Respond to low credit alert
 
-Fleet admins will receive an email alert when the usage of company cards for the month is aproaching the company credit limit. To avoid the limit being exceeded, a Brex admin will follow these steps:
+Fleet admins will receive an email alert when the usage of company cards for the month is approaching the company credit limit. To avoid the limit being exceeded, a Brex admin will follow these steps:
 1. Sign in to Fleet's Brex account.
 2. On the landing page, use the "Move money" button to "Add funds to your Brex business accounts".
 3. Select "Transfer from a connected account" and select the primary business account.
