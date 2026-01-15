@@ -10760,7 +10760,7 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 | team_id     | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
 | icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
 | hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
-| filename    | string  | fobodyrm | Filename to record for the icon image, if `hash_sha256` was supplied. |
+| filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
 #### Example
 
@@ -10769,7 +10769,7 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 ##### Request body
 
 ```http
-icon"="crowdstrike-icon-512x512.png"
+icon="crowdstrike-icon-512x512.png"
 ```
 
 ##### Default response
