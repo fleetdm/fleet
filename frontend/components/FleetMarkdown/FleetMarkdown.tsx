@@ -23,58 +23,72 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
   const classNames = classnames(baseClass, className);
 
   return (
-    <ReactMarkdown
-      className={classNames}
-      // enables some more markdown features such as direct urls and strikethroughts.
-      // more info here: https://github.com/remarkjs/remark-gfm
-      remarkPlugins={[remarkGfm]}
-      components={{
-        a: ({ href = "", children }) => {
-          return <CustomLink text={String(children)} url={href} newTab />;
-        },
+    // In react-markdown v10+, className prop was removed from ReactMarkdown.
+    // We wrap in a div to apply the className instead.
+    <div className={classNames}>
+      <ReactMarkdown
+        // enables some more markdown features such as direct urls and strikethroughs.
+        // more info here: https://github.com/remarkjs/remark-gfm
+        remarkPlugins={[remarkGfm]}
+        components={{
+          a: ({ href = "", children }) => {
+            return <CustomLink text={String(children)} url={href} newTab />;
+          },
 
-        // Overrides code display to use SQLEditor with Readonly overrides.
-        code: ({ inline, children, ...props }) => {
-          const onEditorBlur = (editor?: IAceEditor) => {
-            editor && editor.clearSelection();
-          };
+          // In react-markdown v9+, the `inline` prop is no longer passed to code components.
+          // Block code is wrapped in a `pre` element, so we override `pre` to use SQLEditor
+          // and keep `code` for inline code only.
+          pre: ({ children }) => {
+            const onEditorBlur = (editor?: IAceEditor) => {
+              editor && editor.clearSelection();
+            };
 
-          const onEditorLoad = (editor: IAceEditor) => {
-            editor.setOptions({
-              indentedSoftWrap: false, // removes automatic indentation when wrapping
-            });
+            const onEditorLoad = (editor: IAceEditor) => {
+              editor.setOptions({
+                indentedSoftWrap: false, // removes automatic indentation when wrapping
+              });
 
-            // removes focus UI styling
-            editor.renderer.visualizeFocus = noop;
-          };
+              // removes focus UI styling
+              editor.renderer.visualizeFocus = noop;
+            };
 
-          // Dont render the fleet ace code block for simple inline code blocks.
-          // e.g. `x = 1`
-          if (inline) {
+            // Extract the text content from the code element inside pre
+            // children is typically <code>...</code>
+            let codeContent = "";
+            if (React.isValidElement(children)) {
+              const codeChildren = children.props?.children;
+              codeContent = String(codeChildren || "");
+            } else {
+              codeContent = String(children || "");
+            }
+
+            // full code blocks we want to use Fleet Ace.
+            // e.g. ```SELECT * FROM USERS```
+            return (
+              <SQLEditor
+                wrapperClassName={`${baseClass}__ace-display`}
+                // Remove trailing newline added by markdown parser, preserving newlines within the code block
+                value={codeContent.replace(/\n$/, "")}
+                showGutter={false}
+                onBlur={onEditorBlur}
+                onLoad={onEditorLoad}
+                style={{ border: "none" }}
+                wrapEnabled
+                readOnly
+                name={name}
+              />
+            );
+          },
+
+          // Inline code only (since block code is now handled by `pre`)
+          code: ({ children, ...props }) => {
             return <code {...props}>{children}</code>;
-          }
-
-          // full code blocks we want to use Fleet Ace.
-          // e.g. ```SELECT * FROM USERS```
-          return (
-            <SQLEditor
-              wrapperClassName={`${baseClass}__ace-display`}
-              // Remove trailing newline added by markdown parser, preserving newlines within the code block
-              value={String(children).replace(/\n$/, "")}
-              showGutter={false}
-              onBlur={onEditorBlur}
-              onLoad={onEditorLoad}
-              style={{ border: "none" }}
-              wrapEnabled
-              readOnly
-              name={name}
-            />
-          );
-        },
-      }}
-    >
-      {markdown}
-    </ReactMarkdown>
+          },
+        }}
+      >
+        {markdown}
+      </ReactMarkdown>
+    </div>
   );
 };
 

@@ -25,6 +25,18 @@ const esModules = [
   "escape-string-regexp",
   "markdown-table",
   "trim-lines",
+  "hast-util-.+",
+  "html-url-attributes",
+  "devlop",
+  "estree-.+",
+  "estree-util-.+",
+  "periscopic",
+  "is-reference",
+  "stringify-entities",
+  "character-entities-html4",
+  "character-entities-legacy",
+  "zwitch",
+  "longest-streak",
 ].join("|");
 
 const config = {
