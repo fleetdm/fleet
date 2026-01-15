@@ -99,11 +99,6 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 
-
-### Propose an event
-
-Fleet's Marketing team is responsible for deciding/signing off on the events Fleet will participate in. To propose an event, complete the steps in the [Propose event issue] (https://github.com/fleetdm/confidential/issues/new?template=prepare-event.md). Once the requester has completed all steps, the marketing team will decide if it's an approved event and proceed with the rest of the issue.
-
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
 
 ### Create an article
