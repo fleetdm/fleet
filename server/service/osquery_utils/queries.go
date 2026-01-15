@@ -1401,29 +1401,30 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("codesign"),
 		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
+			if len(codesignResults) == 0 {
+				return mainSoftwareResults
+			}
+
 			type codesignResultRow struct {
 				teamIdentifier string
 				cdhashSHA256   string
 			}
 
-			codesignInformation := make(map[string]codesignResultRow) // path -> team_identifier
+			codesignInfoByPath := make(map[string]codesignResultRow)
 			for _, codesignResult := range codesignResults {
 				var cdhashSha256 string
 				if hash, ok := codesignResult["cdhash_sha256"]; ok {
 					cdhashSha256 = hash
 				}
 
-				codesignInformation[codesignResult["path"]] = codesignResultRow{
+				codesignInfoByPath[codesignResult["path"]] = codesignResultRow{
 					teamIdentifier: codesignResult["team_identifier"],
 					cdhashSHA256:   cdhashSha256,
 				}
 			}
-			if len(codesignInformation) == 0 {
-				return mainSoftwareResults
-			}
 
 			for _, result := range mainSoftwareResults {
-				codesignInfo, ok := codesignInformation[result["installed_path"]]
+				codesignInfo, ok := codesignInfoByPath[result["installed_path"]]
 				if !ok {
 					// No codesign information for this application.
 					continue
@@ -1432,6 +1433,54 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				result["cdhash_sha256"] = codesignInfo.cdhashSHA256
 			}
 
+			return mainSoftwareResults
+		},
+	},
+	// macos_executable_sha256 collects an executable's sha256 hash via the fleetd `executable_hashes` table.
+	"macos_executable_sha256": {
+		Query: `
+		SELECT eh.*
+		FROM apps a
+		JOIN executable_hashes eh ON a.path = eh.path
+		`,
+		Description: "A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`",
+		Platforms:   []string{"darwin"},
+		Discovery:   discoveryTable("executable_hashes"),
+		SoftwareProcessResults: func(mainSoftwareResults, results []map[string]string) []map[string]string {
+			if len(results) == 0 {
+				return mainSoftwareResults
+			}
+
+			type resultRow struct {
+				execSHA256 string
+				execPath   string
+			}
+
+			// assuming one executable per app bundle path for now
+			resultByBundlePath := make(map[string]resultRow)
+			for _, r := range results {
+				var execHash string
+				if hash, ok := r["executable_sha256"]; ok {
+					execHash = hash
+				}
+				var execPath string
+				if ePath, ok := r["executable_path"]; ok {
+					execPath = ePath
+				}
+				resultByBundlePath[r["path"]] = resultRow{
+					execSHA256: execHash,
+					execPath:   execPath,
+				}
+			}
+			for _, swRes := range mainSoftwareResults {
+				rBBP, ok := resultByBundlePath[swRes["installed_path"]]
+				if !ok {
+					// No fileutil information for this software
+					continue
+				}
+				swRes["executable_sha256"] = rBBP.execSHA256
+				swRes["executable_path"] = rBBP.execPath
+			}
 			return mainSoftwareResults
 		},
 	},
@@ -2004,12 +2053,20 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			}
 			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
 			var cdhashSHA256 string
-			if hash, ok := row["cdhash_sha256"]; ok {
-				cdhashSHA256 = hash
+			if cdHash, ok := row["cdhash_sha256"]; ok {
+				cdhashSHA256 = cdHash
+			}
+			var execSHA256 string
+			if eHash, ok := row["executable_sha256"]; ok {
+				execSHA256 = eHash
+			}
+			var execPath string
+			if epath, ok := row["executable_path"]; ok {
+				execPath = epath
 			}
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, execSHA256, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			sPaths[key] = struct{}{}
 		}
