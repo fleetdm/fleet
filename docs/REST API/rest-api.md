@@ -2190,7 +2190,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type  | Description   |
 | ---------------------             | ----- | ---------------------------------------------------------------------------------------------- |
-| interval          |               | integer | How often Fleet triggers policy automations in nanoseconds (default: `3600000000000` (1 day)) |
+| interval          |               | integer | How often policy, vulnerability, and host status automations are triggered in nanoseconds (default: `3600000000000` (1 day)) |
 | host_status_webhook               | array | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook).           |
 | failing_policies_webhook          | array | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook). |
 | vulnerabilities_webhook           | array | See [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook).   |
