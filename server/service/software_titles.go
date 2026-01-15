@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -197,6 +198,19 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
 				}
 				meta.Status = summary
+
+				if meta.FleetMaintainedAppID != nil {
+					fma, err := maintained_apps.Hydrate(ctx, &fleet.MaintainedApp{
+						ID:   *meta.FleetMaintainedAppID,
+						Slug: meta.Slug,
+					})
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "hydrating fleet maintained app")
+					}
+
+					meta.FMAInstallScriptModified = fma.InstallScript != meta.InstallScript
+					meta.FMAUninstallScriptModified = fma.UninstallScript != meta.UninstallScript
+				}
 			}
 			software.SoftwarePackage = meta
 		}

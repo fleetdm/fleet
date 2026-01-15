@@ -1504,7 +1504,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			// Only output install_script, post_install_script, uninstall_script, and
 			// pre_install_query for non-script packages
 			if !isScriptPackage {
-				if softwareTitle.SoftwarePackage.InstallScript != "" {
+				if softwareTitle.SoftwarePackage.ShouldExportInstallScript() {
 					script := softwareTitle.SoftwarePackage.InstallScript
 					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
 					path := fmt.Sprintf("../%s", fileName)
@@ -1524,7 +1524,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				if softwareTitle.SoftwarePackage.UninstallScript != "" {
+				if softwareTitle.SoftwarePackage.ShouldExportUninstallScript() {
 					script := softwareTitle.SoftwarePackage.UninstallScript
 					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
 					path := fmt.Sprintf("../%s", fileName)
@@ -1694,7 +1694,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			delete(softwareSpec, "hash_sha256")
 			delete(softwareSpec, "url")
 			softwareSpec["slug"] = softwareTitle.SoftwarePackage.Slug
-			fmt.Printf("sw.SoftwarePackage.FleetMaintainedAppID: %v\n", sw.SoftwarePackage.FleetMaintainedAppID)
 		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
 		case sw.AppStoreApp != nil:
