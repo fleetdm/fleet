@@ -6507,6 +6507,11 @@ func TestToValidSemVer(t *testing.T) {
 			"2.3.4",
 			false,
 		},
+		{
+			"02.03.04-01",
+			"2.3.4-1",
+			false,
+		},
 	}
 	for _, tc := range testVersions {
 		cleanedVersion := toValidSemVer(tc.rawVersion)

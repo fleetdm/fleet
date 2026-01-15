@@ -3972,6 +3972,8 @@ func trimLeadingZeros(s string) string {
 }
 
 // toValidSemVer is a best effort transformation to make `version` a valid semantic version.
+// Currently doesn't support fixing versions that have non-numerical pre-release strings (because
+// we haven't seen those in the wild for the apps where this method is used, currently VPP apps).
 func toValidSemVer(version string) string {
 	// Cleanup spaces.
 	version = strings.TrimSpace(version)
@@ -3980,7 +3982,8 @@ func toValidSemVer(version string) string {
 		return version
 	}
 
-	matches := versionPattern.FindStringSubmatch(version)
+	versionModified := strings.ReplaceAll(version, "-", ".")
+	matches := versionPattern.FindStringSubmatch(versionModified)
 	if matches == nil {
 		// May not be a valid version string, nothing we can do.
 		return version
