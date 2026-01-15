@@ -163,6 +163,8 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	// mdm information
 	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
+	sum.AlternativeBrowserHost = appCfg.FleetDesktop.AlternativeBrowserHostURL
+
 	return sum, nil
 }
 
