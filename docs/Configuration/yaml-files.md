@@ -810,7 +810,6 @@ Can only be configured for all teams (`org_settings`) and custom teams (`team_se
 org_settings:
   integrations:
     conditional_access_enabled: true
-    conditional_access_bypass_enabled: true
     google_calendar:
       - api_key_json: $GOOGLE_CALENDAR_API_KEY_JSON
         domain: fleetdm.com
