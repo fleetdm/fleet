@@ -390,7 +390,7 @@ module.exports = {
         valuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
         valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
         valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
-        valuesToSet.Most_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
+        valuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
       }
 
 
