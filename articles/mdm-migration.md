@@ -65,7 +65,9 @@ Fleet's agents must have [updates enabled](https://fleetdm.com/guides/fleetd-upd
 
 End user experience:
 
-- To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > Mobile device management (MDM)** in the Fleet UI, and scroll down to the **End user migration workflow** section. After Fleet begins prompting end users to enroll, it will continue to prompt them every few minutes.
+- To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > Mobile device management (MDM)** in the Fleet UI, and scroll down to the **End user migration workflow** section. 
+
+> **Note:** After Fleet begins prompting end users to enroll, it will continue to prompt them every few minutes.
 
 Configuration:
 
