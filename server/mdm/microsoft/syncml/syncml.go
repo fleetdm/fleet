@@ -339,3 +339,19 @@ func ForTestWithData(commands []TestCommand) []byte {
 	}
 	return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", syncMLBuf.Bytes())
 }
+
+func ForTestWithDataNonAtomic(commands []TestCommand) []byte {
+	var syncMLBuf bytes.Buffer
+	for _, command := range commands {
+		syncMLBuf.WriteString(fmt.Sprintf(`
+<%s>
+  <Item>
+	<Target>
+	  <LocURI>%s</LocURI>
+	</Target>
+	<Data>%s</Data>
+  </Item>
+</%s>`, command.Verb, command.LocURI, command.Data, command.Verb))
+	}
+	return syncMLBuf.Bytes()
+}

@@ -8404,11 +8404,15 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 		profilePayload := syncml.ForTestWithData([]syncml.TestCommand{
 			{Verb: "Add", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/AllowLocation", Data: "1"},
 		})
+		profilePayloadNonAtomic := syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+			{Verb: "Add", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/AtomicLocation", Data: "1"},
+		})
 
 		profileName := "RetryProfile"
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: profileName, Contents: profilePayload},
+				{Name: profileName + "NonAtomic", Contents: profilePayloadNonAtomic},
 			}},
 			http.StatusNoContent)
 
@@ -8449,13 +8453,26 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 			if cmd.Verb == "Status" {
 				continue
 			}
-			syncCmd := fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmd.Cmd.CmdID.Value,
-				Cmd:     ptr.String(cmd.Verb),
-				Data:    ptr.String(syncml.CmdStatusAtomicFailed),
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+
+			var syncCmd fleet.SyncMLCmd
+			if cmd.Verb == "Atomic" {
+				syncCmd = fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmd.Cmd.CmdID.Value,
+					Cmd:     ptr.String(cmd.Verb),
+					Data:    ptr.String(syncml.CmdStatusAtomicFailed),
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				}
+			} else {
+				syncCmd = fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmd.Cmd.CmdID.Value,
+					Cmd:     ptr.String(cmd.Verb),
+					Data:    ptr.String(syncml.CmdStatusAlreadyExists),
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				}
 			}
 			mdmDevice.AppendResponse(syncCmd)
 
@@ -8474,9 +8491,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 				}
 			}
 		}
-		cmds, err = mdmDevice.SendResponse() // we have atomic replace (resend after 418 attempt in this cmd list here)
+		cmds, err = mdmDevice.SendResponse() // we have atomic replace and normal replace (resend after 418 attempt in this cmd list here)
 		require.NoError(t, err)
-		require.Len(t, cmds, 2) // stsatus + atomic replace
+		require.Len(t, cmds, 3) // status + atomic replace + replace
 
 		// After initial 418 resend: pending, empty detail, retries = 0.
 		profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
