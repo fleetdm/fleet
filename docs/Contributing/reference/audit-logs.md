@@ -1722,14 +1722,18 @@ Generated when an App Store app is updated in Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team on which this App Store app was updated, or `null` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
+- "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
+- "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+
 
 #### Example
 
@@ -1754,6 +1758,9 @@ This activity contains the following fields:
     }
   ]
   "software_display_name": "Logic Pro DAW"
+  "auto_update_enabled": true
+  "auto_update_window_start": "22:00"
+  "auto_update_window_end": "02:00"
 }
 ```
 

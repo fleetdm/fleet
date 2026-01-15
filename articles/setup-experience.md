@@ -8,6 +8,8 @@ This guide covers macOS, iOS, iPadOS, and Android. Learn more about Windows and 
 
 macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
+> If a host is marked with a [migration deadline](https://support.apple.com/en-bh/guide/apple-business-manager/axm3a49a769d/web#axmf524b36d9) in Apple Business Manager, Fleet treats it as already set up. This means Fleet won’t install setup experience software, run scripts, or install bootstrap packages on that host.
+
 ## End user authentication
 
 You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience).
@@ -40,7 +42,7 @@ Fleet supports installing a bootstrap package on macOS hosts that automatically 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
-The bootstrap package and Fleet's agent (fleetd) are also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [manually install fleetd](#advanced), fleetd won't be installed.
+The bootstrap package and Fleet's agent (fleetd) are also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [manually install fleetd](#advanced), fleetd won't be installed automatically.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
@@ -125,6 +127,8 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 You can install software during first time macOS, iOS, iPadOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience). Android support is coming soon.
 
+Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business Manager (ABM). For iOS and iPadOS hosts, software is only installed on hosts that enroll via ABM and hosts that manually enroll via the `/enroll` link (profile-based device enrollment).
+
 Add setup experience software:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
@@ -132,19 +136,21 @@ Add setup experience software:
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
 3. Press **Save** to save your selection.
 
+To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
+
 ### Retries
 
 For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
 
 Retries only happen for custom packages and Fleet-maintained apps. For App Store (VPP) apps, the MDM command to install the app is sent once and either succeeds or fails.
 
-#### Blocking setup on failed software installs
+#### Stop setup on failed software installs
 
-You may additionally configure the setup experience to halt immediately if any software item fails to install. To enable this feature:
+For macOS hosts, you can configure the setup experience to stop if any software item fails to install:
 
-1. Click **Show advanced options** on the Install Software screen.
-2. Check the "Cancel setup if software install fails" checkbox.
-3. Press **Save**. 
+1. In **Controls > Setup experience > Install software > macOS**, select **Show advanced options**.
+2. Check the **Cancel setup if software install fails** checkbox.
+3. Select **Save**. 
 
 When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
 

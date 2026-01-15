@@ -14,7 +14,10 @@ import softwareAPI from "services/entities/software";
 
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getSelfServiceTooltip,
+  getAutoUpdatesTooltip,
+} from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -110,12 +113,12 @@ export const SoftwareActionButtons = ({
   };
 
   return (
-    <div className={`${baseClass}__actions`}>
+    <div className={`${baseClass}__actions-wrapper`}>
       {options.map((option) => {
         const ButtonContent = (
           <Button
             key={option.value}
-            className={`btn btn-link ${baseClass}__action-btn`}
+            className={`${baseClass}__action-btn`}
             disabled={option.disabled}
             onClick={() =>
               actionHandlers[option.value as keyof typeof actionHandlers]?.()
@@ -190,6 +193,9 @@ const SoftwareInstallerCard = ({
     displayName,
     isSelfService,
     isScriptPackage,
+    autoUpdateEnabled,
+    autoUpdateStartTime,
+    autoUpdateEndTime,
   } = cardInfo;
 
   const {
@@ -293,21 +299,33 @@ const SoftwareInstallerCard = ({
                   <Tag icon="user" text="Self-service" />
                 </TooltipWrapper>
               )}
+              {autoUpdateEnabled && (
+                <TooltipWrapper
+                  className={`${baseClass}__auto-updates-tooltip`}
+                  showArrow
+                  position="top"
+                  tipContent={getAutoUpdatesTooltip(
+                    autoUpdateStartTime || "",
+                    autoUpdateEndTime || ""
+                  )}
+                  underline={false}
+                >
+                  <Tag icon="clock" text="Auto updates" />
+                </TooltipWrapper>
+              )}
             </div>
           </div>
-          <div className={`${baseClass}__actions-wrapper`}>
-            {showActions && (
-              <SoftwareActionButtons
-                installerType={installerType}
-                onDownloadClick={onDownloadClick}
-                onDeleteClick={onDeleteClick}
-                gitOpsModeEnabled={gitOpsModeEnabled}
-                repoURL={repoURL}
-                isFMA={isFleetMaintainedApp}
-                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-              />
-            )}
-          </div>
+          {showActions && (
+            <SoftwareActionButtons
+              installerType={installerType}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              gitOpsModeEnabled={gitOpsModeEnabled}
+              repoURL={repoURL}
+              isFMA={isFleetMaintainedApp}
+              isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            />
+          )}
         </div>
         {gitOpsModeEnabled && isCustomPackage && (
           <div className={`${baseClass}__row-2`}>

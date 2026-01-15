@@ -99,6 +99,7 @@ spec:
   status: offline
   team_id: null
   team_name: null
+  timezone: null
   updated_at: "0001-01-01T00:00:00Z"
   uptime: 0
   uuid: ""

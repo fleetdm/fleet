@@ -1,9 +1,6 @@
 # Automations
 
-You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
-windows), trigger or send query results to webhooks, or create tickets.
-
-To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
+Fleet supports triggering automations across [activities](#activity-automations), [policies](#policy-automations), [queries](#query-automations), [vulnerabilities](#vulnerability-automations), and [host status](#host-status-automations).
 
 ## Activity automations
 
@@ -13,11 +10,24 @@ You can automatically send activites to a webhook URL or a [log destination](htt
 
 ## Policy automations
 
-Policy automations are triggered if a policy is newly failing on at least one host.
+Policy automations are triggered if a policy fails on a host.
 
-> Note that a policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
+### Calendar
 
-Fleet checks whether to trigger policy automations once per day by default.
+You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
+windows), trigger or send query results to webhooks, or create tickets.
+
+To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
+
+### Software and scripts
+
+Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) retry up to 3 times by default. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+
+### Webhooks and tickets
+
+For webhooks and tickets, automations are only triggered when a policy is newly failing. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail."
+
+Fleet checks whether to trigger webhooks or tickets once per day by default.
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 
@@ -38,7 +48,7 @@ Then in the UI:
 1. Navigate to the **Queries** page, select the relevant team, and click **Manage automations**
 2. In the modal that opens, confirm that you see "Log destination: Webhook", and when you hover over
    "Webhook", you see "Each time a query runs, the data is sent via webhook to:
-   <target_result_url>"
+   [target_result_url]"
 3. Select the queries that you want to send data to this webhook
 4. Click **Save**
 

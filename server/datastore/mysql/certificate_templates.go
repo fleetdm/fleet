@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -28,6 +29,9 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
 		WHERE certificate_templates.id = ?
 	`, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id")
 	}
 
@@ -72,6 +76,7 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 			certificate_authorities.type AS certificate_authority_type,
 			certificate_authorities.challenge_encrypted AS scep_challenge_encrypted,
 			host_certificate_templates.status AS status,
+			COALESCE(BIN_TO_UUID(host_certificate_templates.uuid, true), '') AS uuid,
 			host_certificate_templates.fleet_challenge AS fleet_challenge
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
@@ -82,6 +87,9 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 		WHERE certificate_templates.id = ?
 	`, fleet.MDMOperationTypeInstall)
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, stmt, hostUUID, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("CertificateTemplateForHost"))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by id for host")
 	}
 
@@ -158,6 +166,9 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		) VALUES (?, ?, ?, ?)
 	`, certificateTemplate.Name, certificateTemplate.TeamID, certificateTemplate.CertificateAuthorityID, certificateTemplate.SubjectName)
 	if err != nil {
+		if IsDuplicate(err) {
+			return nil, ctxerr.Wrap(ctx, alreadyExists("CertificateTemplate", certificateTemplate.Name), "inserting certificate_template")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "inserting certificate_template")
 	}
 
@@ -269,13 +280,12 @@ func (ds *Datastore) GetHostCertificateTemplates(ctx context.Context, hostUUID s
 
 	stmt := `
 SELECT
-	ct.name,
-	hct.status,
-	hct.detail,
-	hct.operation_type
-FROM host_certificate_templates hct
-	INNER JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
-WHERE hct.host_uuid = ?`
+	name,
+	status,
+	detail,
+	operation_type
+FROM host_certificate_templates
+WHERE host_uuid = ?`
 
 	var hTemplates []fleet.HostCertificateTemplate
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hTemplates, stmt, hostUUID); err != nil {
@@ -298,16 +308,21 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForExistingHosts(
 			certificate_template_id,
 			fleet_challenge,
 			status,
-			operation_type
+			operation_type,
+			name,
+			uuid
 		)
 		SELECT
 			hosts.uuid,
-			?,
+			ct.id,
 			NULL,
 			'%s',
-			'%s'
+			'%s',
+			ct.name,
+			UUID_TO_BIN(UUID(), true)
 		FROM hosts
 		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
+		INNER JOIN certificate_templates ct ON ct.id = ?
 		WHERE
 			(hosts.team_id = ? OR (? = 0 AND hosts.team_id IS NULL)) AND
 			hosts.platform = '%s' AND
@@ -334,17 +349,28 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 			host_uuid,
 			certificate_template_id,
 			status,
-			operation_type
+			operation_type,
+			name,
+			uuid
 		)
 		SELECT
 			?,
 			id,
 			'%s',
-			'%s'
+			'%s',
+			name,
+			UUID_TO_BIN(UUID(), true)
 		FROM certificate_templates
 		WHERE team_id = ?
-		ON DUPLICATE KEY UPDATE host_uuid = host_uuid
-	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
+		ON DUPLICATE KEY UPDATE
+		    -- allow 'remove' to transition to 'pending install', generating new uuid
+			uuid = IF(operation_type = '%s', UUID_TO_BIN(UUID(), true), uuid),
+			status = IF(operation_type = '%s', '%s', status),
+			operation_type = IF(operation_type = '%s', '%s', operation_type)
+	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,
+		fleet.MDMOperationTypeRemove,
+		fleet.MDMOperationTypeRemove, fleet.CertificateTemplatePending,
+		fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")

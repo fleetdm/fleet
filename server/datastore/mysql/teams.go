@@ -132,6 +132,7 @@ var teamRefs = []string{
 	"mdm_windows_configuration_profiles",
 	"mdm_apple_declarations",
 	"mdm_android_configuration_profiles",
+	"certificate_templates",
 	"software_title_icons",
 	"software_title_display_names",
 }

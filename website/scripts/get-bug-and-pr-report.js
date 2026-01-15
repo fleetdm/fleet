@@ -334,9 +334,9 @@ module.exports = {
       averageDaysContributorPullRequestsAreOpenFor,
       averageNumberOfDaysBugsAreOpenFor,
       allBugs32DaysOrOlder.length,
-      allBugsClosedInPastWeek.length,
+      allBugsReportedByCustomersInPastWeek.length,
       allBugsCreatedInPastWeek.length,
-      allBugsReportedByCustomersInPastWeek.length,);
+      allBugsClosedInPastWeek.length);
 
     // Log the results
     sails.log(`

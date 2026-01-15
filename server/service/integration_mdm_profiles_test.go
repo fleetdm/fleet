@@ -3460,6 +3460,26 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		require.Contains(t, errMsg, expectedErr)
 	}
 
+	// invalid JSON structure
+	body, headers = generateNewProfileMultipartRequest(t,
+		"android.json", []byte(`{"passwordPolicies": {"testKey": 123}}`), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies" format is wrong.`)
+	// nested key
+	body, headers = generateNewProfileMultipartRequest(t,
+		"android.json", []byte(`{"passwordPolicies": [{"passwordMinimumLength": true}]}`), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.passwordMinimumLength" format is wrong.`)
+
+	// disallow unknown keys
+	body, headers = generateNewProfileMultipartRequest(t,
+		"android.json", []byte(`{"unknownKey": true}`), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. Unknown key "unknownKey"`)
+
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
 		{ProfileUUID: noTeamAppleProfUUID, Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil, Scope: string(fleet.PayloadScopeSystem)},
@@ -3596,6 +3616,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	var deleteResp deleteMDMConfigProfileResponse
 	// delete existing Apple profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAppleProfUUID), nil, http.StatusOK, &deleteResp)
+
+	// turn off apple MDM
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAppleProfUUID), nil, http.StatusOK, &deleteResp)
 	// delete non-existing Apple profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "ano-such-profile"), nil, http.StatusNotFound, &deleteResp)
@@ -3611,6 +3638,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAppleDeclarationUUIDPrefix)), nil, http.StatusNotFound, &deleteResp)
 	// delete existing Windows profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamWinProfUUID), nil, http.StatusOK, &deleteResp)
+	// Now disabling windows MDM
+	filler := struct{}{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": { "windows_enabled_and_configured": false}}`), http.StatusOK, &filler)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamWinProfUUID), nil, http.StatusOK, &deleteResp)
 	// delete non-existing Windows profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "wno-such-profile"), nil, http.StatusNotFound, &deleteResp)
@@ -3622,6 +3652,12 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		`{"profile_name": "android-global-profile", "team_id": null, "team_name": null}`,
 		0,
 	)
+	// turn off Android MDM
+	appCfg, err = s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
@@ -3631,6 +3667,11 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// delete non-existing Android profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAndroidProfileUUIDPrefix)), nil, http.StatusNotFound, &deleteResp)
 
+	// turn back on apple MDM
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, "UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.enabled_and_configured', true) ")
+		return err
+	})
 	// trying to create/delete profiles managed by Fleet fails
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		assertAppleProfile("foo.mobileconfig", p, p, 0, nil, http.StatusBadRequest, fmt.Sprintf("payload identifier %s is not allowed", p))
@@ -3763,7 +3804,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	require.NoError(t, err)
 
 	// break lblFoo by deleting it
-	require.NoError(t, s.ds.DeleteLabel(ctx, lblFoo.Name))
+	require.NoError(t, s.ds.DeleteLabel(ctx, lblFoo.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	// test that all fields are correctly returned with team 2
 	var listResp listMDMConfigProfilesResponse
@@ -4963,7 +5004,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 
 	// successfully apply for a team and verify activities
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
-		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
+		{DisplayName: "NotRelevant", Profile: mobileconfigForTest("N1", "I1")}, // Check that we don't care about displayname for mobileconfig profiles
 		{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar")},
 		{DisplayName: "N4", Profile: declarationForTest("D1")},
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
@@ -5094,6 +5135,28 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, p.expectErr)
 	}
+
+	// Get the current list of configuration profiles
+	var currentProfiles listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &currentProfiles)
+	require.Greater(t, len(currentProfiles.Profiles), 0)
+
+	// Now we disable all three MDM's
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = false
+	appCfg.MDM.WindowsEnabledAndConfigured = false
+	appCfg.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+
+	// Now do a batch with profiles in it, to see it fails trying to add.
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+		{DisplayName: "NEW", Profile: mobileconfigForTest("NEW", "INEW")},
+	}}, http.StatusUnprocessableEntity)
+
+	// Now do a batch without any profiles to ensure we can delete with all MDM's disabled.
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}}, http.StatusNoContent)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
@@ -5882,7 +5945,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	})
 
 	// break the A1 profile by deleting labels [1]
-	err = s.ds.DeleteLabel(ctx, labels[1].Name)
+	err = s.ds.DeleteLabel(ctx, labels[1].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	// it doesn't get installed to the Apple host, as it is broken
@@ -5923,9 +5986,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// delete labels [2] and [4], breaking D3 and W2, they don't get removed
 	// since they are broken
-	err = s.ds.DeleteLabel(ctx, labels[2].Name)
+	err = s.ds.DeleteLabel(ctx, labels[2].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = s.ds.DeleteLabel(ctx, labels[4].Name)
+	err = s.ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	triggerReconcileProfiles()
@@ -7456,7 +7519,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		"team_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "Couldn't add configuration profile (G4.user-but-actually-system) because \"PayloadScope\" conflicts")
+	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
 
 	// Test a conflict of a profile on a team with an existing global profile
 	// Should error because "G2" conflicts with global "G2" profile
@@ -7471,7 +7534,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		"team_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "Couldn't add configuration profile (G2) because \"PayloadScope\" conflicts")
+	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
 
 	// Test a conflict of a profile on a team versus one with the same identifier but different
 	// scope on a different team.
@@ -7487,7 +7550,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		"team_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "Couldn't add configuration profile (T2.3.user) because \"PayloadScope\" conflicts")
+	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
 
 	// Profile edit of existing profile on team1 with a new scope
 	newTm1Profiles = [][]byte{

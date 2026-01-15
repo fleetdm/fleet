@@ -150,7 +150,7 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
-  CreatedCertificate = "created_certificate",
+  AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
 }
 
@@ -212,6 +212,7 @@ export interface IActivityDetails {
   bootstrap_package_name?: string;
   batch_execution_id?: string;
   command_uuid?: string;
+  host_uuid?: string;
   deadline_days?: number;
   deadline?: string;
   email?: string;
@@ -425,6 +426,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
-  [ActivityType.CreatedCertificate]: "Created certificate",
+  [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
 };

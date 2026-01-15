@@ -26,3 +26,12 @@ app_store_apps:
     - Utilities
     self_service: true
     platform: darwin
+  - app_store_id: com.example.setup-experience-software
+    platform: android
+    self_service: true
+    setup_experience: true
+  - app_store_id: com.example.ios-auto-update
+    auto_update_enabled: true
+    auto_update_window_start: "01:00"
+    auto_update_window_end: "03:00"
+    platform: ios
