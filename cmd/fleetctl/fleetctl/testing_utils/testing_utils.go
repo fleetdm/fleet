@@ -276,6 +276,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return []fleet.SoftwareAutoUpdateSchedule{}, nil
+	}
 
 	savedTeams := map[string]**fleet.Team{}
 
@@ -665,7 +668,7 @@ func StartAndServeVPPServer(t *testing.T) {
 	// Set up the VPP proxy metadata server using the new format
 	// This replaces the old iTunes API format
 	vppProxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer test-bearer-token" {
+		if r.Header.Get("Authorization") != "Bearer test-bearer-token" || r.Header.Get("vpp-token") == "" {
 			w.WriteHeader(401)
 			_, _ = w.Write([]byte(`{"error": "unauthorized"}`))
 			return

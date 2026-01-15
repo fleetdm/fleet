@@ -201,7 +201,9 @@ func TestEnhanceOutputDetails(t *testing.T) {
 func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 	// Test that HostSoftwareEntry properly marshals all fields including
 	// InstalledPaths and PathSignatureInformation from the embedded Software struct
-	hashValue := "abc123"
+	cdHashValue := "abc123"
+	execHashValue := "def456"
+	execPathValue := "/path/to/executable"
 	entry := HostSoftwareEntry{
 		Software: Software{
 			ID:               1,
@@ -223,9 +225,11 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 		InstalledPaths: []string{"/usr/local/bin/test", "/opt/test"},
 		PathSignatureInformation: []PathSignatureInformation{
 			{
-				InstalledPath:  "/usr/local/bin/test",
-				TeamIdentifier: "ABCDE12345",
-				HashSha256:     &hashValue,
+				InstalledPath:    "/usr/local/bin/test",
+				TeamIdentifier:   "ABCDE12345",
+				CDHashSHA256:     &cdHashValue,
+				ExecutableSHA256: &execHashValue,
+				ExecutablePath:   &execPathValue,
 			},
 		},
 	}
@@ -257,7 +261,9 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 			{
 				"installed_path": "/usr/local/bin/test",
 				"team_identifier": "ABCDE12345",
-				"hash_sha256": "abc123"
+				"hash_sha256": "abc123",
+				"executable_sha256": "def456",
+				"executable_path": "/path/to/executable"
 			}
 		]
 	}`
@@ -822,12 +828,23 @@ func TestAutoUpdateScheduleValidation(t *testing.T) {
 		isValid  bool
 	}{
 		{
-			name: "schedule disabled",
+			name: "schedule disabled without times",
 			schedule: SoftwareAutoUpdateSchedule{
 				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
 					AutoUpdateEnabled:   ptr.Bool(false),
 					AutoUpdateStartTime: nil,
 					AutoUpdateEndTime:   nil,
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "schedule disabled with valid times",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(false),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   ptr.String("15:30"),
 				},
 			},
 			isValid: true,

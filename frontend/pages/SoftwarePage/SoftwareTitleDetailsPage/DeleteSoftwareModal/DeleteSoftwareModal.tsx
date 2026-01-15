@@ -48,7 +48,7 @@ const DeleteSoftwareModal = ({
       const reason = getErrorReason(error);
       if (reason.includes("Policy automation uses this software")) {
         renderFlash("error", DELETE_SW_USED_BY_POLICY_ERROR_MSG);
-      } else if (reason.includes("This software is installed when")) {
+      } else if (reason.includes("This software is installed during")) {
         renderFlash("error", DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG);
       } else {
         renderFlash("error", "Couldn't delete. Please try again.");
