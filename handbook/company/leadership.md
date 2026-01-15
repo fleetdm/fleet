@@ -59,7 +59,7 @@ Ultimately, the CEO is responsible for the success or failure of the company. Th
 
 ## Outline of departmental page structure
 
-Departmental pages outline intake, people, responsibilities, recurring rituals, and .  They always follow the structure below.  Changes to departmental pages can be merged when the change results in a page consistent with this structure.
+Departmental pages outline intake, people, departmental philosophy, responsibilities, recurring rituals, and .  They always follow the structure below.  Changes to departmental pages can be merged when the change results in a page consistent with this structure.
 
 > For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and were dealing with the consequences.
 It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
