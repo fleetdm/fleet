@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
+	"path"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/retry"
@@ -124,20 +124,22 @@ func (dc *DeviceClient) requestAttempt(verb string, path string, query string, p
 // applyAlternativeBrowserHostSetting overrides portions of the provided URL based on the values of
 // fleetAlternativeBrowserHostFromServer or fleetAlternativeBrowserHost
 func (dc *DeviceClient) applyAlternativeBrowserHostSetting(u *url.URL) {
-	// fleetAlternativeBrowserHostFromServer is specified using an absolute URL, but we just care about
-	// the host and path components of the URL
+	// fleetAlternativeBrowserHostFromServer takes precedence and is specified using an absolute URL.
+	// We just use its host and prepend its path to the existing URL path.
 	if dc.fleetAlternativeBrowserHostFromServer != "" {
-		if parsed, err := url.Parse(dc.fleetAlternativeBrowserHostFromServer); err == nil && parsed.Host != "" {
-			u.Host = parsed.Host
-			if parsed.Path != "" {
-				// Prepend the path from the setting to the existing path
-				u.Path = "/" + strings.Trim(parsed.Path, "/") + "/" + strings.Trim(u.Path, "/")
-			}
+		parsed, err := url.Parse(dc.fleetAlternativeBrowserHostFromServer)
+		if err != nil || parsed.Host == "" {
+			return
+		}
+
+		u.Host = parsed.Host
+		if parsed.Path != "" {
+			u.Path = path.Join("/", parsed.Path, u.Path)
 		}
 		return
 	}
 
-	// fleetAlternativeBrowserHost specifies just a host
+	// fleetAlternativeBrowserHost specifies just a host.
 	if dc.fleetAlternativeBrowserHost != "" {
 		u.Host = dc.fleetAlternativeBrowserHost
 	}
