@@ -18,7 +18,7 @@ assignees: 'xpkoala,andreykizimenko'
 
 # Database migration tests
 
-1. Create a [custom issue](https://github.com/fleetdm/confidential/issues/new?template=1-custom-request.md) in the confidential repo to run [cloud migration tests](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml) targeted off of the RC branch. Tests will be run off of [these environments](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud-tests).
+1. Create a [custom issue](https://github.com/fleetdm/confidential/issues/new?template=1-custom-request.md) tagged `:help-customers` in the confidential repo to run [cloud migration tests](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml) targeted off of the RC branch. Tests will be run off of [these environments](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud-tests).
 2. Once tests are complete, if migration duration for any environment takes more than 5 seconds, check logs to determine whether any single migration took more than 5 seconds, or if the entire process took more than 15 seconds. If either is the case and there is not already a progress indicator for the migration that updates at least every ten seconds, file an unreleased bug triaged to the team that created the migration to audit the migration and evaluate if progress updates or performance improvements are needed.
 
 # Smoke Tests
