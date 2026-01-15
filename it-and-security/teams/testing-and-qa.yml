@@ -78,6 +78,8 @@ software:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
+    - path: ../lib/windows/software/hello_world.package.yml
+      setup_experience: true
   fleet_maintained_apps:
     # macOS apps
     - slug: privileges/darwin # Privileges for macOS
