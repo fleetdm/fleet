@@ -15,6 +15,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
+const (
+	WINDOWS_SCEP_LOC_URI_PART = "/Vendor/MSFT/ClientCertificateInstall/SCEP"
+)
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MS-MDE2 XML types used by the SOAP protocol
 // MS-MDE2 is a client-to-server protocol that consists of a SOAP-based Web service.
@@ -1631,7 +1635,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 
 	if commandStatus == MDMDeliveryVerifying {
 		// Check a single LocURI for SCEP path, and move straight to verified.
-		if strings.Contains(string(cmdWithSecret.RawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") {
+		if strings.Contains(string(cmdWithSecret.RawCommand), WINDOWS_SCEP_LOC_URI_PART) {
 			commandStatus = MDMDeliveryVerified
 		}
 
