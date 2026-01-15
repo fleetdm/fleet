@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"crypto"
+	"crypto/pbkdf2"
 	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/subtle"
 	"crypto/tls"
 	"database/sql/driver"
@@ -1706,18 +1708,28 @@ func initLicense(config *configpkg.FleetConfig, devLicense, devExpiredLicense bo
 
 // basicAuthHandler wraps the given handler behind HTTP Basic Auth.
 func basicAuthHandler(username, password string, next http.Handler) http.HandlerFunc {
-	hashFn := func(s string) []byte {
-		h := sha256.Sum256([]byte(s))
-		return h[:]
+	// Use a computationally expensive password hashing function (PBKDF2) instead
+	// of a single fast hash to derive keys for constant-time comparison.
+	const pbkdf2Iterations = 100000
+	const keyLen = 32
+	usernameSalt := []byte("fleet-basic-auth-username")
+	passwordSalt := []byte("fleet-basic-auth-password")
+
+	hashUsername := func(s string) []byte {
+		return pbkdf2.Key([]byte(s), usernameSalt, pbkdf2Iterations, keyLen, sha512.New)
 	}
-	expectedUsernameHash := hashFn(username)
-	expectedPasswordHash := hashFn(password)
+	hashPassword := func(s string) []byte {
+		return pbkdf2.Key([]byte(s), passwordSalt, pbkdf2Iterations, keyLen, sha512.New)
+	}
+	expectedUsernameHash := hashUsername(username)
+	expectedPasswordHash := hashPassword(password)
+
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		recvUsername, recvPassword, ok := r.BasicAuth()
 		if ok {
-			usernameMatch := subtle.ConstantTimeCompare(hashFn(recvUsername), expectedUsernameHash) == 1
-			passwordMatch := subtle.ConstantTimeCompare(hashFn(recvPassword), expectedPasswordHash) == 1
+			usernameMatch := subtle.ConstantTimeCompare(hashUsername(recvUsername), expectedUsernameHash) == 1
+			passwordMatch := subtle.ConstantTimeCompare(hashPassword(recvPassword), expectedPasswordHash) == 1
 
 			if usernameMatch && passwordMatch {
 				next.ServeHTTP(w, r)
