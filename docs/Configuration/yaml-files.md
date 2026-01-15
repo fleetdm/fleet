@@ -67,14 +67,14 @@ labels:
     query: "SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%' OR cpu_type LIKE 'aarch64%'"
     label_membership_type: dynamic
   - name: C-Suite
-    description: s belonging to the C-Suite
+    description: Hosts belonging to the C-Suite
     label_membership_type: manual
-    s:
+    hosts:
       - "IR7M6ZGQJM"
       - "JMFWY8VZ09"
   - name: Engineering department
-    description: s used by engineers
-    label_membership_type: _vitals
+    description: Hosts used by engineers
+    label_membership_type: host_vitals
     criteria:
       vital: end_user_idp_department
       value: Engineering
@@ -86,13 +86,13 @@ labels:
 
 ```yaml
 - name: Arm64
-  description: s on the Arm64 architecture
+  description: Hosts on the Arm64 architecture
   query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
   label_membership_type: dynamic
 - name: C-Suite
-  description: s belonging to the C-Suite
+  description: Hosts belonging to the C-Suite
   label_membership_type: manual
-  s:
+  hosts:
       - "IR7M6ZGQJM"
       - "JMFWY8VZ09"
   - name: Engineering department
