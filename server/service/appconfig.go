@@ -1961,8 +1961,7 @@ func isValidHostname(h string) bool {
 	// Regex for valid DNS hostname labels
 	validLabel := regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$`)
 
-	labels := strings.Split(h, ".")
-	for _, label := range labels {
+	for label := range strings.SplitSeq(h, ".") {
 		if len(label) == 0 || len(label) > 63 {
 			return false
 		}
