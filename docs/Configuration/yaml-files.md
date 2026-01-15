@@ -67,14 +67,14 @@ labels:
     query: "SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%' OR cpu_type LIKE 'aarch64%'"
     label_membership_type: dynamic
   - name: C-Suite
-    description: Hosts belonging to the C-Suite
+    description: s belonging to the C-Suite
     label_membership_type: manual
-    hosts:
+    s:
       - "IR7M6ZGQJM"
       - "JMFWY8VZ09"
   - name: Engineering department
-    description: Hosts used by engineers
-    label_membership_type: host_vitals
+    description: s used by engineers
+    label_membership_type: _vitals
     criteria:
       vital: end_user_idp_department
       value: Engineering
@@ -86,13 +86,13 @@ labels:
 
 ```yaml
 - name: Arm64
-  description: Hosts on the Arm64 architecture
+  description: s on the Arm64 architecture
   query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
   label_membership_type: dynamic
 - name: C-Suite
-  description: Hosts belonging to the C-Suite
+  description: s belonging to the C-Suite
   label_membership_type: manual
-  hosts:
+  s:
       - "IR7M6ZGQJM"
       - "JMFWY8VZ09"
   - name: Engineering department
@@ -637,7 +637,7 @@ org_settings:
 
 The `fleet_desktop` section lets you customize the Fleet Desktop experience by overriding default URLs.
 - `transparency_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
-- `alternative_browser_host_url` is a custom URL that my hosts will access Fleet Desktop from.
+- `alternative_browser_host` is a custom hostname that my hosts will access Fleet Desktop from.
 
 Can only be configured for all teams (`org_settings`).
 
@@ -647,7 +647,7 @@ Can only be configured for all teams (`org_settings`).
 org_settings:
   fleet_desktop:
     transparency_url: https://example.org/transparency
-    alternative_browser_host_url: https://fleet-desktop.example.com
+    alternative_browser_host: fleet-desktop.example.com
 ```
 
 ### host_expiry_settings
