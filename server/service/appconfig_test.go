@@ -730,14 +730,14 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			expectedSettings: fleet.FleetDesktopSettings{},
 		},
 		{
-			name:             "using invalid URLs",
+			name:             "using invalid values",
 			licenseTier:      fleet.TierPremium,
 			initialSettings:  fleet.FleetDesktopSettings{},
 			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "@:13.com", AlternativeBrowserHost: "@:12.com"},
 			expectedSettings: fleet.FleetDesktopSettings{},
 			invalid: []map[string]string{
 				{"name": "transparency_url", "reason": "parse \"@:13.com\": first path segment in URL cannot contain colon"},
-				{"name": "alternative_browser_host", "reason": "parse \"@:12.com\": first path segment in URL cannot contain colon"},
+				{"name": "alternative_browser_host", "reason": "must be a valid hostname or IP address"},
 			},
 		},
 	}

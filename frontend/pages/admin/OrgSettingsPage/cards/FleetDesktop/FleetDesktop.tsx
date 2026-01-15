@@ -53,7 +53,7 @@ const FleetDesktop = ({
   };
 
   const validateForm = () => {
-    const { transparencyURL, alternativeBrowserHost } = formData;
+    const { transparencyURL } = formData;
 
     const errors: IFleetDesktopFormErrors = {};
 
@@ -62,16 +62,6 @@ const FleetDesktop = ({
       !validUrl({ url: transparencyURL, protocols: ["http", "https"] })
     ) {
       errors.transparencyURL = `Custom transparency URL must include protocol (e.g. https://)`;
-    }
-
-    if (
-      alternativeBrowserHost &&
-      !validUrl({
-        url: alternativeBrowserHost,
-        protocols: ["http", "https"],
-      })
-    ) {
-      errors.alternativeBrowserHost = `Custom browser host URL must include protocol (e.g. https://)`;
     }
 
     setFormErrors(errors);
@@ -147,7 +137,6 @@ const FleetDesktop = ({
           name="alternativeBrowserHost"
           value={formData.alternativeBrowserHost}
           parseTarget
-          onBlur={validateForm}
           error={formErrors.alternativeBrowserHost}
           disabled={gitOpsModeEnabled}
           helpText="If not set, Fleet Desktop uses your Fleet web address."

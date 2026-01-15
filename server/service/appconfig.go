@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -1104,14 +1105,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.LicenseInfo) *fleet.InvalidArgumentError {
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	transparencyURLModified := newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL
-	alternativeBrowserHostURLModified := newAppConfig.FleetDesktop.AlternativeBrowserHost != ""
+	alternativeBrowserHostModified := newAppConfig.FleetDesktop.AlternativeBrowserHost != ""
 
 	fleetDesktopSettingsInvalid := &fleet.InvalidArgumentError{}
 	if !lic.IsPremium() {
 		if transparencyURLModified {
 			fleetDesktopSettingsInvalid.Append("transparency_url", ErrMissingLicense.Error())
 		}
-		if alternativeBrowserHostURLModified {
+		if alternativeBrowserHostModified {
 			fleetDesktopSettingsInvalid.Append("alternative_browser_host", ErrMissingLicense.Error())
 		}
 	}
@@ -1125,9 +1126,15 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 			fleetDesktopSettingsInvalid.Append("transparency_url", err.Error())
 		}
 	}
-	if alternativeBrowserHostURLModified {
-		if _, err := url.Parse(newAppConfig.FleetDesktop.AlternativeBrowserHost); err != nil {
-			fleetDesktopSettingsInvalid.Append("alternative_browser_host", err.Error())
+	if alternativeBrowserHostModified {
+		host := newAppConfig.FleetDesktop.AlternativeBrowserHost
+		h, _, err := net.SplitHostPort(host)
+		if err != nil {
+			// OK...port not specified
+			h = host
+		}
+		if !isValidHostname(h) {
+			fleetDesktopSettingsInvalid.Append("alternative_browser_host", "must be a valid hostname or IP address")
 		}
 	}
 	return fleetDesktopSettingsInvalid
@@ -1922,4 +1929,47 @@ func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.
 		return nil, err
 	}
 	return &appConfig.Features, nil
+}
+
+// isValidHostname validates that h is a valid hostname per RFC 1123. It allows IP addresses and DNS names.
+func isValidHostname(h string) bool {
+	if h == "" {
+		return false
+	}
+
+	// Check if it's a valid IP address (IPv4 or IPv6)
+	if net.ParseIP(h) != nil {
+		return true
+	}
+
+	// For IPv6 in brackets (e.g., [::1]), strip them
+	if strings.HasPrefix(h, "[") && strings.HasSuffix(h, "]") {
+		if net.ParseIP(h[1:len(h)-1]) != nil {
+			return true
+		}
+	}
+
+	// Validate as DNS hostname (RFC 1123)
+	// - Max 253 characters total
+	// - Each label max 63 characters
+	// - Labels contain only alphanumeric and hyphens
+	// - Labels cannot start or end with hyphens
+	if len(h) > 253 {
+		return false
+	}
+
+	// Regex for valid DNS hostname labels
+	validLabel := regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$`)
+
+	labels := strings.Split(h, ".")
+	for _, label := range labels {
+		if len(label) == 0 || len(label) > 63 {
+			return false
+		}
+		if !validLabel.MatchString(label) {
+			return false
+		}
+	}
+
+	return true
 }
