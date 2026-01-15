@@ -542,7 +542,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL WIFI</Data>
+        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL WIFI,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data>
     </Item>
 </Replace>
 <Replace>
@@ -738,7 +738,7 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 ## Renewal
 
-Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). Currently, Fleet does not support automatic renewal for Windows and Linux hosts.
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) and Windows hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). Currently, Fleet does not support automatic renewal for Linux hosts.
 
 Automatic renewal is only supported if the validity period is set to 2 days or longer.
 

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3.1",
+      "version": "2025.3.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rubymine';"
       },
-      "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2025.3.1-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2025.3.1.1-aarch64.dmg",
       "install_script_ref": "16984fbb",
       "uninstall_script_ref": "2b825ff2",
-      "sha256": "67f1aa674b90ec54ba21f3523ad940218f979befd7429e38ad822bc8146d16a4",
+      "sha256": "2bae88a0c5ea7ecd5fadfa3e81408a42ba7da489b6885c8b35d1453641cf60f7",
       "default_categories": [
         "Developer tools"
       ]
