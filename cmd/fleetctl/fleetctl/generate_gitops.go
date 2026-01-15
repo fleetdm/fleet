@@ -1709,7 +1709,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	if len(fmas) > 0 {
 		result["fleet_maintained_apps"] = fmas
 	}
-	// TODO -- add FMA apps to the result. Currently they will be output using hashes.
+
 	return result, nil
 }
 
