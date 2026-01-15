@@ -1,0 +1,1 @@
+* Added a check for when a host removes its MDM profiles while offline to make sure it gets MDM turned off properly.
