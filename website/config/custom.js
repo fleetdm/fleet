@@ -284,11 +284,13 @@ module.exports.custom = {
     'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil'],
     'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil'],
-    'handbook/finance': ['sampfluger88', 'mikermcneil'],
+    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
+    'handbook/finance': ['sampfluger88', 'mikermcneil', 'rfoo2015'],
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
-    'handbook/marketing': ['sampfluger88', 'mikermcneil'],
-    'handbook/customer-success': ['sampfluger88', ' mikermcneil'],
+    'handbook/marketing': ['sampfluger88', 'mikermcneil', 'akuthiala'],
+    'handbook/customer-success': ['sampfluger88', ' mikermcneil', 'zayhanlon'],
+    'handbook/engineering': 'lukeheath',
+    'handbook/product-design': 'noahtalerman',
 
     // 🫧 Pricing and features and dev process
     'handbook/company/pricing-features-table.yml': ['noahtalerman', 'mikermcneil'],
