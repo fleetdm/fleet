@@ -17,7 +17,7 @@ Policy automations are triggered if a policy is newly failing on at least one ho
 
 Automations are only fired for Fleet's scheduled policy runs. Running a live policy doesn't trigger automations.
 
-Fleet triggers policy automations once per day by default ([configurable](TODO)).
+Fleet triggers policy automations once per day by default ([configurable](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings)).
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 
