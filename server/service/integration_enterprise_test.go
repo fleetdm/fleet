@@ -3962,26 +3962,26 @@ func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrow
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Equal(t, "", acResp.FleetDesktop.AlternativeBrowserHostURL)
+	require.Equal(t, "", acResp.FleetDesktop.AlternativeBrowserHost)
 
 	// set custom url
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host_url": "example.com"}}`), http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host": "example.com"}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHostURL)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
 
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHostURL)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
 
 	// try setting invalid value
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host_url": "@:mon's_spagetti.com"}}`), http.StatusUnprocessableEntity, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host": "@:mon's_spagetti.com"}}`), http.StatusUnprocessableEntity, &acResp)
 
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHostURL)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {

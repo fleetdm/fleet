@@ -1228,9 +1228,9 @@ func (f *Features) Copy() *Features {
 type FleetDesktopSettings struct {
 	// TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.
 	TransparencyURL string `json:"transparency_url"`
-	// AlternativeBrowserHostURL if set, Fleet Desktop will use this to open any links;
+	// AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;
 	// this is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.
-	AlternativeBrowserHostURL string `json:"alternative_browser_host_url"`
+	AlternativeBrowserHost string `json:"alternative_browser_host"`
 }
 
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.

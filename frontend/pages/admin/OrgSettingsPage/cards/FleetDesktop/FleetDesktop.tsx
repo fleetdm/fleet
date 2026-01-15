@@ -15,11 +15,11 @@ import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
 
 interface IFleetDesktopFormData {
   transparencyURL: string;
-  alternativeBrowserHostURL: string;
+  alternativeBrowserHost: string;
 }
 interface IFleetDesktopFormErrors {
   transparencyURL?: string | null;
-  alternativeBrowserHostURL?: string | null;
+  alternativeBrowserHost?: string | null;
 }
 const baseClass = "app-config-form";
 
@@ -34,8 +34,8 @@ const FleetDesktop = ({
   const [formData, setFormData] = useState<IFleetDesktopFormData>({
     transparencyURL:
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
-    alternativeBrowserHostURL:
-      appConfig.fleet_desktop?.alternative_browser_host_url || "",
+    alternativeBrowserHost:
+      appConfig.fleet_desktop?.alternative_browser_host || "",
   });
 
   const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
@@ -53,7 +53,7 @@ const FleetDesktop = ({
   };
 
   const validateForm = () => {
-    const { transparencyURL, alternativeBrowserHostURL } = formData;
+    const { transparencyURL, alternativeBrowserHost } = formData;
 
     const errors: IFleetDesktopFormErrors = {};
 
@@ -65,13 +65,13 @@ const FleetDesktop = ({
     }
 
     if (
-      alternativeBrowserHostURL &&
+      alternativeBrowserHost &&
       !validUrl({
-        url: alternativeBrowserHostURL,
+        url: alternativeBrowserHost,
         protocols: ["http", "https"],
       })
     ) {
-      errors.alternativeBrowserHostURL = `Custom browser host URL must include protocol (e.g. https://)`;
+      errors.alternativeBrowserHost = `Custom browser host URL must include protocol (e.g. https://)`;
     }
 
     setFormErrors(errors);
@@ -96,7 +96,7 @@ const FleetDesktop = ({
     const formDataForAPI = {
       fleet_desktop: {
         transparency_url: formData.transparencyURL,
-        alternative_browser_host_url: formData.alternativeBrowserHostURL,
+        alternative_browser_host: formData.alternativeBrowserHost,
       },
     };
 
@@ -142,13 +142,13 @@ const FleetDesktop = ({
         />
         <InputField
           tooltip={getAlternativeBrowserHostUrlTooltip()}
-          label="Browser host URL"
+          label="Browser host"
           onChange={onInputChange}
           name="alternativeBrowserHostURL"
-          value={formData.alternativeBrowserHostURL}
+          value={formData.alternativeBrowserHost}
           parseTarget
           onBlur={validateForm}
-          error={formErrors.alternativeBrowserHostURL}
+          error={formErrors.alternativeBrowserHost}
           disabled={gitOpsModeEnabled}
           helpText="If not set, Fleet Desktop uses your Fleet web address."
         />

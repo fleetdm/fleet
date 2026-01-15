@@ -189,11 +189,11 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	// Fleet Premium license is required for server side alternative browser host URL
 	var alternativeBrowserHostURL string
 	if lic.IsPremium() {
-		alternativeBrowserHostURL = appConfig.FleetDesktop.AlternativeBrowserHostURL
+		alternativeBrowserHostURL = appConfig.FleetDesktop.AlternativeBrowserHost
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{
-		TransparencyURL:           transparencyURL,
-		AlternativeBrowserHostURL: alternativeBrowserHostURL,
+		TransparencyURL:        transparencyURL,
+		AlternativeBrowserHost: alternativeBrowserHostURL,
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {
@@ -773,7 +773,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if !lic.IsPremium() {
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
-		appConfig.FleetDesktop.AlternativeBrowserHostURL = ""
+		appConfig.FleetDesktop.AlternativeBrowserHost = ""
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
@@ -1104,7 +1104,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.LicenseInfo) *fleet.InvalidArgumentError {
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	transparencyURLModified := newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL
-	alternativeBrowserHostURLModified := newAppConfig.FleetDesktop.AlternativeBrowserHostURL != ""
+	alternativeBrowserHostURLModified := newAppConfig.FleetDesktop.AlternativeBrowserHost != ""
 
 	fleetDesktopSettingsInvalid := &fleet.InvalidArgumentError{}
 	if !lic.IsPremium() {
@@ -1112,7 +1112,7 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 			fleetDesktopSettingsInvalid.Append("transparency_url", ErrMissingLicense.Error())
 		}
 		if alternativeBrowserHostURLModified {
-			fleetDesktopSettingsInvalid.Append("alternative_browser_host_url", ErrMissingLicense.Error())
+			fleetDesktopSettingsInvalid.Append("alternative_browser_host", ErrMissingLicense.Error())
 		}
 	}
 	// No point in validating that the URLs are valid if the license is not premium
@@ -1126,8 +1126,8 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 		}
 	}
 	if alternativeBrowserHostURLModified {
-		if _, err := url.Parse(newAppConfig.FleetDesktop.AlternativeBrowserHostURL); err != nil {
-			fleetDesktopSettingsInvalid.Append("alternative_browser_host_url", err.Error())
+		if _, err := url.Parse(newAppConfig.FleetDesktop.AlternativeBrowserHost); err != nil {
+			fleetDesktopSettingsInvalid.Append("alternative_browser_host", err.Error())
 		}
 	}
 	return fleetDesktopSettingsInvalid

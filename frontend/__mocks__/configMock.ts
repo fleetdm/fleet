@@ -209,7 +209,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   fleet_desktop: {
     transparency_url: "https://fleetdm.com/transparency",
-    alternative_browser_host_url: "",
+    alternative_browser_host: "",
   },
   mdm: createMockMdmConfig(),
   gitops: {

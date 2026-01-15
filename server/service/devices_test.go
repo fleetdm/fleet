@@ -57,7 +57,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			{
 				name: "with some value stored",
 				appCfg: fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{
-					AlternativeBrowserHostURL: "https://example.com",
+					AlternativeBrowserHost: "https://example.com",
 				}},
 				expectedBrowserHostURL: "https://example.com",
 			},

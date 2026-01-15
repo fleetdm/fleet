@@ -701,19 +701,19 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			name:             "modifying Desktop settings on Free Tier",
 			licenseTier:      fleet.TierFree,
 			initialSettings:  fleet.FleetDesktopSettings{},
-			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHostURL: "something.com"},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
 			expectedSettings: fleet.FleetDesktopSettings{},
 			invalid: []map[string]string{
 				{"name": "transparency_url", "reason": "missing or invalid license"},
-				{"name": "alternative_browser_host_url", "reason": "missing or invalid license"},
+				{"name": "alternative_browser_host", "reason": "missing or invalid license"},
 			},
 		},
 		{
 			name:             "modifying Desktop settings on Premium Tier",
 			licenseTier:      fleet.TierPremium,
 			initialSettings:  fleet.FleetDesktopSettings{},
-			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHostURL: "something.com"},
-			expectedSettings: fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHostURL: "something.com"},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
 		},
 		{
 			name:             "empty values on Free tier",
@@ -733,11 +733,11 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			name:             "using invalid URLs",
 			licenseTier:      fleet.TierPremium,
 			initialSettings:  fleet.FleetDesktopSettings{},
-			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "@:13.com", AlternativeBrowserHostURL: "@:12.com"},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "@:13.com", AlternativeBrowserHost: "@:12.com"},
 			expectedSettings: fleet.FleetDesktopSettings{},
 			invalid: []map[string]string{
 				{"name": "transparency_url", "reason": "parse \"@:13.com\": first path segment in URL cannot contain colon"},
-				{"name": "alternative_browser_host_url", "reason": "parse \"@:12.com\": first path segment in URL cannot contain colon"},
+				{"name": "alternative_browser_host", "reason": "parse \"@:12.com\": first path segment in URL cannot contain colon"},
 			},
 		},
 	}
@@ -778,7 +778,7 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.initialSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
-			require.Equal(t, tt.initialSettings.AlternativeBrowserHostURL, ac.FleetDesktop.AlternativeBrowserHostURL)
+			require.Equal(t, tt.initialSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 
 			raw, err := json.Marshal(tt.newSettings)
 			require.NoError(t, err)
@@ -793,12 +793,12 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			}
 			if modified != nil {
 				require.Equal(t, tt.expectedSettings.TransparencyURL, modified.FleetDesktop.TransparencyURL)
-				require.Equal(t, tt.expectedSettings.AlternativeBrowserHostURL, modified.FleetDesktop.AlternativeBrowserHostURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, modified.FleetDesktop.AlternativeBrowserHost)
 
 				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
-				require.Equal(t, tt.expectedSettings.AlternativeBrowserHostURL, ac.FleetDesktop.AlternativeBrowserHostURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 			}
 
 			expectedURL := fleet.DefaultTransparencyURL

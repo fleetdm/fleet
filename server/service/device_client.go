@@ -19,7 +19,7 @@ import (
 type DeviceClient struct {
 	*baseClient
 
-	// fleetAlternativeBrowserHostFromServer serves the same purpose as fleetAlternativeBrowserHost, but this value is set
+	// fleetAlternativeBrowserHostFromServer serves a similar purpose as fleetAlternativeBrowserHost, but this value is set
 	// on the Fleet server and takes precedence over it.
 	fleetAlternativeBrowserHostFromServer string
 
@@ -209,9 +209,7 @@ func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, err
 	r, err := dc.getMinDesktopPayload(token)
 	if err == nil {
 		r.FailingPolicies = ptr.Uint(uintValueOrZero(r.FailingPolicies))
-		if r.AlternativeBrowserHost != "" {
-			dc.fleetAlternativeBrowserHostFromServer = r.AlternativeBrowserHost
-		}
+		dc.fleetAlternativeBrowserHostFromServer = r.AlternativeBrowserHost
 		return &r, nil
 	}
 
