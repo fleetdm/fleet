@@ -770,6 +770,9 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.False(t, isPersonalEnrollment)
 				return nil
 			}
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return host.MDM.ConnectedToFleet != nil && *host.MDM.ConnectedToFleet, nil
+			}
 
 			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{c.got})
 			if c.wantErr != "" {
