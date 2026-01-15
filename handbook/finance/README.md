@@ -328,7 +328,7 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 
 ### Respond to low credit alert
 
-Fleet admins will receive an email alert when the usage of company cards for the month is aproaching the company credit limit. To avoid the limit being exceeded, a Brex admin will follow these steps:
+Fleet admins will receive an email alert when the usage of company cards for the month is approaching the company credit limit. To avoid the limit being exceeded, a Brex admin will follow these steps:
 1. Sign in to Fleet's Brex account.
 2. On the landing page, use the "Move money" button to "Add funds to your Brex business accounts".
 3. Select "Transfer from a connected account" and select the primary business account.
