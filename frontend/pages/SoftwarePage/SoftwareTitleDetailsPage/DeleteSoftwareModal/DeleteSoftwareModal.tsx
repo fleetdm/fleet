@@ -16,6 +16,28 @@ const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
 const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
   "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again.";
 
+const getPendingInstallMessage = (
+  isAppStoreApp: boolean,
+  isAndroidApp: boolean,
+  name?: string
+) => {
+  if (isAndroidApp) {
+    (".");
+  }
+
+  if (isAppStoreApp) {
+    return (
+      <>
+        {" "}
+        and any pending installs or uninstalls for <strong>{name}</strong> will
+        still complete, but results will no longer appear in Fleet.
+      </>
+    );
+  }
+
+  return ", but any pending installs or uninstalls will be canceled.";
+};
+
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
@@ -24,6 +46,8 @@ interface IDeleteSoftwareModalProps {
   onExit: () => void;
   onSuccess: () => void;
   gitOpsModeEnabled?: boolean;
+  isAppStoreApp?: boolean;
+  isAndroidApp?: boolean;
 }
 
 const DeleteSoftwareModal = ({
@@ -34,6 +58,8 @@ const DeleteSoftwareModal = ({
   onExit,
   onSuccess,
   gitOpsModeEnabled,
+  isAppStoreApp = false,
+  isAndroidApp = false,
 }: IDeleteSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -58,6 +84,8 @@ const DeleteSoftwareModal = ({
     onExit();
   }, [softwareId, teamId, renderFlash, onSuccess, onExit]);
 
+  const name = softwareDisplayName || softwareTitleName;
+
   return (
     <Modal
       className={baseClass}
@@ -73,14 +101,13 @@ const DeleteSoftwareModal = ({
           </InfoBanner>
         )}
         <p>
-          Are you sure you want to delete{" "}
-          <strong>{softwareDisplayName || softwareTitleName}</strong>?
+          Are you sure you want to delete <strong>{name}</strong>?
         </p>
         <ul>
           <li>
-            Software won&apos;t be uninstalled from existing hosts, but any
-            pending installs and uninstalls will be canceled.
-          </li>{" "}
+            Software won&apos;t be uninstalled from existing hosts
+            {getPendingInstallMessage(isAppStoreApp, name)}
+          </li>
           <li>
             Installs or uninstalls currently running on a host will still
             complete, but results won&apos;t appear in Fleet.
