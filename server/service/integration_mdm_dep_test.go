@@ -436,6 +436,8 @@ type DEPEnrollTestOpts struct {
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, opts DEPEnrollTestOpts) {
 	ctx := context.Background()
 
+	isMigrating := device.MDMMigrationDeadline != nil
+
 	var isIphone bool
 	if device.DeviceFamily == "iPhone" {
 		isIphone = true
@@ -612,12 +614,15 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// not expected: account configuration, since enrollment_reference not set
 		require.Len(t, cmds, 2)
 	} else {
-		// expected commands: install fleetd, install bootstrap, install CA, install profiles
-		// (custom one, fleetd configuration, FileVault) (not expected: account
-		// configuration, since enrollment_reference not set)
+		// expected commands: install fleetd, install bootstrap(if not migrating),
+		// install CA, install profiles (custom one, fleetd configuration, FileVault)
+		// (not expected: account configuration, since enrollment_reference not set)
 		expectedCommands := 6
 		if opts.ManualAgentInstall {
 			expectedCommands--
+		}
+		if isMigrating {
+			expectedCommands-- // no bootstrap package during migration
 		}
 		assert.Len(t, cmds, expectedCommands)
 	}
@@ -716,13 +721,18 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 	require.Equal(t, 4, installProfileCount)
 	expectedInstallEnterpriseCount := 2
+	if isMigrating {
+		expectedInstallEnterpriseCount-- // no bootstrap package during migration
+	}
 	if opts.ManualAgentInstall {
 		expectedInstallEnterpriseCount--
-		require.NotNil(t, lastInstallEnterpriseApplication)
-		require.NotNil(t, lastInstallEnterpriseApplication.Manifest)
-		require.GreaterOrEqual(t, len(lastInstallEnterpriseApplication.Manifest.ManifestItems), 1)
-		require.Len(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets, 1)
-		assert.Contains(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+		if expectedInstallEnterpriseCount > 0 {
+			require.NotNil(t, lastInstallEnterpriseApplication)
+			require.NotNil(t, lastInstallEnterpriseApplication.Manifest)
+			require.GreaterOrEqual(t, len(lastInstallEnterpriseApplication.Manifest.ManifestItems), 1)
+			require.Len(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets, 1)
+			assert.Contains(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+		}
 	}
 	require.Equal(t, expectedInstallEnterpriseCount, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
@@ -2900,4 +2910,221 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 			require.Equal(t, team.ID, *hostLite.TeamID)
 		})
 	}
+}
+
+// This test verifies the fix for https://github.com/fleetdm/fleet/issues/33815
+func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndReenroll() {
+	t := s.T()
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
+	require.NoError(t, err)
+
+	devices := []godep.Device{
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+	}
+	profileAssignmentReqs := []profileAssignmentReq{}
+
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		case "/server/devices":
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices[:1]})
+			require.NoError(t, err)
+		case "/devices/sync":
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			profileAssignmentReqs = append(profileAssignmentReqs, prof)
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{}, nil
+	}
+
+	performHostEnroll := func() *mdmtest.TestAppleMDMClient {
+		// Enroll the host via ADE
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.SerialNumber = devices[0].SerialNumber
+		err = mdmDevice.Enroll()
+		require.NoError(t, err)
+
+		// Simulate an osquery enrollment too
+		// set an enroll secret
+		var applyResp applyEnrollSecretSpecResponse
+		s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+			Spec: &fleet.EnrollSecretSpec{
+				Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+			},
+		}, http.StatusOK, &applyResp)
+
+		// simulate a matching host enrolling via osquery
+		j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   t.Name(),
+			HostIdentifier: mdmDevice.UUID,
+		})
+		require.NoError(t, err)
+
+		var enrollResp contract.EnrollOsqueryAgentResponse
+		hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+		require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
+		require.NotEmpty(t, enrollResp.NodeKey)
+
+		return mdmDevice
+	}
+
+	mdmDevice := performHostEnroll()
+
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	h := listHostsRes.Hosts[0]
+
+	// ensure the host has an orbit key (so it doesn't fail with "does not have fleetd")
+	h.OrbitNodeKey = ptr.String("some-orbit-key")
+	err = s.ds.UpdateHost(ctx, h.Host)
+	require.NoError(t, err)
+
+	s.runDEPSchedule()
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+	// run the cron to assign configuration profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// add a couple software installers to "no team"
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("installer1"), t.TempDir)
+	require.NoError(t, err)
+	installerPayload1 := fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "installer1",
+		PreInstallQuery: "SELECT 1",
+		InstallerFile:   tfr1,
+		StorageID:       "installer1",
+		Filename:        "installer1.pkg",
+		Title:           "installer1",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          nil,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	_, titleID1, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &installerPayload1)
+	require.NoError(t, err)
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("installer2"), t.TempDir)
+	require.NoError(t, err)
+	installerPayload2 := fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "installer2",
+		PreInstallQuery: "SELECT 1",
+		InstallerFile:   tfr2,
+		StorageID:       "installer2",
+		Title:           "installer2",
+		Version:         "2.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          nil,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	_, titleID2, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &installerPayload2)
+	require.NoError(t, err)
+
+	// list host software inventory, both installers are listed
+	getHostSw := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 2)
+	require.Equal(t, titleID1, getHostSw.Software[0].ID)
+	require.Equal(t, installerPayload1.Title, getHostSw.Software[0].Name)
+	require.Equal(t, titleID2, getHostSw.Software[1].ID)
+	require.Equal(t, installerPayload2.Title, getHostSw.Software[1].Name)
+
+	// install the first installer on the host
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID1), installSoftwareRequest{}, http.StatusAccepted)
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, h.ID)
+
+	// process installation successfully
+	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+		OrbitNodeKey: *h.OrbitNodeKey,
+		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+			HostID:                h.ID,
+			InstallUUID:           installUUID,
+			InstallScriptExitCode: ptr.Int(0),
+			InstallScriptOutput:   ptr.String("done"),
+		},
+	}, http.StatusNoContent)
+
+	// wipe the host
+	var wipeResp wipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+
+	// simulate a successful MDM result for the wipe command
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+	_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// refresh the host's status, it is wiped
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "wiped", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+	// delete the host record (will not really delete it as it is in ABM)
+	var delResp deleteHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &delResp)
+
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	require.Equal(t, h.ID, listHostsRes.Hosts[0].ID)
+
+	// re-enroll the host
+	performHostEnroll()
+
+	// Sofware inventory should list both installers
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 2)
+	require.Equal(t, titleID1, getHostSw.Software[0].ID)
+	require.Equal(t, installerPayload1.Title, getHostSw.Software[0].Name)
+	require.Equal(t, titleID2, getHostSw.Software[1].ID)
+	require.Equal(t, installerPayload2.Title, getHostSw.Software[1].Name)
 }

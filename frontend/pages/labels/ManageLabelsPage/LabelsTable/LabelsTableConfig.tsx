@@ -7,6 +7,8 @@ import {
   isGlobalAdmin,
   isGlobalMaintainer,
   isAnyTeamMaintainerOrTeamAdmin,
+  isTeamAdmin,
+  isTeamMaintainer,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -50,6 +52,21 @@ interface IDataColumn {
   sortType?: string;
 }
 
+const hasEditPermission = (currentUser: IUser, label: ILabel): boolean => {
+  return (
+    // global permissions
+    isGlobalAdmin(currentUser) ||
+    isGlobalMaintainer(currentUser) ||
+    // author permission
+    (label.author_id === currentUser.id &&
+      isAnyTeamMaintainerOrTeamAdmin(currentUser)) ||
+    // team permission
+    (label.team_id != null &&
+      (isTeamAdmin(currentUser, label.team_id) ||
+        isTeamMaintainer(currentUser, label.team_id)))
+  );
+};
+
 const generateActionDropdownOptions = (
   currentUser: IUser,
   label: ILabel
@@ -62,14 +79,7 @@ const generateActionDropdownOptions = (
     },
   ];
 
-  const hasGlobalWritePermission =
-    isGlobalAdmin(currentUser) || isGlobalMaintainer(currentUser);
-
-  const hasLabelAuthorWritePermission =
-    isAnyTeamMaintainerOrTeamAdmin(currentUser) &&
-    label.author_id === currentUser.id;
-
-  if (hasGlobalWritePermission || hasLabelAuthorWritePermission) {
+  if (hasEditPermission(currentUser, label)) {
     if (label.label_membership_type !== "host_vitals") {
       options.push({
         label: "Edit",
@@ -164,4 +174,4 @@ const generateTableHeaders = (
 const generateDataSet = (labels: ILabel[]) =>
   labels.filter((label) => label.label_type !== "builtin");
 
-export { generateTableHeaders, generateDataSet };
+export { generateTableHeaders, generateDataSet, hasEditPermission };

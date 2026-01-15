@@ -32,6 +32,7 @@ import {
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareAutoUpdateConfigFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditAutoUpdateConfigModal/EditAutoUpdateConfigModal";
 import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
@@ -188,6 +189,9 @@ export interface IEditAppStoreAppPostBody {
   categories?: SoftwareCategory[];
   display_name?: string;
   configuration?: string;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
 }
 
 const ORDER_KEY = "name";
@@ -330,6 +334,28 @@ const handleConfigurationAppStoreAppForm = (
   body: IEditAppStoreAppPostBody
 ) => {
   body.configuration = formData.configuration || "{}";
+};
+
+const handleAutoUpdateConfigAppStoreAppForm = (
+  formData: ISoftwareAutoUpdateConfigFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.auto_update_enabled = formData.autoUpdateEnabled;
+  if (formData.autoUpdateEnabled) {
+    body.auto_update_window_start = formData.autoUpdateStartTime;
+    body.auto_update_window_end = formData.autoUpdateEndTime;
+  }
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
+  } else {
+    body.labels_exclude_any = [];
+    body.labels_include_any = [];
+  }
 };
 
 const handleEditAppStoreAppForm = (
@@ -603,6 +629,7 @@ export default {
       | ISoftwareAndroidFormData
       | ISoftwareDisplayNameFormData
       | ISoftwareConfigurationFormData
+      | ISoftwareAutoUpdateConfigFormData
   ) => {
     const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
 
@@ -618,6 +645,12 @@ export default {
       // Handles Edit configuration form only
       handleConfigurationAppStoreAppForm(
         formData as ISoftwareConfigurationFormData,
+        body
+      );
+    } else if ("autoUpdateEnabled" in formData) {
+      // Handles Edit auto update configuration form only
+      handleAutoUpdateConfigAppStoreAppForm(
+        formData as ISoftwareAutoUpdateConfigFormData,
         body
       );
     } else {

@@ -10,6 +10,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/MicahParks/jwkset v0.11.0
 	github.com/RobotsAndPencils/buford v0.14.0
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
@@ -52,6 +53,7 @@ require (
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/elimity-com/scim v0.0.0-20240320110924-172bf2aee9c8
+	github.com/expr-lang/expr v1.17.7
 	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c
 	github.com/fatih/color v1.16.0
 	github.com/foxboron/go-tpm-keyfiles v0.0.0-20250520203025-c3c3a4ec1653
@@ -68,11 +70,12 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/gofrs/flock v0.12.1
 	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/golang/snappy v0.0.4
 	github.com/gomodule/oauth1 v0.2.0
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v37 v37.0.0
-	github.com/google/go-tpm v0.9.5
+	github.com/google/go-tpm v0.9.6
 	github.com/google/uuid v1.6.0
 	github.com/goreleaser/nfpm/v2 v2.20.0
 	github.com/gorilla/mux v1.8.1
@@ -97,6 +100,8 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2
+	github.com/nats-io/nats-server/v2 v2.12.1
+	github.com/nats-io/nats.go v1.47.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/ngrok/sqlmw v0.0.0-20211220175533-9d16fdc47b31
 	github.com/nukosuke/go-zendesk v0.13.1
@@ -190,6 +195,7 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/antchfx/xpath v1.2.2 // indirect
+	github.com/antithesishq/antithesis-sdk-go v0.4.3-default-no-op // indirect
 	github.com/apache/thrift v0.22.0 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
@@ -251,7 +257,6 @@ require (
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/go-tpm-tools v0.4.5 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
@@ -279,8 +284,9 @@ require (
 	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/mattn/go-tty v0.0.3 // indirect
+	github.com/minio/highwayhash v1.0.3 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -291,6 +297,9 @@ require (
 	github.com/moby/sys/user v0.3.0 // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/nats-io/jwt/v2 v2.8.0 // indirect
+	github.com/nats-io/nkeys v0.4.11 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opencontainers/runtime-spec v1.1.0 // indirect
@@ -304,6 +313,7 @@ require (
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/secDre4mer/pkcs7 v0.0.0-20240322103146-665324a4461d // indirect

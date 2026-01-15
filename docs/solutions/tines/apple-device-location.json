@@ -1,0 +1,281 @@
+{
+  "schema_version": 27,
+  "standard_lib_version": 85,
+  "action_runtime_version": 64,
+  "name": "Apple device location",
+  "description": null,
+  "guid": "edbfbe4f18b05335407788033fcfcaf8",
+  "slug": "apple_device_location",
+  "agents": [
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Run MDM command",
+      "disabled": false,
+      "description": null,
+      "guid": "3089713e4b29d132910d8328df1f1207",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/commands/run",
+        "content_type": "application_json",
+        "method": "post",
+        "payload": {
+          "command": "<<encode_device_location_payload.output.base64_command>>",
+          "host_uuids": [
+            "<<get_host_by_identifier.body.host.uuid>>"
+          ]
+        },
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::RunScriptAgent",
+      "name": "Encode device location payload",
+      "disabled": false,
+      "description": null,
+      "guid": "89b2323c1f224cdd4bcd5380ef5e549a",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "language": "python_3_13",
+        "script": "import base64\n\ndef main(input):\n  # Encode to base64\n  xml_bytes = input.encode('utf-8')\n  base64_bytes = base64.b64encode(xml_bytes)\n  \n  return { 'base64_command' : base64_bytes }\n",
+        "requirements": "requests==2.32.5",
+        "input": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n    <key>Command</key>\n    <dict>\n        <key>RequestType</key>\n        <string>DeviceLocation</string>\n    </dict>\n    <key>CommandUUID</key>\n    <string><<UUID()>></string>\n</dict>\n</plist>\n",
+        "timeout": "10",
+        "emit_failure_event": true
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get MDM command results",
+      "disabled": false,
+      "description": null,
+      "guid": "7f0b4c2859ad62a4eabcd14db47e976d",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/commands/results",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        },
+        "query_params": {
+          "command_uuid": "<<run_mdm_command.body.command_uuid>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "Wait 30 seconds",
+      "disabled": false,
+      "description": "This is required, otherwise the body of the command results will be empty.",
+      "guid": "ccebdf9224ca232f3475d89fdf930695",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "mode": "delay",
+        "seconds": "30"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::RunScriptAgent",
+      "name": "Decode location results",
+      "disabled": false,
+      "description": null,
+      "guid": "92fde162f878a494c4a0be78130f8bd9",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "language": "python_3_13",
+        "script": "import base64\nimport plistlib\n\ndef main(input):\n  decoded_bytes = base64.b64decode(input)\n  decoded_string = decoded_bytes.decode('utf-8')\n  \n  decoded_string = plistlib.loads(decoded_string.encode('utf-8'))\n  \n  return { 'location_results' : decoded_string }\n",
+        "requirements": "requests==2.32.5",
+        "input": "<<get_mdm_command_results.body.results[0].result>>",
+        "timeout": "10",
+        "emit_failure_event": true
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get host by identifier",
+      "disabled": false,
+      "description": null,
+      "guid": "905527d6b88ed04d43482676d4795d88",
+      "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+      "options": {
+        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/hosts/identifier/<<RESOURCE.host_serial_number>>?exclude_software=true&exclude_fleet_maintained_policies=true",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_key>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    }
+  ],
+  "diagram_notes": [
+    {
+      "content": "# Edit before running\n\n- Fleet API key (credential)\n  - Set the \"URLs and Domains.\"\n- Fleet domain (resource)\n  - Example:\n     `acme.cloud.fleetdm.com`\n- Host serial number (resource)",
+      "position": [
+        -225,
+        30
+      ],
+      "guid": "2f39aa56c7a4a503e92b4caad5522a07",
+      "width": 253
+    },
+    {
+      "content": "**Device location**",
+      "position": [
+        60,
+        30
+      ],
+      "guid": "40c84496f04e3c4aff812c8e56d05f6e",
+      "width": 180
+    }
+  ],
+  "links": [
+    {
+      "source": 0,
+      "receiver": 3
+    },
+    {
+      "source": 1,
+      "receiver": 0
+    },
+    {
+      "source": 2,
+      "receiver": 4
+    },
+    {
+      "source": 3,
+      "receiver": 2
+    },
+    {
+      "source": 5,
+      "receiver": 1
+    }
+  ],
+  "diagram_layout": "{\"3089713e4b29d132910d8328df1f1207\":[60,255],\"7f0b4c2859ad62a4eabcd14db47e976d\":[60,405],\"89b2323c1f224cdd4bcd5380ef5e549a\":[60,180],\"905527d6b88ed04d43482676d4795d88\":[60,105],\"92fde162f878a494c4a0be78130f8bd9\":[60,480],\"ccebdf9224ca232f3475d89fdf930695\":[60,330]}",
+  "story_library_metadata": {},
+  "monitor_failures": false,
+  "synchronous_webhooks_enabled": false,
+  "integrations": [],
+  "parent_only_send_to_story": false,
+  "send_to_story_timeout_enabled": false,
+  "send_to_story_timeout_duration_seconds": null,
+  "keep_events_for": 86400,
+  "reporting_status": true,
+  "send_to_story_enabled": false,
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": 0,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "pages": [],
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0,
+  "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
+  "recipients": [
+    ""
+  ],
+  "integration_product": null,
+  "integration_vendor": null,
+  "llm_product_instructions": "",
+  "send_to_stories": [],
+  "exported_at": "2025-12-29T15:38:48Z",
+  "icon": ":world_map:"
+}

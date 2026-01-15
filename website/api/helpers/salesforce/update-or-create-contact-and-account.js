@@ -39,6 +39,8 @@ module.exports = {
       type: 'string',
       isIn: [
         'Website - Contact forms',
+        'Website - Contact forms - Demo',
+        'Website - Contact forms - Demo - ICP',
         'Website - Sign up',
         'Website - Newsletter',
         'LinkedIn - Comment',
@@ -63,6 +65,11 @@ module.exports = {
         // 'Submitted the "Talk to us" form',
         // 'Submitted the "Send a message" form',
       ],
+    },
+
+    marketingAttributionCookie: {
+      type: {},
+      description: 'The contents of the marketingAttribution cookie set in the requesting user\'s browser',
     }
 
   },
@@ -83,7 +90,8 @@ module.exports = {
 
   },
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal, marketingAttributionCookie}) {
+
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -143,6 +151,91 @@ module.exports = {
     }
     if(jobTitle) {
       valuesToSet.Title = jobTitle;
+    }
+
+    //  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔╦╗╔═╗╦═╗╦╔═╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╔╦╗╔╦╗╦═╗╦╔╗ ╦ ╦╔╦╗╦╔═╗╔╗╔
+    //  ╠═╝╠╦╝║ ║║  ║╣ ║╣ ╚═╗╚═╗  ║║║╠═╣╠╦╝╠╩╗║╣  ║ ║║║║║ ╦  ╠═╣ ║  ║ ╠╦╝║╠╩╗║ ║ ║ ║║ ║║║║
+    //  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝╚═╝  ╩ ╩╩ ╩╩╚═╩ ╩╚═╝ ╩ ╩╝╚╝╚═╝  ╩ ╩ ╩  ╩ ╩╚═╩╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
+    //  ╔═╗╔═╗╔═╗╦╔═╦╔═╗
+    //  ║  ║ ║║ ║╠╩╗║║╣
+    //  ╚═╝╚═╝╚═╝╩ ╩╩╚═╝
+    let attributionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
+    if(marketingAttributionCookie) {
+      attributionDetails = {};
+      // Determine if this user is "Digital" or "Organic"
+      let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
+      let sourceFriendlyNameByCodeName = {
+        // "Organic" sources:
+        // os: 'Organic search',
+        // dt: 'Direct traffic',
+        // wr: 'Web referral',
+        // soc: 'Organic social',
+        // "Digital" sources:
+        ps: 'Paid search',
+        so: 'Paid social',
+        pm: 'Paid media',
+        cs: 'Content syndication',
+        em: 'Email marketing',
+      };
+
+      attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
+
+      attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
+
+      if(['ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
+        // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
+        attributionDetails.campaign = marketingAttributionCookie.campaign;
+        attributionDetails.sourceChannel = 'Digital';
+      } else {
+        // If no medium was provided via utm parameter, set the source channel to "Organic".
+        attributionDetails.sourceChannel = 'Organic';
+
+        if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
+          // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
+          attributionDetails.sourceChannelDetails = 'Direct Traffic';
+          attributionDetails.campaign = 'Default-DT-Direct';
+        } else {
+          // Otherwise, we'll check the referer value and attempt to categorize the referer.
+          let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
+            'https://www.google.com/',
+            'https://www.bing.com/',
+            'https://search.yahoo.com/',
+            'https://duckduckgo.com/',
+            'https://www.baidu.com/',
+            'https://www.ecosia.org/',
+            'https://www.ask.com/',
+            'https://www.aol.com/',
+            'https://www.startpage.com/',
+          ];
+
+          let REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL = [
+            'https://www.facebook.com/',
+            'https://l.facebook.com/',
+            'https://www.instagram.com/',
+            'https://t.co/',
+            'https://x.com/',
+            'https://www.linkedin.com/',
+            'https://www.reddit.com/',
+            'https://old.reddit.com/',
+            'https://www.pinterest.com/',
+            'https://www.quora.com/',
+          ];
+
+          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.includes(marketingAttributionCookie.referrer)) {
+            // If search engine » Organic search
+            attributionDetails.sourceChannelDetails = 'Organic search';
+            attributionDetails.campaign = 'Default-OS-Organic';
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.includes(marketingAttributionCookie.referrer)) {
+            // If social media » Organic social
+            attributionDetails.sourceChannelDetails = 'Organic social';
+            attributionDetails.campaign = 'Default-SOC-Social';
+          } else {
+            // If not either of those » Web referral
+            attributionDetails.sourceChannelDetails = 'Web referral';
+            attributionDetails.campaign = 'Default-WR-Referral';
+          }
+        }
+      }
     }
 
     //  ╦  ╔═╗╔═╗╦╔═  ╔═╗╔═╗╦═╗  ╔═╗═╗ ╦╦╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╔═╗╔═╗╔╦╗
@@ -287,6 +380,21 @@ module.exports = {
       //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔╗╔╔═╗╦ ╦  ╔═╗╔═╗╔╗╔╔╦╗╔═╗╔═╗╔╦╗
       //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ║║║║╣ ║║║  ║  ║ ║║║║ ║ ╠═╣║   ║
       //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╝╚╝╚═╝╚╩╝  ╚═╝╚═╝╝╚╝ ╩ ╩ ╩╚═╝ ╩
+
+      // If we're creating a new contact, and this user has a marketing attribution cookie, update the valuesToSet to include information from the cookie.
+      if(attributionDetails) {
+        valuesToSet.Source_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+        valuesToSet.Source_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+        valuesToSet.Source_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+        valuesToSet.Source_campaign_initial_url__c = attributionDetails.initialUrl; // eslint-disable-line camelcase
+        valuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+        valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+        valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+        valuesToSet.Most_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
+      }
+
+
+
       let duplicateContactWasFound = false;
       let newContactRecord = await sails.helpers.flow.build(async ()=>{
         return await salesforceConnection.sobject('Contact')
@@ -339,6 +447,13 @@ module.exports = {
           delete valuesToSet.Email;
           valuesToSet.Last_email_associated_by_fleetdm_com__c =  emailAddress;// eslint-disable-line camelcase
         }
+        if(attributionDetails) {
+          // If we found an existing record after attempting to create a new record, remove the source details and campaign, these will be set as different values if we are updating a record.
+          delete valuesToSet.Source_channel__c;
+          delete valuesToSet.Source_channel_detail__c;
+          delete valuesToSet.Source_campaign__c;
+          delete valuesToSet.Source_campaign_initial_url__c;
+        }
         // If a contact souce was provided, since we found an existing contact when trying to create one, remove it from the valuesToSet.
         if(contactSource) {
           delete valuesToSet.Contact_source__c;
@@ -377,6 +492,18 @@ module.exports = {
           delete valuesToSet.Intent_signals__c;
         }
       }
+
+      // Set the most recent source, source details, and campaign.
+      if(attributionDetails) {
+        // IF attribution details were set, check to see if this contact has a source campaign set to the current campaign.
+        if(existingContactRecord.Source_campaign__c !== attributionDetails.campaign) {
+          valuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+          valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+          valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+          valuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
+        }
+      }
+
 
       // Check the existing contact record's psychologicalStage (If it is set).
       if(psychologicalStage && existingContactRecord.Stage__c !== null) {
