@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -84,8 +85,10 @@ func TestPubSubEnrollment(t *testing.T) {
 				EnrollmentTokenData: string(enrollTokenData),
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "invalid", enrollmentMessage)
-			require.Error(t, err)
 			require.Equal(t, "validation failed: android Android MDM is NOT configured", err.Error())
+			sc, ok := err.(interface{ Status() int })
+			require.True(t, ok, "error should implement Status() interface")
+			require.Equal(t, http.StatusOK, sc.Status())
 		})
 
 		t.Run("if android token is invalid", func(t *testing.T) {
