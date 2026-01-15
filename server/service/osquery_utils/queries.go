@@ -2320,8 +2320,8 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
-	// if MDM profiles were deleted by a macOS host while offline or it
-	// silently unenrolled otherwise, try to turn MDM off to clear it properly.
+	// if the MDM enrollment profile was removed by a macOS host while offline or
+	// it silently unenrolled otherwise, try to turn MDM off to clear it properly.
 	if !enrolled && !installedFromDep && serverURL.String() == "" {
 		connected, err := ds.IsHostConnectedToFleetMDM(ctx, host)
 		if err != nil {

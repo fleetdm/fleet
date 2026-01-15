@@ -4303,10 +4303,6 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	fleetEnrollmentRef string,
 	isPersonalEnrollment bool,
 ) error {
-
-	fmt.Println("------------------------- DEBUG: -------------------------")
-	fmt.Println("------------------------- SetOrUpdateMDMData -------------------------")
-	fmt.Println("host id: ", hostID)
 	var mdmID *uint
 	if serverURL != "" {
 		id, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
@@ -4316,7 +4312,6 @@ func (ds *Datastore) SetOrUpdateMDMData(
 		mdmID = &id
 	}
 
-	fmt.Println("finished")
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ?, fleet_enroll_ref = ?, is_personal_enrollment = ? WHERE host_id = ?`,
@@ -4330,10 +4325,6 @@ func (ds *Datastore) UpdateMDMData(
 	hostID uint,
 	enrolled bool,
 ) error {
-
-	fmt.Println("------------------------- DEBUG: -------------------------")
-	fmt.Println("------------------------- UpdateMDMData -------------------------")
-	fmt.Println("host id: ", hostID)
 	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm SET enrolled = ? WHERE host_id = ?`, enrolled, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host_mdm.enrolled")

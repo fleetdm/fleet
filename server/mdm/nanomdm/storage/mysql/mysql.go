@@ -299,10 +299,6 @@ UPDATE
 
 // Disable can be called for an Authenticate or CheckOut message
 func (s *MySQLStorage) Disable(r *mdm.Request) error {
-
-	fmt.Println("------------------------- DEBUG: -------------------------")
-	fmt.Println("------------------------- MySQLStorage.Disable mdm.Request -------------------------")
-
 	if r.ParentID != "" {
 		return errors.New("can only disable a device channel")
 	}
@@ -311,7 +307,6 @@ func (s *MySQLStorage) Disable(r *mdm.Request) error {
 		`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0, last_seen_at = CURRENT_TIMESTAMP WHERE device_id = ? AND enabled = 1;`,
 		r.ID,
 	)
-	fmt.Println("finished")
 	return err
 }
 

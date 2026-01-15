@@ -41,10 +41,6 @@ var addHostMDMCommandsBatchSize = 10000
 func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
 	var uuid string
 
-	fmt.Println("------------------------- DEBUG: -------------------------")
-	fmt.Println("------------------------- isAppleHostConnectedToFleetMDM -------------------------")
-	fmt.Println("host: ", h.ID, ", ", h.UUID, ", ", h.DisplayName())
-
 	// safe to use with interpolation rather than prepared statements because we're using a numeric
 	// ID here
 	err := sqlx.GetContext(ctx, q, &uuid, fmt.Sprintf(`
@@ -59,15 +55,12 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	`, h.ID))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			fmt.Println("false")
 			return false, nil
 		}
 
-		fmt.Println("false")
 		return false, err
 	}
 
-	fmt.Println("true")
 	return true, nil
 }
 
@@ -1933,10 +1926,6 @@ func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sq
 }
 
 func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
-
-	fmt.Println("------------------------- DEBUG: -------------------------")
-	fmt.Println("------------------------- MDMTurnOff -------------------------")
-
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var host fleet.Host
 		err := sqlx.GetContext(
