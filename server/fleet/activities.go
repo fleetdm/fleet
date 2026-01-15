@@ -2394,6 +2394,7 @@ type ActivityInstalledAppStoreApp struct {
 	SelfService         bool    `json:"self_service"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
+	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"-"`
 }
 
@@ -3220,39 +3221,39 @@ func (a ActivityTypeEditedHostIdpData) Documentation() (activity, details, detai
 }`
 }
 
-type ActivityTypeCreatedCertificateTemplate struct {
+type ActivityTypeAddedCertificate struct {
 	Name     string  `json:"name"`
 	TeamID   *uint   `json:"team_id"`
 	TeamName *string `json:"team_name"`
 }
 
-func (a ActivityTypeCreatedCertificateTemplate) ActivityName() string {
-	return "created_certificate_template"
+func (a ActivityTypeAddedCertificate) ActivityName() string {
+	return "added_certificate"
 }
 
-func (a ActivityTypeCreatedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when an user creates a Certificate Template.`,
+func (a ActivityTypeAddedCertificate) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user adds a Certificate Template.`,
 		`This activity contains the following fields:
 - "name": Name of the certificate.
-- "team_id": The ID of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.
-- "team_name": The name of the team where the certificate was created, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+- "team_id": The ID of the team where the certificate was added, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team where the certificate was added, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "certificate_name": "WiFi cert",
   "team_id": 123,
   "team_name": "Mobile devices"
 }`
 }
 
-type ActivityTypeDeletedCertificateTemplate struct {
+type ActivityTypeDeletedCertificate struct {
 	Name     string  `json:"name"`
 	TeamID   *uint   `json:"team_id"`
 	TeamName *string `json:"team_name"`
 }
 
-func (a ActivityTypeDeletedCertificateTemplate) ActivityName() string {
-	return "deleted_certificate_template"
+func (a ActivityTypeDeletedCertificate) ActivityName() string {
+	return "deleted_certificate"
 }
 
-func (a ActivityTypeDeletedCertificateTemplate) Documentation() (activity string, details string, detailsExample string) {
+func (a ActivityTypeDeletedCertificate) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when an user deletes a Certificate Template.`,
 		`This activity contains the following fields:
 - "name"": Name of the certificate.

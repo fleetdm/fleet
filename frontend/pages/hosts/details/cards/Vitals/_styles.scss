@@ -1,0 +1,59 @@
+.vitals-card {
+  @include vertical-card-layout;
+
+  .truncated-tooltip {
+    .vitals-card__device-mapping__source {
+      color: inherit;
+    }
+  }
+
+  &__used-by {
+    display: flex;
+  }
+
+  &__multiple {
+    max-width: 270px;
+    padding-right: 5px;
+  }
+
+  &__single {
+    max-width: 300px;
+  }
+
+  &__device-mapping {
+    &__source {
+      color: $ui-fleet-black-75;
+    }
+
+    &__more {
+      color: $ui-fleet-black-50;
+    }
+
+    &__primary-user {
+      text-overflow: ellipsis;
+      overflow: hidden;
+      vertical-align: text-bottom;
+    }
+  }
+
+  // we want the info section data to be displayed in a grid. This grid
+  // will be responsive and adjust the number of columns based on the
+  // screen width. We want the columns to only be as wide as the longest
+  // item in that column. when a item is too long to fit in the
+  // column we will truncate the text for that item. This is done with the
+  // TooltipTruncatedText component.
+  &__info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: $gap-data-sets $pad-xxlarge;
+
+    // at the larger screen widths we want to have 6 columns.
+    @media (min-width: $break-xxl) {
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+    }
+  }
+
+  .text-muted {
+    color: $ui-fleet-black-50;
+  }
+}

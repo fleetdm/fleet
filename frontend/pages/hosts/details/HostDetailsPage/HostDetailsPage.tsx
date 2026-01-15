@@ -45,13 +45,14 @@ import {
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
-  HOST_ABOUT_DATA,
+  HOST_VITALS_DATA,
   HOST_OSQUERY_DATA,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
@@ -92,8 +93,10 @@ import SoftwareUninstallDetailsModal, {
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
+import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
+
 import HostSummaryCard from "../cards/HostSummary";
-import AboutCard from "../cards/About";
+import VitalsCard from "../cards/Vitals";
 import UserCard from "../cards/User";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
@@ -138,13 +141,15 @@ const baseClass = "host-details";
 
 const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
-const doubleHeightCardClass = `${baseClass}__card--double-height`;
+const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
 const BYOD_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
+
+const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -247,6 +252,9 @@ const HostDetailsPage = ({
     activityVPPInstallDetails,
     setActivityVPPInstallDetails,
   ] = useState<IVppInstallDetails | null>(null);
+  const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
+    null
+  );
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
@@ -518,7 +526,7 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -557,7 +565,7 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -588,6 +596,8 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isAppleDevice(host?.platform),
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -619,6 +629,8 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isAppleDevice(host?.platform),
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -667,7 +679,7 @@ const HostDetailsPage = ({
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
+  const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
@@ -812,6 +824,7 @@ const HostDetailsPage = ({
             // the host object if it's available.
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
+            platform: details?.host_platform || host?.platform,
           });
           break;
         default: // do nothing
@@ -856,6 +869,10 @@ const HostDetailsPage = ({
 
   const onCancelVppInstallDetailsModal = useCallback(() => {
     setActivityVPPInstallDetails(null);
+  }, []);
+
+  const onCancelMdmCommandDetailsModal = useCallback(() => {
+    setMdmCommandDetails(null);
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -992,7 +1009,9 @@ const HostDetailsPage = ({
     !host ||
     isLoadingHost ||
     pastActivitiesIsLoading ||
-    upcomingActivitiesIsLoading
+    upcomingActivitiesIsLoading ||
+    pastMDMCommandsIsLoading ||
+    upcomingMDMCommandsIsLoading
   ) {
     return <Spinner />;
   }
@@ -1287,39 +1306,22 @@ Observer plus must be checked against host's team id  */
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
                   hostSettings={host?.mdm.profiles ?? []}
                   osSettings={host?.mdm.os_settings}
+                  className={fullWidthCardClass}
+                />
+                <VitalsCard
+                  className={fullWidthCardClass}
+                  vitalsData={vitalsData}
+                  munki={macadmins?.munki}
+                  mdm={mdm}
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
-                  className={fullWidthCardClass}
-                />
-                <AboutCard
-                  className={defaultCardClass}
-                  aboutData={aboutData}
-                  munki={macadmins?.munki}
-                  mdm={mdm}
-                />
-                <UserCard
-                  className={defaultCardClass}
-                  endUsers={host.end_users ?? []}
-                  canWriteEndUser={
-                    isTeamMaintainerOrTeamAdmin ||
-                    isGlobalAdmin ||
-                    isGlobalMaintainer
-                  }
-                  onClickUpdateUser={(
-                    e:
-                      | React.MouseEvent<HTMLButtonElement>
-                      | React.KeyboardEvent<HTMLButtonElement>
-                  ) => {
-                    e.preventDefault();
-                    setShowUpdateEndUserModal(true);
-                  }}
                 />
                 {showActivityCard && (
                   <ActivityCard
                     className={
                       showAgentOptionsCard
-                        ? doubleHeightCardClass
+                        ? tripleHeightCardClass
                         : defaultCardClass
                     }
                     activeTab={activeActivityTab}
@@ -1354,9 +1356,11 @@ Observer plus must be checked against host's team id  */
                     showMDMCommandsToggle={isAppleDevice(host.platform)}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
+                      setActivityPage(0);
                       setShowMDMCommands(true);
                     }}
                     onHideMDMCommands={() => {
+                      setActivityPage(0);
                       setShowMDMCommands(false);
                     }}
                     upcomingCount={
@@ -1367,16 +1371,27 @@ Observer plus must be checked against host's team id  */
                     onNextPage={() => setActivityPage(activityPage + 1)}
                     onPreviousPage={() => setActivityPage(activityPage - 1)}
                     onShowDetails={onShowActivityDetails}
-                    onShowCommandDetails={(commandUUID, hostUUID) => {
-                      console.log(
-                        "Show command details",
-                        commandUUID,
-                        hostUUID
-                      );
-                    }}
+                    onShowCommandDetails={setMdmCommandDetails}
                     onCancel={onCancelActivity}
                   />
                 )}
+                <UserCard
+                  className={defaultCardClass}
+                  endUsers={host.end_users ?? []}
+                  canWriteEndUser={
+                    isTeamMaintainerOrTeamAdmin ||
+                    isGlobalAdmin ||
+                    isGlobalMaintainer
+                  }
+                  onClickUpdateUser={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    setShowUpdateEndUserModal(true);
+                  }}
+                />
                 {showAgentOptionsCard && (
                   <AgentOptionsCard
                     className={defaultCardClass}
@@ -1580,6 +1595,12 @@ Observer plus must be checked against host's team id  */
             <VppInstallDetailsModal
               details={activityVPPInstallDetails}
               onCancel={onCancelVppInstallDetailsModal}
+            />
+          )}
+          {!!mdmCommandDetails && (
+            <CommandResultsModal
+              command={mdmCommandDetails}
+              onDone={onCancelMdmCommandDetailsModal}
             />
           )}
           {showLockHostModal && (

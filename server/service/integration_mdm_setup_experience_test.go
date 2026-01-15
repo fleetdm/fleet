@@ -1351,6 +1351,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
+	s.registerResetITunesData(t)
+
 	// Set up some additional VPP apps on the mock Apple servers
 	s.appleITunesSrvData["6"] = `{"bundleId": "f-6", "artworkUrl512": "https://example.com/images/6", "version": "6.0.0", "trackName": "App 6", "TrackID": 6}`
 	s.appleITunesSrvData["7"] = `{"bundleId": "g-7", "artworkUrl512": "https://example.com/images/7", "version": "7.0.0", "trackName": "App 7", "TrackID": 7}`
@@ -1387,11 +1389,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	}...)
 
 	t.Cleanup(func() {
-		delete(s.appleITunesSrvData, "6")
-		delete(s.appleITunesSrvData, "7")
-		delete(s.appleITunesSrvData, "8")
-		delete(s.appleITunesSrvData, "9")
-		delete(s.appleITunesSrvData, "10")
 		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
 	})
 
@@ -3509,8 +3506,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	req := android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
 	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q,
-		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
-		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName(), host.ID, app1.Name, fleet.SoftwareInstalled), 0)
+		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
+		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName(), host.ID, host.Platform, app1.Name, fleet.SoftwareInstalled), 0)
 
 	// the pending install should now be verified
 	getHostSw = getHostSoftwareResponse{}
@@ -3682,8 +3679,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
 	// turn off MDM for that host, should fail the pending install
-	var unenrollResp android.DefaultResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm/unenroll", host1.ID), nil, http.StatusOK, &unenrollResp)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host1.ID), nil, http.StatusNoContent)
 
 	// app install is still pending as the device hasn't reported back its unenrollment yet
 	getHostSw = getHostSoftwareResponse{}
@@ -3724,8 +3720,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	{"enrollment_id": null, "host_display_name": %q, "host_serial": %q, "installed_from_dep": false, "platform": %q}`,
 		host1.DisplayName(), "", host1.Platform), 0) // for some reason the serial is force-set to empty string when we create this activity
 	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q,
-		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
-		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, app1.Name, fleet.SoftwareInstallFailed), 0)
+		"command_uuid":%q, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
+		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, host1.Platform, app1.Name, fleet.SoftwareInstallFailed), 0)
 
 	// host2 and host3 haven't been unenrolled, app install is still pending
 	getHostSw = getHostSoftwareResponse{}

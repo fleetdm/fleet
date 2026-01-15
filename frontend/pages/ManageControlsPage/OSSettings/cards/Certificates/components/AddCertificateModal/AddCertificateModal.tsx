@@ -106,7 +106,7 @@ const AddCertModal = ({
 
     setIsUpdating(true);
     try {
-      await certificatesAPI.createCert({
+      await certificatesAPI.addCert({
         name: formData.name,
         certAuthorityId: parseInt(formData.certAuthorityId, 10),
         subjectName: formData.subjectName,
@@ -141,6 +141,7 @@ const AddCertModal = ({
           helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
           parseTarget
           placeholder="VPN certificate"
+          autofocus
         />
         <DropdownWrapper
           label="Certificate authority (CA)"
@@ -176,7 +177,7 @@ const AddCertModal = ({
         />
         <div className="modal-cta-wrap">
           <TooltipWrapper
-            tipContent="Complete all required fields to save"
+            tipContent="Complete all fields to save."
             underline={false}
             position="top"
             disableTooltip={formValidation.isValid}
@@ -187,7 +188,7 @@ const AddCertModal = ({
               disabled={!formValidation.isValid || isUpdating}
               type="submit"
             >
-              Create
+              Add
             </Button>
           </TooltipWrapper>
           <Button variant="inverse" onClick={onExit}>
