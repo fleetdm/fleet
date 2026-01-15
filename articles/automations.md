@@ -1,9 +1,8 @@
 # Automations
 
-You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
-windows), trigger or send query results to webhooks, or create tickets.
+You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send query results to webhooks, create tickerts, reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
 
-To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
+Automations are triggered by policies. Policies run every 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval)) and run in ascending order by policy ID after the ID is turned into a string ("53" runs before "7").
 
 ## Activity automations
 
