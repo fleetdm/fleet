@@ -21,9 +21,10 @@ const getPendingInstallMessage = (
   isAndroidApp: boolean,
   name?: string
 ) => {
+  console.log("isAndroidApp:", isAndroidApp);
   // Android apps do not have pending installs/uninstalls as they are initiated through setup experience or by user
   if (isAndroidApp) {
-    (".");
+    return ".";
   }
 
   // VPP apps pending installs/uninstalls commands are not cancelled (future story #25912) but results only show in activity feed, as software is removed from host's software library
