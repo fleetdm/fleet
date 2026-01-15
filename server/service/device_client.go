@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/retry"
@@ -119,47 +121,54 @@ func (dc *DeviceClient) requestAttempt(verb string, path string, query string, p
 	return dc.parseResponse(verb, path, response, responseDest)
 }
 
-func (dc *DeviceClient) getAlternativeBrowserHost() string {
+// applyAlternativeBrowserHostSetting overrides portions of the provided URL based on the values of
+// fleetAlternativeBrowserHostFromServer or fleetAlternativeBrowserHost
+func (dc *DeviceClient) applyAlternativeBrowserHostSetting(u *url.URL) {
+	// fleetAlternativeBrowserHostFromServer is specified using an absolute URL, but we just care about
+	// the host and path components of the URL
 	if dc.fleetAlternativeBrowserHostFromServer != "" {
-		return dc.fleetAlternativeBrowserHostFromServer
+		if parsed, err := url.Parse(dc.fleetAlternativeBrowserHostFromServer); err == nil && parsed.Host != "" {
+			u.Host = parsed.Host
+			if parsed.Path != "" {
+				// Prepend the path from the setting to the existing path
+				u.Path = "/" + strings.Trim(parsed.Path, "/") + "/" + strings.Trim(u.Path, "/")
+			}
+		}
+		return
 	}
-	return dc.fleetAlternativeBrowserHost
+
+	// fleetAlternativeBrowserHost specifies just a host
+	if dc.fleetAlternativeBrowserHost != "" {
+		u.Host = dc.fleetAlternativeBrowserHost
+	}
 }
 
 // BrowserTransparencyURL returns a URL for the browser that the server
 // will use to redirect to the transparency URL configured by the user.
 func (dc *DeviceClient) BrowserTransparencyURL(token string) string {
 	transparencyURL := dc.baseClient.url("/api/latest/fleet/device/"+token+"/transparency", "")
-	if alt := dc.getAlternativeBrowserHost(); alt != "" {
-		transparencyURL.Host = alt
-	}
+	dc.applyAlternativeBrowserHostSetting(transparencyURL)
 	return transparencyURL.String()
 }
 
 // BrowserSelfServiceURL returns the "Self-service" URL for the browser.
 func (dc *DeviceClient) BrowserSelfServiceURL(token string) string {
 	selfServiceURL := dc.baseClient.url("/device/"+token+"/self-service", "")
-	if alt := dc.getAlternativeBrowserHost(); alt != "" {
-		selfServiceURL.Host = alt
-	}
+	dc.applyAlternativeBrowserHostSetting(selfServiceURL)
 	return selfServiceURL.String()
 }
 
 // BrowserDeviceURL returns the "My device" URL for the browser.
 func (dc *DeviceClient) BrowserDeviceURL(token string) string {
 	deviceURL := dc.baseClient.url("/device/"+token, "")
-	if alt := dc.getAlternativeBrowserHost(); alt != "" {
-		deviceURL.Host = alt
-	}
+	dc.applyAlternativeBrowserHostSetting(deviceURL)
 	return deviceURL.String()
 }
 
 // BrowserPoliciesURL returns the "Policies" URL for the browser.
 func (dc *DeviceClient) BrowserPoliciesURL(token string) string {
 	policiesURL := dc.baseClient.url(fmt.Sprintf(`/device/%s/policies`, token), "")
-	if alt := dc.getAlternativeBrowserHost(); alt != "" {
-		policiesURL.Host = alt
-	}
+	dc.applyAlternativeBrowserHostSetting(policiesURL)
 	return policiesURL.String()
 }
 

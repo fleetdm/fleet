@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -82,39 +83,71 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 	})
 }
 
-func TestDeviceClientGetFleetHost(t *testing.T) {
-	testCases := []struct {
-		alternativeBrowserHostFromEnv    string
-		alternativeBrowserHostFromServer string
-		expected                         string
+func TestApplyAlternativeBrowserHostSetting(t *testing.T) {
+	tests := []struct {
+		name          string
+		serverSetting string
+		envSetting    string
+		initialURL    string
+		expectedURL   string
 	}{
 		{
-			alternativeBrowserHostFromEnv:    "",
-			alternativeBrowserHostFromServer: "",
-			expected:                         "",
+			name:          "server setting with path prepends to existing path",
+			serverSetting: "https://proxy.example.com/prefix",
+			envSetting:    "",
+			initialURL:    "https://fleet.example.com/api/v1/device/token/ping",
+			expectedURL:   "https://proxy.example.com/prefix/api/v1/device/token/ping",
 		},
 		{
-			alternativeBrowserHostFromEnv:    "https://example.com",
-			alternativeBrowserHostFromServer: "",
-			expected:                         "https://example.com",
+			name:          "server setting without path only changes host",
+			serverSetting: "https://proxy.example.com",
+			envSetting:    "",
+			initialURL:    "https://fleet.example.com/api/v1/device/token/ping",
+			expectedURL:   "https://proxy.example.com/api/v1/device/token/ping",
 		},
 		{
-			alternativeBrowserHostFromEnv:    "https://example.com",
-			alternativeBrowserHostFromServer: "https://two.example.com",
-			expected:                         "https://two.example.com",
+			name:          "client setting used as fallback for host only",
+			serverSetting: "",
+			envSetting:    "fallback.example.com",
+			initialURL:    "https://fleet.example.com/api/v1/device/token/ping",
+			expectedURL:   "https://fallback.example.com/api/v1/device/token/ping",
 		},
 		{
-			alternativeBrowserHostFromEnv:    "",
-			alternativeBrowserHostFromServer: "https://two.example.com",
-			expected:                         "https://two.example.com",
+			name:          "server setting takes precedence over client setting",
+			serverSetting: "https://server.example.com/path",
+			envSetting:    "client.example.com",
+			initialURL:    "https://fleet.example.com/ping",
+			expectedURL:   "https://server.example.com/path/ping",
+		},
+		{
+			name:          "no settings does not change URL",
+			serverSetting: "",
+			envSetting:    "",
+			initialURL:    "https://fleet.example.com/ping",
+			expectedURL:   "https://fleet.example.com/ping",
+		},
+		{
+			name:          "server setting with complex path trims slashes correctly",
+			serverSetting: "https://proxy.com/a/b/",
+			envSetting:    "",
+			initialURL:    "https://fleet.com/c/d",
+			expectedURL:   "https://proxy.com/a/b/c/d",
 		},
 	}
 
-	for _, tc := range testCases {
-		client, err := NewDeviceClient("", true, "", nil, tc.alternativeBrowserHostFromEnv)
-		require.NoError(t, err)
-		client.fleetAlternativeBrowserHostFromServer = tc.alternativeBrowserHostFromServer
-		require.Equal(t, tc.expected, client.getAlternativeBrowserHost())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dc := &DeviceClient{
+				fleetAlternativeBrowserHostFromServer: tt.serverSetting,
+				fleetAlternativeBrowserHost:           tt.envSetting,
+			}
+
+			u, err := url.Parse(tt.initialURL)
+			require.NoError(t, err)
+
+			dc.applyAlternativeBrowserHostSetting(u)
+			require.Equal(t, tt.expectedURL, u.String())
+		})
 	}
 }
 
