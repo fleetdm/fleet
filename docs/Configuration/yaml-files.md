@@ -982,6 +982,8 @@ Can only be configured for all teams (`org_settings`).
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status [automations](https://fleetdm.com/docs/using-fleet/automations).
 
+- `interval` is how often...
+
 #### activities_webhook
 
 - `enable_activities_webhook` (default: `false`)
