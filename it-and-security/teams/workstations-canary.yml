@@ -5,6 +5,7 @@ team_settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
+      interval: 3600000000000
       policy_ids:
         - 14937
         - 14100
