@@ -23262,6 +23262,22 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 		0,
 	)
 
+	assert.False(t, acResp.ConditionalAccess.BypassDisabled.Value)
+	// Change only if bypass is disabled
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCertMultiple, &trueBool), http.StatusOK)
+
+	// Verify the was changed
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.ConditionalAccess.BypassDisabled.Value)
+
+	// Verify activity was created for editing Okta config
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeUpdateConditionalAccessBypass{}.ActivityName(),
+		"{\"bypass_disabled\": true}",
+		0,
+	)
+
 }
 
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.
