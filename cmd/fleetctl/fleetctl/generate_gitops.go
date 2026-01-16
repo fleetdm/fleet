@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
@@ -1501,10 +1503,40 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
 					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
 
+			var fmaInstallScriptModified, fmaUninstallScriptModified bool
+			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
+				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
+					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
+					Slug: softwareTitle.SoftwarePackage.Slug,
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				fmaInstallScriptModified = fma.InstallScript != softwareTitle.SoftwarePackage.InstallScript
+				fmaUninstallScriptModified = fma.UninstallScript != softwareTitle.SoftwarePackage.UninstallScript
+			}
+
+			shouldWriteScript := func(fmaID *uint, scriptContents string, scriptModified bool) bool {
+				if fmaID != nil {
+					if scriptModified {
+						return true
+					}
+
+					return false
+				}
+
+				if scriptContents != "" {
+					return true
+				}
+
+				return false
+			}
+
 			// Only output install_script, post_install_script, uninstall_script, and
 			// pre_install_query for non-script packages
 			if !isScriptPackage {
-				if softwareTitle.SoftwarePackage.ShouldExportInstallScript() {
+				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.InstallScript
 					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
 					path := fmt.Sprintf("../%s", fileName)
@@ -1524,7 +1556,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				if softwareTitle.SoftwarePackage.ShouldExportUninstallScript() {
+				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.UninstallScript
 					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
 					path := fmt.Sprintf("../%s", fileName)

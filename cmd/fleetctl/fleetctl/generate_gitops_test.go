@@ -284,6 +284,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 				HashSHA256: ptr.String("ios-auto-update-hash"),
 			},
+			{
+				ID:         8,
+				Name:       "My FMA",
+				HashSHA256: ptr.String("fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-software.pkg",
+					Platform:             "darwin",
+					Version:              "13.37",
+					FleetMaintainedAppID: ptr.Uint(1),
+				},
+			},
 		}, nil
 	case "available_for_install=1&team_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -446,6 +457,28 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				AutoUpdateStartTime: ptr.String("01:00"),
 				AutoUpdateEndTime:   ptr.String("03:00"),
 			},
+		}, nil
+	case 8:
+		return &fleet.SoftwareTitle{
+			ID: 1,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				LabelsIncludeAny: []fleet.SoftwareScopeLabel{{
+					LabelName: "Label A",
+				}, {
+					LabelName: "Label B",
+				}},
+				PreInstallQuery:      "SELECT * FROM pre_install_query",
+				InstallScript:        "foo",
+				PostInstallScript:    "bar",
+				UninstallScript:      "baz",
+				SelfService:          true,
+				Platform:             "darwin",
+				URL:                  "https://example.com/download/my-software.pkg",
+				Categories:           []string{"Browsers"},
+				FleetMaintainedAppID: ptr.Uint(1),
+				Slug:                 "fma1/darwin",
+			},
+			IconUrl: ptr.String("/api/icon1.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")

@@ -94,6 +94,19 @@ software:
     icon:
       path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
     platform: ios
+  fleet_maintained_apps:
+  - categories:
+      - Browsers
+    setup_experience: true
+    slug: fma1/darwin
+    labels_include_any:
+      - Label A
+      - Label B
+    post_install_script:
+      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
+    pre_install_query:
+      path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
+    self_service: true
   packages:
   - categories:
     - Browsers

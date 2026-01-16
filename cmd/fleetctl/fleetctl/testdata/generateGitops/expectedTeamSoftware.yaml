@@ -1,29 +1,42 @@
 packages:
   - categories:
-    - Browsers
+      - Browsers
     hash_sha256: software-package-hash ___GITOPS_COMMENT_0___
     setup_experience: true
     install_script:
       path: ../lib/some-team/scripts/my-software-package-darwin-install
     labels_include_any:
-    - Label A
-    - Label B
+      - Label A
+      - Label B
     post_install_script:
       path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
-    pre_install_query: 
+    pre_install_query:
       path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
     self_service: true
     uninstall_script:
       path: ../lib/some-team/scripts/my-software-package-darwin-uninstall
     url: https://example.com/download/my-software.pkg
+fleet_maintained_apps:
+  - categories:
+      - Browsers
+    setup_experience: true
+    slug: fma1/darwin
+    labels_include_any:
+      - Label A
+      - Label B
+    post_install_script:
+      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
+    pre_install_query:
+      path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
+    self_service: true
 app_store_apps:
   - app_store_id: com.example.team-software
     labels_exclude_any:
-     - Label C
-     - Label D
+      - Label C
+      - Label D
     categories:
-    - Productivity
-    - Utilities
+      - Productivity
+      - Utilities
     self_service: true
     platform: darwin
   - app_store_id: com.example.setup-experience-software

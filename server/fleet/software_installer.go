@@ -138,39 +138,7 @@ type SoftwareInstaller struct {
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name"`
 
-	Slug                       string `json:"slug" db:"slug"`
-	FMAInstallScriptModified   bool   `json:"fma_install_script_modified"`
-	FMAUninstallScriptModified bool   `json:"fma_uninstall_script_modified"`
-}
-
-func (s *SoftwareInstaller) ShouldExportInstallScript() bool {
-	if s.FleetMaintainedAppID != nil {
-		if s.FMAInstallScriptModified && s.InstallScript != "" {
-			return true
-		}
-		return false
-	}
-
-	if s.InstallScript != "" {
-		return true
-	}
-
-	return false
-}
-
-func (s *SoftwareInstaller) ShouldExportUninstallScript() bool {
-	if s.FleetMaintainedAppID != nil {
-		if s.FMAUninstallScriptModified && s.UninstallScript != "" {
-			return true
-		}
-		return false
-	}
-
-	if s.UninstallScript != "" {
-		return true
-	}
-
-	return false
+	Slug string `json:"slug" db:"slug"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
