@@ -13,6 +13,7 @@ import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import PageDescription from "components/PageDescription";
 
 import SectionCard from "../../../MdmSettings/components/SectionCard";
 
@@ -21,10 +22,10 @@ const baseClass = "identity-provider-section";
 const AddEndUserInfoCard = () => {
   return (
     <SectionCard
-      header="Add end user information to your hosts"
+      header="Connect your IdP"
       cta={
         <CustomLink
-          text="Learn how"
+          text="Learn more"
           newTab
           url="https://fleetdm.com/learn-more-about/connect-idp"
           className={`${baseClass}__learn-more-link`}
@@ -32,8 +33,8 @@ const AddEndUserInfoCard = () => {
       }
     >
       <p className={`${baseClass}__section-card-content`}>
-        To add end user information, connect Fleet to Okta, Entra ID, or another
-        identity provider (IdP).
+        Fleet can be connected to Okta, Entra ID, or another Identity Provider
+        (IdP).
       </p>
     </SectionCard>
   );
@@ -59,7 +60,7 @@ const ReceivedEndUserInfoCard = ({
       }
     >
       <p className={`${baseClass}__section-card-content`}>
-        Received end user information from your IdP{" "}
+        Received information from your IdP{" "}
         <TooltipWrapper
           showArrow
           position="top"
@@ -104,8 +105,7 @@ const FailedEndUserInfoCard = ({
           underline={false}
           className={`${baseClass}__received-tooltip`}
         >
-          Failed to receive end user information from your IdP (
-          {dateAgo(receivedAt)}).
+          Failed receiving information from your IdP ({dateAgo(receivedAt)}).
         </TooltipWrapper>
       </p>
     </SectionCard>
@@ -159,6 +159,26 @@ const IdentityProviderSection = () => {
   };
   return (
     <SettingsSection title="Identity provider (IdP)">
+      <PageDescription
+        content={
+          <>
+            Configure and manage integrations between Fleet and your identity
+            provider (IdP). Connecting your IdP enables mapping end users to
+            hosts and deleting{" "}
+            <TooltipWrapper
+              tipContent={
+                <>
+                  A <strong>Fleet user</strong> is considered an IT admin.
+                </>
+              }
+            >
+              Fleet users
+            </TooltipWrapper>{" "}
+            when they are removed from your IdP.
+          </>
+        }
+        variant="right-panel"
+      />
       {renderContent()}
     </SettingsSection>
   );

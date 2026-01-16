@@ -14,6 +14,7 @@ interface IDropdownOptionTooltipWrapper {
   /** Location defaults to left */
   place?: "left" | "right" | "top" | "bottom";
   offset?: number;
+  underline?: boolean;
 }
 
 const baseClass = "dropdown-option-tooltip-wrapper";
@@ -27,10 +28,15 @@ const DropdownOptionTooltipWrapper = ({
   clickable = true,
   place = "left",
   offset = 24,
+  underline = true,
 }: IDropdownOptionTooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className);
 
   const elementClassNames = classnames(`${baseClass}__element`);
+
+  const underlineClassNames = classnames({
+    [`${baseClass}__underline`]: underline,
+  });
 
   const tipClassNames = classnames(
     `${baseClass}__tip-text`,
@@ -43,7 +49,7 @@ const DropdownOptionTooltipWrapper = ({
   return (
     <span className={wrapperClassNames}>
       <div className={elementClassNames} data-tooltip-id={tipId}>
-        {children}
+        <span className={underlineClassNames}>{children}</span>
       </div>
       <ReactTooltip5
         className={tipClassNames}

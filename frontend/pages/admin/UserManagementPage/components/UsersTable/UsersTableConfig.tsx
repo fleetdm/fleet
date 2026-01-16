@@ -228,6 +228,17 @@ const generateActionDropdownOptions = (
       label: "Delete",
       disabled: isCurrentUser,
       value: "delete",
+      tooltipContent: (
+        <>
+          There must be at least one Admin
+          <br />
+          user on the account. To delete this
+          <br />
+          user, add or set existing user with
+          <br />
+          role of &quot;Admin&quot;.
+        </>
+      ),
     },
   ];
 
