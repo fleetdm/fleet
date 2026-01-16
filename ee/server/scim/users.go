@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/scim2/filter-parser/v2"
@@ -41,23 +42,17 @@ const (
 	departmentAttr                    = "department"
 )
 
-// ActivityCreator is the minimal interface required by UserHandler for creating activities.
-// This allows the SCIM package to depend only on what it needs from fleet.Service.
-type ActivityCreator interface {
-	NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
-}
-
 type UserHandler struct {
-	ds              fleet.Datastore
-	activityCreator ActivityCreator
-	logger          kitlog.Logger
+	ds             fleet.Datastore
+	activityModule activities.ActivityModule
+	logger         kitlog.Logger
 }
 
 // Compile-time check
 var _ scim.ResourceHandler = &UserHandler{}
 
-func NewUserHandler(ds fleet.Datastore, activityCreator ActivityCreator, logger kitlog.Logger) scim.ResourceHandler {
-	return &UserHandler{ds: ds, activityCreator: activityCreator, logger: logger}
+func NewUserHandler(ds fleet.Datastore, activityModule activities.ActivityModule, logger kitlog.Logger) scim.ResourceHandler {
+	return &UserHandler{ds: ds, activityModule: activityModule, logger: logger}
 }
 
 func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
@@ -610,7 +605,7 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 		return ctxerr.Wrap(ctx, err, "delete fleet user")
 	}
 
-	if err := u.activityCreator.NewActivity(
+	if err := u.activityModule.NewActivity(
 		ctx,
 		nil,
 		fleet.ActivityTypeDeletedUser{

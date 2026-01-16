@@ -32,9 +32,9 @@ func newTestMocks() *testMocks {
 
 func (m *testMocks) newTestHandler() *UserHandler {
 	return &UserHandler{
-		ds:              m.ds,
-		activityCreator: m.svc,
-		logger:          kitlog.NewNopLogger(),
+		ds:             m.ds,
+		activityModule: m.svc,
+		logger:         kitlog.NewNopLogger(),
 	}
 }
 
