@@ -1474,7 +1474,7 @@ None.
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
-    "bypass_enabled": true
+    "bypass_disabled": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1786,7 +1786,7 @@ Modifies the Fleet's configuration with the supplied information.
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
-    "bypass_enabled": true
+    "bypass_disabled": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -2369,7 +2369,7 @@ _Available in Fleet Premium._
 | okta_assertion_consumer_service_url | string  | The assertion consumer service URL found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
-| bypass_enabled                    | boolean  | Whether to allow end users the option to bypass conditional access blocking for a single login attempt. |
+| bypass_disabled                    | boolean  | Whether to allow end users the option to bypass conditional access blocking for a single login attempt. (Default: `false`.)|
 
 When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
 
@@ -5469,7 +5469,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 ## Bypass host's conditional access
 
-Grant a blocked host access for a single login. Requires Okta conditional access configured with `conditional_access.bypass_enabled` configured.
+Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
 
 `POST /api/v1/fleet/device/:token/bypass_conditional_access`
 
