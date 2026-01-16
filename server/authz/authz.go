@@ -208,6 +208,6 @@ func NewAuthorizerAdapter(authorizer *Authorizer) *AuthorizerAdapter {
 }
 
 // Authorize implements platform_authz.Authorizer.
-func (a *AuthorizerAdapter) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action string) error {
-	return a.authorizer.Authorize(ctx, subject, action)
+func (a *AuthorizerAdapter) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action platform_authz.Action) error {
+	return a.authorizer.Authorize(ctx, subject, string(action))
 }

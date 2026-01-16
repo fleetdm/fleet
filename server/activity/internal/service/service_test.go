@@ -28,7 +28,7 @@ type mockAuthorizer struct {
 	authErr error
 }
 
-func (m *mockAuthorizer) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action string) error {
+func (m *mockAuthorizer) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action platform_authz.Action) error {
 	return m.authErr
 }
 

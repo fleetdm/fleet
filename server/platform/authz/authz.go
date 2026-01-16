@@ -5,12 +5,18 @@ package authz
 
 import "context"
 
+// Action represents an authorization action.
+type Action string
+
+const (
+	ActionRead Action = "read"
+)
+
 // Authorizer is the interface for authorization checks.
 type Authorizer interface {
 	// Authorize checks if the current user (from context) can perform the action on the subject.
 	// subject must implement AuthzTyper interface.
-	// action is typically "read", "write", "list", etc.
-	Authorize(ctx context.Context, subject AuthzTyper, action string) error
+	Authorize(ctx context.Context, subject AuthzTyper, action Action) error
 }
 
 // AuthzTyper is implemented by types that can be authorized.

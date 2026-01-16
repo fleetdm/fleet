@@ -13,7 +13,7 @@ import (
 
 type mockAuthorizer struct{}
 
-func (m *mockAuthorizer) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action string) error {
+func (m *mockAuthorizer) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action platform_authz.Action) error {
 	// Mark authorization as checked (like the real authorizer does)
 	if authzCtx, ok := authz_ctx.FromContext(ctx); ok {
 		authzCtx.SetChecked()

@@ -45,7 +45,7 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 	}
 
 	// Authorization check
-	if err := s.authz.Authorize(ctx, &api.Activity{}, actionRead); err != nil {
+	if err := s.authz.Authorize(ctx, &api.Activity{}, platform_authz.ActionRead); err != nil {
 		return nil, nil, err
 	}
 
@@ -106,6 +106,3 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 
 	return nil
 }
-
-// actionRead is the authorization action for reading activities.
-const actionRead = "read"
