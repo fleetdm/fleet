@@ -2190,7 +2190,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type  | Description   |
 | ---------------------             | ----- | ---------------------------------------------------------------------------------------------- |
-| interval          |               | string | How often policy, vulnerability, and host status automations are triggered, formatted as number + unit of measurement (e.g. `"90m"`). Can be specified in seconds (`"s"`), minutes (`"m"`), or hours (`"h"`). (Default: `"24h"`) |
+| interval          |               | string | How often policy and host status automations are triggered, formatted as number + unit of measurement (e.g. `"90m"`). Can be specified in seconds (`"s"`), minutes (`"m"`), or hours (`"h"`). (Default: `"24h"`) |
 | host_status_webhook               | array | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook).           |
 | failing_policies_webhook          | array | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook). |
 | vulnerabilities_webhook           | array | See [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook).   |
@@ -12190,7 +12190,6 @@ _Available in Fleet Premium_
 
 | Name                              | Type  | Description   |
 | ---------------------             | ----- | ---------------------------------------------------------------------------------------------- |
-| interval          |               | integer | How often policy, vulnerability, and host status automations are triggered. Accepts values of `s` (seconds), `m` (minutes), and `h` (hours) (default: `24h`) |
 | failing_policies_webhook          | array | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook2). |
 | host_status_webhook               | array | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook2).           |
 
