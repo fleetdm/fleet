@@ -1463,18 +1463,46 @@ func testUsersCreateUserWithAPIOnly(t *testing.T, ds *mysql.Datastore) {
 	require.Equal(t, host.ID, hosts[0].ID)
 }
 
+type adminTestUserOpts struct {
+	id         uint
+	email      string
+	globalRole string
+	apiOnly    bool
+}
+
+func newAdminTestUser(opts *adminTestUserOpts) *fleet.User {
+	user := &fleet.User{
+		ID:         1,
+		Email:      "admin@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		APIOnly:    false,
+	}
+	if opts != nil {
+		if opts.id != 0 {
+			user.ID = opts.id
+		}
+		if opts.email != "" {
+			user.Email = opts.email
+		}
+		if opts.globalRole != "" {
+			user.GlobalRole = ptr.String(opts.globalRole)
+		}
+		user.APIOnly = opts.apiOnly
+	}
+	return user
+}
+
+func setupAdminTestContext(t *testing.T, adminUser *fleet.User) (*mock.Store, fleet.Service, context.Context) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+	return ds, svc, ctx
+}
+
 func TestDeleteUserLastAdminProtection(t *testing.T) {
 	t.Run("prevents deleting last global admin", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
-
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return adminUser, nil
@@ -1491,16 +1519,8 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 	})
 
 	t.Run("allows deleting admin when multiple admins exist", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
-
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return adminUser, nil
@@ -1518,23 +1538,14 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 	})
 
 	t.Run("prevents deleting last global admin even if api-only user", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
-
-		apiOnlyAdmin := &fleet.User{
-			ID:         2,
-			Email:      "api-admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    true,
-		}
+		apiOnlyAdmin := newAdminTestUser(&adminTestUserOpts{
+			id:      2,
+			email:   "api-admin@example.com",
+			apiOnly: true,
+		})
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return apiOnlyAdmin, nil
 		}
@@ -1550,23 +1561,14 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 	})
 
 	t.Run("allows deleting non-admin user", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
-
-		maintainerUser := &fleet.User{
-			ID:         3,
-			Email:      "maintainer@example.com",
-			GlobalRole: ptr.String(fleet.RoleMaintainer),
-			APIOnly:    false,
-		}
+		maintainerUser := newAdminTestUser(&adminTestUserOpts{
+			id:         3,
+			email:      "maintainer@example.com",
+			globalRole: fleet.RoleMaintainer,
+		})
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return maintainerUser, nil
 		}
@@ -1582,29 +1584,24 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 }
 
 func TestModifyUserLastAdminProtection(t *testing.T) {
-	t.Run("prevents demoting last global admin via global_role change", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
-
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
-
+	// setupModifyUserMocks sets up common mocks needed for ModifyUser tests.
+	setupModifyUserMocks := func(ds *mock.Store, targetUser *fleet.User) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return adminUser, nil
+			return targetUser, nil
 		}
+	}
+
+	t.Run("prevents demoting last global admin via global_role change", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+		setupModifyUserMocks(ds, adminUser)
 		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
 			return 1, nil
 		}
 
-		// Try to demote from admin to maintainer
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 		})
@@ -1615,23 +1612,9 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 	})
 
 	t.Run("prevents demoting last global admin via teams assignment", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
-
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{}, nil
-		}
-		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return adminUser, nil
-		}
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+		setupModifyUserMocks(ds, adminUser)
 		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
 			return 1, nil
 		}
@@ -1639,7 +1622,6 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 			return []*fleet.TeamSummary{{ID: 1}}, nil
 		}
 
-		// Try to assign teams (which removes global role)
 		teams := []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
 			Teams: &teams,
@@ -1651,23 +1633,9 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 	})
 
 	t.Run("allows demoting admin when multiple admins exist", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
-
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{}, nil
-		}
-		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return adminUser, nil
-		}
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+		setupModifyUserMocks(ds, adminUser)
 		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
 			return 3, nil
 		}
@@ -1685,23 +1653,9 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 	})
 
 	t.Run("allows changing admin to admin (no demotion)", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
-
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{}, nil
-		}
-		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return adminUser, nil
-		}
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+		setupModifyUserMocks(ds, adminUser)
 		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 			return nil
 		}
@@ -1709,7 +1663,6 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 			return nil
 		}
 
-		// Change from admin to admin (no actual demotion)
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 		})
@@ -1719,30 +1672,15 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 	})
 
 	t.Run("prevents demoting last global admin even if api-only user", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		adminUser := newAdminTestUser(nil)
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 
-		adminUser := &fleet.User{
-			ID:         1,
-			Email:      "admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    false,
-		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
-
-		apiOnlyAdmin := &fleet.User{
-			ID:         2,
-			Email:      "api-admin@example.com",
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-			APIOnly:    true,
-		}
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{}, nil
-		}
-		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return apiOnlyAdmin, nil
-		}
+		apiOnlyAdmin := newAdminTestUser(&adminTestUserOpts{
+			id:      2,
+			email:   "api-admin@example.com",
+			apiOnly: true,
+		})
+		setupModifyUserMocks(ds, apiOnlyAdmin)
 		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
 			return 1, nil
 		}

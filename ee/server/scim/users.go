@@ -41,17 +41,23 @@ const (
 	departmentAttr                    = "department"
 )
 
+// ActivityCreator is the minimal interface required by UserHandler for creating activities.
+// This allows the SCIM package to depend only on what it needs from fleet.Service.
+type ActivityCreator interface {
+	NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+}
+
 type UserHandler struct {
-	ds     fleet.Datastore
-	svc    fleet.Service
-	logger kitlog.Logger
+	ds              fleet.Datastore
+	activityCreator ActivityCreator
+	logger          kitlog.Logger
 }
 
 // Compile-time check
 var _ scim.ResourceHandler = &UserHandler{}
 
-func NewUserHandler(ds fleet.Datastore, svc fleet.Service, logger kitlog.Logger) scim.ResourceHandler {
-	return &UserHandler{ds: ds, svc: svc, logger: logger}
+func NewUserHandler(ds fleet.Datastore, activityCreator ActivityCreator, logger kitlog.Logger) scim.ResourceHandler {
+	return &UserHandler{ds: ds, activityCreator: activityCreator, logger: logger}
 }
 
 func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
@@ -604,7 +610,7 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 		return ctxerr.Wrap(ctx, err, "delete fleet user")
 	}
 
-	if err := u.svc.NewActivity(
+	if err := u.activityCreator.NewActivity(
 		ctx,
 		nil,
 		fleet.ActivityTypeDeletedUser{

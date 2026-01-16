@@ -230,7 +230,7 @@ func TestDeleteBulkUsers(t *testing.T) {
 	}
 
 	// Create a map for looking up users by email
-	usersByEmail := make(map[string]*fleet.User)
+	usersByEmail := make(map[string]*fleet.User, len(users))
 	for i := range users {
 		usersByEmail[users[i].Email] = &users[i]
 	}
