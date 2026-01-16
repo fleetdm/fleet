@@ -1,1 +1,0 @@
-* Reworked Android pubsub endpoint validation to avoid retry loops when Android MDM is disabled
