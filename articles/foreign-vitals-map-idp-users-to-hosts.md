@@ -49,7 +49,6 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from Okta.
 9. Back in Okta, select **Save**.
 10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-> Enable **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** to keep users synced. When a user is deactivated in Okta, their Fleet account is deleted automatically. If reactivated in Okta, the account is recreated on next SSO login—no manual action needed.
 11. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
@@ -289,3 +288,7 @@ To verify that user information is added to a host, go to the host that has an I
 <meta name="articleTitle" value="Foreign vitals: map IdP users to hosts">
 <meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png">
 <meta name="category" value="guides">
+
+## Syncing users
+
+Enable **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** to keep users synced. When a user is deleted or deactivated, their Fleet account is deleted automatically. If reactivated in your IdP, the account is recreated on next SSO login—no manual action needed.
