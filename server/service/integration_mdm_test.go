@@ -297,7 +297,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		DBConns:               s.dbConns,
+		DBConns:                s.dbConns,
 		Logger:                 serverLogger,
 		FleetConfig:            &fleetCfg,
 		MDMStorage:             mdmStorage,
