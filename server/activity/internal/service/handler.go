@@ -47,3 +47,23 @@ func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) p
 		Activities: activities,
 	}
 }
+
+// fillListOptions sets default values for list options.
+// Note: IncludeMetadata is set internally by the service layer.
+func fillListOptions(opt *api.ListOptions) {
+	// Default ordering by created_at descending (newest first) if not specified
+	if opt.OrderKey == "" {
+		opt.OrderKey = "created_at"
+		opt.OrderDirection = api.OrderDesc
+	}
+	// Default PerPage based on whether pagination was requested
+	if opt.PerPage == 0 {
+		if opt.Page == 0 {
+			// No pagination requested - return all results (legacy behavior)
+			opt.PerPage = unlimitedPerPage
+		} else {
+			// Page specified without per_page - use sensible default
+			opt.PerPage = defaultPerPage
+		}
+	}
+}
