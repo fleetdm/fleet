@@ -480,7 +480,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				URL:                  "https://example.com/download/my-software.pkg",
 				Categories:           []string{"Browsers"},
 				FleetMaintainedAppID: ptr.Uint(1),
-				Slug:                 "fma1/darwin",
+				Slug:                 ptr.String("fma1/darwin"),
 			},
 			IconUrl: ptr.String("/api/icon1.png"),
 		}, nil
@@ -739,11 +739,9 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 	}
 }
 
-func TestGenerateGitops(t *testing.T) {
+func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
-
-		fmt.Printf("slug: %v\n", slug)
 
 		var versions []*ma.FMAManifestApp
 		versions = append(versions, &ma.FMAManifestApp{
@@ -771,8 +769,11 @@ func TestGenerateGitops(t *testing.T) {
 	}))
 	t.Cleanup(manifestServer.Close)
 	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+	t.Cleanup(func() { os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL") })
+}
 
+func TestGenerateGitops(t *testing.T) {
+	configureFMAManifestServer(t)
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
 	buf := new(bytes.Buffer)
@@ -799,39 +800,7 @@ func TestGenerateGitops(t *testing.T) {
 }
 
 func TestGenerateGitopsWithoutMDM(t *testing.T) {
-	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
-
-		fmt.Printf("slug: %v\n", slug)
-
-		var versions []*ma.FMAManifestApp
-		versions = append(versions, &ma.FMAManifestApp{
-			Version: "1",
-			Queries: ma.FMAQueries{
-				Exists: "SELECT 1 FROM osquery_info;",
-			},
-			InstallScriptRef:   "install_ref",
-			UninstallScriptRef: "uninstall_ref",
-
-			DefaultCategories: []string{"Productivity"},
-			Slug:              slug,
-		})
-
-		manifest := ma.FMAManifestFile{
-			Versions: versions,
-			Refs: map[string]string{
-				"install_ref":   "install",
-				"uninstall_ref": "uninstall",
-			},
-		}
-
-		err := json.NewEncoder(w).Encode(manifest)
-		require.NoError(t, err)
-	}))
-	t.Cleanup(manifestServer.Close)
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
-
+	configureFMAManifestServer(t)
 	fleetClient := &MockClient{WithoutMDM: true}
 	action := createGenerateGitopsAction(fleetClient)
 	buf := new(bytes.Buffer)
@@ -952,6 +921,7 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 }
 
 func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
+	configureFMAManifestServer(t)
 	fleetClient := &MockClient{}
 	cmd := &GenerateGitopsCommand{
 		Client:       fleetClient,
@@ -1339,6 +1309,7 @@ func TestGenerateControls(t *testing.T) {
 }
 
 func TestGenerateSoftware(t *testing.T) {
+	configureFMAManifestServer(t)
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
@@ -1831,39 +1802,7 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 }
 
 func TestSillyTeamNames(t *testing.T) {
-	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
-
-		fmt.Printf("slug: %v\n", slug)
-
-		var versions []*ma.FMAManifestApp
-		versions = append(versions, &ma.FMAManifestApp{
-			Version: "1",
-			Queries: ma.FMAQueries{
-				Exists: "SELECT 1 FROM osquery_info;",
-			},
-			InstallScriptRef:   "install_ref",
-			UninstallScriptRef: "uninstall_ref",
-
-			DefaultCategories: []string{"Productivity"},
-			Slug:              slug,
-		})
-
-		manifest := ma.FMAManifestFile{
-			Versions: versions,
-			Refs: map[string]string{
-				"install_ref":   "install",
-				"uninstall_ref": "uninstall",
-			},
-		}
-
-		err := json.NewEncoder(w).Encode(manifest)
-		require.NoError(t, err)
-	}))
-	t.Cleanup(manifestServer.Close)
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
-
+	configureFMAManifestServer(t)
 	sillyTeamNames := map[string]string{
 		"🫆": "🫆.yml",
 		"🪾": "🪾.yml",
