@@ -197,7 +197,6 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
 				}
 				meta.Status = summary
-
 			}
 			software.SoftwarePackage = meta
 		}
