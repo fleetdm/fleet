@@ -13,6 +13,7 @@ import (
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -539,7 +540,8 @@ func wasDeactivated(previous, current *bool) bool {
 }
 
 func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) error {
-	// Collect all emails from SCIM user (userName is often the email in many IdP configurations, e.g. Okta)
+	// Collect unique emails from SCIM user (userName is often the email in many IdP configurations, e.g. Okta).
+	// userName is added first so it's checked first when looking up Fleet users.
 	emails := make([]string, 0, len(scimUser.Emails)+1)
 
 	if strings.Contains(scimUser.UserName, "@") {
@@ -547,11 +549,10 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 	}
 
 	for _, e := range scimUser.Emails {
-		email := strings.ToLower(e.Email)
-		if !slices.Contains(emails, email) {
-			emails = append(emails, email)
-		}
+		emails = append(emails, strings.ToLower(e.Email))
 	}
+
+	emails = server.RemoveDuplicatesFromSlice(emails)
 
 	if len(emails) == 0 {
 		level.Debug(u.logger).Log("msg", "no emails found for scim user",
