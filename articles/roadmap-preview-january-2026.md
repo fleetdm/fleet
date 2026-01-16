@@ -21,8 +21,8 @@ In the next 3 months, Fleet will ship...
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
-- 📊 Vulnerability burn-down chart
-- 🚨 Critical issues heat map
+- 🦾 Create and manage local admin accounts
+- 🔐 "Least privilege" API-only users
 
 † To see the up-to-date roadmap, find the latest roadmap article in [Fleet's announcements](https://fleetdm.com/announcements).
 
