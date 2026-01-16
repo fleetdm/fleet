@@ -1328,7 +1328,7 @@ func TestGenerateSoftware(t *testing.T) {
 	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
-	var software map[string]interface{}
+	var software map[string]any
 	b, err := yaml.Marshal(softwareRaw)
 	require.NoError(t, err)
 	fmt.Println("software raw:\n", string(b)) // Debugging line
@@ -1338,7 +1338,7 @@ func TestGenerateSoftware(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSoftware.yaml")
 	require.NoError(t, err)
-	var expectedSoftware map[string]interface{}
+	var expectedSoftware map[string]any
 	err = yaml.Unmarshal(b, &expectedSoftware)
 	require.NoError(t, err)
 
@@ -1364,7 +1364,7 @@ func TestGenerateSoftware(t *testing.T) {
 	}
 
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-software-package-darwin-preinstallquery.yml"]; ok {
-		require.Equal(t, []map[string]interface{}{{
+		require.Equal(t, []map[string]any{{
 			"query": "SELECT * FROM pre_install_query",
 		}}, fileContents)
 	} else {
@@ -1378,7 +1378,7 @@ func TestGenerateSoftware(t *testing.T) {
 	}
 
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-fma-darwin-preinstallquery.yml"]; ok {
-		require.Equal(t, []map[string]interface{}{{
+		require.Equal(t, []map[string]any{{
 			"query": "SELECT * FROM pre_install_query",
 		}}, fileContents)
 	} else {
