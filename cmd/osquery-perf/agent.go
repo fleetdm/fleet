@@ -2768,7 +2768,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					if len(teamIdentifier) > 10 {
 						teamIdentifier = teamIdentifier[:10]
 					}
-					cdhashSHA256 := fmt.Sprintf("%x", sha1.Sum([]byte(installedPath)))
+					cdhashSHA256 := fmt.Sprintf("%x", sha1.Sum([]byte(installedPath))) // cdhash returns 40 characters, matching the length of the sha1 here
 					results = append(results, map[string]string{
 						"path":            installedPath,
 						"team_identifier": teamIdentifier,
