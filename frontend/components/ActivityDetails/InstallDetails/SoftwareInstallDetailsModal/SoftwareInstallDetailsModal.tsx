@@ -63,6 +63,7 @@ interface IInstallStatusMessage {
   installResult?: ISoftwareInstallResult;
   isMyDevicePage: boolean;
   contactUrl?: string;
+  hasInstalledVersions?: boolean;
 }
 
 // TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
@@ -72,6 +73,7 @@ export const StatusMessage = ({
   installResult,
   isMyDevicePage,
   contactUrl,
+  hasInstalledVersions,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
@@ -96,6 +98,26 @@ export const StatusMessage = ({
     updated_at,
     created_at,
   } = installResult;
+
+  // Treat failed_install / failed_uninstall as installed
+  // when the host still reports installed versions (4.82 #31663)
+  const isActuallyInstalled =
+    ["failed_install", "failed_uninstall"].includes(status || "") &&
+    hasInstalledVersions;
+
+  if (isActuallyInstalled) {
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName="success"
+        message={
+          <span>
+            <b>{softwareName}</b> is installed.
+          </span>
+        }
+      />
+    );
+  }
 
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -308,9 +330,19 @@ export const SoftwareInstallDetailsModal = ({
     );
   };
 
-  const excludeVersions = ["pending_install", "failed_install"].includes(
+  // Hide version section for pending installs only
+  const excludeVersions = ["pending_install"].includes(
     swInstallResult?.status || ""
   );
+
+  const hasInstalledVersions = !!hostSoftware?.installed_versions?.length;
+
+  // Hide failed details if host shows installed versions (4.82 #31663)
+  const excludeInstallDetails =
+    hasInstalledVersions &&
+    ["failed_install", "failed_uninstall"].includes(
+      swInstallResult?.status || ""
+    );
 
   const hostDisplayname =
     swInstallResult?.host_display_name || detailsFromProps.host_display_name;
@@ -379,10 +411,13 @@ export const SoftwareInstallDetailsModal = ({
           } // will always be defined at this point
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
+          hasInstalledVersions={!!hostSoftware?.installed_versions?.length}
         />
 
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-        {isInstalledByFleet && renderInstallDetailsSection()}
+        {isInstalledByFleet &&
+          !excludeInstallDetails &&
+          renderInstallDetailsSection()}
       </div>
     );
   };

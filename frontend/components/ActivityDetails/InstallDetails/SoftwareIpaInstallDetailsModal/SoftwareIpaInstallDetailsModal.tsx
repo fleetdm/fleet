@@ -46,6 +46,7 @@ interface IGetStatusMessageProps {
   appName: string;
   hostDisplayName: string;
   commandUpdatedAt: string;
+  hasInstalledVersions?: boolean;
 }
 
 export const getStatusMessage = ({
@@ -56,6 +57,7 @@ export const getStatusMessage = ({
   appName,
   hostDisplayName,
   commandUpdatedAt,
+  hasInstalledVersions,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const displayTimeStamp =
@@ -116,6 +118,21 @@ export const getStatusMessage = ({
         The MDM command (request) to install <b>{appName}</b>
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. Please re-attempt this installation.
+      </>
+    );
+  }
+
+  // Treat failed_install / failed_uninstall as installed
+  // when the host still reports installed versions (4.82 #31663)
+  // Note: Currently no uninstall IPA but added for symmetry with SoftwareInstallDetailsModal
+  const isActuallyInstalled =
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "") &&
+    hasInstalledVersions;
+
+  if (isActuallyInstalled) {
+    return (
+      <>
+        <b>{appName}</b> is installed.
       </>
     );
   }
@@ -292,9 +309,20 @@ export const SoftwareIpaInstallDetailsModal = ({
   const isMDMStatusNotNow = swInstallResult?.status === "NotNow";
   const isMDMStatusAcknowledged = swInstallResult?.status === "Acknowledged";
 
-  const excludeVersions =
-    !deviceAuthToken &&
-    ["pending_install", "failed_install", "pending"].includes(displayStatus);
+  // Hide version section for pending installs only
+  const excludeVersions = ["pending_install", "pending"].includes(
+    swInstallResult?.status || ""
+  );
+
+  const hasInstalledVersions = !!hostSoftware?.installed_versions?.length;
+
+  // Hide failed details if host shows installed versions (4.82 #31663)
+  // Note: Currently no uninstall IPA but added for symmetry with SoftwareInstallDetailsModal
+  const excludeInstallDetails =
+    hasInstalledVersions &&
+    ["failed_install", "failed_uninstall"].includes(
+      swInstallResult?.status || ""
+    );
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
@@ -308,6 +336,7 @@ export const SoftwareIpaInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: swInstallResult?.updated_at || "",
+    hasInstalledVersions,
   });
 
   const renderInventoryVersionsSection = () => {
@@ -388,6 +417,7 @@ export const SoftwareIpaInstallDetailsModal = ({
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&
+          !excludeInstallDetails &&
           renderInstallDetailsSection()}
       </div>
     );
