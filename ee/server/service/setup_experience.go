@@ -19,6 +19,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 		return err
 	}
 
+	macosHasManualAgentInstall := false
 	var teamName string
 	if teamID == 0 {
 		teamName = ""
@@ -26,18 +27,18 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting app config")
 		}
-		if ac.MDM.MacOSSetup.ManualAgentInstall.Value && len(titleIDs) != 0 {
-			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable manual_agent_install."), http.StatusUnprocessableEntity)
-		}
+		macosHasManualAgentInstall = ac.MDM.MacOSSetup.ManualAgentInstall.Value
 	} else {
 		team, err := svc.ds.TeamLite(ctx, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "load team")
 		}
 		teamName = team.Name
-		if team.Config.MDM.MacOSSetup.ManualAgentInstall.Value && len(titleIDs) != 0 {
-			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable manual_agent_install."), http.StatusUnprocessableEntity)
-		}
+		macosHasManualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+	}
+
+	if macosHasManualAgentInstall && fleet.IsMacOSPlatform(platform) && len(titleIDs) != 0 {
+		return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable manual_agent_install."), http.StatusUnprocessableEntity)
 	}
 
 	if err := svc.ds.SetSetupExperienceSoftwareTitles(ctx, platform, teamID, titleIDs); err != nil {
