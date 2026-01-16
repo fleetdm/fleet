@@ -20,7 +20,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 
 1. [Create application in Okta](#step-1-create-application-in-okta)
 2. [Connect Okta to Fleet](#step-2-connect-okta-to-fleet)
-3. [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+3. [Map Okta users and groups to hosts in Fleet](#step-3-map-okta-users-and-groups-to-hosts-in-fleet)
 
 #### Step 1: Create application in Okta
 
@@ -52,7 +52,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 11. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
-#### Step 3: Map users and groups to hosts in Fleet
+#### Step 3: Map Okta users and groups to hosts in Fleet
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
 
@@ -78,7 +78,7 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 
 1. [Create enterprise application in Entra ID](#step-1-create-enterprise-application-in-entra-id)
 2. [Connect Entra ID to Fleet](#step-2-connect-entra-id-to-fleet)
-3. [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+3. [Map Entra users and groups to hosts in Fleet](#step-3-map-entra-users-and-groups-to-hosts-in-fleet)
 
 #### Step 1: Create enterprise application in Entra ID
 
@@ -97,7 +97,7 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 5. Select the **Test connection** button. You should see success message.
 6. Select **Create** and, after successful creation, you'll be redirected to the overview page.
 
-#### Step 3: Map users and groups to hosts in Fleet
+#### Step 3: Map Entra users and groups to hosts in Fleet
 
 1. From the side menu, select **Attribute mapping** and then select **Provision Microsoft Entra ID Groups**.
 ![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes-504x134@2x.png)    

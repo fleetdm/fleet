@@ -197,7 +197,12 @@ const InstallerDetailsWidget = ({
               {sha256.slice(0, 7)}&hellip;
             </TooltipWrapper>
             <div className={`${baseClass}__sha-copy-button`}>
-              <Button variant="icon" iconStroke onClick={onCopySha256}>
+              <Button
+                variant="icon"
+                size="small"
+                iconStroke
+                onClick={onCopySha256}
+              >
                 <Icon name="copy" />
               </Button>
             </div>

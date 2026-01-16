@@ -2232,8 +2232,8 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the added software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.
@@ -2277,8 +2277,8 @@ func (a ActivityDeletedAppStoreApp) ActivityName() string {
 func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is deleted from Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -2347,7 +2347,7 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
@@ -2377,8 +2377,8 @@ type ActivityEditedAppStoreApp struct {
 	SoftwareDisplayName string                    `json:"software_display_name"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
-	AutoUpdateStartTime *string                   `json:"auto_update_start_time,omitempty"`
-	AutoUpdateEndTime   *string                   `json:"auto_update_end_time,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -2389,8 +2389,8 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
 	return "Generated when an App Store app is updated in Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team on which this App Store app was updated, or ` + "`null`" + ` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or ` + "`null`" + `if it was updated on no team.
@@ -2398,8 +2398,8 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
 - "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
-- "auto_update_start_time": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
-- "auto_update_end_time": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 `, `{
   "software_title": "Logic Pro",
   "software_title_id": 123,
@@ -2421,8 +2421,8 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
   ]
   "software_display_name": "Logic Pro DAW"
   "auto_update_enabled": true
-  "auto_update_start_time": "22:00"
-  "auto_update_end_time": "02:00"
+  "auto_update_window_start": "22:00"
+  "auto_update_window_end": "02:00"
 }`
 }
 

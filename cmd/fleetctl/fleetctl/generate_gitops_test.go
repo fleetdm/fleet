@@ -894,11 +894,11 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 			require.True(t, ok)
 			assert.Equal(t, true, val)
 
-			start, ok := a["auto_update_start_time"]
+			start, ok := a["auto_update_window_start"]
 			require.True(t, ok)
 			assert.Equal(t, "01:00", start)
 
-			end, ok := a["auto_update_end_time"]
+			end, ok := a["auto_update_window_end"]
 			require.True(t, ok)
 			assert.Equal(t, "03:00", end)
 		}

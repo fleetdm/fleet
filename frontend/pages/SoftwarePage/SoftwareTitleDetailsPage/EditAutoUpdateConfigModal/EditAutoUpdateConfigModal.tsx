@@ -76,8 +76,8 @@ const EditAutoUpdateConfigModal = ({
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
   const [formData, setFormData] = useState<ISoftwareAutoUpdateConfigFormData>({
     autoUpdateEnabled: softwareTitle.auto_update_enabled || false,
-    autoUpdateStartTime: softwareTitle.auto_update_start_time || "",
-    autoUpdateEndTime: softwareTitle.auto_update_end_time || "",
+    autoUpdateStartTime: softwareTitle.auto_update_window_start || "",
+    autoUpdateEndTime: softwareTitle.auto_update_window_end || "",
     targetType: getTargetType(softwareTitle.app_store_app as IAppStoreApp),
     customTarget: getCustomTarget(softwareTitle.app_store_app as IAppStoreApp),
     labelTargets: generateSelectedLabels(
