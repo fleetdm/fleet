@@ -1831,6 +1831,39 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 }
 
 func TestSillyTeamNames(t *testing.T) {
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		fmt.Printf("slug: %v\n", slug)
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallScriptRef:   "install_ref",
+			UninstallScriptRef: "uninstall_ref",
+
+			DefaultCategories: []string{"Productivity"},
+			Slug:              slug,
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"install_ref":   "install",
+				"uninstall_ref": "uninstall",
+			},
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
 	sillyTeamNames := map[string]string{
 		"🫆": "🫆.yml",
 		"🪾": "🪾.yml",

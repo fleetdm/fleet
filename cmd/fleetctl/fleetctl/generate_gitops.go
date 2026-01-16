@@ -1507,7 +1507,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
 				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
 					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
-					Slug: softwareTitle.SoftwarePackage.Slug,
+					Slug: ptr.ValOrZero(softwareTitle.SoftwarePackage.Slug),
 				})
 				if err != nil {
 					return nil, err
