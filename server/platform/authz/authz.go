@@ -3,7 +3,10 @@
 // allowing bounded contexts to use authorization without coupling to legacy code.
 package authz
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // Action represents an authorization action.
 type Action string
@@ -23,4 +26,17 @@ type Authorizer interface {
 // Each bounded context defines its own authorization subjects that implement this interface.
 type AuthzTyper interface {
 	AuthzType() string
+}
+
+// Forbidden is an interface for authorization errors.
+// Errors implementing this interface indicate that the requested action was forbidden.
+type Forbidden interface {
+	error
+	Forbidden()
+}
+
+// IsForbidden returns true if the error (or any wrapped error) is a forbidden/authorization error.
+func IsForbidden(err error) bool {
+	var f Forbidden
+	return errors.As(err, &f)
 }
