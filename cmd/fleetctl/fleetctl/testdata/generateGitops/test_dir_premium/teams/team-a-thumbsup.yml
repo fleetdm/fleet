@@ -96,17 +96,19 @@ software:
     platform: ios
   fleet_maintained_apps:
   - categories:
-      - Browsers
+    - Browsers
+    icon:
+      path: "../lib/team-a-👍/icons/my-fma-darwin-icon.png"
+    labels_include_any:
+    - Label A
+    - Label B
+    post_install_script:
+      path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall"
+    pre_install_query:
+      path: "../lib/team-a-👍/queries/my-fma-darwin-preinstallquery.yml"
+    self_service: true
     setup_experience: true
     slug: fma1/darwin
-    labels_include_any:
-      - Label A
-      - Label B
-    post_install_script:
-      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
-    pre_install_query:
-      path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
-    self_service: true
   packages:
   - categories:
     - Browsers

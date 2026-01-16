@@ -7,6 +7,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +22,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
+
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 )
 
 type MockClient struct {
@@ -289,9 +293,9 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				Name:       "My FMA",
 				HashSHA256: ptr.String("fma-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					Name:                 "my-software.pkg",
+					Name:                 "my-fma.pkg",
 					Platform:             "darwin",
-					Version:              "13.37",
+					Version:              "1",
 					FleetMaintainedAppID: ptr.Uint(1),
 				},
 			},
@@ -468,9 +472,9 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 					LabelName: "Label B",
 				}},
 				PreInstallQuery:      "SELECT * FROM pre_install_query",
-				InstallScript:        "foo",
-				PostInstallScript:    "bar",
-				UninstallScript:      "baz",
+				InstallScript:        "install",
+				PostInstallScript:    "postinstall",
+				UninstallScript:      "uninstall",
 				SelfService:          true,
 				Platform:             "darwin",
 				URL:                  "https://example.com/download/my-software.pkg",
@@ -736,6 +740,39 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 }
 
 func TestGenerateGitops(t *testing.T) {
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		fmt.Printf("slug: %v\n", slug)
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallScriptRef:   "install_ref",
+			UninstallScriptRef: "uninstall_ref",
+
+			DefaultCategories: []string{"Productivity"},
+			Slug:              slug,
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"install_ref":   "install",
+				"uninstall_ref": "uninstall",
+			},
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
 	buf := new(bytes.Buffer)
@@ -762,6 +799,39 @@ func TestGenerateGitops(t *testing.T) {
 }
 
 func TestGenerateGitopsWithoutMDM(t *testing.T) {
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		fmt.Printf("slug: %v\n", slug)
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallScriptRef:   "install_ref",
+			UninstallScriptRef: "uninstall_ref",
+
+			DefaultCategories: []string{"Productivity"},
+			Slug:              slug,
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"install_ref":   "install",
+				"uninstall_ref": "uninstall",
+			},
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
 	fleetClient := &MockClient{WithoutMDM: true}
 	action := createGenerateGitopsAction(fleetClient)
 	buf := new(bytes.Buffer)
