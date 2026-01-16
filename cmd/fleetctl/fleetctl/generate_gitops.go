@@ -1522,7 +1522,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					return scriptModified && scriptContents != ""
 				}
 
-				return scriptContents == ""
+				return scriptContents != ""
 			}
 
 			// Only output install_script, post_install_script, uninstall_script, and
