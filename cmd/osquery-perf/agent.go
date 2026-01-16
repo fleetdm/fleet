@@ -2794,7 +2794,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					executablePath := installedPath + "/Contents/MacOS/" + strings.TrimSuffix(s["name"], ".app")
 					// Generate a mock sha256 hash based on the executable path for consistency
 					executableSHA256 := fmt.Sprintf("%x", sha1.Sum([]byte(executablePath)))
-					executableSHA256 = executableSHA256 + executableSHA256[:24]
+					executableSHA256 += executableSHA256[:24]
 					results = append(results, map[string]string{
 						"path":              installedPath,
 						"executable_path":   executablePath,
