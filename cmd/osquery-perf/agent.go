@@ -2768,9 +2768,37 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					if len(teamIdentifier) > 10 {
 						teamIdentifier = teamIdentifier[:10]
 					}
+					cdhashSHA256 := fmt.Sprintf("%x", sha1.Sum([]byte(installedPath)))
 					results = append(results, map[string]string{
 						"path":            installedPath,
 						"team_identifier": teamIdentifier,
+						"cdhash_sha256":   cdhashSHA256,
+					})
+				}
+			}
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_executable_sha256":
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			if len(cachedResults.software) > 0 {
+				for _, s := range cachedResults.software {
+					if s["source"] != "apps" {
+						continue
+					}
+					installedPath := s["installed_path"]
+					// Generate mock executable path
+					executablePath := installedPath + "/Contents/MacOS/" + strings.TrimSuffix(s["name"], ".app")
+					// Generate a mock sha256 hash based on the executable path for consistency
+					executableSHA256 := fmt.Sprintf("%x", sha1.Sum([]byte(executablePath)))
+					executableSHA256 = executableSHA256 + executableSHA256[:24]
+					results = append(results, map[string]string{
+						"path":              installedPath,
+						"executable_path":   executablePath,
+						"executable_sha256": executableSHA256,
 					})
 				}
 			}
