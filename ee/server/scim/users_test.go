@@ -431,12 +431,17 @@ func TestUserHandlerDelete(t *testing.T) {
 		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 			return nil, platform_mysql.NotFound("ScimUser")
 		}
+		// DeleteScimUser is still called to ensure triggerResendProfilesForIDPUserDeleted runs
+		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) error {
+			return platform_mysql.NotFound("ScimUser")
+		}
 
 		handler := mocks.newTestHandler()
 
 		req := httptest.NewRequest(http.MethodDelete, "/scim/v2/Users/999", nil)
 		err := handler.Delete(req, "999")
 		require.Error(t, err)
+		assert.True(t, mocks.ds.DeleteScimUserFuncInvoked, "DeleteScimUser should be called even when ScimUserByID returns not found")
 	})
 }
 

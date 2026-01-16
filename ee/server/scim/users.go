@@ -503,17 +503,18 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 
 	scimUser, err := u.ds.ScimUserByID(ctx, idUint)
 	if fleet.IsNotFound(err) {
-		level.Info(u.logger).Log("msg", "failed to find scim user to delete", "id", id)
-		return errors.ScimErrorResourceNotFound(id)
-	}
-	if err != nil {
+		// proceed with DeleteScimUser call which calls triggerResendProfilesForIDPUserDeleted even before checking if the user exists
+		level.Warn(u.logger).Log("msg", "scim user not found", "id", id)
+	} else if err != nil {
 		level.Error(u.logger).Log("msg", "failed to get scim user", "id", id, "err", err)
 		return err
 	}
 
-	if err := u.deleteMatchingFleetUser(ctx, scimUser); err != nil {
-		// Log but don't fail - SCIM deletion should still proceed
-		level.Error(u.logger).Log("msg", "failed to delete matching fleet user", "err", err)
+	if scimUser != nil {
+		if err := u.deleteMatchingFleetUser(ctx, scimUser); err != nil {
+			// Log but don't fail - SCIM deletion should still proceed
+			level.Error(u.logger).Log("msg", "failed to delete matching fleet user", "err", err)
+		}
 	}
 
 	err = u.ds.DeleteScimUser(ctx, idUint)
