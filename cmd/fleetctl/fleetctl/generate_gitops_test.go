@@ -1370,6 +1370,20 @@ func TestGenerateSoftware(t *testing.T) {
 	} else {
 		t.Fatalf("Expected file not found")
 	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-fma-darwin-postinstall"]; ok {
+		require.Equal(t, "postinstall", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-fma-darwin-preinstallquery.yml"]; ok {
+		require.Equal(t, []map[string]interface{}{{
+			"query": "SELECT * FROM pre_install_query",
+		}}, fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
 }
 
 // TestGenerateSoftwareScriptPackages tests that script packages (.sh and .ps1)

@@ -25,9 +25,9 @@ fleet_maintained_apps:
       - Label A
       - Label B
     post_install_script:
-      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
+      path: ../lib/some-team/scripts/my-fma-darwin-postinstall
     pre_install_query:
-      path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
+      path: ../lib/some-team/queries/my-fma-darwin-preinstallquery.yml
     self_service: true
 app_store_apps:
   - app_store_id: com.example.team-software
