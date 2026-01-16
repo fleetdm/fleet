@@ -36,12 +36,12 @@ Fleet provides comprehensive device management across the entire computing lifec
 | [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | ASM enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Windows enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Windows Autopilot | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Work Profile enrollment (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Windows Autopilot | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Work Profile enrollment (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🦆 |
 | Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Linux enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| iOS/iPadOS profile-based enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Account Driven User Enrollment (Apple) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| iOS/iPadOS profile-based enrollment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Account Driven User Enrollment (Apple) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
@@ -57,23 +57,23 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| Setup experience (macOS) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Setup experience (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | Setup experience (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Setup experience (Linux) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration Profiles (macOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration Profiles (iOS/iPadOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration Profiles (tvOS/VisionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Configuration Profiles (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Configuration Profiles (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Remote script execution | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Software deployment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration profiles (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| Configuration profiles (iOS/iPadOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| Configuration profiles (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
+| Configuration profiles (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration profiles (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Remote script execution | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| Software deployment | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 |
 | App Store app management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Custom package deployment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Custom package deployment | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | Fleet-maintained apps | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Disk encryption management (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Disk encryption management (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Disk encryption management (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Certificate management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Certificate management | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 
 ---
 
@@ -93,8 +93,8 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Hardware inventory | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Device status monitoring | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Geolocation tracking | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Activity feed | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Audit logs | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Activity feed | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Audit logs | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Custom dashboards | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Real-time alerts | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Historical data analysis | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
@@ -118,20 +118,20 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| OS update management (macOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| OS update management (iPhone/iPadOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| OS update management (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| OS update management (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| OS update management (iPhone/iPadOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| OS update management (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
 | OS update management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| OS update management (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Patch management | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| OS update management (Android) | 🥚 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Patch management | 🐣 | 🐣 | 🐣 | 🐣 | 🐥 |
 | Remote lock | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Remote restart | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Remote restart | 🐣 | 🐣 | 🐣 | 🐥 | 🐥 |
 | Remote support tools | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Self-service portal | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Self-service portal | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | Device health checks | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Maintenance windows | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| End user communications | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Maintenance windows | 🐣 | 🐣 | 🐣 | 🐣 | 🐥 |
+| End user communications | 🥚 | 🥚 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -150,7 +150,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Remote lock/wipe (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Device unenrollment | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 |
 | Offboarding audit trail | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Activation lock management | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Activation lock management | 🥚 | 🥚 | 🐥 | 🐥 | 🐥 |
 
 ---
 
