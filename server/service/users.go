@@ -586,25 +586,9 @@ func (r deleteUserResponse) Error() error { return r.Err }
 
 func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteUserRequest)
-
-	user, err := svc.DeleteUser(ctx, req.ID)
-	if err != nil {
+	if _, err := svc.DeleteUser(ctx, req.ID); err != nil {
 		return deleteUserResponse{Err: err}, nil
 	}
-
-	adminUser := authz.UserFromContext(ctx)
-	if err := svc.NewActivity(
-		ctx,
-		adminUser,
-		fleet.ActivityTypeDeletedUser{
-			UserID:    user.ID,
-			UserName:  user.Name,
-			UserEmail: user.Email,
-		},
-	); err != nil {
-		return deleteUserResponse{Err: err}, nil
-	}
-
 	return deleteUserResponse{}, nil
 }
 
@@ -630,6 +614,19 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error
 	}
 
 	if err := svc.ds.DeleteUser(ctx, id); err != nil {
+		return nil, err
+	}
+
+	adminUser := authz.UserFromContext(ctx)
+	if err := svc.NewActivity(
+		ctx,
+		adminUser,
+		fleet.ActivityTypeDeletedUser{
+			UserID:    user.ID,
+			UserName:  user.Name,
+			UserEmail: user.Email,
+		},
+	); err != nil {
 		return nil, err
 	}
 

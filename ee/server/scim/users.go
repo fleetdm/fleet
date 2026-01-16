@@ -602,6 +602,9 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 	level.Info(u.logger).Log("msg", "deleting fleet user via SCIM deletion",
 		"user_id", fleetUser.ID, "email", fleetUser.Email)
 
+	// TODO: Ideally this should go through a Users service/module instead of directly accessing
+	// the datastore. We're in the SCIM domain but accessing the Users datastore which belongs
+	// to the Users domain. This would require a larger refactor to introduce a Users module.
 	if err := u.ds.DeleteUser(ctx, fleetUser.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete fleet user")
 	}

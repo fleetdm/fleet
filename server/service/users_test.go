@@ -1531,6 +1531,12 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
 
 		_, err := svc.DeleteUser(ctx, adminUser.ID)
 		require.NoError(t, err)
@@ -1573,6 +1579,12 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 			return maintainerUser, nil
 		}
 		ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 			return nil
 		}
 
