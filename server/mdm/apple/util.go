@@ -34,10 +34,10 @@ func EncodeCertRequestPEM(cert *x509.CertificateRequest) []byte {
 	return pem.EncodeToMemory(pemBlock)
 }
 
-// GenerateRandomPin generates a `lenght`-digit PIN number that takes into
-// account the current time as described in rfc4226 (for one time passwords)
+// GenerateRandomPin generates a `length`-digit random PIN number
 //
-// The implementation details have been mostly taken from https://github.com/pquerna/otp
+// The implementation details for converting the randomness to a PIN
+// have been mostly taken from https://github.com/pquerna/otp
 func GenerateRandomPin(length int) (string, error) {
 	buf := make([]byte, 16)
 	_, err := rand.Read(buf)
