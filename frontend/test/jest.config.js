@@ -1,4 +1,5 @@
-import type { Config } from "jest";
+/* global TransformStream */
+/** @type {import('jest').Config} */
 
 const esModules = [
   "react-markdown",
@@ -26,7 +27,7 @@ const esModules = [
   "trim-lines",
 ].join("|");
 
-const config: Config = {
+const config = {
   rootDir: "../../",
   moduleDirectories: ["node_modules", "frontend"],
   testEnvironment: "jest-fixed-jsdom",
@@ -50,4 +51,4 @@ const config: Config = {
   },
 };
 
-export default config;
+module.exports = config;

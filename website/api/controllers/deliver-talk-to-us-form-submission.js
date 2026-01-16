@@ -81,6 +81,7 @@ module.exports = {
     if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
+    let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
 
     let contactInformation = {
       emailAddress: emailAddress,
@@ -89,7 +90,8 @@ module.exports = {
       // organization: organization, // Note: the user-provided organization is not used here because we're relying on the enrichment helper below to find the correct organization for this person.
       primaryBuyingSituation: primaryBuyingSituation === 'security-misc' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'it-misc' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'it-major-mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'it-gap-filler-mdm' ? 'IT - Gap-filler MDM' : primaryBuyingSituation === 'security-vm' ? 'Vulnerability management' : undefined,
       psychologicalStage: '4 - Has use case',
-      psychologicalStageChangeReason: 'Website - Contact forms'
+      psychologicalStageChangeReason: 'Website - Contact forms',
+      marketingAttributionCookie: attributionCookieOrUndefined
     };
 
     // If the user said they have 700+ hosts, Update/create a contact and account, and send them to the "Talk to us" Calendly event.

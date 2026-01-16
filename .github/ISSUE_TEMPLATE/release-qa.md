@@ -16,6 +16,11 @@ assignees: 'xpkoala,andreykizimenko'
 3. premium tests require license key (needs renewal) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
 4. premium tests require license key (active - Expires Sunday, January 1, 2023 12:00:00 AM) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjcyNTMxMjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6InByZW1pdW0iLCJpYXQiOjE2NDI1MjIxODF9.EGHQjIzM73YyMbnCruswzg360DEYCsDi9uz48YcDwQHq90BabGT5PIXRiculw79emGj5sk2aKgccTd2hU5J7Jw`
 
+# Database migration tests
+
+1. Create a [custom issue](https://github.com/fleetdm/confidential/issues/new?template=1-custom-request.md) tagged `:help-customers` in the confidential repo to run [cloud migration tests](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml) targeted off of the RC branch. Tests will be run off of [these environments](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud-tests).
+2. Once tests are complete, if migration duration for any environment takes more than 5 seconds, check logs to determine whether any single migration took more than 5 seconds, or if the entire process took more than 15 seconds. If either is the case and there is not already a progress indicator for the migration that updates at least every ten seconds, file an unreleased bug triaged to the team that created the migration to audit the migration and evaluate if progress updates or performance improvements are needed.
+
 # Smoke Tests
 Smoke tests are limited to core functionality and serve as a pre-release final review. If smoke tests are failing, a release cannot proceed.
 
