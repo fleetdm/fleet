@@ -31,7 +31,7 @@ func SetHostScriptResult(t *testing.T, ds fleet.Datastore, host *fleet.Host, exe
 	ctx := context.Background()
 	_, _, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: host.ID, ExecutionID: execID, Output: "a", ExitCode: exitCode,
-	})
+	}, nil) // nil = manual script run, not policy automation
 	require.NoError(t, err)
 }
 
@@ -69,7 +69,7 @@ func SetHostSoftwareInstallResult(t *testing.T, ds fleet.Datastore, host *fleet.
 		HostID:                host.ID,
 		InstallUUID:           execID,
 		InstallScriptExitCode: &exitCode,
-	})
+	}, nil)
 	require.NoError(t, err)
 }
 
@@ -108,7 +108,7 @@ func SetHostSoftwareUninstallResult(t *testing.T, ds fleet.Datastore, host *flee
 		HostID:      host.ID,
 		ExecutionID: execID,
 		ExitCode:    exitCode,
-	})
+	}, nil) // nil = manual/uninstall script, not policy automation
 	require.NoError(t, err)
 }
 

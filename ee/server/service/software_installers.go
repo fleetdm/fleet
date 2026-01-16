@@ -1883,6 +1883,11 @@ func (svc *Service) addZipPackageMetadata(ctx context.Context, payload *fleet.Up
 
 const (
 	batchSoftwarePrefix = "software_batch_"
+	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
+	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
+	// at each step. If the timeout is reached, they key expires in Redis and the batch process is considered
+	// abandoned by clients checking in on it.
+	keyExpireTime = 4 * time.Minute
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
@@ -1965,10 +1970,6 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		}
 	}
 
-	// keyExpireTime is the current maximum time supported for retrieving
-	// the result of a software by batch operation.
-	const keyExpireTime = 24 * time.Hour
-
 	requestUUID := uuid.NewString()
 	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime); err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetProcessing)
@@ -2000,6 +2001,14 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 
 	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
 	if err != nil {
+		// Return user-friendly message for generic not found error
+		if fleet.IsNotFound(err) {
+			// Must return low-level error in order to be properly handled upstream
+			return fleet.NewUserMessageError(
+				fmt.Errorf("%s isn't a supported Fleet-maintained app. See supported apps: https://fleetdm.com/learn-more-about/supported-fleet-maintained-app-slugs", *slug),
+				http.StatusNotFound,
+			)
+		}
 		return err
 	}
 	_, err = maintained_apps.Hydrate(ctx, app)
@@ -2143,6 +2152,14 @@ func (svc *Service) softwareBatchUpload(
 	installers := make([]*installerPayloadWithExtras, len(payloads))
 	toBeClosedTFRs := make([]*fleet.TempFileReader, len(payloads))
 
+	redisKeepalive := func() error {
+		return ctxerr.Wrap(
+			ctx,
+			svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime),
+			"failed to set batch processing keepalive",
+		)
+	}
+
 	for i, p := range payloads {
 		i, p := i, p
 
@@ -2285,10 +2302,12 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				var filename string
+				_ = redisKeepalive() // we would prefer to keep running the batch even if one keepalive to Redis fails
 				resp, tfr, err := downloadURLFn(ctx, p.URL)
 				if err != nil {
 					return err
 				}
+				_ = redisKeepalive()
 
 				installer.InstallerFile = tfr
 				toBeClosedTFRs[i] = tfr
@@ -2479,10 +2498,12 @@ func (svc *Service) softwareBatchUpload(
 	var inHouseInstallers, softwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	for _, payloadWithExtras := range installers {
 		payload := payloadWithExtras.UploadSoftwareInstallerPayload
+		_ = redisKeepalive()
 		if err := svc.storeSoftware(ctx, payload); err != nil {
 			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
 			return
 		}
+		_ = redisKeepalive()
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)
 			inHouseInstallers = append(inHouseInstallers, payloadWithExtras.ExtraInstallers...)

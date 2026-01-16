@@ -32,6 +32,6 @@ app_store_apps:
     setup_experience: true
   - app_store_id: com.example.ios-auto-update
     auto_update_enabled: true
-    auto_update_start_time: "01:00"
-    auto_update_end_time: "03:00"
+    auto_update_window_start: "01:00"
+    auto_update_window_end: "03:00"
     platform: ios
