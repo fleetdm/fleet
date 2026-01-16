@@ -1,0 +1,1 @@
+- Fleet UI: If the software is detected as installed on software library page, hide any Fleet install/uninstall failures from page. Admin can view these failures from host details > activities.

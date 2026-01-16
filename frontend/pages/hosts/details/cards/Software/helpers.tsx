@@ -212,6 +212,15 @@ export const getUiStatus = (
     return "never_ran_script";
   }
 
+  // 0.5 Treat failed install/uninstall as installed if versions still present as of 4.82 #31663
+  if (
+    (status === "failed_install" || status === "failed_uninstall") &&
+    installed_versions &&
+    installed_versions.length > 0
+  ) {
+    return "installed";
+  }
+
   // 1. Failed install states
   if (status === "failed_install") {
     if (
@@ -262,7 +271,7 @@ export const getUiStatus = (
     return isHostOnline ? "uninstalling" : "pending_uninstall";
   }
 
-  // **Recently_uninstalled check comes BEFORE update_available**
+  // Recently_uninstalled check comes BEFORE update_available
   if (status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
     if (newerDate === lastUninstallDate || recentUserActionDetected) {
