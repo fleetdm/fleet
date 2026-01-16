@@ -159,26 +159,28 @@ const IdentityProviderSection = () => {
   };
   return (
     <SettingsSection title="Identity provider (IdP)">
-      <PageDescription
-        content={
-          <>
-            Configure and manage integrations between Fleet and your identity
-            provider (IdP). Connecting your IdP enables mapping end users to
-            hosts and deleting{" "}
-            <TooltipWrapper
-              tipContent={
-                <>
-                  A <strong>Fleet user</strong> is considered an IT admin.
-                </>
-              }
-            >
-              Fleet users
-            </TooltipWrapper>{" "}
-            when they are removed from your IdP.
-          </>
-        }
-        variant="right-panel"
-      />
+      {isPremiumTier && (
+        <PageDescription
+          content={
+            <>
+              Configure and manage integrations between Fleet and your identity
+              provider (IdP). Connecting your IdP enables mapping end users to
+              hosts and deleting{" "}
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    A <strong>Fleet user</strong> is considered an IT admin.
+                  </>
+                }
+              >
+                Fleet users
+              </TooltipWrapper>{" "}
+              when they are removed from your IdP.
+            </>
+          }
+          variant="right-panel"
+        />
+      )}
       {renderContent()}
     </SettingsSection>
   );
