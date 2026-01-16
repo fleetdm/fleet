@@ -982,7 +982,7 @@ Can only be configured for all teams (`org_settings`).
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status [automations](https://fleetdm.com/docs/using-fleet/automations).
 
-- `interval` is how often policy and host status automations are triggered. Accepts values of `s` (seconds), `m` (minutes), and `h` (hours) (default: `24h`)
+- `interval` is how often policy and host status automations are triggered. Accepts values of `s` (seconds), `m` (minutes), and `h` (hours) (default: `"24h"`)
 
 #### activities_webhook
 
