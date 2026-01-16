@@ -5,6 +5,7 @@ import (
 	"compress/bzip2"
 	cryptorand "crypto/rand"
 	"crypto/sha1" // nolint:gosec
+	"crypto/sha256"
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
@@ -2793,8 +2794,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					// Generate mock executable path
 					executablePath := installedPath + "/Contents/MacOS/" + strings.TrimSuffix(s["name"], ".app")
 					// Generate a mock sha256 hash based on the executable path for consistency
-					executableSHA256 := fmt.Sprintf("%x", sha1.Sum([]byte(executablePath)))
-					executableSHA256 += executableSHA256[:24]
+					executableSHA256 := fmt.Sprintf("%x", sha256.Sum256([]byte(executablePath)))
 					results = append(results, map[string]string{
 						"path":              installedPath,
 						"executable_path":   executablePath,
