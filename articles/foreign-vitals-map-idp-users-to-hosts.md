@@ -291,4 +291,4 @@ To verify that user information is added to a host, go to the host that has an I
 
 ## Syncing users
 
-Enable **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** to keep users synced. When a user is deleted or deactivated, their Fleet account is deleted automatically. If reactivated in your IdP, the account is recreated on next SSO login—no manual action needed.
+After you verify your IdP is connected to Fleet, you can enable **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** to keep users synced. When a user is deleted or deactivated, their Fleet account is deleted automatically. If reactivated in your IdP, the account is recreated on next SSO login—no manual action needed.
