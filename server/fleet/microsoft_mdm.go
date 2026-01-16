@@ -1573,7 +1573,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	}
 
 	var commandStatus MDMDeliveryStatus
-	if len(cmds) == 0 {
+	if len(cmds) == 0 { // nolint: gocritic // Switch does not make sense for the else-if where we also check the Cmd name
 		commandStatus = MDMDeliveryPending
 	} else if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
 		status, ok := statuses[cmdWithSecret.CommandUUID]
