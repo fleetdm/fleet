@@ -125,7 +125,6 @@ func Test_logRoleChangeActivities(t *testing.T) {
 		},
 	}
 	ds := new(mock.Store)
-	// svc, ctx := newTestService(t, ds, nil, nil)
 	ctx := context.Background()
 	var activities []string
 	ds.NewActivityFunc = func(
