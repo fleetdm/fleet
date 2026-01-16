@@ -532,7 +532,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
 
-	_, err := svc.checkIfAndroidNotConfigured(ctx)
+	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict)
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +606,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	}, nil
 }
 
-func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.AppConfig, error) {
+func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context, statusOfError int) (*fleet.AppConfig, error) {
 	// This call uses cached_mysql implementation, so it's safe to call it multiple times
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -614,7 +614,7 @@ func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.App
 	}
 	if !appConfig.MDM.AndroidEnabledAndConfigured {
 		return nil, fleet.NewInvalidArgumentError("android",
-			"Android MDM is NOT configured").WithStatus(http.StatusConflict)
+			"Android MDM is NOT configured").WithStatus(statusOfError)
 	}
 	return appConfig, nil
 }

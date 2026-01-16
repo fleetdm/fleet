@@ -36,12 +36,12 @@ Fleet provides comprehensive device management across the entire computing lifec
 | [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | ASM enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Windows enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Windows Autopilot | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Work Profile enrollment (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Windows Autopilot | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Work Profile enrollment (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🦆 |
 | Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Linux enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| iOS/iPadOS profile-based enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Account Driven User Enrollment (Apple) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| iOS/iPadOS profile-based enrollment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Account Driven User Enrollment (Apple) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
@@ -57,23 +57,23 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| Setup experience (macOS) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Setup experience (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | Setup experience (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Setup experience (Linux) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration Profiles (macOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration Profiles (iOS/iPadOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration Profiles (tvOS/VisionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Configuration Profiles (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Configuration Profiles (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Remote script execution | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Software deployment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration profiles (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| Configuration profiles (iOS/iPadOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| Configuration profiles (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
+| Configuration profiles (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration profiles (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Remote script execution | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| Software deployment | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 |
 | App Store app management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Custom package deployment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Custom package deployment | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | Fleet-maintained apps | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Disk encryption management (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Disk encryption management (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Disk encryption management (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Certificate management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Certificate management | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 
 ---
 
@@ -93,8 +93,8 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Hardware inventory | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Device status monitoring | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Geolocation tracking | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Activity feed | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Audit logs | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Activity feed | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Audit logs | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Custom dashboards | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Real-time alerts | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Historical data analysis | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
@@ -118,20 +118,20 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| OS update management (macOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| OS update management (iPhone/iPadOS) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| OS update management (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| OS update management (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| OS update management (iPhone/iPadOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| OS update management (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
 | OS update management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| OS update management (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Patch management | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| OS update management (Android) | 🥚 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Patch management | 🐣 | 🐣 | 🐣 | 🐣 | 🐥 |
 | Remote lock | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Remote restart | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Remote restart | 🐣 | 🐣 | 🐣 | 🐥 | 🐥 |
 | Remote support tools | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Self-service portal | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Self-service portal | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | Device health checks | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Maintenance windows | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| End user communications | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Maintenance windows | 🐣 | 🐣 | 🐣 | 🐣 | 🐥 |
+| End user communications | 🥚 | 🥚 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -150,7 +150,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Remote lock/wipe (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Device unenrollment | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 |
 | Offboarding audit trail | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Activation lock management | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Activation lock management | 🥚 | 🥚 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -162,17 +162,17 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Platform | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| macOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| macOS | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | Windows | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (Ubuntu) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Linux (RHEL) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (Debian) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (Arch) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (SUSE) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Android | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| tvOS/visionOS/watchOS | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| iOS/iPadOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| ChromeOS | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Android | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| tvOS/visionOS/watchOS | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
+| iOS/iPadOS | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| ChromeOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -249,6 +249,46 @@ Choose the best description for the stage overall based on the mix of category m
 - Market Leading (Lovable in key areas, Complete elsewhere)
 
 Replace placeholders with the current assessment. Look at the overall mix of category maturities in the stage to determine the appropriate lifecycle stage.
+
+### Platform support maturity (per platform)
+
+Platform support maturity is determined by aggregating all platform-specific categories across all lifecycle stages (Enroll, Configure, Monitor, Maintain, Offboard). Use the following algorithm:
+
+1. **Identify all platform-specific categories**: Collect all categories from Enroll, Configure, Monitor, Maintain, and Offboard that apply to the platform (e.g., "macOS", "Windows", "Apple", "iOS/iPadOS", "Android", "Linux", "ChromeOS", or specific platform mentions).
+
+2. **Count maturity distribution**: Calculate the percentage of categories at each maturity level (🥚 🐣 🐥 🦆 🦢).
+
+3. **Apply maturity criteria**:
+   - 🥚 **Planned**: Platform is actively being researched with a few Planned categories identified, but no Minimal or higher categories exist yet
+   - 🐣 **Minimal**: 50%+ of categories are Planned/Minimal, with at least one Minimal category in a critical area (enrollment or basic configuration)
+   - 🐥 **Viable**: 50%+ of categories are at least Viable, AND enrollment is at least Viable, AND at least 2 out of 3 critical categories (enrollment, basic configuration, monitoring) are at least Viable, AND at least one category from Configure/Maintain/Monitor is at least Viable
+   - 🦆 **Complete**: 75%+ of categories are Complete, AND enrollment is at least Viable, AND all critical categories (enrollment, basic configuration, monitoring) are at least Viable
+   - 🦢 **Lovable**: 50%+ of categories are Complete/Lovable, AND key areas (enrollment, monitoring, or configuration) include at least one Lovable category
+
+4. **Critical categories** (must be considered):
+   - Enrollment (foundational - must be at least Viable for platform to be Viable+)
+   - Basic configuration (profiles or equivalent)
+   - Monitoring (device status or inventory)
+
+5. **Edge cases**:
+   - If a platform has very few categories (< 5), use qualitative judgment based on coverage of critical capabilities
+   - For platform variants (e.g., Linux distributions), consider both shared capabilities and platform-specific features
+
+**Example calculation for macOS**:
+- Categories: DEP/ABM enrollment (🦆), Account Driven User Enrollment (🐣), Setup experience (🐥), Configuration profiles (🐥), Disk encryption (🦆), OS update management (🐥), Remote lock/wipe (🦆)
+- Distribution: 43% Complete, 43% Viable, 14% Minimal
+- Enrollment: DEP/ABM enrollment (🦆) ✓
+- Critical categories: Enrollment (🦆) ✓, Basic configuration (🐥) ✓, Monitoring (🦆 via cross-platform) ✓ = 3/3 ✓
+- At least one Configure/Maintain/Monitor category Viable+: Multiple (Disk encryption, Remote lock/wipe, etc.) ✓
+- Result: 🐥 Viable (43% Complete, not 75%+ Complete, but all critical categories met)
+
+**Example calculation for Linux (Ubuntu)**:
+- Categories: Linux enrollment (🐥), Setup experience (Linux) (🐣), Disk encryption management (Linux) (🦆), OS update management (Linux) (🥚), Remote lock/wipe (Linux) (🦆)
+- Distribution: 40% Complete, 20% Viable, 20% Minimal, 20% Planned
+- Enrollment: Viable (🐥) ✓
+- Critical categories: Enrollment (🐥) ✓, Basic configuration (🐣) ✗, Monitoring (🦆 via cross-platform) ✓ = 2 out of 3 ✓
+- At least one Configure/Maintain/Monitor category Viable+: Disk encryption (🦆) and Remote lock/wipe (🦆) ✓
+- Result: 🐥 Viable (60% at least Viable, enrollment Viable, 2/3 critical categories Viable+)
 
 ### What to include in each stage section
 
