@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	activities_module "github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
@@ -164,8 +165,8 @@ func Test_logRoleChangeActivities(t *testing.T) {
 }
 
 func TestActivityWebhooks(t *testing.T) {
+	ctx := context.Background()
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
 	var webhookBody = fleet.ActivityWebhookPayload{}
 	webhookChannel := make(chan struct{}, 1)
 	fail429 := false
@@ -236,6 +237,8 @@ func TestActivityWebhooks(t *testing.T) {
 		return nil
 	}
 
+	activityModule := activities.NewActivityModule(ds, kitlog.NewNopLogger())
+
 	tests := []struct {
 		name    string
 		user    *fleet.User
@@ -279,7 +282,7 @@ func TestActivityWebhooks(t *testing.T) {
 				testUrl = tt.url
 				startTime := time.Now()
 				activity := ActivityTypeTest{Name: tt.name}
-				err := svc.NewActivity(ctx, tt.user, activity)
+				err := activityModule.NewActivity(ctx, tt.user, activity)
 				require.NoError(t, err)
 				select {
 				case <-time.After(1 * time.Second):
@@ -321,8 +324,8 @@ func TestActivityWebhooks(t *testing.T) {
 }
 
 func TestActivityWebhooksDisabled(t *testing.T) {
+	ctx := context.Background()
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
 	startMockServer := func(t *testing.T) string {
 		// create a test http server
 		srv := httptest.NewServer(
@@ -357,13 +360,14 @@ func TestActivityWebhooksDisabled(t *testing.T) {
 		assert.False(t, createdAt.After(time.Now()))
 		return nil
 	}
+	activityModule := activities.NewActivityModule(ds, kitlog.NewNopLogger())
 	activity := ActivityTypeTest{Name: "no webhook"}
 	user := &fleet.User{
 		ID:    1,
 		Name:  "testUser",
 		Email: "testUser@example.com",
 	}
-	require.NoError(t, svc.NewActivity(ctx, user, activity))
+	require.NoError(t, activityModule.NewActivity(ctx, user, activity))
 	require.True(t, ds.NewActivityFuncInvoked)
 	assert.Equal(t, user, activityUser)
 }

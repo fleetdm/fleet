@@ -608,12 +608,6 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
-	// NewActivity creates the given activity on the datastore.
-	//
-	// What we call "Activities" are administrative operations,
-	// logins, running a live query, etc.
-	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
-
 	// ListActivities lists the activities stored in the datastore.
 	//
 	// What we call "Activities" are administrative operations,

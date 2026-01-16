@@ -5,15 +5,32 @@ import (
 	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
+	"github.com/go-kit/log/level"
 )
 
 // GetSSOUser is the premium implementation of svc.GetSSOUser, it allows to
 // create users during the SSO flow the first time they log in if
 // config.SSOSettings.EnableJITProvisioning is `true`
-func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {
+func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (user *fleet.User, err error) {
+
+	defer func() {
+		if err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, nil, fleet.ActivityTypeUserFailedLogin{
+				Email:    auth.UserID(),
+				PublicIP: publicip.FromContext(ctx),
+			}); err != nil {
+				logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx),
+					"msg", "failed to generate failed login activity",
+				), level.Info)
+			}
+		}
+	}()
+
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
@@ -22,11 +39,11 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 	// despite the fact that svc.NewUser will also validate the
 	// email, we do it here to avoid hitting the database early if
 	// the email happens to be invalid.
-	if err := fleet.ValidateEmail(auth.UserID()); err != nil {
+	if err = fleet.ValidateEmail(auth.UserID()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating SSO response email")
 	}
 
-	user, err := svc.Service.GetSSOUser(ctx, auth)
+	user, err = svc.Service.GetSSOUser(ctx, auth)
 	var nfe fleet.NotFoundError
 	switch {
 	case err == nil:
@@ -40,7 +57,8 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		}
 
 		// Load custom roles from SSO attributes.
-		ssoRolesInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
+		var ssoRolesInfo fleet.SSORolesInfo
+		ssoRolesInfo, err = fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
 		}
@@ -72,7 +90,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 			return nil, ctxerr.Wrap(ctx, err, "save user")
 		}
 
-		if err := activities.LogRoleChangeActivities(ctx, svc.activitiesModule, user, oldGlobalRole, oldTeamsRoles, user); err != nil {
+		if err = activities.LogRoleChangeActivities(ctx, svc.activitiesModule, user, oldGlobalRole, oldTeamsRoles, user); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "log activities for role change")
 		}
 		return user, nil

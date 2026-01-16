@@ -27,7 +27,6 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
@@ -36,6 +35,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type mockActivitiesModule struct{}
+
+func (m *mockActivitiesModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	return nil
+}
 func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Service, context.Context) {
 	ds := new(mock.Store)
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -75,7 +79,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	}
 	t.Cleanup(func() { ts.Close() })
 
-	activitiesModule := activities.NewActivityModule(ds, logger)
+	activitiesModule := &mockActivitiesModule{}
 
 	freeSvc, err := service.NewService(
 		ctx,

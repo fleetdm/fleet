@@ -61,11 +61,6 @@ func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListActivities
 	return svc.ds.ListActivities(ctx, opt)
 }
 
-// TODO: delete
-func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-	return svc.activitiesModule.NewActivity(ctx, user, activity)
-}
-
 var automationActivityAuthor = "Fleet"
 
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
