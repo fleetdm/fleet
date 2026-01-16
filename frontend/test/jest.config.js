@@ -1,3 +1,4 @@
+/* global TransformStream */
 /** @type {import('jest').Config} */
 
 const esModules = [
