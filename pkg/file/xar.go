@@ -273,7 +273,6 @@ func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
 	decoder := xml.NewDecoder(zr)
 	decoder.Strict = false
 	decoder.CharsetReader = charset.NewReaderLabel
-
 	if err := decoder.Decode(&root); err != nil {
 		return root, fmt.Errorf("decode xar xml: %w", err)
 	}
