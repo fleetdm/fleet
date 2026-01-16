@@ -1567,18 +1567,45 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	statuses map[string]SyncMLCmd,
 	hostUUID string,
 ) (*MDMWindowsProfilePayload, error) {
-	status, ok := statuses[cmdWithSecret.CommandUUID]
-	if !ok {
-		return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(cmdWithSecret.RawCommand)
+	if err != nil {
+		return nil, err
 	}
-	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
-	var details []string
-	if status.Data != nil && commandStatus == MDMDeliveryFailed {
-		cmds, err := UnmarshallMultiTopLevelXMLProfile(cmdWithSecret.RawCommand)
-		if err != nil {
-			return nil, err
-		}
 
+	var commandStatus MDMDeliveryStatus
+	if len(cmds) == 0 {
+		commandStatus = MDMDeliveryPending
+	} else if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+		status, ok := statuses[cmdWithSecret.CommandUUID]
+		if !ok {
+			return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
+		}
+		commandStatus = WindowsResponseToDeliveryStatus(*status.Data)
+	} else {
+		// non atomic profile, loop over all commands to determine overall status
+		for _, cmd := range cmds {
+			status, ok := statuses[cmd.CmdID.Value]
+			if !ok {
+				return nil, fmt.Errorf("missing status for command %s", cmd.CmdID.Value)
+			}
+			cmdStatus := WindowsResponseToDeliveryStatus(*status.Data)
+			if cmdStatus == MDMDeliveryFailed {
+				// Failed always take precedence
+				commandStatus = MDMDeliveryFailed
+				break
+			} else if cmdStatus == MDMDeliveryPending && commandStatus != MDMDeliveryFailed {
+				// If we get pending, we set to pending unless we already have failed
+				commandStatus = MDMDeliveryPending
+			}
+		}
+		if commandStatus == "" {
+			// Only if command status was not set by failed or pending do we mark it as verifying
+			commandStatus = MDMDeliveryVerifying
+		}
+	}
+
+	var details []string
+	if commandStatus == MDMDeliveryFailed {
 		if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
 			// atomic profile
 			for _, nested := range cmds[0].ReplaceCommands {
