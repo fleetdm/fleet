@@ -162,16 +162,16 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Platform | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| macOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| macOS | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | Windows | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (Ubuntu) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (RHEL) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (Debian) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (Arch) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Linux (SUSE) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Android | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| tvOS/visionOS/watchOS | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| iOS/iPadOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Android | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
+| tvOS/visionOS/watchOS | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
+| iOS/iPadOS | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
 | ChromeOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
@@ -275,11 +275,12 @@ Platform support maturity is determined by aggregating all platform-specific cat
    - For platform variants (e.g., Linux distributions), consider both shared capabilities and platform-specific features
 
 **Example calculation for macOS**:
-- Categories: DEP/ABM enrollment (🦆), Setup experience (🦆), Configuration Profiles (🐥), OS update management (🐥), Remote lock/wipe (🦆), etc.
-- Distribution: ~30% Complete, ~50% Viable, ~20% other
-- Enrollment: Complete (🦆) ✓
-- Critical categories: All at least Viable ✓
-- Result: 🐥 Viable (majority Viable, but not 75%+ Complete)
+- Categories: DEP/ABM enrollment (🦆), Account Driven User Enrollment (🐣), Setup experience (🐥), Configuration profiles (🐥), Disk encryption (🦆), OS update management (🐥), Remote lock/wipe (🦆)
+- Distribution: 43% Complete, 43% Viable, 14% Minimal
+- Enrollment: DEP/ABM enrollment (🦆) ✓
+- Critical categories: Enrollment (🦆) ✓, Basic configuration (🐥) ✓, Monitoring (🦆 via cross-platform) ✓ = 3/3 ✓
+- At least one Configure/Maintain/Monitor category Viable+: Multiple (Disk encryption, Remote lock/wipe, etc.) ✓
+- Result: 🐥 Viable (43% Complete, not 75%+ Complete, but all critical categories met)
 
 **Example calculation for Linux (Ubuntu)**:
 - Categories: Linux enrollment (🐥), Setup experience (Linux) (🐣), Disk encryption management (Linux) (🦆), OS update management (Linux) (🥚), Remote lock/wipe (Linux) (🦆)
