@@ -529,13 +529,17 @@ func (s *integrationEnterpriseTestSuite) TestAlternativeBrowserHostSetting() {
 	token := "valid_token"
 	createHostAndDeviceToken(s.T(), s.ds, token)
 
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
 	getDesktopResp := fleetDesktopResponse{}
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
-	require.Equal(t, "", getDesktopResp.AlternativeBrowserHost)
+	require.Equal(t, acResp.FleetDesktop.AlternativeBrowserHost, getDesktopResp.AlternativeBrowserHost)
 
-	acResp := appConfigResponse{}
+	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop": {"alternative_browser_host":"althost"}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 

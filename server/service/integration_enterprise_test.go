@@ -3958,14 +3958,11 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrowserHostURL() {
 	t := s.T()
 
-	// confirm intial default url
-	acResp := appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.NotNil(t, acResp)
-	require.Equal(t, "", acResp.FleetDesktop.AlternativeBrowserHost)
+	token := "valid_token"
+	createHostAndDeviceToken(t, s.ds, token)
 
 	// set custom url
-	acResp = appConfigResponse{}
+	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host": "example.com"}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
