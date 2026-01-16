@@ -4085,7 +4085,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	)
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithinUpdateSchedule {
 		// Load software title.
-		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, host.TeamID, fleet.TeamFilter{})
+		teamID := host.TeamID
+		if teamID == nil {
+			teamID = ptr.Uint(0)
+		}
+		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, teamID, fleet.TeamFilter{})
 		if err != nil {
 			level.Error(logger).Log(
 				"msg", "software title by id",

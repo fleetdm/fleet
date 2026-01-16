@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
@@ -1903,4 +1904,493 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	}, http.StatusConflict)
 	txt = extractServerErrorText(res.Body)
 	require.Contains(t, txt, "already has an installer available for the No team team.")
+}
+
+func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	// Reset the VPP proxy data to what it was before this test
+	s.registerResetVPPProxyData(t)
+
+	// Set an iOS and iPadOS app on the VPP response.
+	s.appleVPPProxySrvData = map[string]string{
+		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"ios": {"bundleId": "app-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
+	}
+
+	vppAutoUpdateTest := func(t *testing.T, team *fleet.Team, host *fleet.Host, deviceClient *mdmtest.TestAppleMDMClient) {
+		if team.ID != 0 {
+			// Transfer host to team.
+			s.Do("POST", "/api/latest/fleet/hosts/transfer",
+				&addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+		}
+
+		// Add iOS VPP application.
+		iOSVPPApp := &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   "1",
+					Platform: fleet.IOSPlatform,
+				},
+			},
+		}
+
+		// Add iOS app to the team.
+		addAppResp := addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID:     &team.ID,
+			AppStoreID: iOSVPPApp.AdamID,
+			Platform:   iOSVPPApp.Platform,
+		}, http.StatusOK, &addAppResp)
+
+		// Add iPadOS VPP application.
+		iPadOSVPPApp := &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   "1",
+					Platform: fleet.IPadOSPlatform,
+				},
+			},
+		}
+
+		// Add iPadOS app to the team.
+		addAppResp = addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID:     &team.ID,
+			AppStoreID: iPadOSVPPApp.AdamID,
+			Platform:   iPadOSVPPApp.Platform,
+		}, http.StatusOK, &addAppResp)
+
+		// Get title ID of the VPP app.
+		var appTitleID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &appTitleID, `SELECT title_id FROM vpp_apps WHERE adam_id = '1' AND platform = ?`, host.Platform)
+		})
+		require.NotZero(t, appTitleID)
+
+		// Trigger install to the host
+		installResp := installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, appTitleID), &installSoftwareRequest{},
+			http.StatusAccepted, &installResp)
+
+		// iOS device acknowledges the InstallApplication command.
+		s.runWorker()
+		cmd, err := deviceClient.Idle()
+		require.NoError(t, err)
+		require.Equal(t, "InstallApplication", cmd.Command.RequestType)
+		// Acknowledge InstallApplication command
+		var fullCmd micromdm.CommandPayload
+		err = plist.Unmarshal(cmd.Raw, &fullCmd)
+		require.NoError(t, err)
+		installApplicationCommandUUID := cmd.CommandUUID
+		cmd, err = deviceClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+
+		// Fleet will return an InstalledApplicationList to verify the installation.
+		//
+		// iOS device processes such command, and simulates the software is
+		// installed by returning in the list.
+		s.runWorker()
+		cmd, err = deviceClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+		fullCmd = micromdm.CommandPayload{}
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+		cmd, err = deviceClient.AcknowledgeInstalledApplicationList(
+			deviceClient.UUID,
+			cmd.CommandUUID,
+			[]fleet.Software{
+				{
+					Name:             "App 1",
+					BundleIdentifier: "app-1",
+					Version:          "1.0.0",
+					Installed:        true,
+				},
+			},
+		)
+		require.NoError(t, err)
+
+		// Check activity is generated for the installation.
+		s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "from_auto_update": false, "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+				host.ID,
+				host.DisplayName(),
+				"App 1",
+				"1",
+				installApplicationCommandUUID,
+				fleet.SoftwareInstalled,
+				host.Platform,
+			),
+			0,
+		)
+
+		// Issue a refetch on the iOS host, and make sure the commands are queued.
+		triggerRefetch := func() {
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
+			commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
+			require.NoError(t, err)
+			require.Len(t, commands, 3)
+			assert.ElementsMatch(t, []fleet.HostMDMCommand{
+				{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+				{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+				{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+			}, commands)
+		}
+
+		handleRefetch := func(software []fleet.Software) {
+			s.runWorker()
+
+			// 1. InstalledApplicationList
+			cmd, err = deviceClient.Idle()
+			require.NoError(t, err)
+			require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+			fullCmd = micromdm.CommandPayload{}
+			err = plist.Unmarshal(cmd.Raw, &fullCmd)
+			require.NoError(t, err)
+			cmd, err = deviceClient.AcknowledgeInstalledApplicationList(
+				deviceClient.UUID,
+				cmd.CommandUUID,
+				software,
+			)
+			require.NoError(t, err)
+
+			// 2. CertificateList
+			cmd, err = deviceClient.Idle()
+			require.NoError(t, err)
+			require.Equal(t, "CertificateList", cmd.Command.RequestType)
+			var fullCmd micromdm.CommandPayload
+			err := plist.Unmarshal(cmd.Raw, &fullCmd)
+			require.NoError(t, err)
+			cmd, err = deviceClient.AcknowledgeCertificateList(deviceClient.UUID, cmd.CommandUUID, nil)
+			require.NoError(t, err)
+
+			// 3. DeviceInformation
+			cmd, err = deviceClient.Idle()
+			require.NoError(t, err)
+			require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+			fullCmd = micromdm.CommandPayload{}
+			err = plist.Unmarshal(cmd.Raw, &fullCmd)
+			require.NoError(t, err)
+			deviceName := "iPhone 17"
+			deviceProductName := "iPhone"
+			if host.Platform == "ipados" {
+				deviceName = "iPad 17"
+				deviceProductName = "iPad"
+			}
+			cmd, err = deviceClient.AcknowledgeDeviceInformation(deviceClient.UUID, cmd.CommandUUID, deviceName, deviceProductName, "America/Los_Angeles")
+			require.NoError(t, err)
+		}
+
+		// First refetch will populate the timezone of the device (because DeviceInformation command is always sent last in refetches).
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "1.0.0",
+				Installed:        true,
+			},
+		})
+
+		// Reload information after the refetch.
+		host, err = s.ds.Host(ctx, host.ID)
+		require.NoError(t, err)
+
+		// Second refetch should perform no auto updates of any kind (nothing configured yet).
+		triggerRefetch()
+		lastActivityID := s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(), "", 0,
+		)
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "1.0.0",
+				Installed:        true,
+			},
+		})
+		// No new activity is created (no update yet).
+		s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), "", lastActivityID) // no new activity yet
+
+		// Configure auto-updates on the VPP app on a time that is currently not now in America/Los_Angeles.
+		nowInLosAngeles, err := getCurrentLocalTimeInHostTimeZone(ctx, "America/Los_Angeles")
+		require.NoError(t, err)
+		endTime := nowInLosAngeles.Add(-1 * time.Minute)
+		startTime := endTime.Add(-1 * time.Hour)
+		startTimeHHMM := startTime.Format("15:04")
+		endTimeHHMM := endTime.Format("15:04")
+		var updateAppStoreAppResponsePayload updateAppStoreAppResponse
+		t.Logf("Time in America/Los_Angeles: %s, window = [%s, %s]", nowInLosAngeles, startTimeHHMM, endTimeHHMM)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", appTitleID), updateAppStoreAppRequest{
+			TeamID:              &team.ID,
+			AutoUpdateEnabled:   ptr.Bool(true),
+			AutoUpdateStartTime: ptr.String(startTimeHHMM),
+			AutoUpdateEndTime:   ptr.String(endTimeHHMM),
+		}, http.StatusOK, &updateAppStoreAppResponsePayload)
+
+		// Refetch should perform no auto updates of any kind because the host is not in the configured time window.
+		lastActivityID = s.lastActivityMatches(
+			fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", 0,
+		)
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "1.0.0",
+				Installed:        true,
+			},
+		})
+		// No new activity is created (no update yet).
+		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", lastActivityID) // no new activity yet
+
+		// Configure auto-updates on the VPP app on a time that is currently in America/Los_Angeles.
+		nowInLosAngeles, err = getCurrentLocalTimeInHostTimeZone(ctx, "America/Los_Angeles")
+		require.NoError(t, err)
+		startTime = nowInLosAngeles.Add(-30 * time.Minute)
+		endTime = endTime.Add(1 * time.Hour)
+		startTimeHHMM = startTime.Format("15:04")
+		endTimeHHMM = endTime.Format("15:04")
+		updateAppStoreAppResponsePayload = updateAppStoreAppResponse{}
+		t.Logf("Time in America/Los_Angeles: %s, window = [%s, %s]", nowInLosAngeles, startTimeHHMM, endTimeHHMM)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", appTitleID), updateAppStoreAppRequest{
+			TeamID:              &team.ID,
+			AutoUpdateEnabled:   ptr.Bool(true),
+			AutoUpdateStartTime: ptr.String(startTimeHHMM),
+			AutoUpdateEndTime:   ptr.String(endTimeHHMM),
+		}, http.StatusOK, &updateAppStoreAppResponsePayload)
+
+		// Refetch, but should not auto-update because the app is currently in the latest version.
+		lastActivityID = s.lastActivityMatches(
+			fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", 0,
+		)
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "1.0.0",
+				Installed:        true,
+			},
+		})
+		// No new activity is created (no update yet).
+		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", lastActivityID)
+
+		// Update latest version of the app in VPP (simulate the app being updated in Apple App Store).
+		s.appleVPPProxySrvData = map[string]string{
+			"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"ios": {"bundleId": "app-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
+		}
+
+		noopAuthenticator := func(bool) (string, error) { return "", nil } // authentication is tested elsewhere
+		err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
+		require.NoError(t, err)
+
+		// Spoof the previous installation time to skip the installed-1-hour-ago filtering.
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx, `UPDATE host_vpp_software_installs SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR);`)
+			return err
+		})
+
+		// Refetch, should not trigger auto-update because the app is not listed in the application list.
+		// This can happens when the app is in a state of downloaded but "still installing/initializing".
+		lastActivityID = s.lastActivityMatches(
+			fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", 0,
+		)
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{},
+		})
+		// No new activity is created (no update yet).
+		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", lastActivityID)
+
+		// Refetch, should not trigger auto-update because the app is listed but version is not provided in the application list.
+		// This can happens when the app is in a state of downloaded but "still installing/initializing".
+		lastActivityID = s.lastActivityMatches(
+			fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", 0,
+		)
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Installed:        true,
+			},
+		})
+		// No new activity is created (no update yet).
+		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", lastActivityID)
+
+		// Refetch, should not trigger auto-update because the app is listed with an invalid version string.
+		// Just testing we handle such scenario.
+		lastActivityID = s.lastActivityMatches(
+			fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", 0,
+		)
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "invalid",
+				Installed:        true,
+			},
+		})
+		// No new activity is created (no update yet).
+		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", lastActivityID)
+
+		// Refetch, should trigger auto-update because the app is currently not in the latest version.
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "1.0.0",
+				Installed:        true,
+			},
+		})
+
+		// iOS device acknowledges the InstallApplication command associated to the auto-update.
+		s.runWorker()
+		cmd, err = deviceClient.Idle()
+		require.NoError(t, err)
+		require.Equal(t, "InstallApplication", cmd.Command.RequestType)
+		// Acknowledge InstallApplication command
+		fullCmd = micromdm.CommandPayload{}
+		err = plist.Unmarshal(cmd.Raw, &fullCmd)
+		require.NoError(t, err)
+		installApplicationCommandUUID = cmd.CommandUUID
+		cmd, err = deviceClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+
+		// Fleet will return an InstalledApplicationList to verify the installation.
+		// Return the application with the latest version 2.0.0 (simulating the update was successful).
+		s.runWorker()
+		cmd, err = deviceClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+		fullCmd = micromdm.CommandPayload{}
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		require.Contains(t, cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix)
+		cmd, err = deviceClient.AcknowledgeInstalledApplicationList(
+			deviceClient.UUID,
+			cmd.CommandUUID,
+			[]fleet.Software{
+				{
+					Name:             "App 1",
+					BundleIdentifier: "app-1",
+					Version:          "2.0.0",
+					Installed:        true,
+				},
+			},
+		)
+		require.NoError(t, err)
+
+		// Check activity is generated for the installation.
+		lastActivityID = s.lastActivityMatches(
+			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(
+				// See `"from_auto_update": true`.
+				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "from_auto_update": true, "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+				host.ID,
+				host.DisplayName(),
+				"App 1",
+				"1",
+				installApplicationCommandUUID,
+				fleet.SoftwareInstalled,
+				host.Platform,
+			),
+			0,
+		)
+
+		// Trigger a refetch to refresh software inventory.
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "2.0.0",
+				Installed:        true,
+			},
+		})
+
+		// Check the host software inventory is updated.
+		software, _, err := s.ds.ListSoftware(ctx, fleet.SoftwareListOptions{
+			HostID: &host.ID,
+		})
+		require.NoError(t, err)
+		require.Len(t, software, 1)
+		require.Equal(t, "2.0.0", software[0].Version)
+
+		// Update latest version of the app in VPP again (simulate the app being updated in Apple App Store).
+		s.appleVPPProxySrvData = map[string]string{
+			"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"ios": {"bundleId": "app-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
+		}
+		err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
+		require.NoError(t, err)
+
+		// Refetch, should not trigger auto-update because the app was recently updated (in the last hour).
+		// Register the previous activity id for the install.
+		triggerRefetch()
+		handleRefetch([]fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "2.0.0",
+				Installed:        true,
+			},
+		})
+		// No new activity.
+		s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), "", lastActivityID)
+	}
+
+	// Create a team and a VPP token on it.
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+	s.setVPPTokenForTeam(team.ID)
+
+	// Enroll iOS device, and add serial number to fake Apple server (for VPP APIs).
+	iosHost, iosClientDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosClientDevice.SerialNumber)
+
+	t.Run("iphone-on-a-team", func(t *testing.T) {
+		vppAutoUpdateTest(t, team, iosHost, iosClientDevice)
+	})
+
+	// Enroll iPadOS device, and add serial number to fake Apple server (for VPP APIs).
+	ipadosHost, ipadosClientDevice := s.createAppleMobileHostThenEnrollMDM("ipados")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, ipadosClientDevice.SerialNumber)
+
+	t.Run("ipad-on-a-team", func(t *testing.T) {
+		vppAutoUpdateTest(t, team, ipadosHost, ipadosClientDevice)
+	})
+
+	// Enroll iOS device, and add serial number to fake Apple server (for VPP APIs).
+	iosHostNoTeam, iosClientDeviceNoTeam := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosClientDeviceNoTeam.SerialNumber)
+
+	// Set VPP token for "No team".
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
+		return err
+	})
+	s.setVPPTokenForTeam(0)
+
+	t.Run("iphone-on-no-team", func(t *testing.T) {
+		vppAutoUpdateTest(t, &fleet.Team{ID: 0}, iosHostNoTeam, iosClientDeviceNoTeam)
+	})
+
+	// Enroll iOS device, and add serial number to fake Apple server (for VPP APIs).
+	ipadosHostNoTeam, ipadosClientDeviceNoTeam := s.createAppleMobileHostThenEnrollMDM("ipados")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, ipadosClientDeviceNoTeam.SerialNumber)
+
+	t.Run("ipad-on-no-team", func(t *testing.T) {
+		vppAutoUpdateTest(t, &fleet.Team{ID: 0}, ipadosHostNoTeam, ipadosClientDeviceNoTeam)
+	})
 }

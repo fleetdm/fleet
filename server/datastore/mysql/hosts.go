@@ -5277,8 +5277,11 @@ func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, 
 // It only updates `hosts` table, other additional host information is ignored.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
-		level.Debug(ds.logger).Log("msg", "missing orbit_node_key to update host",
-			"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
+		// iOS/iPadOS hosts currently do not use/set orbit_node_key.
+		if host.Platform != "ios" && host.Platform != "ipados" {
+			level.Debug(ds.logger).Log("msg", "missing orbit_node_key to update host",
+				"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
+		}
 	}
 
 	sqlStatement := `
