@@ -13,7 +13,7 @@ In the next 3 months, Fleet will ship...
 - 🎡 See completed (past) and pending (upcoming) MDM commands
 - 🔧 Self-service scripts on macOS
 - 📡 Okta SCEP certificate deployment with dynamic challenge handling
-- 👨‍💻 More Fleet-maintained apps
+- 👨‍💻 More macOS and Windows Fleet-maintained apps
 - 🛠️ Fleet-maintained developer tools on macOS
 - 🎯 Smarter patching: Fleet auto-fills minimum version numbers in your policies
 - 🪟 Better Windows configuration profiles
