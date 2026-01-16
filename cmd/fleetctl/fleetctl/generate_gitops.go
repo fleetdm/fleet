@@ -1519,18 +1519,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 			shouldWriteScript := func(fmaID *uint, scriptContents string, scriptModified bool) bool {
 				if fmaID != nil {
-					if scriptModified {
-						return true
-					}
-
-					return false
+					return scriptModified && scriptContents != ""
 				}
 
-				if scriptContents != "" {
-					return true
-				}
-
-				return false
+				return scriptContents == ""
 			}
 
 			// Only output install_script, post_install_script, uninstall_script, and
