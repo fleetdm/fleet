@@ -2379,7 +2379,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 
 	// if the MDM enrollment profile was removed by a macOS host while offline or
 	// it silently unenrolled otherwise, try to turn MDM off to clear it properly.
-	if !enrolled && !installedFromDep && serverURL.String() == "" {
+	if (!enrolled && serverURL.String() == "") || (enrolled && mdmSolutionName != fleet.WellKnownMDMFleet) {
 		connected, err := ds.IsHostConnectedToFleetMDM(ctx, host)
 		if err != nil {
 			logger.Log("component", "service", "method", "ingestMDM", "err",
