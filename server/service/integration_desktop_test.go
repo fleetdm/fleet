@@ -522,3 +522,26 @@ func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
 	// A new failing request is not banned.
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
 }
+
+func (s *integrationEnterpriseTestSuite) TestAlternativeBrowserHostSetting() {
+	t := s.T()
+
+	token := "valid_token"
+	createHostAndDeviceToken(s.T(), s.ds, token)
+
+	getDesktopResp := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, "", getDesktopResp.AlternativeBrowserHost)
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop": {"alternative_browser_host":"althost"}}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	getDesktopResp = fleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, "althost", getDesktopResp.AlternativeBrowserHost)
+}

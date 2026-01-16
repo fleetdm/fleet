@@ -188,13 +188,13 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		transparencyURL = appConfig.FleetDesktop.TransparencyURL
 	}
 	// Fleet Premium license is required for server side alternative browser host URL
-	var alternativeBrowserHostURL string
+	var alternativeBrowserHost string
 	if lic.IsPremium() {
-		alternativeBrowserHostURL = appConfig.FleetDesktop.AlternativeBrowserHost
+		alternativeBrowserHost = appConfig.FleetDesktop.AlternativeBrowserHost
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{
 		TransparencyURL:        transparencyURL,
-		AlternativeBrowserHost: alternativeBrowserHostURL,
+		AlternativeBrowserHost: alternativeBrowserHost,
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {

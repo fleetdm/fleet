@@ -3958,7 +3958,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrowserHostURL() {
 	t := s.T()
 
-	// confirm intitial default url
+	// confirm intial default url
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)

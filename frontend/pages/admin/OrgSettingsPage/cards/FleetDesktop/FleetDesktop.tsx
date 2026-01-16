@@ -12,6 +12,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
 
 import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
+import TooltipWrapper from "../../../../../components/TooltipWrapper";
 
 interface IFleetDesktopFormData {
   transparencyURL: string;
@@ -70,7 +71,7 @@ const FleetDesktop = ({
   const getAlternativeBrowserHostUrlTooltip = () => (
     <>
       If you are using mTLS for your agent-server communication, specify an
-      alternative host URL to direct Fleet Desktop through.{" "}
+      alternative host to direct Fleet Desktop through.
       <CustomLink
         url="https://fleetdm.com/learn-more-about/alternative-browser-host"
         text="Learn more "
@@ -131,8 +132,11 @@ const FleetDesktop = ({
           }
         />
         <InputField
-          tooltip={getAlternativeBrowserHostUrlTooltip()}
-          label="Browser host"
+          label={
+            <TooltipWrapper tipContent={getAlternativeBrowserHostUrlTooltip()}>
+              Browser host
+            </TooltipWrapper>
+          }
           onChange={onInputChange}
           name="alternativeBrowserHost"
           value={formData.alternativeBrowserHost}

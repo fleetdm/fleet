@@ -1632,3 +1632,78 @@ func TestModifyEnableAnalytics(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidHostname(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hostname string
+		expected bool
+	}{
+		// Empty and basic cases
+		{name: "empty string", hostname: "", expected: false},
+
+		// Valid IPv4 addresses
+		{name: "valid IPv4 localhost", hostname: "127.0.0.1", expected: true},
+		{name: "valid IPv4 address", hostname: "192.168.1.1", expected: true},
+		{name: "valid IPv4 all zeros", hostname: "0.0.0.0", expected: true},
+		{name: "valid IPv4 broadcast", hostname: "255.255.255.255", expected: true},
+
+		// Valid IPv6 addresses
+		{name: "valid IPv6 localhost", hostname: "::1", expected: true},
+		{name: "valid IPv6 full", hostname: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", expected: true},
+		{name: "valid IPv6 compressed", hostname: "2001:db8::1", expected: true},
+		{name: "valid IPv6 all zeros", hostname: "::", expected: true},
+
+		// IPv6 with brackets
+		{name: "valid IPv6 localhost with brackets", hostname: "[::1]", expected: true},
+		{name: "valid IPv6 with brackets", hostname: "[2001:db8::1]", expected: true},
+		{name: "invalid brackets only", hostname: "[]", expected: false},
+		{name: "invalid empty brackets", hostname: "[", expected: false},
+
+		// Valid DNS hostnames
+		{name: "simple hostname", hostname: "localhost", expected: true},
+		{name: "hostname with subdomain", hostname: "api.example.com", expected: true},
+		{name: "hostname with multiple subdomains", hostname: "a.b.c.example.com", expected: true},
+		{name: "hostname with numbers", hostname: "server1.example.com", expected: true},
+		{name: "hostname starting with number", hostname: "1server.example.com", expected: true},
+		{name: "all numeric label", hostname: "123.example.com", expected: true},
+		{name: "hostname with hyphen", hostname: "my-server.example.com", expected: true},
+		{name: "hostname with multiple hyphens", hostname: "my-cool-server.example.com", expected: true},
+		{name: "single character label", hostname: "a.b.c", expected: true},
+		{name: "single character hostname", hostname: "a", expected: true},
+
+		// Invalid DNS hostnames - hyphen rules
+		{name: "label starting with hyphen", hostname: "-example.com", expected: false},
+		{name: "label ending with hyphen", hostname: "example-.com", expected: false},
+		{name: "label starting and ending with hyphen", hostname: "-example-.com", expected: false},
+		{name: "only hyphen label", hostname: "-.com", expected: false},
+
+		// Invalid DNS hostnames - special characters
+		{name: "hostname with underscore", hostname: "my_server.example.com", expected: false},
+		{name: "hostname with space", hostname: "my server.example.com", expected: false},
+		{name: "hostname with at symbol", hostname: "user@example.com", expected: false},
+		{name: "hostname with exclamation", hostname: "example!.com", expected: false},
+		{name: "hostname with colon (not IPv6)", hostname: "example:8080", expected: false},
+
+		// Invalid DNS hostnames - empty labels
+		{name: "empty label (double dot)", hostname: "example..com", expected: false},
+		{name: "leading dot", hostname: ".example.com", expected: false},
+		{name: "trailing dot only", hostname: "example.com.", expected: false},
+
+		// Length limits
+		{name: "label exactly 63 chars", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: true},
+		{name: "label 64 chars (too long)", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: false},
+
+		// Real-world examples
+		{name: "fleet server URL", hostname: "fleet.example.com", expected: true},
+		{name: "AWS endpoint", hostname: "s3.us-west-2.amazonaws.com", expected: true},
+		{name: "internal hostname", hostname: "db-primary-01.internal", expected: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isValidHostname(tc.hostname)
+			assert.Equal(t, tc.expected, result, "isValidHostname(%q) = %v, want %v", tc.hostname, result, tc.expected)
+		})
+	}
+}
