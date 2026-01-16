@@ -160,9 +160,10 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 		withUsers([]*activity.User{johnUser, janeUser}),
 	)
 
-	activities, _, err := ts.svc.ListActivities(ctx, api.ListOptions{})
+	activities, meta, err := ts.svc.ListActivities(ctx, api.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
+	assert.Nil(t, meta)
 
 	// Verify user IDs were passed to UsersByIDs
 	assert.ElementsMatch(t, []uint{johnUser.ID, janeUser.ID}, ts.users.lastIDs)
@@ -208,10 +209,16 @@ func TestListActivitiesWithMatchQuery(t *testing.T) {
 		withUsers([]*activity.User{johnUser}),
 	)
 
-	_, _, err := ts.svc.ListActivities(ctx, api.ListOptions{
+	activities, meta, err := ts.svc.ListActivities(ctx, api.ListOptions{
 		MatchQuery: "john",
 	})
 	require.NoError(t, err)
+
+	// Verify the activity was returned and enriched
+	require.Len(t, activities, 1)
+	assert.Equal(t, uint(1), activities[0].ID)
+	assert.Equal(t, johnUser.Email, *activities[0].ActorEmail)
+	assert.Nil(t, meta, "metadata not configured in test setup")
 
 	// Verify FindUserIDs was called with the query
 	assert.Equal(t, "john", ts.users.lastQuery)
@@ -232,11 +239,12 @@ func TestListActivitiesWithMatchQueryNoMatchingUsers(t *testing.T) {
 		withSearchUserIDs([]uint{}),       // No users match "nonexistent"
 	)
 
-	activities, _, err := ts.svc.ListActivities(ctx, api.ListOptions{
+	activities, meta, err := ts.svc.ListActivities(ctx, api.ListOptions{
 		MatchQuery: "nonexistent",
 	})
 	require.NoError(t, err)
 	assert.Empty(t, activities)
+	assert.Nil(t, meta)
 
 	// Verify FindUserIDs was called
 	assert.Equal(t, "nonexistent", ts.users.lastQuery)
@@ -260,9 +268,10 @@ func TestListActivitiesWithDuplicateUserIDs(t *testing.T) {
 		withUsers([]*activity.User{johnUser}),
 	)
 
-	activities, _, err := ts.svc.ListActivities(ctx, api.ListOptions{})
+	activities, meta, err := ts.svc.ListActivities(ctx, api.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
+	assert.Nil(t, meta)
 
 	// UsersByIDs should only be called with unique IDs (deduplication)
 	assert.Equal(t, []uint{johnUser.ID}, ts.users.lastIDs)
@@ -302,61 +311,44 @@ func TestListActivitiesCursorPaginationMetadata(t *testing.T) {
 }
 
 // TestListActivitiesErrors consolidates all error handling tests.
-// These test graceful degradation: some errors fail the request, others are logged and continue.
 func TestListActivitiesErrors(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name           string
-		opts           []func(*testSetup)
-		listOpts       api.ListOptions
-		wantErr        bool
-		errContains    string
-		wantActivities int
-		checkFunc      func(t *testing.T, ts *testSetup, activities []*api.Activity)
+		name        string
+		opts        []func(*testSetup)
+		listOpts    api.ListOptions
+		errContains string
 	}{
 		{
 			name:        "authorization denied",
 			opts:        []func(*testSetup){withAuthError(errors.New("forbidden"))},
-			wantErr:     true,
 			errContains: "forbidden",
 		},
 		{
 			name:        "datastore error",
 			opts:        []func(*testSetup){withDatastoreError(errors.New("database error"))},
-			wantErr:     true,
 			errContains: "database error",
 		},
 		{
-			name: "user enrichment error - graceful degradation",
+			name: "user enrichment error",
 			opts: []func(*testSetup){
 				withActivities([]*api.Activity{
 					{ID: 1, Type: "test_activity", ActorID: ptr.Uint(100)},
 				}),
 				withUsersByIDsError(errors.New("user service error")),
 			},
-			wantErr:        false,
-			wantActivities: 1,
-			checkFunc: func(t *testing.T, ts *testSetup, activities []*api.Activity) {
-				// User data not enriched due to error
-				assert.Nil(t, activities[0].ActorEmail)
-				assert.Nil(t, activities[0].ActorGravatar)
-			},
+			errContains: "user service error",
 		},
 		{
-			name: "search users error - graceful degradation",
+			name: "search users error",
 			opts: []func(*testSetup){
 				withActivities([]*api.Activity{
 					{ID: 1, Type: "test_activity"},
 				}),
 				withSearchError(errors.New("search error")),
 			},
-			listOpts:       api.ListOptions{MatchQuery: "john"},
-			wantErr:        false,
-			wantActivities: 1,
-			checkFunc: func(t *testing.T, ts *testSetup, activities []*api.Activity) {
-				// MatchingUserIDs should be nil (search failed)
-				assert.Nil(t, ts.ds.lastOpt.MatchingUserIDs)
-			},
+			listOpts:    api.ListOptions{MatchQuery: "john"},
+			errContains: "search error",
 		},
 	}
 
@@ -367,20 +359,10 @@ func TestListActivitiesErrors(t *testing.T) {
 
 			activities, meta, err := ts.svc.ListActivities(ctx, tc.listOpts)
 
-			if tc.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.errContains)
-				assert.Nil(t, activities)
-				assert.Nil(t, meta)
-				return
-			}
-
-			require.NoError(t, err)
-			assert.Len(t, activities, tc.wantActivities)
-
-			if tc.checkFunc != nil {
-				tc.checkFunc(t, ts, activities)
-			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errContains)
+			assert.Nil(t, activities)
+			assert.Nil(t, meta)
 		})
 	}
 }
