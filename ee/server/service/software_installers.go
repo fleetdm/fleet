@@ -2162,6 +2162,29 @@ func (svc *Service) softwareBatchUpload(
 		)
 	}
 
+	// startRedisKeepalive starts a goroutine that periodically calls redisKeepalive
+	// every (keyExpireTime - 1 second) to prevent the Redis key from expiring during
+	// long-running operations. It returns a stop function that must be called when
+	// the operation completes.
+	startRedisKeepalive := func() (stop func()) {
+		done := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(keyExpireTime - time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+					_ = redisKeepalive()
+				}
+			}
+		}()
+		return func() {
+			close(done)
+		}
+	}
+
 	for i, p := range payloads {
 		i, p := i, p
 
@@ -2304,12 +2327,12 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				var filename string
-				_ = redisKeepalive() // we would prefer to keep running the batch even if one keepalive to Redis fails
+				stopKeepalive := startRedisKeepalive()
 				resp, tfr, err := downloadURLFn(ctx, p.URL)
+				stopKeepalive()
 				if err != nil {
 					return err
 				}
-				_ = redisKeepalive()
 
 				installer.InstallerFile = tfr
 				toBeClosedTFRs[i] = tfr
@@ -2500,12 +2523,13 @@ func (svc *Service) softwareBatchUpload(
 	var inHouseInstallers, softwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	for _, payloadWithExtras := range installers {
 		payload := payloadWithExtras.UploadSoftwareInstallerPayload
-		_ = redisKeepalive()
-		if err := svc.storeSoftware(ctx, payload); err != nil {
+		stopKeepalive := startRedisKeepalive()
+		err := svc.storeSoftware(ctx, payload)
+		stopKeepalive()
+		if err != nil {
 			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
 			return
 		}
-		_ = redisKeepalive()
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)
 			inHouseInstallers = append(inHouseInstallers, payloadWithExtras.ExtraInstallers...)
