@@ -12,6 +12,7 @@ import {
 } from "interfaces/software";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";

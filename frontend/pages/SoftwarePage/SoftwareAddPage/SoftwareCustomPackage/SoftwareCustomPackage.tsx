@@ -6,6 +6,7 @@ import PATHS from "router/paths";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { NotificationContext } from "context/notification";
