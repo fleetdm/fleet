@@ -2382,7 +2382,8 @@ When updating conditional access config, all `conditional_access` fields must ei
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
-    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "bypass_disabled": false
   }
 }
 ```
