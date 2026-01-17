@@ -8,6 +8,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import isFDQN from "validator/lib/isFQDN";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
 
@@ -54,7 +55,7 @@ const FleetDesktop = ({
   };
 
   const validateForm = () => {
-    const { transparencyURL } = formData;
+    const { transparencyURL, alternativeBrowserHost } = formData;
 
     const errors: IFleetDesktopFormErrors = {};
 
@@ -63,6 +64,10 @@ const FleetDesktop = ({
       !validUrl({ url: transparencyURL, protocols: ["http", "https"] })
     ) {
       errors.transparencyURL = `Custom transparency URL must include protocol (e.g. https://)`;
+    }
+
+    if (alternativeBrowserHost && !isFDQN(alternativeBrowserHost)) {
+      errors.alternativeBrowserHost = `Browser host must be a valid hostname`;
     }
 
     setFormErrors(errors);
@@ -138,6 +143,7 @@ const FleetDesktop = ({
             </TooltipWrapper>
           }
           onChange={onInputChange}
+          onBlur={validateForm}
           name="alternativeBrowserHost"
           value={formData.alternativeBrowserHost}
           parseTarget
