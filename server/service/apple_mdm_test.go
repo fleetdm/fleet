@@ -1756,7 +1756,7 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 
 func TestMDMCheckout(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), &mockActivitiesModule{})
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
