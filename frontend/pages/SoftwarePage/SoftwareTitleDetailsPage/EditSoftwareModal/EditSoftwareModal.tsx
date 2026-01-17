@@ -12,10 +12,6 @@ import {
 } from "interfaces/software";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
-import softwareAPI, {
-  MAX_FILE_SIZE_BYTES,
-  MAX_FILE_SIZE_MB,
-} from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -202,15 +198,6 @@ const EditSoftwareModal = ({
   // Edit package API call
   const onEditPackage = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
-
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      setIsUpdatingSoftware(false);
-      return;
-    }
 
     try {
       await softwareAPI.editSoftwarePackage({

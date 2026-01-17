@@ -2247,8 +2247,9 @@ func TestConfig() FleetConfig {
 			MaxSize:       500,
 		},
 		Server: ServerConfig{
-			PrivateKey:            "72414F4A688151F75D032F5CDA095FC4",
-			MaxInstallerSizeBytes: installersize.DefaultMaxInstallerSize,
+			PrivateKey: "72414F4A688151F75D032F5CDA095FC4",
+			// smaller than normal max to allow for testing max in CI, while being above the multipart chunk size
+			MaxInstallerSizeBytes: 513 * units.MiB,
 		},
 	}
 }
