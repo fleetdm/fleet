@@ -780,18 +780,6 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
     private_key_sts_external_id: your_unique_id
   ```
 
-### server_max_installer_size
-
-Maximum size for software installer uploads. Accepts human-readable size values with suffixes like `K`, `M`, `G`, `T` (binary, e.g., `10GiB` = 10 * 1024³ bytes) or `KB`, `MB`, `GB`, `TB` (decimal, e.g., `10GB` = 10 * 1000³ bytes). Plain numbers are interpreted as bytes.
-
-- Default value: `10GiB`
-- Environment variable: `FLEET_SERVER_MAX_INSTALLER_SIZE`
-- Config file format:
-  ```yaml
-  server:
-    max_installer_size: 10GiB
-  ```
-
 ## Auth
 
 ### auth_sso_session_validity_period
