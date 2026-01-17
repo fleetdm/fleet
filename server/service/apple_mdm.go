@@ -50,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
@@ -3325,14 +3326,15 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 ////////////////////////////////////////////////////////////////////////////////
 
 type MDMAppleCheckinAndCommandService struct {
-	ds              fleet.Datastore
-	logger          kitlog.Logger
-	commander       *apple_mdm.MDMAppleCommander
-	vppInstaller    fleet.AppleMDMVPPInstaller
-	mdmLifecycle    *mdmlifecycle.HostLifecycle
-	commandHandlers map[string][]fleet.MDMCommandResultsHandler
-	keyValueStore   fleet.KeyValueStore
-	isPremium       bool
+	ds               fleet.Datastore
+	logger           kitlog.Logger
+	commander        *apple_mdm.MDMAppleCommander
+	vppInstaller     fleet.AppleMDMVPPInstaller
+	mdmLifecycle     *mdmlifecycle.HostLifecycle
+	commandHandlers  map[string][]fleet.MDMCommandResultsHandler
+	keyValueStore    fleet.KeyValueStore
+	isPremium        bool
+	activitiesModule activities.ActivityModule
 }
 
 func NewMDMAppleCheckinAndCommandService(
@@ -3342,8 +3344,9 @@ func NewMDMAppleCheckinAndCommandService(
 	isPremium bool,
 	logger kitlog.Logger,
 	keyValueStore fleet.KeyValueStore,
+	activitiesModule activities.ActivityModule,
 ) *MDMAppleCheckinAndCommandService {
-	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
+	mdmLifecycle := mdmlifecycle.New(ds, logger, activitiesModule)
 	return &MDMAppleCheckinAndCommandService{
 		ds:              ds,
 		commander:       commander,
@@ -3557,13 +3560,13 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 		return err
 	}
 
-	return newActivity(
+	return svc.activitiesModule.NewActivity(
 		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
 			HostSerial:       info.HardwareSerial,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.InstalledFromDEP,
 			Platform:         info.Platform,
-		}, svc.ds, svc.logger,
+		},
 	)
 }
 
@@ -3826,7 +3829,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
 			act.FromSetupExperience = fromSetupExperience
-			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+			if err := svc.activitiesModule.NewActivity(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -63,7 +64,7 @@ func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uu
 func NewInstalledApplicationListResultsHandler(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger kitlog.Logger, activitiesModule activities.ActivityModule,
 	verifyTimeout, verifyRequestDelay time.Duration,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
@@ -176,7 +177,7 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "fetching data for installed app store app activity")
 			}
 
-			if err := newActivity(ctx, user, act, ds, logger); err != nil {
+			if err := activitiesModule.NewActivity(ctx, user, act); err != nil {
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
 

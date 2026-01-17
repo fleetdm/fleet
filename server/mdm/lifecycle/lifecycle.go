@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -51,9 +52,9 @@ type HostOptions struct {
 
 // HostLifecycle manages MDM host lifecycle actions
 type HostLifecycle struct {
-	ds              fleet.Datastore
-	logger          kitlog.Logger
-	newActivityFunc NewActivityFunc
+	ds               fleet.Datastore
+	logger           kitlog.Logger
+	activitiesModule activities.ActivityModule
 }
 
 // NewActivityFunc is the signature type of the service-layer function that can
@@ -62,11 +63,11 @@ type HostLifecycle struct {
 type NewActivityFunc func(ctx context.Context, user *fleet.User, details fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error
 
 // New creates a new HostLifecycle struct
-func New(ds fleet.Datastore, logger kitlog.Logger, newActivityFn NewActivityFunc) *HostLifecycle {
+func New(ds fleet.Datastore, logger kitlog.Logger, activitiesModule activities.ActivityModule) *HostLifecycle {
 	return &HostLifecycle{
-		ds:              ds,
-		logger:          logger,
-		newActivityFunc: newActivityFn,
+		ds:               ds,
+		logger:           logger,
+		activitiesModule: activitiesModule,
 	}
 }
 
@@ -227,7 +228,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
 		}
-		err = t.newActivityFunc(ctx, nil, mdmEnrolledActivity, t.ds, t.logger)
+		err = t.activitiesModule.NewActivity(ctx, nil, mdmEnrolledActivity)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create mdm enrolled activity")
 		}
@@ -385,7 +386,7 @@ func (t *HostLifecycle) createActivities(ctx context.Context, users []*fleet.Use
 
 	for i, act := range acts {
 		user := users[i]
-		if err := t.newActivityFunc(ctx, user, act, t.ds, t.logger); err != nil {
+		if err := t.activitiesModule.NewActivity(ctx, user, act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity")
 		}
 	}
