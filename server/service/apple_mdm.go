@@ -3348,14 +3348,15 @@ func NewMDMAppleCheckinAndCommandService(
 ) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, activitiesModule)
 	return &MDMAppleCheckinAndCommandService{
-		ds:              ds,
-		commander:       commander,
-		logger:          logger,
-		mdmLifecycle:    mdmLifecycle,
-		vppInstaller:    vppInstaller,
-		isPremium:       isPremium,
-		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
-		keyValueStore:   keyValueStore,
+		ds:               ds,
+		commander:        commander,
+		logger:           logger,
+		mdmLifecycle:     mdmLifecycle,
+		vppInstaller:     vppInstaller,
+		isPremium:        isPremium,
+		commandHandlers:  map[string][]fleet.MDMCommandResultsHandler{},
+		keyValueStore:    keyValueStore,
+		activitiesModule: activitiesModule,
 	}
 }
 
@@ -3560,6 +3561,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 		return err
 	}
 
+	fmt.Printf("svc.activitiesModule: %v\n", svc.activitiesModule)
 	return svc.activitiesModule.NewActivity(
 		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
 			HostSerial:       info.HardwareSerial,
