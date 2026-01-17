@@ -214,12 +214,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		wlog = kitlog.NewNopLogger()
 	}
 
-	activityModule := activities.NewActivityModule(s.ds, wlog)
+	activitiesModule := activities.NewActivityModule(s.ds, wlog)
 	androidMockClient := &android_mock.Client{}
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activitiesModule, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
 	})
@@ -443,9 +443,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-								return newActivity(ctx, user, act, ds, logger)
-							})
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, activitiesModule.NewActivity)
 						}),
 					)
 					return refetcherSchedule, nil
@@ -19254,6 +19252,12 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
 }
 
+type mockActivitiesModule struct{}
+
+func (m *mockActivitiesModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	return nil
+}
+
 func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 	ctx := s.T().Context()
 
@@ -19342,9 +19346,8 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	activitiesModule := &mockActivitiesModule{}
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, activitiesModule.NewActivity)
 	require.NoError(s.T(), err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled
@@ -20357,10 +20360,10 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
+	activitiesModule := &mockActivitiesModule{}
+
 	// run the cron-based refetch, will not do anything as the devices were just refetched
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, activitiesModule.NewActivity)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 0)
@@ -20373,9 +20376,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
 
 	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, activitiesModule.NewActivity)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 1)
