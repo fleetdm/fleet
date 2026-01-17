@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestFormatSize(t *testing.T) {
@@ -45,13 +44,7 @@ func TestFormatSize(t *testing.T) {
 func TestDefaultMaxInstallerSize(t *testing.T) {
 	// Verify the default is 10 GiB
 	assert.Equal(t, int64(10*units.GiB), DefaultMaxInstallerSize)
-}
-
-func TestDefaultMaxInstallerSizeStrMatchesInt(t *testing.T) {
-	// Verify that the string constant parses to the same value as the int64 constant
-	parsed, err := units.RAMInBytes(DefaultMaxInstallerSizeStr)
-	require.NoError(t, err)
-	assert.Equal(t, DefaultMaxInstallerSize, parsed)
+	assert.Equal(t, "10GiB", Human(DefaultMaxInstallerSize))
 }
 
 func TestFromContextWithValue(t *testing.T) {
