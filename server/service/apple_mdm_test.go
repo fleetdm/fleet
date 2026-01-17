@@ -1482,8 +1482,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
-	require.True(t, activitiesModule.newActivityFuncCalled)
-	activitiesModule.newActivityFuncCalled = false
+	require.True(t, activitiesModule.newActivityFuncInvoked)
+	activitiesModule.newActivityFuncInvoked = false
 	ds.GetHostMDMCheckinInfoFuncInvoked = false
 	ds.NewJobFuncInvoked = false
 
@@ -1503,7 +1503,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
-	require.True(t, activitiesModule.newActivityFuncCalled)
+	require.True(t, activitiesModule.newActivityFuncInvoked)
 
 	// With AwaitingConfiguration - should check for and enqueue SetupExperience items
 	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
@@ -1566,8 +1566,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
-	require.True(t, activitiesModule.newActivityFuncCalled)
-	activitiesModule.newActivityFuncCalled = false
+	require.True(t, activitiesModule.newActivityFuncInvoked)
+	activitiesModule.newActivityFuncInvoked = false
 
 	ds.SetHostMDMMigrationCompletedFuncInvoked = false
 	err = svc.TokenUpdate(
@@ -1586,7 +1586,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
-	require.True(t, activitiesModule.newActivityFuncCalled)
+	require.True(t, activitiesModule.newActivityFuncInvoked)
 
 }
 
@@ -1758,11 +1758,13 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 
 func TestMDMCheckout(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), &mockActivitiesModule{})
+	activitiesModule := &mockActivitiesModule{}
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), activitiesModule)
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
-		logger:       kitlog.NewNopLogger(),
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		logger:           kitlog.NewNopLogger(),
+		activitiesModule: activitiesModule,
 	}
 	ctx := context.Background()
 	uuid, serial, installedFromDEP, displayName, platform := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook", "darwin"
@@ -1785,9 +1787,8 @@ func TestMDMCheckout(t *testing.T) {
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+
+	activitiesModule.newActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		a, ok := activity.(*fleet.ActivityTypeMDMUnenrolled)
 		require.True(t, ok)
 		require.Nil(t, user)
@@ -1813,7 +1814,7 @@ func TestMDMCheckout(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.MDMTurnOffFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, activitiesModule.newActivityFuncInvoked)
 }
 
 func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {

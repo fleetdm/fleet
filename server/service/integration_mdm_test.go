@@ -19253,13 +19253,13 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 }
 
 type mockActivitiesModule struct {
-	newActivityFunc       func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
-	newActivityFuncCalled bool
+	newActivityFunc        func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+	newActivityFuncInvoked bool
 }
 
 func (m *mockActivitiesModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	if m.newActivityFunc != nil {
-		m.newActivityFuncCalled = true
+		m.newActivityFuncInvoked = true
 		return m.newActivityFunc(ctx, user, activity)
 	}
 
