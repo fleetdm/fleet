@@ -2924,6 +2924,18 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 	return nil
 }
 
+// GetDeviceAuthToken returns the current auth token for a given host
+func (ds *Datastore) GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error) {
+	const stmt = `SELECT token FROM host_device_auth WHERE host_id = ?`
+
+	var token string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, hostID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting device auth token")
+	}
+
+	return token, nil
+}
+
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -4427,6 +4439,7 @@ func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID 
 	checkExistingSQL := `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, hostID)
 	if err == nil {
+		level.Debug(ds.logger).Log("msg", "MaybeAssociateHostWithScimUser: existing SCIM user association found for host", "host_id", hostID, "scim_user_id", existingSCIMUserID)
 		// Existing SCIM user association found, nothing to do.
 		// Bail early so that we don't trigger side-effects downstream like resending profiles.
 		return nil
@@ -4451,10 +4464,12 @@ WHERE
 	hosts.id = ?`
 
 	var idpAccount fleet.MDMIdPAccount
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &idpAccount, getMDMIDPSQL, hostID)
+	// Use writer since the host may have just been created.
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &idpAccount, getMDMIDPSQL, hostID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No MDM IdP account for this host, nothing to do.
+			level.Debug(ds.logger).Log("msg", "MaybeAssociateHostWithScimUser: no MDM IdP account found for host", "host_id", hostID)
 			return nil
 		}
 		return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: get MDM IdP account for host")
@@ -4469,6 +4484,7 @@ WHERE
 func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
 	if idp == nil {
 		// TODO: confirm desired behavior here
+		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: MDM IdP account is nil, skipping association", "host_id", hostID)
 		return nil
 	}
 
@@ -4478,6 +4494,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		return ctxerr.Wrap(ctx, err, "get scim user")
 	case fleet.IsNotFound(err) || scimUser == nil:
 		// There is no SCIM association possible at this time
+		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: no SCIM user found for MDM IdP account", "host_id", hostID, "mdm_idp_username", idp.Username, "mdm_idp_email", idp.Email)
 		return nil
 	}
 
@@ -4485,6 +4502,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
+	level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: associated host with SCIM user", "host_id", hostID, "scim_user_id", scimUser.ID)
 	return nil
 }
 
@@ -5272,8 +5290,11 @@ func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, 
 // It only updates `hosts` table, other additional host information is ignored.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
-		level.Debug(ds.logger).Log("msg", "missing orbit_node_key to update host",
-			"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
+		// iOS/iPadOS hosts currently do not use/set orbit_node_key.
+		if host.Platform != "ios" && host.Platform != "ipados" {
+			level.Debug(ds.logger).Log("msg", "missing orbit_node_key to update host",
+				"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
+		}
 	}
 
 	sqlStatement := `

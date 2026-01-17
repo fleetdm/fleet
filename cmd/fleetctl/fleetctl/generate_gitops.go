@@ -1641,10 +1641,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 						softwareSpec["auto_update_enabled"] = *softwareTitle.AutoUpdateEnabled
 					}
 					if softwareTitle.AutoUpdateStartTime != nil {
-						softwareSpec["auto_update_start_time"] = *softwareTitle.AutoUpdateStartTime
+						softwareSpec["auto_update_window_start"] = *softwareTitle.AutoUpdateStartTime
 					}
 					if softwareTitle.AutoUpdateEndTime != nil {
-						softwareSpec["auto_update_end_time"] = *softwareTitle.AutoUpdateEndTime
+						softwareSpec["auto_update_window_end"] = *softwareTitle.AutoUpdateEndTime
 					}
 				}
 			}
