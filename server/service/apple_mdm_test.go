@@ -1412,7 +1412,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), &mockActivitiesModule{})
+	activitiesModule := &mockActivitiesModule{}
+	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), activitiesModule)
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
@@ -1452,9 +1453,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 		}, nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	activitiesModule.newActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
 		require.True(t, ok)
 		require.Nil(t, user)
@@ -1483,7 +1482,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, activitiesModule.newActivityFuncCalled)
+	activitiesModule.newActivityFuncCalled = false
 	ds.GetHostMDMCheckinInfoFuncInvoked = false
 	ds.NewJobFuncInvoked = false
 
@@ -1503,7 +1503,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, activitiesModule.newActivityFuncCalled)
 
 	// With AwaitingConfiguration - should check for and enqueue SetupExperience items
 	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
@@ -1566,7 +1566,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, activitiesModule.newActivityFuncCalled)
+	activitiesModule.newActivityFuncCalled = false
 
 	ds.SetHostMDMMigrationCompletedFuncInvoked = false
 	err = svc.TokenUpdate(
@@ -1585,7 +1586,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, activitiesModule.newActivityFuncCalled)
+
 }
 
 func TestMDMTokenUpdateIOS(t *testing.T) {

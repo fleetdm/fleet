@@ -19252,9 +19252,17 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
 }
 
-type mockActivitiesModule struct{}
+type mockActivitiesModule struct {
+	newActivityFunc       func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+	newActivityFuncCalled bool
+}
 
 func (m *mockActivitiesModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	if m.newActivityFunc != nil {
+		m.newActivityFuncCalled = true
+		return m.newActivityFunc(ctx, user, activity)
+	}
+
 	return nil
 }
 
