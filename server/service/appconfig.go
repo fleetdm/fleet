@@ -1127,13 +1127,7 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 		}
 	}
 	if alternativeBrowserHostModified {
-		host := newAppConfig.FleetDesktop.AlternativeBrowserHost
-		h, _, err := net.SplitHostPort(host)
-		if err != nil {
-			// OK...port not specified
-			h = host
-		}
-		if !isValidHostname(h) {
+		if !isValidHostname(newAppConfig.FleetDesktop.AlternativeBrowserHost) {
 			fleetDesktopSettingsInvalid.Append("alternative_browser_host", "must be a valid hostname or IP address")
 		}
 	}

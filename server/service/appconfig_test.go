@@ -1642,6 +1642,13 @@ func TestIsValidHostname(t *testing.T) {
 		// Empty and basic cases
 		{name: "empty string", hostname: "", expected: false},
 
+		{name: "http prefix", hostname: "http://example.com", expected: false},
+		{name: "https prefix", hostname: "https://example.com", expected: false},
+
+		{name: "with path", hostname: "example.com/path", expected: false},
+		{name: "with query", hostname: "example.com?query=value", expected: false},
+		{name: "with fragment", hostname: "example.com#fragment", expected: false},
+
 		// Valid IPv4 addresses
 		{name: "valid IPv4 localhost", hostname: "127.0.0.1", expected: true},
 		{name: "valid IPv4 address", hostname: "192.168.1.1", expected: true},
