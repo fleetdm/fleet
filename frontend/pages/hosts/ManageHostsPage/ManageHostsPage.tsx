@@ -72,6 +72,8 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 
+import Button from "components/buttons/Button";
+
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -82,7 +84,6 @@ import {
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 
-import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";

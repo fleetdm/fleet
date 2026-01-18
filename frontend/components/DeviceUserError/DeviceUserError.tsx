@@ -1,6 +1,6 @@
 import React from "react";
-import Icon from "components/Icon/Icon";
 import classNames from "classnames";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "device-user-error";
 
