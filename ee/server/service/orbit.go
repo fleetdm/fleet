@@ -288,7 +288,7 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 				Source:              source,
 				FromSetupExperience: true,
 			}
-			err = svc.NewActivity(ctx, nil, activity)
+			err = svc.activitiesModule.NewActivity(ctx, nil, activity)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience software install")
 			}

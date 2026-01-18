@@ -50,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
@@ -482,7 +483,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
 			TeamID:            actTeamID,
 			TeamName:          actTeamName,
@@ -942,7 +943,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
@@ -1243,7 +1244,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
 			TeamID:            actTeamID,
 			TeamName:          actTeamName,
@@ -1317,7 +1318,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
@@ -2629,7 +2630,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
 			TeamID:   tmID,
 			TeamName: tmName,
@@ -2767,7 +2768,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
 		}
@@ -3325,14 +3326,15 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 ////////////////////////////////////////////////////////////////////////////////
 
 type MDMAppleCheckinAndCommandService struct {
-	ds              fleet.Datastore
-	logger          kitlog.Logger
-	commander       *apple_mdm.MDMAppleCommander
-	vppInstaller    fleet.AppleMDMVPPInstaller
-	mdmLifecycle    *mdmlifecycle.HostLifecycle
-	commandHandlers map[string][]fleet.MDMCommandResultsHandler
-	keyValueStore   fleet.KeyValueStore
-	isPremium       bool
+	ds               fleet.Datastore
+	logger           kitlog.Logger
+	commander        *apple_mdm.MDMAppleCommander
+	vppInstaller     fleet.AppleMDMVPPInstaller
+	mdmLifecycle     *mdmlifecycle.HostLifecycle
+	commandHandlers  map[string][]fleet.MDMCommandResultsHandler
+	keyValueStore    fleet.KeyValueStore
+	isPremium        bool
+	activitiesModule activities.ActivityModule
 }
 
 func NewMDMAppleCheckinAndCommandService(
@@ -3342,17 +3344,19 @@ func NewMDMAppleCheckinAndCommandService(
 	isPremium bool,
 	logger kitlog.Logger,
 	keyValueStore fleet.KeyValueStore,
+	activitiesModule activities.ActivityModule,
 ) *MDMAppleCheckinAndCommandService {
-	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
+	mdmLifecycle := mdmlifecycle.New(ds, logger, activitiesModule)
 	return &MDMAppleCheckinAndCommandService{
-		ds:              ds,
-		commander:       commander,
-		logger:          logger,
-		mdmLifecycle:    mdmLifecycle,
-		vppInstaller:    vppInstaller,
-		isPremium:       isPremium,
-		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
-		keyValueStore:   keyValueStore,
+		ds:               ds,
+		commander:        commander,
+		logger:           logger,
+		mdmLifecycle:     mdmLifecycle,
+		vppInstaller:     vppInstaller,
+		isPremium:        isPremium,
+		commandHandlers:  map[string][]fleet.MDMCommandResultsHandler{},
+		keyValueStore:    keyValueStore,
+		activitiesModule: activitiesModule,
 	}
 }
 
@@ -3557,13 +3561,14 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 		return err
 	}
 
-	return newActivity(
+	fmt.Printf("svc.activitiesModule: %v\n", svc.activitiesModule)
+	return svc.activitiesModule.NewActivity(
 		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
 			HostSerial:       info.HardwareSerial,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.InstalledFromDEP,
 			Platform:         info.Platform,
-		}, svc.ds, svc.logger,
+		},
 	)
 }
 
@@ -3826,7 +3831,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
 			act.FromSetupExperience = fromSetupExperience
-			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+			if err := svc.activitiesModule.NewActivity(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
 		}

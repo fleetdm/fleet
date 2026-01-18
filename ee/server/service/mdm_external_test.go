@@ -35,6 +35,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type mockActivitiesModule struct{}
+
+func (m *mockActivitiesModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	return nil
+}
 func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Service, context.Context) {
 	ds := new(mock.Store)
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -74,6 +79,8 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	}
 	t.Cleanup(func() { ts.Close() })
 
+	activitiesModule := &mockActivitiesModule{}
+
 	freeSvc, err := service.NewService(
 		ctx,
 		ds,
@@ -100,6 +107,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		activitiesModule,
 	)
 	if err != nil {
 		panic(err)
@@ -124,6 +132,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		activitiesModule,
 	)
 	if err != nil {
 		panic(err)
@@ -401,6 +410,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.EqualValues(t, lastTeamID, *asst.TeamID)
 			setupAsstByTeam[*asst.TeamID] = asst
 			return asst, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
 		}
 
 		// new team ("one - three") is created with bootstrap package and end user auth based on app config

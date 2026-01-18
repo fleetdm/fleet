@@ -10,13 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func nopNewActivity(ctx context.Context, user *fleet.User, details fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
+type mockActivitiesModule struct{}
+
+func (m *mockActivitiesModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	return nil
 }
 
 func TestDoUnsupportedParams(t *testing.T) {
 	ds := new(mock.Store)
-	lc := New(ds, kitlog.NewNopLogger(), nopNewActivity)
+	lc := New(ds, kitlog.NewNopLogger(), &mockActivitiesModule{})
 
 	err := lc.Do(context.Background(), HostOptions{})
 	require.ErrorContains(t, err, "unsupported platform")
@@ -33,7 +35,7 @@ func TestDoUnsupportedParams(t *testing.T) {
 
 func TestDoParamValidation(t *testing.T) {
 	ds := new(mock.Store)
-	lf := New(ds, kitlog.NewNopLogger(), nopNewActivity)
+	lf := New(ds, kitlog.NewNopLogger(), &mockActivitiesModule{})
 	ctx := context.Background()
 
 	cases := []struct {

@@ -396,7 +396,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		}
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		vc.User,
 		activity,
@@ -461,7 +461,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		vc.User,
 		fleet.ActivityTypeUnlockedHost{
@@ -527,7 +527,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		}
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		vc.User,
 		fleet.ActivityTypeWipedHost{

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/log"
 )
@@ -37,6 +38,7 @@ type Service struct {
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	activitiesModule       activities.ActivityModule
 }
 
 func NewService(
@@ -59,6 +61,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	activitiesModule activities.ActivityModule,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -86,6 +89,7 @@ func NewService(
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,
+		activitiesModule:       activitiesModule,
 	}
 
 	// Override methods that can't be easily overriden via

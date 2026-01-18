@@ -21,6 +21,7 @@ import (
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/log"
 )
@@ -70,7 +71,8 @@ type Service struct {
 
 	keyValueStore fleet.KeyValueStore
 
-	androidSvc android.Service
+	androidSvc       android.Service
+	activitiesModule activities.ActivityModule
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -145,6 +147,7 @@ func NewService(
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
 	androidSvc android.Service,
+	activitiesModule activities.ActivityModule,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -184,6 +187,7 @@ func NewService(
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
+		activitiesModule:                activitiesModule,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

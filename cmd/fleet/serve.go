@@ -821,6 +821,7 @@ the way that the Fleet server works.
 				conditionalAccessMicrosoftProxy,
 				redis_key_value.New(redisPool),
 				androidSvc,
+				activitiesModule,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -927,6 +928,7 @@ the way that the Fleet server works.
 					digiCertService,
 					androidSvc,
 					hydrantService,
+					activitiesModule,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -1146,7 +1148,7 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
+					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, activitiesModule.NewActivity)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
@@ -1337,9 +1339,10 @@ the way that the Fleet server works.
 					license.IsPremium(),
 					logger,
 					redis_key_value.New(redisPool),
+					activitiesModule,
 				)
 
-				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
+				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, activitiesModule, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})

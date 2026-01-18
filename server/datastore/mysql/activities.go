@@ -30,7 +30,7 @@ func (ds *Datastore) NewActivity(
 	processed, _ := ctx.Value(fleet.ActivityWebhookContextKey).(bool)
 	if !processed {
 		return ctxerr.New(
-			ctx, "activity webhook not processed. Please use svc.NewActivity instead of ds.NewActivity. This is a Fleet server bug.",
+			ctx, "activity webhook not processed. Please use svc.activitiesModule.NewActivity instead of ds.NewActivity. This is a Fleet server bug.",
 		)
 	}
 
@@ -1013,7 +1013,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
 	}
 
-	// creating the canceled activity must be done via svc.NewActivity (not
+	// creating the canceled activity must be done via svc.activitiesModule.NewActivity (not
 	// ds.NewActivity), so we return the ready-to-insert activity struct to the
 	// caller and let svc do the rest.
 	return pastAct, nil

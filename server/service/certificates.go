@@ -136,7 +136,7 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 			activity.TeamName = &team.Name
 		}
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		activity,
@@ -344,7 +344,7 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 			activity.TeamName = &team.Name
 		}
 	}
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		activity,
@@ -498,7 +498,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 			tmName = &team.Name
 		}
 
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
 				TeamID:   tmID,
 				TeamName: tmName,
@@ -563,7 +563,7 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 		tmName = &team.Name
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
 			TeamID:   tmID,
 			TeamName: tmName,

@@ -200,7 +200,7 @@ func userHasAccessToStorageID(ctx context.Context, svc *Service, teamId uint, st
 
 func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service, user *fleet.User, iconUrl string, activityDetailsForSoftwareTitleIcon fleet.DetailsForSoftwareIconActivity) error {
 	if activityDetailsForSoftwareTitleIcon.AdamID != nil {
-		if err := svc.NewActivity(ctx, user, fleet.ActivityEditedAppStoreApp{
+		if err := svc.activitiesModule.NewActivity(ctx, user, fleet.ActivityEditedAppStoreApp{
 			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
 			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
 			AppStoreID:       *activityDetailsForSoftwareTitleIcon.AdamID,
@@ -219,7 +219,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 	}
 
 	if activityDetailsForSoftwareTitleIcon.SoftwareInstallerID != nil {
-		if err := svc.NewActivity(ctx, user, fleet.ActivityTypeEditedSoftware{
+		if err := svc.activitiesModule.NewActivity(ctx, user, fleet.ActivityTypeEditedSoftware{
 			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
 			SoftwarePackage:  activityDetailsForSoftwareTitleIcon.Filename,
 			TeamName:         activityDetailsForSoftwareTitleIcon.TeamName,
@@ -237,7 +237,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 	}
 
 	if activityDetailsForSoftwareTitleIcon.InHouseAppID != nil {
-		if err := svc.NewActivity(ctx, user, fleet.ActivityTypeEditedSoftware{
+		if err := svc.activitiesModule.NewActivity(ctx, user, fleet.ActivityTypeEditedSoftware{
 			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
 			SoftwarePackage:  activityDetailsForSoftwareTitleIcon.Filename,
 			TeamName:         activityDetailsForSoftwareTitleIcon.TeamName,

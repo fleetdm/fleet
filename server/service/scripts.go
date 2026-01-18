@@ -555,7 +555,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		teamName = &tm.Name
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedScript{
@@ -613,7 +613,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 		teamName = &tm.Name
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedScript{
@@ -861,7 +861,7 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 		teamName = &tm.Name
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeUpdatedScript{
@@ -1084,7 +1084,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return nil, ctxerr.Wrap(ctx, err, "batch saving scripts")
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
 			TeamID:   teamID,
 			TeamName: teamName,
@@ -1259,7 +1259,7 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 		canceled = *batchActivity.NumCanceled
 	}
 
-	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptCanceled{
+	if err := svc.activitiesModule.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptCanceled{
 		BatchExecutionID: batchExecutionID,
 		ScriptName:       batchActivity.ScriptName,
 		HostCount:        targeted,
@@ -1514,7 +1514,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 			return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 		}
 
-		if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
+		if err := svc.activitiesModule.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
 			ScriptName:       script.Name,
 			BatchExecutionID: batchID,
 			HostCount:        uint(len(hostIDsToExecute)),
@@ -1532,7 +1532,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
-	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptScheduled{
+	if err := svc.activitiesModule.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptScheduled{
 		ScriptName:       &script.Name,
 		BatchExecutionID: batchID,
 		HostCount:        uint(len(hostIDsToExecute)),

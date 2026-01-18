@@ -24,6 +24,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -463,10 +465,12 @@ func newTestServiceWithMock(t *testing.T, ds fleet.Datastore) (*Service, *svcmoc
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 	baseSvc := new(svcmock.Service)
+	activitiesModule := activities.NewActivityModule(ds, kitlog.NewNopLogger())
 	svc := &Service{
-		Service: baseSvc,
-		authz:   authorizer,
-		ds:      ds,
+		Service:          baseSvc,
+		authz:            authorizer,
+		ds:               ds,
+		activitiesModule: activitiesModule,
 	}
 	return svc, baseSvc
 }

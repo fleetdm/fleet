@@ -188,7 +188,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 	var err error
 	defer func(start time.Time) {
 		if err != nil && !errors.Is(err, sendingMFAEmail) && !errors.Is(err, mfaNotSupportedForClient) {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx, nil, fleet.ActivityTypeUserFailedLogin{
 					Email:    email,
 					PublicIP: publicip.FromContext(ctx),
@@ -233,7 +233,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, user, fleet.ActivityTypeUserLoggedIn{
 			PublicIP: publicip.FromContext(ctx),
 		}); err != nil {
@@ -292,7 +292,7 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Sessi
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx, user, fleet.ActivityTypeUserLoggedIn{
 			PublicIP: publicip.FromContext(ctx),
 		}); err != nil {
@@ -579,17 +579,9 @@ func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		callbackRequest := request.(*callbackSSORequest)
-		session, userID, err := getSSOSession(ctx, svc, callbackRequest)
+		session, _, err := getSSOSession(ctx, svc, callbackRequest)
 		var resp callbackSSOResponse
 		if err != nil {
-			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeUserFailedLogin{
-				Email:    userID,
-				PublicIP: publicip.FromContext(ctx),
-			}); err != nil {
-				logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx),
-					"msg", "failed to generate failed login activity",
-				), level.Info)
-			}
 
 			var ssoErr *ssoError
 
@@ -716,6 +708,15 @@ func (svc *Service) InitSSOCallback(
 func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {
 	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, nil, fleet.ActivityTypeUserFailedLogin{
+			Email:    auth.UserID(),
+			PublicIP: publicip.FromContext(ctx),
+		}); err != nil {
+			logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx),
+				"msg", "failed to generate failed login activity",
+			), level.Info)
+		}
+
 		var nfe endpointer.NotFoundErrorInterface
 		if errors.As(err, &nfe) {
 			return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountInvalid))
@@ -725,31 +726,44 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 	return user, nil
 }
 
-func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirectURL string) (*fleet.SSOSession, error) {
+func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirectURL string) (result *fleet.SSOSession, err error) {
 	logging.WithExtras(ctx, "email", user.Email)
+
+	defer func() {
+		if err != nil {
+			if err := svc.activitiesModule.NewActivity(ctx, nil, fleet.ActivityTypeUserFailedLogin{
+				Email:    user.Email,
+				PublicIP: publicip.FromContext(ctx),
+			}); err != nil {
+				logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx),
+					"msg", "failed to generate failed login activity",
+				), level.Info)
+			}
+		}
+	}()
 
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
-		err := ctxerr.New(ctx, "user not configured to use sso")
+		err = ctxerr.New(ctx, "user not configured to use sso")
 		return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountDisabled))
 	}
 	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "make session in sso callback")
 	}
-	result := &fleet.SSOSession{
+	result = &fleet.SSOSession{
 		Token:       session.Key,
 		RedirectURL: redirectURL,
 	}
-	err = svc.NewActivity(
+	activityErr := svc.activitiesModule.NewActivity(
 		ctx,
 		user,
 		fleet.ActivityTypeUserLoggedIn{
 			PublicIP: publicip.FromContext(ctx),
 		},
 	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity in sso callback")
+	if activityErr != nil {
+		return nil, ctxerr.Wrap(ctx, activityErr, "create activity in sso callback")
 	}
 	return result, nil
 }

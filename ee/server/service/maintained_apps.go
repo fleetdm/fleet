@@ -200,7 +200,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
-	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+	if err := svc.activitiesModule.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:    payload.Title,
 		SoftwarePackage:  payload.Filename,
 		TeamName:         teamName,
@@ -219,7 +219,7 @@ func (svc *Service) AddFleetMaintainedApp(
 			Name: payload.AddedAutomaticInstallPolicy.Name,
 		}
 
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+		if err := svc.activitiesModule.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
 			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for FMA", "err", err)
 		}
 	}

@@ -109,7 +109,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 
 	if teamID == 0 {
 		noTeamID := int64(0)
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeCreatedPolicy{
@@ -139,7 +139,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	}
 
 	teamIDPtr := int64(teamID)
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
@@ -460,7 +460,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	if teamID == 0 {
 		noTeamID := int64(0)
 		for _, id := range deletedIDs {
-			if err := svc.NewActivity(
+			if err := svc.activitiesModule.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeDeletedPolicy{
@@ -492,7 +492,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 
 	for _, id := range deletedIDs {
 		teamIDPtr := int64(teamID)
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
@@ -671,7 +671,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	if teamID == nil {
 		globalTeamID := int64(-1)
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedPolicy{
@@ -689,7 +689,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	// Add a special case for handling "No Team" (teamID = 0) in ModifyTeamPolicy
 	if *teamID == 0 {
 		noTeamID := int64(0)
-		if err := svc.NewActivity(
+		if err := svc.activitiesModule.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedPolicy{
@@ -723,7 +723,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	teamIDInt64 := int64(*teamID)
 	activityTeamID = &teamIDInt64
 
-	if err := svc.NewActivity(
+	if err := svc.activitiesModule.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedPolicy{

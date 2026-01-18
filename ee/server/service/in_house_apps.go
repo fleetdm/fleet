@@ -135,7 +135,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 	activity.LabelsIncludeAny = actLabelsIncl
 	activity.LabelsExcludeAny = actLabelsExcl
-	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
+	if err := svc.activitiesModule.NewActivity(ctx, vc.User, activity); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
 	}
 
