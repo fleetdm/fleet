@@ -71,6 +71,8 @@ type Datastore interface {
 	SaveUsers(ctx context.Context, users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) error
+	// CountGlobalAdmins returns the count of users with the global admin role.
+	CountGlobalAdmins(ctx context.Context) (int, error)
 	// PendingEmailChange creates a record with a pending email change for a user identified by uid. The change record
 	// is keyed by a unique token. The token is emailed to the user with a link that they can use to confirm the change.
 	PendingEmailChange(ctx context.Context, userID uint, newEmail, token string) error

@@ -170,7 +170,7 @@ type Service interface {
 	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
 
 	// DeleteUser permanently deletes the user identified by the provided ID.
-	DeleteUser(ctx context.Context, id uint) error
+	DeleteUser(ctx context.Context, id uint) (*User, error)
 
 	// ChangeUserEmail is used to confirm new email address and if confirmed,
 	// write the new email address to user.
