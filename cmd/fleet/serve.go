@@ -93,7 +93,9 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -157,6 +159,7 @@ the way that the Fleet server works.
 			}
 
 			// Init tracing
+			var tracerProvider *sdktrace.TracerProvider
 			if config.Logging.TracingEnabled {
 				ctx := context.Background()
 				client := otlptracegrpc.NewClient(
@@ -171,7 +174,20 @@ the way that the Fleet server works.
 				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
 					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
 				)
-				tracerProvider := sdktrace.NewTracerProvider(
+				// Create resource with service identification attributes
+				res, err := resource.Merge(
+					resource.Default(),
+					resource.NewWithAttributes(
+						semconv.SchemaURL,
+						semconv.ServiceName("fleet"),
+						semconv.ServiceVersion(version.Version().Version),
+					),
+				)
+				if err != nil {
+					initFatal(err, "Failed to create OTEL resource")
+				}
+				tracerProvider = sdktrace.NewTracerProvider(
+					sdktrace.WithResource(res),
 					sdktrace.WithSpanProcessor(batchSpanProcessor),
 				)
 				otel.SetTracerProvider(tracerProvider)
@@ -1641,6 +1657,12 @@ the way that the Fleet server works.
 					cancelFunc()
 					cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
 					launcher.GracefulStop()
+					// Flush any pending OTEL spans before shutting down
+					if tracerProvider != nil {
+						if err := tracerProvider.Shutdown(ctx); err != nil {
+							level.Error(logger).Log("msg", "failed to shutdown OTEL tracer provider", "err", err)
+						}
+					}
 					return srv.Shutdown(ctx)
 				}()
 			}()
