@@ -2968,14 +2968,15 @@ func (svc *Service) saveResultLogsToQueryReports(
 		}
 
 		// Check Redis counter for approximate count (fast, distributed check).
-		// This is a heuristic - the counter resets every 60 seconds but provides
-		// protection against rapid buildup between cleanup cron runs.
+		// We allow 10% over the limit to ensure the cleanup cron has rows to delete,
+		// which rotates out old data and makes room for results from other hosts.
+		// Without this buffer, one host could fill the quota and block all others.
 		if svc.liveQueryStore != nil {
 			count, err := svc.liveQueryStore.GetQueryResultsCount(dbQuery.ID)
 			if err != nil {
 				// Log but don't fail - allow insert and let cleanup cron handle excess
 				level.Debug(svc.logger).Log("msg", "get query results count from redis", "err", err, "query_id", dbQuery.ID)
-			} else if count > maxQueryReportRows {
+			} else if count > maxQueryReportRows+(maxQueryReportRows/10) {
 				continue
 			}
 		}

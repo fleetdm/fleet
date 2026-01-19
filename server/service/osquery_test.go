@@ -839,7 +839,9 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 
 func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 	ds := new(mock.Store)
-	liveQueryStore := makeLiveQueryStore(t, 1010)
+	// We allow 10% overage on the limit so that the cleanup job helps to rotate the rows.
+	// So we want to do 1000 + 10% + 1 here.
+	liveQueryStore := makeLiveQueryStore(t, 1101)
 	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
 
 	// Hack to get at the private methods
