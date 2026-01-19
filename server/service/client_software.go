@@ -95,8 +95,6 @@ func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.Softwa
 }
 
 func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
-	fmt.Println("----------------------------------- applySoftwareInstallers --------------------------")
-	fmt.Printf("%#v\n\n\n\n", softwareInstallers)
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
@@ -132,10 +130,6 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 	byURL := make(map[string]*fleet.SoftwareInstallerPayload)
 	byHash := make(map[string]*fleet.SoftwareInstallerPayload)
 	bySlug := make(map[string]*fleet.SoftwareInstallerPayload)
-
-	fmt.Println("----------------------------------- matchPackageIcons --------------------------")
-	fmt.Printf("%#v\n\n\n\n", request)
-	fmt.Printf("%#v\n\n\n\n", response)
 
 	for i := range request {
 		clientSide := &request[i]
@@ -173,10 +167,6 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 			serverSide.LocalIconPath = clientSide.IconPath
 		}
 	}
-
-	fmt.Printf("%#v\n\n\n\n", byHash)
-	fmt.Printf("%#v\n\n\n\n", byURL)
-	fmt.Printf("%#v\n\n\n\n", bySlug)
 
 	return response
 }
