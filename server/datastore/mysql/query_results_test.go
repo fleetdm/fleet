@@ -678,8 +678,9 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 15, count)
 
-	// Run cleanup with maxRows = 10
-	require.NoError(t, ds.CleanupExcessQueryResultRows(context.Background(), maxRows))
+	// Run cleanup with maxRows = 10, using a small batch size to test batching
+	opts := fleet.CleanupExcessQueryResultRowsOptions{BatchSize: 2}
+	require.NoError(t, ds.CleanupExcessQueryResultRows(context.Background(), maxRows, opts))
 
 	// Verify only 10 rows remain
 	count, err = ds.ResultCountForQuery(context.Background(), query.ID)

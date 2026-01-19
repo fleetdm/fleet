@@ -441,7 +441,7 @@ type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.Schedu
 
 type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
 
-type CleanupExcessQueryResultRowsFunc func(ctx context.Context, maxQueryReportRows int) error
+type CleanupExcessQueryResultRowsFunc func(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) error
 
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
@@ -5810,11 +5810,11 @@ func (s *DataStore) CleanupDiscardedQueryResults(ctx context.Context) error {
 	return s.CleanupDiscardedQueryResultsFunc(ctx)
 }
 
-func (s *DataStore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int) error {
+func (s *DataStore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) error {
 	s.mu.Lock()
 	s.CleanupExcessQueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupExcessQueryResultRowsFunc(ctx, maxQueryReportRows)
+	return s.CleanupExcessQueryResultRowsFunc(ctx, maxQueryReportRows, opts...)
 }
 
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {

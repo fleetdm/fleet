@@ -46,6 +46,12 @@ type InstallerStore interface {
 	Exists(ctx context.Context, installer Installer) (bool, error)
 }
 
+// CleanupExcessQueryResultRowsOptions configures the behavior of CleanupExcessQueryResultRows.
+type CleanupExcessQueryResultRowsOptions struct {
+	// BatchSize is the number of rows to delete per batch. Defaults to 500 if not set.
+	BatchSize int
+}
+
 // Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
 	GetsAppConfig
@@ -564,7 +570,8 @@ type Datastore interface {
 	CleanupDiscardedQueryResults(ctx context.Context) error
 	// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum allowed per query.
 	// It keeps the most recent rows (by last_fetched) up to the limit. This runs as a cron job.
-	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int) error
+	// Deletes are batched to avoid large binlogs and long lock times.
+	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

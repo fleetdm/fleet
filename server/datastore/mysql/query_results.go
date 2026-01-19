@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -136,8 +138,14 @@ func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
 
 // CleanupExcessQueryResultRows deletes query result rows that exceed the maximum
 // allowed per query. It keeps the most recent rows (by last_fetched) up to the limit.
+// Deletes are batched to avoid large binlogs and long lock times.
 // This runs as a cron job to ensure the query_results table doesn't grow unbounded.
-func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int) error {
+func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) error {
+	batchSize := 500
+	if len(opts) > 0 && opts[0].BatchSize > 0 {
+		batchSize = opts[0].BatchSize
+	}
+
 	// Get all distinct query_ids that have results and are scheduled queries with discard_data = false
 	var queryIDs []uint
 	selectStmt := `
@@ -150,28 +158,39 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		return ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")
 	}
 
-	// For each query, delete rows that exceed the limit
 	for _, queryID := range queryIDs {
-		// Delete all rows older than the Nth most recent row (where N = maxQueryReportRows)
-		// The subquery finds the id of the row at position maxQueryReportRows when ordered by last_fetched DESC.
-		// All rows with id < that id are deleted.
+		// Find the cutoff ID: the ID of the row at position maxQueryReportRows when ordered by last_fetched DESC.
+		// All rows with id <= this cutoff should be deleted.
+		var cutoffID uint
+		cutoffStmt := `
+			SELECT id FROM query_results
+			WHERE query_id = ? AND data IS NOT NULL
+			ORDER BY last_fetched DESC
+			LIMIT 1 OFFSET ?
+		`
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &cutoffID, cutoffStmt, queryID, maxQueryReportRows); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// Fewer rows than the limit, nothing to delete for this query
+				continue
+			}
+			return ctxerr.Wrapf(ctx, err, "finding cutoff ID for query %d", queryID)
+		}
+
+		// Delete in batches
 		deleteStmt := `
 			DELETE FROM query_results
-			WHERE query_id = ?
-			AND data IS NOT NULL
-			AND id < (
-				SELECT id FROM (
-					SELECT id
-					FROM query_results
-					WHERE query_id = ?
-					AND data IS NOT NULL
-					ORDER BY last_fetched DESC
-					LIMIT 1 OFFSET ?
-				) AS t
-			)
+			WHERE query_id = ? AND data IS NOT NULL AND id <= ?
+			LIMIT ?
 		`
-		if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryID, queryID, maxQueryReportRows); err != nil {
-			return ctxerr.Wrapf(ctx, err, "cleaning up excess query results for query %d", queryID)
+		for {
+			result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryID, cutoffID, batchSize)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "cleaning up excess query results for query %d", queryID)
+			}
+			rowsAffected, _ := result.RowsAffected()
+			if rowsAffected == 0 {
+				break
+			}
 		}
 	}
 
