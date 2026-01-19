@@ -225,6 +225,15 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return svc.ds.ListUsers(ctx, opt)
 }
 
+func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+	// Authorize read access to users (no specific team context)
+	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.UsersByIDs(ctx, ids)
+}
+
 // //////////////////////////////////////////////////////////////////////////////
 // Me (get own current user)
 // //////////////////////////////////////////////////////////////////////////////
