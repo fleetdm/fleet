@@ -291,4 +291,4 @@ To verify that user information is added to a host, go to the host that has an I
 
 ## Syncing users
 
-After you verify your IdP is connected to Fleet, you can enable **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** to keep users synced. When a user is deleted or deactivated, their Fleet account is deleted automatically. If reactivated in your IdP, the account is recreated on next SSO login—no manual action needed.
+When SCIM is configured with your IdP, Fleet automatically deletes a user’s Fleet account if the user is deleted or deactivated in the IdP. If the user is later reactivated in the IdP, and you have enabled **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)**, Fleet will recreate the account automatically on the user’s next SSO login. No manual intervention is required for these actions. This applies only to SSO-authenticated users; API-only and password-authenticated users are not affected.
