@@ -2487,14 +2487,14 @@ team_settings:
 	require.NotNil(t, teamTitles[0].SoftwarePackage)
 	teamTitleID := teamTitles[0].ID
 
-	// Verify the display name is stored in the database for team
-	var teamDisplayName string
+	// Verify the custom icon is stored in the database for team
+	var teamIconFilename string
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &teamDisplayName,
+		return sqlx.GetContext(ctx, q, &teamIconFilename,
 			"SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id = ?",
 			team.ID, teamTitleID)
 	})
-	require.Equal(t, "icon.png", noTeamIconFilename)
+	require.Equal(t, "icon.png", teamIconFilename)
 }
 
 // TestGitOpsTeamLabels tests operations around team labels

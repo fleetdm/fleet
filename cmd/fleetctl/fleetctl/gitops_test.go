@@ -1540,8 +1540,6 @@ software:
 	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
-
-	//TODO(JK): Test fleet_maintained_apps in yaml
 }
 
 func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
