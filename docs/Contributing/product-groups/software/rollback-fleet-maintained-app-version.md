@@ -22,28 +22,28 @@ User can define a `version` for `fleet_maintained_apps` in the [YAML file](https
 flowchart LR
     subgraph T1["Initial state"]
         direction TB
-        S1_title["Fleet downloads v1.0 (latest)"]
+        S1_title["Fleet downloads 1.0 (latest)"]
         subgraph S1["S3 contents"]
-            S1_v1["v1.0 ✓<br/>(latest)"]
+            S1_1["1.0 ✓<br/>(latest)"]
         end
     end
 
-    subgraph T2["v2.0 released"]
+    subgraph T2["2.0 released"]
         direction TB
-        S2_title["Fleet downloads v2.0 (latest)"]
+        S2_title["Fleet downloads 2.0 (latest)"]
         subgraph S2["S3 contents"]
-            S2_v2["v2.0 ✓<br/>(latest)"]
-            S2_v1["v1.0 ✓<br/>(kept)"]
+            S2_v2["2.0 ✓<br/>(latest)"]
+            S2_v1["1.0 ✓<br/>(kept)"]
         end
     end
 
-    subgraph T3["v3.0 released"]
+    subgraph T3["3.0 released"]
         direction TB
-        S3_title["Fleet downloads v3.0 (latest)"]
+        S3_title["Fleet downloads 3.0 (latest)"]
         subgraph S3["S3 contents"]
-            S3_v3["v3.0 ✓<br/>(latest)"]
-            S3_v2["v2.0 ✓<br/>(kept)"]
-            S3_v1["v1.0 ✗<br/>(deleted)"]
+            S3_v3["3.0 ✓<br/>(latest)"]
+            S3_v2["2.0 ✓<br/>(kept)"]
+            S3_v1["1.0 ✗<br/>(deleted)"]
         end
     end
 
@@ -63,27 +63,27 @@ flowchart LR
 flowchart LR
     subgraph T1["User specifies 1.0 in YAML"]
         direction TB
-        S1_title["Fleet has v1.0 cached"]
+        S1_title["Fleet has 1.0 cached"]
         subgraph S1["S3 contents"]
-            S1_v1["v1.0 ✓<br/>(specified version in YAML)"]
+            S1_v1["1.0 ✓<br/>(specified version in YAML)"]
         end
     end
 
-    subgraph T2["v2.0, v3.0 released"]
+    subgraph T2["2.0, 3.0 released"]
         direction TB
         S2_title["Fleet does NOT download"]
         subgraph S2["S3 contents"]
-            S2_v1["v1.0 ✓<br/>(specified version in YAML)"]
+            S2_v1["1.0 ✓<br/>(specified version in YAML)"]
             S2_note["NO CHANGES"]
         end
     end
 
-    subgraph T3["User changes specified version in YAML to v4.0"]
+    subgraph T3["User changes specified version to 4.0"]
         direction TB
-        S3_title["Fleet downloads v4.0"]
+        S3_title["Fleet downloads 4.0"]
         subgraph S3["S3 contents"]
-            S3_v4["v4.0 ✓<br/>(specified version in YAML)"]
-            S3_v1["v1.0 ✓<br/>(prev specified version in YAML)"]
+            S3_v4["4.0 ✓<br/>(specified version in YAML)"]
+            S3_v1["1.0 ✓<br/>(prev specified version in YAML)"]
         end
     end
 
@@ -104,16 +104,16 @@ flowchart LR
         direction TB
         S1_title["YAML: version specified to 1.0"]
         subgraph S1["S3 contents"]
-            S1_v1["v1.0 ✓<br/>(specified version in YAML)"]
+            S1_v1["1.0 ✓<br/>(specified version in YAML)"]
         end
     end
 
     subgraph T2["Version removed"]
         direction TB
-        S2_title["Fleet downloads v4.0 (latest)"]
+        S2_title["Fleet downloads 4.0 (latest)"]
         subgraph S2["S3 contents"]
-            S2_v4["v4.0 ✓<br/>(latest)"]
-            S2_v1["v1.0 ✓<br/>(prev specified version)"]
+            S2_v4["4.0 ✓<br/>(latest)"]
+            S2_v1["1.0 ✓<br/>(prev specified version)"]
         end
     end
 
@@ -121,9 +121,9 @@ flowchart LR
         direction TB
         S3_title["Fleet downloads v5.0 (latest)"]
         subgraph S3["S3 contents"]
-            S3_v5["v5.0 ✓<br/>(latest)"]
-            S3_v4["v4.0 ✓<br/>(kept)"]
-            S3_v1["v1.0 ✗<br/>(deleted)"]
+            S3_v5["5.0 ✓<br/>(latest)"]
+            S3_v4["4.0 ✓<br/>(kept)"]
+            S3_v1["1.0 ✗<br/>(deleted)"]
         end
     end
 
