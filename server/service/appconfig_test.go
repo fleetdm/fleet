@@ -1633,7 +1633,7 @@ func TestModifyEnableAnalytics(t *testing.T) {
 	}
 }
 
-func TestIsValidHostname(t *testing.T) {
+func TestValidAddress(t *testing.T) {
 	testCases := []struct {
 		name     string
 		hostname string
@@ -1649,29 +1649,32 @@ func TestIsValidHostname(t *testing.T) {
 		{name: "with query", hostname: "example.com?query=value", expected: false},
 		{name: "with fragment", hostname: "example.com#fragment", expected: false},
 
-		// Make sure ports are not allowd
-		{name: "with port", hostname: "example.com:9090", expected: false},
+		// Test ports are allowd
+		{name: "with port", hostname: "example.com:9090", expected: true},
+		{name: "port without hostname", hostname: ":9090", expected: false},
+		{name: "port without hostname", hostname: "   :9090", expected: false},
 
 		// Valid IPv4 addresses
-		{name: "valid IPv4 localhost", hostname: "127.0.0.1", expected: true},
-		{name: "valid IPv4 address", hostname: "192.168.1.1", expected: true},
-		{name: "valid IPv4 all zeros", hostname: "0.0.0.0", expected: true},
-		{name: "valid IPv4 broadcast", hostname: "255.255.255.255", expected: true},
+		{name: "IPv4 localhost", hostname: "127.0.0.1", expected: false},
+		{name: "IPv4 address", hostname: "192.168.1.1", expected: true},
+		{name: "IPv4 all zeros", hostname: "0.0.0.0", expected: false},
+		{name: "IPv4 loopback with port", hostname: "127.0.0.1:9090", expected: false},
 
 		// Valid IPv6 addresses
-		{name: "valid IPv6 localhost", hostname: "::1", expected: true},
-		{name: "valid IPv6 full", hostname: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", expected: true},
-		{name: "valid IPv6 compressed", hostname: "2001:db8::1", expected: true},
-		{name: "valid IPv6 all zeros", hostname: "::", expected: true},
+		{name: "IPv6 localhost", hostname: "::1", expected: false},
+		{name: "IPv6 full", hostname: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", expected: true},
+		{name: "IPv6 compressed", hostname: "2001:db8::1", expected: true},
+		{name: "IPv6 all zeros", hostname: "::", expected: false},
 
 		// IPv6 with brackets
-		{name: "valid IPv6 localhost with brackets", hostname: "[::1]", expected: true},
-		{name: "valid IPv6 with brackets", hostname: "[2001:db8::1]", expected: true},
-		{name: "invalid brackets only", hostname: "[]", expected: false},
-		{name: "invalid empty brackets", hostname: "[", expected: false},
+		{name: "IPv6 localhost with brackets", hostname: "[::1]", expected: false},
+		{name: "IPv6 with brackets", hostname: "[2001:db8::1]", expected: true},
+		{name: "brackets only", hostname: "[]", expected: false},
+		{name: "empty brackets", hostname: "[", expected: false},
+		{name: "IPv6 iwht brackets with port", hostname: "[::1]:8089", expected: false},
 
 		// Valid DNS hostnames
-		{name: "simple hostname", hostname: "localhost", expected: true},
+		{name: "localhostname", hostname: "localhost", expected: false},
 		{name: "hostname with subdomain", hostname: "api.example.com", expected: true},
 		{name: "hostname with multiple subdomains", hostname: "a.b.c.example.com", expected: true},
 		{name: "hostname with numbers", hostname: "server1.example.com", expected: true},
@@ -1693,7 +1696,6 @@ func TestIsValidHostname(t *testing.T) {
 		{name: "hostname with space", hostname: "my server.example.com", expected: false},
 		{name: "hostname with at symbol", hostname: "user@example.com", expected: false},
 		{name: "hostname with exclamation", hostname: "example!.com", expected: false},
-		{name: "hostname with colon (not IPv6)", hostname: "example:8080", expected: false},
 
 		// Invalid DNS hostnames - empty labels
 		{name: "empty label (double dot)", hostname: "example..com", expected: false},
@@ -1708,12 +1710,15 @@ func TestIsValidHostname(t *testing.T) {
 		{name: "fleet server URL", hostname: "fleet.example.com", expected: true},
 		{name: "AWS endpoint", hostname: "s3.us-west-2.amazonaws.com", expected: true},
 		{name: "internal hostname", hostname: "db-primary-01.internal", expected: true},
+		{name: "gibberish", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app", expected: false},
+		{name: "gibberish II", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app:9800", expected: false},
+		{name: "hostname with port", hostname: "example:8080", expected: true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := isValidHostname(tc.hostname)
-			assert.Equal(t, tc.expected, result, "isValidHostname(%q) = %v, want %v", tc.hostname, result, tc.expected)
+			result := validateAddress(tc.hostname)
+			assert.Equal(t, tc.expected, result, "isValidHostnameAndPort(%q) = %v, want %v", tc.hostname, result, tc.expected)
 		})
 	}
 }

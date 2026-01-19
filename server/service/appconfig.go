@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	strconv "strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -368,9 +369,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		})
 	}
 
-	fleetDesktopSettingsInvalid := validateFleetDesktopSettings(newAppConfig, lic)
-	if fleetDesktopSettingsInvalid.HasErrors() {
-		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalid)
+	fleetDesktopSettingsInvalidErr := validateFleetDesktopSettings(newAppConfig, lic)
+	if fleetDesktopSettingsInvalidErr.HasErrors() {
+		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
 	}
 
 	if newAppConfig.SSOSettings != nil {
@@ -1107,31 +1108,29 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 	transparencyURLModified := newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL
 	alternativeBrowserHostModified := newAppConfig.FleetDesktop.AlternativeBrowserHost != ""
 
-	fleetDesktopSettingsInvalid := &fleet.InvalidArgumentError{}
+	fleetDesktopSettingsInvalidErr := &fleet.InvalidArgumentError{}
 	if !lic.IsPremium() {
 		if transparencyURLModified {
-			fleetDesktopSettingsInvalid.Append("transparency_url", ErrMissingLicense.Error())
+			fleetDesktopSettingsInvalidErr.Append("transparency_url", ErrMissingLicense.Error())
 		}
 		if alternativeBrowserHostModified {
-			fleetDesktopSettingsInvalid.Append("alternative_browser_host", ErrMissingLicense.Error())
+			fleetDesktopSettingsInvalidErr.Append("alternative_browser_host", ErrMissingLicense.Error())
 		}
-	}
-	// No point in validating that the URLs are valid if the license is not premium
-	if fleetDesktopSettingsInvalid.HasErrors() {
-		return fleetDesktopSettingsInvalid
+		// No point in validating that the URLs are valid if the license is not premium
+		return fleetDesktopSettingsInvalidErr
 	}
 
 	if transparencyURLModified {
 		if _, err := url.Parse(newAppConfig.FleetDesktop.TransparencyURL); err != nil {
-			fleetDesktopSettingsInvalid.Append("transparency_url", err.Error())
+			fleetDesktopSettingsInvalidErr.Append("transparency_url", err.Error())
 		}
 	}
 	if alternativeBrowserHostModified {
-		if !isValidHostname(newAppConfig.FleetDesktop.AlternativeBrowserHost) {
-			fleetDesktopSettingsInvalid.Append("alternative_browser_host", "must be a valid hostname or IP address")
+		if !validateAddress(newAppConfig.FleetDesktop.AlternativeBrowserHost) {
+			fleetDesktopSettingsInvalidErr.Append("alternative_browser_host", "must be a valid hostname or IP address")
 		}
 	}
-	return fleetDesktopSettingsInvalid
+	return fleetDesktopSettingsInvalidErr
 }
 
 // processAppleOSUpdateSettings updates the OS updates configuration if the minimum version+deadline are updated.
@@ -1925,22 +1924,65 @@ func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.
 	return &appConfig.Features, nil
 }
 
+// validateAddress validates that the provided address is usable for Fleet operations.
+func validateAddress(addr string) bool {
+	host, portStr, err := net.SplitHostPort(addr)
+
+	if err != nil {
+		// Missing port is OK...
+		if strings.Contains(err.Error(), "missing port") {
+			host = addr
+		} else {
+			// Bare IPv6 address will make the call to SplitHostPort to fail,
+			// in which case we just need to validate that the address is usable.
+			ip := net.ParseIP(addr)
+			return isUsableIPAddr(ip)
+		}
+	} else {
+		port, err := strconv.Atoi(portStr)
+		if err != nil || port < 0 || port > 65535 {
+			return false
+		}
+	}
+
+	return isValidHostname(host)
+}
+
+// isUsableIPAddr validates that the provided IP address is usable for Fleet operations.
+func isUsableIPAddr(addr net.IP) bool {
+	if addr == nil {
+		return false
+	}
+	if addr.IsLoopback() {
+		return false
+	}
+	if ip4 := addr.To4(); ip4 != nil && ip4.Equal(net.IPv4zero) {
+		return false
+	}
+	if len(addr) == net.IPv6len && addr.Equal(net.IPv6zero) {
+		return false
+	}
+	return true
+}
+
 // isValidHostname validates that h is a valid hostname per RFC 1123. It allows IP addresses and DNS names.
 func isValidHostname(h string) bool {
 	if h == "" {
 		return false
 	}
 
-	// Check if it's a valid IP address (IPv4 or IPv6)
-	if net.ParseIP(h) != nil {
-		return true
+	if h == "localhost" {
+		return false
 	}
 
-	// For IPv6 in brackets (e.g., [::1]), strip them
+	// For IPv6 in brackets, strip them
 	if strings.HasPrefix(h, "[") && strings.HasSuffix(h, "]") {
-		if net.ParseIP(h[1:len(h)-1]) != nil {
-			return true
-		}
+		h = h[1 : len(h)-1]
+	}
+
+	// Check if it's a valid IP address (IPv4 or IPv6)
+	if ip := net.ParseIP(h); ip != nil {
+		return isUsableIPAddr(ip)
 	}
 
 	// Validate as DNS hostname (RFC 1123)

@@ -219,6 +219,54 @@ describe("FleetDesktop", () => {
         ).not.toBeInTheDocument();
       });
     });
+
+    it("accepts hostnames with a port on alternative browser field", async () => {
+      const mockConfig = createMockConfig();
+
+      const { user } = renderWithSetup(
+        <FleetDesktop
+          appConfig={mockConfig}
+          handleSubmit={mockHandleSubmit}
+          isPremiumTier
+          isUpdatingSettings={false}
+          router={createMockRouter()}
+        />
+      );
+
+      const input = screen.getByLabelText(/browser host/i);
+      await user.type(input, "fleet.example.com:9809");
+      await user.tab();
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText(/browser host must be a valid hostname/i)
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it("accepts IP addresses on browser alternative field", async () => {
+      const mockConfig = createMockConfig();
+
+      const { user } = renderWithSetup(
+        <FleetDesktop
+          appConfig={mockConfig}
+          handleSubmit={mockHandleSubmit}
+          isPremiumTier
+          isUpdatingSettings={false}
+          router={createMockRouter()}
+        />
+      );
+
+      const input = screen.getByLabelText(/browser host/i);
+      await user.type(input, "182.190.1.1:9809");
+      await user.tab();
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText(/browser host must be a valid hostname/i)
+        ).not.toBeInTheDocument();
+      });
+    });
   });
 
   describe("Form Submission", () => {
