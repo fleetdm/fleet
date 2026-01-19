@@ -9,17 +9,7 @@ import (
 	"github.com/realclientip/realclientip-go"
 )
 
-// singleIPHeaderNames are header names that contain a single IP address,
-// typically set by CDNs or reverse proxies.
-var singleIPHeaderNames = map[string]struct{}{
-	"true-client-ip":   {}, // Cloudflare Enterprise, Akamai
-	"x-real-ip":        {}, // Nginx
-	"cf-connecting-ip": {}, // Cloudflare
-	"x-azure-clientip": {}, // Azure
-	"fastly-client-ip": {}, // Fastly
-}
-
-// NewClientIPStrategy creates a ClientIPStrategy based on the trusted_proxies configuration.
+\// NewClientIPStrategy creates a ClientIPStrategy based on the trusted_proxies configuration.
 //
 // Config values:
 //   - "" (empty): Legacy behavior for backwards compatibility - trusts True-Client-IP,
