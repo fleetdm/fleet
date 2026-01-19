@@ -16,14 +16,14 @@ import (
 // It deletes existing rows for the host/query and inserts the new rows.
 // If the incoming result set has more than 1000 rows, it bails early without storing anything.
 // Excess rows across all hosts are cleaned up by a separate cron job.
-func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (err error) {
+func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (rowsAdded int, err error) {
 	if len(rows) == 0 {
-		return nil
+		return 0, nil
 	}
 
 	// Bail early if the incoming result set is too large (more than 1000 rows from a single host)
 	if len(rows) > fleet.DefaultMaxQueryReportRows {
-		return nil
+		return 0, nil
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -33,10 +33,11 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 		// Delete rows based on the specific queryID and hostID
 		deleteStmt := `DELETE FROM query_results WHERE host_id = ? AND query_id = ?`
-		_, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID)
+		result, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting query results for host")
 		}
+		deletedRows, _ := result.RowsAffected()
 
 		// Insert the new rows
 		valueStrings := make([]string, 0, len(rows))
@@ -51,15 +52,17 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		INSERT IGNORE INTO query_results (query_id, host_id, last_fetched, data) VALUES
 	` + strings.Join(valueStrings, ",")
 
-		_, err = tx.ExecContext(ctx, insertStmt, valueArgs...)
+		result, err = tx.ExecContext(ctx, insertStmt, valueArgs...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting new rows")
 		}
+		insertedRows, _ := result.RowsAffected()
 
+		rowsAdded = int(insertedRows - deletedRows)
 		return nil
 	})
 
-	return ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 }
 
 // TODO(lucas): Any chance we can store hostname in the query_results table?

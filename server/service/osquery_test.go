@@ -642,9 +642,9 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		return 0, nil
 	}
 	teamQueryResultsStored := false
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		if len(rows) == 0 {
-			return nil
+			return 0, nil
 		}
 		if rows[0].QueryID == 777 {
 			require.Len(t, rows, 3)
@@ -685,7 +685,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			require.NotZero(t, rows[1].LastFetched)
 			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(*rows[1].Data))
 		}
-		return nil
+		return 0, nil
 	}
 
 	// Hack to get at the service internals and modify the writer
@@ -830,10 +830,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
-		return nil
-	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		return 0, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
@@ -869,8 +866,8 @@ func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
-		return nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return 0, nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
@@ -917,12 +914,12 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return nil
+		return 0, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -968,12 +965,12 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return nil
+		return 0, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -1025,8 +1022,8 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
-		return nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return 0, nil
 	}
 
 	// Expect an error when unable to write to logging destination.

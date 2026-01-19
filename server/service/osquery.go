@@ -2980,20 +2980,16 @@ func (svc *Service) saveResultLogsToQueryReports(
 			}
 		}
 
-		// Calculate how many rows we're about to insert
-		rowCount := len(result.Snapshot)
-		if rowCount == 0 {
-			rowCount = 1 // empty snapshot still inserts 1 row with null data
-		}
-
-		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
+		var rowsAdded int
+		var err error
+		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
 			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
 
 		// Increment Redis counter after successful insert
 		if svc.liveQueryStore != nil {
-			if _, err := svc.liveQueryStore.IncrQueryResultsCount(dbQuery.ID, rowCount); err != nil {
+			if _, err := svc.liveQueryStore.IncrQueryResultsCount(dbQuery.ID, rowsAdded); err != nil {
 				// Log but don't fail - the insert succeeded, counter is just a heuristic
 				level.Debug(svc.logger).Log("msg", "incr query results count in redis", "err", err, "query_id", dbQuery.ID)
 			}
@@ -3127,7 +3123,7 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) (int, error) {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -3153,10 +3149,12 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	if err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
-		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	var rowsAdded int
+	var err error
+	if rowsAdded, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
+		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	return nil
+	return rowsAdded, nil
 }
 
 // getMostRecentResults returns only the most recent result per query.
