@@ -1512,13 +1512,14 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 // MDMWindowsProfilePayload for a command that was used to deliver a
 // configuration profile.
 //
-// Profiles are groups of `<Replace>` or `<Add>` commands wrapped in an `<Atomic>`, both
-// the top-level atomic and each replace have different CmdID values and Status
+// Profiles are either groups of `<Replace>` or `<Add>` commands at the top-level or wrapped in an `<Atomic>`,
+// all commands, whether nested or not has their own CmdID, and therefore their own status in the MDM server
 // responses. For example a profile might look like:
 //
 // <Atomic>
 //
 //	<CmdID>foo</CmdID>
+//
 //	<Replace>
 //	  <CmdID>bar</CmdID>
 //	  ...
@@ -1561,10 +1562,13 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 // </SyncBody>
 //
 // As currently specified:
-//   - The status of the resulting command should be the status of the
-//     top-level `<Atomic>` operation
+//   - The status of the resulting command is:
+//   - If atomic: the status of the atomic command
+//   - If not atomic: then any failed commands will result in a failed profile delivery
+//   - If any command is pending, then the profile delivery is pending
+//   - Otherwise the profile delivery is verifying
 //   - The detail of the resulting command should be an aggregate of all the
-//     status responses of every nested `Replace` operation
+//     status responses for that given command
 func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	// IMPORTANT: The cmdWithSecret.RawCommand may contain a Fleet secret variable value, so it should never be exposed or saved.
 	cmdWithSecret MDMWindowsCommand,
