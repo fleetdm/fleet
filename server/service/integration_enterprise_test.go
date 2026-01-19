@@ -12423,6 +12423,22 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.Equal(t, expectedPayload.Filename, meta.Name)
 		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
 		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+
+		// patch the software installer to change the self-service and nothing else
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":      {"0"},
+			"self_service": {"false"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		expectedPayload.SelfService = false
+		checkSoftwareInstaller(t, s.ds, payload)
+
+		meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), nil, titleID, false)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
 	})
 }
 
@@ -23668,6 +23684,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		require.NoError(t, err)
 		require.Equal(t, expectedPayload.Filename, meta.Name)
 		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
 		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
 
 		// patch only the categories (test fix for https://github.com/fleetdm/fleet/issues/36069)
@@ -23682,6 +23699,22 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		require.NoError(t, err)
 		require.Equal(t, expectedPayload.Filename, meta.Name)
 		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+
+		// patch only the self-service
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":      {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"self_service": {"false"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		expectedPayload.SelfService = false
+
+		meta, err = s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
 		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
 
 		// delete the installer
@@ -23689,7 +23722,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test2.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`,
+			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test2.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": false}`,
 				labelResp.Label.ID, labelResp.Label.Name, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore

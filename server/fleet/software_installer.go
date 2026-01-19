@@ -613,7 +613,8 @@ type UpdateSoftwareInstallerPayload struct {
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
-		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil &&
+		u.CategoryIDs == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
