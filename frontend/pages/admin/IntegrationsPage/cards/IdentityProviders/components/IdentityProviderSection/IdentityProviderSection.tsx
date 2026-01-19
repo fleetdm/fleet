@@ -105,7 +105,7 @@ const FailedEndUserInfoCard = ({
           underline={false}
           className={`${baseClass}__received-tooltip`}
         >
-          Failed receiving information from your IdP ({dateAgo(receivedAt)}).
+          Failed to receive information from your IdP ({dateAgo(receivedAt)}).
         </TooltipWrapper>
       </p>
     </SectionCard>

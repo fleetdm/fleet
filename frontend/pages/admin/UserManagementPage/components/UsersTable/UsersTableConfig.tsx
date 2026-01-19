@@ -208,6 +208,8 @@ const generateActionDropdownOptions = (
   isInvitePending: boolean,
   isSsoEnabled: boolean
 ): IDropdownOption[] => {
+  const disableDelete = isCurrentUser;
+
   let dropdownOptions = [
     {
       label: "Edit",
@@ -226,9 +228,9 @@ const generateActionDropdownOptions = (
     },
     {
       label: "Delete",
-      disabled: isCurrentUser,
+      disabled: disableDelete,
       value: "delete",
-      tooltipContent: (
+      tooltipContent: disableDelete ? (
         <>
           There must be at least one Admin
           <br />
@@ -238,7 +240,7 @@ const generateActionDropdownOptions = (
           <br />
           role of &quot;Admin&quot;.
         </>
-      ),
+      ) : undefined,
     },
   ];
 
