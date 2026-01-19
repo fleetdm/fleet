@@ -54,7 +54,7 @@ flowchart LR
     style S2_v1 fill:#90EE90
     style S3_v3 fill:#90EE90
     style S3_v2 fill:#90EE90
-    style S3_v1 fill:#FFB6C1
+    style S3_v1 fill:#CC1144
 ```
 
 ### Scenario 2: `version` specified
@@ -89,10 +89,10 @@ flowchart LR
 
     T1 --> T2 --> T3
 
-    style S1_v1 fill:#87CEEB
-    style S2_v1 fill:#87CEEB
-    style S2_note fill:#FFFACD
-    style S3_v4 fill:#87CEEB
+    style S1_v1 fill:#0F93C9
+    style S2_v1 fill:#0F93C9
+    style S2_note fill:#D07D24
+    style S3_v4 fill:#0F93C9
     style S3_v1 fill:#90EE90
 ```
 
@@ -129,12 +129,12 @@ flowchart LR
 
     T1 --> T2 --> T3
 
-    style S1_v1 fill:#87CEEB
+    style S1_v1 fill:#0F93C9
     style S2_v4 fill:#90EE90
-    style S2_v1 fill:#87CEEB
+    style S2_v1 fill:#0F93C9
     style S3_v5 fill:#90EE90
     style S3_v4 fill:#90EE90
-    style S3_v1 fill:#FFB6C1
+    style S3_v1 fill:#CC1144
 ```
 
 ### Version caching decision flowchart
@@ -164,10 +164,10 @@ flowchart TD
     
     K -->|Changed to new version| H
 
-    style C fill:#90EE90
-    style H fill:#87CEEB
-    style F fill:#FFB6C1
-    style J fill:#FFFACD
+    style C fill:#9BC264
+    style H fill:#0F93C9
+    style F fill:#CC1144
+    style J fill:#D07D24
 ```
 
 
