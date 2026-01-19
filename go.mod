@@ -116,6 +116,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
+	github.com/realclientip/realclientip-go v1.0.0
 	github.com/remitly-oss/httpsig-go v1.2.0
 	github.com/rs/zerolog v1.32.0
 	github.com/russellhaering/goxmldsig v1.4.0
@@ -313,7 +314,6 @@ require (
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
-	github.com/realclientip/realclientip-go v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
