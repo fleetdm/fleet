@@ -67,6 +67,8 @@ type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+
 type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
@@ -78,6 +80,8 @@ type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
 
 type DeleteUserFunc func(ctx context.Context, id uint) error
+
+type CountGlobalAdminsFunc func(ctx context.Context) (int, error)
 
 type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
@@ -1812,6 +1816,9 @@ type DataStore struct {
 	ListUsersFunc        ListUsersFunc
 	ListUsersFuncInvoked bool
 
+	UsersByIDsFunc        UsersByIDsFunc
+	UsersByIDsFuncInvoked bool
+
 	UserByEmailFunc        UserByEmailFunc
 	UserByEmailFuncInvoked bool
 
@@ -1829,6 +1836,9 @@ type DataStore struct {
 
 	DeleteUserFunc        DeleteUserFunc
 	DeleteUserFuncInvoked bool
+
+	CountGlobalAdminsFunc        CountGlobalAdminsFunc
+	CountGlobalAdminsFuncInvoked bool
 
 	PendingEmailChangeFunc        PendingEmailChangeFunc
 	PendingEmailChangeFuncInvoked bool
@@ -4486,6 +4496,13 @@ func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return s.ListUsersFunc(ctx, opt)
 }
 
+func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+	s.mu.Lock()
+	s.UsersByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UsersByIDsFunc(ctx, ids)
+}
+
 func (s *DataStore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
 	s.mu.Lock()
 	s.UserByEmailFuncInvoked = true
@@ -4526,6 +4543,13 @@ func (s *DataStore) DeleteUser(ctx context.Context, id uint) error {
 	s.DeleteUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteUserFunc(ctx, id)
+}
+
+func (s *DataStore) CountGlobalAdmins(ctx context.Context) (int, error) {
+	s.mu.Lock()
+	s.CountGlobalAdminsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountGlobalAdminsFunc(ctx)
 }
 
 func (s *DataStore) PendingEmailChange(ctx context.Context, userID uint, newEmail string, token string) error {

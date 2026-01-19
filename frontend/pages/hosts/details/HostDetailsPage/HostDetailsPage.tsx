@@ -205,6 +205,7 @@ const HostDetailsPage = ({
     filteredHostsPath,
     currentTeam,
     isAnyMaintainerAdminObserverPlus,
+    isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -574,6 +575,9 @@ const HostDetailsPage = ({
     }
   );
 
+  const canGetMDMCommands =
+    !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
+
   const {
     data: pastMDMCommands,
     isError: pastMDMCommandsIsError,
@@ -600,13 +604,12 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
-  // request to get the host mdm commands
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
@@ -633,7 +636,7 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
@@ -1392,7 +1395,7 @@ const HostDetailsPage = ({
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
-                    showMDMCommandsToggle={isAppleDevice(host.platform)}
+                    showMDMCommandsToggle={canGetMDMCommands}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
                       setActivityPage(0);
