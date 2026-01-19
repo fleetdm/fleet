@@ -2970,12 +2970,14 @@ func (svc *Service) saveResultLogsToQueryReports(
 		// Check Redis counter for approximate count (fast, distributed check).
 		// This is a heuristic - the counter resets every 60 seconds but provides
 		// protection against rapid buildup between cleanup cron runs.
-		count, err := svc.liveQueryStore.GetQueryResultsCount(dbQuery.ID)
-		if err != nil {
-			// Log but don't fail - allow insert and let cleanup cron handle excess
-			level.Debug(svc.logger).Log("msg", "get query results count from redis", "err", err, "query_id", dbQuery.ID)
-		} else if count >= maxQueryReportRows {
-			continue
+		if svc.liveQueryStore != nil {
+			count, err := svc.liveQueryStore.GetQueryResultsCount(dbQuery.ID)
+			if err != nil {
+				// Log but don't fail - allow insert and let cleanup cron handle excess
+				level.Debug(svc.logger).Log("msg", "get query results count from redis", "err", err, "query_id", dbQuery.ID)
+			} else if count >= maxQueryReportRows {
+				continue
+			}
 		}
 
 		// Calculate how many rows we're about to insert
@@ -2990,9 +2992,11 @@ func (svc *Service) saveResultLogsToQueryReports(
 		}
 
 		// Increment Redis counter after successful insert
-		if _, err := svc.liveQueryStore.IncrQueryResultsCount(dbQuery.ID, rowCount); err != nil {
-			// Log but don't fail - the insert succeeded, counter is just a heuristic
-			level.Debug(svc.logger).Log("msg", "incr query results count in redis", "err", err, "query_id", dbQuery.ID)
+		if svc.liveQueryStore != nil {
+			if _, err := svc.liveQueryStore.IncrQueryResultsCount(dbQuery.ID, rowCount); err != nil {
+				// Log but don't fail - the insert succeeded, counter is just a heuristic
+				level.Debug(svc.logger).Log("msg", "incr query results count in redis", "err", err, "query_id", dbQuery.ID)
+			}
 		}
 	}
 }
