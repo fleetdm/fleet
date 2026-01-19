@@ -2275,28 +2275,28 @@ This activity contains the following fields:
 }
 ```
 
-## updated_conditional_access_snooze
+## updated_conditional_access_bypass
 
-Generated when conditional access snooze settings are updated.
+Generated when conditional access bypass settings are updated.
 
 This activity contains the following field:
-- "snooze_enabled": Whether conditional access snooze was enabled.
+- "bypass_disabled": Whether conditional access bypass was enabled.
 
 #### Example
 
 ```json
 {
-  "snooze_enabled": true
+  "bypass_disabled": true
 }
 ```
 
-## host_snoozed_conditional_access
+## host_bypassed_conditional_access
 
-Generated when a host snoozes conditional access.
+Generated when a host bypasses conditional access.
 
 This activity contains the following field:
-- "host_display_name": The display name of the snoozed host.
-- "host_id": The ID of the snoozed host.
+- "host_display_name": The display name of the host.
+- "host_id": The ID of the bypassed host.
 - "idp_full_name": The end user's full name from Okta.
 
 #### Example
