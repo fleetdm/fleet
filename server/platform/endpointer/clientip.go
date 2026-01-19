@@ -26,7 +26,7 @@ var singleIPHeaderNames = map[string]struct{}{
 //     X-Real-IP, and leftmost X-Forwarded-For. This is deprecated; use "none" when
 //     exposing the server directly to the internet.
 //   - "none": Ignores all headers, uses only RemoteAddr.
-//   - A header name (e.g., "True-Client-IP", "X-Real-IP", "CF-Connecting-IP"):
+//   - A header name prefixed with `headher:` (e.g., "header:True-Client-IP"):
 //     Trust this single-IP header, fall back to RemoteAddr.
 //   - A number (e.g., "2"): Trust X-Forwarded-For with this many proxy hops
 //   - Comma-separated IPs/CIDRs (e.g., "10.0.0.0/8,192.168.0.0/16"):
@@ -43,9 +43,10 @@ func NewClientIPStrategy(trustedProxies string) (realclientip.Strategy, error) {
 	} else if strings.EqualFold(trustedProxies, "none") {
 		// "none": Trust no one; return (non-spoofable) RemoteAddr only.
 		return realclientip.RemoteAddrStrategy{}, nil
-	} else if _, ok := singleIPHeaderNames[strings.ToLower(trustedProxies)]; ok {
-		// Check if it's a known single-IP header name.
-		strategy, err = realclientip.NewSingleIPHeaderStrategy(trustedProxies)
+	} else if strings.HasPrefix(trustedProxies, "header:") {
+		// Check if the value is a single IP header name.
+		headerName := strings.TrimPrefix(trustedProxies, "header:")
+		strategy, err = realclientip.NewSingleIPHeaderStrategy(headerName)
 		if err != nil {
 			return nil, fmt.Errorf("invalid header name %q: %w", trustedProxies, err)
 		}

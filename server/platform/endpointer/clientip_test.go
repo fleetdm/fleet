@@ -49,18 +49,30 @@ func TestNewClientIPStrategy(t *testing.T) {
 		},
 		{
 			name:           "True-Client-IP header",
-			trustedProxies: "True-Client-IP",
+			trustedProxies: "header:True-Client-IP",
 			wantErr:        false,
 		},
 		{
 			name:           "X-Real-IP header",
-			trustedProxies: "X-Real-IP",
+			trustedProxies: "header:X-Real-IP",
 			wantErr:        false,
 		},
 		{
 			name:           "CF-Connecting-IP header",
-			trustedProxies: "CF-Connecting-IP",
+			trustedProxies: "header:CF-Connecting-IP",
 			wantErr:        false,
+		},
+		{
+			name:           "X-forwarded-for header",
+			trustedProxies: "header:X-Forwarded-For",
+			// This is not a valid single-IP header value
+			wantErr: true,
+		},
+		{
+			name:           "Forwarded header",
+			trustedProxies: "header:Forwarded",
+			// This is not a valid single-IP header value
+			wantErr: true,
 		},
 		{
 			name:           "hop count 1",
@@ -206,7 +218,7 @@ func TestClientIPStrategy_None(t *testing.T) {
 }
 
 func TestClientIPStrategy_SingleIPHeader(t *testing.T) {
-	strategy, err := NewClientIPStrategy("True-Client-IP")
+	strategy, err := NewClientIPStrategy("header:True-Client-IP")
 	require.NoError(t, err)
 
 	tests := []struct {
