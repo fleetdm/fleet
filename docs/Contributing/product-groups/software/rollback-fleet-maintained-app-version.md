@@ -61,11 +61,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph T1["User pins v1.0"]
+    subgraph T1["User specifies 1.0 in YAML"]
         direction TB
         S1_title["Fleet has v1.0 cached"]
         subgraph S1["S3 contents"]
-            S1_v1["v1.0 ✓<br/>(pinned)"]
+            S1_v1["v1.0 ✓<br/>(specified version in YAML)"]
         end
     end
 
@@ -73,17 +73,17 @@ flowchart LR
         direction TB
         S2_title["Fleet does NOT download"]
         subgraph S2["S3 contents"]
-            S2_v1["v1.0 ✓<br/>(pinned)"]
+            S2_v1["v1.0 ✓<br/>(specified version in YAML)"]
             S2_note["NO CHANGES"]
         end
     end
 
-    subgraph T3["User changes pin to v4.0"]
+    subgraph T3["User changes specified version in YAML to v4.0"]
         direction TB
         S3_title["Fleet downloads v4.0"]
         subgraph S3["S3 contents"]
-            S3_v4["v4.0 ✓<br/>(pinned)"]
-            S3_v1["v1.0 ✓<br/>(prev pin)"]
+            S3_v4["v4.0 ✓<br/>(specified version in YAML)"]
+            S3_v1["v1.0 ✓<br/>(prev specified version in YAML)"]
         end
     end
 
@@ -100,11 +100,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph T1["Before unpin"]
+    subgraph T1["Before removing version from YAML"]
         direction TB
-        S1_title["Pinned to v1.0"]
+        S1_title["YAML: version specified to 1.0"]
         subgraph S1["S3 contents"]
-            S1_v1["v1.0 ✓<br/>(pinned)"]
+            S1_v1["v1.0 ✓<br/>(specified version in YAML)"]
         end
     end
 
@@ -113,7 +113,7 @@ flowchart LR
         S2_title["Fleet downloads v4.0 (latest)"]
         subgraph S2["S3 contents"]
             S2_v4["v4.0 ✓<br/>(latest)"]
-            S2_v1["v1.0 ✓<br/>(prev pin)"]
+            S2_v1["v1.0 ✓<br/>(prev specified version)"]
         end
     end
 
@@ -141,25 +141,25 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A[New version available?] -->|Yes| B{Is version<br/>specified in config?}
+    A[New FMA version available?] -->|Yes| B{Is version<br/>specified in YAML?}
     A -->|No| Z[No action needed]
     
-    B -->|No - track latest| C[Download new version]
-    C --> D[Keep previous version N-1]
+    B -->|No| C[Download new version]
+    C --> D[Keep previous version n-1]
     D --> E{More than 2<br/>versions cached?}
-    E -->|Yes| F[Delete oldest version N-2+]
+    E -->|Yes| F[Delete oldest version n-2]
     E -->|No| Z
     F --> Z
     
-    B -->|Yes - pinned| G{Is pinned version<br/>same as new?}
-    G -->|Yes| H[Download new pinned version]
-    H --> I[Keep previous pinned version]
+    B -->|Yes| G{Is YAML specified version<br/>same as new?}
+    G -->|Yes| H[Download new YAML specified version]
+    H --> I[Keep previous YAML specified version]
     I --> Z
-    G -->|No| J[No action - stay on pinned version]
+    G -->|No| J[No action]
     J --> Z
 
-    K[Version config changed?] -->|Removed| L[Download current latest]
-    L --> M[Keep previously pinned version]
+    K[YAML specified version changed?] -->|Removed| L[Download current latest]
+    L --> M[Keep previously specified YAML version]
     M --> N[Resume track latest mode]
     
     K -->|Changed to new version| H
