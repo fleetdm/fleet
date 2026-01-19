@@ -579,8 +579,6 @@ type MDMTurnOffFunc func(ctx context.Context, uuid string) (users []*fleet.User,
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
 
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
-
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
@@ -2581,9 +2579,6 @@ type DataStore struct {
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
-
-	ListActivitiesFunc        ListActivitiesFunc
-	ListActivitiesFuncInvoked bool
 
 	MarkActivitiesAsStreamedFunc        MarkActivitiesAsStreamedFunc
 	MarkActivitiesAsStreamedFuncInvoked bool
@@ -6281,13 +6276,6 @@ func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity 
 	s.NewActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewActivityFunc(ctx, user, activity, details, createdAt)
-}
-
-func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	s.mu.Lock()
-	s.ListActivitiesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListActivitiesFunc(ctx, opt)
 }
 
 func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {

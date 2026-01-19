@@ -677,47 +677,41 @@ func testListHostPastActivities(t *testing.T, ds *Datastore) {
 	cases := []struct {
 		name    string
 		expActs []dummyActivity
-		opts    fleet.ListActivitiesOptions
+		opts    fleet.ListOptions
 		expMeta *fleet.PaginationMetadata
 	}{
 		{
 			name:    "fetch page one",
 			expActs: []dummyActivity{activities[0]},
 			expMeta: &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    0,
-					PerPage: 1,
-				},
+			opts: fleet.ListOptions{
+				Page:    0,
+				PerPage: 1,
 			},
 		},
 		{
 			name:    "fetch page two",
 			expActs: []dummyActivity{activities[1]},
 			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    1,
-					PerPage: 1,
-				},
+			opts: fleet.ListOptions{
+				Page:    1,
+				PerPage: 1,
 			},
 		},
 		{
 			name:    "fetch all activities",
 			expActs: activities,
 			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    0,
-					PerPage: 2,
-				},
+			opts: fleet.ListOptions{
+				Page:    0,
+				PerPage: 2,
 			},
 		},
 	}
 
 	for _, c := range cases {
-		c.opts.ListOptions.IncludeMetadata = true
-		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts.ListOptions)
+		c.opts.IncludeMetadata = true
+		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts)
 		require.NoError(t, err)
 		require.Len(t, acts, len(c.expActs))
 		require.Equal(t, c.expMeta, meta)
