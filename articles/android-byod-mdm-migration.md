@@ -57,3 +57,10 @@ When enrollment is complete, the Work Profile screens will go away and the end u
 Open the App Drawer on the home screen (either with the Apps icon, or by swiping up at the home screen), and there will now be a separate tab at the bottom for Work Profile apps. Work profile apps have a briefcase icon in the bottom right corner of their icon.
 
 <img width="50%" alt="10000000691" src="https://github.com/user-attachments/assets/ebc29262-5edb-4e9d-9dbe-cbc17e80213a" />
+
+<meta name="articleTitle" value="Android BYOD MDM migration">
+<meta name="authorFullName" value="Steven Palmesano">
+<meta name="authorGitHubUsername" value="spalmesano0">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2026-01-20">
+<meta name="description" value="Instructions for migrating Android BYOD hosts away from an old MDM solution to Fleet.">
