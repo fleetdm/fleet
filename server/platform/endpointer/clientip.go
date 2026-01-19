@@ -17,12 +17,12 @@ type ClientIPStrategy interface {
 
 // singleIPHeaderNames are header names that contain a single IP address,
 // typically set by CDNs or reverse proxies.
-var singleIPHeaderNames = map[string]bool{
-	"true-client-ip":   true, // Cloudflare Enterprise, Akamai
-	"x-real-ip":        true, // Nginx
-	"cf-connecting-ip": true, // Cloudflare
-	"x-azure-clientip": true, // Azure
-	"fastly-client-ip": true, // Fastly
+var singleIPHeaderNames = map[string]struct{}{
+	"true-client-ip":   {}, // Cloudflare Enterprise, Akamai
+	"x-real-ip":        {}, // Nginx
+	"cf-connecting-ip": {}, // Cloudflare
+	"x-azure-clientip": {}, // Azure
+	"fastly-client-ip": {}, // Fastly
 }
 
 // NewClientIPStrategy creates a ClientIPStrategy based on the trusted_proxies configuration.
@@ -49,7 +49,7 @@ func NewClientIPStrategy(trustedProxies string) (ClientIPStrategy, error) {
 	} else if strings.EqualFold(trustedProxies, "none") {
 		// "none": Trust no one; return (non-spoofable) RemoteAddr only.
 		strategy = realclientip.RemoteAddrStrategy{}
-	} else if singleIPHeaderNames[strings.ToLower(trustedProxies)] {
+	} else if _, ok := singleIPHeaderNames[strings.ToLower(trustedProxies)]; ok {
 		// Check if it's a known single-IP header name.
 		strategy, err = realclientip.NewSingleIPHeaderStrategy(trustedProxies)
 		if err != nil {

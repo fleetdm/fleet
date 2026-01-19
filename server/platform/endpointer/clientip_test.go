@@ -128,13 +128,13 @@ func TestClientIPStrategy_Legacy(t *testing.T) {
 	}{
 		{
 			name:       "uses True-Client-IP first",
-			headers:    makeHeaders("True-Client-IP", "1.1.1.1"),
+			headers:    makeHeaders("True-Client-IP", "1.1.1.1", "X-Real-IP", "2.2.2.2", "X-Forwarded-For", "3.3.3.3, 4.4.4.4"),
 			remoteAddr: "9.9.9.9:12345",
 			wantIP:     "1.1.1.1",
 		},
 		{
 			name:       "uses X-Real-IP second",
-			headers:    makeHeaders("X-Real-IP", "2.2.2.2"),
+			headers:    makeHeaders("X-Real-IP", "2.2.2.2", "X-Forwarded-For", "3.3.3.3, 4.4.4.4"),
 			remoteAddr: "9.9.9.9:12345",
 			wantIP:     "2.2.2.2",
 		},
@@ -149,12 +149,6 @@ func TestClientIPStrategy_Legacy(t *testing.T) {
 			headers:    http.Header{},
 			remoteAddr: "9.9.9.9:12345",
 			wantIP:     "9.9.9.9",
-		},
-		{
-			name:       "True-Client-IP takes precedence over X-Forwarded-For",
-			headers:    makeHeaders("True-Client-IP", "1.1.1.1", "X-Forwarded-For", "3.3.3.3"),
-			remoteAddr: "9.9.9.9:12345",
-			wantIP:     "1.1.1.1",
 		},
 	}
 
@@ -270,6 +264,12 @@ func TestClientIPStrategy_HopCount(t *testing.T) {
 			remoteAddr: "9.9.9.9:12345",
 			wantIP:     "9.9.9.9",
 		},
+		{
+			name:       "falls back to RemoteAddr when hops > header length",
+			headers:    makeHeaders("X-Forwarded-For", "1.1.1.1"),
+			remoteAddr: "9.9.9.9:12345",
+			wantIP:     "9.9.9.9",
+		},
 	}
 
 	for _, tt := range tests {
@@ -302,6 +302,12 @@ func TestClientIPStrategy_IPRanges(t *testing.T) {
 			headers:    makeHeaders("X-Forwarded-For", "8.8.8.8, 1.1.1.1, 10.0.0.5"),
 			remoteAddr: "10.0.0.1:12345",
 			wantIP:     "1.1.1.1",
+		},
+		{
+			name:       "returns RemoteAddr when all IPs are trusted",
+			headers:    makeHeaders("X-Forwarded-For", "192.168.0.1, 10.0.0.5"),
+			remoteAddr: "99.99.99.99:12345",
+			wantIP:     "99.99.99.99",
 		},
 		{
 			name:       "falls back to RemoteAddr when header missing",
