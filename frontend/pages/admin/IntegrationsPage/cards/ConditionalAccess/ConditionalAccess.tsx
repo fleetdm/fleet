@@ -19,6 +19,7 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
 import { AppContext } from "context/app";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -26,6 +27,7 @@ import { useQuery } from "react-query";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import SectionCard from "../MdmSettings/components/SectionCard";
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
@@ -177,6 +179,12 @@ const ConditionalAccess = () => {
     "microsoft-entra" | "okta" | null
   >(null);
 
+  // Bypass disabled state
+  const [bypassDisabled, setBypassDisabled] = useState(
+    config?.conditional_access?.bypass_disabled || false
+  );
+  const [isUpdatingBypass, setIsUpdatingBypass] = useState(false);
+
   // "loading" state here is encompassed by phase === Phase.ConfirmingConfigured state, don't need
   // to use useQuery's
   // "error" state handled by onError callback
@@ -283,6 +291,11 @@ const ConditionalAccess = () => {
     }
   }, [entraTenantId, entraConfigured, entraPhase]);
 
+  // Sync bypass disabled state when config changes
+  useEffect(() => {
+    setBypassDisabled(config?.conditional_access?.bypass_disabled || false);
+  }, [config?.conditional_access?.bypass_disabled]);
+
   if (!isPremiumTier) {
     return <PremiumFeatureMessage />;
   }
@@ -323,6 +336,42 @@ const ConditionalAccess = () => {
 
   const handleOktaDelete = () => {
     setProviderToDelete("okta");
+  };
+
+  const onBypassDisabledChange = ({
+    value,
+  }: IInputFieldParseTarget<boolean>) => {
+    setBypassDisabled(value);
+  };
+
+  const handleSaveBypassSettings = async (evt: React.FormEvent) => {
+    evt.preventDefault();
+    setIsUpdatingBypass(true);
+    try {
+      const updatedConfig = await configAPI.update({
+        conditional_access: {
+          bypass_disabled: bypassDisabled,
+          // Preserve existing settings
+          okta_idp_id: config?.conditional_access?.okta_idp_id || "",
+          okta_assertion_consumer_service_url:
+            config?.conditional_access?.okta_assertion_consumer_service_url ||
+            "",
+          okta_audience_uri:
+            config?.conditional_access?.okta_audience_uri || "",
+          okta_certificate: config?.conditional_access?.okta_certificate || "",
+          microsoft_entra_tenant_id:
+            config?.conditional_access?.microsoft_entra_tenant_id || "",
+        },
+      });
+      setConfig(updatedConfig);
+      renderFlash(
+        "success",
+        "Successfully updated conditional access settings."
+      );
+    } catch {
+      renderFlash("error", "Could not update conditional access settings.");
+    }
+    setIsUpdatingBypass(false);
   };
 
   // RENDER
@@ -452,6 +501,34 @@ const ConditionalAccess = () => {
           provider={providerToDelete}
           config={config}
         />
+      )}
+      {(oktaConfigured || entraPhase === EntraPhase.Configured) && (
+        <>
+          <SectionHeader title="End user experience" />
+          <form onSubmit={handleSaveBypassSettings}>
+            <Checkbox
+              onChange={onBypassDisabledChange}
+              name="bypassDisabled"
+              value={bypassDisabled}
+              parseTarget
+            >
+              Disable bypass
+            </Checkbox>
+            <p className={`${baseClass}__checkbox-description`}>
+              When enabled, end users cannot bypass conditional access.
+            </p>
+            <Button
+              type="submit"
+              isLoading={isUpdatingBypass}
+              disabled={
+                bypassDisabled ===
+                (config?.conditional_access?.bypass_disabled ?? false)
+              }
+            >
+              Save
+            </Button>
+          </form>
+        </>
       )}
     </div>
   );
