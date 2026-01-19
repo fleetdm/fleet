@@ -2455,6 +2455,10 @@ team_settings:
 	t.Setenv("FLEET_URL", s.Server.URL)
 	testing_utils.StartSoftwareInstallerServer(t)
 
+	// TODO(JK): test fleet_maintained_apps with a mock fma server
+	// like in TestAddFleetMaintainedApp
+	// maintained_apps.SyncApps(t, s.DS)
+
 	// Apply configs
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}))
