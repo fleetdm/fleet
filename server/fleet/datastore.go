@@ -562,6 +562,9 @@ type Datastore interface {
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.
 	CleanupDiscardedQueryResults(ctx context.Context) error
+	// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum allowed per query.
+	// It keeps the most recent rows (by last_fetched) up to the limit. This runs as a cron job.
+	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

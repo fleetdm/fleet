@@ -10,11 +10,17 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// OverwriteQueryResultRows overwrites the query result rows for a given query and host
-// in a single transaction, ensuring that the number of rows for the given query
-// does not exceed the maximum allowed
+// OverwriteQueryResultRows overwrites the query result rows for a given query and host.
+// It deletes existing rows for the host/query and inserts the new rows.
+// If the incoming result set has more than 1000 rows, it bails early without storing anything.
+// Excess rows across all hosts are cleaned up by a separate cron job.
 func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (err error) {
 	if len(rows) == 0 {
+		return nil
+	}
+
+	// Bail early if the incoming result set is too large (more than 1000 rows from a single host)
+	if len(rows) > fleet.DefaultMaxQueryReportRows {
 		return nil
 	}
 
@@ -23,43 +29,11 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		queryID := rows[0].QueryID
 		hostID := rows[0].HostID
 
-		// Count how many rows are already in the database for the given queryID
-		var countExisting int
-		countStmt := `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND data IS NOT NULL`
-		err = sqlx.GetContext(ctx, tx, &countExisting, countStmt, queryID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "counting existing query results")
-		}
-
-		if countExisting >= maxQueryReportRows {
-			// do not delete any rows if we are already at the limit
-			return nil
-		}
-
 		// Delete rows based on the specific queryID and hostID
-		deleteStmt := `
-		DELETE FROM query_results WHERE host_id = ? AND query_id = ?
-	`
-		result, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID)
+		deleteStmt := `DELETE FROM query_results WHERE host_id = ? AND query_id = ?`
+		_, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting query results for host")
-		}
-
-		// Count how many rows we deleted
-		countDeleted, err := result.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "fetching deleted row count")
-		}
-
-		// Calculate how many new rows can be added given the maximum limit
-		netRowsAfterDeletion := countExisting - int(countDeleted)
-		allowedNewRows := maxQueryReportRows - netRowsAfterDeletion
-		if allowedNewRows == 0 {
-			return nil
-		}
-
-		if len(rows) > allowedNewRows {
-			rows = rows[:allowedNewRows]
 		}
 
 		// Insert the new rows
@@ -149,13 +123,57 @@ func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID
 
 func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
 	deleteStmt := `
-		DELETE FROM query_results 
-		WHERE query_id IN 
+		DELETE FROM query_results
+		WHERE query_id IN
 			(SELECT id FROM queries WHERE discard_data = true)
 		`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up discarded query results")
 	}
+	return nil
+}
+
+// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum
+// allowed per query. It keeps the most recent rows (by last_fetched) up to the limit.
+// This runs as a cron job to ensure the query_results table doesn't grow unbounded.
+func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int) error {
+	// Get all distinct query_ids that have results and are scheduled queries with discard_data = false
+	var queryIDs []uint
+	selectStmt := `
+		SELECT DISTINCT qr.query_id
+		FROM query_results qr
+		INNER JOIN queries q ON qr.query_id = q.id
+		WHERE q.discard_data = false AND qr.data IS NOT NULL
+	`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")
+	}
+
+	// For each query, delete rows that exceed the limit
+	for _, queryID := range queryIDs {
+		// Delete all rows older than the Nth most recent row (where N = maxQueryReportRows)
+		// The subquery finds the id of the row at position maxQueryReportRows when ordered by last_fetched DESC.
+		// All rows with id < that id are deleted.
+		deleteStmt := `
+			DELETE FROM query_results
+			WHERE query_id = ?
+			AND data IS NOT NULL
+			AND id < (
+				SELECT id FROM (
+					SELECT id
+					FROM query_results
+					WHERE query_id = ?
+					AND data IS NOT NULL
+					ORDER BY last_fetched DESC
+					LIMIT 1 OFFSET ?
+				) AS t
+			)
+		`
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryID, queryID, maxQueryReportRows); err != nil {
+			return ctxerr.Wrapf(ctx, err, "cleaning up excess query results for query %d", queryID)
+		}
+	}
+
 	return nil
 }
