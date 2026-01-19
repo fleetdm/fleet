@@ -594,7 +594,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	// Upload a software installer to team1
 	payload1 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install firefox",
-		Filename:      "firefox-120.0.pkg",
+		Filename:      "dummy_installer.pkg",
 		SelfService:   true,
 		TeamID:        &team1.ID,
 		Platform:      "darwin",
@@ -608,7 +608,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	// Upload a different software installer to team1 with different hash
 	payload2 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install chrome",
-		Filename:      "chrome-120.0.pkg",
+		Filename:      "EchoApp.pkg",
 		SelfService:   false,
 		TeamID:        &team1.ID,
 		Platform:      "darwin",
@@ -622,7 +622,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	// Upload a software installer to team2 with same hash as payload1 (should be allowed)
 	payload3 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install firefox",
-		Filename:      "firefox-120.0.pkg",
+		Filename:      "dummy_installer.pkg",
 		SelfService:   true,
 		TeamID:        &team2.ID,
 		Platform:      "darwin",
@@ -641,7 +641,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.Len(t, resp1.SoftwareTitles, 1)
 	require.Equal(t, "Firefox", resp1.SoftwareTitles[0].Name)
 	require.NotNil(t, resp1.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "firefox-120.0.pkg", resp1.SoftwareTitles[0].SoftwarePackage.Name)
+	require.Equal(t, "dummy_installer.pkg", resp1.SoftwareTitles[0].SoftwarePackage.Name)
 
 	// Test 2: Filter by hash_sha256 on team2 - should find Firefox
 	var resp2 listSoftwareTitlesResponse
@@ -662,17 +662,17 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	var resp4 listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp4,
 		"team_id", fmt.Sprint(team1.ID),
-		"package_name", "firefox-120.0.pkg")
+		"package_name", "dummy_installer.pkg")
 	require.Len(t, resp4.SoftwareTitles, 1)
 	require.Equal(t, "Firefox", resp4.SoftwareTitles[0].Name)
 	require.NotNil(t, resp4.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "firefox-120.0.pkg", resp4.SoftwareTitles[0].SoftwarePackage.Name)
+	require.Equal(t, "dummy_installer.pkg", resp4.SoftwareTitles[0].SoftwarePackage.Name)
 
 	// Test 5: Filter by package_name on team1 - should find Chrome
 	var resp5 listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp5,
 		"team_id", fmt.Sprint(team1.ID),
-		"package_name", "chrome-120.0.pkg")
+		"package_name", "EchoApp.pkg")
 	require.Len(t, resp5.SoftwareTitles, 1)
 	require.Equal(t, "Chrome", resp5.SoftwareTitles[0].Name)
 
@@ -689,7 +689,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 
 	// Test 8: Filter by package_name without team_id - should return error
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusBadRequest, &resp1,
-		"package_name", "firefox-120.0.pkg")
+		"package_name", "dummy_installer.pkg")
 
 	// Test 9: Filter by hash_sha256 with available_for_install=true
 	var resp9 listSoftwareTitlesResponse
@@ -704,7 +704,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	var resp10 listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp10,
 		"team_id", fmt.Sprint(team1.ID),
-		"package_name", "chrome-120.0.pkg",
+		"package_name", "EchoApp.pkg",
 		"available_for_install", "true")
 	require.Len(t, resp10.SoftwareTitles, 1)
 	require.Equal(t, "Chrome", resp10.SoftwareTitles[0].Name)
@@ -714,7 +714,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp11,
 		"team_id", fmt.Sprint(team1.ID),
 		"hash_sha256", "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
-		"package_name", "firefox-120.0.pkg")
+		"package_name", "dummy_installer.pkg")
 	require.Len(t, resp11.SoftwareTitles, 1)
 	require.Equal(t, "Firefox", resp11.SoftwareTitles[0].Name)
 
@@ -723,7 +723,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp12,
 		"team_id", fmt.Sprint(team1.ID),
 		"hash_sha256", "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
-		"package_name", "chrome-120.0.pkg")
+		"package_name", "EchoApp.pkg")
 	require.Len(t, resp12.SoftwareTitles, 0)
 
 	// Test 13: Verify that filtering by hash doesn't return VPP or in-house apps
