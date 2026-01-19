@@ -15,12 +15,17 @@ permissions:
 jobs:
     build:
         runs-on: ubuntu-latest
-        
+
         steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+              with:
+                egress-policy: audit
+
             - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
               with:
                 fetch-depth: 0  # Fetch full history so merge base can be found
-              
+
             - name: Get Changed Manifest Files # fetch the changed manifest files
               id: changed_files
               run: |
@@ -49,12 +54,12 @@ jobs:
                 script: |
                   const fs = require('fs');
                   const output = fs.readFileSync('script_output.txt', 'utf8').trim();
-                  
+
                   // Check if output contains meaningful changes
                   // Skip if output only contains processing headers and "no changes" messages
                   const lines = output.split('\n').map(line => line.trim()).filter(line => line !== '');
                   const hasRealChanges = lines.some(line => {
-                    return (!line.startsWith('=== Processing') && 
+                    return (!line.startsWith('=== Processing') &&
                             !line.includes('(no changes)') &&
                             !line.startsWith('===')) ||
                            line.includes('diff ') ||
@@ -67,7 +72,7 @@ jobs:
                     // Split content by processing headers and rebuild properly
                     const parts = output.split(/=== Processing (.+?) ===/);
                     let formattedOutput = '';
-                    
+
                     // Skip first empty part, then process pairs of (filename, content)
                     for (let i = 1; i < parts.length; i += 2) {
                       const filename = parts[i];
@@ -76,7 +81,7 @@ jobs:
                         formattedOutput += `### ${filename}\n\`\`\`diff\n${content.trim()}\n\`\`\`\n\n`;
                       }
                     }
-                    
+
                     await github.rest.issues.createComment({
                       issue_number: context.issue.number,
                       owner: context.repo.owner,
