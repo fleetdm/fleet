@@ -170,4 +170,44 @@ flowchart TD
     style J fill:#D07D24
 ```
 
+### Examples
+
+
+```yaml
+software:
+  fleet_maintained_apps:
+    - app: firefox
+```
+
+User adds Firefox Fleet-maintained app at some point, without specifying `version`. Each time GitOps runs, new version available in the manifest is downloaded (`147.0`) and stored to S3, while previous version (`146.0.1`) is kept as well.
+
+            ↓
+            ↓
+
+```yaml
+software:
+  fleet_maintained_apps:
+    - app: firefox
+      version: "146.0"  # Latest
+```
+
+Firefox is automatically updated to `147.0`, and the user found a bug, so they want to get back to the previous version. They specify `version` for `firefox`.
+
+            ↓
+            ↓
+
+After a while, new version (`150.0.1`) is released and available in manifest. Fleet don't download this because it's not needed.
+
+            ↓
+            ↓
+
+```yaml
+software:
+  fleet_maintained_apps:
+    - app: firefox
+```
+
+User now removes the `version` to get the latest. Fleet downloads latest version, and removes oldest version (`146.0`). So Fleet instance has 2 versions, latest (`150.0.1`) and another one that was cached before (`147.0`).
+It's not lates and n - 1, but the older versin that is already cached. After next Firefox release, Fleet will download the latest, keep n - 1 and remove `147.0`
+
 
