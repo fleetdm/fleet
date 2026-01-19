@@ -3078,7 +3078,7 @@ func (a ActivityTypeHostBypassedConditionalAccess) HostIDs() []uint {
 func (a ActivityTypeHostBypassedConditionalAccess) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a host bypasses conditional access.`,
 		`This activity contains the following fields:
-- "host_display_name": The ID of the bypassed host.
+- "host_display_name": The display name of the bypassed host.
 - "host_id": ID of the host.
 - "idp_full_name": The end user's full name from Okta.`, `{
 	"host_display_name": "Anna's Macbook Pro",
