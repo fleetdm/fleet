@@ -9,7 +9,7 @@ import (
 	"github.com/realclientip/realclientip-go"
 )
 
-\// NewClientIPStrategy creates a ClientIPStrategy based on the trusted_proxies configuration.
+// NewClientIPStrategy creates a ClientIPStrategy based on the trusted_proxies configuration.
 //
 // Config values:
 //   - "" (empty): Legacy behavior for backwards compatibility - trusts True-Client-IP,
