@@ -12,13 +12,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
 var (
-	automationActivityAuthor = fleet.ActivityAutomationAuthor
-	deleteIDsBatchSize       = 1000
+	deleteIDsBatchSize = 1000
 )
 
 // NewActivity stores an activity item that the user performed
@@ -49,7 +49,7 @@ func (ds *Datastore) NewActivity(
 		userEmail = &user.Email
 	}
 	if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-		userName = &automationActivityAuthor
+		userName = ptr.String(fleet.ActivityAutomationAuthor)
 		fleetInitiated = true
 	}
 

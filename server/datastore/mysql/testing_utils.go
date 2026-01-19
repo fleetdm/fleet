@@ -986,7 +986,6 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 }
 
 // ListActivitiesAPI calls the activity bounded context's ListActivities API.
-// It applies sensible defaults for tests when PerPage or OrderKey are not specified.
 func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Service, opts activity_api.ListOptions) []*activity_api.Activity {
 	t.Helper()
 
