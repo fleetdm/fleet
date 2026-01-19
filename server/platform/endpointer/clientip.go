@@ -33,9 +33,8 @@ func NewClientIPStrategy(trustedProxies string) (realclientip.Strategy, error) {
 	} else if strings.EqualFold(trustedProxies, "none") {
 		// "none": Trust no one; return (non-spoofable) RemoteAddr only.
 		return realclientip.RemoteAddrStrategy{}, nil
-	} else if strings.HasPrefix(trustedProxies, "header:") {
+	} else if headerName, ok := strings.CutPrefix(trustedProxies, "header:"); ok {
 		// Check if the value is a single IP header name.
-		headerName := strings.TrimPrefix(trustedProxies, "header:")
 		strategy, err = realclientip.NewSingleIPHeaderStrategy(headerName)
 		if err != nil {
 			return nil, fmt.Errorf("invalid header name %q: %w", trustedProxies, err)
