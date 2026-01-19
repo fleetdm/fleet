@@ -48,6 +48,8 @@ Apps can be installed manually on each host's **Host details** page. For macOS a
 
 Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
 
+> If you get an installation failure with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app you are trying to install has a minimum OS version higher than what the targeted host is running.
+
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
