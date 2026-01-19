@@ -49,11 +49,11 @@ flowchart LR
 
     T1 --> T2 --> T3
 
-    style S1_v1 fill:#90EE90
-    style S2_v2 fill:#90EE90
-    style S2_v1 fill:#90EE90
-    style S3_v3 fill:#90EE90
-    style S3_v2 fill:#90EE90
+    style S1_v1 fill:#319831
+    style S2_v2 fill:#319831
+    style S2_v1 fill:#319831
+    style S3_v3 fill:#319831
+    style S3_v2 fill:#319831
     style S3_v1 fill:#CC1144
 ```
 
@@ -93,7 +93,7 @@ flowchart LR
     style S2_v1 fill:#0F93C9
     style S2_note fill:#D07D24
     style S3_v4 fill:#0F93C9
-    style S3_v1 fill:#90EE90
+    style S3_v1 fill:#319831
 ```
 
 ### Scenario 3: `version` removed
@@ -130,10 +130,10 @@ flowchart LR
     T1 --> T2 --> T3
 
     style S1_v1 fill:#0F93C9
-    style S2_v4 fill:#90EE90
+    style S2_v4 fill:#319831
     style S2_v1 fill:#0F93C9
-    style S3_v5 fill:#90EE90
-    style S3_v4 fill:#90EE90
+    style S3_v5 fill:#319831
+    style S3_v4 fill:#319831
     style S3_v1 fill:#CC1144
 ```
 
@@ -164,7 +164,7 @@ flowchart TD
     
     K -->|Changed to new version| H
 
-    style C fill:#9BC264
+    style C fill:#319831
     style H fill:#0F93C9
     style F fill:#CC1144
     style J fill:#D07D24
