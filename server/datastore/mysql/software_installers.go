@@ -2882,12 +2882,15 @@ SELECT
   si.url,
   si.storage_id AS hash_sha256,
   si.fleet_maintained_app_id,
+  COALESCE(fma.slug, '') AS slug,
   COALESCE(icons.filename, '') AS icon_filename,
   COALESCE(icons.storage_id, '') AS icon_hash_sha256
 FROM
 	software_installers si
 	LEFT JOIN software_title_icons icons ON
 		icons.software_title_id = si.title_id AND icons.team_id = si.global_or_team_id
+	LEFT JOIN fleet_maintained_apps fma ON
+		si.fleet_maintained_app_id = fma.id
 WHERE
 	global_or_team_id = ?
 
@@ -2899,8 +2902,9 @@ SELECT
 	iha.url,
 	iha.storage_id as hash_sha256,
 	NULL as fleet_maintained_app_id,
-  COALESCE(icons.filename, '') AS icon_filename,
-  COALESCE(icons.storage_id, '') AS icon_hash_sha256
+	'' as slug,
+	COALESCE(icons.filename, '') AS icon_filename,
+	COALESCE(icons.storage_id, '') AS icon_hash_sha256
 FROM
 	in_house_apps iha
 	LEFT JOIN software_title_icons icons ON

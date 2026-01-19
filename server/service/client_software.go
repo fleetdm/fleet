@@ -95,6 +95,8 @@ func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.Softwa
 }
 
 func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
+	fmt.Println("----------------------------------- applySoftwareInstallers --------------------------")
+	fmt.Printf("%#v\n\n\n\n", softwareInstallers)
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
@@ -129,6 +131,11 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 	// On the client side, software installer entries can have a URL or a hash or both ...
 	byURL := make(map[string]*fleet.SoftwareInstallerPayload)
 	byHash := make(map[string]*fleet.SoftwareInstallerPayload)
+	bySlug := make(map[string]*fleet.SoftwareInstallerPayload)
+
+	fmt.Println("----------------------------------- matchPackageIcons --------------------------")
+	fmt.Printf("%#v\n\n\n\n", request)
+	fmt.Printf("%#v\n\n\n\n", response)
 
 	for i := range request {
 		clientSide := &request[i]
@@ -138,6 +145,9 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 		}
 		if clientSide.SHA256 != "" {
 			byHash[clientSide.SHA256] = clientSide
+		}
+		if clientSide.Slug != nil {
+			bySlug[*clientSide.Slug] = clientSide
 		}
 	}
 
@@ -155,8 +165,18 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 		if clientSide, ok := byURL[serverSide.URL]; ok {
 			serverSide.LocalIconHash = clientSide.IconHash
 			serverSide.LocalIconPath = clientSide.IconPath
+			continue
+		}
+
+		if clientSide, ok := bySlug[serverSide.Slug]; ok {
+			serverSide.LocalIconHash = clientSide.IconHash
+			serverSide.LocalIconPath = clientSide.IconPath
 		}
 	}
+
+	fmt.Printf("%#v\n\n\n\n", byHash)
+	fmt.Printf("%#v\n\n\n\n", byURL)
+	fmt.Printf("%#v\n\n\n\n", bySlug)
 
 	return response
 }
