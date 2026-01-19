@@ -603,7 +603,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		Source:        "apps",
 	}
 	s.uploadSoftwareInstaller(t, payload1, http.StatusOK, "")
-	installer1ID, titleID1 := checkSoftwareInstaller(t, s.ds, payload1)
+	installer1ID, _ := checkSoftwareInstaller(t, s.ds, payload1)
 	installer1, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), installer1ID)
 	require.NoError(t, err)
 	hash1 := installer1.StorageID
