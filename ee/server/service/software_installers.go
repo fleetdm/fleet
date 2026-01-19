@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -2077,9 +2078,30 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
+	// Periodically refresh the expiration on the batch install process so that, even when downloading/uploading
+	// large installers, we ensure the server doesn't lose track of the batch. This way, the only time a batch times
+	// out is if the server goes offline during running the batch.
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(keyExpireTime / 3) // Running keepalive much more often since we don't retry set errors
+		defer ticker.Stop()
+		for {
+			select {
+			// at this point we're done with the batch, at which point the caller will set the job in Redis as complete
+			// with a longer TTL, so we don't need to do anything here
+			case <-done:
+				return
+			case <-ticker.C:
+				_ = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime)
+			}
+		}
+	}()
+	defer close(done)
+
+	maxInstallerSize := svc.config.Server.MaxInstallerSizeBytes
 	downloadURLFn := func(ctx context.Context, url string) (*http.Response, *fleet.TempFileReader, error) {
 		client := fleethttp.NewClient()
-		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
+		client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -2092,7 +2114,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.Human(maxInstallerSize)),
 				)
 			}
 
@@ -2123,7 +2145,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.Human(maxInstallerSize)),
 				)
 			}
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
@@ -2151,14 +2173,6 @@ func (svc *Service) softwareBatchUpload(
 	// goroutine only writes to its index.
 	installers := make([]*installerPayloadWithExtras, len(payloads))
 	toBeClosedTFRs := make([]*fleet.TempFileReader, len(payloads))
-
-	redisKeepalive := func() error {
-		return ctxerr.Wrap(
-			ctx,
-			svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime),
-			"failed to set batch processing keepalive",
-		)
-	}
 
 	for i, p := range payloads {
 		i, p := i, p
@@ -2302,12 +2316,10 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				var filename string
-				_ = redisKeepalive() // we would prefer to keep running the batch even if one keepalive to Redis fails
 				resp, tfr, err := downloadURLFn(ctx, p.URL)
 				if err != nil {
 					return err
 				}
-				_ = redisKeepalive()
 
 				installer.InstallerFile = tfr
 				toBeClosedTFRs[i] = tfr
@@ -2498,12 +2510,10 @@ func (svc *Service) softwareBatchUpload(
 	var inHouseInstallers, softwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	for _, payloadWithExtras := range installers {
 		payload := payloadWithExtras.UploadSoftwareInstallerPayload
-		_ = redisKeepalive()
 		if err := svc.storeSoftware(ctx, payload); err != nil {
 			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
 			return
 		}
-		_ = redisKeepalive()
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)
 			inHouseInstallers = append(inHouseInstallers, payloadWithExtras.ExtraInstallers...)

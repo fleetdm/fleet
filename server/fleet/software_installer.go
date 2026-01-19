@@ -11,17 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// MaxSoftwareInstallerSize is the maximum size allowed for software
-// installers. This is enforced by the endpoints that upload installers.
-const (
-	MaxSoftwareInstallerSize         = 3000 * units.MiB
-	SoftwareInstallerSignedURLExpiry = 6 * time.Hour
-)
+const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an

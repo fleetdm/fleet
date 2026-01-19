@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -206,7 +207,7 @@ func StartSoftwareInstallerServer(t *testing.T) {
 				case strings.Contains(r.URL.Path, "toolarge"):
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					var sz int
-					for sz < 3000*1024*1024 {
+					for sz < 513*units.MiB {
 						n, _ := w.Write(b)
 						sz += n
 					}

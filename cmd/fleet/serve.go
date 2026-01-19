@@ -37,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -1508,7 +1509,11 @@ the way that the Fleet server works.
 							"err", err,
 						)
 					}
-					req.Body = http.MaxBytesReader(rw, req.Body, fleet.MaxSoftwareInstallerSize)
+
+					// We need to add the context value here because we need the installer max size when doing request
+					// parsing, which happens somewhere where we're only passed the request (and not the service object)
+					req.Body = http.MaxBytesReader(rw, req.Body, config.Server.MaxInstallerSizeBytes)
+					req = req.WithContext(installersize.NewContext(req.Context(), config.Server.MaxInstallerSizeBytes))
 				}
 
 				if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {
