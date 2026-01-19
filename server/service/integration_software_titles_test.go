@@ -580,3 +580,157 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleCustomIconsPermissions() {
 	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
 		nil, http.StatusNotFound)
 }
+
+func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
+	t := s.T()
+
+	// Create two teams
+	var team1Resp, team2Resp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team1_" + t.Name())}}, http.StatusOK, &team1Resp)
+	team1 := team1Resp.Team
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team2_" + t.Name())}}, http.StatusOK, &team2Resp)
+	team2 := team2Resp.Team
+
+	// Upload a software installer to team1
+	payload1 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install firefox",
+		Filename:      "firefox-120.0.pkg",
+		SelfService:   true,
+		TeamID:        &team1.ID,
+		Platform:      "darwin",
+		Title:         "Firefox",
+		Version:       "120.0",
+		Source:        "apps",
+		StorageID:     "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+	}
+	s.uploadSoftwareInstaller(t, payload1, http.StatusOK, "")
+
+	// Upload a different software installer to team1 with different hash
+	payload2 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install chrome",
+		Filename:      "chrome-120.0.pkg",
+		SelfService:   false,
+		TeamID:        &team1.ID,
+		Platform:      "darwin",
+		Title:         "Chrome",
+		Version:       "120.0",
+		Source:        "apps",
+		StorageID:     "efgh1234567890abcdef1234567890abcdef1234567890abcdef1234567890cd",
+	}
+	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
+
+	// Upload a software installer to team2 with same hash as payload1 (should be allowed)
+	payload3 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install firefox",
+		Filename:      "firefox-120.0.pkg",
+		SelfService:   true,
+		TeamID:        &team2.ID,
+		Platform:      "darwin",
+		Title:         "Firefox",
+		Version:       "120.0",
+		Source:        "apps",
+		StorageID:     "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+	}
+	s.uploadSoftwareInstaller(t, payload3, http.StatusOK, "")
+
+	// Test 1: Filter by hash_sha256 on team1 - should find Firefox
+	var resp1 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp1,
+		"team_id", fmt.Sprint(team1.ID),
+		"hash_sha256", "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab")
+	require.Len(t, resp1.SoftwareTitles, 1)
+	require.Equal(t, "Firefox", resp1.SoftwareTitles[0].Name)
+	require.NotNil(t, resp1.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "firefox-120.0.pkg", resp1.SoftwareTitles[0].SoftwarePackage.Name)
+
+	// Test 2: Filter by hash_sha256 on team2 - should find Firefox
+	var resp2 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp2,
+		"team_id", fmt.Sprint(team2.ID),
+		"hash_sha256", "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab")
+	require.Len(t, resp2.SoftwareTitles, 1)
+	require.Equal(t, "Firefox", resp2.SoftwareTitles[0].Name)
+
+	// Test 3: Filter by hash_sha256 that doesn't exist - should return empty list
+	var resp3 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp3,
+		"team_id", fmt.Sprint(team1.ID),
+		"hash_sha256", "nonexistent1234567890abcdef1234567890abcdef1234567890abcdef12345678")
+	require.Len(t, resp3.SoftwareTitles, 0)
+
+	// Test 4: Filter by package_name on team1 - should find Firefox
+	var resp4 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp4,
+		"team_id", fmt.Sprint(team1.ID),
+		"package_name", "firefox-120.0.pkg")
+	require.Len(t, resp4.SoftwareTitles, 1)
+	require.Equal(t, "Firefox", resp4.SoftwareTitles[0].Name)
+	require.NotNil(t, resp4.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "firefox-120.0.pkg", resp4.SoftwareTitles[0].SoftwarePackage.Name)
+
+	// Test 5: Filter by package_name on team1 - should find Chrome
+	var resp5 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp5,
+		"team_id", fmt.Sprint(team1.ID),
+		"package_name", "chrome-120.0.pkg")
+	require.Len(t, resp5.SoftwareTitles, 1)
+	require.Equal(t, "Chrome", resp5.SoftwareTitles[0].Name)
+
+	// Test 6: Filter by package_name that doesn't exist - should return empty list
+	var resp6 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp6,
+		"team_id", fmt.Sprint(team1.ID),
+		"package_name", "nonexistent.pkg")
+	require.Len(t, resp6.SoftwareTitles, 0)
+
+	// Test 7: Filter by hash_sha256 without team_id - should return error
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusBadRequest, &resp1,
+		"hash_sha256", "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab")
+
+	// Test 8: Filter by package_name without team_id - should return error
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusBadRequest, &resp1,
+		"package_name", "firefox-120.0.pkg")
+
+	// Test 9: Filter by hash_sha256 with available_for_install=true
+	var resp9 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp9,
+		"team_id", fmt.Sprint(team1.ID),
+		"hash_sha256", "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+		"available_for_install", "true")
+	require.Len(t, resp9.SoftwareTitles, 1)
+	require.Equal(t, "Firefox", resp9.SoftwareTitles[0].Name)
+
+	// Test 10: Filter by package_name with available_for_install=true
+	var resp10 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp10,
+		"team_id", fmt.Sprint(team1.ID),
+		"package_name", "chrome-120.0.pkg",
+		"available_for_install", "true")
+	require.Len(t, resp10.SoftwareTitles, 1)
+	require.Equal(t, "Chrome", resp10.SoftwareTitles[0].Name)
+
+	// Test 11: Combine both filters (hash and name for same package) - should work
+	var resp11 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp11,
+		"team_id", fmt.Sprint(team1.ID),
+		"hash_sha256", "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+		"package_name", "firefox-120.0.pkg")
+	require.Len(t, resp11.SoftwareTitles, 1)
+	require.Equal(t, "Firefox", resp11.SoftwareTitles[0].Name)
+
+	// Test 12: Combine both filters with mismatched hash and name - should return empty list
+	var resp12 listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp12,
+		"team_id", fmt.Sprint(team1.ID),
+		"hash_sha256", "abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+		"package_name", "chrome-120.0.pkg")
+	require.Len(t, resp12.SoftwareTitles, 0)
+
+	// Test 13: Verify that filtering by hash doesn't return VPP or in-house apps
+	// First, list all software on team1 without filters to see total count
+	var respAll listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &respAll,
+		"team_id", fmt.Sprint(team1.ID),
+		"available_for_install", "true")
+	require.GreaterOrEqual(t, len(respAll.SoftwareTitles), 2) // At least Firefox and Chrome
+}
