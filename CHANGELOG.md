@@ -1,4 +1,4 @@
-## Fleet 4.80.0 (Jan 13, 2026)
+## Fleet 4.80.0 (Feb 2, 2026)
 
 ### IT Admins
 - Added ability to automatically uninstall managed apps when iOS/iPadOS devices are unenrolled from MDM.
@@ -12,7 +12,6 @@
 - Added NATS as a logging destination.
 - Updated NDES SCEP proxy to auto-detect response encoding, enabling compatibility with Okta CA and other UTF-8-based CAs.
 - Implemented ingesting, persisting, and serving the sha256 hash and path for the CFBundleExecutable binaries of .app bundles on macOS.
-
 
 ### Other improvements and bug fixes
 - Added validation and harmonized the error message displayed when an installer (FMA, custom package, VPP app, in-house app) conflicts with another one on the same team targeting the same platform.
@@ -54,6 +53,12 @@ Refactored common_mysql package to support bounded contexts inside Fleet codebas
 - Fixed an issue where newly-enrolled hosts would sometimes not be linked to SCIM user data.
 - Fixed FMA create form to allow input fields to work properly as only edit was working correctly.
 - Fixed Android certificate enrollment failures caused by SCEP challenge expiration when devices were offline.
+
+## Fleet 4.79.1 (Jan 19, 2026)
+
+### Bug fixes
+
+- Fixed bug in host activity card UI where activities related to MDM commands should be hidden when Apple MDM features are turned off in Fleet.
 
 ## Fleet 4.79.0 (Jan 14, 2025)
 
