@@ -615,7 +615,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.NoError(t, err)
 	hash1 := installer1.StorageID
 	// Get the actual title that was extracted from the package
-	title1, err := s.ds.SoftwareTitleByID(context.Background(), *installer1.TitleID, nil)
+	title1, err := s.ds.SoftwareTitleByID(context.Background(), *installer1.TitleID, nil, fleet.TeamFilter{})
 	require.NoError(t, err)
 	titleName := title1.Name
 
