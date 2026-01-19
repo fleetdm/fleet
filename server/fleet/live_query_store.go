@@ -24,4 +24,11 @@ type LiveQueryStore interface {
 	CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error
 	// LoadActiveQueryNames returns the names of all active queries.
 	LoadActiveQueryNames() ([]string, error)
+
+	// GetQueryResultsCount returns the current count of query results for a query.
+	// Returns 0 if the key doesn't exist (no results tracked yet).
+	GetQueryResultsCount(queryID uint) (int, error)
+	// IncrQueryResultsCount increments the query results count by the given amount.
+	// If the key is new, sets a TTL of 60 seconds. Returns the new count after incrementing.
+	IncrQueryResultsCount(queryID uint, amount int) (int, error)
 }

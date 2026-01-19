@@ -52,3 +52,21 @@ func (m *MockLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCamp
 	args := m.Called(ctx, inactiveCampaignIDs)
 	return args.Error(0)
 }
+
+// LoadActiveQueryNames mocks the live query store LoadActiveQueryNames method.
+func (m *MockLiveQuery) LoadActiveQueryNames() ([]string, error) {
+	args := m.Called()
+	return args.Get(0).([]string), args.Error(1)
+}
+
+// GetQueryResultsCount mocks the live query store GetQueryResultsCount method.
+func (m *MockLiveQuery) GetQueryResultsCount(queryID uint) (int, error) {
+	args := m.Called(queryID)
+	return args.Int(0), args.Error(1)
+}
+
+// IncrQueryResultsCount mocks the live query store IncrQueryResultsCount method.
+func (m *MockLiveQuery) IncrQueryResultsCount(queryID uint, amount int) (int, error) {
+	args := m.Called(queryID, amount)
+	return args.Int(0), args.Error(1)
+}

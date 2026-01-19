@@ -39,6 +39,18 @@ func (q nopLiveQuery) LoadActiveQueryNames() ([]string, error) {
 	return nil, nil
 }
 
+func (q nopLiveQuery) GetQueryResultsCount(uint) (int, error) {
+	return 0, nil
+}
+
+func (q nopLiveQuery) IncrQueryResultsCount(uint, int) (int, error) {
+	return 0, nil
+}
+
+func (q nopLiveQuery) LiveQueryStore() fleet.LiveQueryStore {
+	return q
+}
+
 func TestLiveQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	qr := pubsub.NewInmemQueryResults()
