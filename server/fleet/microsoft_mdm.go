@@ -1567,26 +1567,64 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	statuses map[string]SyncMLCmd,
 	hostUUID string,
 ) (*MDMWindowsProfilePayload, error) {
-	status, ok := statuses[cmdWithSecret.CommandUUID]
-	if !ok {
-		return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(cmdWithSecret.RawCommand)
+	if err != nil {
+		return nil, err
 	}
-	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
-	var details []string
-	if status.Data != nil && commandStatus == MDMDeliveryFailed {
-		syncML := new(SyncMLCmd)
-		if err := xml.Unmarshal(cmdWithSecret.RawCommand, syncML); err != nil {
-			return nil, err
+
+	var commandStatus MDMDeliveryStatus
+	if len(cmds) == 0 { // nolint: gocritic // Switch does not make sense for the else-if where we also check the Cmd name
+		commandStatus = MDMDeliveryPending
+	} else if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+		status, ok := statuses[cmdWithSecret.CommandUUID]
+		if !ok {
+			return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
 		}
-		for _, nested := range syncML.ReplaceCommands {
-			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+		commandStatus = WindowsResponseToDeliveryStatus(*status.Data)
+	} else {
+		// non atomic profile, loop over all commands to determine overall status
+		for _, cmd := range cmds {
+			status, ok := statuses[cmd.CmdID.Value]
+			if !ok {
+				return nil, fmt.Errorf("missing status for command %s", cmd.CmdID.Value)
+			}
+			cmdStatus := WindowsResponseToDeliveryStatus(*status.Data)
+			if cmdStatus == MDMDeliveryFailed {
+				// Failed always take precedence
+				commandStatus = MDMDeliveryFailed
+				break
+			} else if cmdStatus == MDMDeliveryPending && commandStatus != MDMDeliveryFailed {
+				// If we get pending, we set to pending unless we already have failed
+				commandStatus = MDMDeliveryPending
 			}
 		}
+		if commandStatus == "" {
+			// Only if command status was not set by failed or pending do we mark it as verifying
+			commandStatus = MDMDeliveryVerifying
+		}
+	}
 
-		for _, nested := range syncML.AddCommands {
-			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+	var details []string
+	if commandStatus == MDMDeliveryFailed {
+		if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+			// atomic profile
+			for _, nested := range cmds[0].ReplaceCommands {
+				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+				}
+			}
+
+			for _, nested := range cmds[0].AddCommands {
+				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+				}
+			}
+		} else {
+			// non atomic profile, loop over all commands
+			for _, cmd := range cmds {
+				if status, ok := statuses[cmd.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", cmd.GetTargetURI(), *status.Data))
+				}
 			}
 		}
 	}
@@ -1630,4 +1668,26 @@ func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 	}
 
 	return MDMDeliveryFailed
+}
+
+// xml.Unmarshal expects a single top-level element, or all top-level elements to have the same <Tag>
+// We therefore wrap the incoming profile bytes with Root, and then parse the individual commands into an array for further processing.
+func UnmarshallMultiTopLevelXMLProfile(profileBytes []byte) ([]SyncMLCmd, error) {
+	// Wrap the profile bytes in a root element to handle multiple top-level commands
+	wrappedXML := "<root>" + string(profileBytes) + "</root>"
+
+	// Parse the XML to extract individual command elements
+	var root struct {
+		Commands []SyncMLCmd `xml:",any"`
+	}
+
+	if err := xml.Unmarshal([]byte(wrappedXML), &root); err != nil {
+		return nil, fmt.Errorf("unmarshalling wrapped profile: %w", err)
+	}
+
+	if len(root.Commands) == 0 {
+		return nil, errors.New("no commands found in profile")
+	}
+
+	return root.Commands, nil
 }

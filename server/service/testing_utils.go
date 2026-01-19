@@ -23,6 +23,9 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -46,13 +49,16 @@ import (
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -414,6 +420,7 @@ type TestServerOpts struct {
 	androidMockClient               *android_mock.Client
 	androidModule                   android.Service
 	ConditionalAccess               *ConditionalAccess
+	DBConns                         *common_mysql.DBConnections
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -448,6 +455,24 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	if len(opts) > 0 {
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+	}
+
+	// Add activity routes if DBConns is provided
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		legacyAuthorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
+		activityUserProvider := activityacl.NewFleetServiceAdapter(svc)
+		_, activityRoutesFn := activity_bootstrap.New(
+			opts[0].DBConns,
+			activityAuthorizer,
+			activityUserProvider,
+			logger,
+		)
+		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, next)
+		}
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
 	}
 
 	var mdmPusher nanomdm_push.Pusher
