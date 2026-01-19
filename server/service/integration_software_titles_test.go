@@ -620,10 +620,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		Source:        "apps",
 	}
 	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
-	installer2ID, _ := checkSoftwareInstaller(t, s.ds, payload2)
-	installer2, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), installer2ID)
-	require.NoError(t, err)
-	hash2 := installer2.StorageID
+	_, _ = checkSoftwareInstaller(t, s.ds, payload2)
 
 	// Upload a software installer to team2 with same hash as payload1 (should be allowed)
 	payload3 := &fleet.UploadSoftwareInstallerPayload{
