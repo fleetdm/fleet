@@ -62,6 +62,19 @@
 - Fixed case sensitivity mismatches causing duplicate titles during software ingestion
 - Fixed a bug where iOS and iPadOS hosts enrolling via ABM MDM Migration did not have VPP apps installed.
 
+## Fleet 4.78.3 (Jan 12, 2026)
+
+### Bug fixes
+
+- Improved SOAP message validation on Windows MDM endpoints
+- Revised auth requirements for /debug endpoints
+
+## Fleet 4.78.2 (Jan 10, 2026)
+
+### Bug fixes
+
+- Added additional validation to URL parameter for MS MDM auth endpoint
+
 ## Fleet 4.78.1 (Jan 06, 2026)
 
 ### Bug fixes
