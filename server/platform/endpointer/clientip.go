@@ -45,10 +45,10 @@ func NewClientIPStrategy(trustedProxies string) (ClientIPStrategy, error) {
 
 	if trustedProxies == "" {
 		// Empty: legacy behavior for backwards compatibility.
-		strategy = &legacyStrategy{}
+		return &legacyStrategy{}, nil
 	} else if strings.EqualFold(trustedProxies, "none") {
 		// "none": Trust no one; return (non-spoofable) RemoteAddr only.
-		strategy = realclientip.RemoteAddrStrategy{}
+		return realclientip.RemoteAddrStrategy{}, nil
 	} else if _, ok := singleIPHeaderNames[strings.ToLower(trustedProxies)]; ok {
 		// Check if it's a known single-IP header name.
 		strategy, err = realclientip.NewSingleIPHeaderStrategy(trustedProxies)
