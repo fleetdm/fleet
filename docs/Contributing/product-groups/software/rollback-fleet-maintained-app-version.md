@@ -208,6 +208,7 @@ software:
 ```
 
 User now removes the `version` to get the latest. Fleet downloads latest version, and removes oldest version (`146.0`). So Fleet instance has 2 versions, latest (`150.0.1`) and another one that was cached before (`147.0`).
-It's not lates and n - 1, but the older versin that is already cached. After next Firefox release, Fleet will download the latest, keep n - 1 and remove `147.0`
+
+`version` is not specified so Fleet now always download the latest version of `firefox`. After next Firefox release, Fleet will download the latest, keep `n - 1` and remove `147.0`
 
 
