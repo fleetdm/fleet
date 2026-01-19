@@ -991,7 +991,7 @@ At sprint kickoff, the EM or TL may assign planned issues to specific contributo
 When selecting which bug to work on next, prioritize in the following order:
 
 1. **P0, P1, P2 bugs**: High-priority bugs take precedence over all other bugs.
-2. **Customer bugs**: Bugs with a `customer-` label are prioritized because they directly impact paying customers.
+2. **Customer bugs**: Bugs with a `customer-` label are prioritized because they directly impact customers.
 3. **Flaky tests**: Flaky tests impact engineering velocity and should be addressed promptly.
 4. **Dogfood issues**: Bugs with the `~dogfood` label are prioritized because we have the best context for reproducing and fixing them.
 5. **Oldest bugs**: Among remaining bugs, work on the oldest first.
