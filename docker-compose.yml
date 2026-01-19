@@ -155,7 +155,7 @@ services:
 
   # s3 compatible object storage (file carving/software installers)
   s3:
-    image: rustfs/rustfs:1.0.0-alpha.73
+    image: rustfs/rustfs:1.0.0-alpha.80
     ports:
       - "9000:9000"
       - "9001:9001"
