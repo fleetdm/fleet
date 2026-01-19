@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/messages"
 )
 
 func (m *model) generateIssueContent(issue ghapi.Issue) string {
@@ -75,18 +76,21 @@ func (m *model) generateIssueContent(issue ghapi.Issue) string {
 }
 
 func (m model) RenderLoading() string {
-	var loadingMessage string
+	// Map command type to key for messages catalog
+	key := "issues"
 	switch m.commandType {
-	// newview add if non default message is preferred when loading
-	case IssuesCommand:
-		loadingMessage = "Fetching Issues..."
 	case ProjectCommand:
-		loadingMessage = fmt.Sprintf("Fetching Project Items (ID: %d)...", m.projectID)
+		key = "project"
 	case EstimatedCommand:
-		loadingMessage = fmt.Sprintf("Fetching Estimated Tickets (Project: %d)...", m.projectID)
-	default:
-		loadingMessage = "Fetching Issues..."
+		key = "estimated"
+	case SprintCommand:
+		key = "sprint"
+	case MilestoneCommand:
+		key = "milestone"
+	case IssuesCommand:
+		key = "issues"
 	}
+	loadingMessage := messages.LoadingMessage(key, m.projectID, m.search)
 	return fmt.Sprintf("\n%s %s\n\n", m.spinner.View(), loadingMessage)
 }
 
@@ -252,7 +256,7 @@ func (m model) RenderIssueTable() string {
 	warningBanner := ""
 	if m.totalAvailable > 0 && m.totalAvailable > m.rawFetchedCount {
 		missing := m.totalAvailable - m.rawFetchedCount
-		warningBanner = errorStyle.Render(fmt.Sprintf("⚠ %d items not shown (limit=%d, total=%d). Increase --limit to include all issues.", missing, m.rawFetchedCount, m.totalAvailable)) + "\n\n"
+		warningBanner = errorStyle.Render(messages.LimitExceeded(missing, m.rawFetchedCount, m.totalAvailable)) + "\n\n"
 	}
 
 	s = warningBanner + headerText + fmt.Sprintf(" %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
@@ -364,8 +368,122 @@ func (m model) RenderWorkflowSelection() string {
 		}
 		s += fmt.Sprintf("%s %s %s\n", cursor, selected, workflow)
 	}
-	s += "\nPress 'enter' to select, 'esc' to cancel.\n"
+	// Detailed description for the currently-selected workflow
+	s += "\nDescription:\n"
+	width := m.termWidth
+	if width <= 0 {
+		width = 80
+	}
+	// Add a small margin to avoid bumping screen edges
+	wrapWidth := width - 2
+	if wrapWidth < 20 {
+		wrapWidth = 20
+	}
+	s += wrapTextPreserveBullets(m.selectedWorkflowDescription(), wrapWidth)
+	s += "\n\nPress 'enter' to select, 'esc' to cancel.\n"
 	return s
+}
+
+// selectedWorkflowDescription returns a helpful description for the currently-selected workflow,
+// including any required inputs and contextual hints.
+func (m model) selectedWorkflowDescription() string {
+	w := WorkflowType(m.workflowCursor)
+	// Base descriptions per workflow
+	var desc string
+	switch w {
+	case BulkAddLabel:
+		desc = "Add a label to all selected issues. You'll be prompted to type the label name."
+	case BulkRemoveLabel:
+		desc = "Remove a label from all selected issues. You'll be prompted to type the label name."
+	case BulkSprintKickoff:
+		desc = "Add selected issues to a project and set initial sprint kickoff fields (status, estimate sync, labels)."
+	case BulkMilestoneClose:
+		desc = "Add to drafting and set to confirm and celebrate, removes :release label and adds :product label for selected issues (features/bugs). Does not filter by label, should only be used on stories, does not affect the milestone in any way."
+	case BulkKickOutOfSprint:
+		desc = "Remove selected issues from a project and reset sprint-related fields (status, labels)."
+	case BulkDemoSummary:
+		desc = "Generate a markdown summary of selected issues grouped by feature and bug, with assignees."
+	case BulkMoveToCurrentSprint:
+		desc = "For each selected issue, if its Status does not contain 'ready' or 'qa' (case-insensitive), set its sprint to the project's current iteration."
+	default:
+		desc = "Select a workflow to see details."
+	}
+
+	// Input requirements/hints
+	var hints []string
+	switch w {
+	case BulkAddLabel, BulkRemoveLabel:
+		hints = append(hints, "Input required: label name")
+	case BulkSprintKickoff, BulkKickOutOfSprint, BulkMoveToCurrentSprint:
+		hints = append(hints, "Input required: project ID or alias")
+		if m.projectID != 0 {
+			hints = append(hints, fmt.Sprintf("Current project in context: %d", m.projectID))
+		} else if m.projectInput != "" {
+			hints = append(hints, fmt.Sprintf("Pending project input: %s", m.projectInput))
+		}
+	}
+
+	if len(hints) > 0 {
+		desc += "\n- " + strings.Join(hints, "\n- ")
+	}
+	return desc
+}
+
+// wrapTextPreserveBullets wraps the input text to the given width, preserving
+// existing newlines and adding continuation indentation for bullet points.
+func wrapTextPreserveBullets(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	var out []string
+	for _, line := range lines {
+		out = append(out, wrapLineWithPrefix(line, width))
+	}
+	return strings.Join(out, "\n")
+}
+
+// wrapLineWithPrefix wraps a single line. If it starts with "- ", it keeps
+// the bullet for the first line and indents continuation lines with two spaces.
+func wrapLineWithPrefix(line string, width int) string {
+	if len(line) <= width {
+		return line
+	}
+	bullet := ""
+	contIndent := ""
+	content := line
+	if strings.HasPrefix(line, "- ") {
+		bullet = "- "
+		contIndent = "  "
+		content = strings.TrimPrefix(line, "- ")
+	}
+	words := strings.Fields(content)
+	if len(words) == 0 {
+		return line
+	}
+	var wrapped []string
+	// first line with bullet (if any)
+	current := bullet
+	spaceLeft := width - len(current)
+	for _, w := range words {
+		if len(w)+1 > spaceLeft { // +1 for space
+			// commit current line
+			wrapped = append(wrapped, strings.TrimRight(current, " "))
+			// start new line with continuation indent
+			current = contIndent + w + " "
+			spaceLeft = width - len(contIndent) - len(w) - 1
+			if spaceLeft < 0 {
+				spaceLeft = 0
+			}
+		} else {
+			current += w + " "
+			spaceLeft -= len(w) + 1
+		}
+	}
+	if strings.TrimSpace(current) != "" {
+		wrapped = append(wrapped, strings.TrimRight(current, " "))
+	}
+	return strings.Join(wrapped, "\n")
 }
 
 func (m model) RenderLabelInput() string {

@@ -49,7 +49,7 @@ Cross-platform management doesn’t have to be the headache it’s been in the p
 
 Ready to get started?
 
-Visit our [start page](https://fleetdm.com/start) to begin your journey.
+Visit our [start page](https://fleetdm.com/try) to begin your journey.
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Mike McNeil">

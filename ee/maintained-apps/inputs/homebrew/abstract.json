@@ -1,0 +1,8 @@
+{
+  "name": "Abstract",
+  "unique_identifier": "com.SweetScape.010Editor",
+  "token": "abstract",
+  "installer_format": "zip",
+  "slug": "abstract/darwin",
+  "default_categories": ["Productivity"]
+}

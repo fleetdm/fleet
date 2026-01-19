@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
 
 import {
@@ -41,8 +42,8 @@ describe("AddInstallSoftware", () => {
     expect(screen.queryByRole("button", { name: "Add software" })).toBeNull();
   });
 
-  it("should render the correct messaging when there are software titles that have been selected to install at setup", () => {
-    render(
+  it("should render the correct messaging when there are software titles that have been selected to install at setup", async () => {
+    const { user } = renderWithSetup(
       <AddInstallSoftware
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
@@ -77,6 +78,60 @@ describe("AddInstallSoftware", () => {
     expect(
       screen.getByRole("button", { name: "Select software" })
     ).toBeVisible();
+
+    await user.hover(screen.getByText("installed during setup"));
+
+    await waitFor(() => {
+      const tooltip = screen.getByText(
+        /Installation order will depend on software name, starting with 0-9 then A-Z./i
+      );
+      expect(tooltip).toBeInTheDocument();
+    });
+  });
+
+  it("should render the correct messaging for Android when there are software titles that have been selected to install at setup", async () => {
+    const { user } = renderWithSetup(
+      <AddInstallSoftware
+        savedRequireAllSoftwareMacOS={false}
+        currentTeamId={1}
+        softwareTitles={[
+          createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              install_during_setup: true,
+            }),
+          }),
+          createMockSoftwareTitle(
+            createMockSoftwareTitle({
+              software_package: createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            })
+          ),
+          createMockSoftwareTitle(),
+        ]}
+        onAddSoftware={noop}
+        hasManualAgentInstall={false}
+        platform="android"
+      />
+    );
+
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.textContent ===
+          "2 software items will be installed during setup."
+      )
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Select software" })
+    ).toBeVisible();
+
+    await user.hover(screen.getByText("installed during setup"));
+
+    await waitFor(() => {
+      const tooltip = screen.getByText(/Software order will vary/i);
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 
   it('should render the "Cancel setup if software install fails" form for macos platform', async () => {

@@ -114,21 +114,25 @@
       "enable_disk_encryption": false,
       "macos_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "windows_updates": {
         "deadline_days": 7,
         "grace_period_days": 3
       },
       "windows_migration_enabled": false,
+      "enable_turn_on_windows_mdm_manually": false,
       "windows_require_bitlocker_pin": null,
       "macos_migration": {
         "enable": false,
@@ -152,6 +156,7 @@
         "custom_settings": null
       },
       "android_settings": {
+        "certificates": null,
         "custom_settings": null
       },
       "end_user_authentication": {

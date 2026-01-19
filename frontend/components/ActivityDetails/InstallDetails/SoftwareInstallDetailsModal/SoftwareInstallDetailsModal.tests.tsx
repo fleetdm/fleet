@@ -7,6 +7,8 @@ import {
   getDefaultSoftwareInstallHandler,
   getSoftwareInstallHandlerNoOutputs,
   getSoftwareInstallHandlerOnlyInstallOutput,
+  getSoftwareInstallHandlerWithPreInstall,
+  getSoftwareInstallHandlerOnlyPreInstallOutput,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
 import { noop } from "lodash";
@@ -216,14 +218,78 @@ describe("SoftwareInstallDetailsModal", () => {
 
       expect(detailsButton).toBeInTheDocument();
       expect(
-        screen.queryByLabelText("Install script output:")
+        screen.queryByText("Pre-install query output:")
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByLabelText(/Post-install script output:/i)
+        screen.queryByText("Install script output:")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Post-install script output:/i)
       ).not.toBeInTheDocument();
     });
 
-    it("shows install and post-install outputs after clicking Details", async () => {
+    it("shows pre-install, install, and post-install outputs after clicking Details", async () => {
+      mockServer.use(getSoftwareInstallHandlerWithPreInstall);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      const { user } = renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      const detailsBtn = await screen.findByRole("button", {
+        name: /Details/i,
+      });
+      await user.click(detailsBtn);
+
+      // Pre-install output
+      expect(
+        await screen.getByText("Pre-install query output:")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Pre-install check passed")).toBeInTheDocument();
+
+      // Install output
+      expect(screen.getByText("Install script output:")).toBeInTheDocument();
+      expect(screen.getByText("Install script ran")).toBeInTheDocument();
+
+      // Post-install output
+      expect(
+        screen.getByText("Post-install script output:")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Post-install success")).toBeInTheDocument();
+    });
+
+    it("renders only pre-install output if that's the only script output present", async () => {
+      mockServer.use(getSoftwareInstallHandlerOnlyPreInstallOutput);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      const { user } = renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      const detailsBtn = await screen.findByRole("button", {
+        name: /Details/i,
+      });
+      await user.click(detailsBtn);
+
+      expect(
+        await screen.getByText("Pre-install query output:")
+      ).toBeInTheDocument();
+      expect(screen.getByText(/pre-install only/i)).toBeInTheDocument();
+      expect(
+        screen.queryByText("Install script output:")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Post-install script output:/i)
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows install and post-install outputs after clicking Details (no pre-install)", async () => {
       mockServer.use(getDefaultSoftwareInstallHandler);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
       const { user } = renderWithServer(
@@ -239,33 +305,20 @@ describe("SoftwareInstallDetailsModal", () => {
       });
       await user.click(detailsBtn);
 
-      await screen.findByText("Install script output:");
+      expect(
+        await screen.getByText("Install script output:")
+      ).toBeInTheDocument();
       expect(screen.getByText("Install script ran")).toBeInTheDocument();
       expect(
         screen.getByText(/Post-install script output:/i)
       ).toBeInTheDocument();
       expect(screen.getByText("Post-install success")).toBeInTheDocument();
-    });
-
-    it("does not render details button if details (script outputs) are empty", async () => {
-      mockServer.use(getSoftwareInstallHandlerNoOutputs);
-      const renderWithServer = createCustomRenderer({ withBackendMock: true });
-      renderWithServer(
-        <SoftwareInstallDetailsModal
-          details={baseDetails}
-          hostSoftware={baseHostSoftware}
-          onCancel={noop}
-        />
-      );
-
       expect(
-        screen.queryByRole("button", {
-          name: /Details/i,
-        })
+        screen.queryByText("Pre-install query output:")
       ).not.toBeInTheDocument();
     });
 
-    it("shows only the install output if post-install output is empty", async () => {
+    it("shows only the install output if post-install and pre-install output is empty", async () => {
       mockServer.use(getSoftwareInstallHandlerOnlyInstallOutput);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
       const { user } = renderWithServer(
@@ -281,10 +334,33 @@ describe("SoftwareInstallDetailsModal", () => {
       });
       await user.click(detailsBtn);
 
-      await screen.findByText("Install script output:");
+      expect(
+        await screen.getByText("Install script output:")
+      ).toBeInTheDocument();
       expect(screen.getByText(/install only/i)).toBeInTheDocument();
       expect(
+        screen.queryByText("Pre-install query output:")
+      ).not.toBeInTheDocument();
+      expect(
         screen.queryByText(/Post-install script output:/i)
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not render details button if all script outputs are empty", async () => {
+      mockServer.use(getSoftwareInstallHandlerNoOutputs);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        screen.queryByRole("button", {
+          name: /Details/i,
+        })
       ).not.toBeInTheDocument();
     });
   });

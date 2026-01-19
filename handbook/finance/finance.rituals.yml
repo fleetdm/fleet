@@ -166,9 +166,9 @@
   dri: "rfoo2015"
 -
   task: "Prepare for OCV meeting"
-  startedOn: "2025-09-15"
-  frequency: "Monthly"
-  description: "CEO + CFO + Head of People review operating model."
+  startedOn: "2025-11-14"
+  frequency: "Weekly"
+  description: "The CFO follows the steps to prepare for the OCV meeting."
   moreInfoUrl: "https://fleetdm.com/handbook/finance#prepare-for-ocv-meeting"
   dri: "rfoo2015"
   autoIssue:  

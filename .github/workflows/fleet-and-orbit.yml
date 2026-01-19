@@ -219,8 +219,8 @@ jobs:
   # Here we generate the Fleet Desktop and osqueryd targets for
   # macOS which can only be generated from a macOS host.
   build-macos-targets:
-    # Set macOS version to '13' for building the binary as Fleet's minimum supported macOS version.
-    runs-on: macos-13
+    # Set macOS version to '14' for building the binary as Fleet's minimum supported macOS version.
+    runs-on: macos-14
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0

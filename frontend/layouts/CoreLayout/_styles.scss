@@ -17,6 +17,10 @@
   // App hidden below 768px
   @media (max-width: ($break-xs - 1px)) {
     display: none;
+
+    &.low-width-supported {
+      display: initial;
+    }
   }
 
   // App not hidden when printing
@@ -44,6 +48,10 @@
   // Nav hidden below 768px;
   @media (max-width: ($break-xs - 1px)) {
     display: none;
+
+    &.low-width-supported {
+      display: initial;
+    }
   }
 
   // Nav not hidden when printing

@@ -3,14 +3,14 @@ import { CellProps, Column } from "react-table";
 
 import { IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareTitle, SoftwareSource } from "interfaces/software";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
-
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
 type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
@@ -63,10 +63,15 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source, icon_url } = cellProps.row.original;
+        const { name, display_name, source, icon_url } = cellProps.row.original;
 
         return (
-          <SoftwareNameCell name={name} source={source} iconUrl={icon_url} />
+          <SoftwareNameCell
+            name={name}
+            display_name={display_name}
+            source={source}
+            iconUrl={icon_url}
+          />
         );
       },
       sortType: "caseInsensitive",
@@ -75,19 +80,36 @@ const generateTableConfig = (
       Header: "Version",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
+        if (platform === "android") {
+          const androidPlayStoreId =
+            cellProps.row.original.app_store_app?.app_store_id;
+
+          return (
+            <TextCell
+              value={
+                <AndroidLatestVersionWithTooltip
+                  androidPlayStoreId={androidPlayStoreId || ""}
+                />
+              }
+            />
+          );
+        }
+
         const title = cellProps.row.original;
-        let versionFoRender = title.software_package?.version;
+        let displayedVersion =
+          title.software_package?.version || title.app_store_app?.version;
+
         if (platform === "linux") {
           const packageTypeCopy = getSetupExperienceLinuxPackageCopy(
             title.source
           );
           if (packageTypeCopy) {
-            versionFoRender = (
-              versionFoRender ?? DEFAULT_EMPTY_CELL_VALUE
+            displayedVersion = (
+              displayedVersion ?? DEFAULT_EMPTY_CELL_VALUE
             ).concat(` (.${packageTypeCopy})`);
           }
         }
-        return <TextCell value={versionFoRender} />;
+        return <TextCell value={displayedVersion} />;
       },
       sortType: "caseInsensitive",
     },

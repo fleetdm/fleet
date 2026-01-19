@@ -115,6 +115,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMTermsExpired	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSUpdates	fleet.AppleOSUpdateSettings
+github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	UpdateNewHosts	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	MinimumVersion	optjson.String
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Valid	bool
@@ -155,6 +156,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	WebhookURL	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsMigrationEnabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableTurnOnWindowsMDMManually	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndUserAuthentication
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnabledAndConfigured	bool
@@ -174,6 +176,13 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMAppleVolumePurchasingProgramInfo	Tea
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AndroidEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AndroidSettings	fleet.AndroidSettings
 github.com/fleetdm/fleet/v4/server/fleet/AndroidSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
+github.com/fleetdm/fleet/v4/server/fleet/AndroidSettings	Certificates	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.CertificateTemplateSpec]	Value	[]fleet.CertificateTemplateSpec
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	UIGitOpsMode	fleet.UIGitOpsModeConfig
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	RepositoryURL	string

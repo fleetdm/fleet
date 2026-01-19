@@ -1,0 +1,8 @@
+{
+   "name": "Rectangle",
+   "slug": "rectangle/darwin",
+   "unique_identifier": "com.knollsoft.Rectangle",
+   "token": "rectangle",
+   "installer_format": "dmg",
+   "default_categories": ["Productivity"]
+}

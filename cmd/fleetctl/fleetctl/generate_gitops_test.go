@@ -261,8 +261,28 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				Name: "My App Store App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID: "com.example.team-software",
+					Platform:   string(fleet.MacOSPlatform),
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
+			},
+			{
+				ID:   6,
+				Name: "My Setup Experience App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID:         "com.example.setup-experience-software",
+					Platform:           string(fleet.AndroidPlatform),
+					InstallDuringSetup: ptr.Bool(true),
+				},
+				HashSHA256: ptr.String("app-setup-experience-hash"),
+			},
+			{
+				ID:   7,
+				Name: "My iOS Auto Update App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID: "com.example.ios-auto-update",
+					Platform:   string(fleet.IOSPlatform),
+				},
+				HashSHA256: ptr.String("ios-auto-update-hash"),
 			},
 		}, nil
 	case "available_for_install=1&team_id=0":
@@ -385,15 +405,47 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 2,
 			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID: fleet.VPPAppID{Platform: fleet.MacOSPlatform},
 				LabelsExcludeAny: []fleet.SoftwareScopeLabel{{
 					LabelName: "Label C",
 				}, {
 					LabelName: "Label D",
 				}},
-				Categories:  []string{"Productivity", "Utilities"},
+				Categories: []string{"Productivity", "Utilities"},
+
 				SelfService: true,
 			},
 			IconUrl: ptr.String("/api/icon2.png"),
+		}, nil
+	case 6:
+		if *teamID != 1 {
+			return nil, errors.New("team ID mismatch")
+		}
+		return &fleet.SoftwareTitle{
+			ID: 6,
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
+				LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
+				SelfService:      true,
+			},
+			IconUrl: ptr.String("/api/icon3.png"),
+		}, nil
+	case 7:
+		if *teamID != 1 {
+			return nil, errors.New("team ID mismatch")
+		}
+		return &fleet.SoftwareTitle{
+			ID: 7,
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID:    fleet.VPPAppID{AdamID: "com.example.ios-auto-update", Platform: fleet.IOSPlatform},
+				SelfService: false,
+			},
+			IconUrl: ptr.String("/api/icon4.png"),
+			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+				AutoUpdateEnabled:   ptr.Bool(true),
+				AutoUpdateStartTime: ptr.String("01:00"),
+				AutoUpdateEndTime:   ptr.String("03:00"),
+			},
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -404,7 +456,11 @@ func (MockClient) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error
 	return []byte(fmt.Sprintf("icon for title %d on team %d", titleID, teamID)), nil
 }
 
-func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
+func (MockClient) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
+	if teamID != 0 {
+		return nil, nil // simulate no team-specific labels
+	}
+
 	return []*fleet.LabelSpec{{
 		Name:                "Label A",
 		Platform:            "linux,macos",
@@ -457,6 +513,16 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 					Platform:           "darwin",
 					Version:            "13.37",
 				},
+			},
+			{
+				ID:   6,
+				Name: "My Setup Experience App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID:         "com.example.setup-experience-software",
+					Platform:           string(fleet.AndroidPlatform),
+					InstallDuringSetup: ptr.Bool(true),
+				},
+				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
 		}, nil
 	}
@@ -579,6 +645,21 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 	}
 
 	return &res, nil
+}
+
+func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error) {
+	var res []*fleet.CertificateTemplateResponseSummary
+	if teamID == "1" {
+		res = []*fleet.CertificateTemplateResponseSummary{
+			{
+				ID:                       1,
+				CertificateAuthorityName: "DIGIDOO",
+				Name:                     "my_certypoo",
+				SubjectName:              "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+		}
+	}
+	return res, nil
 }
 
 func maskSecret(value string, shouldShowSecret bool) string {
@@ -765,6 +846,64 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
+}
+
+func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
+	fleetClient := &MockClient{}
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		SoftwareList: make(map[uint]Software),
+		ScriptList:   make(map[uint]string),
+	}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd.AppConfig = appConfig
+
+	// prepare FilesToWrite entry like Run() would
+	cmd.FilesToWrite["teams/test.yml"] = map[string]any{}
+
+	// generate software for team 1
+	res, err := cmd.generateSoftware("teams/test.yml", 1, "team-a", false)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	apps, ok := res["app_store_apps"]
+	require.True(t, ok, "expected app_store_apps in result")
+	appsList, ok := apps.([]map[string]any)
+	if !ok {
+		// yaml/unmarshal may produce []interface{}
+		rawList, ok := apps.([]any)
+		require.True(t, ok, "unexpected app_store_apps type")
+		appsList = make([]map[string]any, 0, len(rawList))
+		for _, v := range rawList {
+			m, ok := v.(map[string]any)
+			require.True(t, ok)
+			appsList = append(appsList, m)
+		}
+	}
+
+	var found bool
+	for _, a := range appsList {
+		if a["app_store_id"] == "com.example.ios-auto-update" {
+			found = true
+			// auto update keys should be present
+			val, ok := a["auto_update_enabled"]
+			require.True(t, ok)
+			assert.Equal(t, true, val)
+
+			start, ok := a["auto_update_window_start"]
+			require.True(t, ok)
+			assert.Equal(t, "01:00", start)
+
+			end, ok := a["auto_update_window_end"]
+			require.True(t, ok)
+			assert.Equal(t, "03:00", end)
+		}
+	}
+	require.True(t, found, "did not find iOS auto-update app in generated software")
 }
 
 func TestGeneratedOrgSettingsOktaConditionalAccessNotIncluded(t *testing.T) {
@@ -1513,25 +1652,28 @@ func TestGenerateLabels(t *testing.T) {
 		AppConfig:    appConfig,
 	}
 
-	labelsRaw, err := cmd.generateLabels()
+	labelsRaw, err := cmd.generateLabels(nil)
 	require.NoError(t, err)
 	require.NotNil(t, labelsRaw)
 	var labels []map[string]interface{}
 	b, err := yaml.Marshal(labelsRaw)
 	require.NoError(t, err)
-	fmt.Println("labels raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &labels)
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedLabels.yaml")
 	require.NoError(t, err)
-	var expectedlabels []map[string]interface{}
-	err = yaml.Unmarshal(b, &expectedlabels)
+	var expectedLabels []map[string]any
+	err = yaml.Unmarshal(b, &expectedLabels)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedlabels, labels)
+	require.Equal(t, expectedLabels, labels)
+
+	teamLabels, err := cmd.generateLabels(&fleet.Team{ID: 1})
+	require.NoError(t, err)
+	require.Empty(t, teamLabels)
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {

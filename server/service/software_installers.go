@@ -19,8 +19,8 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 type uploadSoftwareInstallerRequest struct {
@@ -48,7 +48,7 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
 	Categories        []string
-	DisplayName       string
+	DisplayName       *string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -64,7 +64,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// populate software title ID since we're overriding the decoder that would do it for us
 	titleID, err := uint32FromRequest(r, "id")
 	if err != nil {
-		return nil, endpoint_utils.BadRequestErr("IntFromRequest", err)
+		return nil, endpointer.BadRequestErr("IntFromRequest", err)
 	}
 	decoded.TitleID = uint(titleID)
 
@@ -174,13 +174,45 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.Categories = categories
 	}
 
-	displayNameMultiPart := r.MultipartForm.Value["display_name"]
-	if len(displayNameMultiPart) > 0 {
-		decoded.DisplayName = displayNameMultiPart[0]
-		if len(decoded.DisplayName) > fleet.SoftwareTitleDisplayNameMaxLength {
+	displayNameMultiPart, existsDisplayName := r.MultipartForm.Value["display_name"]
+	if existsDisplayName && len(displayNameMultiPart) > 0 {
+		decoded.DisplayName = ptr.String(displayNameMultiPart[0])
+		if len(*decoded.DisplayName) > fleet.SoftwareTitleDisplayNameMaxLength {
 			return nil, &fleet.BadRequestError{
 				Message: "The maximum display name length is 255 characters.",
 			}
+		}
+	}
+
+	// Check if scripts are base64 encoded (to bypass WAF rules that block script patterns)
+	if isScriptsEncoded(r) {
+		if decoded.InstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.InstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for install_script"}
+			}
+			decoded.InstallScript = &decodedScript
+		}
+		if decoded.UninstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.UninstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for uninstall_script"}
+			}
+			decoded.UninstallScript = &decodedScript
+		}
+		if decoded.PreInstallQuery != nil {
+			decodedScript, err := decodeBase64Script(*decoded.PreInstallQuery)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for pre_install_query"}
+			}
+			decoded.PreInstallQuery = &decodedScript
+		}
+		if decoded.PostInstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.PostInstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for post_install_script"}
+			}
+			decoded.PostInstallScript = &decodedScript
 		}
 	}
 
@@ -349,6 +381,23 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode automatic_install bool in multipart form: %s", err.Error())}
 		}
 		decoded.AutomaticInstall = parsed
+	}
+
+	// Check if scripts are base64 encoded (to bypass WAF rules that block script patterns)
+	if isScriptsEncoded(r) {
+		var err error
+		if decoded.InstallScript, err = decodeBase64Script(decoded.InstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for install_script"}
+		}
+		if decoded.UninstallScript, err = decodeBase64Script(decoded.UninstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for uninstall_script"}
+		}
+		if decoded.PreInstallQuery, err = decodeBase64Script(decoded.PreInstallQuery); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for pre_install_query"}
+		}
+		if decoded.PostInstallScript, err = decodeBase64Script(decoded.PostInstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for post_install_script"}
+		}
 	}
 
 	return &decoded, nil
@@ -864,7 +913,9 @@ func submitDeviceSoftwareUninstall(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
-	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL)
 	if !alreadyAuthenticated {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return false, err

@@ -101,8 +101,8 @@ jobs:
         run: |
           mkdir trivy-download
           cd trivy-download
-          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.61.0/trivy_0.61.0_Linux-64bit.tar.gz --output trivy_0.61.0_Linux-64bit.tar.gz
-          tar -xf trivy_0.61.0_Linux-64bit.tar.gz
+          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.68.1/trivy_0.68.1_Linux-64bit.tar.gz --output trivy_0.68.1_Linux-64bit.tar.gz
+          tar -xf trivy_0.68.1_Linux-64bit.tar.gz
           mv trivy ..
           cd ..
           chmod +x ./trivy
@@ -151,8 +151,10 @@ jobs:
       - name: Tag and push to quay.io
         run: |
           for TAG in ${{ steps.docker.outputs.TAG }}; do
-          docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
-          docker push quay.io/fleetdm/fleet:${TAG}
+            docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
+            for i in {1..5}; do
+              docker push quay.io/fleetdm/fleet:${TAG} && break || sleep 10
+            done
           done
 
       - name: Slack notification

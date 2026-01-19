@@ -84,23 +84,16 @@ Fleet supports the following operating system versions on hosts.
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
-## Some notes on compatibility
 
-### Tables
+### Note
 
-Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information. 
+> - Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information.
+>   - If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
+> - On Linux, Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments.
+>   - GNOME requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/).
+> - Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
+> - The `fleetctl package` command is not supported on DISA-STIG distribution.
 
-If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
-
-### Linux
-
-Fleet Desktop is supported on Ubuntu, Fedora, Debian, and Arch Linux, and Omarchy.
-
-Fedora and Debian hosts require a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) for Fleet Desktop.
-
-Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
-
-The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 ## Is Fleet MIT licensed?
 
@@ -231,7 +224,7 @@ For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `t
 Folks typically use Fleet to ship logs to data lakes and SIEMs like Splunk, the ELK stack, and Graylog.
 
 Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
-`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 See:
   - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
   - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.
@@ -514,7 +507,6 @@ We've found this error when you try to build an MSI on Docker 4.17. The underlyi
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
 - [What Redis versions are supported?](#what-redis-versions-are-supported)
-- [Will my older version of Fleet work with Redis 6?](#will-my-older-version-of-fleet-work-with-redis-6)
 
 ### How do I get support for working with Fleet?
 
@@ -639,7 +631,7 @@ Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.36, 8.4.6, and 9.4.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.36, 8.4.7, and 9.5.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What are the MySQL user requirements?
 
@@ -702,18 +694,14 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 ### What is the minimum version of MySQL required by Fleet?
 
-Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36, 8.4.6, and 9.4.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51)
+Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36, 8.4.7, and 9.5.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51)
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in [Fleet's config file](https://fleetdm.com/docs/deploying/configuration#license). You don't need to redeploy Fleet after the migration.
 
 ### What Redis versions are supported?
-Fleet is tested with Redis 6, as well as the latest release of Redis 5. Any version of Redis after version 5 will typically work well.
-
-### Will my older version of Fleet work with Redis 6?
-
-Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination, so you may run into some unforeseen hiccups.
+Fleet is tested with Redis 6. Any version of Redis after version 6 will typically work well.
 
 ## What happened to the "Schedule" page?
 Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval" and "platform"), or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query that every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.

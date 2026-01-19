@@ -1,6 +1,7 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
+import { InstallerType } from "interfaces/software";
 
 import InstallerDetailsWidget from "./InstallerDetailsWidget";
 
@@ -19,11 +20,12 @@ const render = createCustomRenderer({ withBackendMock: true });
 describe("InstallerDetailsWidget", () => {
   const defaultProps = {
     softwareName: "Test Software",
-    installerType: "package" as const,
+    installerType: "package" as InstallerType,
     addedTimestamp: "2024-05-06T10:00:00Z",
     version: "v1.2.3",
     isFma: false,
     isScriptPackage: false,
+    androidPlayStoreId: undefined,
   };
 
   it("renders the package icon when installerType is 'package'", () => {
@@ -97,9 +99,24 @@ describe("InstallerDetailsWidget", () => {
   });
 
   it("renders VPP label", () => {
-    render(<InstallerDetailsWidget {...defaultProps} installerType="vpp" />);
+    render(
+      <InstallerDetailsWidget {...defaultProps} installerType="app-store" />
+    );
 
     expect(screen.getByText(/App Store \(VPP\)/i)).toBeInTheDocument();
+  });
+
+  it("renders Google Play Store label and 'latest' for version", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        installerType="app-store"
+        androidPlayStoreId="com.android.appname"
+      />
+    );
+
+    expect(screen.getByText(/Google Play Store/i)).toBeInTheDocument();
+    expect(screen.getByText(/latest/i)).toBeInTheDocument();
   });
 
   it("InstallerName disables tooltip if not truncated", () => {

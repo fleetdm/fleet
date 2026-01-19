@@ -339,11 +339,11 @@ func TestQueryAuth(t *testing.T) {
 		team2Query.ID:  team2Query,
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == team.ID {
-			return &team, nil
+			return team.ToTeamLite(), nil
 		} else if tid == team2.ID {
-			return &team2, nil
+			return team2.ToTeamLite(), nil
 		}
 		return nil, newNotFoundError()
 	}
@@ -978,7 +978,8 @@ func TestApplyQuerySpec(t *testing.T) {
 	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		return nil
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		require.NotNil(t, filter.User)
 		labels := make(map[string]*fleet.Label, len(names))
 		for _, name := range names {
 			if name == "foo" {

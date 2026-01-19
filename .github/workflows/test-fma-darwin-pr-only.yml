@@ -1,0 +1,160 @@
+name: Test Fleet Maintained Apps - Darwin (PR Only)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ee/maintained-apps/inputs/**
+      - ee/maintained-apps/outputs/**
+      - cmd/maintained-apps/validate/**
+  workflow_dispatch: # Manual trigger
+    inputs:
+      log_level:
+        description: "Log level (debug, info, warn, error)"
+        required: false
+        default: "info"
+        type: choice
+        options:
+          - debug
+          - info
+          - warn
+          - error
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  contents: read
+
+jobs:
+  test-fma-pr-only:
+    env:
+      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Fleet
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 0 # Need full history to compare with base branch
+          ref: ${{ github.ref }}
+          path: fleet
+
+      - name: Setup Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: "fleet/go.mod"
+
+      - name: Fetch base branch
+        run: |
+          cd fleet
+          BASE_BRANCH="${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
+          echo "Fetching base branch: $BASE_BRANCH"
+          git fetch origin "$BASE_BRANCH:$BASE_BRANCH" || true
+        shell: bash
+
+      - name: Detect changed apps
+        id: detect-changed
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
+        run: |
+          cd fleet
+          export GITHUB_WORKSPACE="$PWD"
+          .github/scripts/detect-new-fmas-in-pr.sh
+        shell: bash
+
+      - name: Check if there are changes
+        id: check-changes
+        run: |
+          # Default to no changes if detection step failed or didn't set output
+          HAS_CHANGES="${{ steps.detect-changed.outputs.HAS_CHANGES }}"
+          if [ "$HAS_CHANGES" == "true" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changed apps detected: ${{ steps.detect-changed.outputs.CHANGED_APPS }}"
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changed apps detected, skipping validation"
+          fi
+
+      - name: Check if there are Darwin apps
+        id: check-darwin-apps
+        run: |
+          if [ "${{ steps.check-changes.outputs.has_changes }}" != "true" ]; then
+            echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
+            echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Filter changed apps to only include darwin platform
+          DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
+
+          if [ -z "$DARWIN_SLUGS" ]; then
+            echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
+            echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            echo "No darwin apps changed, skipping Darwin workflow"
+          else
+            echo "has_darwin_apps=true" >> $GITHUB_OUTPUT
+            echo "Darwin apps detected:"
+            echo "$DARWIN_SLUGS" | while read -r slug; do
+              echo "  - $slug"
+            done
+
+            # Check if google-chrome/darwin is in the changed apps
+            if echo "$DARWIN_SLUGS" | grep -q "^google-chrome/darwin$"; then
+              echo "has_google_chrome=true" >> $GITHUB_OUTPUT
+              echo "Google Chrome detected in changed apps"
+            else
+              echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+        shell: bash
+
+      - name: Install osquery mac
+        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
+        run: |
+          echo "Runner architecture: $(uname -m)"
+          curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
+          tar -xzf osquery.tar.gz
+          sudo cp -r opt /
+          sudo cp -r private /
+          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd /usr/local/bin/osqueryi
+          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
+
+      - name: Remove pre-installed google chrome mac
+        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true' && steps.check-darwin-apps.outputs.has_google_chrome == 'true'
+        run: |
+          ls /Applications | grep -i "Chrome"
+          find /Applications -name "*Chrome*.app" -type d | while read app;
+          do
+            echo "Removing $app..."
+            sudo rm -rf "$app"
+          done
+
+      - name: Filter apps.json and verify changed apps
+        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
+        run: |
+          cd fleet
+          # Set GITHUB_WORKSPACE to current directory so scripts can find files
+          export GITHUB_WORKSPACE="$PWD"
+
+          # Filter changed apps to only include darwin platform
+          DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
+          DARWIN_SLUGS_JSON=$(echo "$DARWIN_SLUGS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          # Backup original apps.json
+          cp ee/maintained-apps/outputs/apps.json ee/maintained-apps/outputs/apps.json.backup
+
+          # Create filtered apps.json
+          FILTERED_APPS_JSON=$(mktemp)
+          .github/scripts/filter-apps-json.sh "$DARWIN_SLUGS_JSON" "$FILTERED_APPS_JSON"
+
+          # Replace apps.json with filtered version
+          mv "$FILTERED_APPS_JSON" ee/maintained-apps/outputs/apps.json
+
+          # Run validation
+          ls /Applications
+          sudo -E go run ./cmd/maintained-apps/validate
+
+          # Restore original apps.json
+          mv ee/maintained-apps/outputs/apps.json.backup ee/maintained-apps/outputs/apps.json

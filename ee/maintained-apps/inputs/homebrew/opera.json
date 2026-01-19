@@ -1,0 +1,8 @@
+{
+  "name": "Opera",
+  "unique_identifier": "com.operasoftware.Opera",
+  "token": "opera",
+  "installer_format": "dmg",
+  "slug": "opera/darwin",
+  "default_categories": ["Browsers"]
+}

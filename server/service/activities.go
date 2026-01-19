@@ -20,12 +20,8 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get activities
+// Activities response (used by host past activities endpoint)
 ////////////////////////////////////////////////////////////////////////////////
-
-type listActivitiesRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
 
 type listActivitiesResponse struct {
 	Meta       *fleet.PaginationMetadata `json:"meta"`
@@ -34,35 +30,6 @@ type listActivitiesResponse struct {
 }
 
 func (r listActivitiesResponse) Error() error { return r.Err }
-
-func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listActivitiesRequest)
-	activities, metadata, err := svc.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: req.ListOptions,
-	})
-	if err != nil {
-		return listActivitiesResponse{Err: err}, nil
-	}
-
-	return listActivitiesResponse{Meta: metadata, Activities: activities}, nil
-}
-
-// ListActivities returns a slice of activities for the whole organization
-func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Activity{}, fleet.ActionRead); err != nil {
-		return nil, nil, err
-	}
-	return svc.ds.ListActivities(ctx, opt)
-}
-
-type ActivityWebhookPayload struct {
-	Timestamp     time.Time        `json:"timestamp"`
-	ActorFullName *string          `json:"actor_full_name"`
-	ActorID       *uint            `json:"actor_id"`
-	ActorEmail    *string          `json:"actor_email"`
-	Type          string           `json:"type"`
-	Details       *json.RawMessage `json:"details"`
-}
 
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
@@ -108,7 +75,7 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			err := backoff.Retry(
 				func() error {
 					if err := server.PostJSONWithTimeout(
-						context.Background(), webhookURL, &ActivityWebhookPayload{
+						context.Background(), webhookURL, &fleet.ActivityWebhookPayload{
 							Timestamp:     timestamp,
 							ActorFullName: userName,
 							ActorID:       userID,

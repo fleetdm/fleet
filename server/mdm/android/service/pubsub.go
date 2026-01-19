@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-json-experiment/json"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/cases"
@@ -68,7 +70,9 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 
 func (svc *Service) authenticatePubSub(ctx context.Context, token string) error {
 	svc.authz.SkipAuthorization(ctx)
-	_, err := svc.checkIfAndroidNotConfigured(ctx)
+	// On a simple not configured error return status OK to avoid PubSub retry looping after
+	// disabling Android MDM
+	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusOK)
 	if err != nil {
 		return err
 	}
@@ -106,15 +110,24 @@ func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, 
 }
 
 func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, rawData []byte) error {
-	// We allow DELETED notification type to be received since user may be in the process of disabling Android MDM.
-	// Otherwise, we authenticate below in authenticatePubSub
-	svc.authz.SkipAuthorization(ctx)
+	err := svc.authenticatePubSub(ctx, token)
+	if err != nil {
+		return err
+	}
 
 	var device androidmanagement.Device
-	err := json.Unmarshal(rawData, &device)
+	err = json.Unmarshal(rawData, &device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
 	}
+
+	// NOTE: uncomment as needed, can be useful for debugging as the pubsub report
+	// can be very large - it is not practical to print so it saves it to a file,
+	// different names for all instances of the pubsub, and under an extension that
+	// is git-ignored.
+	// dump := spew.Sdump(device)
+	// ts := time.Now().UnixNano()
+	// _ = os.WriteFile(fmt.Sprintf("host_%s_version_%d_timestamps_%d.log", device.HardwareInfo.EnterpriseSpecificId, device.AppliedPolicyVersion, ts), []byte(dump), 0644)
 
 	// Consider both appliedState and state fields for deletion, to handle variations in payloads.
 	isDeleted := strings.ToUpper(device.AppliedState) == string(android.DeviceStateDeleted)
@@ -145,6 +158,22 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
 			}
+
+			// cancel any apps pending install for this host
+			users, acts, err := svc.ds.MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx, host.Host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "mark pending vpp installs as failed for deleted android host")
+			}
+			if len(users) != len(acts) {
+				return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+			}
+			for i, act := range acts {
+				user := users[i]
+				if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+					return ctxerr.Wrap(ctx, err, "create failed app install activity")
+				}
+			}
+
 			if !didUnenroll {
 				return nil // Skip activity, if we didn't update the enrollment state.
 			}
@@ -152,7 +181,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
 			// Use the computed display name from the device payload as lite host may not include it.
 			displayName := svc.getComputerName(&device)
-			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -160,11 +189,6 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			})
 		}
 		return nil
-	}
-
-	err = svc.authenticatePubSub(ctx, token)
-	if err != nil {
-		return err
 	}
 
 	host, err := svc.getExistingHost(ctx, &device)
@@ -267,8 +291,24 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
+
+			// cancel any apps pending install for this host
+			users, acts, err := svc.ds.MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx, host.Host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "mark pending vpp installs as failed for deleted android host")
+			}
+			if len(users) != len(acts) {
+				return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+			}
+			for i, act := range acts {
+				user := users[i]
+				if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+					return ctxerr.Wrap(ctx, err, "create failed app install activity")
+				}
+			}
+
 			displayName := svc.getComputerName(&device)
-			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -292,6 +332,9 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		return err
 	}
 
+	// Enqueue a job to send any necessary self-service software.
+	// Like Martin said below, this should properly be part of a device lifecycle action.
+
 	// Device may already be present in Fleet if device user removed the MDM profile and then re-enrolled
 	host, err := svc.getExistingHost(ctx, device)
 	if err != nil {
@@ -306,7 +349,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	var enrollmentTokenRequest enrollmentTokenRequest
 	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
+		return ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
 	}
 
 	if host != nil {
@@ -366,6 +409,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 		svc.verifyDevicePolicy(ctx, host.UUID, device)
+		svc.verifyDeviceSoftware(ctx, host.Host, device)
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
@@ -387,7 +431,9 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.CPUType = device.HardwareInfo.Hardware
 	host.Host.HardwareModel = svc.getComputerName(device)
 	host.Host.HardwareVendor = device.HardwareInfo.Brand
-	host.LabelUpdatedAt = time.Time{}
+	// Android hosts do not support dynamic labels so we should keep their labelUpdatedAt updated at every
+	// checkin to match platforms that do and make label logic simpler
+	host.LabelUpdatedAt = time.Now()
 	if device.LastStatusReportTime != "" {
 		lastStatusReportTime, err := time.Parse(time.RFC3339, device.LastStatusReportTime)
 		if err != nil {
@@ -404,6 +450,31 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
+
+	if fromEnroll {
+		// Create pending certificate templates for this re-enrolled host.
+		// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
+		teamID := uint(0)
+		if host.Host.TeamID != nil {
+			teamID = *host.Host.TeamID
+		}
+		if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, host.Host.UUID, teamID); err != nil {
+			level.Error(svc.logger).Log("msg", "failed to create pending certificate templates for re-enrolled host", "host_uuid", host.Host.UUID, "err", err)
+			return ctxerr.Wrap(ctx, err, "creating pending certificate templates for re-enrolled host")
+		}
+
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get android enterprise")
+		}
+
+		err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
+			host.Host.UUID, host.Host.TeamID, enterprise.Name())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing run android setup experience for host job")
+		}
+	}
+
 	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
 }
@@ -443,7 +514,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			CPUType:                   device.HardwareInfo.Hardware,
 			HardwareModel:             svc.getComputerName(device),
 			HardwareVendor:            device.HardwareInfo.Brand,
-			LabelUpdatedAt:            time.Time{},
+			LabelUpdatedAt:            time.Now(),
 			DetailUpdatedAt:           time.Time{},
 			UUID:                      device.HardwareInfo.EnterpriseSpecificId,
 		},
@@ -467,7 +538,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-	_, err = svc.ds.NewAndroidHost(ctx, host)
+	fleetHost, err := svc.ds.NewAndroidHost(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -478,6 +549,28 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+	}
+
+	// Create pending certificate templates for this newly enrolled host.
+	// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
+	teamID := uint(0)
+	if enrollSecret.GetTeamID() != nil {
+		teamID = *enrollSecret.GetTeamID()
+	}
+	if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, fleetHost.Host.UUID, teamID); err != nil {
+		level.Error(svc.logger).Log("msg", "failed to create pending certificate templates for new host", "host_uuid", fleetHost.Host.UUID, "err", err)
+		return ctxerr.Wrap(ctx, err, "creating pending certificate templates for new host")
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android enterprise")
+	}
+
+	err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
+		fleetHost.Host.UUID, fleetHost.Host.TeamID, enterprise.Name())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing run android setup experience for host job")
 	}
 
 	return nil
@@ -527,7 +620,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
-	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version = device.AppliedPolicyVersion.
+	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version <= device.AppliedPolicyVersion.
 	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
 
 	// Get all profiles that are pending install
@@ -640,6 +733,156 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	err = svc.ds.BulkDeleteMDMAndroidHostProfiles(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "error deleting pending or failed remove profiles", "err", err, "host_uuid", hostUUID)
+	}
+}
+
+func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, device *androidmanagement.Device) {
+	appliedPolicyVersion := device.AppliedPolicyVersion
+	hostUUID := host.UUID
+
+	level.Debug(svc.logger).Log("msg", "Verifying Android device software", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
+
+	// Get all host_vpp_software_installs that are pending, and set in a policy version <= device.AppliedPolicyVersion.
+	// That way we can either fully verify the app install, or mark as failed if the app is not compliant.
+
+	pendingInstallApps, err := svc.ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "error getting pending vpp installs", "err", err)
+		return
+	}
+	if len(pendingInstallApps) == 0 {
+		return
+	}
+
+	// index pending installs by package name
+	pendingByPackageName := make(map[string]*fleet.HostAndroidVPPSoftwareInstall, len(pendingInstallApps))
+	for _, app := range pendingInstallApps {
+		pendingByPackageName[app.AdamID] = app
+	}
+	// index non-compliance reports by package name, currently we don't care about why it wasn't
+	// compliant, as soon as it is non-compliant we will mark the install as failed
+	nonCompliantByPackageName := make(map[string]*androidmanagement.NonComplianceDetail)
+	for _, report := range device.NonComplianceDetails {
+		if _, ok := pendingByPackageName[report.PackageName]; ok {
+			// this is a package we're tracking, keep its non-compliance report
+			nonCompliantByPackageName[report.PackageName] = report
+		}
+	}
+
+	// track for each app if it should be marked verified (true) or failed (false)
+	markVerified := make(map[string]bool, len(pendingInstallApps))
+	for _, appReport := range device.ApplicationReports {
+		if _, ok := pendingByPackageName[appReport.PackageName]; ok {
+			// TODO(mna): what if appReport.State is "REMOVED", and the user removed it before
+			// the "INSTALLED" state was reported? Should we say it was installed successfully,
+			// and how do we even know it was installed at all? Does it matter? Not handling for
+			// now, could be something to improve when we implement standard app install support
+			// for Android.
+
+			// NOTE: I've seen appReport.State == INSTALLED while a non-compliant report says
+			// "IN_PROGRESS", but on the device the app was indeed installed and no further
+			// pub-sub report came in, so I think the best approach is to mark it as successfully
+			// installed (regardless of any non-compliance report) if its state is INSTALLED.
+			if appReport.State == "INSTALLED" {
+				// definitely installed successfully
+				markVerified[appReport.PackageName] = true
+				level.Debug(svc.logger).Log("msg", "Software marked as verified", "host_uuid", hostUUID, "package_name", appReport.PackageName)
+				continue
+			}
+		}
+		level.Debug(svc.logger).Log("msg", "Software not marked as verified, checking if failed", "host_uuid", hostUUID, "package_name", appReport.PackageName)
+	}
+
+	// for the remaining apps, mark as failed if non-conformant
+	for packageName := range pendingByPackageName {
+		if _, ok := markVerified[packageName]; ok {
+			// already marked as verified
+			continue
+		}
+
+		if report := nonCompliantByPackageName[packageName]; report != nil {
+			if report.NonComplianceReason == "PENDING" || report.InstallationFailureReason == "IN_PROGRESS" {
+				// keep as pending, the understanding is that another pub-sub will follow when the app's state
+				// chances to installed or failed.
+				level.Debug(svc.logger).Log("msg", "Software not reported as installed yet, will remain pending", "host_uuid", hostUUID, "package_name", packageName,
+					"non_compliance_reason", report.NonComplianceReason,
+					"installation_failure_reason", report.InstallationFailureReason)
+				continue
+			}
+
+			// otherwise it has failed to install, mark as failed
+			markVerified[packageName] = false
+			level.Error(svc.logger).Log("msg", "Software failed to install", "host_uuid", hostUUID, "package_name", packageName,
+				"non_compliance_reason", report.NonComplianceReason,
+				"installation_failure_reason", report.InstallationFailureReason,
+				"specific_non_compliance_reason", report.SpecificNonComplianceReason)
+			continue
+		}
+
+		// no non-compliance report, but also not reported as installed, give it another
+		// chance later if the applied version == requested version? For now, marking as
+		// failed, we don't know how long it might take for the device to receive another
+		// policy, it may never happen.
+		markVerified[packageName] = false
+		level.Error(svc.logger).Log("msg", "Software failed to install without non-compliance report", "host_uuid", hostUUID, "package_name", packageName,
+			"installation_failure_reason", "unknown - no non-compliance report received")
+	}
+
+	var toVerifyUUIDs, toFailUUIDs []string
+	for packageName, install := range pendingByPackageName {
+		// ignore those not in markVerified, as they will enter a final state in a future
+		// pub-sub message.
+		if verified, ok := markVerified[packageName]; ok {
+			if verified {
+				toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
+			} else {
+				toFailUUIDs = append(toFailUUIDs, install.CommandUUID)
+			}
+		}
+	}
+	if err := svc.ds.BulkSetVPPInstallsAsVerified(ctx, host.ID, toVerifyUUIDs); err != nil {
+		level.Error(svc.logger).Log("msg", "error marking vpp installs as verified", "err", err, "host_uuid", hostUUID)
+		return
+	}
+	if err := svc.ds.BulkSetVPPInstallsAsFailed(ctx, host.ID, toFailUUIDs); err != nil {
+		level.Error(svc.logger).Log("msg", "error marking vpp installs as failed", "err", err, "host_uuid", hostUUID)
+		return
+	}
+
+	createPastActivity := func(cmdUUID string, status fleet.SoftwareInstallerStatus) (stop bool) {
+		user, act, err := svc.ds.GetPastActivityDataForAndroidVPPAppInstall(ctx, cmdUUID, status)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// shouldn't happen, but no need to fail
+				return false
+			}
+			// otherwise it's a DB error and we should fail
+			level.Error(svc.logger).Log("msg", "error getting past activity for installed software", "err", err, "host_uuid", hostUUID)
+			return true
+		}
+		if act == nil {
+			// could happen if command is not found, but shouldn't
+			level.Debug(svc.logger).Log("msg", "getting past activity for installed software did not find the command", "host_uuid", hostUUID)
+			return false
+		}
+		act.FromSetupExperience = true // currently, all Android app installs are from setup experience
+		if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+			level.Error(svc.logger).Log("msg", "error creating past activity for installed software", "err", err, "host_uuid", hostUUID)
+			return true
+		}
+		return false
+	}
+
+	// create the matching past activities
+	for _, cmd := range toVerifyUUIDs {
+		if stop := createPastActivity(cmd, fleet.SoftwareInstalled); stop {
+			return
+		}
+	}
+	for _, cmd := range toFailUUIDs {
+		if stop := createPastActivity(cmd, fleet.SoftwareInstallFailed); stop {
+			return
+		}
 	}
 }
 

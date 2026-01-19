@@ -3,6 +3,13 @@
   flex-direction: column;
   align-items: center;
 
+  &__mobile-view {
+    align-self: center;
+    vertical-align: middle;
+    justify-content: center; /* vertical centering */
+    min-height: 100vh; /* full viewport height */
+  }
+
   &__inner {
     display: flex;
     flex-direction: row;
@@ -14,6 +21,7 @@
     flex-direction: column;
     gap: $pad-large;
     max-width: 333px;
+    padding: $pad-small;
 
     &__header {
       display: block;

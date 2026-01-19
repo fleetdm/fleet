@@ -66,7 +66,7 @@ import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMd
 import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import Secrets from "pages/ManageControlsPage/Secrets/Secrets";
-import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
+import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
@@ -82,7 +82,7 @@ import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnera
 import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
 import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
-import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
+import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
 import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
@@ -202,6 +202,10 @@ const routes = (
                   path="integrations/:section"
                   component={AdminIntegrationsPage}
                 />
+                <Route
+                  path="integrations/sso/:subsection"
+                  component={AdminIntegrationsPage}
+                />
                 <Route component={ExcludeInSandboxRoutes}>
                   <Route path="users" component={AdminUserManagementPage} />
                 </Route>
@@ -224,7 +228,7 @@ const routes = (
             />
             <Route
               path="integrations/automatic-enrollment/windows"
-              component={WindowsAutomaticEnrollmentPage}
+              component={WindowsEnrollmentPage}
             />
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
@@ -273,9 +277,6 @@ const routes = (
                 <Route path="inventory" component={HostDetailsPage} />
                 <Route path="library" component={HostDetailsPage} />
               </Route>
-
-              <Route path="queries" component={HostDetailsPage} />
-              <Route path=":query_id" component={HostQueryReport} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 

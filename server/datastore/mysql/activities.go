@@ -155,6 +155,64 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	}
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
+	// Searching activites currently only supports searching by user name or email.
+	if opt.ListOptions.MatchQuery != "" {
+
+		activitiesQ += " AND (a.user_name LIKE ? OR a.user_email LIKE ?" // Final ')' will be added at the bottom of this IF
+		args = append(args, opt.ListOptions.MatchQuery+"%", opt.ListOptions.MatchQuery+"%")
+
+		// Also search the users table here to get the most up to date information
+		users, err := ds.ListUsers(ctx, fleet.UserListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: opt.ListOptions.MatchQuery,
+			},
+		})
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list users for activity search")
+		}
+
+		if len(users) != 0 {
+			userIds := make([]uint, 0, len(users))
+			for _, u := range users {
+				userIds = append(userIds, u.ID)
+			}
+
+			inQ, inArgs, err := sqlx.In("a.user_id IN (?)", userIds)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "bind user IDs for IN clause")
+			}
+			inQ = ds.reader(ctx).Rebind(inQ)
+			activitiesQ += " OR " + inQ
+			args = append(args, inArgs...)
+		}
+
+		activitiesQ += ")"
+	}
+
+	if opt.ActivityType != "" {
+		activitiesQ += " AND a.activity_type = ?"
+		args = append(args, opt.ActivityType)
+	}
+
+	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
+		start := opt.StartCreatedAt
+		end := opt.EndCreatedAt
+		switch {
+		case start == "" && end != "":
+			// Only EndCreatedAt is set, so filter up to end
+			activitiesQ += " AND a.created_at <= ?"
+			args = append(args, end)
+		case start != "" && end == "":
+			// Only StartCreatedAt is set, so filter from start to now
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, time.Now().UTC())
+		case start != "" && end != "":
+			// Both are set
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, end)
+		}
+	}
+
 	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
 
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
@@ -206,6 +264,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	}
 
 	if len(lookup) != 0 {
+		// TODO: We left this query here for user replacement, to keep the scope simple, and the users table is never going to be super big, so it won't tank performance.
 		usersQ := `
 			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
 			FROM users u
@@ -450,7 +509,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
-				'status', 'pending_install'
+				'status', 'pending_install',
+				'host_platform', h.platform
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
@@ -461,6 +521,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
 		LEFT OUTER JOIN
@@ -486,7 +548,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
 				'command_uuid', ua.execution_id,
-				'self_service', false,
+				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install'
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
@@ -1572,6 +1634,10 @@ ORDER BY
 }
 
 func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	if len(execIDs) == 0 {
+		return nil
+	}
+
 	const insStmt = `
 INSERT INTO
 	host_vpp_software_installs
@@ -1597,94 +1663,6 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
-	const getHostUUIDStmt = `
-SELECT
-	uuid
-FROM
-	hosts
-WHERE
-	id = ?
-`
-
-	const insCmdStmt = `
-INSERT INTO
-	nano_commands
-(command_uuid, request_type, command, subtype)
-SELECT
-	ua.execution_id,
-	'InstallApplication',
-	CONCAT(:raw_cmd_part1, vaua.adam_id, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
-	:subtype
-FROM
-	upcoming_activities ua
-	INNER JOIN vpp_app_upcoming_activities vaua
-		ON vaua.upcoming_activity_id = ua.id
-WHERE
-	ua.host_id = :host_id AND
-	ua.execution_id IN (:execution_ids)
-`
-
-	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-		<key>InstallAsManaged</key>
-		<true/>
-        <key>ManagementFlags</key>
-        <integer>0</integer>
-        <key>ChangeManagementState</key>
-        <string>Managed</string>
-        <key>InstallAsManaged</key>
-        <true />
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>iTunesStoreID</key>
-        <integer>`
-
-	const rawCmdPart2 = `</integer>
-    </dict>
-    <key>CommandUUID</key>
-    <string>`
-
-	const rawCmdPart3 = `</string>
-</dict>
-</plist>`
-
-	const insNanoQueueStmt = `
-INSERT INTO
-	nano_enrollment_queue
-(id, command_uuid, created_at)
-SELECT
-	?,
-	execution_id,
-	created_at -- force same timestamp to keep ordering
-FROM
-	upcoming_activities
-WHERE
-	host_id = ? AND
-	execution_id IN (?)
-ORDER BY
-	priority DESC, created_at ASC
-`
-
-	// sanity-check that there's something to activate
-	if len(execIDs) == 0 {
-		return nil
-	}
-
-	// get the host uuid, requires for the nano tables
-	var hostUUID string
-	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
-	}
-
 	// insert the host vpp app row
 	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
 	if err != nil {
@@ -1694,57 +1672,21 @@ ORDER BY
 		return ctxerr.Wrap(ctx, err, "insert to activate vpp apps")
 	}
 
-	// insert the nano command
-	namedArgs := map[string]any{
-		"raw_cmd_part1": rawCmdPart1,
-		"raw_cmd_part2": rawCmdPart2,
-		"raw_cmd_part3": rawCmdPart3,
-		"subtype":       mdm.CommandSubtypeNone,
-		"host_id":       hostID,
-		"execution_ids": execIDs,
-	}
-	stmt, args, err = sqlx.Named(insCmdStmt, namedArgs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
-	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert nano commands")
-	}
-
-	// enqueue the nano command in the nano queue
-	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert nano queue")
-	}
-
-	// best-effort APNs push notification to the host, not critical because we
-	// have a cron job that will retry for hosts with pending MDM commands.
-	if ds.pusher != nil {
-		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
-		}
-	}
-	return nil
+	return ds.nanoEnqueueVPPInstall(ctx, tx, hostID, execIDs)
 }
 
 func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	const insStmt = `
 INSERT INTO
 	host_in_house_software_installs
-(host_id, in_house_app_id, command_uuid, user_id, platform)
+(host_id, in_house_app_id, command_uuid, user_id, platform, self_service)
 SELECT
 	ua.host_id,
 	ihua.in_house_app_id,
 	ua.execution_id,
 	ua.user_id,
-	iha.platform
+	iha.platform,
+	COALESCE(ua.payload->'$.self_service', 0)
 FROM
 	upcoming_activities ua
 	INNER JOIN in_house_app_upcoming_activities ihua
@@ -1760,7 +1702,7 @@ ORDER BY
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid, team_id
+	uuid, team_id, platform
 FROM
 	hosts
 WHERE
@@ -1785,7 +1727,7 @@ WHERE
 	ua.execution_id IN (:execution_ids)
 `
 
-	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
+	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -1794,7 +1736,7 @@ WHERE
 		<key>InstallAsManaged</key>
 		<true/>
         <key>ManagementFlags</key>
-        <integer>0</integer>
+        <integer>%d</integer>
         <key>ChangeManagementState</key>
         <string>Managed</string>
         <key>InstallAsManaged</key>
@@ -1842,11 +1784,21 @@ ORDER BY
 
 	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID   string `db:"uuid"`
-		TeamID *uint  `db:"team_id"`
+		UUID     string `db:"uuid"`
+		TeamID   *uint  `db:"team_id"`
+		Platform string `db:"platform"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	// Set management flags based on platform
+	if fleet.IsAppleMobilePlatform(hostData.Platform) {
+		// Remove app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
+	} else {
+		// Keep app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
 	}
 
 	// insert the host in-house app row

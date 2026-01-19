@@ -31,9 +31,10 @@ var projectCmd = &cobra.Command{
 }
 
 func init() {
-	projectCmd.Flags().IntP("limit", "l", 100, "Maximum number of items to fetch")
+	projectCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
 	estimatedCmd.Flags().IntP("limit", "l", 500, "Maximum number of items to fetch from drafting project")
-	sprintCmd.Flags().IntP("limit", "l", 100, "Maximum number of items to fetch")
+	sprintCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
+	sprintCmd.Flags().BoolP("previous", "p", false, "Show previous sprint instead of current")
 }
 
 var estimatedCmd = &cobra.Command{
@@ -62,7 +63,7 @@ var estimatedCmd = &cobra.Command{
 // current iteration (using the already implemented @current logic when setting sprint).
 var sprintCmd = &cobra.Command{
 	Use:   "sprint [project-id-or-alias]",
-	Short: "Get GitHub issues in the current sprint for a project",
+	Short: "Get GitHub issues in the current sprint for a project (use -p for previous sprint)",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		projectID, err := ghapi.ResolveProjectID(args[0])
@@ -74,6 +75,13 @@ var sprintCmd = &cobra.Command{
 		limit, err := cmd.Flags().GetInt("limit")
 		if err != nil {
 			fmt.Printf("Error getting limit flag: %v\n", err)
+			return
+		}
+
+		prev, _ := cmd.Flags().GetBool("previous")
+		if prev {
+			// Pass a mode hint via the search parameter
+			tui.RunTUI(tui.SprintCommand, projectID, limit, "previous")
 			return
 		}
 

@@ -76,7 +76,7 @@ interface IPackageFormProps {
   onCancel: () => void;
   onSubmit: (formData: IPackageFormData) => void;
   onClickShowSchema?: () => void;
-  onClickPreviewEndUserExperience: () => void;
+  onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
   isEditingSoftware?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
@@ -84,7 +84,7 @@ interface IPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
-  defaultCategories?: SoftwareCategory[];
+  defaultCategories?: SoftwareCategory[] | null;
   className?: string;
   /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
@@ -351,8 +351,8 @@ const PackageForm = ({
                   isTarballPackage={isTarballPackage}
                   isScriptPackage={isScriptPackage}
                   isIpaPackage={isIpaPackage}
-                  onClickPreviewEndUserExperience={
-                    onClickPreviewEndUserExperience
+                  onClickPreviewEndUserExperience={() =>
+                    onClickPreviewEndUserExperience(isIpaPackage)
                   }
                 />
               </Card>

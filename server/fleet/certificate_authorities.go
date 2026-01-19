@@ -498,6 +498,15 @@ type GroupedCertificateAuthorities struct {
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
 }
 
+// ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
+func (g *GroupedCertificateAuthorities) ToCustomSCEPProxyCAMap() map[string]*CustomSCEPProxyCA {
+	customSCEPCAs := make(map[string]*CustomSCEPProxyCA, len(g.CustomScepProxy))
+	for _, ca := range g.CustomScepProxy {
+		customSCEPCAs[ca.Name] = &ca
+	}
+	return customSCEPCAs
+}
+
 func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCertificateAuthorities, error) {
 	grouped := &GroupedCertificateAuthorities{
 		DigiCert:        []DigiCertCA{},

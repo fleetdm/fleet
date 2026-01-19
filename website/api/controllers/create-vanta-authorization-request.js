@@ -106,7 +106,7 @@ module.exports = {
     // Check the fleet instance url and API key provided
     let responseFromFleetInstance = await sails.helpers.http.get(inputs.fleetInstanceUrl+'/api/v1/fleet/me',{},{'Authorization': 'Bearer ' +inputs.fleetApiKey})
     .intercept('requestFailed', 'fleetInstanceNotResponding')
-    .intercept('non200Response', 'invalidToken')
+    .intercept({raw: {statusCode: 401}}, 'invalidToken')
     .intercept((error)=>{
       return new Error(`When sending a request to a Fleet instance's /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
     });
@@ -130,7 +130,7 @@ module.exports = {
     // Send a request to the provided Fleet instance's /config endpoint to check their license tier.
     let configResponse = await sails.helpers.http.get(inputs.fleetInstanceUrl+'/api/v1/fleet/config', {}, {'Authorization': 'Bearer ' +inputs.fleetApiKey})
     .intercept('requestFailed','fleetInstanceNotResponding')
-    .intercept('non200Response', 'invalidToken')
+    .intercept({raw: {statusCode: 401}}, 'invalidToken')
     .intercept((error)=>{
       return new Error(`When sending a request to a Fleet instance's /config API endpoint for a Vanta connection, an error occurred: ${error}`);
     });

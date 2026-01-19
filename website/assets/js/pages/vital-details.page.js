@@ -65,6 +65,10 @@ parasails.registerPage('vital-details', {
         }
 
         for(let keywordInExample of columnNamesToHighlight) {
+          // Skip any keywords that might match syntax hightlighting elements.
+          if(['class', 'span', 'hljs', 'string'].includes(keywordInExample)) {
+            continue;
+          }
           let regexForThisExample = new RegExp(keywordInExample, 'g');
           replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-string">'+_.trim(keywordInExample)+'</span>');
         }

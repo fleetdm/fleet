@@ -158,6 +158,29 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
+	// Scrub sensitive data from the host response for iOS and iPadOS devices
+	if authzCtx, ok := authz.FromContext(ctx); ok && authzCtx.AuthnMethod() == authz.AuthnDeviceURL {
+		if host.Platform == "ios" || host.Platform == "ipados" {
+			resp.HardwareSerial = ""
+			resp.UUID = ""
+			resp.PrimaryMac = ""
+			resp.TeamName = nil
+			resp.MDM.Profiles = nil
+			resp.Labels = nil
+			resp.Hostname = ""
+			resp.ComputerName = ""
+			resp.DisplayText = ""
+			resp.DisplayName = ""
+
+			// Scrub sensitive data from the license response
+			scrubbedLicense := *license
+			scrubbedLicense.Organization = ""
+			scrubbedLicense.DeviceCount = 0
+			scrubbedLicense.Expiration = time.Time{}
+			license = &scrubbedLicense
+		}
+	}
+
 	resp.DEPAssignedToFleet = ptr.Bool(false)
 	if ac.MDM.EnabledAndConfigured && license.IsPremium() {
 		hdep, err := svc.GetHostDEPAssignment(ctx, host)
@@ -214,7 +237,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceURL)
 	if !alreadyAuthd {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return nil, err
@@ -243,6 +268,92 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: invalid device authentication token"))
 	default:
 		return nil, false, ctxerr.Wrap(ctx, err, "authenticate device")
+	}
+
+	// iOS/iPadOS must use certificate authentication.
+	if host.Platform == "ios" || host.Platform == "ipados" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: iOS and iPadOS devices must use certificate authentication"))
+	}
+
+	return host, svc.debugEnabledForHost(ctx, host.ID), nil
+}
+
+// AuthenticateDeviceByCertificate returns the host identified by the certificate
+// serial number and host UUID. This is used for iOS/iPadOS devices accessing the
+// My Device page via client certificate authentication. The certificate must match
+// the host's identity certificate, and the host must be iOS or iPadOS.
+func (svc *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (*fleet.Host, bool, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if certSerial == 0 {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing certificate serial"))
+	}
+
+	if hostUUID == "" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing host UUID"))
+	}
+
+	// Look up the MDM SCEP certificate by serial number to get the device UUID
+	certDeviceUUID, err := svc.ds.GetMDMSCEPCertBySerial(ctx, certSerial)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: invalid or missing certificate"))
+	default:
+		return nil, false, ctxerr.Wrap(ctx, err, "lookup certificate by serial")
+	}
+
+	// Verify certificate's device UUID matches the requested host UUID
+	if certDeviceUUID != hostUUID {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: certificate does not match host"))
+	}
+
+	// Look up the host by UUID
+	host, err := svc.ds.HostByIdentifier(ctx, hostUUID)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: host not found"))
+	default:
+		return nil, false, ctxerr.Wrap(ctx, err, "lookup host by UUID")
+	}
+
+	// Verify host platform is iOS or iPadOS
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: certificate authentication only supported for iOS and iPadOS devices"))
+	}
+
+	return host, svc.debugEnabledForHost(ctx, host.ID), nil
+}
+
+// AuthenticateIDeviceByURL returns the host identified by the URL UUID.
+// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
+// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
+func (svc *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (*fleet.Host, bool, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if urlUUID == "" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing host UUID"))
+	}
+
+	// Look up the host by UUID
+	host, err := svc.ds.HostByIdentifier(ctx, urlUUID)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: host not found"))
+	default:
+		return nil, false, ctxerr.Wrap(ctx, err, "lookup host by UUID")
+	}
+
+	// Verify host platform is iOS or iPadOS
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: URL authentication only supported for iOS and iPadOS devices"))
 	}
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
@@ -428,7 +539,7 @@ func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request interface{}
 	}
 
 	req := request.(*getDeviceMDMCommandResultsRequest)
-	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
+	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, "")
 	if err != nil {
 		return getMDMCommandResultsResponse{
 			Err: err,
@@ -628,7 +739,9 @@ func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (f
 }
 
 func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+	// iOS/iPadOS devices don't have fleetd, so URL auth is not allowed here.
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
@@ -683,7 +796,9 @@ func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interf
 
 func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error) {
 	// must be device-authenticated, no additional authorization is required
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+	// iOS/iPadOS devices are enrolled via MDM profile or ABM, so URL auth is not allowed here.
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
 		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 

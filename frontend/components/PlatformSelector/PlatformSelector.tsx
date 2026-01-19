@@ -47,7 +47,7 @@ export const PlatformSelector = ({
     if (!installSoftware) {
       return null;
     }
-    const softwareName = installSoftware.name;
+    const softwareName = installSoftware.display_name || installSoftware.name;
     const softwareId = installSoftware.software_title_id.toString();
     const softwareLink = getPathWithQueryParams(
       paths.SOFTWARE_TITLE_DETAILS(softwareId),

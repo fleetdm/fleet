@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -45,6 +46,7 @@ type HostOptions struct {
 	Host                    *fleet.Host
 	HasSetupExperienceItems bool
 	SCEPRenewalInProgress   bool
+	FromMDMMigration        bool
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -184,9 +186,11 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		return ctxerr.Wrap(ctx, err, "retrieving nano enrollment info")
 	}
 
+	userEnrollmentDeviceType := mdm.EnrollType(mdm.UserEnrollmentDevice).String()
+
 	if nanoEnroll == nil ||
 		!nanoEnroll.Enabled ||
-		!(nanoEnroll.Type == mdm.EnrollType(mdm.Device).String() || nanoEnroll.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String()) ||
+		!(nanoEnroll.Type == mdm.EnrollType(mdm.Device).String() || nanoEnroll.Type == userEnrollmentDeviceType) ||
 		nanoEnroll.TokenUpdateTally != 1 {
 		// something unexpected, so we skip the turn on
 		// and log the details for debugging
@@ -210,6 +214,25 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		return ctxerr.Wrap(ctx, err, "getting checkin info")
 	}
 
+	// create MDM enrolled activity if not in the middle of a SCEP renewal
+	if !info.SCEPRenewalInProgress {
+		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
+			HostDisplayName:  info.DisplayName,
+			InstalledFromDEP: info.DEPAssignedToFleet,
+			MDMPlatform:      fleet.MDMPlatformApple,
+			Platform:         info.Platform,
+		}
+		if nanoEnroll.Type == userEnrollmentDeviceType {
+			mdmEnrolledActivity.EnrollmentID = ptr.String(opts.UserEnrollmentID)
+		} else {
+			mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
+		}
+		err = t.newActivityFunc(ctx, nil, mdmEnrolledActivity, t.ds, t.logger)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create mdm enrolled activity")
+		}
+	}
+
 	var tmID *uint
 	if info.TeamID != 0 {
 		tmID = &info.TeamID
@@ -229,6 +252,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 			tmID,
 			opts.EnrollReference,
 			!opts.HasSetupExperienceItems || opts.Platform != "darwin",
+			opts.FromMDMMigration,
 		)
 		return ctxerr.Wrap(ctx, err, "queue DEP post-enroll task")
 	}
@@ -245,6 +269,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
+			false,
 			false,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue manual post-enroll task")

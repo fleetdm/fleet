@@ -1,0 +1,1 @@
+* Fixed a bug where non utf8 encodings caused an error in pkg metadata extraction.

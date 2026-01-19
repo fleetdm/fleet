@@ -435,6 +435,46 @@ const TAGGED_TEMPLATES = {
     );
   },
 
+  enabledAppleosUpdateNewHosts: (
+    applePlatform: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
+    const teamSection = activity.details?.team_id ? (
+      <>
+        the <b>{activity.details.team_name}</b> team
+      </>
+    ) : (
+      <>no team</>
+    );
+
+    return (
+      <>
+        enabled OS updates for all new {applePlatform} hosts on {teamSection}.{" "}
+        {applePlatform} hosts will upgrade to the lastest version when they
+        enroll.
+      </>
+    );
+  },
+
+  disabledAppleosUpdateNewHosts: (
+    applePlatform: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
+    const teamSection = activity.details?.team_id ? (
+      <>
+        the <b>{activity.details.team_name}</b> team
+      </>
+    ) : (
+      <>no team</>
+    );
+
+    return (
+      <>
+        disabled updates for all new {applePlatform} hosts on {teamSection}.
+      </>
+    );
+  },
+
   readHostDiskEncryptionKey: (activity: IActivity) => {
     return (
       <>
@@ -555,6 +595,20 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  editedAndroidCertificate: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited certificate templates for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
           "android",
@@ -745,8 +799,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        required end user authentication for macOS hosts that automatically
-        enroll to{" "}
+        required end user authentication for macOS, iOS, iPadOS, and Android
+        hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
             the <b>{activity.details.team_name}</b> team
@@ -762,8 +816,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        removed end user authentication requirement for macOS hosts that
-        automatically enroll to{" "}
+        removed end user authentication requirement for macOS, iOS, iPadOS, and
+        Android hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
             the <b>{activity.details.team_name}</b> team
@@ -1589,7 +1643,7 @@ const TAGGED_TEMPLATES = {
         platformText = "iPadOS";
         break;
       default:
-        platformText = capitalize(platform);
+        platformText = capitalize(platform); // e.g. Windows, Android
     }
 
     return (
@@ -1604,6 +1658,51 @@ const TAGGED_TEMPLATES = {
           </>
         )}
         .
+      </>
+    );
+  },
+  editedHostIdpData: (activity: IActivity) => {
+    const { host_display_name, host_idp_username } = activity.details || {};
+    const removed = host_idp_username === "";
+    return (
+      <>
+        {removed ? "removed" : "set"} the end user associated with{" "}
+        <b>{host_display_name}</b>
+        {removed ? "" : <> to {host_idp_username}</>}.
+      </>
+    );
+  },
+  createdCert: (activity: IActivity) => {
+    const { name, team_name } = activity.details || {};
+    const teamText = team_name ? (
+      <>
+        assigned to the <b>{team_name}</b>
+      </>
+    ) : (
+      <>with no</>
+    );
+
+    return (
+      <>
+        added certificate {name ? <b>{name} </b> : ""}to Android hosts{" "}
+        {teamText} team.
+      </>
+    );
+  },
+  deletedCert: (activity: IActivity) => {
+    const { name, team_name } = activity.details || {};
+    const teamText = team_name ? (
+      <>
+        assigned to the <b>{team_name}</b>
+      </>
+    ) : (
+      <>with no</>
+    );
+
+    return (
+      <>
+        deleted certificate {name ? <b>{name} </b> : ""}from Android hosts{" "}
+        {teamText} team.
       </>
     );
   },
@@ -1680,6 +1779,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedIpadosMinVersion: {
       return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
     }
+    case ActivityType.EnabledMacosUpdateNewHosts: {
+      return TAGGED_TEMPLATES.enabledAppleosUpdateNewHosts("macOS", activity);
+    }
+    case ActivityType.DisabledMacosUpdateNewHosts: {
+      return TAGGED_TEMPLATES.disabledAppleosUpdateNewHosts("macOS", activity);
+    }
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
@@ -1701,6 +1806,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedAndroidProfile: {
       return TAGGED_TEMPLATES.editedAndroidProfile(activity, isPremiumTier);
     }
+    case ActivityType.EditedAndroidCertificate: {
+      return TAGGED_TEMPLATES.editedAndroidCertificate(activity, isPremiumTier);
+    }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
     }
@@ -1713,14 +1821,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
     case ActivityType.AddedHydrant:
-    case ActivityType.AddedCustomEST:
+    case ActivityType.AddedCustomESTProxy:
     case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
     case ActivityType.DeletedHydrant:
-    case ActivityType.DeletedCustomEST:
+    case ActivityType.DeletedCustomESTProxy:
     case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
@@ -1729,7 +1837,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
     case ActivityType.EditedHydrant:
-    case ActivityType.EditedCustomEST:
+    case ActivityType.EditedCustomESTProxy:
     case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
@@ -1949,23 +2057,27 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedPolicy: {
       return TAGGED_TEMPLATES.deletedPolicy(activity);
     }
-
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
     }
-
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
-
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
     }
-
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
     }
-
+    case ActivityType.EditedHostIdpData: {
+      return TAGGED_TEMPLATES.editedHostIdpData(activity);
+    }
+    case ActivityType.AddedCertificate: {
+      return TAGGED_TEMPLATES.createdCert(activity);
+    }
+    case ActivityType.DeletedCertificate: {
+      return TAGGED_TEMPLATES.deletedCert(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }

@@ -115,12 +115,10 @@ func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleI
 
 func (ds *Datastore) DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx context.Context, teamID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_title_icons WHERE team_id = ?
-		   AND software_title_id NOT IN (
-			   SELECT title_id FROM vpp_apps va
-				   JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform
-				   WHERE global_or_team_id = ?
-				   ) AND software_title_id NOT IN (SELECT title_id FROM software_installers WHERE global_or_team_id = ?)
-				     AND software_title_id NOT IN (SELECT title_id FROM in_house_apps WHERE global_or_team_id = ?)`,
+		AND software_title_id NOT IN (SELECT title_id FROM vpp_apps va JOIN vpp_apps_teams vat 
+			ON vat.adam_id = va.adam_id AND vat.platform = va.platform WHERE global_or_team_id = ?)
+		AND software_title_id NOT IN (SELECT title_id FROM software_installers WHERE global_or_team_id = ?)
+		AND software_title_id NOT IN (SELECT title_id FROM in_house_apps WHERE global_or_team_id = ?)`,
 		teamID, teamID, teamID, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up icons not associated with software installers")
@@ -153,10 +151,10 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			vpp_apps_teams.id AS vpp_app_team_id,
 			vpp_apps.icon_url AS vpp_icon_url,
 			COALESCE(software_titles.name, vpp_apps.name) AS software_title,
-			software_installers.filename AS filename,
+			COALESCE(software_installers.filename, in_house_apps.filename) AS filename,
 			teams.name AS team_name,
 			COALESCE(teams.id, 0) AS team_id,
-			COALESCE(software_installers.self_service, vpp_apps_teams.self_service, false) AS self_service, -- TODO(JK): change false to iha.self_service once that is merged
+			COALESCE(software_installers.self_service, vpp_apps_teams.self_service, in_house_apps.self_service) AS self_service,
 			software_titles.id AS software_title_id,
 			vpp_apps.platform AS platform
 		FROM software_title_icons

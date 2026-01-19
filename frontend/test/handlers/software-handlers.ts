@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { baseUrl } from "test/test-utils";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
-import { createMockMdmCommandResult } from "__mocks__/mdmMock";
+import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
 
 // ---- Software Install Handlers ----
 
@@ -64,6 +64,44 @@ export const getSoftwareInstallResultHandler = http.get(
   }
 );
 
+// ---- Pre install query output ----
+
+// Installed, outputs for pre-install, install, and post-install
+export const getSoftwareInstallHandlerWithPreInstall = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: {
+        ...createMockSoftwareInstallResult({
+          install_uuid: params.install_uuid as string,
+          status: "installed",
+          output: "Install script ran",
+          post_install_script_output: "Post-install success",
+          pre_install_query_output: "Pre-install check passed",
+        }),
+      },
+    });
+  }
+);
+
+// Failed install, only pre-install output
+export const getSoftwareInstallHandlerOnlyPreInstallOutput = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: {
+        ...createMockSoftwareInstallResult({
+          install_uuid: params.install_uuid as string,
+          status: "failed_install",
+          output: "",
+          post_install_script_output: "",
+          pre_install_query_output: "Pre-install only",
+        }),
+      },
+    });
+  }
+);
+
 // ---- MDM Command Handlers ----
 
 /** This is used for testing command results of IPA custom packages */
@@ -80,7 +118,7 @@ export const getMdmCommandResultHandler = http.get(
     };
     const status = statusMap[commandUuid ?? ""] || "Acknowledged";
 
-    const mdmCommand = createMockMdmCommandResult({
+    const mdmCommand = createMockAppleMdmCommandResult({
       command_uuid: commandUuid ?? "",
       status,
     });

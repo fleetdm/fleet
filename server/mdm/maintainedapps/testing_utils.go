@@ -47,7 +47,9 @@ func SyncApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	err := Refresh(context.Background(), ds, log.NewNopLogger())
 	require.NoError(t, err)
 
-	apps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
+	apps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{
+		OrderKey: "slug",
+	})
 	require.NoError(t, err)
 	return apps
 }

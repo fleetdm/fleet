@@ -1,0 +1,12 @@
+{
+  "name": "Figma",
+  "slug": "figma/windows",
+  "package_identifier": "Figma.Figma",
+  "unique_identifier": "Figma",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/figma_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/figma_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"]
+}

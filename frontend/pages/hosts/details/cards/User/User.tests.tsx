@@ -7,96 +7,44 @@ import { createMockHostEndUser } from "__mocks__/hostMock";
 import User from ".";
 
 describe("User card", () => {
-  it("renders the username field when the platform is Apple", () => {
-    const endUsers = [createMockHostEndUser()];
-    render(
-      <User
-        platform="darwin"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
+  describe("IdP data", () => {
+    it("renders the username, full name, groups, and department fields", () => {
+      const endUsers = [createMockHostEndUser()];
+      render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
 
-    expect(screen.getByText("Username (IdP)")).toBeInTheDocument();
-    expect(screen.getByText("jdoe")).toBeInTheDocument();
-  });
+      expect(screen.getByText("Username (IdP)")).toBeInTheDocument();
+      expect(screen.getByText("jdoe")).toBeInTheDocument();
 
-  it("renders the username field when the platform is android", () => {
-    const endUsers = [createMockHostEndUser()];
-    render(
-      <User
-        platform="android"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
+      expect(screen.getByText("Full name (IdP)")).toBeInTheDocument();
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
 
-    expect(screen.getByText("Username (IdP)")).toBeInTheDocument();
-    expect(screen.getByText("jdoe")).toBeInTheDocument();
-  });
+      expect(screen.getByText("Groups (IdP)")).toBeInTheDocument();
+      expect(screen.getByText("GroupA")).toBeInTheDocument();
+      expect(screen.getByText("+ 1 more")).toBeInTheDocument();
 
-  it("renders the full name field when the platform is Apple and has full name values", () => {
-    const endUsers = [createMockHostEndUser()];
-    render(
-      <User
-        platform="darwin"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
+      expect(screen.getByText("Department (IdP)")).toBeInTheDocument();
+      expect(screen.getByText("Engineering")).toBeInTheDocument();
+    });
 
-    expect(screen.getByText("Full name (IdP)")).toBeInTheDocument();
-    expect(screen.getByText("John Doe")).toBeInTheDocument();
-  });
-
-  it("renders the full name field when the platform is Android and has full name values", () => {
-    const endUsers = [createMockHostEndUser()];
-    render(
-      <User
-        platform="darwin"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
-
-    expect(screen.getByText("Full name (IdP)")).toBeInTheDocument();
-    expect(screen.getByText("John Doe")).toBeInTheDocument();
-  });
-
-  it("renders the groups field when the platform is Apple and has groups values", () => {
-    const endUsers = [createMockHostEndUser()];
-    render(
-      <User
-        platform="darwin"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
-
-    expect(screen.getByText("Groups (IdP)")).toBeInTheDocument();
-    expect(screen.getByText("GroupA")).toBeInTheDocument();
-    expect(screen.getByText("+ 1 more")).toBeInTheDocument();
-  });
-
-  it("renders the groups field when the platform is Android and has groups values", () => {
-    const endUsers = [createMockHostEndUser()];
-    render(
-      <User
-        platform="darwin"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
-
-    expect(screen.getByText("Groups (IdP)")).toBeInTheDocument();
-    expect(screen.getByText("GroupA")).toBeInTheDocument();
-    expect(screen.getByText("+ 1 more")).toBeInTheDocument();
+    it("does not render the 'Add user' button without write permission even when there is an existing IdP username", () => {
+      const endUsers = [createMockHostEndUser()];
+      render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
+      expect(screen.queryByText("Add user")).toBeNull();
+      expect(screen.queryByText("Edit user")).toBeNull();
+    });
+    it("With write permission, renders the 'Add user' button when there is not an existing IdP username", () => {
+      render(<User endUsers={[]} canWriteEndUser onClickUpdateUser={noop} />);
+      expect(screen.getByText("Add user")).toBeInTheDocument();
+      expect(screen.queryByText("Edit user")).toBeNull();
+    });
+    it("With write permission, renders the 'Edit user' button when there is an existing IdP username", () => {
+      const endUsers = [createMockHostEndUser()];
+      render(
+        <User endUsers={endUsers} canWriteEndUser onClickUpdateUser={noop} />
+      );
+      expect(screen.queryByText("Add user")).toBeNull();
+      expect(screen.getByText("Edit user")).toBeInTheDocument();
+    });
   });
 
   it("renders the chrome profiles field when has chrome profile values", () => {
@@ -108,18 +56,11 @@ describe("User card", () => {
         ],
       }),
     ];
-    render(
-      <User
-        platform="windows"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
+    render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
 
     expect(screen.getByText("Google Chrome profiles")).toBeInTheDocument();
     expect(screen.getByText("Profile1")).toBeInTheDocument();
-    expect(screen.getByText("+ 1 more")).toBeInTheDocument();
+    expect(screen.getAllByText("+ 1 more")).toHaveLength(2); // one for groups, one for Chrome profiles
   });
 
   it("renders other emails field when has other email values", () => {
@@ -131,47 +72,10 @@ describe("User card", () => {
         ],
       }),
     ];
-    render(
-      <User
-        platform="windows"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
+    render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
 
     expect(screen.getByText("Other emails")).toBeInTheDocument();
     expect(screen.getByText("other1@example.com")).toBeInTheDocument();
-    expect(screen.getByText("+ 1 more")).toBeInTheDocument();
-  });
-
-  it("renders the department field when the platform is Apple and it has department value", () => {
-    const endUsers = [createMockHostEndUser()];
-    render(
-      <User
-        platform="darwin"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
-
-    expect(screen.getByText("Department (IdP)")).toBeInTheDocument();
-    expect(screen.getByText("Engineering")).toBeInTheDocument();
-  });
-
-  it("renders the department field when the platform is Android and it has department value", () => {
-    const endUsers = [createMockHostEndUser()];
-    render(
-      <User
-        platform="android"
-        endUsers={endUsers}
-        enableAddEndUser={false}
-        onAddEndUser={noop}
-      />
-    );
-
-    expect(screen.getByText("Department (IdP)")).toBeInTheDocument();
-    expect(screen.getByText("Engineering")).toBeInTheDocument();
+    expect(screen.getAllByText("+ 1 more")).toHaveLength(2); // one for groups, one for other emails
   });
 });

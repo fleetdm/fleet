@@ -119,11 +119,11 @@ func TestTriggerHostStatusWebhookTeam(t *testing.T) {
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 		return []*fleet.TeamSummary{{ID: 1}}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		assert.Equal(t, uint(1), id)
-		return &fleet.Team{
+		return &fleet.TeamLite{
 			ID: 1,
-			Config: fleet.TeamConfig{
+			Config: fleet.TeamConfigLite{
 				WebhookSettings: fleet.TeamWebhookSettings{
 					HostStatusWebhook: &teamSettings,
 				},

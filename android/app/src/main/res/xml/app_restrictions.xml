@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<restrictions xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <restriction
+        android:key="enroll_secret"
+        android:title="@string/enroll_secret_title"
+        android:restrictionType="string"
+        android:description="@string/enroll_secret_description" />
+
+    <restriction
+        android:key="server_url"
+        android:title="@string/server_url_title"
+        android:restrictionType="string"
+        android:description="@string/server_url_description" />
+
+    <restriction
+            android:key="host_uuid"
+        android:title="@string/host_uuid_title"
+        android:restrictionType="string"
+        android:description="@string/host_uuid_description" />
+
+    <restriction
+        android:key="certificate_templates"
+        android:title="@string/certificate_templates_title"
+        android:description="@string/certificate_templates_description"
+        android:restrictionType="bundle_array" >
+        <restriction
+            android:key="certificate_template"
+            android:title="@string/certificate_template_title"
+            android:description="@string/certificate_template_description"
+            android:restrictionType="bundle">
+            <restriction
+                android:key="id"
+                android:title="@string/certificate_template_id_title"
+                android:description="@string/certificate_template_id_description"
+                android:restrictionType="integer" />
+            <restriction
+                android:key="status"
+                android:title="@string/certificate_template_status_title"
+                android:description="@string/certificate_template_status_description"
+                android:restrictionType="string" />
+            <restriction
+                android:key="operation"
+                android:title="@string/certificate_template_operation_title"
+                android:description="@string/certificate_template_operation_description"
+                android:restrictionType="string" />
+        </restriction>
+    </restriction>
+</restrictions>

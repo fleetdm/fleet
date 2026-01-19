@@ -80,4 +80,8 @@ module.exports.policies = {
   'android-proxy/*': true,
   'microsoft-proxy/view-remediate': true,
   'microsoft-proxy/view-turn-on-mdm': true,
+  'view-okta-conditional-access-error': true,
+  'view-fast-track': true,
+  'vpp-proxy/*': true,
+  'deliver-application-submission': true,
 };

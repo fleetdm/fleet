@@ -43,6 +43,8 @@ export enum ActivityType {
   EditedMacosMinVersion = "edited_macos_min_version",
   EditedIosMinVersion = "edited_ios_min_version",
   EditedIpadosMinVersion = "edited_ipados_min_version",
+  EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
+  DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   CreatedAppleOSProfile = "created_macos_profile",
@@ -56,6 +58,9 @@ export enum ActivityType {
   AddedDigicert = "added_digicert",
   DeletedDigicert = "deleted_digicert",
   EditedDigicert = "edited_digicert",
+  AddedConditionalAccessMicrosoft = "added_conditional_access_microsoft",
+  DeletedConditionalAccessMicrosoft = "deleted_conditional_access_microsoft",
+  EditedConditionalAccessMicrosoft = "edited_conditional_access_microsoft",
   AddedCustomScepProxy = "added_custom_scep_proxy",
   DeletedCustomScepProxy = "deleted_custom_scep_proxy",
   EditedCustomScepProxy = "edited_custom_scep_proxy",
@@ -65,15 +70,16 @@ export enum ActivityType {
   AddedSmallstep = "added_smallstep",
   DeletedSmallstep = "deleted_smallstep",
   EditedSmallstep = "edited_smallstep",
-  AddedCustomEST = "added_custom_est",
-  DeletedCustomEST = "deleted_custom_est",
-  EditedCustomEST = "edited_custom_est",
+  AddedCustomESTProxy = "added_custom_est_proxy",
+  DeletedCustomESTProxy = "deleted_custom_est_proxy",
+  EditedCustomESTProxy = "edited_custom_est_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
   CreatedAndroidProfile = "created_android_profile",
   DeletedAndroidProfile = "deleted_android_profile",
   EditedAndroidProfile = "edited_android_profile",
+  EditedAndroidCertificate = "edited_android_certificate",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -143,6 +149,9 @@ export enum ActivityType {
   CreatedCustomVariable = "created_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
+  EditedHostIdpData = "edited_host_idp_data",
+  AddedCertificate = "added_certificate",
+  DeletedCertificate = "deleted_certificate",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -171,7 +180,7 @@ export type IHostUpcomingActivityType =
 
 export interface IActivity {
   created_at: string;
-  id: number;
+  id: number | string;
   actor_full_name: string;
   actor_id: number;
   actor_gravatar: string;
@@ -203,6 +212,7 @@ export interface IActivityDetails {
   bootstrap_package_name?: string;
   batch_execution_id?: string;
   command_uuid?: string;
+  host_uuid?: string;
   deadline_days?: number;
   deadline?: string;
   email?: string;
@@ -245,6 +255,8 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  /** Custom name set per team by admin */
+  software_display_name?: string;
   source?: SoftwareSource;
   specs?: IQuery[] | IPolicy[];
   stats?: ISchedulableQueryStats;
@@ -258,4 +270,162 @@ export interface IActivityDetails {
   user_id?: number;
   webhook_url?: string;
   custom_variable_name?: string;
+  host_idp_username?: string;
 }
+
+// maps activity types to their corresponding label to use when filtering activites via the dropdown
+export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
+  added_app_store_app: "Added App Store app", // Includes VPP and Android Playstore apps
+  added_bootstrap_package: "Added bootstrap package",
+  added_conditional_access_microsoft: "Added conditional access: Microsoft",
+  added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
+  added_digicert: "Added certificate authority (CA): DigiCert",
+  added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
+  added_script: "Added script",
+  added_software: "Added software",
+  applied_spec_pack: "GitOps: edited packs",
+  applied_spec_policy: "GitOps: edited policies",
+  applied_spec_saved_query: "GitOps: edited queries",
+  applied_spec_team: "GitOps: edited teams",
+  applied_spec_software: "GitOps: edited software",
+  canceled_install_app_store_app:
+    "Canceled activity: install App Store (VPP) app",
+  canceled_install_software: "Canceled activity: install software",
+  canceled_run_script: "Canceled activity: run script",
+  canceled_uninstall_software: "Canceled activity: uninstall software",
+  changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
+  changed_user_global_role: "Edited user's role: global",
+  changed_user_team_role: "Edited user's role: team",
+  created_declaration_profile: "Added declaration (DDM) profile",
+  created_macos_profile: "Added configuration profile: Apple",
+  created_pack: "Created pack",
+  created_policy: "Created policy",
+  created_saved_query: "Added query",
+  created_team: "Added team",
+  created_user: "Added user",
+  created_windows_profile: "Added configuration profile: Windows",
+  deleted_app_store_app: "Deleted App Store app", // Includes VPP and Android Playstore apps
+  deleted_bootstrap_package: "Deleted bootstrap package",
+  deleted_conditional_access_microsoft: "Deleted conditional access: Microsoft",
+  deleted_custom_scep_proxy: "Deleted certificate authority (CA): custom SCEP",
+  deleted_declaration_profile: "Deleted declaration (DDM) profile",
+  deleted_digicert: "Deleted certificate authority (CA): DigiCert",
+  deleted_macos_profile: "Deleted configuration profile: Apple",
+  deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
+  deleted_multiple_saved_query: "Bulk deleted queries",
+  deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
+  deleted_pack: "Deleted pack",
+  deleted_policy: "Deleted policy",
+  deleted_saved_query: "Deleted query",
+  deleted_script: "Deleted script",
+  deleted_software: "Deleted software",
+  deleted_team: "Deleted team",
+  deleted_user: "Deleted user",
+  deleted_user_global_role: "Deleted user's role: global",
+  deleted_user_team_role: "Deleted user's role: team",
+  deleted_windows_profile: "Deleted configuration profile: Windows",
+  disabled_activity_automations: "Disabled activity automations",
+  disabled_android_mdm: "Turned off Android MDM",
+  disabled_conditional_access_automations:
+    "Disabled conditional access automations",
+  disabled_gitops_mode: "Disabled GitOps mode",
+  disabled_disk_encryption: "Turned off disk encryption",
+  disabled_macos_disk_encryption: "Turned off disk encryption",
+  disabled_macos_setup_end_user_auth:
+    "Turned off end user authentication (setup experience)",
+  disabled_macos_update_new_hosts: "Disabled OS updates for new macOS hosts",
+  disabled_vpp: "Disabled Volume Purchasing Program (VPP)",
+  disabled_windows_mdm: "Turned off Windows MDM",
+  disabled_windows_mdm_migration: "Turned off Windows MDM migration",
+  edited_activity_automations: "Edited activity automations",
+  edited_agent_options: "Edited agent options",
+  edited_app_store_app: "Edited App Store app", // Includes VPP and Android Playstore apps
+  edited_conditional_access_microsoft: "Edited conditional access: Microsoft",
+  edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
+  edited_declaration_profile: "GitOps: edited declaration (DDM) profiles",
+  edited_digicert: "Edited certificate authority (CA): DigiCert",
+  edited_ios_min_version: "OS updates: edited iOS",
+  edited_ipados_min_version: "OS updates: edited iPadOS",
+  edited_macos_min_version: "OS updates: edited macOS",
+  edited_macos_profile: "GitOps: edited configuration profiles: Apple",
+  edited_ndes_scep_proxy: "Edited certificate authority (CA): NDES",
+  edited_pack: "Edited pack",
+  edited_policy: "Edited policy",
+  edited_saved_query: "Edited query",
+  edited_script: "Edited script",
+  edited_software: "Edited software",
+  edited_windows_profile: "GitOps: edited configuration profiles: Windows",
+  edited_windows_updates: "OS updates: edited Windows",
+  enabled_activity_automations: "Enabled activity automations",
+  enabled_android_mdm: "Turned on Android MDM",
+  enabled_conditional_access_automations:
+    "Enabled conditional access automations",
+  enabled_gitops_mode: "Enabled GitOps mode",
+  enabled_disk_encryption: "Turned on disk encryption",
+  enabled_macos_disk_encryption: "Turned on disk encryption",
+  enabled_macos_setup_end_user_auth:
+    "Turned on end user authentication (setup experience)",
+  enabled_macos_update_new_hosts: "Enabled OS updates for new macOS hosts",
+  enabled_vpp: "Enabled Volume Purchasing Program (VPP)",
+  enabled_windows_mdm: "Turned on Windows MDM",
+  enabled_windows_mdm_migration: "Turned on Windows MDM migration",
+  fleet_enrolled: "Host enrolled",
+  installed_app_store_app: "Installed App Store (VPP) app",
+  installed_software: "Install software",
+  live_query: "Ran live query",
+  locked_host: "Locked host",
+  mdm_enrolled: "MDM turned on",
+  mdm_unenrolled: "MDM turned off",
+  ran_script: "Ran script",
+  ran_script_batch: "Bulk ran script",
+  scheduled_script_batch: "Scheduled script batch",
+  canceled_script_batch: "Canceled script batch",
+  read_host_disk_encryption_key: "Viewed disk encryption key",
+  resent_configuration_profile: "Resent configuration profile",
+  resent_configuration_profile_batch: "Bulk resent configuration profile",
+  transferred_hosts: "Transferred hosts",
+  uninstalled_software: "Uninstall software",
+  unlocked_host: "Unlocked host",
+  updated_script: "Updated script",
+  user_added_by_sso: "Added user via JIT",
+  user_failed_login: "User login: failed",
+  user_logged_in: "User login: success",
+  wiped_host: "Wiped host",
+  added_conditional_access_integration_microsoft:
+    "Added conditional access integration: Microsoft",
+  deleted_conditional_access_integration_microsoft:
+    "Deleted conditional access integration: Microsoft",
+  escrowed_disk_encryption_key: "Escrowed disk encryption key",
+  created_custom_variable: "Created custom variable",
+  deleted_custom_variable: "Deleted custom variable",
+  [ActivityType.HostDeleted]: "Host deleted",
+  [ActivityType.AddedHydrant]: "Added certificate authority (CA): Hydrant",
+  [ActivityType.DeletedHydrant]: "Deleted certificate authority (CA): Hydrant",
+  [ActivityType.EditedHydrant]: "Edited certificate authority (CA): Hydrant",
+  [ActivityType.AddedSmallstep]: "Added certificate authority (CA): Smallstep",
+  [ActivityType.DeletedSmallstep]:
+    "Deleted certificate authority (CA): Smallstep",
+  [ActivityType.EditedSmallstep]:
+    "Edited certificate authority (CA): Smallstep",
+  [ActivityType.AddedCustomESTProxy]:
+    "Added certificate authority (CA): custom EST",
+  [ActivityType.DeletedCustomESTProxy]:
+    "Deleted certificate authority (CA): custom EST",
+  [ActivityType.EditedCustomESTProxy]:
+    "Edited certificate authority (CA): custom EST",
+  [ActivityType.CreatedAndroidProfile]: "Added configuration profile: Android",
+  [ActivityType.DeletedAndroidProfile]:
+    "Deleted configuration profile: Android",
+  [ActivityType.EditedAndroidProfile]:
+    "GitOps: edited configuration profiles: Android",
+  [ActivityType.EditedAndroidCertificate]:
+    "GitOps: edited certificate templates: Android",
+  [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
+  [ActivityType.DeletedConditionalAccessOkta]:
+    "Deleted conditional access: Okta",
+  [ActivityType.EditedSetupExperienceSoftware]:
+    "Edited setup experience software",
+  [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
+  [ActivityType.AddedCertificate]: "Added certificate",
+  [ActivityType.DeletedCertificate]: "Deleted certificate",
+};

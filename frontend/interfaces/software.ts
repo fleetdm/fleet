@@ -6,7 +6,7 @@ import { IconNames } from "components/icons";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
-import { IMdmCommandResult } from "./mdm";
+import { ICommandResult } from "./command";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -35,6 +35,8 @@ export interface IGetSoftwareByIdResponse {
 export interface ISoftware {
   id: number;
   name: string; // e.g., "Figma.app"
+  /** Custom name set per team by admin */
+  display_name?: string; // e.g. "Figma for Desktop"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
   application_id?: string | null; // e.g., "us.zoom.videomeetings" for Android apps
@@ -68,11 +70,14 @@ export interface ISoftwareInstallPolicy {
   name: string;
 }
 
+// Match allowedCategories in cmd/maintained-apps/main.go
 export type SoftwareCategory =
   | "Browsers"
   | "Communication"
   | "Developer tools"
-  | "Productivity";
+  | "Productivity"
+  | "Security"
+  | "Utilities";
 
 export interface ISoftwarePackageStatus {
   installed: number;
@@ -90,6 +95,10 @@ export interface ISoftwareAppStoreAppStatus {
 
 export interface ISoftwarePackage {
   name: string;
+  /** Not included in SoftwareTitle software.software_package response, hoisted up one level
+   * Custom name set per team by admin
+   */
+  display_name?: string;
   title_id: number;
   url: string;
   version: string;
@@ -106,24 +115,23 @@ export interface ISoftwarePackage {
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
   hash_sha256?: string | null;
 }
 
-export const isSoftwarePackage = (
-  data: ISoftwarePackage | IAppStoreApp
-): data is ISoftwarePackage =>
-  (data as ISoftwarePackage).install_script !== undefined;
-
 export interface IAppStoreApp {
   name: string;
+  /** Not included in SoftwareTitle software.app_store_app response, hoisted up one level
+   * Custom name set per team by admin
+   */
+  display_name?: string;
   app_store_id: string; // API returns this as a string
   latest_version: string;
   created_at: string;
   icon_url: string;
   self_service: boolean;
-  platform: typeof HOST_APPLE_PLATFORMS[number];
+  platform: typeof HOST_APPLE_PLATFORMS[number] | "android";
   status: ISoftwareAppStoreAppStatus;
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
@@ -136,12 +144,26 @@ export interface IAppStoreApp {
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
+  configuration?: string;
 }
+
+/**
+ * package: includes FMA, custom packages, and are defined under software_package
+ * app-store: includes VPP, Google Play Store apps and are defined under app_store_app
+ */
+export type InstallerType = "package" | "app-store";
+
+export const isSoftwarePackage = (
+  data: ISoftwarePackage | IAppStoreApp
+): data is ISoftwarePackage =>
+  (data as ISoftwarePackage).install_script !== undefined;
 
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  /** Custom name set per team by admin */
+  display_name?: string;
   icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
@@ -157,6 +179,8 @@ export interface ISoftwareTitle {
 export interface ISoftwareTitleDetails {
   id: number;
   name: string;
+  /** Custom name set per team by admin */
+  display_name?: string;
   icon_url: string | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
@@ -167,6 +191,9 @@ export interface ISoftwareTitleDetails {
   counts_updated_at?: string;
   bundle_identifier?: string;
   versions_count?: number;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -186,6 +213,8 @@ export interface ISoftwareVulnerability {
 export interface ISoftwareVersion {
   id: number;
   name: string; // e.g., "Figma.app"
+  /** Custom name set per team by admin */
+  display_name?: string; // e.g. "Figma for Desktop"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
@@ -455,7 +484,7 @@ export interface ISoftwareInstallResults {
 
 /** For Software .ipa installs, we use the install results API to return MDM command results */
 export interface ISoftwareIpaInstallResults {
-  results: IMdmCommandResult;
+  results: ICommandResult;
 }
 
 // ISoftwareInstallerType defines the supported installer types for
@@ -485,7 +514,7 @@ export interface ISoftwareLastUninstall {
 export interface ISoftwareInstallVersion {
   version: string;
   bundle_identifier: string;
-  last_opened_at: string | null;
+  last_opened_at?: string;
   vulnerabilities: string[] | null;
   installed_paths: string[];
   signature_information?: SignatureInformation[];
@@ -498,24 +527,27 @@ export interface IHostSoftwarePackage {
   version: string;
   last_install: ISoftwareLastInstall | null;
   last_uninstall: ISoftwareLastUninstall | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   platform?: Platform;
 }
 
 export interface IHostAppStoreApp {
   app_store_id: string;
+  platform: Platform;
   self_service: boolean;
   icon_url: string;
   version: string;
   last_install: IAppLastInstall | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
 }
 
 export interface IHostSoftware {
   id: number;
-  name: string;
+  name: string; // e.g., "mock software.app"
+  /** Custom name set per team by admin */
+  display_name?: string; // e.g. "Mock Software"
   icon_url: string | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
@@ -536,29 +568,87 @@ export interface IHostSoftware {
  * - Cases where the software inventory has not yet updated to reflect a recent change
  *   (i.e., last_install date vs host software's updated_at date)
  */
+// Error UI statuses
+export const HOST_SOFTWARE_UI_ERROR_STATUSES = [
+  "failed_install", // Install attempt failed
+  "failed_install_update_available", // Install/update failed; newer installer version available
+  "failed_uninstall", // Uninstall attempt failed
+  "failed_uninstall_update_available", // Uninstall/update failed; newer installer version available
+  "failed_script", // Script package failed to run
+] as const;
+export type HostSoftwareUiErrorStatus = typeof HOST_SOFTWARE_UI_ERROR_STATUSES[number];
+export const isSoftwareErrorStatus = (
+  status: IHostSoftwareUiStatus
+): status is HostSoftwareUiErrorStatus =>
+  HOST_SOFTWARE_UI_ERROR_STATUSES.includes(status as HostSoftwareUiErrorStatus);
+
+// Pending UI statuses for OFFLINE hosts
+export const HOST_SOFTWARE_UI_PENDING_STATUSES = [
+  "pending_install", // Install scheduled (no newer installer version)
+  "pending_uninstall", // Uninstall scheduled
+  "pending_update", // Update scheduled (no newer installer version)
+  "pending_script", // Fleet-initiated script run scheduled
+] as const;
+export type HostSoftwareUiPendingStatus = typeof HOST_SOFTWARE_UI_PENDING_STATUSES[number];
+export const isSoftwarePendingStatus = (
+  status: IHostSoftwareUiStatus
+): status is HostSoftwareUiPendingStatus =>
+  HOST_SOFTWARE_UI_PENDING_STATUSES.includes(
+    status as HostSoftwareUiPendingStatus
+  );
+
+// In-progress UI statuses for ONLINE hosts
+export const HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES = [
+  "installing", // Fleet-initiated install in progress
+  "updating", // Update (install) in progress with newer fleet installer
+  "uninstalling", // Fleet-initiated uninstall in progress
+  "running_script", // Fleet-initiated script run in progress
+] as const;
+export type HostSoftwareUiInProgressStatus = typeof HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES[number];
+export const isSoftwareInProgressStatus = (
+  status: IHostSoftwareUiStatus
+): status is HostSoftwareUiInProgressStatus =>
+  HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES.includes(
+    status as HostSoftwareUiInProgressStatus
+  );
+
+// Success/steady-state UI statuses
+export const HOST_SOFTWARE_UI_SUCCESS_STATUSES = [
+  "installed", // Present in inventory; no newer fleet installer version (tarballs: successful install only)
+  "uninstalled", // Not present in inventory (tarballs: successful uninstall or never installed)
+  "recently_updated", // Update applied (installer newer than inventory), but inventory not yet refreshed
+  "recently_installed", // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
+  "recently_uninstalled", // Uninstall applied, but inventory not yet refreshed
+  "ran_script", // Script package ran successfully
+  "never_ran_script", // Script package never ran before
+] as const;
+export type HostSoftwareUiSuccessStatus = typeof HOST_SOFTWARE_UI_SUCCESS_STATUSES[number];
+export const isSoftwareSuccessStatus = (
+  status: IHostSoftwareUiStatus
+): status is HostSoftwareUiSuccessStatus =>
+  HOST_SOFTWARE_UI_SUCCESS_STATUSES.includes(
+    status as HostSoftwareUiSuccessStatus
+  );
+
+// Update-available UI status
+export const HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES = [
+  "update_available", // In inventory, but newer fleet installer version is available
+] as const;
+export type HostSoftwareUiUpdateAvailableStatus = typeof HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES[number];
+export const isSoftwareUpdateAvailableStatus = (
+  status: IHostSoftwareUiStatus
+): status is HostSoftwareUiUpdateAvailableStatus =>
+  HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES.includes(
+    status as HostSoftwareUiUpdateAvailableStatus
+  );
+
+// Master UI status type, combining all:
 export type IHostSoftwareUiStatus =
-  | "installed" // Present in inventory; no newer fleet installer version (tarballs: successful install only)
-  | "uninstalled" // Not present in inventory (tarballs: successful uninstall or never installed)
-  | "installing" // ONLINE; fleet-initiated install in progress
-  | "uninstalling" // ONLINE; fleet-initiated uninstall in progress
-  | "recently_updated" // Update applied (installer newer than inventory), but inventory not yet refreshed
-  | "recently_installed" // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
-  | "recently_uninstalled" // Uninstall applied, but inventory not yet refreshed
-  | "updating" // ONLINE; update (install) in progress with newer fleet installer
-  | "pending_install" // OFFLINE; install scheduled (no newer installer version)
-  | "pending_uninstall" // OFFLINE; uninstall scheduled
-  | "pending_update" // OFFLINE; update scheduled (no newer installer version)
-  | "failed_install" // Install attempt failed
-  | "failed_install_update_available" // Install/update failed; newer installer version available
-  | "failed_uninstall" // Uninstall attempt failed
-  | "failed_uninstall_update_available" // Uninstall/update failed; newer installer version available
-  | "update_available" // In inventory, but newer fleet installer version is available
-  // Script UI statuses
-  | "ran_script" // Script package ran successfully
-  | "failed_script" // Script package failed to run
-  | "running_script" // ONLINE; fleet-initiated script run in progress
-  | "pending_script" // OFFLINE; fleet-initiated script run scheduled
-  | "never_ran_script"; // Script package never ran before
+  | HostSoftwareUiErrorStatus
+  | HostSoftwareUiPendingStatus
+  | HostSoftwareUiSuccessStatus
+  | HostSoftwareUiInProgressStatus
+  | HostSoftwareUiUpdateAvailableStatus;
 
 /**
  * Extends IHostSoftware with a computed `ui_status` field.
@@ -685,6 +775,9 @@ export const hasHostSoftwareAppLastInstall = (
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
 
+export const isIpadOrIphoneSoftware = (platform: string) =>
+  ["ios", "ipados"].includes(platform);
+
 export const isAndroidSoftwareSource = (source: string) =>
   source === "android_apps";
 
@@ -718,7 +811,7 @@ export interface IFleetMaintainedAppDetails {
   url: string;
   slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
-  categories: SoftwareCategory[];
+  categories: SoftwareCategory[] | null;
 }
 
 export const ROLLING_ARCH_LINUX_NAMES = [

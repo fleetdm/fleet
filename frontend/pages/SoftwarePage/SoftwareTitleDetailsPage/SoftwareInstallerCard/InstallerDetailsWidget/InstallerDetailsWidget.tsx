@@ -9,6 +9,7 @@ import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { InstallerType } from "interfaces/software";
 
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -16,6 +17,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
 const baseClass = "installer-details-widget";
 
@@ -42,9 +44,16 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
   );
 };
 
-const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
+const renderInstallerDisplayText = (
+  installerType: string,
+  isFma: boolean,
+  androidPlayStoreId?: string
+) => {
   if (installerType === "package") {
     return isFma ? "Fleet-maintained" : "Custom package";
+  }
+  if (androidPlayStoreId) {
+    return "Google Play Store";
   }
   return "App Store (VPP)";
 };
@@ -52,12 +61,14 @@ const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
 interface IInstallerDetailsWidgetProps {
   className?: string;
   softwareName: string;
-  installerType: "package" | "vpp";
+  installerType: InstallerType;
   addedTimestamp?: string;
   version?: string | null;
   sha256?: string | null;
   isFma: boolean;
   isScriptPackage: boolean;
+  androidPlayStoreId?: string;
+  customDetails?: string;
 }
 
 const InstallerDetailsWidget = ({
@@ -69,6 +80,8 @@ const InstallerDetailsWidget = ({
   version,
   isFma,
   isScriptPackage,
+  androidPlayStoreId,
+  customDetails,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -88,14 +101,20 @@ const InstallerDetailsWidget = ({
   };
 
   const renderIcon = () => {
-    return installerType === "package" ? (
-      <Graphic name="file-pkg" />
-    ) : (
-      <SoftwareIcon name="appStore" size="medium" />
-    );
+    if (installerType === "app-store") {
+      if (androidPlayStoreId) {
+        return <SoftwareIcon name="androidPlayStore" size="medium" />;
+      }
+      return <SoftwareIcon name="appleAppStore" size="medium" />;
+    }
+    return <Graphic name="file-pkg" />;
   };
 
   const renderDetails = () => {
+    if (customDetails) {
+      return <>{customDetails}</>;
+    }
+
     const renderVersionInfo = () => {
       if (isScriptPackage) {
         return null;
@@ -103,7 +122,7 @@ const InstallerDetailsWidget = ({
 
       let versionInfo = <span>{version}</span>;
 
-      if (installerType === "vpp") {
+      if (installerType === "app-store") {
         versionInfo = (
           <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
             <span>{version}</span>
@@ -133,6 +152,14 @@ const InstallerDetailsWidget = ({
           >
             <span>Version (unknown)</span>
           </TooltipWrapper>
+        );
+      }
+
+      if (androidPlayStoreId) {
+        versionInfo = (
+          <AndroidLatestVersionWithTooltip
+            androidPlayStoreId={androidPlayStoreId}
+          />
         );
       }
 
@@ -170,7 +197,12 @@ const InstallerDetailsWidget = ({
               {sha256.slice(0, 7)}&hellip;
             </TooltipWrapper>
             <div className={`${baseClass}__sha-copy-button`}>
-              <Button variant="icon" iconStroke onClick={onCopySha256}>
+              <Button
+                variant="icon"
+                size="small"
+                iconStroke
+                onClick={onCopySha256}
+              >
                 <Icon name="copy" />
               </Button>
             </div>
@@ -190,7 +222,7 @@ const InstallerDetailsWidget = ({
 
     return (
       <>
-        {renderInstallerDisplayText(installerType, isFma)}
+        {renderInstallerDisplayText(installerType, isFma, androidPlayStoreId)}
         {renderVersionInfo()}
         {renderTimeStamp()}
         {renderSha256()}

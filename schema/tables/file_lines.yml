@@ -1,6 +1,6 @@
 name: file_lines
-notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
-description: Allows reading an arbitrary file.
+notes: See also `file_contents` for reading the entire contents of a file as a single row. This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+description: Allows reading an arbitrary file. Each line of the file is returned as a separate row.
 platforms: 
   - darwin
   - windows

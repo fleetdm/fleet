@@ -1,0 +1,8 @@
+.software-app-store {
+  @include vertical-page-layout;
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+  }
+}

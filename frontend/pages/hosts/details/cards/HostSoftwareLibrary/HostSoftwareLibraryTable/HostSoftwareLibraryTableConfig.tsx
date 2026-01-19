@@ -7,19 +7,20 @@ import {
   IHostAppStoreApp,
   IHostSoftware,
   IVPPHostSoftware,
+  isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 import HostInstallerActionCell from "../HostInstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
 import { installStatusSortType } from "../../Software/helpers";
@@ -93,6 +94,7 @@ export const generateHostSWLibraryTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           icon_url,
           app_store_app,
@@ -110,10 +112,15 @@ export const generateHostSWLibraryTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
+
+        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
 
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}
@@ -122,6 +129,8 @@ export const generateHostSWLibraryTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetailsLibrary"
+            isIosOrIpadosApp={isIosOrIpadosApp}
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -173,6 +182,26 @@ export const generateHostSWLibraryTableHeaders = ({
         const installerData = softwareTitle.software_package
           ? softwareTitle.software_package
           : (softwareTitle.app_store_app as IHostAppStoreApp);
+        const isAndroidPlayStoreApp =
+          !!softwareTitle.app_store_app &&
+          softwareTitle.source === "android_apps";
+
+        // For Android Play Store apps, we show "Latest" in the UI
+        if (isAndroidPlayStoreApp) {
+          const androidPlayStoreId =
+            cellProps.row.original.app_store_app?.app_store_id;
+
+          return (
+            <TextCell
+              value={
+                <AndroidLatestVersionWithTooltip
+                  androidPlayStoreId={androidPlayStoreId || ""}
+                />
+              }
+            />
+          );
+        }
+
         return (
           <VersionCell versions={[{ version: installerData?.version || "" }]} />
         );

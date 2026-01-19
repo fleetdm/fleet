@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -663,6 +664,7 @@ func newWorkerIntegrationsSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	androidModule android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -726,7 +728,12 @@ func newWorkerIntegrationsSchedule(
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
+	softwareWorker := &worker.SoftwareWorker{
+		Datastore:     ds,
+		Log:           logger,
+		AndroidModule: androidModule,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -839,6 +846,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -980,8 +988,10 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
-			// TODO(MHJ): Move this datastore method to shared space, for when windows renewal is being worked on.
 			return ds.RenewMDMManagedCertificates(ctx)
+		}),
+		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
@@ -1048,6 +1058,33 @@ func newCleanupsAndAggregationSchedule(
 			)
 			_, err := ds.CleanupWorkerJobs(ctx, failedSince, completedSince)
 			return err
+		}),
+		schedule.WithJob("revoke_old_conditional_access_certs", func(ctx context.Context) error {
+			const gracePeriod = 1 * time.Hour
+			count, err := ds.RevokeOldConditionalAccessCerts(ctx, gracePeriod)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
+			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+		}),
+		schedule.WithJob("revert_stale_android_certificate_templates", func(ctx context.Context) error {
+			// Revert certificate templates stuck in 'delivering' status for too long
+			// back to 'pending'. This is a safety net for server crashes during AMAPI calls.
+			const staleThreshold = 12 * time.Hour
+			affected, err := ds.RevertStaleCertificateTemplates(ctx, staleThreshold)
+			if err != nil {
+				return err
+			}
+			if affected > 0 {
+				level.Info(logger).Log("msg", "reverted stale certificate templates", "count", affected)
+			}
+			return nil
 		}),
 	)
 
@@ -1326,6 +1363,7 @@ func newAndroidMDMProfileManagerSchedule(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	licenseKey string,
+	androidAgentConfig config.AndroidAgentConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -1337,7 +1375,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
 		}),
 	)
 
@@ -1539,7 +1577,7 @@ func cronHostVitalsLabelMembership(
 	// so we'll filter them later.
 	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
 		PerPage: 0, // No limit.
-	})
+	}, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list labels")
 	}
@@ -1719,6 +1757,7 @@ func newRefreshVPPAppVersionsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	vppAuth apple_apps.Authenticator,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronRefreshVPPAppVersions)
@@ -1730,7 +1769,7 @@ func newRefreshVPPAppVersionsSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
-			return vpp.RefreshVersions(ctx, ds)
+			return vpp.RefreshVersions(ctx, ds, vppAuth)
 		}),
 	)
 
@@ -1868,6 +1907,32 @@ func cronEnableAndroidAppReportsOnDefaultPolicy(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob(name, func(ctx context.Context) error {
 			return androidSvc.EnableAppReportsOnDefaultPolicy(ctx)
+		}),
+	)
+	return s, nil
+}
+
+func cronMigrateToPerHostPolicy(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	androidSvc android.Service,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMigrateToPerHostPolicy)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return androidSvc.MigrateToPerDevicePolicy(ctx)
 		}),
 	)
 	return s, nil

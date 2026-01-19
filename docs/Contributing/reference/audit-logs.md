@@ -723,6 +723,40 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_macos_update_new_hosts
+
+Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_macos_update_new_hosts
+
+Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## read_host_disk_encryption_key
 
 Generated when a user reads the disk encryption key for a host.
@@ -1318,6 +1352,23 @@ This activity contains the following fields:
 }
 ```
 
+## edited_android_certificate
+
+Generated when a user adds or removes Android certificate templates of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.
@@ -1566,8 +1617,8 @@ Generated when an App Store app is added to Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the added software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
@@ -1604,8 +1655,8 @@ Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -1643,7 +1694,7 @@ This activity contains the following fields:
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
@@ -1671,13 +1722,18 @@ Generated when an App Store app is updated in Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team on which this App Store app was updated, or `null` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
+- "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
+- "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+
 
 #### Example
 
@@ -1701,6 +1757,10 @@ This activity contains the following fields:
       "id": 17
     }
   ]
+  "software_display_name": "Logic Pro DAW"
+  "auto_update_enabled": true
+  "auto_update_window_start": "22:00"
+  "auto_update_window_end": "02:00"
 }
 ```
 
@@ -2240,7 +2300,7 @@ This activity contains the following fields:
 Generated when a user edits setup experience software.
 
 This activity contains the following fields:
-- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "platform": the platform of the host ("darwin", "android", "windows", or "linux").
 - "team_id": the ID of the team associated with the setup experience (0 for "No team").
 - "team_name": the name of the team associated with the setup experience (empty for "No team").
 
@@ -2251,6 +2311,25 @@ This activity contains the following fields:
 	"platform": "darwin",
 	"team_id": 1,
 	"team_name": "Workstations"
+}
+```
+
+## edited_host_idp_data
+
+Generated when a user updates a host's IdP data. Currently IdP username can be edited.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_idp_username": The updated IdP username for this host.
+
+#### Example
+
+```json
+{
+	"host_id": 1,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_idp_username": "anna.chao@example.com"
 }
 ```
 

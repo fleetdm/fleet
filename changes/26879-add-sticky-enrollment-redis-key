@@ -1,1 +1,0 @@
-* Fixed an issue where a host transfer on `mdm_enrolled` activity would be reversed by orbit enroll

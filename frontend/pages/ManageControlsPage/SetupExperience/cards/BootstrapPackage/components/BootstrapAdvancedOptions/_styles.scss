@@ -6,15 +6,16 @@
   &__accordion-title {
     // use this so we dont center the text.
     justify-content: normal;
+    align-self: flex-start;
   }
 
   &__advanced-options-controls {
     display: flex;
     flex-direction: column;
     gap: $pad-large;
+  }
 
-    button {
-      align-self: flex-start;
-    }
+  .button {
+    width: fit-content;
   }
 }

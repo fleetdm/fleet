@@ -46,3 +46,16 @@ export const isSoftwareScriptSetup = (s: ISetupStep) => {
 
   return s.source === "sh_packages" || s.source === "ps1_packages";
 };
+
+// Same solution as defined in /templates/enroll-ota.html (https://github.com/fleetdm/fleet/pull/26592)
+export const isIPhone = (navigator: Navigator) =>
+  /iPhone/i.test(navigator.userAgent);
+export const isIPad = (navigator: Navigator) =>
+  /iPad/i.test(navigator.userAgent) ||
+  (/Macintosh/i.test(navigator.userAgent) &&
+    navigator.maxTouchPoints !== undefined &&
+    navigator.maxTouchPoints > 1);
+// Android does not have access to this UI
+export const isMac = (navigator: Navigator) =>
+  (/Macintosh/i.test(navigator.userAgent) && !isIPad) ||
+  /Mac OS X/i.test(navigator.userAgent);

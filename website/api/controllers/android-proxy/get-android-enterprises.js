@@ -90,6 +90,10 @@ module.exports = {
         });
 
         return allEnterprises;
+      }).intercept({status: 429}, (err)=>{
+        // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+        sails.log.warn(`p1: Android management API rate limit exceeded!`);
+        return err;
       }).intercept((err)=>{
         // Re-throw the error for handling outside the intercept
         return err;

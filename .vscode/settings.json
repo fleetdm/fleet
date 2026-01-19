@@ -6,7 +6,6 @@
     "diffEditor.codeLens": true,
     "rewrap.autoWrap.enabled": true,
     "rewrap.wrappingColumn": 100,
-    "go.formatTool": "gofumports",
     "go.lintTool": "golangci-lint",
     "go.useLanguageServer": true,
     "gopls": {

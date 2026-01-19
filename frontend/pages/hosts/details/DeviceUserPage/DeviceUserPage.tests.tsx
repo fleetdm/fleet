@@ -33,6 +33,23 @@ const mockLocation = {
   search: undefined,
 };
 
+// Required for tests that use useIsMobileWidth
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: jest.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(), // for older APIs
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })),
+  });
+});
+
 describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
     mockServer.use(defaultDeviceHandler);

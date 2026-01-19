@@ -225,11 +225,12 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings           MacOSSettings            `json:"macos_settings"`
-	MacOSSetup              MacOSSetup               `json:"macos_setup"`
-	MacOSMigration          MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
-	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings                  MacOSSettings            `json:"macos_settings"`
+	MacOSSetup                     MacOSSetup               `json:"macos_setup"`
+	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
+	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
+	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
+	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -274,6 +275,44 @@ func (c *AppConfig) MDMUrl() string {
 	return c.MDM.AppleServerURL
 }
 
+// ConditionalAccessIdPSSOURL returns the SSO server URL for Okta conditional access IdP.
+// It checks for FLEET_DEV_OKTA_SSO_SERVER_URL environment variable first.
+// If not set, it transforms the server URL by prepending "okta." to the hostname.
+// Examples:
+//   - https://foo.example.com -> https://okta.foo.example.com
+//   - https://foo.example.com:8080 -> https://okta.foo.example.com:8080
+//
+// Returns an error if the server URL is not configured or cannot be parsed.
+func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv func(string) string) (string, error) {
+	// Check for dev override
+	if devURL := getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
+		return devURL, nil
+	}
+
+	serverURL := c.ServerSettings.ServerURL
+	if serverURL == "" {
+		return "", errors.New("server URL not configured")
+	}
+
+	// Parse the server URL
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", fmt.Errorf("parse server URL: %w", err)
+	}
+
+	// Prepend "okta." to the hostname
+	if u.Hostname() != "" {
+		// Reconstruct host with port if present
+		newHost := "okta." + u.Hostname()
+		if port := u.Port(); port != "" {
+			newHost = newHost + ":" + port
+		}
+		u.Host = newHost
+	}
+
+	return u.String(), nil
+}
+
 // versionStringRegex is used to validate that a version string is in the x.y.z
 // format only (no prerelease or build metadata).
 var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
@@ -281,6 +320,8 @@ var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
 // AppleOSUpdateSettings is the common type that contains the settings
 // for OS updates on Apple devices.
 type AppleOSUpdateSettings struct {
+	// UpdateNewHosts if true, only enforce the latest macOS version for new hosts (during enrollment)
+	UpdateNewHosts optjson.Bool `json:"update_new_hosts"`
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
 	// Deadline the required installation date for Nudge to enforce the required
@@ -1243,6 +1284,27 @@ func (l ListOptions) UsesCursorPagination() bool {
 	return l.After != "" && l.OrderKey != ""
 }
 
+// DefaultPerPage is the default limit for list queries when no limit is specified.
+const DefaultPerPage = 1000000
+
+// Interface methods for common_mysql.ListOptions
+
+func (l ListOptions) GetPage() uint { return l.Page }
+func (l ListOptions) GetPerPage() uint {
+	if l.PerPage == 0 {
+		return DefaultPerPage
+	}
+	return l.PerPage
+}
+func (l ListOptions) GetOrderKey() string          { return l.OrderKey }
+func (l ListOptions) IsDescending() bool           { return l.OrderDirection == OrderDescending }
+func (l ListOptions) GetCursorValue() string       { return l.After }
+func (l ListOptions) WantsPaginationInfo() bool    { return l.IncludeMetadata }
+func (l ListOptions) GetSecondaryOrderKey() string { return l.TestSecondaryOrderKey }
+func (l ListOptions) IsSecondaryDescending() bool {
+	return l.TestSecondaryOrderDirection == OrderDescending
+}
+
 type ListQueryOptions struct {
 	ListOptions
 
@@ -1261,8 +1323,12 @@ type ListQueryOptions struct {
 
 type ListActivitiesOptions struct {
 	ListOptions
-
-	Streamed *bool
+	ActivityType string `query:"activity_type,optional"`
+	// StartCreatedAt filters activities created after this ISO string.
+	StartCreatedAt string `query:"start_created_at,optional"`
+	// EndCreatedAt filters activities created before this ISO string.
+	EndCreatedAt string `query:"end_created_at,optional"`
+	Streamed     *bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
@@ -1431,6 +1497,24 @@ func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
 	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
+// Tier returns the license tier.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetTier() string {
+	return l.Tier
+}
+
+// Organization returns the name of the licensed organization.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetOrganization() string {
+	return l.Organization
+}
+
+// DeviceCount returns the number of licensed devices.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetDeviceCount() int {
+	return l.DeviceCount
+}
+
 const (
 	HeaderLicenseKey          = "X-Fleet-License"
 	HeaderLicenseValueExpired = "Expired"
@@ -1524,6 +1608,14 @@ type KafkaRESTConfig struct {
 	ProxyHost   string `json:"proxyhost"`
 }
 
+// NatsConfig shadows config.NatsConfig only exposing a subset of fields
+type NatsConfig struct {
+	Server        string `json:"server"`
+	StatusSubject string `json:"status_subject"`
+	ResultSubject string `json:"result_subject"`
+	AuditSubject  string `json:"audit_subject"`
+}
+
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
@@ -1570,7 +1662,8 @@ var _ WithMDMProfileSpecs = WindowsSettings{}
 type AndroidSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings"`
+	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
 }
 
 func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
@@ -1579,6 +1672,20 @@ func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 
 // Compile-time interface check
 var _ WithMDMProfileSpecs = AndroidSettings{}
+
+// only letters, numbers, spaces, dashes, and underscores
+var certificateNamePattern = regexp.MustCompile(`^[\w\s-]+$`)
+
+// CertificateTemplateSpec defines a certificate template to be deployed to devices.
+type CertificateTemplateSpec struct {
+	Name                     string `json:"name"`
+	CertificateAuthorityName string `json:"certificate_authority_name"`
+	SubjectName              string `json:"subject_name"`
+}
+
+func (c CertificateTemplateSpec) NameValid() bool {
+	return certificateNamePattern.MatchString(c.Name)
+}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`

@@ -34,6 +34,13 @@ for app in p4v.app p4merge.app p4admin.app; do
   fi
 done
 
+# Install p4vc command line binary to /usr/local/bin
+if [[ -f "$MOUNT_POINT/p4vc" ]]; then
+  cp "$MOUNT_POINT/p4vc" /usr/local/bin/p4vc
+  chmod +x /usr/local/bin/p4vc
+  chown root:wheel /usr/local/bin/p4vc
+fi
+
 hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
 
 echo "p4v installed"

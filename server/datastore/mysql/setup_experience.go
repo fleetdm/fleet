@@ -22,6 +22,12 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 }
 
 func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
+	// NOTE: currently, the Android platform does not use the "enqueue setup experience items" flow as it
+	// doesn't support any on-device UI (such as the screen showing setup progress) nor any
+	// ordering of installs - all software to install is provided as part of the Android policy
+	// when the host enrolls in Fleet.
+	// See https://github.com/fleetdm/fleet/issues/33761#issuecomment-3548996114
+
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
 WHERE host_uuid = ? AND %s`
@@ -71,7 +77,7 @@ AND (
 		)
 	)
 )
-AND %s ORDER BY st.name ASC	
+AND %s ORDER BY st.name ASC
 `
 	if resetFailedSetupSteps {
 		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
@@ -197,8 +203,17 @@ WHERE global_or_team_id = ?`
 }
 
 func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
-	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
-		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform)
+	switch platform {
+	case string(fleet.MacOSPlatform),
+		string(fleet.IOSPlatform),
+		string(fleet.IPadOSPlatform),
+		string(fleet.AndroidPlatform),
+		"windows",
+		"linux":
+		// ok, valid platform
+	default:
+		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
+			platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.AndroidPlatform)
 	}
 
 	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
@@ -238,7 +253,7 @@ WHERE
 	vat.global_or_team_id = ?
 AND
 	st.id IN (%s)
-AND va.platform IN ('darwin', 'ios', 'ipados')
+AND va.platform IN ('darwin', 'ios', 'ipados', 'android')
 `, titleIDQuestionMarks)
 
 	stmtUnsetInstallers := `
@@ -278,7 +293,7 @@ WHERE id IN (%s)`
 		}
 
 		// Select requested software installers
-		if platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
+		if platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) && platform != string(fleet.AndroidPlatform) {
 			if len(titleIDs) > 0 {
 				if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
 					return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
@@ -298,7 +313,8 @@ WHERE id IN (%s)`
 		}
 
 		// Select requested VPP apps
-		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) ||
+			platform == string(fleet.AndroidPlatform) {
 			if len(titleIDs) > 0 {
 				if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
 					return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
@@ -323,7 +339,10 @@ WHERE id IN (%s)`
 			for k := range missingTitleIDs {
 				keys = append(keys, fmt.Sprintf("%d", k))
 			}
-			return ctxerr.Errorf(ctx, "title IDs not available: %s", strings.Join(keys, ","))
+			err := &fleet.BadRequestError{
+				Message: "at least one selected software title does not exist or is not available for setup experience",
+			}
+			return ctxerr.Wrapf(ctx, err, "title IDs not available: %s", strings.Join(keys, ","))
 		}
 
 		// Unset all installers
@@ -332,7 +351,8 @@ WHERE id IN (%s)`
 		}
 
 		// Unset all vpp apps
-		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) ||
+			platform == string(fleet.IPadOSPlatform) || platform == string(fleet.AndroidPlatform) {
 			if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, platform, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 			}
@@ -345,7 +365,8 @@ WHERE id IN (%s)`
 			}
 		}
 
-		if (platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform)) && len(vppAppTeamIDs) > 0 {
+		if (platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) ||
+			platform == string(fleet.IPadOSPlatform) || platform == string(fleet.AndroidPlatform)) && len(vppAppTeamIDs) > 0 {
 			stmtSetVPPAppsTeamsLoop := fmt.Sprintf(stmtSetVPPAppsTeams, questionMarks(len(vppAppTeamIDs)))
 			if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeamsLoop, vppAppTeamIDs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting vpp app teams")
@@ -402,8 +423,20 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 }
 
 func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
-	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
-		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform)
+	// I believe this can be removed, as the platforms are validated before this function
+	for p := range strings.SplitSeq(strings.ReplaceAll(platform, "macos", "darwin"), ",") {
+		switch p {
+		case string(fleet.MacOSPlatform),
+			string(fleet.IOSPlatform),
+			string(fleet.IPadOSPlatform),
+			string(fleet.AndroidPlatform),
+			"windows",
+			"linux":
+			// ok, valid platform
+		default:
+			return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
+				p, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.AndroidPlatform, fleet.IPadOSPlatform)
+		}
 	}
 
 	opts.IncludeMetadata = true
@@ -414,6 +447,7 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, plat
 		ListOptions:         opts,
 		Platform:            platform,
 		AvailableForInstall: true,
+		ForSetupExperience:  true,
 	}, fleet.TeamFilter{
 		IncludeObserver: true,
 		TeamID:          &teamID,
@@ -526,6 +560,10 @@ WHERE id = ?
 }
 
 func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+	return ds.getSetupExperienceScript(ctx, ds.reader(ctx), teamID)
+}
+
+func (ds *Datastore) getSetupExperienceScript(ctx context.Context, q sqlx.QueryerContext, teamID *uint) (*fleet.Script, error) {
 	query := `
 SELECT
   id,
@@ -545,7 +583,7 @@ WHERE
 	}
 
 	var script fleet.Script
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, globalOrTeamID); err != nil {
+	if err := sqlx.GetContext(ctx, q, &script, query, globalOrTeamID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SetupExperienceScript"), "get setup experience script")
 		}
@@ -592,6 +630,27 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		}
 		id, _ := scRes.LastInsertId()
 
+		// This clause allows for PUT semantics. The basic idea is:
+		// - no existing setup script -> go through the usual insert logic
+		// - existing setup script with different content -> delete(with all side effects) and re-insert
+		// - existing setup script with same content -> no-op
+		gotSetupExperienceScript, err := ds.getSetupExperienceScript(ctx, tx, script.TeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return err
+		}
+		// We will fall through on a notFound err - nothing to do here
+		if err == nil {
+			if gotSetupExperienceScript.ScriptContentID != uint(id) { // nolint:gosec // dismiss G115 - low risk here
+				err = ds.deleteSetupExperienceScript(ctx, tx, script.TeamID)
+				if err != nil {
+					return err
+				}
+			} else {
+				// no change
+				return nil
+			}
+		}
+
 		// then create the script entity
 		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id)) // nolint: gosec
 		return err
@@ -631,12 +690,16 @@ VALUES
 }
 
 func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+	return ds.deleteSetupExperienceScript(ctx, ds.writer(ctx), teamID)
+}
+
+func (ds *Datastore) deleteSetupExperienceScript(ctx context.Context, tx sqlx.ExtContext, teamID *uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, globalOrTeamID)
+	_, err := tx.ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete setup experience script")
 	}

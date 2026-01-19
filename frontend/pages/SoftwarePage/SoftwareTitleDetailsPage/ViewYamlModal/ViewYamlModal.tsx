@@ -27,9 +27,11 @@ interface IViewYamlModalProps {
   softwareTitleId: number;
   teamId: number;
   iconUrl?: string | null;
+  displayName?: string;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
   isScriptPackage?: boolean;
+  isIosOrIpadosApp?: boolean;
 }
 
 interface HandleDownloadParams {
@@ -46,9 +48,11 @@ const ViewYamlModal = ({
   softwareTitleId: softwareId,
   teamId,
   iconUrl,
+  displayName,
   softwarePackage,
   onExit,
   isScriptPackage = false,
+  isIosOrIpadosApp = false,
 }: IViewYamlModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
@@ -81,6 +85,7 @@ const ViewYamlModal = ({
     postInstallScript,
     uninstallScript,
     iconUrl: iconUrl || null,
+    displayName,
     isScriptPackage,
   });
 
@@ -236,7 +241,7 @@ const ViewYamlModal = ({
               ? onDownloadUninstallScript
               : undefined,
             onClickIcon: iconUrl ? onDownloadIcon : undefined,
-            hasAdvancedOptionsAvailable: !isScriptPackage,
+            hasAdvancedOptionsAvailable: !isScriptPackage && !isIosOrIpadosApp,
             isScriptPackage,
           })}
         </p>

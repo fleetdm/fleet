@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -16,10 +17,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
@@ -110,7 +112,8 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, &ts.FleetSvc, "test-private-key", ts.DS.Datastore)
+	activityModule := activities.NewActivityModule(&ts.DS.DataStore, logger)
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc
 
@@ -152,6 +155,9 @@ func (ts *WithServer) CreateCommonDSMocks() {
 	ts.DS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
 		return nil
 	}
+	ts.DS.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
 }
 
 func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
@@ -169,7 +175,7 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
 		}, nil
 	}
-	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		assert.Contains(t, policyName, EnterpriseID)
 		return &androidmanagement.Policy{}, nil
 	}
@@ -201,13 +207,18 @@ func (m *mockService) NewActivity(ctx context.Context, user *fleet.User, details
 }
 
 func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
+	// androidErrorEncoder wraps EncodeError with nil domain encoder for android tests
+	androidErrorEncoder := func(ctx context.Context, err error, w http.ResponseWriter) {
+		endpointer.EncodeError(ctx, err, w, nil)
+	}
+
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(fleetSvc),
 		),
-		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: logger}),
-		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
+		kithttp.ServerErrorEncoder(androidErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			log.LogRequestEnd(logger),
@@ -239,6 +250,6 @@ func CreateNamedMySQLDS(t *testing.T, name string) *mysql.Datastore {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
-	// use the standard Fleet datastore for Android integration tests
-	return mysql.CreateMySQLDS(t)
+	// Use a named Fleet datastore for Android integration tests to ensure the expected database exists
+	return mysql.CreateNamedMySQLDS(t, name)
 }

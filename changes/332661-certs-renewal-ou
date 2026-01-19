@@ -1,2 +1,0 @@
-- Updated host certificate renewal flow for NDES, Smallstep, custom scep proxy CAs to support
-  $FLEET_VAR_SCEP_RENEWAL_ID in the OU field rather than CN.

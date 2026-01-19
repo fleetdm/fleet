@@ -57,6 +57,9 @@ module.exports = {
       'fleet-release',
 
       // Humans
+      // > NOTE: On Jan 10, 2026, we removed the editing of this list from Fleet's onboarding process for simplicity.
+      // > This list is used for the seldom-used '*' functionality in DRIs/auto-approvers, as well as some automation
+      // > around monitoring for comment abuse and auto-label management.  -mikermcneil
       'noahtalerman',
       'lppepper2',
       'mike-j-thomas',
@@ -85,14 +88,12 @@ module.exports = {
       'pintomi1989',
       'nonpunctual',
       'dantecatalfamo',
-      'PezHub',
       'SFriendLee',
       'ddribeiro',
       'allenhouchins',
       'harrisonravazzolo',
       'tux234',
       'ksykulev',
-      'jmwatts',
       'mason-buettner',
       'iansltx',
       'sgress454',
@@ -117,6 +118,12 @@ module.exports = {
       'NickBlee',
       'GrayW',
       'maribell-fleetdm',
+      'jkatz01',
+      'johnjeremiah',
+      'melpike',
+      'headmin',
+      'nulmete',
+      'chrstphr84',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)

@@ -42,7 +42,7 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
     Card: RunScript,
   },
   {
-    title: "5. Setup assistant",
+    title: "5. Setup Assistant",
     urlSection: "setup-assistant",
     path: PATHS.CONTROLS_SETUP_ASSISTANT,
     Card: SetupAssistant,

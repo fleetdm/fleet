@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet you can deploy [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet), and custom packages to your hosts.
+In Fleet you can deploy [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) apps](https://fleetdm.com/guides/install-app-store-apps), and custom packages to your hosts.
 
 This guide will walk you through steps to manually install custom packages on your hosts.
 
@@ -28,11 +28,11 @@ Learn more about automatically installing software [the Automatically install so
 
 * Select the "Custom package" tab.
 
-* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, and `.tar.gz` files are supported.
+* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, and `.ps1` files are supported.
 
-* If you check the "Automatic install" box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist.
+* If you check the "Automatic install" box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist. Note: Automatic install is not supported for payload-free packages (`.sh` and `.ps1` files).
 
-* To allow users to install the software from Fleet Desktop, check the “Self-service” checkbox.
+* To allow users to install the software from Fleet Desktop, check the "Self-service" checkbox.
 
 * To customize installer behavior, click on “Advanced options.”
 
@@ -54,6 +54,21 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 - [.ipa extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/ipa.go#:~:text=func%20ExtractIPAMetadata)
 
 .tar.gz archives are uploaded as-is without attempting to pull metadata, and will be added successfully as long as they are valid archives, and as long as install and uninstall scripts are supplied.
+
+### Payload-free packages
+
+Payload-free packages (`.sh` and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` files are supported for Linux hosts, and`.ps1` files for Windows hosts.
+
+Payload-free packages are useful for:
+- Self-service configuration scripts (e.g., connecting to a VPN, configuring printers)
+- Running maintenance tasks on demand
+- Deploying configuration changes that don't require a traditional installer
+
+
+Script packages do not support `install_script` (the file contents are the install script), `uninstall_script`, `post_install_script`, `pre_install_query`, and automatic install.
+
+If these parameters are provided when uploading a script package, they will be ignored.
+
 
 ### Pre-install query
 

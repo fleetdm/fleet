@@ -22,6 +22,7 @@ const (
 	ProjectCommand
 	EstimatedCommand
 	SprintCommand
+	MilestoneCommand
 )
 
 type WorkflowState int
@@ -50,6 +51,7 @@ const (
 	BulkMilestoneClose
 	BulkKickOutOfSprint
 	BulkDemoSummary
+	BulkMoveToCurrentSprint
 )
 
 var WorkflowTypeValues = []string{
@@ -59,6 +61,7 @@ var WorkflowTypeValues = []string{
 	"Bulk Milestone Close",
 	"Bulk Kick Out Of Sprint",
 	"Bulk Demo Summary",
+	"Move to current sprint",
 }
 
 type TaskStatus int
@@ -137,6 +140,8 @@ type model struct {
 	detailViewport  viewport.Model
 	glamourRenderer *glamour.TermRenderer
 	issueContent    string
+	// Terminal sizing
+	termWidth int
 	// Command-specific parameters
 	commandType CommandType
 	projectID   int
@@ -198,11 +203,15 @@ func RunTUI(commandType CommandType, projectID int, limit int, search string) {
 		mm = initializeModelForSprint(projectID, limit)
 	case IssuesCommand:
 		mm = initializeModelForIssues(search)
+	case MilestoneCommand:
+		mm = initializeModelForMilestone(search, limit)
 	default:
 		// error and exit
 		fmt.Println("Unsupported command type for TUI")
 		return
 	}
+	// Carry over the search string as a generic mode hint (e.g., for sprint: "previous")
+	mm.search = search
 	p := tea.NewProgram(&mm)
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running Bubble Tea program: %v\n", err)
@@ -298,6 +307,14 @@ func initializeModelForSprint(projectID, limit int) model {
 	return m
 }
 
+func initializeModelForMilestone(title string, limit int) model {
+	m := initializeModel()
+	m.commandType = MilestoneCommand
+	m.limit = limit
+	m.search = title // reuse search to carry milestone title
+	return m
+}
+
 // newview Add a corresponding issue fetcher
 func fetchIssues(search string) tea.Cmd {
 	return func() tea.Msg {
@@ -343,6 +360,38 @@ func fetchSprintItems(projectID, limit int) tea.Cmd {
 	}
 }
 
+func fetchPreviousSprintItems(projectID, limit int) tea.Cmd {
+	return func() tea.Msg {
+		items, total, err := ghapi.GetPreviousSprintItemsWithTotal(projectID, limit)
+		if err != nil {
+			return err
+		}
+		issues := ghapi.ConvertItemsToIssues(items)
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
+	}
+}
+
+func fetchMilestoneItems(title string, limit int) tea.Cmd {
+	return func() tea.Msg {
+		// Get open-issue count for this milestone to drive warning banner
+		totalCount, cntErr := ghapi.GetMilestoneOpenIssueCount(title)
+		// Fetch up to 'limit' open issues for the milestone
+		issues, exceeded, err := ghapi.GetIssuesByMilestoneLimited(title, limit)
+		if err != nil {
+			return err
+		}
+		// Prefer accurate total from GraphQL; fallback to limit+1 sentinel when cntErr occurs
+		total := totalCount
+		if cntErr != nil {
+			total = len(issues)
+			if exceeded {
+				total = limit + 1
+			}
+		}
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
+	}
+}
+
 // newview add command type / fetcher to switch
 func (m model) Init() tea.Cmd {
 	var fetchCmd tea.Cmd
@@ -354,7 +403,14 @@ func (m model) Init() tea.Cmd {
 	case EstimatedCommand:
 		fetchCmd = fetchEstimatedItems(m.projectID, m.limit)
 	case SprintCommand:
-		fetchCmd = fetchSprintItems(m.projectID, m.limit)
+		// Use the search field as a mode hint; when "previous", fetch previous sprint instead of current
+		if strings.EqualFold(strings.TrimSpace(m.search), "previous") || strings.EqualFold(strings.TrimSpace(m.search), "prev") {
+			fetchCmd = fetchPreviousSprintItems(m.projectID, m.limit)
+		} else {
+			fetchCmd = fetchSprintItems(m.projectID, m.limit)
+		}
+	case MilestoneCommand:
+		fetchCmd = fetchMilestoneItems(m.search, m.limit)
 	default:
 		fetchCmd = fetchIssues("")
 	}
@@ -482,8 +538,12 @@ func (m *model) executeWorkflow() tea.Cmd {
 		assigneeOrUnassigned := func(issue ghapi.Issue) string {
 			if len(issue.Assignees) > 0 {
 				user, err := ghapi.GetUserName(issue.Assignees[0].Login)
-				if err == nil && user.Name != "" {
-					return user.Name
+				if err == nil {
+					if user.Name != "" {
+						return user.Name
+					} else {
+						return user.Login
+					}
 				}
 			}
 			return "unassigned"
@@ -731,6 +791,39 @@ func (m *model) executeWorkflow() tea.Cmd {
 			m.tasks = append(m.tasks, WorkflowTask{
 				ID:          (4 * len(selectedIssues)) + i,
 				Description: fmt.Sprintf("Removing #%d issue from project %d", issue.Number, projectID),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+	case BulkMoveToCurrentSprint:
+		projectID := m.projectID
+		if projectID == 0 && m.projectInput != "" {
+			resolvedID, err := ghapi.ResolveProjectID(m.projectInput)
+			if err != nil {
+				return func() tea.Msg {
+					return workflowCompleteMsg{
+						success: false,
+						message: fmt.Sprintf("Failed to resolve project ID: %v", err),
+					}
+				}
+			}
+			projectID = resolvedID
+		}
+		if projectID == 0 {
+			return func() tea.Msg {
+				return workflowCompleteMsg{
+					success: false,
+					message: "Project ID is required for this workflow",
+				}
+			}
+		}
+		actions = ghapi.CreateBulkMoveToCurrentSprintIfNotReadyQA(selectedIssues, projectID)
+		for i, issue := range selectedIssues {
+			// Only tasks for those that will be acted on; description indicates conditional nature
+			desc := fmt.Sprintf("If not 'ready' or 'qa', set current sprint for #%d in project %d", issue.Number, projectID)
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          i,
+				Description: desc,
 				Status:      TaskPending,
 				Progress:    0.0,
 			})

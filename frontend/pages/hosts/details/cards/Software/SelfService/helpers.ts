@@ -1,4 +1,8 @@
-import { IDeviceSoftware, SoftwareCategory } from "interfaces/software";
+import {
+  IDeviceSoftware,
+  IDeviceSoftwareWithUiStatus,
+  SoftwareCategory,
+} from "interfaces/software";
 
 type CategoryFilterValue = SoftwareCategory | "All";
 
@@ -18,6 +22,8 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 2, label: "👬 Communication", value: "Communication" },
   { id: 3, label: "🧰 Developer tools", value: "Developer tools" },
   { id: 4, label: "🖥️ Productivity", value: "Productivity" },
+  { id: 5, label: "🔐 Security", value: "Security" },
+  { id: 6, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
 export const CATEGORIES_NAV_ITEMS: ICategory[] = [
@@ -26,9 +32,9 @@ export const CATEGORIES_NAV_ITEMS: ICategory[] = [
 ];
 
 export const filterSoftwareByCategory = (
-  software?: IDeviceSoftware[],
+  software?: IDeviceSoftwareWithUiStatus[],
   category_id?: number
-): IDeviceSoftware[] => {
+): IDeviceSoftwareWithUiStatus[] => {
   // Find the category value string for the given id
   const category = CATEGORIES_NAV_ITEMS.find((cat) => cat.id === category_id);
 

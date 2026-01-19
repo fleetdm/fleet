@@ -8,15 +8,23 @@
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
   text-align: center;
-  
+
   .content-wrapper {
     @include content-wrapper();
+  }
+
+  &__error {
+    border-color: $core-vibrant-red;
   }
 
   // when the file preview is showing, we want the padding to be
   // slightly smaller on the top and bottom.
   &__file-preview {
     padding: $pad-medium $pad-large;
+  }
+
+  &__internal-error {
+    color: $core-vibrant-red;
   }
 
   &__graphics {
@@ -42,7 +50,8 @@
     // we handle the padding in the label so the entire button is clickable
     padding: 0;
 
-    label, span {
+    label,
+    span {
       padding: $pad-small $pad-medium;
       display: flex;
       align-items: center;

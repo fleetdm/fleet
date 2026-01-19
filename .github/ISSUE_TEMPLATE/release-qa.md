@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,pezhub,jmwatts,andreykizimenko'
+assignees: 'xpkoala,andreykizimenko'
 
 ---
 
@@ -15,6 +15,11 @@ assignees: 'xpkoala,pezhub,jmwatts,andreykizimenko'
 2. [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) 
 3. premium tests require license key (needs renewal) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
 4. premium tests require license key (active - Expires Sunday, January 1, 2023 12:00:00 AM) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjcyNTMxMjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6InByZW1pdW0iLCJpYXQiOjE2NDI1MjIxODF9.EGHQjIzM73YyMbnCruswzg360DEYCsDi9uz48YcDwQHq90BabGT5PIXRiculw79emGj5sk2aKgccTd2hU5J7Jw`
+
+# Database migration tests
+
+1. Create a [custom issue](https://github.com/fleetdm/confidential/issues/new?template=1-custom-request.md) tagged `:help-customers` in the confidential repo to run [cloud migration tests](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml) targeted off of the RC branch. Tests will be run off of [these environments](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud-tests).
+2. Once tests are complete, if migration duration for any environment takes more than 5 seconds, check logs to determine whether any single migration took more than 5 seconds, or if the entire process took more than 15 seconds. If either is the case and there is not already a progress indicator for the migration that updates at least every ten seconds, file an unreleased bug triaged to the team that created the migration to audit the migration and evaluate if progress updates or performance improvements are needed.
 
 # Smoke Tests
 Smoke tests are limited to core functionality and serve as a pre-release final review. If smoke tests are failing, a release cannot proceed.
@@ -67,6 +72,13 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 1. Software, query, policy, and packs logs are successfully sent to external log destinations
 2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
+ 
+</td><td>pass/fail</td></tr>
+
+<tr><td>GitOps and generate-gitops</td><td>
+
+1. `fleetctl generate-gitops` from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated teams etc.).
+2. Running GitOps succeeds on the files created in the previous step, either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient).
  
 </td><td>pass/fail</td></tr>
 

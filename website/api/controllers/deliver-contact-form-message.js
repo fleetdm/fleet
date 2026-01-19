@@ -109,19 +109,40 @@ Fleet Premium subscription details:
       },
     });
 
+    let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
 
-    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-      emailAddress: emailAddress,
-      firstName: firstName,
-      lastName: lastName,
-      contactSource: 'Website - Contact forms',
-      description: `Sent a contact form message: ${message}`,
+    sails.helpers.flow.build(async ()=>{
+      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: emailAddress,
+        firstName: firstName,
+        lastName: lastName,
+        contactSource: 'Website - Contact forms',
+        description: `Sent a contact form message: ${message}`,
+        marketingAttributionCookie: attributionCookieOrUndefined
+      }).intercept((err)=>{
+        return new Error(`Could not create/update a contact or account. Full error: ${require('util').inspect(err)}`);
+      });
+
+      // If the Contact record returned by the updateOrCreateContactAndAccount does not have a parent Account record, throw an error to stop the build helper.
+      if(!recordIds.salesforceAccountId) {
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
+      }
+      // Create the new Fleet website page view record.
+      await sails.helpers.salesforce.createHistoricalEvent.with({
+        salesforceAccountId: recordIds.salesforceAccountId,
+        salesforceContactId: recordIds.salesforceContactId,
+        eventType: 'Intent signal',
+        intentSignal: 'Submitted the "Send a message" form',
+        eventContent: message,
+      }).intercept((err)=>{
+        return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
+      });
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {
-        sails.log.warn(`Background task failed: When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
+        sails.log.warn(`Background task failed: When a user submitted a contact form message, a contact/account/historical event could not be created/updated in the CRM for this email address: ${emailAddress}. Full error: ${require('util').inspect(err)}`);
       }
       return;
-    });
+    });//_∏_
 
   }
 

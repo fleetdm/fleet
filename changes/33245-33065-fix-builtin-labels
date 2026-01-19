@@ -1,1 +1,0 @@
-* Added migration to clear the `platform` field on all _builtin_ labels.

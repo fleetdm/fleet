@@ -1,0 +1,5 @@
+# Ignore all source data files
+*
+
+# Except this gitignore file
+!.gitignore

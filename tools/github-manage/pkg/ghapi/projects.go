@@ -7,26 +7,31 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"fleetdm/gm/pkg/logger"
 )
 
 var Aliases = map[string]int{
-	"mdm":             58,
-	"g-mdm":           58,
-	"draft":           67,
-	"drafting":        67,
-	"g-software":      70,
-	"soft":            70,
-	"g-orchestration": 71,
-	"orch":            71,
+	"mdm":                   58,
+	"g-mdm":                 58,
+	"draft":                 67,
+	"drafting":              67,
+	"g-software":            70,
+	"soft":                  70,
+	"g-orchestration":       71,
+	"orch":                  71,
+	"sec":                   97,
+	"g-security-compliance": 97,
+	"roadmap":               87,
 }
 
 // ProjectLabels maps project IDs to their corresponding label filters for the drafting project
 var ProjectLabels = map[int]string{
-	58: "#g-mdm",           // mdm project
-	70: "#g-software",      // g-software project
-	71: "#g-orchestration", // g-orchestration project
+	58: "#g-mdm",                 // mdm project
+	70: "#g-software",            // g-software project
+	71: "#g-orchestration",       // g-orchestration project
+	97: "#g-security-compliance", // g-security-compliance project
 }
 
 // ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID.
@@ -68,7 +73,7 @@ func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, int, er
 
 // GetProjectItemsWithTotal retrieves project items and returns the server reported total count.
 func GetProjectItemsWithTotal(projectID, limit int) ([]ProjectItem, int, error) {
-	results, err := RunCommandAndReturnOutput(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID))
+	results, err := runCommandWithRetry(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID), 5, 2*time.Second)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -119,6 +124,47 @@ func GetCurrentSprintItemsWithTotal(projectID, limit int) ([]ProjectItem, int, e
 
 func GetCurrentSprintItems(projectID, limit int) ([]ProjectItem, error) { // backward compatible
 	items, _, err := GetCurrentSprintItemsWithTotal(projectID, limit)
+	return items, err
+}
+
+// GetPreviousSprintItemsWithTotal returns only the items in the previous sprint for a project.
+// It mirrors GetCurrentSprintItemsWithTotal but selects the iteration immediately before current
+// based on the iteration field configuration ordering.
+func GetPreviousSprintItemsWithTotal(projectID, limit int) ([]ProjectItem, int, error) {
+	items, total, err := GetProjectItemsWithTotal(projectID, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	projectNodeID, err := getProjectNodeID(projectID)
+	if err != nil {
+		return nil, total, fmt.Errorf("failed to get project node id: %v", err)
+	}
+	sprintField, err := LookupProjectFieldName(projectID, "sprint")
+	if err != nil {
+		return []ProjectItem{}, total, nil // no sprint field
+	}
+	// Get current iteration details (ID, start date, duration)
+	curID, curStart, curDuration, err := getCurrentIterationDetails(projectNodeID, sprintField.ID)
+	if err != nil || curID == "" || curStart == "" || curDuration <= 0 {
+		return []ProjectItem{}, total, fmt.Errorf("failed to get current iteration details: %v", err)
+	}
+	// Compute previous iteration start date as ISO date string
+	prevStart, err := computePrevStartDate(curStart, curDuration)
+	if err != nil {
+		return []ProjectItem{}, total, fmt.Errorf("failed to compute previous iteration start date: %v", err)
+	}
+	var filtered []ProjectItem
+	for _, it := range items {
+		if it.Sprint != nil && strings.TrimSpace(it.Sprint.StartDate) == prevStart {
+			filtered = append(filtered, it)
+		}
+	}
+	return filtered, total, nil
+}
+
+// Backward compatible helper
+func GetPreviousSprintItems(projectID, limit int) ([]ProjectItem, error) {
+	items, _, err := GetPreviousSprintItemsWithTotal(projectID, limit)
 	return items, err
 }
 
@@ -556,6 +602,12 @@ func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (s
 							}
 							name
 						}
+						... on ProjectV2ItemFieldIterationValue {
+							field { ... on ProjectV2FieldCommon { id } }
+							title
+							startDate
+							duration
+						}
 					}
 				}
 			}
@@ -580,6 +632,7 @@ func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (s
 						Number *float64 `json:"number,omitempty"`
 						Text   *string  `json:"text,omitempty"`
 						Name   *string  `json:"name,omitempty"`
+						Title  *string  `json:"title,omitempty"`
 					} `json:"nodes"`
 				} `json:"fieldValues"`
 			} `json:"node"`
@@ -602,6 +655,9 @@ func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (s
 			}
 			if fieldValue.Name != nil {
 				return *fieldValue.Name, nil
+			}
+			if fieldValue.Title != nil {
+				return *fieldValue.Title, nil
 			}
 		}
 	}
@@ -706,4 +762,171 @@ func getCurrentIterationID(projectNodeID, fieldID string) (string, error) {
 	}
 
 	return "", fmt.Errorf("no iterations found for field")
+}
+
+// getCurrentIterationDetails returns ID, startDate (YYYY-MM-DD), and duration (days) for the current iteration.
+func getCurrentIterationDetails(projectNodeID, fieldID string) (string, string, int, error) {
+	// Same query shape as getCurrentIterationID
+	query := fmt.Sprintf(`{
+		node(id: "%s") {
+			... on ProjectV2 {
+				fields(first: 20) {
+					nodes {
+						... on ProjectV2IterationField {
+							id
+							name
+							configuration {
+								iterations {
+									id
+									title
+									startDate
+									duration
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`, projectNodeID)
+
+	command := fmt.Sprintf(`gh api graphql -f query='%s'`, query)
+	output, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("failed to query iterations: %v", err)
+	}
+
+	var response struct {
+		Data struct {
+			Node struct {
+				Fields struct {
+					Nodes []struct {
+						ID            string `json:"id"`
+						Name          string `json:"name"`
+						Configuration struct {
+							Iterations []struct {
+								ID        string `json:"id"`
+								Title     string `json:"title"`
+								StartDate string `json:"startDate"`
+								Duration  int    `json:"duration"`
+							} `json:"iterations"`
+						} `json:"configuration"`
+					} `json:"nodes"`
+				} `json:"fields"`
+			} `json:"node"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(output, &response); err != nil {
+		return "", "", 0, fmt.Errorf("failed to parse iterations response: %v", err)
+	}
+	for _, field := range response.Data.Node.Fields.Nodes {
+		if field.ID == fieldID {
+			if len(field.Configuration.Iterations) > 0 {
+				it := field.Configuration.Iterations[0]
+				return it.ID, it.StartDate, it.Duration, nil
+			}
+		}
+	}
+	return "", "", 0, fmt.Errorf("no iterations found for field")
+}
+
+// computePrevStartDate takes an ISO date string (YYYY-MM-DD) and a duration in days and returns the previous
+// iteration start date in the same format.
+func computePrevStartDate(curStart string, duration int) (string, error) {
+	t, err := time.Parse("2006-01-02", strings.TrimSpace(curStart))
+	if err != nil {
+		return "", err
+	}
+	prev := t.AddDate(0, 0, -duration)
+	return prev.Format("2006-01-02"), nil
+}
+
+// getPreviousIterationID attempts to find the iteration ID immediately prior to the current one.
+// It relies on the ordering returned by the iteration field configuration. If a previous iteration
+// is not present in the returned list, this will return an error.
+func getPreviousIterationID(projectNodeID, fieldID string) (string, error) {
+	// Reuse the same query as getCurrentIterationID to retrieve iterations
+	query := fmt.Sprintf(`{
+		node(id: "%s") {
+			... on ProjectV2 {
+				fields(first: 20) {
+					nodes {
+						... on ProjectV2IterationField {
+							id
+							name
+							configuration {
+								iterations {
+									id
+									title
+									startDate
+									duration
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`, projectNodeID)
+
+	command := fmt.Sprintf(`gh api graphql -f query='%s'`, query)
+	output, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return "", fmt.Errorf("failed to query iterations: %v", err)
+	}
+	logger.Debugf("Iterations query response (previous): %s", string(output))
+
+	var response struct {
+		Data struct {
+			Node struct {
+				Fields struct {
+					Nodes []struct {
+						ID            string `json:"id"`
+						Name          string `json:"name"`
+						Configuration struct {
+							Iterations []struct {
+								ID        string `json:"id"`
+								Title     string `json:"title"`
+								StartDate string `json:"startDate"`
+								Duration  int    `json:"duration"`
+							} `json:"iterations"`
+						} `json:"configuration"`
+					} `json:"nodes"`
+				} `json:"fields"`
+			} `json:"node"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(output, &response); err != nil {
+		return "", fmt.Errorf("failed to parse iterations response: %v", err)
+	}
+
+	var targetField *struct {
+		ID            string `json:"id"`
+		Name          string `json:"name"`
+		Configuration struct {
+			Iterations []struct {
+				ID        string `json:"id"`
+				Title     string `json:"title"`
+				StartDate string `json:"startDate"`
+				Duration  int    `json:"duration"`
+			} `json:"iterations"`
+		} `json:"configuration"`
+	}
+	for _, field := range response.Data.Node.Fields.Nodes {
+		if field.ID == fieldID {
+			targetField = &field
+			break
+		}
+	}
+	if targetField == nil {
+		return "", fmt.Errorf("iteration field with ID %s not found", fieldID)
+	}
+
+	iters := targetField.Configuration.Iterations
+	if len(iters) >= 2 {
+		logger.Infof("Selected previous iteration: %s (ID: %s)", iters[1].Title, iters[1].ID)
+		return iters[1].ID, nil
+	}
+	return "", fmt.Errorf("no previous iteration available")
 }

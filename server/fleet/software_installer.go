@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -17,7 +18,10 @@ import (
 
 // MaxSoftwareInstallerSize is the maximum size allowed for software
 // installers. This is enforced by the endpoints that upload installers.
-const MaxSoftwareInstallerSize = 3000 * units.MiB
+const (
+	MaxSoftwareInstallerSize         = 3000 * units.MiB
+	SoftwareInstallerSignedURLExpiry = 6 * time.Hour
+)
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -27,7 +31,7 @@ type SoftwareInstallerStore interface {
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, fileID string) (string, error)
+	Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 }
 
 // SoftwareInstallDetails contains all of the information
@@ -130,6 +134,9 @@ type SoftwareInstaller struct {
 	Categories []string `json:"categories"`
 
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
+
+	// DisplayName is an end-user friendly name.
+	DisplayName string `json:"display_name"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -180,7 +187,7 @@ type VPPAppResponse struct {
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
 	AppStoreID string `json:"app_store_id" db:"app_store_id"`
 	// Platform is the platform this title ID corresponds to
-	Platform AppleDevicePlatform `json:"platform" db:"platform"`
+	Platform InstallableDevicePlatform `json:"platform" db:"platform"`
 
 	//// Custom icon fields (blank if not set)
 
@@ -192,6 +199,7 @@ type VPPAppResponse struct {
 	LocalIconHash string `json:"-" db:"-"`
 	// LocalIconPath is the path to the icon specified in YAML
 	LocalIconPath string `json:"-" db:"-"`
+	AppTeamID     uint   `json:"-" db:"app_team_id"`
 }
 
 func (v VPPAppResponse) GetTeamID() uint {
@@ -411,12 +419,16 @@ type HostSoftwareInstallerResult struct {
 	// PolicyID is the id of the policy that triggered the install, or
 	// nil if the install was not triggered by a policy failure
 	PolicyID *uint `json:"policy_id" db:"policy_id"`
+	// AttemptNumber tracks which retry attempt this is for policy automation installations.
+	// nil = not triggered by a policy
+	// 1,2,3 attempt, 3 being max retries
+	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
 }
 
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
-	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --scripts-enabled."
+	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
 	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
 	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"
@@ -513,24 +525,55 @@ type UploadSoftwareInstallerPayload struct {
 	AutomaticInstallQuery string
 	Categories            []string
 	CategoryIDs           []uint
+	DisplayName           string
 	// AddedAutomaticInstallPolicy is the auto-install policy that can be
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
 }
 
+func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
+	if p.BundleIdentifier != "" {
+		return p.BundleIdentifier
+	}
+	if p.Source == "programs" && p.UpgradeCode != "" {
+		return p.UpgradeCode
+	}
+	return p.Title
+}
+
+// GetBundleIdentifierForDB returns a pointer to the bundle identifier if it's
+// non-empty (after trimming whitespace), or nil otherwise. This is used when
+// inserting into the database where NULL is preferred over empty string.
+func (p UploadSoftwareInstallerPayload) GetBundleIdentifierForDB() *string {
+	if strings.TrimSpace(p.BundleIdentifier) != "" {
+		return &p.BundleIdentifier
+	}
+	return nil
+}
+
+// GetUpgradeCodeForDB returns a pointer to the upgrade code if the source is
+// "programs", or nil otherwise. This is used when inserting into the database
+// where NULL is preferred for non-Windows installers.
+func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
+	if p.Source != "programs" {
+		return nil
+	}
+	return &p.UpgradeCode
+}
+
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint     `db:"installer_id"`
-	TeamID           *uint    `db:"team_id"`
-	Filename         string   `db:"filename"`
-	Extension        string   `db:"extension"`
-	Version          string   `db:"version"`
-	Platform         string   `db:"platform"`
-	Source           string   `db:"source"`
-	BundleIdentifier *string  `db:"bundle_identifier"`
-	Title            string   `db:"title"`
-	PackageIDList    string   `db:"package_ids"`
-	PackageIDs       []string ``
+	InstallerID      uint    `db:"installer_id"`
+	TeamID           *uint   `db:"team_id"`
+	Filename         string  `db:"filename"`
+	Extension        string  `db:"extension"`
+	Version          string  `db:"version"`
+	Platform         string  `db:"platform"`
+	Source           string  `db:"source"`
+	BundleIdentifier *string `db:"bundle_identifier"`
+	Title            string  `db:"title"`
+	PackageIDList    string  `db:"package_ids"`
+	PackageIDs       []string
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -564,7 +607,13 @@ type UpdateSoftwareInstallerPayload struct {
 	Categories      []string
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
-	DisplayName string
+	DisplayName *string
+}
+
+func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
+	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
+		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -581,7 +630,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "deb_packages", nil
 	case "rpm":
 		return "rpm_packages", nil
-	case "exe", "msi":
+	case "exe", "msi", "zip":
 		return "programs", nil
 	case "pkg":
 		if filepath.Ext(name) == ".app" {
@@ -606,7 +655,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	switch ext {
 	case "deb", "rpm", "tar.gz", "sh":
 		return "linux", nil
-	case "exe", "msi", "ps1":
+	case "exe", "msi", "ps1", "zip":
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
@@ -636,6 +685,8 @@ type HostSoftwareWithInstaller struct {
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 	DisplayName       string                          `json:"display_name" db:"display_name"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.
@@ -696,6 +747,25 @@ type SoftwarePackageOrApp struct {
 	Categories           []string `json:"categories,omitempty"`
 }
 
+func (s *SoftwarePackageOrApp) GetPlatform() string {
+	return s.Platform
+}
+
+func (s *SoftwarePackageOrApp) GetAppStoreID() string {
+	return s.AppStoreID
+}
+
+// Returns unique name by Platform + AppStoreID/Name
+func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
+	if s.AppStoreID != "" {
+		return fmt.Sprintf(`%s_%s`, s.AppStoreID, s.Platform)
+	}
+	if s.Name != "" {
+		return fmt.Sprintf(`%s_%s`, s.Name, s.Platform)
+	}
+	return ""
+}
+
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
@@ -722,6 +792,7 @@ type SoftwarePackageSpec struct {
 	ReferencedYamlPath string   `json:"referenced_yaml_path"`
 	SHA256             string   `json:"hash_sha256"`
 	Categories         []string `json:"categories"`
+	DisplayName        string   `json:"display_name,omitempty"`
 }
 
 func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {
@@ -773,6 +844,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		LabelsExcludeAny:   spec.LabelsExcludeAny,
 		InstallDuringSetup: spec.InstallDuringSetup,
 		Icon:               spec.Icon,
+		Categories:         spec.Categories,
 	}
 }
 
@@ -822,11 +894,42 @@ type HostSoftwareInstalledVersion struct {
 	Source           string     `json:"-" db:"source"`
 	Version          string     `json:"version" db:"version"`
 	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
-	LastOpenedAt     *time.Time `json:"last_opened_at" db:"last_opened_at"`
+	LastOpenedAt     *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
 	Vulnerabilities      []string                   `json:"vulnerabilities" db:"vulnerabilities"`
 	InstalledPaths       []string                   `json:"installed_paths"`
 	SignatureInformation []PathSignatureInformation `json:"signature_information,omitempty"`
+}
+
+// MarshalJSON implements custom JSON marshaling for HostSoftwareInstalledVersion to conditionally
+// handle last_opened_at based on the software source.
+func (hsv *HostSoftwareInstalledVersion) MarshalJSON() ([]byte, error) {
+	type Alias HostSoftwareInstalledVersion
+	return json.Marshal(&struct {
+		*Alias
+		LastOpenedAt any `json:"last_opened_at,omitempty"`
+	}{
+		Alias:        (*Alias)(hsv),
+		LastOpenedAt: marshalLastOpenedAt(hsv.Source, hsv.LastOpenedAt),
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for HostSoftwareInstalledVersion to handle
+// the potential empty string in last_opened_at.
+func (hsv *HostSoftwareInstalledVersion) UnmarshalJSON(b []byte) error {
+	type Alias HostSoftwareInstalledVersion
+	aux := &struct {
+		*Alias
+		LastOpenedAt json.RawMessage `json:"last_opened_at"`
+	}{
+		Alias: (*Alias)(hsv),
+	}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	var err error
+	hsv.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record
@@ -976,13 +1079,16 @@ type HostSoftwareInstallOptions struct {
 	SelfService        bool
 	PolicyID           *uint
 	ForSetupExperience bool
+	// ForScheduledUpdates means the install request is for iOS/iPadOS
+	// scheduled updates, which means it was Fleet-initiated.
+	ForScheduledUpdates bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
 // Software installs initiated via a policy are fleet-initiated (and we also
 // make sure SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && o.PolicyID != nil
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

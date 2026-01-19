@@ -1,4 +1,4 @@
-import { IHost, IHostEndUser } from "interfaces/host";
+import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
 import { pick } from "lodash";
 
@@ -76,6 +76,7 @@ const DEFAULT_HOST_MOCK: IHost = {
         status: null,
         detail: "",
       },
+      certificates: [],
     },
     macos_settings: {
       disk_encryption: null,
@@ -118,6 +119,20 @@ const DEFAULT_HOST_MOCK: IHost = {
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
   return { ...DEFAULT_HOST_MOCK, ...overrides };
+};
+
+export const createMockHostGeolocation = (
+  overrides: Partial<IGeoLocation> = {}
+): IGeoLocation => {
+  return {
+    country_iso: "US",
+    city_name: "Minneapolis",
+    geometry: {
+      type: "Point",
+      coordinates: [-93.2602, 44.9844], // [lng, lat]
+    },
+    ...overrides,
+  };
 };
 
 export const createMockHostResponse = { host: createMockHost() };
@@ -175,6 +190,7 @@ export const createMockHostSoftwarePackage = (
 
 const DEFAULT_HOST_APP_STORE_APP_MOCK: IHostAppStoreApp = {
   app_store_id: "123456789",
+  platform: "darwin",
   version: "1.0.0",
   self_service: false,
   icon_url: "https://via.placeholder.com/512",
@@ -204,6 +220,7 @@ export const DEFAULT_INSTALLED_VERSION = {
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
+  display_name: "Mock Software",
   icon_url: null,
   software_package: createMockHostSoftwarePackage(),
   app_store_app: null,

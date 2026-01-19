@@ -14,9 +14,6 @@ import { size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-
-import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 
@@ -28,6 +25,7 @@ import {
   getCustomDropdownOptions,
   secondsToDhms,
 } from "utilities/helpers";
+
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
@@ -53,8 +51,10 @@ import labelsAPI, {
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -84,6 +84,7 @@ interface IEditQueryFormProps {
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
   currentTeamId?: number;
+  currentTeamName?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
   isStoredQueryLoading: boolean;
@@ -106,7 +107,8 @@ const validateQuerySQL = (query: string) => {
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
-    errors.query = queryError;
+    // queryError should be truthy at this point
+    errors.query = queryError ?? "Invalid query";
   }
 
   const valid = !size(errors);
@@ -119,6 +121,7 @@ const EditQueryForm = ({
   queryIdForEdit,
   apiTeamIdForQuery,
   currentTeamId,
+  currentTeamName,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
@@ -172,6 +175,7 @@ const EditQueryForm = ({
     isAnyTeamObserverPlus,
     config,
     isPremiumTier,
+    isFreeTier,
   } = useContext(AppContext);
 
   const savedQueryMode = !!queryIdForEdit;
@@ -243,7 +247,8 @@ const EditQueryForm = ({
     isFetching: isFetchingLabels,
   } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => labelsAPI.summary(),
+    // All-teams queries can only be assigned global labels
+    () => labelsAPI.summary(currentTeamId, true),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -377,12 +382,12 @@ const EditQueryForm = ({
       });
     }
 
-    let valid = true;
-    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
+    const { valid, errors: newErrs } = validateQuerySQL(lastEditedQueryBody);
 
-    valid = isValidated;
+    // allow save when invalid sqlite syntax
+    const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
 
-    if (valid) {
+    if (canSave) {
       if (!savedQueryMode) {
         platformSelector.setSelectedPlatforms(
           platformCompatibility.getCompatiblePlatforms()
@@ -397,6 +402,7 @@ const EditQueryForm = ({
   const renderAuthor = (): JSX.Element | null => {
     return storedQuery ? (
       <DataSet
+        className={`${baseClass}__author`}
         title="Author"
         value={
           <>
@@ -560,6 +566,30 @@ const EditQueryForm = ({
     return null;
   };
 
+  const renderQueryTeam = (isEditing = false) => {
+    if (isFreeTier) return null;
+
+    if (currentTeamName) {
+      if (isEditing) {
+        return (
+          <p>
+            Editing query for <strong>{currentTeamName}</strong> team.
+          </p>
+        );
+      }
+      return (
+        <p>
+          Creating a new query for <strong>{currentTeamName}</strong> team.
+        </p>
+      );
+    }
+
+    if (isEditing) {
+      return <p>Editing global query.</p>;
+    }
+    return <p>Creating a new global query.</p>;
+  };
+
   // Observers and observer+ of existing query
   const renderNonEditableForm = (
     <form className={`${baseClass}`}>
@@ -569,6 +599,7 @@ const EditQueryForm = ({
         </h1>
         {renderAuthor()}
       </div>
+      {renderQueryTeam()}
       <PageDescription
         className={`${baseClass}__query-description no-hover`}
         content={lastEditedQueryDescription}
@@ -680,7 +711,7 @@ const EditQueryForm = ({
     // Save and save as new disabled for query name blank on existing query or sql errors
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      !!size(errors) ||
+      (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
       (savedQueryMode && !platformSelector.isAnyPlatformSelected) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
@@ -692,9 +723,9 @@ const EditQueryForm = ({
         <form className={baseClass} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
             {renderName()}
-
             {savedQueryMode && renderAuthor()}
           </div>
+          {renderQueryTeam(true)}
           {renderDescription()}
           <SQLEditor
             value={lastEditedQueryBody}
@@ -942,6 +973,7 @@ const EditQueryForm = ({
               ...updateQueryData,
               team_id: apiTeamIdForQuery,
             }}
+            hostId={hostId}
             onExit={toggleSaveAsNewQueryModal}
           />
         )}

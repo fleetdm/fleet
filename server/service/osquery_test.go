@@ -33,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/log"
@@ -992,7 +991,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	// Expect an error when unable to write to logging destination.
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
-	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*endpoint_utils.OsqueryError).Status())
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*OsqueryError).Status())
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -1120,6 +1119,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
 		hostDetailQueryPrefix + "battery":                                 {},
 		hostDetailQueryPrefix + "software_macos_codesign":                 {},
+		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
 		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 	}
@@ -1475,9 +1475,9 @@ func TestLabelQueries(t *testing.T) {
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{
-			"label1": "query1",
-			"label2": "query2",
-			"label3": "query3",
+			"1": "query1",
+			"2": "query2",
+			"3": "query3",
 		}, nil
 	}
 
@@ -2119,6 +2119,67 @@ func TestDetailQueries(t *testing.T) {
 			Source:           "source2",
 		},
 	}, gotSoftware)
+
+	// Since this is set directly in the ingest function, it doesn't use the mock clock.
+	// So the expected restarted at time is calculated based on the current time.
+	expectedLastRestartedAt := time.Now().Add(-1730893 * time.Second)
+	require.NoError(t, err)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Set the last restarted at date, then change the uptime result to simulate
+	// a small drift (less than 30s). Verify that the LastRestartedAt is not updated.
+	host.LastRestartedAt = expectedLastRestartedAt
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "21",
+			"hours":         "0",
+			"minutes":       "46",
+			"seconds":       "13",
+			"total_seconds": "1730865",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// Test again with _forward_ drift, which would push the last restarted at date
+	// back, and verify that we ignore it.
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "30",
+			"seconds":       "0",
+			"total_seconds": "1740865",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
+
+	// One final test -- change the uptime to just one minute, and verify that we do update last restarted at.
+	results["fleet_detail_query_uptime"] = []map[string]string{
+		{
+			"days":          "0",
+			"hours":         "0",
+			"minutes":       "1",
+			"seconds":       "0",
+			"total_seconds": "60",
+		},
+	}
+	// Verify that results are ingested properly
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
+	require.NotNil(t, gotHost)
+	expectedLastRestartedAt = time.Now().Add(-60 * time.Second)
+	assert.LessOrEqual(t, gotHost.LastRestartedAt.Sub(expectedLastRestartedAt), 1*time.Second)
 
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
@@ -2847,7 +2908,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
-	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.True(t, err.(*OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1, HasHostIdentityCert: ptr.Bool(false)}, nil
@@ -2868,7 +2929,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
-	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.True(t, err.(*OsqueryError).NodeInvalid())
 
 	// return other error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2877,7 +2938,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
-	require.False(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.False(t, err.(*OsqueryError).NodeInvalid())
 }
 
 func TestGetHostIdentifier(t *testing.T) {
@@ -2976,6 +3037,9 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	}
 	ds.SaveHostAdditionalFunc = func(ctx context.Context, hostID uint, additional *json.RawMessage) error {
 		return errors.New("something went wrong")
+	}
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "SELECT 1;"}, nil
 	}
 
 	lCtx := &fleetLogging.LoggingContext{}
@@ -3234,8 +3298,8 @@ func TestPolicyQueries(t *testing.T) {
 	) {
 		return nil, nil, nil
 	}
-	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: 0}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0}, nil
 	}
 
 	ctx = hostctx.NewContext(ctx, host)
@@ -3508,11 +3572,11 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 
 	// Since the host doesn't have a team, DefaultTeamConfig will be called
-	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		if id == 0 {
-			return &fleet.Team{
+			return &fleet.TeamLite{
 				ID: 0,
-				Config: fleet.TeamConfig{
+				Config: fleet.TeamConfigLite{
 					WebhookSettings: fleet.TeamWebhookSettings{
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:    true,
@@ -3939,7 +4003,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		messagesIn map[string]string
 		overrides  map[string]osquery_utils.DetailQuery
 
-		resultsOut fleet.OsqueryDistributedQueryResults
+		resultsExpected fleet.OsqueryDistributedQueryResults
 	}{
 		{
 			name: "python packages using original query in extras adds results",
@@ -3956,7 +4020,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					pythonPackageOne,
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					pythonPackageOne,
@@ -3978,7 +4042,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					pythonPackageTwo,
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					pythonPackageTwo,
@@ -4007,7 +4071,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4038,7 +4102,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4065,7 +4129,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4088,7 +4152,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{},
 		},
 		{
 			name: "software query works, but vscode_extensions table doesn't exist",
@@ -4105,7 +4169,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					zoobarApp,
@@ -4127,7 +4191,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{},
 			},
 		},
@@ -4143,7 +4207,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{},
 			},
 		},
@@ -4159,7 +4223,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4182,7 +4246,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					appThatOverrides,
@@ -4236,7 +4300,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4292,7 +4356,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4342,7 +4406,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4377,7 +4441,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
 					{
 						"path":            "/Applications/Slack.app",
@@ -4401,7 +4465,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
 					{
 						"path":            "/Applications/Slack.app",
@@ -4410,15 +4474,38 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "macos executable_hashes query with sha256 column",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": []map[string]string{
+					{
+						"path":   "/Applications/Slack.app",
+						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": []map[string]string{
+					{
+						"path":   "/Applications/Slack.app",
+						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}
 			if tc.host != nil {
 				host = tc.host
 			}
+			// mutates tc.resultsIn
 			preProcessSoftwareResults(host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, log.NewNopLogger())
-			require.Equal(t, tc.resultsOut, tc.resultsIn)
+			require.Equal(t, tc.resultsExpected, tc.resultsIn)
 		})
 	}
 }

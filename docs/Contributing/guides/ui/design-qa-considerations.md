@@ -25,8 +25,10 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 
 ## MDM
 
-- Turn MDM on
-- Turn MDM off
+- Turn Android, Windows or Apple MDM on
+- Turn multiple MDM on
+- Turn Android, Windows or Apple MDM off
+- Turn all MDM off
 - Enable disk encryption
 - Disable disk encryption
 - Add ABM token
@@ -113,6 +115,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 
 ## Integrations
 
+- New 3rd party integrations or changes should be load tested to see if we need to throttle calls to the 3rd party
 - Jira
 - Zendesk
 - Webhooks

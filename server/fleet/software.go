@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const (
@@ -35,9 +37,47 @@ const (
 	SoftwareTeamIdentifierMaxLength = 10
 
 	SoftwareTitleDisplayNameMaxLength = 255
+
+	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
+	// == 1rune –> 38chars
+	UpgradeCodeExpectedLength = 38
 )
 
 type Vulnerabilities []CVE
+
+// isLastOpenedAtSupported returns true if the software source supports the last_opened_at field.
+func isLastOpenedAtSupported(source string) bool {
+	switch source {
+	case "apps", "programs", "deb_packages", "rpm_packages":
+		return true
+	default:
+		return false
+	}
+}
+
+// marshalLastOpenedAt returns the appropriate value for last_opened_at JSON marshaling.
+// Returns nil to omit the field for unsupported sources, "" for supported sources with nil,
+// or the actual timestamp for supported sources with a value.
+func marshalLastOpenedAt(source string, lastOpenedAt *time.Time) any {
+	if !isLastOpenedAtSupported(source) {
+		return nil
+	}
+	if lastOpenedAt == nil {
+		return ""
+	}
+	return lastOpenedAt
+}
+
+func unmarshalLastOpenedAt(data json.RawMessage) (*time.Time, error) {
+	if len(data) == 0 || string(data) == "null" || string(data) == `""` {
+		return nil, nil
+	}
+	var t time.Time
+	if err := json.Unmarshal(data, &t); err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
 
 // Software is a named and versioned piece of software installed on a device.
 type Software struct {
@@ -102,6 +142,8 @@ type Software struct {
 	IsKernel bool `json:"-"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
 	DisplayName string `json:"display_name"`
 }
@@ -127,7 +169,31 @@ func (s *Software) populateBrowserField() {
 func (s *Software) MarshalJSON() ([]byte, error) {
 	s.populateBrowserField()
 	type Alias Software
-	return json.Marshal((*Alias)(s))
+	return json.Marshal(&struct {
+		*Alias
+		LastOpenedAt any `json:"last_opened_at,omitempty"`
+	}{
+		Alias:        (*Alias)(s),
+		LastOpenedAt: marshalLastOpenedAt(s.Source, s.LastOpenedAt),
+	})
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for Software to handle
+// the potential empty string in last_opened_at.
+func (s *Software) UnmarshalJSON(b []byte) error {
+	type Alias Software
+	aux := &struct {
+		*Alias
+		LastOpenedAt json.RawMessage `json:"last_opened_at"`
+	}{
+		Alias: (*Alias)(s),
+	}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	var err error
+	s.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
 }
 
 // ToUniqueStr creates a unique string representation of the software
@@ -146,6 +212,11 @@ func (s Software) ToUniqueStr() string {
 	if s.ApplicationID != nil && *s.ApplicationID != "" {
 		ss = append(ss, *s.ApplicationID)
 	}
+	// if identical software comes in with a newly non-empty or changed upgrade code, it will be
+	// considered Software unique from its nil/empty ugprade coded predecessor
+	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
+		ss = append(ss, *s.UpgradeCode)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
@@ -157,6 +228,12 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 
 	if s.ApplicationID != nil && *s.ApplicationID != "" {
 		cols = append(cols, *s.ApplicationID)
+	}
+
+	// though possible for a Windows software to have the empty string upgrade code, would provide no
+	// additional signal of uniqueness, so omit
+	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
+		cols = append(cols, *s.UpgradeCode)
 	}
 
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
@@ -208,6 +285,80 @@ type SoftwareVersion struct {
 	TitleID uint `db:"title_id" json:"-"`
 }
 
+// SoftwareTitleSummary contains a lightweight subset of the fields of a SoftwareTitle that are
+// useful for processing incoming software
+// TODO - embed this in `SoftwareTitle` to reduce redundancy
+type SoftwareTitleSummary struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	// ApplicationID is used by Android apps to match with VPP app titles.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+}
+
+// Configuration for auto-updates for a software title.
+// Supported for VPP-apps only.
+// Only applicable when viewing a title in the context of a team.
+type SoftwareAutoUpdateConfig struct {
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEnabled *bool `json:"auto_update_enabled,omitempty" db:"auto_update_enabled"`
+	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty" db:"auto_update_window_start"`
+	// AutoUpdateEndTime is the end of the maintenance window for the software title.
+	// If the end time is less than the start time, the window wraps to the next day.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEndTime *string `json:"auto_update_window_end,omitempty" db:"auto_update_window_end"`
+}
+
+type SoftwareAutoUpdateSchedule struct {
+	TitleID uint `json:"title_id" db:"title_id"`
+	TeamID  uint `json:"team_id" db:"team_id"`
+	SoftwareAutoUpdateConfig
+}
+
+func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
+	if s.AutoUpdateStartTime == nil || s.AutoUpdateEndTime == nil || *s.AutoUpdateStartTime == "" || *s.AutoUpdateEndTime == "" {
+		return errors.New("Start and end time must both be set")
+	}
+	// Validate that the times are in HH:MM format.
+	// Note that durations can be arbitrarily long, but parsing in this way
+	// automatically validates that the hours are between 0 and 23 and the minutes are between 0 and 59.
+	startDuration, err := time.Parse("15:04", *s.AutoUpdateStartTime)
+	if err != nil {
+		return fmt.Errorf("Error parsing start time: %w", err)
+	}
+	endDuration, err := time.Parse("15:04", *s.AutoUpdateEndTime)
+	if err != nil {
+		return fmt.Errorf("Error parsing end time: %w", err)
+	}
+	// Validate that the window is at least one hour long.
+	// If the end time is less than the start time, the window wraps to the next day, so we need to add 24 hours to the end time in that case.
+	if endDuration.Before(startDuration) {
+		endDuration = endDuration.Add(24 * time.Hour)
+	}
+	if endDuration.Sub(startDuration) < time.Hour {
+		return errors.New("The update window must be at least one hour long")
+	}
+
+	return nil
+}
+
+type SoftwareAutoUpdateScheduleFilter struct {
+	Enabled *bool
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
@@ -253,8 +404,12 @@ type SoftwareTitle struct {
 	IsKernel bool `json:"-" db:"is_kernel"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	SoftwareAutoUpdateConfig
 }
 
 // populateBrowserField populates the browser field for backwards compatibility
@@ -336,7 +491,11 @@ type SoftwareTitleListResult struct {
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
-	DisplayName   string  `json:"display_name" db:"display_name"`
+	// UpgradeCode is a GUID representing a related set of Windows software products. See
+	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
+	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	DisplayName string  `json:"display_name" db:"display_name"`
+	SoftwareAutoUpdateConfig
 }
 
 type SoftwareTitleListOptions struct {
@@ -352,6 +511,12 @@ type SoftwareTitleListOptions struct {
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
 	Platform            string  `query:"platform,optional"`
+
+	// ForSetupExperience is an internal flag set when listing software via the
+	// setup experience endpoint, so that it filters out any software available
+	// for install that is not supported for setup experience. It cannot be set
+	// via the query parameters.
+	ForSetupExperience bool
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -411,19 +576,46 @@ func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
+		LastOpenedAt             any                        `json:"last_opened_at,omitempty"`
 		InstalledPaths           []string                   `json:"installed_paths"`
 		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
 	}{
 		Alias:                    (*Alias)(&hse.Software),
+		LastOpenedAt:             marshalLastOpenedAt(hse.Source, hse.LastOpenedAt),
 		InstalledPaths:           hse.InstalledPaths,
 		PathSignatureInformation: hse.PathSignatureInformation,
 	})
 }
 
+// UnmarshalJSON implements custom JSON unmarshaling for HostSoftwareEntry to handle
+// the potential empty string in last_opened_at.
+func (hse *HostSoftwareEntry) UnmarshalJSON(b []byte) error {
+	type SoftwareAlias Software
+	aux := &struct {
+		SoftwareAlias
+		InstalledPaths           []string                   `json:"installed_paths"`
+		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+		LastOpenedAt             json.RawMessage            `json:"last_opened_at"`
+	}{}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	hse.Software = Software(aux.SoftwareAlias)
+	hse.InstalledPaths = aux.InstalledPaths
+	hse.PathSignatureInformation = aux.PathSignatureInformation
+
+	var err error
+	hse.LastOpenedAt, err = unmarshalLastOpenedAt(aux.LastOpenedAt)
+	return err
+}
+
 type PathSignatureInformation struct {
-	InstalledPath  string  `json:"installed_path"`
-	TeamIdentifier string  `json:"team_identifier"`
-	HashSha256     *string `json:"hash_sha256"`
+	InstalledPath  string `json:"installed_path"`
+	TeamIdentifier string `json:"team_identifier"`
+	// json struct tag difference here is for backwards compatibility. API field was initially "hash_sha256", though it is specifically the CD hash (sha256).
+	CDHashSHA256     *string `json:"hash_sha256"`
+	ExecutableSHA256 *string `json:"executable_sha256"`
+	ExecutablePath   *string `json:"executable_path"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -538,7 +730,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, extensionFor, lastOpenedAt string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -563,17 +755,33 @@ func SoftwareFromOsqueryRow(
 		return str
 	}
 
+	truncatedSource := truncateString(source, SoftwareSourceMaxLength)
+
+	var upgradeCodeForFleetSW *string
+	// 3 options:
+	// - nil for sources other than "programs"
+	// - "" if "programs" source and no code returned, or
+	// - length-validated code for "programs" source and non-empty value returned
+	if truncatedSource == "programs" {
+		if upgradeCode != "" && len(upgradeCode) != UpgradeCodeExpectedLength {
+			return nil, errors.New("host reported invalid upgrade code - unexpected length")
+		}
+		upgradeCodeForFleetSW = ptr.String(upgradeCode)
+
+	}
+
 	software := Software{
 		Name:             truncateString(name, SoftwareNameMaxLength),
 		Version:          truncateString(version, SoftwareVersionMaxLength),
-		Source:           truncateString(source, SoftwareSourceMaxLength),
+		Source:           truncatedSource,
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
 		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
 		ExtensionFor:     truncateString(extensionFor, SoftwareExtensionForMaxLength),
 
-		Release: truncateString(release, SoftwareReleaseMaxLength),
-		Vendor:  vendor,
-		Arch:    truncateString(arch, SoftwareArchMaxLength),
+		Release:     truncateString(release, SoftwareReleaseMaxLength),
+		Vendor:      vendor,
+		Arch:        truncateString(arch, SoftwareArchMaxLength),
+		UpgradeCode: upgradeCodeForFleetSW,
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
@@ -589,22 +797,41 @@ type VPPBatchPayload struct {
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	IconPath   string   `json:"-"`
-	IconHash   string   `json:"-"`
+	Categories          []string                  `json:"categories"`
+	DisplayName         string                    `json:"display_name"`
+	IconPath            string                    `json:"-"`
+	IconHash            string                    `json:"-"`
+	Platform            InstallableDevicePlatform `json:"platform"`
+	Configuration       json.RawMessage           `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
+}
+
+func (v VPPBatchPayload) GetPlatform() string {
+	return string(v.Platform)
+}
+
+func (v VPPBatchPayload) GetAppStoreID() string {
+	return v.AppStoreID
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID         string              `json:"app_store_id"`
-	SelfService        bool                `json:"self_service"`
-	Platform           AppleDevicePlatform `json:"platform"`
-	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
-	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
-	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	AppStoreID         string                    `json:"app_store_id"`
+	SelfService        bool                      `json:"self_service"`
+	Platform           InstallableDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs []uint `json:"-"`
+	CategoryIDs         []uint          `json:"-"`
+	DisplayName         string          `json:"display_name"`
+	Configuration       json.RawMessage `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string         `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string         `json:"auto_update_window_end,omitempty"`
 }
 
 type SoftwareCategory struct {

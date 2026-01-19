@@ -29,11 +29,13 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"golang.org/x/net/html/charset"
 )
 
 const (
@@ -270,6 +272,7 @@ func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
 	// decode the TOC data (in XML inside the zlib-compressed data)
 	decoder := xml.NewDecoder(zr)
 	decoder.Strict = false
+	decoder.CharsetReader = charset.NewReaderLabel
 	if err := decoder.Decode(&root); err != nil {
 		return root, fmt.Errorf("decode xar xml: %w", err)
 	}
@@ -332,6 +335,8 @@ var idTranslations = map[string]string{
 	// This is present in Privileges.pkg/PackageInfo, however, current logic doesn't parse PackageInfo files if Distribution file is present
 	"corp.sap.privileges.pkg": "corp.sap.privileges",
 }
+
+var rxMicrosoftAutoUpdateBundleID = regexp.MustCompile(`^com\.microsoft\.autoupdate\d+$`)
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
 func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
@@ -396,7 +401,11 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 			identifier = bundle.ID
 			name = strings.TrimSuffix(base, ".app")
 			appVersion = bundle.CFBundleShortVersionString
-			break
+
+			// if the found bundle is microsoft auto-update, keep looking for a better match
+			if !rxMicrosoftAutoUpdateBundleID.MatchString(identifier) {
+				break
+			}
 		}
 	}
 

@@ -10,11 +10,12 @@ import mdmAPI, {
   IAppleSetupEnrollmentProfileResponse,
 } from "services/entities/mdm";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import PATHS from "router/paths";
 
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 
 import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUploader";
 import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
@@ -94,8 +95,7 @@ const SetupAssistant = ({
       <SetupExperienceContentContainer>
         <div className={`${baseClass}__upload-container`}>
           <p className={`${baseClass}__section-description`}>
-            Add an automatic enrollment profile to customize the macOS Setup
-            Assistant.
+            Add an automatic enrollment profile to customize Setup Assistant.
           </p>
           {enrollmentProfileNotFound || !enrollmentProfileData ? (
             <SetupAssistantProfileUploader
@@ -129,10 +129,11 @@ const SetupAssistant = ({
       )
     ) {
       return (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
           header="Additional configuration required"
-          info="Supported on macOS. To customize, first turn on automatic enrollment."
+          info="To customize, first turn on automatic enrollment."
           buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
           router={router}
         />
       );
@@ -143,7 +144,7 @@ const SetupAssistant = ({
   return (
     <section className={baseClass}>
       <SectionHeader
-        title="Setup assistant"
+        title="Setup Assistant"
         details={
           <CustomLink
             url="https://fleetdm.com/learn-more-about/setup-assistant"

@@ -19,18 +19,6 @@ func NewMDMConfigMiddleware(svc fleet.Service) *Middleware {
 	return &Middleware{svc: svc}
 }
 
-func (m *Middleware) VerifyAppleOrWindowsMDM() endpoint.Middleware {
-	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			if err := m.svc.VerifyMDMAppleOrWindowsConfigured(ctx); err != nil {
-				return nil, err
-			}
-
-			return next(ctx, req)
-		}
-	}
-}
-
 func (m *Middleware) VerifyAppleMDM() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
@@ -67,6 +55,18 @@ func (m *Middleware) VerifyWindowsMDM() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			if err := m.svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+				return nil, err
+			}
+
+			return next(ctx, req)
+		}
+	}
+}
+
+func (m *Middleware) VerifyAnyMDM() endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req interface{}) (interface{}, error) {
+			if err := m.svc.VerifyAnyMDMConfigured(ctx); err != nil {
 				return nil, err
 			}
 

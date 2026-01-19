@@ -29,6 +29,8 @@ const ProfileStatusCount = ({
   hostCount,
   tooltipText,
 }: IProfileStatusCountProps) => {
+  const countText = hostCount === 1 ? "host" : "hosts";
+
   return (
     <div className={`${baseClass}__profile-status-count`}>
       <StatusIndicatorWithIcon
@@ -38,7 +40,9 @@ const ProfileStatusCount = ({
         layout="vertical"
         valueClassName={`${baseClass}__status-indicator-value`}
       />
-      <div className={`${baseClass}__host-count`}>{hostCount} hosts</div>
+      <div className={`${baseClass}__host-count`}>
+        {hostCount} {countText}
+      </div>
     </div>
   );
 };

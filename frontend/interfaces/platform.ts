@@ -79,6 +79,7 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
   mdm: ["darwin"],
   munki_info: ["darwin"],
   munki_install: ["darwin"],
+  crowdstrike_falcon: ["darwin", "linux"],
   // network_quality: ["darwin"], // TODO: add this table if/when it is incorporated into orbit
   puppet_info: ["darwin", "linux", "windows"],
   puppet_logs: ["darwin", "linux", "windows"],
@@ -145,6 +146,9 @@ export const isAppleDevice = (platform = "") => {
   );
 };
 
+export const isWindows = (platform: string | HostPlatform) =>
+  platform === "windows";
+
 export const isMacOS = (platform: string | HostPlatform) =>
   platform === "darwin";
 
@@ -154,6 +158,9 @@ export const isIPadOrIPhone = (platform: string | HostPlatform) =>
 export const isAndroid = (
   platform: string | HostPlatform
 ): platform is "android" => platform === "android";
+
+export const isChrome = (platform: string | HostPlatform) =>
+  platform === "chrome";
 
 /** isMobilePlatform checks if the platform is an iPad or iPhone or Android. */
 export const isMobilePlatform = (platform: string | HostPlatform) =>
@@ -229,6 +236,7 @@ export const SETUP_EXPERIENCE_PLATFORMS = [
   "linux",
   "ios",
   "ipados",
+  "android",
 ] as const;
 
 export type SetupExperiencePlatform = typeof SETUP_EXPERIENCE_PLATFORMS[number];

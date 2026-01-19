@@ -8,11 +8,11 @@ Fleet can map an end user's IdP username, groups, and department to their host(s
 
 Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as [any other IdP](#other-idps) that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
-Fleet gathers IdP host vitals when an end user authenticates during these enrollment scenarios:
+Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#end-user-authentication) during these enrollment scenarios:
 - Automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts.
-- Manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts.
+- Manual enrollment for personal (BYOD) iOS, iPadOS, Android, and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
 
-Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication).
+You can also manually add/update a host's IdP username on the Host details page. Fleet will then automatically map the username to other IdP vitals.
 
 ## Okta
 
@@ -20,7 +20,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 
 1. [Create application in Okta](#step-1-create-application-in-okta)
 2. [Connect Okta to Fleet](#step-2-connect-okta-to-fleet)
-3. [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+3. [Map Okta users and groups to hosts in Fleet](#step-3-map-okta-users-and-groups-to-hosts-in-fleet)
 
 #### Step 1: Create application in Okta
 
@@ -28,8 +28,8 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 2. In the main menu, select **Applications > Applications**, then select **Create App Integration**.
 3. Select **SAML 2.0** option and select **Next**.
 4. On the **General Settings** page, add a friendly **App name** (e.g Fleet SCIM), and select **Next**.
-5. On the **SAML Settings** page, add any URL to the **Single sign-on URL** and **Audience URI (SP Entity ID)** fields, and select **Next**.
-> Okta requires setting up SAML to set up SCIM. Since we don't need SAML right now, you can set the URL to something arbitrary, e.g "example.fleetdm.com".
+5. On the **SAML Settings** page, add any fully-qualified URL to the **Single sign-on URL** and **Audience URI (SP Entity ID)** fields, and select **Next**.
+> Okta requires setting up SAML to set up SCIM. Since we don't need SAML right now, you can set the URL to something arbitrary, e.g "https://example.fleetdm.com".
 6. On the **Feedback** page, provide feedback if you want, and select **Finish**.
 7. Select the **General** tab in your newly created app and then select **Edit** in **App Settings**.
 8. For **Provisioning**, select **SCIM** and select **Save**.
@@ -52,7 +52,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 11. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
-#### Step 3: Map users and groups to hosts in Fleet
+#### Step 3: Map Okta users and groups to hosts in Fleet
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
 
@@ -78,7 +78,7 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 
 1. [Create enterprise application in Entra ID](#step-1-create-enterprise-application-in-entra-id)
 2. [Connect Entra ID to Fleet](#step-2-connect-entra-id-to-fleet)
-3. [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+3. [Map Entra users and groups to hosts in Fleet](#step-3-map-entra-users-and-groups-to-hosts-in-fleet)
 
 #### Step 1: Create enterprise application in Entra ID
 
@@ -97,7 +97,7 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 5. Select the **Test connection** button. You should see success message.
 6. Select **Create** and, after successful creation, you'll be redirected to the overview page.
 
-#### Step 3: Map users and groups to hosts in Fleet
+#### Step 3: Map Entra users and groups to hosts in Fleet
 
 1. From the side menu, select **Attribute mapping** and then select **Provision Microsoft Entra ID Groups**.
 ![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes-504x134@2x.png)    

@@ -218,7 +218,8 @@
     "enabled_and_configured": true,
     "macos_updates": {
       "minimum_version": "15.1",
-      "deadline": "2024-12-31"
+      "deadline": "2024-12-31",
+      "update_new_hosts": true
     },
     "ios_updates": {
       "minimum_version": "18.1",
@@ -248,6 +249,7 @@
       "webhook_url": "https://some-macos-migration-webhook-url.com"
     },
     "windows_migration_enabled": true,
+    "enable_turn_on_windows_mdm_manually": false,
     "end_user_authentication": {
       "entity_id": "some-mdm-entity-id.com",
       "issuer_uri": "https://some-mdm-issuer-uri.com",

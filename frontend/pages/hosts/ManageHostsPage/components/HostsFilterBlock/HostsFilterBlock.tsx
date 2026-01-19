@@ -646,6 +646,12 @@ const HostsFilterBlock = ({
               {renderLabelFilterPill()} {renderMDMEnrollmentFilterBlock()}
             </>
           );
+        case showSelectedLabel && !!osSettingsStatus:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderOsSettingsBlock()}
+            </>
+          );
         case showSelectedLabel:
           return renderLabelFilterPill();
         case !!policyId:

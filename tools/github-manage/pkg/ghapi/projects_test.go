@@ -124,14 +124,16 @@ func TestParseJSONtoProjectItems(t *testing.T) {
 
 func TestAliases(t *testing.T) {
 	expectedAliases := map[string]int{
-		"mdm":             58,
-		"g-mdm":           58,
-		"draft":           67,
-		"drafting":        67,
-		"g-software":      70,
-		"soft":            70,
-		"g-orchestration": 71,
-		"orch":            71,
+		"mdm":                   58,
+		"g-mdm":                 58,
+		"draft":                 67,
+		"drafting":              67,
+		"g-software":            70,
+		"soft":                  70,
+		"g-orchestration":       71,
+		"orch":                  71,
+		"sec":                   97,
+		"g-security-compliance": 97,
 	}
 
 	if !reflect.DeepEqual(Aliases, expectedAliases) {

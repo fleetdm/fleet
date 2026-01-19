@@ -24,7 +24,7 @@
   }
 
   &__author {
-    align-items: right;
+    align-items: flex-end;
 
     img,
     dd {
@@ -83,13 +83,6 @@
     }
     &--disabled-by-gitops-mode {
       @include disabled;
-    }
-  }
-
-  &__policy-description-wrapper,
-  &__policy-resolution-wrapper {
-    .icon {
-      align-self: flex-start;
     }
   }
 

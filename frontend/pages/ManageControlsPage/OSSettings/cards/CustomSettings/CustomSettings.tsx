@@ -15,7 +15,7 @@ import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 
 import Pagination from "components/Pagination";
 
@@ -26,7 +26,7 @@ import AddProfileModal from "./components/ProfileUploader/components/AddProfileM
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
-import ProfileListHeading from "./components/ProfileListHeading";
+import UploadListHeading from "../../../components/UploadListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
@@ -50,7 +50,8 @@ const CustomSettings = ({
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||
-    config?.mdm.windows_enabled_and_configured;
+    config?.mdm.windows_enabled_and_configured ||
+    config?.mdm.android_enabled_and_configured;
 
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
   const [
@@ -171,8 +172,10 @@ const CustomSettings = ({
           keyAttribute="profile_uuid"
           listItems={profiles}
           HeadingComponent={() => (
-            <ProfileListHeading
-              onClickAddProfile={() => setShowAddProfileModal(true)}
+            <UploadListHeading
+              onClickAdd={() => setShowAddProfileModal(true)}
+              entityName="Configuration profile"
+              createEntityText="Add profile"
             />
           )}
           ListItemComponent={({ listItem }) => (
@@ -220,7 +223,10 @@ const CustomSettings = ({
         }
       />
       {!mdmEnabled ? (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
+          header="Manage your hosts"
+          buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
           router={router}
           info="MDM must be turned on to apply custom settings."
         />

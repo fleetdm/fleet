@@ -983,7 +983,7 @@ func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
-func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName string) (*mdm.Command, error) {
+func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName, timeZone string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":      "Acknowledged",
 		"UDID":        udid,
@@ -996,8 +996,21 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 			"ProductName":             productName,
 			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
 			"IsMDMLostModeEnabled":    false,
+			"TimeZone":                timeZone,
 		},
 	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeDeviceLocation(udid, cmdUUID string) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        udid,
+		"CommandUUID": cmdUUID,
+		"Latitude":    42.42,
+		"Longitude":   -42.42,
+	}
+
 	return c.sendAndDecodeCommandResponse(payload)
 }
 

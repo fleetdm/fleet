@@ -5,6 +5,7 @@ parasails.registerPage('transparency', {
   data: {
     //…
     showSecureframeBanner: false,
+    modal: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -21,6 +22,11 @@ parasails.registerPage('transparency', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+    clickOpenVideoModal: function(modalName) {
+      this.modal = modalName;
+    },
+    closeModal: function() {
+      this.modal = undefined;
+    },
   }
 });

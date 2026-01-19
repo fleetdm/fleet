@@ -469,7 +469,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	tm, err := ds.Team(ctx, team1.ID)
+	tm, err := ds.TeamWithExtras(ctx, team1.ID) // TODO replace with TeamLite (will require a new save DS method)
 	require.NoError(t, err)
 	require.NotNil(t, tm)
 	require.False(t, tm.Config.MDM.EnableDiskEncryption)

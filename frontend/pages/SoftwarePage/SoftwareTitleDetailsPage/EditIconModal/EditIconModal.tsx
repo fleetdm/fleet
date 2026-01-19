@@ -1,14 +1,26 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import { noop } from "lodash";
+
+import {
+  IAppStoreApp,
+  isIpadOrIphoneSoftwareSource,
+  ISoftwarePackage,
+  InstallerType,
+} from "interfaces/software";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import { INotification } from "interfaces/notification";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import FileUploader from "components/FileUploader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
@@ -16,16 +28,14 @@ import Card from "components/Card";
 import Button from "components/buttons/Button";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TableCount from "components/TableContainer/TableCount";
-import CardHeader from "components/CardHeader";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
 
 import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
-import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfService/SelfService";
+import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
+import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
 
 import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
-import PreviewSelfServiceIcon from "../../../../../assets/images/preview-self-service-icon.png";
 
 const baseClass = "edit-icon-modal";
 
@@ -58,9 +68,15 @@ const makeFileDetails = (
   description: `Software icon • ${dimensions || "?"}x${dimensions || "?"} px`,
 });
 
-interface IIconFormData {
+interface IFormData {
   icon: File;
+  display_name?: string;
 }
+
+export interface ISoftwareDisplayNameFormData {
+  displayName?: string; // Edit Display name is in the edit icon modal
+}
+
 interface IFileDetails {
   name: string;
   description: string;
@@ -84,7 +100,7 @@ type IconStatus = "customUpload" | "apiCustom" | "fallback";
  */
 interface IconState {
   previewUrl: string | null;
-  formData: IIconFormData | null;
+  formData: IFormData | null;
   dimensions: number | null;
   fileDetails: IFileDetails | null;
   status: IconStatus;
@@ -109,14 +125,17 @@ interface IEditIconModalProps {
   iconUploadedAt: string;
   /** Updates the icon upload timestamp, triggering UI refetches to ensure a new custom icon appears called after successful icon update. */
   setIconUploadedAt: (timestamp: string) => void;
-  installerType: "package" | "vpp";
+  installerType: InstallerType;
   previewInfo: {
     type?: string;
     versions?: number;
+    selfServiceVersion?: string;
     source?: string;
     currentIconUrl: string | null;
     /** Name used in preview UI but also for FMA default icon matching */
     name: string;
+    /** Default title name used to check if name has been modified */
+    titleName: string;
     countsUpdatedAt?: string;
   };
 }
@@ -132,19 +151,28 @@ const EditIconModal = ({
   installerType,
   previewInfo,
 }: IEditIconModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
 
   const isSoftwarePackage = installerType === "package";
+  const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
+    previewInfo?.source || ""
+  );
 
   // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
     !!previewInfo.currentIconUrl &&
     previewInfo.currentIconUrl.startsWith("/api/");
 
-  // Encapsulates icon preview/upload/edit state
+  // Unmodified names default to empty Display name field
+  const hasNameBeenModified = previewInfo.titleName !== previewInfo.name;
+  const defaultName = hasNameBeenModified ? previewInfo.name : "";
+
+  // Encapsulates software name and icon preview/upload/edit state
+  const [displayName, setDisplayName] = useState(defaultName);
   const [iconState, setIconState] = useState<IconState>(defaultIconState);
   const [previewTabIndex, setPreviewTabIndex] = useState(0);
-  const [isUpdatingIcon, setIsUpdatingIcon] = useState(false);
+  const [isUpdatingSoftwareInfo, setIsUpdatingSoftwareInfo] = useState(false);
   /** Shows loading spinner only if a custom icon and its information is loading from API */
   const [isFirstLoadWithCustomIcon, setIsFirstLoadWithCustomIcon] = useState(
     shouldFetchCustomIcon
@@ -162,20 +190,28 @@ const EditIconModal = ({
     iconState.status === "fallback" &&
     !iconState.formData;
   const canSaveIcon = isCustomUpload || isRemovedCustom;
+  // Determine if any changes have been made to allow enabling Save button
+  const canSaveDisplayName =
+    (hasNameBeenModified && displayName === "") || // user cleared an override display name
+    (!hasNameBeenModified && displayName !== "") || // user set an override display name
+    (hasNameBeenModified &&
+      displayName !== "" &&
+      displayName !== previewInfo.name); // user changed override display name
+  // Ensures Save button is only enabled when icon or name has been changed
+  const canSaveForm = canSaveIcon || canSaveDisplayName;
 
   // Sets state after fetching current API custom icon
-  const setCurrentApiCustomIcon = (
-    file: File,
-    width: number,
-    previewUrl: string
-  ) =>
-    setIconState({
-      previewUrl,
-      formData: { icon: file },
-      dimensions: width,
-      fileDetails: makeFileDetails(file, width),
-      status: "apiCustom",
-    });
+  const setCurrentApiCustomIcon = useCallback(
+    (file: File, width: number, previewUrl: string) =>
+      setIconState({
+        previewUrl,
+        formData: { icon: file, display_name: displayName },
+        dimensions: width,
+        fileDetails: makeFileDetails(file, width),
+        status: "apiCustom",
+      }),
+    [displayName]
+  );
 
   // Sets state after a successful new custom file upload
   const setCustomUpload = (file: File, width: number, previewUrl: string) =>
@@ -227,6 +263,19 @@ const EditIconModal = ({
   const onExitEditIconModal = () => {
     resetIconState(); // Ensure cached state is cleared
     onExit();
+  };
+
+  const onInputChange = ({ value }: IInputFieldParseTarget) => {
+    setDisplayName((value as string) || "");
+    // If you want live update in the formData:
+    setIconState((prev) =>
+      prev.formData
+        ? {
+            ...prev,
+            formData: { ...prev.formData, display_name: value as string },
+          }
+        : prev
+    );
   };
 
   const onFileSelect = (files: FileList | null) => {
@@ -326,6 +375,8 @@ const EditIconModal = ({
     shouldFetchCustomIcon,
     iconState.previewUrl,
     previewInfo.currentIconUrl,
+    originalIsVpp,
+    setCurrentApiCustomIcon,
   ]);
 
   const fileDetails =
@@ -359,8 +410,8 @@ const EditIconModal = ({
           className={`${baseClass}__preview-card__fleet`}
         >
           <SoftwareDetailsSummary
-            title={name}
-            name={name}
+            displayName={displayName || previewInfo.titleName}
+            name={previewInfo.titleName}
             type={type}
             source={source}
             iconUrl={
@@ -424,62 +475,102 @@ const EditIconModal = ({
     );
   };
 
+  /**
+   * Preview matches preview in Edit Software modal > Categories End User Experience modal
+   * Non-mobile preview:
+   * - uses HTML/CSS instead for maintainability as the self-service UI changes
+   * - dynamic name/icon
+   *
+   * Mobile preview modal:
+   * - uses a screenshot
+   * - dynamic name/icon/version
+   */
+
   const renderPreviewSelfServiceCard = () => (
-    <Card
-      borderRadiusSize="medium"
-      color="grey"
-      className={`${baseClass}__preview-card`}
-      paddingSize="xlarge"
-    >
-      <Card
-        className={`${baseClass}__preview-card__self-service`}
-        borderRadiusSize="xxlarge"
-      >
-        <CardHeader header="Self-service" subheader={SELF_SERVICE_SUBHEADER} />
-        <div className={`${baseClass}__preview-img-container`}>
+    <SelfServicePreview
+      isIosOrIpadosApp={isIosOrIpadosApp}
+      contactUrl={config?.org_info.contact_url || ""}
+      name={previewInfo.name}
+      displayName={displayName || previewInfo.titleName}
+      versionLabel={
+        "latest_version" in software
+          ? software.latest_version
+          : software.version ||
+            previewInfo.selfServiceVersion ||
+            "Version (unknown)"
+      }
+      renderIcon={() =>
+        iconState.previewUrl && isSafeImagePreviewUrl(iconState.previewUrl) ? (
           <img
-            className={`${baseClass}__preview-img`}
-            src={PreviewSelfServiceIcon}
-            alt="Preview icon on Fleet Desktop > Self-service"
+            src={iconState.previewUrl}
+            alt="Uploaded self-service icon"
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "4px",
+              overflow: "hidden",
+            }}
           />
-        </div>
-        <div className={`${baseClass}__self-service-preview`}>
-          {iconState.previewUrl &&
-          isSafeImagePreviewUrl(iconState.previewUrl) ? (
-            <img
-              src={iconState.previewUrl}
-              alt="Uploaded self-service icon"
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: "4px",
-                overflow: "hidden",
-              }}
-            />
-          ) : (
-            // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
-            // is set as VPP icon is not returned by the API if a custom icon is returned
-            <SoftwareIcon
-              name={previewInfo.name}
-              source={previewInfo.source}
-              url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
-              uploadedAt={iconUploadedAt}
-            />
-          )}
-          <div className={`${baseClass}__self-service-preview-name`}>
-            <TooltipTruncatedText value={previewInfo.name} />
-          </div>
-        </div>
-      </Card>
-      <div
-        className={`${baseClass}__mask-overlay ${baseClass}__mask-overlay--self-service`}
-      />
-    </Card>
+        ) : (
+          <SoftwareIcon
+            name={previewInfo.name}
+            source={previewInfo.source}
+            url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
+            uploadedAt={iconUploadedAt}
+          />
+        )
+      }
+      renderTable={() => (
+        <BasicSoftwareTable
+          name={displayName || previewInfo.titleName}
+          displayName={displayName || previewInfo.titleName}
+          source={previewInfo.source}
+          iconUrl={isSoftwarePackage ? undefined : software.icon_url}
+          previewIcon={
+            iconState.previewUrl &&
+            isSafeImagePreviewUrl(iconState.previewUrl) ? (
+              <img
+                src={iconState.previewUrl}
+                alt="Uploaded self-service icon"
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                }}
+              />
+            ) : (
+              <SoftwareIcon
+                name={previewInfo.titleName}
+                source={previewInfo.source}
+                url={isSoftwarePackage ? undefined : software.icon_url}
+                uploadedAt={iconUploadedAt}
+              />
+            )
+          }
+        />
+      )}
+    />
   );
 
   const renderForm = () => (
     <>
+      <InputField
+        label="Display name"
+        onChange={onInputChange}
+        name="displayName"
+        value={displayName}
+        parseTarget
+        helpText={
+          <>
+            Optional. If left blank, Fleet will use{" "}
+            <strong>{previewInfo.titleName}</strong>.
+          </>
+        }
+        autofocus
+      />
       <FileUploader
+        label="Icon"
         canEdit
         onDeleteFile={onDeleteFile}
         graphicName="file-png"
@@ -511,44 +602,124 @@ const EditIconModal = ({
   );
 
   const onClickSave = async () => {
-    setIsUpdatingIcon(true);
+    setIsUpdatingSoftwareInfo(true);
+    const notifications: INotification[] = [];
+    let iconSucceeded = false;
+    let nameSucceeded = false;
+    let iconSuccessMessage: React.ReactElement | null = null;
+    let nameSuccessMessage: React.ReactElement | null = null;
+
     try {
-      if (!iconState.formData?.icon) {
-        await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
-        renderFlash(
-          "success",
-          <>
-            Successfully removed icon from <b>{software?.name}</b>.
-          </>
-        );
-      } else {
-        await softwareAPI.editSoftwareIcon(
-          softwareId,
-          teamIdForApi,
-          iconState.formData
-        );
-        renderFlash(
-          "success",
-          <>
-            Successfully edited <b>{previewInfo.name}</b>.
-          </>
-        );
+      try {
+        if (
+          iconState.status === "fallback" &&
+          originalIsApiCustom &&
+          !iconState.formData?.icon
+        ) {
+          await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+          iconSucceeded = true;
+          iconSuccessMessage = (
+            <>
+              Successfully removed icon from <b>{software?.name}</b>.
+            </>
+          );
+        } else if (iconState.status === "customUpload" && iconState.formData) {
+          await softwareAPI.editSoftwareIcon(
+            softwareId,
+            teamIdForApi,
+            iconState.formData
+          );
+          iconSucceeded = true;
+          iconSuccessMessage = (
+            <>
+              Successfully edited <b>{previewInfo.name}</b>.
+            </>
+          );
+        }
+      } catch (e) {
+        const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
+        notifications.push({
+          id: "icon-error",
+          alertType: "error",
+          isVisible: true,
+          message: errorMessage,
+          persistOnPageChange: false,
+        });
       }
-      refetchSoftwareTitle();
-      setIconUploadedAt(new Date().toISOString());
-      onExitEditIconModal();
+
+      if (canSaveDisplayName) {
+        try {
+          const trimmedDisplayName = (displayName ?? "").trim();
+          await (installerType === "package"
+            ? softwareAPI.editSoftwarePackage({
+                data: { displayName: trimmedDisplayName },
+                softwareId,
+                teamId: teamIdForApi,
+              })
+            : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
+                displayName: trimmedDisplayName,
+              }));
+          nameSucceeded = true;
+          nameSuccessMessage =
+            trimmedDisplayName === "" ? (
+              <>
+                Successfully removed custom name for <b>{previewInfo.name}</b>.
+              </>
+            ) : (
+              <>
+                Successfully renamed <b>{previewInfo.name}</b> to{" "}
+                <b>{trimmedDisplayName}</b>.
+              </>
+            );
+        } catch (e) {
+          const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
+          notifications.push({
+            id: "name-error",
+            alertType: "error",
+            isVisible: true,
+            message: errorMessage,
+            persistOnPageChange: false,
+          });
+        }
+      }
+
+      if (notifications.length > 0) {
+        renderMultiFlash({ notifications });
+      } else if (iconSucceeded && nameSucceeded) {
+        // Both changed - show generic message to avoid double toast
+        renderFlash(
+          "success",
+          <>
+            Successfully edited{" "}
+            <b>{displayName === "" ? previewInfo.name : displayName}</b>.
+          </>
+        );
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
+      } else if (iconSucceeded && iconSuccessMessage) {
+        renderFlash("success", iconSuccessMessage);
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
+      } else if (nameSucceeded && nameSuccessMessage) {
+        renderFlash("success", nameSuccessMessage);
+        refetchSoftwareTitle();
+        setIconUploadedAt(new Date().toISOString());
+        onExitEditIconModal();
+      }
     } catch (e) {
       const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
       renderFlash("error", errorMessage);
     } finally {
-      setIsUpdatingIcon(false);
+      setIsUpdatingSoftwareInfo(false);
     }
   };
 
   return (
     <Modal
       className={baseClass}
-      title={isSoftwarePackage ? "Edit package" : "Edit app"}
+      title="Edit appearance"
       onExit={onExitEditIconModal}
     >
       <>
@@ -562,8 +733,8 @@ const EditIconModal = ({
             <Button
               type="submit"
               onClick={onClickSave}
-              isLoading={isUpdatingIcon}
-              disabled={!canSaveIcon || isUpdatingIcon}
+              isLoading={isUpdatingSoftwareInfo}
+              disabled={!canSaveForm || isUpdatingSoftwareInfo}
             >
               Save
             </Button>

@@ -28,11 +28,11 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -41,7 +41,8 @@ import (
 )
 
 func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
-	cfg := testing_utils.MysqlTestConfig(testName)
+	commonCfg := testing_utils.MysqlTestConfig(testName)
+	cfg := fromCommonMysqlConfig(commonCfg)
 
 	// Create datastore client
 	var replicaOpt DBOption
@@ -354,7 +355,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 	replica, err := NewDB(&replicaConfig, options)
 	require.NoError(t, err)
 	ds.replica = replica
-	ds.readReplicaConfig = &replicaConfig
+	ds.readReplicaConfig = toCommonMysqlConfig(&replicaConfig)
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in
@@ -408,13 +409,29 @@ func CreateMySQLDS(t testing.TB) *Datastore {
 }
 
 func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
+	ds, _ := CreateNamedMySQLDSWithConns(t, name)
+	return ds
+}
+
+// CreateNamedMySQLDSWithConns creates a MySQL datastore and returns both the datastore
+// and the underlying database connections. This matches the production flow where
+// DBConnections are created first and shared across datastores.
+func CreateNamedMySQLDSWithConns(t *testing.T, name string) (*Datastore, *common_mysql.DBConnections) {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
 
 	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
-	return ds
+
+	replica, ok := ds.replica.(*sqlx.DB)
+	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
+	dbConns := &common_mysql.DBConnections{
+		Primary: ds.primary,
+		Replica: replica,
+	}
+
+	return ds, dbConns
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
@@ -445,6 +462,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"mdm_operation_types":              true,
 		"migration_status_tables":          true,
 		"osquery_options":                  true,
+		"software_categories":              true,
 	}
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
@@ -537,7 +555,7 @@ func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileCon
 }
 
 func generateDummyWindowsProfile(uuid string) []byte {
-	return []byte(fmt.Sprintf(`<Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace>`, uuid))
+	return fmt.Appendf([]byte{}, `<Atomic><Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace></Atomic>`, uuid)
 }
 
 // TODO(roberto): update when we have datastore functions and API methods for this

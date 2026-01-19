@@ -8,12 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,45 +26,6 @@ func (a ActivityTypeTest) ActivityName() string {
 
 func (a ActivityTypeTest) Documentation() (activity string, details string, detailsExample string) {
 	return "test_activity", "test_activity", "test_activity"
-}
-
-func TestListActivities(t *testing.T) {
-	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
-
-	globalUsers := []*fleet.User{test.UserAdmin, test.UserMaintainer, test.UserObserver, test.UserObserverPlus}
-	teamUsers := []*fleet.User{test.UserTeamAdminTeam1, test.UserTeamMaintainerTeam1, test.UserTeamObserverTeam1}
-
-	ds.ListActivitiesFunc = func(ctx context.Context, opts fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-		return []*fleet.Activity{
-			{ID: 1},
-			{ID: 2},
-		}, nil, nil
-	}
-
-	// any global user can read activities
-	for _, u := range globalUsers {
-		activities, _, err := svc.ListActivities(test.UserContext(ctx, u), fleet.ListActivitiesOptions{})
-		require.NoError(t, err)
-		require.Len(t, activities, 2)
-	}
-
-	// team users cannot read activities
-	for _, u := range teamUsers {
-		_, _, err := svc.ListActivities(test.UserContext(ctx, u), fleet.ListActivitiesOptions{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
-	}
-
-	// user with no roles cannot read activities
-	_, _, err := svc.ListActivities(test.UserContext(ctx, test.UserNoRoles), fleet.ListActivitiesOptions{})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
-
-	// no user in context
-	_, _, err = svc.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }
 
 func Test_logRoleChangeActivities(t *testing.T) {
@@ -164,7 +123,7 @@ func Test_logRoleChangeActivities(t *testing.T) {
 func TestActivityWebhooks(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
-	var webhookBody = ActivityWebhookPayload{}
+	var webhookBody = fleet.ActivityWebhookPayload{}
 	webhookChannel := make(chan struct{}, 1)
 	fail429 := false
 	startMockServer := func(t *testing.T) string {
@@ -172,7 +131,7 @@ func TestActivityWebhooks(t *testing.T) {
 		srv := httptest.NewServer(
 			http.HandlerFunc(
 				func(w http.ResponseWriter, r *http.Request) {
-					webhookBody = ActivityWebhookPayload{}
+					webhookBody = fleet.ActivityWebhookPayload{}
 					if r.Method != "POST" {
 						w.WriteHeader(http.StatusMethodNotAllowed)
 						return // don't send the channel signal

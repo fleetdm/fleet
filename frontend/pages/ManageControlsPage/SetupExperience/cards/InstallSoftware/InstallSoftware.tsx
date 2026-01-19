@@ -27,7 +27,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 
 import AddInstallSoftware from "./components/AddInstallSoftware";
@@ -48,6 +48,7 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "linux",
   "ios",
   "ipados",
+  "android",
 ];
 export interface InstallSoftwareLocation {
   search: string;
@@ -140,12 +141,12 @@ const InstallSoftware = ({
     teamConfig
   );
 
+  const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
+
+  const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
+
   const renderTabContent = (platform: SetupExperiencePlatform) => {
-    if (
-      isLoadingSoftwareTitles ||
-      isLoadingGlobalConfig ||
-      isLoadingTeamConfig
-    ) {
+    if (isLoadingSoftwareTitles) {
       return <Spinner />;
     }
 
@@ -169,10 +170,11 @@ const InstallSoftware = ({
 
       if (turnOnMdm) {
         return (
-          <TurnOnMdmMessage
+          <GenericMsgWithNavButton
             header="Additional configuration required"
             info="To customize, first turn on automatic enrollment."
             buttonText="Turn on"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
             router={router}
           />
         );
@@ -210,35 +212,44 @@ const InstallSoftware = ({
           />
         }
       />
-      <TabNav secondary>
-        <Tabs
-          selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
-          onSelect={handleTabChange}
-        >
-          <TabList>
-            <Tab>
-              <TabText>macOS</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Windows</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Linux</TabText>
-            </Tab>
-            <Tab>
-              <TabText>iOS</TabText>
-            </Tab>
-            <Tab>
-              <TabText>iPadOS</TabText>
-            </Tab>
-          </TabList>
-          {PLATFORM_BY_INDEX.map((platform) => {
-            return (
-              <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
-            );
-          })}
-        </Tabs>
-      </TabNav>
+      {isLoadingConfig ? (
+        <Spinner />
+      ) : (
+        <TabNav secondary>
+          <Tabs
+            selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
+            onSelect={handleTabChange}
+          >
+            <TabList>
+              <Tab>
+                <TabText>macOS</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Windows</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Linux</TabText>
+              </Tab>
+              <Tab>
+                <TabText>iOS</TabText>
+              </Tab>
+              <Tab>
+                <TabText>iPadOS</TabText>
+              </Tab>
+              {isAndroidMdmEnabled && (
+                <Tab>
+                  <TabText>Android</TabText>
+                </Tab>
+              )}
+            </TabList>
+            {PLATFORM_BY_INDEX.map((platform) => {
+              return (
+                <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
+              );
+            })}
+          </Tabs>
+        </TabNav>
+      )}
       {showSelectSoftwareModal && softwareTitles && (
         <SelectSoftwareModal
           currentTeamId={currentTeamId}

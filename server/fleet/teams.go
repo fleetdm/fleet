@@ -94,6 +94,31 @@ type Team struct {
 	Secrets []*EnrollSecret `json:"secrets,omitempty"`
 }
 
+// TeamLite is a subset of Team that only includes columns in the Team table
+type TeamLite struct {
+	// ID is the database ID.
+	ID       uint    `json:"id" db:"id"`
+	Filename *string `json:"gitops_filename,omitempty" db:"filename"`
+	// CreatedAt is the timestamp of the label creation.
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// Name is the human friendly name of the team.
+	Name string `json:"name" db:"name"`
+	// Description is an optional description for the team.
+	Description string         `json:"description" db:"description"`
+	Config      TeamConfigLite `json:"-" db:"config"`
+}
+
+func (t *Team) ToTeamLite() *TeamLite {
+	return &TeamLite{
+		ID:          t.ID,
+		Filename:    t.Filename,
+		CreatedAt:   t.CreatedAt,
+		Name:        t.Name,
+		Description: t.Description,
+		Config:      t.Config.ToLite(),
+	}
+}
+
 func (t Team) MarshalJSON() ([]byte, error) {
 	// The reason for not embedding TeamConfig above, is that it also implements sql.Scanner/Valuer.
 	// We do not want it be promoted to the parent struct, because it causes issues when using sqlx for scanning.
@@ -165,14 +190,35 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 
 type TeamConfig struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions       *json.RawMessage      `json:"agent_options,omitempty"`
-	HostExpirySettings HostExpirySettings    `json:"host_expiry_settings"`
-	WebhookSettings    TeamWebhookSettings   `json:"webhook_settings"`
-	Integrations       TeamIntegrations      `json:"integrations"`
-	Features           Features              `json:"features"`
-	MDM                TeamMDM               `json:"mdm"`
-	Scripts            optjson.Slice[string] `json:"scripts,omitempty"`
-	Software           *SoftwareSpec         `json:"software,omitempty"`
+	AgentOptions       *json.RawMessage    `json:"agent_options,omitempty"`
+	HostExpirySettings HostExpirySettings  `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings `json:"webhook_settings"`
+	Integrations       TeamIntegrations    `json:"integrations"`
+	MDM                TeamMDM             `json:"mdm"`
+	// the below aren't serialized as-is into config JSON column in the teams table
+	Features Features              `json:"features"`
+	Scripts  optjson.Slice[string] `json:"scripts,omitempty"`
+	Software *SoftwareSpec         `json:"software,omitempty"`
+}
+
+func (t TeamConfig) ToLite() TeamConfigLite {
+	return TeamConfigLite{
+		AgentOptions:       t.AgentOptions,
+		HostExpirySettings: t.HostExpirySettings,
+		WebhookSettings:    t.WebhookSettings,
+		Integrations:       t.Integrations,
+		MDM:                t.MDM,
+	}
+}
+
+// TeamConfigLite contains only TeamConfig fields that are available as-is from teams.config JSON
+type TeamConfigLite struct {
+	// AgentOptions is the options for osquery and Orbit.
+	AgentOptions       *json.RawMessage    `json:"agent_options,omitempty"`
+	HostExpirySettings HostExpirySettings  `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings `json:"webhook_settings"`
+	Integrations       TeamIntegrations    `json:"integrations"`
+	MDM                TeamMDM             `json:"mdm"`
 }
 
 type TeamWebhookSettings struct {
@@ -220,10 +266,18 @@ type TeamSpecAppStoreApp struct {
 	// is not changed, for compatibility with the old fleetctl apply format
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	Platform           string                `json:"platform"`
+	DisplayName        string                `json:"display_name,omitempty"`
+	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
+	// Auto-update fields for VPP apps
+	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string `json:"auto_update_window_end,omitempty"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
 }
@@ -535,6 +589,14 @@ type TeamFilter struct {
 	// specified, they must met too (e.g. if a User is provided, that team ID
 	// must be part of their teams).
 	TeamID *uint
+}
+
+func (f TeamFilter) UserCanAccessSelectedTeam() bool {
+	if f.TeamID == nil { // this method doesn't make sense if there's no team ID specified
+		return false
+	}
+
+	return f.User.HasAnyGlobalRole() || f.User.HasAnyRoleInTeam(*f.TeamID)
 }
 
 const (

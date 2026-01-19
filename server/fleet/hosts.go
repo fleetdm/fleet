@@ -217,6 +217,9 @@ type HostListOptions struct {
 	// PopulateLabels adds the `Labels` array field to all host responses returned
 	PopulateLabels bool
 
+	// IncludeDeviceStatus adds the `MDM` field with the `device_status` & `pending_action` sub fields to all hosts returned
+	IncludeDeviceStatus bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 
@@ -314,6 +317,9 @@ type Host struct {
 	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
+	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
+	// CSV not exported to not break automations.
+	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
@@ -1057,6 +1063,15 @@ func IsApplePlatform(hostPlatform string) bool {
 	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
+// Return true if the platform is either iOS or iPadOS
+func IsAppleMobilePlatform(hostPlatform string) bool {
+	return hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
+func IsAndroidPlatform(hostPlatform string) bool {
+	return hostPlatform == "android"
+}
+
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
@@ -1175,6 +1190,7 @@ const (
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
 	WellKnownMDMFleet     = "Fleet"
+	WellKnownMDMMosyle    = "Mosyle"
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
@@ -1186,6 +1202,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
 	"fleetdm":   WellKnownMDMFleet,
+	"mosyle":    WellKnownMDMMosyle,
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
@@ -1448,8 +1465,12 @@ type HostSoftwareInstalledPath struct {
 	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
 	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
 	TeamIdentifier string `db:"team_identifier"`
-	// A SHA256 hash of the executable file of the software.
+	// CDHashSHA256 is the SHA256 hash of the code directory of the software bundle as reported on macOS by `codesign --display --verbose=3`. See https://developer.apple.com/documentation/endpointsecurity/es_process_t/cdhash
+	CDHashSHA256 *string `db:"cdhash_sha256"`
+	// ExecutableSHA256 is the SHA256 hash of the executable located at ExecutablePath
 	ExecutableSHA256 *string `db:"executable_sha256"`
+	// ExecutablePath is the path to the executable of the software bundle
+	ExecutablePath *string `db:"executable_path"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
