@@ -16,7 +16,7 @@ import (
 //     X-Real-IP, and leftmost X-Forwarded-For. This is deprecated; use "none" when
 //     exposing the server directly to the internet.
 //   - "none": Ignores all headers, uses only RemoteAddr.
-//   - A header name prefixed with `headher:` (e.g., "header:True-Client-IP"):
+//   - A header name prefixed with `header:` (e.g., "header:True-Client-IP"):
 //     Trust this single-IP header, fall back to RemoteAddr.
 //   - A number (e.g., "2"): Trust X-Forwarded-For with this many proxy hops
 //   - Comma-separated IPs/CIDRs (e.g., "10.0.0.0/8,192.168.0.0/16"):
