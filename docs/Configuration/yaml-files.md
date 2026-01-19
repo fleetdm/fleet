@@ -1,4 +1,4 @@
-# GitOps
+ # GitOps
 
 Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
@@ -142,6 +142,7 @@ policies:
     critical: false
     calendar_events_enabled: false
     conditional_access_enabled: true
+    conditional_access_bypass_enabled: true
     labels_include_any:
       - Engineering
       - Customer Support
@@ -160,6 +161,7 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  conditional_access_bypass_enabled: true
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
