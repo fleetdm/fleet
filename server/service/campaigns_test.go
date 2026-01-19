@@ -47,6 +47,10 @@ func (q nopLiveQuery) IncrQueryResultsCount(uint, int) (int, error) {
 	return 0, nil
 }
 
+func (q nopLiveQuery) SetQueryResultsCount(uint, int) error {
+	return nil
+}
+
 func (q nopLiveQuery) LiveQueryStore() fleet.LiveQueryStore {
 	return q
 }

@@ -1134,6 +1134,7 @@ func newQueryResultsCleanupSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	liveQueryStore fleet.LiveQueryStore,
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1149,7 +1150,17 @@ func newQueryResultsCleanupSchedule(
 				return err
 			}
 			maxRows := appConfig.ServerSettings.GetQueryReportCap()
-			return ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			cleanedQueryIDs, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			if err != nil {
+				return err
+			}
+			// Set Redis counters to maxRows for queries that had excess rows deleted
+			for _, queryID := range cleanedQueryIDs {
+				if err := liveQueryStore.SetQueryResultsCount(queryID, maxRows); err != nil {
+					level.Warn(logger).Log("msg", "failed to set query results count in redis", "query_id", queryID, "err", err)
+				}
+			}
+			return nil
 		}),
 	)
 

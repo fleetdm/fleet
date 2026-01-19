@@ -143,7 +143,8 @@ func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
 // allowed per query. It keeps the most recent rows (by last_fetched) up to the limit.
 // Deletes are batched to avoid large binlogs and long lock times.
 // This runs as a cron job to ensure the query_results table doesn't grow unbounded.
-func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) error {
+// Returns the list of query IDs that had excess rows deleted.
+func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) ([]uint, error) {
 	batchSize := 500
 	if len(opts) > 0 && opts[0].BatchSize > 0 {
 		batchSize = opts[0].BatchSize
@@ -158,9 +159,10 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		WHERE q.discard_data = false AND qr.data IS NOT NULL
 	`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs, selectStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")
+		return nil, ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")
 	}
 
+	var cleanedQueryIDs []uint
 	for _, queryID := range queryIDs {
 		// Find the cutoff ID: the ID of the row at position maxQueryReportRows when ordered by last_fetched DESC.
 		// All rows with id <= this cutoff should be deleted.
@@ -176,7 +178,7 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 				// Fewer rows than the limit, nothing to delete for this query
 				continue
 			}
-			return ctxerr.Wrapf(ctx, err, "finding cutoff ID for query %d", queryID)
+			return nil, ctxerr.Wrapf(ctx, err, "finding cutoff ID for query %d", queryID)
 		}
 
 		// Delete in batches
@@ -188,14 +190,15 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		for {
 			result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryID, cutoffID, batchSize)
 			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "cleaning up excess query results for query %d", queryID)
+				return nil, ctxerr.Wrapf(ctx, err, "cleaning up excess query results for query %d", queryID)
 			}
 			rowsAffected, _ := result.RowsAffected()
 			if rowsAffected == 0 {
 				break
 			}
 		}
+		cleanedQueryIDs = append(cleanedQueryIDs, queryID)
 	}
 
-	return nil
+	return cleanedQueryIDs, nil
 }

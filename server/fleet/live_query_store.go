@@ -29,6 +29,9 @@ type LiveQueryStore interface {
 	// Returns 0 if the key doesn't exist (no results tracked yet).
 	GetQueryResultsCount(queryID uint) (int, error)
 	// IncrQueryResultsCount increments the query results count by the given amount.
-	// If the key is new, sets a TTL of 60 seconds. Returns the new count after incrementing.
+	// Returns the new count after incrementing.
 	IncrQueryResultsCount(queryID uint, amount int) (int, error)
+	// SetQueryResultsCount sets the query results count for a query to a specific value.
+	// Used by the cleanup cron job after deleting excess rows to set the count to the max allowed.
+	SetQueryResultsCount(queryID uint, count int) error
 }

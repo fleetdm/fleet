@@ -1013,7 +1013,7 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(
 				func() (fleet.CronSchedule, error) {
-					return newQueryResultsCleanupSchedule(ctx, instanceID, ds, logger)
+					return newQueryResultsCleanupSchedule(ctx, instanceID, ds, liveQueryStore, logger)
 				},
 			); err != nil {
 				initFatal(err, "failed to register query_results_cleanup schedule")

@@ -70,3 +70,9 @@ func (m *MockLiveQuery) IncrQueryResultsCount(queryID uint, amount int) (int, er
 	args := m.Called(queryID, amount)
 	return args.Int(0), args.Error(1)
 }
+
+// SetQueryResultsCount mocks the live query store SetQueryResultsCount method.
+func (m *MockLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
+	args := m.Called(queryID, count)
+	return args.Error(0)
+}

@@ -571,7 +571,8 @@ type Datastore interface {
 	// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum allowed per query.
 	// It keeps the most recent rows (by last_fetched) up to the limit. This runs as a cron job.
 	// Deletes are batched to avoid large binlogs and long lock times.
-	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) error
+	// Returns the list of query IDs that had excess rows deleted.
+	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

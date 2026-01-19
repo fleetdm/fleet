@@ -68,7 +68,6 @@ const (
 	activeQueriesKey        = "livequery:active"
 	queryExpiration         = 7 * 24 * time.Hour
 	queryResultsCountPrefix = "query_results_count:"
-	queryResultsCountTTL    = 60 // seconds
 )
 
 type redisLiveQuery struct {
@@ -562,27 +561,28 @@ func (r *redisLiveQuery) GetQueryResultsCount(queryID uint) (int, error) {
 }
 
 // IncrQueryResultsCount increments the query results count by the given amount.
-// If the key is new, sets a TTL of 60 seconds. Returns the new count after incrementing.
+// Returns the new count after incrementing.
 func (r *redisLiveQuery) IncrQueryResultsCount(queryID uint, amount int) (int, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	key := queryResultsCountKey(queryID)
-
-	// INCRBY returns the new value after incrementing. If the key didn't exist,
-	// it's created with value 0 before incrementing, so new_value == amount means it was just created.
 	newValue, err := redigo.Int(conn.Do("INCRBY", key, amount))
 	if err != nil {
 		return 0, fmt.Errorf("incrby query results count: %w", err)
 	}
 
-	// If key was just created (new value equals the amount we added), set TTL
-	if newValue == amount {
-		if _, err := conn.Do("EXPIRE", key, queryResultsCountTTL); err != nil {
-			// Log but don't fail - the key will just not expire, which is not critical
-			level.Warn(r.logger).Log("msg", "failed to set TTL on query results count key", "key", key, "err", err)
-		}
+	return newValue, nil
+}
+
+func (r *redisLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	key := queryResultsCountKey(queryID)
+	if _, err := conn.Do("SET", key, count); err != nil {
+		return fmt.Errorf("set query results count: %w", err)
 	}
 
-	return newValue, nil
+	return nil
 }
