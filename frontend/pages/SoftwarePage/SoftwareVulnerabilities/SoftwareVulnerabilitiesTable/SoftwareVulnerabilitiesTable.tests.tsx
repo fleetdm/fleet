@@ -330,7 +330,7 @@ describe("Software Vulnerabilities table", () => {
 
     expect(
       screen.getByText("Exploited vulnerabilities").parentElement?.parentElement
-        ?.parentElement?.parentElement
+        ?.parentElement
     ).toHaveClass("react-select__option--is-disabled");
 
     await waitFor(() => {

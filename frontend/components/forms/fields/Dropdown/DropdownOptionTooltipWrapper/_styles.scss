@@ -15,10 +15,6 @@
     margin: -8px;
     width: 100%;
   }
-  .dropdown-option-tooltip-wrapper__underline {
-    display: inline-block;
-    border-bottom: 1px dashed $ui-fleet-black-50;
-  }
   .react-tooltip {
     @include tooltip-text;
     font-style: normal;
