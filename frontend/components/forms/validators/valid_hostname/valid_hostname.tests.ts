@@ -10,8 +10,8 @@ describe("valid_hostname", () => {
       ["192.168.0.1:9090", true], // IPv4 with port
       ["2001:0db8:85a3:0000:0000:8a2e:0370:7334", true], // IPv6 (no brackets)
       ["[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8080", true], // IPv6 with brackets and port
-      ["localhost", false], // Localhost
-      ["localhost:3000", false], // Localhost with port
+      ["localhost", true], // Localhost
+      ["localhost:3000", true], // Localhost with port
       ["not a valid url!", false], // Gibberish
       ["example.com:", false], // Missing port after colon
       ["example.com:70000", false], // Invalid port number (> 65535)

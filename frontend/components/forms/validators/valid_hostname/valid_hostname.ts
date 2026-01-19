@@ -1,7 +1,8 @@
 import { isFQDN, isIP, isPort } from "validator";
 
 export default (addr: string): boolean => {
-  const isValid = isFQDN(addr) || isIP(addr);
+  const fqdnOpts = { require_tld: false };
+  const isValid = isFQDN(addr, fqdnOpts) || isIP(addr);
 
   // Previous validators will fail with the address includes a port
   // or if its [IPv6] notation
@@ -17,7 +18,7 @@ export default (addr: string): boolean => {
         host = host.slice(1, -1);
       }
 
-      if (isPort(port) && (isFQDN(host) || isIP(host))) {
+      if (isPort(port) && (isFQDN(host, fqdnOpts) || isIP(host))) {
         return true;
       }
     }

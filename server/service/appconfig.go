@@ -1116,7 +1116,7 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 		if alternativeBrowserHostModified {
 			fleetDesktopSettingsInvalidErr.Append("alternative_browser_host", ErrMissingLicense.Error())
 		}
-		// No point in validating that the URLs are valid if the license is not premium
+		// No point in performing further validations if the license is not premium
 		return fleetDesktopSettingsInvalidErr
 	}
 
@@ -1953,9 +1953,6 @@ func isUsableIPAddr(addr net.IP) bool {
 	if addr == nil {
 		return false
 	}
-	if addr.IsLoopback() {
-		return false
-	}
 	if ip4 := addr.To4(); ip4 != nil && ip4.Equal(net.IPv4zero) {
 		return false
 	}
@@ -1968,10 +1965,6 @@ func isUsableIPAddr(addr net.IP) bool {
 // isValidHostname validates that h is a valid hostname per RFC 1123. It allows IP addresses and DNS names.
 func isValidHostname(h string) bool {
 	if h == "" {
-		return false
-	}
-
-	if h == "localhost" {
 		return false
 	}
 

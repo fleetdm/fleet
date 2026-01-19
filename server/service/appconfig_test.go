@@ -1655,26 +1655,26 @@ func TestValidAddress(t *testing.T) {
 		{name: "port without hostname", hostname: "   :9090", expected: false},
 
 		// Valid IPv4 addresses
-		{name: "IPv4 localhost", hostname: "127.0.0.1", expected: false},
+		{name: "IPv4 localhost", hostname: "127.0.0.1", expected: true},
 		{name: "IPv4 address", hostname: "192.168.1.1", expected: true},
 		{name: "IPv4 all zeros", hostname: "0.0.0.0", expected: false},
-		{name: "IPv4 loopback with port", hostname: "127.0.0.1:9090", expected: false},
+		{name: "IPv4 loopback with port", hostname: "127.0.0.1:9090", expected: true},
 
 		// Valid IPv6 addresses
-		{name: "IPv6 localhost", hostname: "::1", expected: false},
+		{name: "IPv6 localhost", hostname: "::1", expected: true},
 		{name: "IPv6 full", hostname: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", expected: true},
 		{name: "IPv6 compressed", hostname: "2001:db8::1", expected: true},
 		{name: "IPv6 all zeros", hostname: "::", expected: false},
 
 		// IPv6 with brackets
-		{name: "IPv6 localhost with brackets", hostname: "[::1]", expected: false},
+		{name: "IPv6 localhost with brackets", hostname: "[::1]", expected: true},
 		{name: "IPv6 with brackets", hostname: "[2001:db8::1]", expected: true},
 		{name: "brackets only", hostname: "[]", expected: false},
 		{name: "empty brackets", hostname: "[", expected: false},
-		{name: "IPv6 iwht brackets with port", hostname: "[::1]:8089", expected: false},
+		{name: "IPv6 locahost brackets with port", hostname: "[::1]:8089", expected: true},
 
 		// Valid DNS hostnames
-		{name: "localhostname", hostname: "localhost", expected: false},
+		{name: "localhostname", hostname: "localhost", expected: true},
 		{name: "hostname with subdomain", hostname: "api.example.com", expected: true},
 		{name: "hostname with multiple subdomains", hostname: "a.b.c.example.com", expected: true},
 		{name: "hostname with numbers", hostname: "server1.example.com", expected: true},
