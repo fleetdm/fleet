@@ -52,7 +52,7 @@ A series of enrollment screens will appear. A briefcase icon appears in the lowe
 
 **TODO: SCREENSHOT**
 
-When enrollment is complete, the Work Profile screens will go away and the end user will be brought back to the web browser with the Fleet enrollment page. **TODO: Can we improve this? It's not 100% clear to end users that the enrollment was successful.**
+When enrollment is complete, the Work Profile screens will go away and the end user will be brought back to the web browser with the Fleet enrollment page.
 
 Open the App Drawer on the home screen (either with the Apps icon, or by swiping up at the home screen), and there will now be a separate tab at the bottom for Work Profile apps. Work profile apps have a briefcase icon in the bottom right corner of their icon.
 
