@@ -392,7 +392,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
 		TeamID:      &team.ID,
-		DisplayName: ptr.String(strings.Repeat(" ", 5))}, http.StatusUnprocessableEntity, "Cannot have a display name that is all whitespace.")
+		DisplayName: ptr.String(strings.Repeat(" ", 5)),
+	}, http.StatusUnprocessableEntity, "Cannot have a display name that is all whitespace.")
 
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
@@ -490,7 +491,6 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 			s.Assert().Empty(t.DisplayName)
 		}
 	}
-
 }
 
 func (s *integrationMDMTestSuite) TestSoftwareTitleCustomIconsPermissions() {
