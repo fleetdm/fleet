@@ -9,12 +9,6 @@ import (
 	"github.com/realclientip/realclientip-go"
 )
 
-// ClientIPStrategy extracts the real client IP from HTTP requests.
-// This interface is compatible with realclientip.Strategy.
-type ClientIPStrategy interface {
-	ClientIP(headers http.Header, remoteAddr string) string
-}
-
 // singleIPHeaderNames are header names that contain a single IP address,
 // typically set by CDNs or reverse proxies.
 var singleIPHeaderNames = map[string]struct{}{
@@ -37,10 +31,10 @@ var singleIPHeaderNames = map[string]struct{}{
 //   - A number (e.g., "2"): Trust X-Forwarded-For with this many proxy hops
 //   - Comma-separated IPs/CIDRs (e.g., "10.0.0.0/8,192.168.0.0/16"):
 //     Trust X-Forwarded-For from requests originating from these proxy ranges.
-func NewClientIPStrategy(trustedProxies string) (ClientIPStrategy, error) {
+func NewClientIPStrategy(trustedProxies string) (realclientip.Strategy, error) {
 	trustedProxies = strings.TrimSpace(trustedProxies)
 
-	var strategy ClientIPStrategy
+	var strategy realclientip.Strategy
 	var err error
 
 	if trustedProxies == "" {
@@ -92,10 +86,10 @@ func NewClientIPStrategy(trustedProxies string) (ClientIPStrategy, error) {
 type legacyStrategy struct{}
 
 func (s *legacyStrategy) ClientIP(headers http.Header, remoteAddr string) string {
-	// Build a minimal http.Request to pass to ExtractIP
+	// Build a minimal http.Request to pass to extractIP
 	r := &http.Request{
 		Header:     headers,
 		RemoteAddr: remoteAddr,
 	}
-	return ExtractIP(r)
+	return extractIP(r)
 }

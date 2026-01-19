@@ -139,7 +139,17 @@ func MakeHandler(
 		}
 	}
 
-	r.Use(publicIPMiddleware(ipStrategy))
+	// Add middleware to extract the client IP and set it in the request context.
+	r.Use(func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
+			if ip != "" {
+				r.RemoteAddr = ip
+			}
+			handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
+		})
+	})
+
 	if eopts.httpSigVerifier != nil {
 		r.Use(eopts.httpSigVerifier)
 	}
@@ -151,18 +161,6 @@ func MakeHandler(
 	addMetrics(r)
 
 	return r
-}
-
-func publicIPMiddleware(strategy endpointer.ClientIPStrategy) mux.MiddlewareFunc {
-	return func(handler http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := strategy.ClientIP(r.Header, r.RemoteAddr)
-			if ip != "" {
-				r.RemoteAddr = ip
-			}
-			handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
-		})
-	}
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
