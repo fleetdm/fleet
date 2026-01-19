@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	automationActivityAuthor = "Fleet"
+	automationActivityAuthor = fleet.ActivityAutomationAuthor
 	deleteIDsBatchSize       = 1000
 )
 
