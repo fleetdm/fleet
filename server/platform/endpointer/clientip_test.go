@@ -2,6 +2,7 @@ package endpointer
 
 import (
 	"net/http"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -243,29 +244,37 @@ func TestClientIPStrategy_SingleIPHeader(t *testing.T) {
 }
 
 func TestClientIPStrategy_HopCount(t *testing.T) {
-	strategy, err := NewClientIPStrategy("2")
-	require.NoError(t, err)
-
 	tests := []struct {
 		name       string
+		hops       int
 		headers    http.Header
 		remoteAddr string
 		wantIP     string
 	}{
 		{
 			name:       "extracts correct IP with 2 hops",
+			hops:       2,
 			headers:    makeHeaders("X-Forwarded-For", "1.1.1.1, 2.2.2.2, 3.3.3.3"),
 			remoteAddr: "9.9.9.9:12345",
 			wantIP:     "2.2.2.2",
 		},
 		{
+			name:       "extracts correct IP with 1 hops",
+			hops:       1,
+			headers:    makeHeaders("X-Forwarded-For", "1.1.1.1, 2.2.2.2, 3.3.3.3"),
+			remoteAddr: "9.9.9.9:12345",
+			wantIP:     "3.3.3.3",
+		},
+		{
 			name:       "falls back to RemoteAddr when header missing",
+			hops:       2,
 			headers:    http.Header{},
 			remoteAddr: "9.9.9.9:12345",
 			wantIP:     "9.9.9.9",
 		},
 		{
 			name:       "falls back to RemoteAddr when hops > header length",
+			hops:       2,
 			headers:    makeHeaders("X-Forwarded-For", "1.1.1.1"),
 			remoteAddr: "9.9.9.9:12345",
 			wantIP:     "9.9.9.9",
@@ -274,6 +283,9 @@ func TestClientIPStrategy_HopCount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			strategy, err := NewClientIPStrategy(strconv.Itoa(tt.hops))
+			require.NoError(t, err)
+
 			ip := strategy.ClientIP(tt.headers, tt.remoteAddr)
 			assert.Equal(t, tt.wantIP, ip)
 		})
