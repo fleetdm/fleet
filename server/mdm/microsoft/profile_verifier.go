@@ -63,7 +63,6 @@ func LoopOverExpectedHostProfiles(
 		expectedProf.RawProfile = []byte(processedContent)
 
 		// We can ignore wrapping the profile with <Atomic> for SCEP profiles here, as we later fully verify any SCEP profile by looking for a certain string
-		// So failing to parse it is okay for us.
 		cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(expectedProf.RawProfile)
 		if err != nil {
 			return fmt.Errorf("unmarshalling profile %s: %w", expectedProf.Name, err)
