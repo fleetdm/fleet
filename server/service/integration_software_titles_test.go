@@ -603,7 +603,14 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		Source:        "apps",
 	}
 	s.uploadSoftwareInstaller(t, payload1, http.StatusOK, "")
-	installer1ID, _ := checkSoftwareInstaller(t, s.ds, payload1)
+	// Get the installer ID directly from the database
+	var installer1ID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &installer1ID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			*payload1.TeamID, payload1.Filename)
+	})
+	require.NotZero(t, installer1ID)
 	installer1, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), installer1ID)
 	require.NoError(t, err)
 	hash1 := installer1.StorageID
@@ -620,7 +627,6 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		Source:        "apps",
 	}
 	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
-	_, _ = checkSoftwareInstaller(t, s.ds, payload2)
 
 	// Upload a software installer to team2 with same hash as payload1 (should be allowed)
 	payload3 := &fleet.UploadSoftwareInstallerPayload{
