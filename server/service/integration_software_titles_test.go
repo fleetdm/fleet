@@ -697,12 +697,12 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 
 	// Test 7: Filter by hash_sha256 without team_id - should return error
 	var resp7 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusBadRequest, &resp7,
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusUnprocessableEntity, &resp7,
 		"hash_sha256", hash1)
 
 	// Test 8: Filter by package_name without team_id - should return error
 	var resp8 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusBadRequest, &resp8,
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusUnprocessableEntity, &resp8,
 		"package_name", "dummy_installer.pkg")
 
 	// Test 9: Filter by hash_sha256 with available_for_install=true
