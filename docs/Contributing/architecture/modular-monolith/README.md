@@ -109,6 +109,8 @@ ACLs are temporary by design. Once the dependency exposes a clean public API tha
 Location: `/server/acl/{context}acl/`
 
 ```go
+// FleetServiceAdapter is an anti-corruption layer that translates between
+// the legacy Fleet user types and the activity bounded context's domain types.
 type FleetServiceAdapter struct {
     svc fleet.UserLookupService  // External dependency
 }
