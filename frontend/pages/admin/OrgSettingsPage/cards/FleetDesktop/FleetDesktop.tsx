@@ -109,7 +109,10 @@ const FleetDesktop = ({
       <PageDescription
         variant="right-panel"
         content={
-          <>Customize the default transparency URL and browser host to customize Fleet Desktop experience.</>
+          <>
+            Customize the default transparency URL and browser host to customize
+            Fleet Desktop experience.
+          </>
         }
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
