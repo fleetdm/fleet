@@ -489,7 +489,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 
 	// If the query was modified in a way that requires discarding results,
 	// reset the Redis count as well.
-	if shouldDiscardQueryResults {
+	if shouldDiscardQueryResults && svc.liveQueryStore != nil {
 		err = svc.liveQueryStore.SetQueryResultsCount(query.ID, 0)
 		if err != nil {
 			logging.WithExtras(ctx, "err", err, "query_id", query.ID)
