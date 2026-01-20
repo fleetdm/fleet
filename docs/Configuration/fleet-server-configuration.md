@@ -3159,9 +3159,9 @@ The number of days the signed SCEP client certificates will be valid.
 
 ### mdm.apple_scep_signer_allow_renewal_days
 
-The number of days allowed to renew SCEP certificates.
+The number of days Fleet renews SCEP certificates before they expire.
 
-- Default value: 14
+- Default value: 180
 - Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS`
 - Config file format:
   ```yaml
