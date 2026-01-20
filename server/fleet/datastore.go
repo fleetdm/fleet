@@ -569,10 +569,10 @@ type Datastore interface {
 	// after DiscardData was set to true due to query caching.
 	CleanupDiscardedQueryResults(ctx context.Context) error
 	// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum allowed per query.
-	// It keeps the most recent rows (by last_fetched) up to the limit. This runs as a cron job.
-	// Deletes are batched to avoid large binlogs and long lock times.
-	// Returns the list of query IDs that had excess rows deleted.
-	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) ([]uint, error)
+	// It keeps the most recent rows (by id, which correlates with insert order) up to the limit.
+	// Deletes are batched to avoid large binlogs and long lock times. This runs as a cron job.
+	// Returns a map of query IDs to their current row count after cleanup (for syncing Redis counters).
+	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

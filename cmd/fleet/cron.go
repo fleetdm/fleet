@@ -1150,13 +1150,13 @@ func newQueryResultsCleanupSchedule(
 				return err
 			}
 			maxRows := appConfig.ServerSettings.GetQueryReportCap()
-			cleanedQueryIDs, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
 			if err != nil {
 				return err
 			}
-			// Set Redis counters to maxRows for queries that had excess rows deleted
-			for _, queryID := range cleanedQueryIDs {
-				if err := liveQueryStore.SetQueryResultsCount(queryID, maxRows); err != nil {
+			// Sync Redis counters to actual database row counts
+			for queryID, count := range queryCounts {
+				if err := liveQueryStore.SetQueryResultsCount(queryID, count); err != nil {
 					level.Warn(logger).Log("msg", "failed to set query results count in redis", "query_id", queryID, "err", err)
 				}
 			}

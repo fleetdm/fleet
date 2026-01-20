@@ -140,11 +140,11 @@ func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
 }
 
 // CleanupExcessQueryResultRows deletes query result rows that exceed the maximum
-// allowed per query. It keeps the most recent rows (by last_fetched) up to the limit.
+// allowed per query. It keeps the most recent rows (by id, which correlates with insert order) up to the limit.
 // Deletes are batched to avoid large binlogs and long lock times.
 // This runs as a cron job to ensure the query_results table doesn't grow unbounded.
-// Returns the list of query IDs that had excess rows deleted.
-func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) ([]uint, error) {
+// Returns a map of query IDs to their current row count after cleanup (for syncing Redis counters).
+func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error) {
 	batchSize := 500
 	// Allow overriding the batch size mainly for tests.
 	if len(opts) > 0 && opts[0].BatchSize > 0 {
@@ -163,23 +163,30 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		return nil, ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")
 	}
 
-	var cleanedQueryIDs []uint
+	queryCounts := make(map[uint]int)
 	for _, queryID := range queryIDs {
-		// Find the cutoff ID: the ID of the row at position maxQueryReportRows when ordered by last_fetched DESC.
-		// All rows with id <= this cutoff should be deleted.
+		// Find the cutoff ID: the row at position maxQueryReportRows when ordered by id DESC.
+		// Since we only do deletes + inserts (no updates), higher ID = more recently inserted.
+		// Rows with id <= cutoff should be deleted.
 		var cutoffID uint
 		cutoffStmt := `
 			SELECT id FROM query_results
 			WHERE query_id = ? AND data IS NOT NULL
-			ORDER BY last_fetched DESC
+			ORDER BY id DESC
 			LIMIT 1 OFFSET ?
 		`
 		if err := sqlx.GetContext(ctx, ds.reader(ctx), &cutoffID, cutoffStmt, queryID, maxQueryReportRows); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				// Fewer rows than the limit, nothing to delete for this query
+				// Still get the count to sync Redis
+				count, err := ds.ResultCountForQuery(ctx, queryID)
+				if err != nil {
+					return nil, ctxerr.Wrapf(ctx, err, "counting rows for query %d", queryID)
+				}
+				queryCounts[queryID] = count
 				continue
 			}
-			return nil, ctxerr.Wrapf(ctx, err, "finding cutoff ID for query %d", queryID)
+			return nil, ctxerr.Wrapf(ctx, err, "finding cutoff for query %d", queryID)
 		}
 
 		// Delete in batches
@@ -198,8 +205,14 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 				break
 			}
 		}
-		cleanedQueryIDs = append(cleanedQueryIDs, queryID)
+
+		// Get actual count after cleanup to sync Redis
+		count, err := ds.ResultCountForQuery(ctx, queryID)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "counting rows after cleanup for query %d", queryID)
+		}
+		queryCounts[queryID] = count
 	}
 
-	return cleanedQueryIDs, nil
+	return queryCounts, nil
 }
