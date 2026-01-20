@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -2398,6 +2399,10 @@ software:
     - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
       icon:
         path: %s/testdata/gitops/lib/icon.png
+  fleet_maintained_apps:
+    - slug: foo/darwin
+      icon:
+        path: %s/testdata/gitops/lib/icon.png
 `
 
 		teamTemplate = `
@@ -2405,6 +2410,10 @@ controls:
 software:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      icon:
+        path: %s/testdata/gitops/lib/icon.png
+  fleet_maintained_apps:
+    - slug: foo/darwin
       icon:
         path: %s/testdata/gitops/lib/icon.png
 queries:
@@ -2416,13 +2425,11 @@ team_settings:
 `
 	)
 
-	// Get the path to the directory of this test file
+	// Get the absolute path to the directory of this test file
 	_, currentFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "failed to get runtime caller info")
 	dirPath := filepath.Dir(currentFile)
-	// Resolve ../../fleetctl relative to the source file directory
 	dirPath = filepath.Join(dirPath, "../../fleetctl")
-	// Clean and convert to absolute path
 	dirPath, err := filepath.Abs(filepath.Clean(dirPath))
 	require.NoError(t, err)
 
@@ -2435,7 +2442,7 @@ team_settings:
 
 	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = fmt.Fprintf(noTeamFile, noTeamTemplate, dirPath)
+	_, err = fmt.Fprintf(noTeamFile, noTeamTemplate, dirPath, dirPath)
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
@@ -2446,7 +2453,7 @@ team_settings:
 	teamName := uuid.NewString()
 	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = fmt.Fprintf(teamFile, teamTemplate, dirPath, teamName)
+	_, err = fmt.Fprintf(teamFile, teamTemplate, dirPath, dirPath, teamName)
 	require.NoError(t, err)
 	err = teamFile.Close()
 	require.NoError(t, err)
@@ -2455,50 +2462,99 @@ team_settings:
 	t.Setenv("FLEET_URL", s.Server.URL)
 	testing_utils.StartSoftwareInstallerServer(t)
 
-	// TODO(JK): test fleet_maintained_apps with a mock fma server
-	// like in TestAddFleetMaintainedApp
-	// maintained_apps.SyncApps(t, s.DS)
+	// Mock server to serve fleet maintained app installer
+	installerBytes := []byte("foo")
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(installerBytes)
+	}))
+	defer installerServer.Close()
+
+	// Mock server to serve fleet maintained app manifest
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "6.0",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       installerServer.URL + "/foo.pkg",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             "no_check", // See ma.noCheckHash
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			VALUES ('foo', 'foo/darwin', 'darwin', 'com.example.foo')`)
+		return err
+	})
 
 	// Apply configs
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}))
 
-	// get the team ID
+	// Get the team ID
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
 
-	// Verify custom icon for no team
+	// Verify titles were added for no team
 	noTeamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)},
 		fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
-	require.Len(t, noTeamTitles, 1)
+	fmt.Println("noTeamTitles: ", noTeamTitles)
+	require.Len(t, noTeamTitles, 2)
 	require.NotNil(t, noTeamTitles[0].SoftwarePackage)
-	noTeamTitleID := noTeamTitles[0].ID
+	require.NotNil(t, noTeamTitles[1].SoftwarePackage)
+	noTeamTitleIDs := []uint{noTeamTitles[0].ID, noTeamTitles[1].ID}
 
 	// Verify the custom icon is stored in the database for no team
-	var noTeamIconFilename string
+	var noTeamIconFilenames []string
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &noTeamIconFilename,
-			"SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id = ?",
-			0, noTeamTitleID)
+		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", 0, noTeamTitleIDs)
+		if err != nil {
+			return err
+		}
+		return sqlx.SelectContext(ctx, q, &noTeamIconFilenames, stmt, args...)
 	})
-	require.Equal(t, "icon.png", noTeamIconFilename)
+	require.Len(t, noTeamIconFilenames, 2)
+	require.Equal(t, "icon.png", noTeamIconFilenames[0])
+	require.Equal(t, "icon.png", noTeamIconFilenames[1])
 
-	// Verify custom icon for team
+	// Verify titles were added for team
 	teamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
-	require.Len(t, teamTitles, 1)
+	require.Len(t, teamTitles, 2)
 	require.NotNil(t, teamTitles[0].SoftwarePackage)
-	teamTitleID := teamTitles[0].ID
+	require.NotNil(t, teamTitles[1].SoftwarePackage)
+	teamTitleIDs := []uint{teamTitles[0].ID, teamTitles[1].ID}
 
 	// Verify the custom icon is stored in the database for team
-	var teamIconFilename string
+	var teamIconFilenames []string
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &teamIconFilename,
-			"SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id = ?",
-			team.ID, teamTitleID)
+		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", 0, teamTitleIDs)
+		if err != nil {
+			return err
+		}
+		return sqlx.SelectContext(ctx, q, &teamIconFilenames, stmt, args...)
 	})
-	require.Equal(t, "icon.png", teamIconFilename)
+	require.Len(t, teamIconFilenames, 2)
+	require.Equal(t, "icon.png", teamIconFilenames[0])
+	require.Equal(t, "icon.png", teamIconFilenames[1])
 }
 
 // TestGitOpsTeamLabels tests operations around team labels
