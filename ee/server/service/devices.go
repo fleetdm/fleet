@@ -8,9 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -108,7 +106,7 @@ func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "getting device config")
 	}
 
-	if ac.ConditionalAccess.BypassDisabled.Valid && ac.ConditionalAccess.BypassDisabled.Value {
+	if ac.ConditionalAccess != nil && ac.ConditionalAccess.BypassDisabled.Valid && ac.ConditionalAccess.BypassDisabled.Value {
 		return fleet.NewUserMessageError(errors.New("conditional access bypass disabled"), http.StatusForbidden)
 	}
 

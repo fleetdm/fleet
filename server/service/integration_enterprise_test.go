@@ -23388,6 +23388,81 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 
 }
 
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a host with a device token
+	host := createHostAndDeviceToken(t, s.ds, "test-conditional-access-bypass-token")
+	t.Cleanup(func() {
+		// Clean up host
+		err := s.ds.DeleteHost(ctx, host.ID)
+		require.NoError(t, err)
+		// Clean up bypass records
+		err = s.ds.ConditionalAccessClearBypasses(ctx)
+		require.NoError(t, err)
+		// Clear Okta conditional access settings
+		s.clearOktaConditionalAccess()
+	})
+
+	// Test 1: Bypass succeeds when bypass is enabled (default, not disabled)
+	var bypassResp bypassConditionalAccessResponse
+	s.DoRawNoAuth("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
+		nil, http.StatusOK)
+	require.Nil(t, bypassResp.Err)
+
+	// Test 2: Verify the bypass was recorded (consume returns the bypass)
+	bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, bypassedAt, "bypass should have been recorded")
+
+	// Test 3: Calling bypass again should work (it creates a new bypass)
+	bypassResp = bypassConditionalAccessResponse{}
+	s.DoRawNoAuth("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
+		nil, http.StatusOK)
+	require.Nil(t, bypassResp.Err)
+
+	// Consume the bypass for cleanup before testing disabled state
+	_, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Test 4: Disable bypass via app config
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"conditional_access": {
+			"bypass_disabled": true
+		}
+	}`), http.StatusOK, &acResp)
+
+	// Verify bypass is now disabled
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Value)
+
+	// Test 5: Bypass should fail when bypass is disabled (403 Forbidden)
+	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
+		nil, http.StatusForbidden, &bypassResp)
+
+	// Test 6: Re-enable bypass
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"conditional_access": {
+			"bypass_disabled": false
+		}
+	}`), http.StatusOK, &acResp)
+
+	// Test 7: Bypass should succeed again after re-enabling
+	bypassResp = bypassConditionalAccessResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
+		nil, http.StatusOK, &bypassResp)
+	require.Nil(t, bypassResp.Err)
+
+	// Verify the new bypass was recorded
+	bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, bypassedAt, "bypass should have been recorded after re-enabling")
+}
+
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.
 // Returns: certPEM, certHash (SHA256 of DER bytes), parsed certificate
 func generateTestCertForDeviceAuth(t *testing.T, certSerial uint64, deviceUUID string) (string, string, *x509.Certificate) {
