@@ -666,7 +666,7 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 
 	// Create 15 hosts and insert 1 row per host (need different hosts since
 	// OverwriteQueryResultRows deletes existing rows for the same host/query)
-	for i := 0; i < 15; i++ {
+	for i := range 15 {
 		host := test.NewHost(t, ds, "host"+string(rune('a'+i)), "192.168.1.100", "serial"+string(rune('a'+i)), "uuid"+string(rune('a'+i)), time.Now())
 		rows := []*fleet.ScheduledQueryResultRow{{
 			QueryID:     query.ID,

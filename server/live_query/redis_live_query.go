@@ -586,3 +586,15 @@ func (r *redisLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
 
 	return nil
 }
+
+func (r *redisLiveQuery) DeleteQueryResultsCount(queryID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	key := queryResultsCountKey(queryID)
+	if _, err := conn.Do("DEL", key); err != nil {
+		return fmt.Errorf("delete query results count: %w", err)
+	}
+
+	return nil
+}

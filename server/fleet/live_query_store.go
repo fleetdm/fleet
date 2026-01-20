@@ -34,4 +34,7 @@ type LiveQueryStore interface {
 	// SetQueryResultsCount sets the query results count for a query to a specific value.
 	// Used by the cleanup cron job after deleting excess rows to set the count to the max allowed.
 	SetQueryResultsCount(queryID uint, count int) error
+	// DeleteQueryResultsCount deletes the query results count for a query.
+	// Used when deleting a query, to remove the Redis key.
+	DeleteQueryResultsCount(queryID uint) error
 }
