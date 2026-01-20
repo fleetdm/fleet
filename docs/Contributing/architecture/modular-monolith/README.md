@@ -83,7 +83,7 @@ The following patterns emerged from the Activity bounded context pilot. Bounded 
 
 Use Go's `internal` directory to enforce public vs private boundaries:
 
-```
+```text
 /server/{context}/
 ├── bootstrap/                 # Public: dependency injection entry point
 │   └── bootstrap.go
