@@ -170,6 +170,13 @@ flowchart TD
     style J fill:#D07D24
 ```
 
+### Install and uninstall scripts
+
+When Fleet downloads new version from the manifest, install and uninstall scripts are downloaded as well. If user use custom scripts defined through YAML, then server uses those for each new version. Let's say active scripts could be custom or ones from the manifest.
+If user defines `version` for Fleet-maintained app:
+- If custom scripts were active at a download time, store them together with a package and use them when user rollback to that version.
+- If manifest scripts were active at a download time, store them together with a package.
+
 ### Examples
 
 
