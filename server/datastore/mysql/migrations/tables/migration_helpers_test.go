@@ -164,7 +164,7 @@ func TestIncrementalMigrationStep(t *testing.T) {
 			},
 			func(tx *sql.Tx, increment func()) error {
 				// Simulate work with increments
-				for i := 0; i < 10; i++ {
+				for range 10 {
 					increment()
 					time.Sleep(5 * time.Millisecond)
 				}
@@ -203,7 +203,7 @@ func TestIncrementalMigrationStep(t *testing.T) {
 			},
 			func(tx *sql.Tx, increment func()) error {
 				// Call increment multiple times
-				for i := 0; i < 50; i++ {
+				for range 50 {
 					increment()
 					incrementCount++
 				}
