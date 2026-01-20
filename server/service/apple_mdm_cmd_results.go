@@ -118,7 +118,12 @@ func NewInstalledApplicationListResultsHandler(
 			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error)
 		}
 
-		var poll, shouldRefetch bool
+		// The requireXcodeSpecialCase is used to identify if we need to poll the list of apps
+		// with managedonly=false to verify the Xcode VPP app, which only reports during Installing=true
+		// as managed-only, and then disappears from the list once installed.
+		// See https://github.com/fleetdm/fleet/issues/37290#issuecomment-3774473552
+		const xcodeBundleID = "com.apple.dt.Xcode"
+		var poll, shouldRefetch, requireXcodeSpecialCase bool
 		setStatusForExpectedInstall := func(
 			expectedInstall *fleet.HostVPPSoftwareInstall,
 			setter installStatusSetter,
@@ -149,6 +154,8 @@ func NewInstalledApplicationListResultsHandler(
 
 			if terminalStatus == "" {
 				poll = true
+				requireXcodeSpecialCase = expectedInstall.BundleIdentifier == xcodeBundleID &&
+					installedAppResult.HostPlatform() == "darwin"
 				return nil
 			}
 
@@ -222,7 +229,8 @@ func NewInstalledApplicationListResultsHandler(
 			// Queue a job to verify the VPP install.
 			return ctxerr.Wrap(
 				ctx,
-				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID()),
+				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, verifyRequestDelay,
+					installedAppResult.HostUUID(), installedAppResult.UUID(), requireXcodeSpecialCase),
 				"InstalledApplicationList handler: queueing vpp install verification job",
 			)
 		}
