@@ -12860,6 +12860,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// now update the min_osquery_version to the same value and verify that results are not deleted
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
@@ -12896,6 +12897,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after min_osquery_version change
 
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -12903,6 +12905,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// don't change platform or min_osquery_version and results should not be deleted
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
@@ -12920,6 +12923,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after platform change
 
 	// Update logging type, which should cause results deletion
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", usbDevicesQuery.ID), modifyQueryRequest{ID: usbDevicesQuery.ID, QueryPayload: fleet.QueryPayload{Logging: &fleet.LoggingDifferential}}, http.StatusOK, &modifyQueryResp)
@@ -12927,6 +12931,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 0, counts[usbDevicesQuery.ID]) // counter reset after logging type change
 
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -12934,6 +12939,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	discardData := true
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
@@ -12941,6 +12947,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after discardData=true
 
 	// check that now that discardData is set, we don't add new results
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -12952,7 +12959,6 @@ func (s *integrationTestSuite) TestQueryReports() {
 	// Verify row limit behavior with 10% buffer.
 	// The system allows up to limit+10% rows before blocking new inserts.
 	// This ensures the cleanup cron always has rows to delete, enabling rotation.
-
 	discardData = false
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
 	require.False(t, modifyQueryResp.Query.DiscardData)
@@ -12983,6 +12989,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
+	require.Equal(t, fleet.DefaultMaxQueryReportRows, counts[osqueryInfoQuery.ID])
 
 	// Host1 submits same rows again (overwrite), should still have 1000 rows
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -12990,6 +12997,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.True(t, gqrr.ReportClipped)
+	require.Equal(t, fleet.DefaultMaxQueryReportRows, counts[osqueryInfoQuery.ID]) // counter unchanged after overwrite
 
 	ghqrr = getHostQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
@@ -13029,6 +13037,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows*2)
 	require.True(t, gqrr.ReportClipped)
+	require.Equal(t, fleet.DefaultMaxQueryReportRows*2, counts[osqueryInfoQuery.ID]) // counter is now 2000
 
 	// Host1 tries to submit 1 row, but counter is now > limit+10%, so it's blocked
 	slreq.NodeKey = *host1Global.NodeKey
@@ -13055,6 +13064,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows*2)
 	require.True(t, gqrr.ReportClipped)
+	require.Equal(t, fleet.DefaultMaxQueryReportRows*2, counts[osqueryInfoQuery.ID]) // counter unchanged (blocked)
 
 	// Increase the limit so we can test further submissions
 	appConfigSpec := map[string]map[string]int{
@@ -13093,6 +13103,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	// Host1's 1000 rows were replaced with 500 rows, so total is now 1500 (500 from host1, 1000 from host2)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1500)
+	require.Equal(t, 1500, counts[osqueryInfoQuery.ID]) // counter unchanged (blocked)
 	require.False(t, gqrr.ReportClipped)
 
 	// TODO: Set global discard flag and verify that all data is gone.
