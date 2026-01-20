@@ -168,7 +168,6 @@ func New(
 |------|------------|
 | **Bounded context** | A DDD concept representing a cohesive domain with clear boundaries. In Fleet, a group of Go packages under a common directory. |
 | **Cross-cutting concern** | Functionality that affects multiple parts of the system (e.g., activity logging, authentication). |
-| **Modular monolith** | An architectural pattern where code is organized into bounded contexts within a single deployable binary. Not related to Go modules. |
 | **Ubiquitous language** | Using the same terminology consistently across code and business domains. |
 | **Vertical slice** | The complete implementation stack for a feature: handlers → service → datastore → database. |
 
