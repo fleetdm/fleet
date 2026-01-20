@@ -93,8 +93,7 @@ Use Go's `internal` directory to enforce public vs private boundaries:
     ├── types/                 # Internal interfaces (e.g., Datastore)
     ├── service/               # Service implementation and HTTP handlers
     ├── mysql/                 # Database implementation
-    ├── tests/                 # Integration tests
-    └── testutils/             # Test utilities
+    └── tests/                 # Integration tests
 ```
 
 The `internal` directory is enforced by the Go compiler. Code outside the bounded context cannot import it.
