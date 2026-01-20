@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.6.2",
+      "version": "4.6.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Wireshark' AND publisher = 'The Wireshark developer community, https://www.wireshark.org';"
       },
-      "installer_url": "https://2.na.dl.wireshark.org/win64/all-versions/Wireshark-4.6.2-x64.msi",
+      "installer_url": "https://2.na.dl.wireshark.org/win64/all-versions/Wireshark-4.6.3-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "eb44b865",
-      "sha256": "fa979913b8caceaec071156b50be0b4a999bb0c21d29f05e1a8ee61ed90c1b45",
+      "sha256": "59b5ac08efc1bd595064b942d33c0ae63e4343db063fd388ce69bdd42285f542",
       "default_categories": [
         "Developer tools"
       ],
