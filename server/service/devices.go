@@ -480,6 +480,46 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Bypass conditional access
+////////////////////////////////////////////////////////////////////////////////
+
+type bypassConditionalAccessRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *bypassConditionalAccessRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type bypassConditionalAccessResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r bypassConditionalAccessResponse) Error() error { return r.Err }
+
+func bypassConditionalAccessEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return listDevicePoliciesResponse{Err: err}, nil
+	}
+
+	if err := svc.BypassConditionalAccess(ctx, host); err != nil {
+		return bypassConditionalAccessResponse{Err: err}, nil
+	}
+
+	return bypassConditionalAccessResponse{}, nil
+}
+
+func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Resend configuration profile
 ////////////////////////////////////////////////////////////////////////////////
 

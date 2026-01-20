@@ -255,6 +255,8 @@ type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error
 
 type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
+type BypassConditionalAccessFunc func(ctx context.Context, host *fleet.Host) error
+
 type GetDeviceSoftwareIconsTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
 type DisableAuthForPingFunc func(ctx context.Context)
@@ -1229,6 +1231,9 @@ type Service struct {
 
 	ListDevicePoliciesFunc        ListDevicePoliciesFunc
 	ListDevicePoliciesFuncInvoked bool
+
+	BypassConditionalAccessFunc        BypassConditionalAccessFunc
+	BypassConditionalAccessFuncInvoked bool
 
 	GetDeviceSoftwareIconsTitleIconFunc        GetDeviceSoftwareIconsTitleIconFunc
 	GetDeviceSoftwareIconsTitleIconFuncInvoked bool
@@ -2987,6 +2992,13 @@ func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*
 	s.ListDevicePoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListDevicePoliciesFunc(ctx, host)
+}
+
+func (s *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.BypassConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.BypassConditionalAccessFunc(ctx, host)
 }
 
 func (s *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
