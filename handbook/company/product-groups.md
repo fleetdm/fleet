@@ -400,7 +400,7 @@ After these considerations, if you still think you've found a blocker, alert the
 
 #### Sub-tasks
 
-The simplest way to manage work is to use a single user story issue, then pass it around between contributors/asignees as seldom as possible.  But on a case-by-case basis, for particular user stories and teams, it can sometimes be worthwhile to invest additional overhead in creating separate **unestimated sub-task** issues ("sub-tasks").
+The simplest way to manage work is to use a single user story issue, then pass it around between contributors/assignees as seldom as possible.  But on a case-by-case basis, for particular user stories and teams, it can sometimes be worthwhile to invest additional overhead in creating separate **unestimated sub-task** issues ("sub-tasks").
 
 A user story is estimated to fit within 1 sprint and drives business value when released, independent of other stories.  Sub-tasks are not.
 
@@ -986,6 +986,15 @@ At sprint kickoff, the EM or TL may assign planned issues to specific contributo
    - Help complete sub-issues for active user stories.
 4. **Look ahead when sprint work is done.** If all sprint work is complete or blocked, check the team's drafting board for issues in the "Estimated" column. Prioritize unreleased bugs over released bugs.
 
+#### Bug prioritization
+
+When selecting which bug to work on next, prioritize in the following order:
+
+1. **P0, P1, P2 bugs**: High-priority bugs take precedence over all other bugs.
+2. **Customer bugs**: Bugs with a `customer-` label are prioritized because they directly impact customers.
+3. **Flaky tests**: Flaky tests impact engineering velocity and should be addressed promptly.
+4. **Dogfood issues**: Bugs with the `~dogfood` label are prioritized because we have the best context for reproducing and fixing them.
+5. **Oldest bugs**: Among remaining bugs, work on the oldest first.
 
 ## Outside contributions
 

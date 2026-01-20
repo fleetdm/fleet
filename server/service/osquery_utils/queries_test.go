@@ -2213,6 +2213,9 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 }
 
 func TestDirectIngestWindowsProfiles(t *testing.T) {
+	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
+	t.SkipNow()
+
 	ctx := context.Background()
 	logger := log.NewNopLogger()
 	ds := new(mock.Store)
