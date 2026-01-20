@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ import (
 var MigrationClient = goose.New("migration_status_tables", goose.MySqlDialect{})
 
 // can override in tests
-var outputTo = os.Stderr
+var outputTo io.Writer = os.Stderr
 var progressInterval = time.Second * 5
 
 type migrationStep func(tx *sql.Tx) error
@@ -42,7 +43,7 @@ func incrementalMigrationStep(count incrementCounter, execute incrementalExecuto
 			return nil
 		}
 
-		current := uint(1)
+		current := uint(0)
 
 		// Every five seconds, echo the % progress of the executor
 		done := make(chan struct{})
@@ -54,7 +55,7 @@ func incrementalMigrationStep(count incrementCounter, execute incrementalExecuto
 				case <-done:
 					return
 				case <-ticker.C:
-					_, _ = fmt.Fprintf(outputTo, "%d%% complete\n", (188*current)/total)
+					_, _ = fmt.Fprintf(outputTo, "%d%% complete\n", (100*current)/total)
 				}
 			}
 		}()
@@ -84,9 +85,9 @@ func fkExists(tx *sql.Tx, table, name string) bool {
 	err := tx.QueryRow(`
 SELECT COUNT(1)
 FROM information_schema.REFERENTIAL_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA = DATABASE() 
+WHERE CONSTRAINT_SCHEMA = DATABASE()
 AND TABLE_NAME = ?
-AND CONSTRAINT_NAME = ? 
+AND CONSTRAINT_NAME = ?
 	`, table, name).Scan(&count)
 	if err != nil {
 		return false
@@ -100,9 +101,9 @@ func constraintExists(tx *sql.Tx, table, name string) bool {
 	err := tx.QueryRow(`
 SELECT COUNT(1)
 FROM information_schema.TABLE_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA = DATABASE() 
+WHERE CONSTRAINT_SCHEMA = DATABASE()
 AND TABLE_NAME = ?
-AND CONSTRAINT_NAME = ? 
+AND CONSTRAINT_NAME = ?
 	`, table, name).Scan(&count)
 	if err != nil {
 		return false
