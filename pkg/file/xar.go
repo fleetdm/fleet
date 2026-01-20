@@ -557,21 +557,32 @@ func parsePackageInfoFile(rawXML []byte) (*InstallerMetadata, error) {
 // getPackageInfo gets the name, bundle identifier and version of a PKG top level PackageInfo file
 func getPackageInfo(p *packageInfoXML) (name string, identifier string, version string, packageIDs []string) {
 	packageIDSet := make(map[string]struct{}, 1)
+	var foundMetadata bool
+
 	for _, bundle := range p.Bundles {
+		// Keep track of all bundle identifiers
+		bundleID := fleet.Preprocess(bundle.ID)
+		if bundleID != "" {
+			packageIDSet[bundleID] = struct{}{}
+		}
+
 		installPath := bundle.Path
 		if p.InstallLocation != "" {
 			installPath = filepath.Join(p.InstallLocation, installPath)
 		}
 		installPath = strings.TrimPrefix(installPath, "/")
 		installPath = strings.TrimPrefix(installPath, "./")
-		if base, isValid := isValidAppFilePath(installPath); isValid {
+		base, isValid := isValidAppFilePath(installPath)
+		if isValid && !foundMetadata {
 			identifier = fleet.Preprocess(bundle.ID)
 			name = base
 			version = fleet.Preprocess(bundle.CFBundleShortVersionString)
 		}
-		bundleID := fleet.Preprocess(bundle.ID)
-		if bundleID != "" {
-			packageIDSet[bundleID] = struct{}{}
+
+		// Stop extracting name if we found a bundle that
+		// matches the bundle identifier in pkg-info root
+		if identifier == p.Identifier {
+			foundMetadata = true
 		}
 	}
 
