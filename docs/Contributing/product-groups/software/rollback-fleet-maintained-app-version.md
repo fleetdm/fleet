@@ -183,7 +183,7 @@ If user defines `version` for Fleet-maintained app:
 ```yaml
 software:
   fleet_maintained_apps:
-    - app: firefox
+    - slug: firefox/darwin
 ```
 
 User adds Firefox Fleet-maintained app at some point, without specifying `version`. Each time GitOps runs, new version available in the manifest is downloaded (`147.0`) and stored to S3, while previous version (`146.0.1`) is kept as well.
@@ -195,7 +195,7 @@ User adds Firefox Fleet-maintained app at some point, without specifying `versio
 ```yaml
 software:
   fleet_maintained_apps:
-    - app: firefox
+    - slug: firefox/darwin
       version: "146.0"  # Latest
 ```
 
@@ -213,7 +213,7 @@ After a while, new version (`150.0.1`) is released and available in manifest. Fl
 ```yaml
 software:
   fleet_maintained_apps:
-    - app: firefox
+    - slug: firefox/darwin
 ```
 
 User now removes the `version` to get the latest. Fleet downloads latest version, and removes oldest version (`146.0`). So Fleet instance has 2 versions, latest (`150.0.1`) and another one that was cached before (`147.0`).
