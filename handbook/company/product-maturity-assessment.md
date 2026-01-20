@@ -124,7 +124,12 @@ Fleet provides comprehensive device management across the entire computing lifec
 | OS update management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | OS update management (Android) | 🥚 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Patch management | 🐣 | 🐣 | 🐣 | 🐣 | 🐥 |
+| Patch management (macOS) | 🐣 | 🐣 | 🐣 | 🐥 | 🦆 |
+| Patch management (iPhone/iPadOS) | 🐣 | 🐥 | 🐥 | 🦆 | 🦆 |
+| Patch management (tvOS/visionOS/watchOS) | 🐣 | 🐣 | 🐣 | 🐣 | 🐥 |
+| Patch management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Patch management (Linux) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Patch management (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Remote lock | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Remote restart | 🐣 | 🐣 | 🐣 | 🐥 | 🐥 |
 | Remote support tools | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
