@@ -153,6 +153,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
+		{"DeleteHostsIdPAccounts", testHostsDeleteHostsIdPAccounts},
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"ReplaceHostBatteriesDeadlock", testHostsReplaceHostBatteriesDeadlock},
@@ -12510,4 +12511,107 @@ func testHostTimeZone(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 1)
 	require.NotNil(t, hosts[0].TimeZone)
 	require.Equal(t, timeZone, *hosts[0].TimeZone)
+}
+
+func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	windowsHost, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("windows-node-key"),
+		UUID:            "windows-uuid",
+		Hostname:        "windows-host.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	linuxHost, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("linux-node-key"),
+		UUID:            "linux-uuid",
+		Hostname:        "linux-host.local",
+		Platform:        "ubuntu",
+	})
+	require.NoError(t, err)
+
+	macOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("macos-node-key"),
+		UUID:            "macos-uuid",
+		Hostname:        "macos-host.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Create IdP accounts and associate them with hosts
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Insert IdP accounts
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES
+			('idp-account-1', 'user1', 'User One', 'user1@example.com'),
+			('idp-account-2', 'user2', 'User Two', 'user2@example.com'),
+			('idp-account-3', 'user3', 'User Three', 'user3@example.com')`)
+		return err
+	})
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Associate IdP accounts with hosts
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES
+			(?, 'idp-account-1'),
+			(?, 'idp-account-2'),
+			(?, 'idp-account-3')`,
+			windowsHost.UUID, linuxHost.UUID, macOSHost.UUID)
+		return err
+	})
+
+	var count int
+	err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?, ?)`,
+		windowsHost.UUID, linuxHost.UUID, macOSHost.UUID)
+	require.NoError(t, err)
+	require.Equal(t, 3, count, "expected 3 IdP account associations before deletion")
+
+	// Delete the Windows host
+	err = ds.DeleteHost(ctx, windowsHost.ID)
+	require.NoError(t, err)
+
+	// Verify Windows host's IdP account was deleted
+	err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, windowsHost.UUID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count, "Windows host IdP account should be deleted")
+
+	// Verify Linux and macOS IdP accounts still exist
+	err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?)`,
+		linuxHost.UUID, macOSHost.UUID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count, "Linux and macOS IdP accounts should still exist")
+
+	// Delete the Linux host
+	err = ds.DeleteHost(ctx, linuxHost.ID)
+	require.NoError(t, err)
+
+	// Verify Linux host's IdP account was deleted
+	err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, linuxHost.UUID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count, "Linux host IdP account should be deleted")
+
+	// Verify macOS IdP account still exists (macOS should NOT have IdP accounts deleted)
+	err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, macOSHost.UUID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count, "macOS host IdP account should NOT be deleted")
+
+	err = ds.DeleteHost(ctx, macOSHost.ID)
+	require.NoError(t, err)
+
+	// Verify macOS IdP account still exists after host deletion
+	err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, macOSHost.UUID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count, "macOS host IdP account should still exist after host deletion")
 }
