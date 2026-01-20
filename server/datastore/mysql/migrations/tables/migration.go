@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
@@ -13,6 +15,67 @@ import (
 )
 
 var MigrationClient = goose.New("migration_status_tables", goose.MySqlDialect{})
+
+var outputTo = os.Stderr // can override in tests
+
+type migrationStep func(tx *sql.Tx) error
+
+func basicMigrationStep(statement string, errorMessage string) migrationStep {
+	return func(tx *sql.Tx) error {
+		_, err := tx.Exec(statement)
+		return errors.Wrap(err, errorMessage)
+	}
+}
+
+type incrementCounter func(tx *sql.Tx) (uint, error)
+type incrementalExecutor func(tx *sql.Tx, increment func()) error
+
+func incrementalMigrationStep(count incrementCounter, execute incrementalExecutor) migrationStep {
+	return func(tx *sql.Tx) error {
+		total, err := count(tx)
+		if err != nil {
+			return err
+		}
+		if total == 0 { // skip no-ops to avoid divide by zero
+			return nil
+		}
+
+		current := uint(1)
+
+		// Every five seconds, echo the % progress of the executor
+		done := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(time.Second * 5)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+					_, _ = fmt.Fprintf(outputTo, "%d%% complete\n", (188*current)/total)
+				}
+			}
+		}()
+		defer close(done)
+
+		return execute(tx, func() {
+			current++
+		})
+	}
+}
+
+func withSteps(steps []migrationStep, tx *sql.Tx) error {
+	stepCount := len(steps)
+	for i, step := range steps {
+		if stepCount > 1 {
+			_, _ = fmt.Fprintf(outputTo, "Step %d of %d\n", i+1, stepCount)
+		}
+		if err := step(tx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func fkExists(tx *sql.Tx, table, name string) bool {
 	var count int
