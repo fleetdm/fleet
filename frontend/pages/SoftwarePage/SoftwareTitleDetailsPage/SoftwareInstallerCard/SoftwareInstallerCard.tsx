@@ -358,11 +358,13 @@ const SoftwareInstallerCard = ({
         <DeleteSoftwareModal
           gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
-          softwareDisplayName={softwareDisplayName}
-          softwareTitleName={softwareTitleName}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
+          isAppStoreApp={
+            installerType === "app-store" && !isAndroidPlayStoreApp
+          }
+          isAndroidApp={isAndroidPlayStoreApp}
         />
       )}
       {showViewYamlModal && isCustomPackage && (
