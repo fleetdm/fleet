@@ -30,7 +30,7 @@ Key points about the flow:
 4. Before releasing the device from awaiting configuration, we send an [AccountConfiguration command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary) to the host, to pre-set the macOS local account username to the value we got stored in `mdm_idp_accounts`. The command sets the following properties:
   - LockPrimaryAccountInfo=true
   - PrimaryAccountUserName
-  - PrimaryAccountFullName
+  - PrimaryAccountFullName (optional - only included if a full name is available from SAML or SCIM)
 5. During a subsequent osquery device refresh, we lookup the `email` from `mdm_idp_accounts` and save it in `host_emails` table. This email shows up in host details.
 
 ## Diagrams

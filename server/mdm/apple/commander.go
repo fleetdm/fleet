@@ -325,15 +325,22 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 }
 
 func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
+	// Build the command dictionary dynamically based on whether fullName is provided
+	// If fullName is empty, omit PrimaryAccountFullName so the field remains editable
+	var fullNameKey string
+	if fullName != "" {
+		fullNameKey = fmt.Sprintf(`      <key>PrimaryAccountFullName</key>
+      <string>%s</string>
+`, fullName)
+	}
+
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>Command</key>
     <dict>
-      <key>PrimaryAccountFullName</key>
-      <string>%s</string>
-      <key>PrimaryAccountUserName</key>
+%s      <key>PrimaryAccountUserName</key>
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
       <true />
@@ -344,7 +351,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullName, userName, uuid)
+</plist>`, fullNameKey, userName, uuid)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
