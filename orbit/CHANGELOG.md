@@ -1,8 +1,8 @@
 ## Orbit 1.51.0 (Jan 20, 2026)
 
-* Improve "Fleet Desktop" description in Windows' system tray.
+* Improved "Fleet Desktop" description in Windows' system tray.
 
-* Updated Orbit CA certs
+* Updated Orbit CA certs.
 
 * Switched Fleet logo in macOS Desktop from a PNG to an SVG.
 
