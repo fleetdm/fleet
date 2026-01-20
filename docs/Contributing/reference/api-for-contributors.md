@@ -4767,7 +4767,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "slug": "8x8-work/darwin",
       "icon_hash_sha256": "dad98c7c1b9a5654a45972f2cd7e5c3e536fe5312b0e615291ceb35234eaaa7f",
       "icon_filename": "custom-icon.png"
-    },
+    }
   ]
 }
 ```
