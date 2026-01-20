@@ -1,1 +1,1 @@
-- When a host is deleted, delete `host_mdm_idp_accounts` associated with it, so that if it is re-enrolled, re-authentication is enforced if End-User Authentication is enabled.
+- Fixed an issue where deleted Windows and Linux hosts could re-enroll without re-authenticating when End User Authentication was enabled.
