@@ -904,8 +904,7 @@ SELECT
   si.uploaded_at,
   si.self_service,
   si.url,
-  COALESCE(st.name, '') AS software_title,
-  fma.slug AS slug
+  COALESCE(st.name, '') AS software_title
   %s
 FROM
   software_installers si

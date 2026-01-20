@@ -39,7 +39,7 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 		return err
 	}
 
-	return upsertMaintainedApps(ctx, appsList, err, ds)
+	return upsertMaintainedApps(ctx, appsList, ds)
 }
 
 func FetchAppsList(ctx context.Context) (*AppsList, error) {
@@ -87,7 +87,7 @@ func FetchAppsList(ctx context.Context) (*AppsList, error) {
 	return &appsList, nil
 }
 
-func upsertMaintainedApps(ctx context.Context, appsList *AppsList, err error, ds fleet.Datastore) error {
+func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Datastore) error {
 	var gotApps []string
 
 	for _, app := range appsList.Apps {
@@ -97,7 +97,7 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, err error, ds
 			app.UniqueIdentifier = app.Name
 		}
 
-		if _, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		if _, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 			Name:             app.Name,
 			Slug:             app.Slug,
 			Platform:         app.Platform,
