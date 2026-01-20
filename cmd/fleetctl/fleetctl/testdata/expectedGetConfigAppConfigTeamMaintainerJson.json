@@ -39,6 +39,7 @@
       "enable_software_inventory": false
     },
     "fleet_desktop": {
+      "alternative_browser_host": "",
       "transparency_url": "https://fleetdm.com/transparency"
     },
     "vulnerability_settings": {
