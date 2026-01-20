@@ -754,7 +754,6 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.Len(t, resp12.SoftwareTitles, 0)
 
 	// Test 13: Verify that filtering by hash doesn't return VPP or in-house apps
-	// First, list all software on team1 without filters to see total count
 	var respAll listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &respAll,
 		"team_id", fmt.Sprint(team1.ID),
