@@ -1,4 +1,4 @@
-# 🌐 IT and Enablement 
+# 🌐 IT
 
 This page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
@@ -7,53 +7,25 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 | Role                                    | Contributor(s)
 |:----------------------------------------|:----------------------------------------------------------------------|
-| Head of IT & Enablement                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
-| Head of Digital Workplace & GTM Systems | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
-| Manager of Training and Enablement      | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
+| Head of IT & Solutions Consulting                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
 | Solutions Consultant (SC)               | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel.)
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel.)
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/69) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
-> To **make a request** of the GTM Ops team, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Agtm-ops&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in the [#g-unicorns](https://fleetdm.slack.com/archives/C08BTMFTUCR) Slack channel).
->  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/100/views/1) for this department, including pending tasks and the status of new requests.
->  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
 ## Responsibilities
 
-The IT & Enablement department is directly responsible for solutions consulting, customer training curriculum, prospect enablement, and dogfooding, as well as the framework, schema, equipment, internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems, remote work, the handbook, issue templates, Zapier flows, Docusign templates, key spreadsheets, and project management tools.
+The IT department is directly responsible for solutions consulting, dogfooding, internal frameworks and schemas, equipment management, and internal IT support.
 
 
 ### Register a domain for Fleet
 
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
-
-
-### Purchase a SaaS tool
-
-When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
-- Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
-- Avoid extra features you don't need, and if they're there anyway, avoid using them.
-- Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
-- Programmability: Does it have a publicly documented legible REST API that requires at most a single API token?
-- Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
-
-
-### Cancel a vendor or subscription
-
-Once the decision has been made not to renew a tool or subscription on Fleet's behalf, use the following steps to churn/cancel a vendor or subscription:
-
-1. Cancel the subscription, including recurring billing. If invoiced, then send churn notice.
-2. Update ["¶ 🧮 The numbers" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit?gid=2112277278#gid=2112277278).
-  - Prepend the recurring expense title with "CANCELLED - ".
-  - Zero-out "Projected monthly burn" and "Projected invoice amount".
-3. Remove references from integrated systems and references (i.e. unplug the tool from any other integrations)
-4. Remove any shared access from 1Password vaults.
-5. Update any reference to the tool or subscription and afterwards communicate the change (e.g. by linking to your merged PR in Slack).
 
 
 ### Secure company-issued equipment for a team member
@@ -100,66 +72,14 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. Package equipment for shipment and include Yubikeys (if requested).
-4. Change the "host" info to reflect the new user. If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/it-and-enablement#process-incoming-equipment).
+4. Change the "host" info to reflect the new user. If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/it#process-incoming-equipment).
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
 
-### Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us) and we will make sure there is no license redundancy in that department.
-
-
-### Process a tool upgrade request from a team member
-
-- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through GitHub.
-- IT & Enablement will upgrade or add the license seat as needed and let the requesting team member know they did it.
-
-
-### Downgrade an unused license seat
-
-- On the first Wednesday of every quarter, the CEO and Head of Digital Workplace & GTM Systems will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
-- During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
-- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a GitHub issue to IT & Enablement to have their access restored.
-- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
-
-
-### Add a seat to Salesforce
-
-Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
-- Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
-- View contracts -> pick current contract.
-- Add the desired number of licenses.
-- Sign DocuSign sent to the email.
-- The order will be processed in ~30m.
-- Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
-  - To enable email sync for a user:
-    - Navigate to the [user’s record](https://fleetdm.lightning.force.com/lightning/setup/ManageUsers/home) and scroll to the bottom of the permission set section.
-    - Add the “Inbox with Einstein Activity Capture” permission set and save.
-    - Navigate to the ["Einstein Activity Capture Settings"](https://fleetdm.lightning.force.com/lightning/setup/ActivitySyncEngineSettingsMain/home) and click the "Configurations" tab.
-    - Select "Edit", under "User and Profile Assignments" move the new user's name from "Available" to "Selected", scroll all the way down and click save.
    
 
-### Measure intent signals
-
-Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily) to measure and process intent signals.
-
-
-### Manage duplicates in CRM
-
-1. For accounts, navigate to the ["Ω Possible duplicate accounts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001FA1h2AG/view). For Contacts, navigate to the ["Ω Possible duplicate contacts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002qAoX2AU/view).
-2. Verify that each potential duplicate record is indeed a duplicate of the record it has been paired with.
-3. Open and compare the duplicate records to select the most up-to-date record to "Use as principal" (the record all other duplicates will be merged into). Consider the following:
-  - Is there an open opportunity on any of the records? If so, this is your "principal" account/contact.
-  - Do any of the accounts not have contacts? If no contacts found on the account and no significant activity, delete the account. 
-  - Do any of these accounts/contacts have activity that the others don't have (e.g. a rep sent an email or logged a call)? Be sure to preserve the maximum amount of historical activity on the principal record.
-4. Click "View duplicates", select all relevant records that appear. Click next.
-5. Select the best and most up-to-date data to combine into the single principal account/contact.
-
-> Do *NOT* change account owners if you can help it during this process. For "non-sales-ready" accounts default to the Integrations Admin. If the account is owned by an active user, be sure they maintain ownership of the principal account. 
-
-6. YOU CAN NOT UNDO THIS NEXT PART! Click next, click merge. 
-7. Verify that the principal record details match exactly what is on LinkedIn.
 
 
 
