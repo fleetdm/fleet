@@ -33,15 +33,28 @@ func (m *mockAuthorizer) Authorize(ctx context.Context, subject platform_authz.A
 }
 
 type mockDatastore struct {
-	activities []*api.Activity
-	meta       *api.PaginationMetadata
-	err        error
-	lastOpt    types.ListOptions
+	activities                []*api.Activity
+	hostPastActivities        []*api.Activity
+	meta                      *api.PaginationMetadata
+	hostPastActivitiesMeta    *api.PaginationMetadata
+	err                       error
+	hostPastActivitiesErr     error
+	lastOpt                   types.ListOptions
+	lastHostPastActivitiesOpt types.ListOptions
 }
 
 func (m *mockDatastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	m.lastOpt = opt
 	return m.activities, m.meta, m.err
+}
+
+func (m *mockDatastore) ListHostPastActivities(ctx context.Context, hostID uint, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	m.lastHostPastActivitiesOpt = opt
+	return m.hostPastActivities, m.hostPastActivitiesMeta, m.hostPastActivitiesErr
+}
+
+func (m *mockDatastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
+	return nil
 }
 
 type mockUserProvider struct {
@@ -63,12 +76,22 @@ func (m *mockUserProvider) FindUserIDs(ctx context.Context, query string) ([]uin
 	return m.searchUserIDs, m.searchErr
 }
 
+type mockHostProvider struct {
+	host *activity.Host
+	err  error
+}
+
+func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
+	return m.host, m.err
+}
+
 // testSetup holds test dependencies with pre-configured mocks
 type testSetup struct {
 	svc   *Service
 	authz *mockAuthorizer
 	ds    *mockDatastore
 	users *mockUserProvider
+	hosts *mockHostProvider
 }
 
 // setupTest creates a service with default working mocks.
@@ -78,11 +101,12 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 		authz: &mockAuthorizer{},
 		ds:    &mockDatastore{},
 		users: &mockUserProvider{},
+		hosts: &mockHostProvider{},
 	}
 	for _, opt := range opts {
 		opt(ts)
 	}
-	ts.svc = NewService(ts.authz, ts.ds, ts.users, log.NewNopLogger())
+	ts.svc = NewService(ts.authz, ts.ds, ts.users, ts.hosts, log.NewNopLogger())
 	return ts
 }
 
@@ -436,4 +460,242 @@ func TestListActivitiesGracefulDegradation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// mockJSONLogger is a mock implementation of api.JSONLogger for testing.
+type mockJSONLogger struct {
+	logs      []string
+	failAfter int
+}
+
+var errStreamFailed = errors.New("streaming failed")
+
+func (j *mockJSONLogger) Write(ctx context.Context, logs []json.RawMessage) error {
+	for _, l := range logs {
+		if j.failAfter > 0 && len(j.logs) == j.failAfter {
+			return errStreamFailed
+		}
+		j.logs = append(j.logs, string(l))
+	}
+	return nil
+}
+
+// mockStreamingDatastore extends mockDatastore with streaming-specific behavior.
+type mockStreamingDatastore struct {
+	activities       []*api.Activity
+	streamedIDs      []uint
+	listErr          error
+	markErr          error
+	listCallCount    int
+	markCallCount    int
+	activitiesByPage map[uint][]*api.Activity // page -> activities for that page
+}
+
+func (m *mockStreamingDatastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	m.listCallCount++
+	if m.listErr != nil {
+		return nil, nil, m.listErr
+	}
+	if m.activitiesByPage != nil {
+		return m.activitiesByPage[opt.Page], nil, nil
+	}
+	return m.activities, nil, nil
+}
+
+func (m *mockStreamingDatastore) ListHostPastActivities(ctx context.Context, hostID uint, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	panic("not implemented")
+}
+
+func (m *mockStreamingDatastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
+	m.markCallCount++
+	if m.markErr != nil {
+		return m.markErr
+	}
+	m.streamedIDs = append(m.streamedIDs, activityIDs...)
+	return nil
+}
+
+func newTestActivity(id uint, actorName string, actorID uint, actType, details string) *api.Activity {
+	jsonDetails := json.RawMessage(details)
+	return &api.Activity{
+		ID:            id,
+		ActorFullName: &actorName,
+		ActorID:       &actorID,
+		Type:          actType,
+		Details:       &jsonDetails,
+	}
+}
+
+func TestStreamActivities(t *testing.T) {
+	t.Parallel()
+
+	t.Run("basic streaming", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		activities := []*api.Activity{
+			newTestActivity(1, "user1", 7, "action1", `{"key1":"val1"}`),
+			newTestActivity(2, "user2", 8, "action2", `{"key2":"val2"}`),
+			newTestActivity(3, "user3", 9, "action3", `{"key3":"val3"}`),
+		}
+
+		ds := &mockStreamingDatastore{activities: activities}
+		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+
+		var auditLogger mockJSONLogger
+		err := svc.StreamActivities(ctx, &auditLogger, 100)
+
+		require.NoError(t, err)
+		assert.Len(t, auditLogger.logs, 3)
+		assert.Equal(t, []uint{1, 2, 3}, ds.streamedIDs)
+
+		// Verify each activity was logged correctly
+		for i, logEntry := range auditLogger.logs {
+			var a api.Activity
+			err := json.Unmarshal([]byte(logEntry), &a)
+			require.NoError(t, err)
+			assert.Equal(t, activities[i].ID, a.ID)
+			assert.Equal(t, activities[i].Type, a.Type)
+		}
+	})
+
+	t.Run("fail to stream an activity", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		activities := []*api.Activity{
+			newTestActivity(1, "user1", 7, "action1", `{"key1":"val1"}`),
+			newTestActivity(2, "user2", 8, "action2", `{"key2":"val2"}`),
+			newTestActivity(3, "user3", 9, "action3", `{"key3":"val3"}`),
+		}
+
+		ds := &mockStreamingDatastore{activities: activities}
+		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+
+		// Logger fails after first activity
+		auditLogger := mockJSONLogger{failAfter: 1}
+		err := svc.StreamActivities(ctx, &auditLogger, 100)
+
+		require.Error(t, err)
+		require.ErrorIs(t, err, errStreamFailed)
+		// Only the first activity should have been logged
+		assert.Len(t, auditLogger.logs, 1)
+		// Only the first activity should have been marked as streamed
+		assert.Equal(t, []uint{1}, ds.streamedIDs)
+	})
+
+	t.Run("fail to stream first activity", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		activities := []*api.Activity{
+			newTestActivity(1, "user1", 7, "action1", `{"key1":"val1"}`),
+		}
+
+		ds := &mockStreamingDatastore{activities: activities}
+		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+
+		// Logger that fails immediately
+		immediateFailLogger := &immediateFailJSONLogger{}
+		err := svc.StreamActivities(ctx, immediateFailLogger, 100)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "stream first activity")
+		// Nothing should be marked as streamed since first activity failed
+		assert.Empty(t, ds.streamedIDs)
+	})
+
+	t.Run("bigger than batch requires pagination", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		batchSize := uint(2)
+
+		// Create 5 activities that will require 3 pages
+		allActivities := []*api.Activity{
+			newTestActivity(1, "user1", 1, "action1", `{}`),
+			newTestActivity(2, "user2", 2, "action2", `{}`),
+			newTestActivity(3, "user3", 3, "action3", `{}`),
+			newTestActivity(4, "user4", 4, "action4", `{}`),
+			newTestActivity(5, "user5", 5, "action5", `{}`),
+		}
+
+		ds := &mockStreamingDatastore{
+			activitiesByPage: map[uint][]*api.Activity{
+				0: allActivities[:2],  // First batch: activities 1, 2
+				1: allActivities[2:4], // Second batch: activities 3, 4
+				2: allActivities[4:],  // Third batch: activity 5
+			},
+		}
+		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+
+		var auditLogger mockJSONLogger
+		err := svc.StreamActivities(ctx, &auditLogger, batchSize)
+
+		require.NoError(t, err)
+		assert.Len(t, auditLogger.logs, 5)
+		assert.Equal(t, []uint{1, 2, 3, 4, 5}, ds.streamedIDs)
+		assert.Equal(t, 3, ds.listCallCount, "should have called ListActivities 3 times")
+		assert.Equal(t, 3, ds.markCallCount, "should have called MarkActivitiesAsStreamed 3 times")
+	})
+
+	t.Run("empty activity list returns early", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		ds := &mockStreamingDatastore{activities: []*api.Activity{}}
+		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+
+		var auditLogger mockJSONLogger
+		err := svc.StreamActivities(ctx, &auditLogger, 100)
+
+		require.NoError(t, err)
+		assert.Empty(t, auditLogger.logs)
+		assert.Empty(t, ds.streamedIDs)
+		assert.Equal(t, 1, ds.listCallCount)
+		assert.Equal(t, 0, ds.markCallCount)
+	})
+
+	t.Run("list activities error", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		ds := &mockStreamingDatastore{listErr: errors.New("database error")}
+		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+
+		var auditLogger mockJSONLogger
+		err := svc.StreamActivities(ctx, &auditLogger, 100)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "database error")
+	})
+
+	t.Run("mark streamed error is included in multierror", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		activities := []*api.Activity{
+			newTestActivity(1, "user1", 7, "action1", `{}`),
+		}
+
+		ds := &mockStreamingDatastore{
+			activities: activities,
+			markErr:    errors.New("mark error"),
+		}
+		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+
+		var auditLogger mockJSONLogger
+		err := svc.StreamActivities(ctx, &auditLogger, 100)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "mark error")
+		// Activity was still logged even though marking failed
+		assert.Len(t, auditLogger.logs, 1)
+	})
+}
+
+// immediateFailJSONLogger always fails on Write.
+type immediateFailJSONLogger struct{}
+
+func (j *immediateFailJSONLogger) Write(ctx context.Context, logs []json.RawMessage) error {
+	return errStreamFailed
 }

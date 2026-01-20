@@ -19,10 +19,11 @@ func New(
 	dbConns *platform_mysql.DBConnections,
 	authorizer platform_authz.Authorizer,
 	userProvider activity.UserProvider,
+	hostProvider activity.HostProvider,
 	logger kitlog.Logger,
 ) (api.Service, func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc) {
 	ds := mysql.NewDatastore(dbConns, logger)
-	svc := service.NewService(authorizer, ds, userProvider, logger)
+	svc := service.NewService(authorizer, ds, userProvider, hostProvider, logger)
 
 	routesFn := func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
 		return service.GetRoutes(svc, authMiddleware)

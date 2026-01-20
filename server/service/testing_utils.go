@@ -462,11 +462,12 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-		activityUserProvider := activityacl.NewFleetServiceAdapter(svc)
+		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc, svc)
 		_, activityRoutesFn := activity_bootstrap.New(
 			opts[0].DBConns,
 			activityAuthorizer,
-			activityUserProvider,
+			activityACLAdapter,
+			activityACLAdapter,
 			logger,
 		)
 		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {

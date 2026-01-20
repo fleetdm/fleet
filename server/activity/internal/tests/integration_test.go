@@ -23,6 +23,8 @@ func TestIntegration(t *testing.T) {
 		{"ListActivitiesCursorPagination", testListActivitiesCursorPagination},
 		{"ListActivitiesFilters", testListActivitiesFilters},
 		{"ListActivitiesUserEnrichment", testListActivitiesUserEnrichment},
+		{"ListHostPastActivities", testListHostPastActivities},
+		{"ListHostPastActivitiesPagination", testListHostPastActivitiesPagination},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -164,4 +166,72 @@ func testListActivitiesUserEnrichment(t *testing.T, s *integrationTestSuite) {
 	assert.Equal(t, "John Doe", *a.ActorFullName)
 	assert.NotNil(t, a.ActorEmail)
 	assert.Equal(t, "john@example.com", *a.ActorEmail)
+}
+
+func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
+	userID := s.insertUser(t, "admin", "admin@example.com")
+
+	// Create two hosts
+	hostA := s.insertHost(t, "host-a.example.com", nil)
+	hostB := s.insertHost(t, "host-b.example.com", nil)
+
+	// Create activities linked to different hosts
+	actA := s.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{"host": "host-a"})
+	actB := s.InsertActivity(t, ptr.Uint(userID), "installed_software", map[string]any{"host": "host-a"})
+	actC := s.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{"host": "host-b"})
+
+	// Link activities to hosts
+	s.InsertHostActivity(t, hostA, actA)
+	s.InsertHostActivity(t, hostA, actB)
+	s.InsertHostActivity(t, hostB, actC)
+
+	// List activities for host A
+	result, statusCode := s.getHostPastActivities(t, hostA, "per_page=100")
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Len(t, result.Activities, 2)
+	assert.NotNil(t, result.Meta)
+
+	// Verify order (newest first by default)
+	assert.Equal(t, "installed_software", result.Activities[0].Type)
+	assert.Equal(t, "ran_script", result.Activities[1].Type)
+
+	// List activities for host B
+	result, statusCode = s.getHostPastActivities(t, hostB, "per_page=100")
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Len(t, result.Activities, 1)
+	assert.Equal(t, "ran_script", result.Activities[0].Type)
+
+	// List activities for non-existent host (should return empty list)
+	result, statusCode = s.getHostPastActivities(t, 99999, "per_page=100")
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Len(t, result.Activities, 0)
+}
+
+func testListHostPastActivitiesPagination(t *testing.T, s *integrationTestSuite) {
+	userID := s.insertUser(t, "admin", "admin@example.com")
+	host := s.insertHost(t, "host.example.com", nil)
+
+	// Insert 5 activities for the host
+	for i := range 5 {
+		actID := s.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"index": i})
+		s.InsertHostActivity(t, host, actID)
+	}
+
+	// First page
+	result, _ := s.getHostPastActivities(t, host, "per_page=2")
+	assert.Len(t, result.Activities, 2)
+	assert.True(t, result.Meta.HasNextResults)
+	assert.False(t, result.Meta.HasPreviousResults)
+
+	// Second page
+	result, _ = s.getHostPastActivities(t, host, "per_page=2&page=1")
+	assert.Len(t, result.Activities, 2)
+	assert.True(t, result.Meta.HasNextResults)
+	assert.True(t, result.Meta.HasPreviousResults)
+
+	// Last page
+	result, _ = s.getHostPastActivities(t, host, "per_page=2&page=2")
+	assert.Len(t, result.Activities, 1)
+	assert.False(t, result.Meta.HasNextResults)
+	assert.True(t, result.Meta.HasPreviousResults)
 }

@@ -16,16 +16,20 @@ import (
 // FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
 type FleetServiceAdapter struct {
-	svc fleet.UserLookupService
+	userSvc fleet.UserLookupService
+	hostSvc fleet.HostLookupService
 }
 
 // NewFleetServiceAdapter creates a new adapter for the Fleet service.
-func NewFleetServiceAdapter(svc fleet.UserLookupService) *FleetServiceAdapter {
-	return &FleetServiceAdapter{svc: svc}
+func NewFleetServiceAdapter(userSvc fleet.UserLookupService, hostSvc fleet.HostLookupService) *FleetServiceAdapter {
+	return &FleetServiceAdapter{userSvc: userSvc, hostSvc: hostSvc}
 }
 
-// Ensure FleetServiceAdapter implements activity.UserProvider
-var _ activity.UserProvider = (*FleetServiceAdapter)(nil)
+// Ensure FleetServiceAdapter implements activity.UserProvider and activity.HostProvider
+var (
+	_ activity.UserProvider = (*FleetServiceAdapter)(nil)
+	_ activity.HostProvider = (*FleetServiceAdapter)(nil)
+)
 
 // UsersByIDs fetches users by their IDs from the Fleet service.
 func (a *FleetServiceAdapter) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
@@ -34,7 +38,7 @@ func (a *FleetServiceAdapter) UsersByIDs(ctx context.Context, ids []uint) ([]*ac
 	}
 
 	// Fetch only the requested users by their IDs
-	users, err := a.svc.UsersByIDs(ctx, ids)
+	users, err := a.userSvc.UsersByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +58,7 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 	}
 
 	// Search users via Fleet service with the query
-	users, err := a.svc.ListUsers(ctx, fleet.UserListOptions{
+	users, err := a.userSvc.ListUsers(ctx, fleet.UserListOptions{
 		ListOptions: fleet.ListOptions{
 			MatchQuery: query,
 		},
@@ -68,6 +72,18 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 		ids = append(ids, u.ID)
 	}
 	return ids, nil
+}
+
+// GetHostLite fetches minimal host information for authorization.
+func (a *FleetServiceAdapter) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
+	host, err := a.hostSvc.GetHostLite(ctx, hostID)
+	if err != nil {
+		return nil, err
+	}
+	return &activity.Host{
+		ID:     host.ID,
+		TeamID: host.TeamID,
+	}, nil
 }
 
 func convertUser(u *fleet.User) *activity.User {

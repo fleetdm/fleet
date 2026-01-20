@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/activity"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -967,6 +967,68 @@ func (t *testingAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzT
 	return nil
 }
 
+// testingUserProvider adapts mysql.Datastore to activity.UserProvider interface.
+type testingUserProvider struct {
+	ds *Datastore
+}
+
+func (t *testingUserProvider) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	users, err := t.ds.UsersByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*activity.User, 0, len(users))
+	for _, u := range users {
+		result = append(result, &activity.User{
+			ID:       u.ID,
+			Name:     u.Name,
+			Email:    u.Email,
+			Gravatar: u.GravatarURL,
+			APIOnly:  u.APIOnly,
+		})
+	}
+	return result, nil
+}
+
+func (t *testingUserProvider) FindUserIDs(ctx context.Context, query string) ([]uint, error) {
+	if query == "" {
+		return nil, nil
+	}
+	users, err := t.ds.ListUsers(ctx, fleet.UserListOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: query,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]uint, 0, len(users))
+	for _, u := range users {
+		ids = append(ids, u.ID)
+	}
+	return ids, nil
+}
+
+// testingHostProvider adapts mysql.Datastore to activity.HostProvider interface.
+// Datastore has HostLite, but HostProvider interface expects GetHostLite.
+type testingHostProvider struct {
+	ds *Datastore
+}
+
+func (t *testingHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
+	host, err := t.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, err
+	}
+	return &activity.Host{
+		ID:     host.ID,
+		TeamID: host.TeamID,
+	}, nil
+}
+
 // NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
 // User data is fetched from the same database to support tests that verify user info in activities.
 func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
@@ -977,11 +1039,12 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
 	dbConns := &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
 
-	// Create a UserProvider that reads from the datastore
-	userProvider := activityacl.NewFleetServiceAdapter(ds)
+	// Create providers that read from the datastore directly
+	userProvider := &testingUserProvider{ds: ds}
+	hostProvider := &testingHostProvider{ds: ds}
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, userProvider, log.NewNopLogger())
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, userProvider, hostProvider, log.NewNopLogger())
 	return svc
 }
 

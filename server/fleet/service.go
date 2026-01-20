@@ -82,9 +82,17 @@ type UserLookupService interface {
 	UsersByIDs(ctx context.Context, ids []uint) ([]*User, error)
 }
 
+// HostLookupService provides methods for looking up hosts.
+// This interface is extracted for use by components that only need host lookup capabilities.
+type HostLookupService interface {
+	// GetHostLite returns basic host information not requiring table joins.
+	GetHostLite(ctx context.Context, id uint) (host *Host, err error)
+}
+
 type Service interface {
 	OsqueryService
 	UserLookupService
+	HostLookupService
 
 	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
 	GetTransparencyURL(ctx context.Context) (string, error)
@@ -626,9 +634,6 @@ type Service interface {
 	// but haven't run yet. It also returns the total (unpaginated) count of upcoming
 	// activities.
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
-
-	// ListHostPastActivities lists the activities that have already happened for the specified host.
-	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 
 	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
 	// host. If the activity does not exist in the queue of upcoming activities

@@ -54,3 +54,22 @@ func (m *mockUserProvider) FindUserIDs(ctx context.Context, query string) ([]uin
 	}
 	return ids, nil
 }
+
+type mockHostProvider struct {
+	hosts map[uint]*activity.Host
+}
+
+func newMockHostProvider() *mockHostProvider {
+	return &mockHostProvider{hosts: make(map[uint]*activity.Host)}
+}
+
+func (m *mockHostProvider) AddHost(h *activity.Host) {
+	m.hosts[h.ID] = h
+}
+
+func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
+	if h, ok := m.hosts[hostID]; ok {
+		return h, nil
+	}
+	return nil, nil
+}

@@ -168,51 +168,6 @@ func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 ////////////////////////////////////////////////////////////////////////////////
 // List host past activities
 ////////////////////////////////////////////////////////////////////////////////
-
-type listHostPastActivitiesRequest struct {
-	HostID      uint              `url:"id"`
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-
-func listHostPastActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listHostPastActivitiesRequest)
-	acts, meta, err := svc.ListHostPastActivities(ctx, req.HostID, req.ListOptions)
-	if err != nil {
-		return listActivitiesResponse{Err: err}, nil
-	}
-
-	return &listActivitiesResponse{Meta: meta, Activities: acts}, nil
-}
-
-func (svc *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	// First ensure the user has access to list hosts, then check the specific
-	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, nil, err
-	}
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get host")
-	}
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, nil, err
-	}
-
-	// cursor-based pagination is not supported for past activities
-	opt.After = ""
-	// custom ordering is not supported, always by date (newest first)
-	opt.OrderKey = "created_at"
-	opt.OrderDirection = fleet.OrderDescending
-	// no matching query support
-	opt.MatchQuery = ""
-	// always include metadata
-	opt.IncludeMetadata = true
-
-	return svc.ds.ListHostPastActivities(ctx, hostID, opt)
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Cancel host upcoming activity
 ////////////////////////////////////////////////////////////////////////////////
 

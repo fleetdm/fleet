@@ -50,10 +50,10 @@ func (tdb *TestDB) Conns() *common_mysql.DBConnections {
 	return &common_mysql.DBConnections{Primary: tdb.DB, Replica: tdb.DB}
 }
 
-// TruncateTables clears the activities and users tables.
+// TruncateTables clears the activities, users, hosts, and host_activities tables.
 func (tdb *TestDB) TruncateTables(t *testing.T) {
 	t.Helper()
-	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "activities", "users")
+	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "host_activities", "activities", "hosts", "users")
 }
 
 // InsertUser creates a user in the database and returns the user ID.
@@ -110,4 +110,31 @@ func (tdb *TestDB) InsertActivityWithTime(t *testing.T, userID *uint, activityTy
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
 	return uint(id)
+}
+
+// InsertHost creates a host in the database and returns the host ID.
+func (tdb *TestDB) InsertHost(t *testing.T, hostname string, teamID *uint) uint {
+	t.Helper()
+	ctx := t.Context()
+
+	result, err := tdb.DB.ExecContext(ctx, `
+		INSERT INTO hosts (hostname, team_id, created_at, updated_at)
+		VALUES (?, ?, NOW(), NOW())
+	`, hostname, teamID)
+	require.NoError(t, err)
+
+	id, err := result.LastInsertId()
+	require.NoError(t, err)
+	return uint(id)
+}
+
+// InsertHostActivity creates a link between a host and an activity in the host_activities junction table.
+func (tdb *TestDB) InsertHostActivity(t *testing.T, hostID, activityID uint) {
+	t.Helper()
+	ctx := t.Context()
+
+	_, err := tdb.DB.ExecContext(ctx, `
+		INSERT INTO host_activities (host_id, activity_id) VALUES (?, ?)
+	`, hostID, activityID)
+	require.NoError(t, err)
 }
