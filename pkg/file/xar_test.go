@@ -3,11 +3,14 @@ package file
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -345,5 +348,43 @@ func TestIsValidAppFilePath(t *testing.T) {
 	for _, test := range tests {
 		_, ok := isValidAppFilePath(test.input)
 		require.Equal(t, test.expected, ok, test.input)
+	}
+}
+
+func testPrintPkgMetadataFromDirs(t *testing.T) {
+	// prints metadata extracted from all distribution/pkg-info
+	// files to diff between changes
+	tests := []struct {
+		dir       string
+		parseFunc func(rawXML []byte) (*InstallerMetadata, error)
+	}{
+		{"distribution", parseDistributionFile},
+		{"packageInfo", parsePackageInfoFile},
+	}
+
+	for _, test := range tests {
+		fmt.Println("__________________ Parsing from: ", test.dir, " __________________")
+		dents, err := os.ReadDir(filepath.Join("testdata", test.dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, dent := range dents {
+			if !dent.Type().IsRegular() || strings.HasPrefix(dent.Name(), ".") {
+				continue
+			}
+			t.Run(dent.Name(), func(t *testing.T) {
+				tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", test.dir, dent.Name()))
+				require.NoError(t, err)
+				defer tfr.Close()
+
+				rawXML, err := os.ReadFile(filepath.Join("testdata", test.dir, dent.Name()))
+				require.NoError(t, err)
+				metadata, err := test.parseFunc(rawXML)
+				require.NoError(t, err)
+
+				fmt.Printf("%+v\n", metadata)
+			})
+		}
 	}
 }
