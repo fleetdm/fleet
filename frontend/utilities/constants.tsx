@@ -414,6 +414,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "team_name",
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
+  "os_version",
 ];
 
 export const HOST_VITALS_DATA = [

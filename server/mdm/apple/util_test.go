@@ -36,3 +36,11 @@ func TestMDMAppleEnrollURL(t *testing.T) {
 		require.Equal(t, tt.expectedURL, enrollURL)
 	}
 }
+
+func TestGenerateRandomPin(t *testing.T) {
+	for i := 1; i <= 100; i++ {
+		pin, err := GenerateRandomPin(i)
+		require.NoError(t, err)
+		require.Len(t, pin, i)
+	}
+}

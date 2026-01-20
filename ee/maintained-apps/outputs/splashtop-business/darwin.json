@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.8.0.1",
+      "version": "3.8.0.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.splashtop.stb.macosx';"
       },
-      "installer_url": "https://d17kmd0va0f0mp.cloudfront.net/macclient/STB/Splashtop_Business_Mac_INSTALLER_v3.8.0.1.dmg",
+      "installer_url": "https://d17kmd0va0f0mp.cloudfront.net/macclient/STB/Splashtop_Business_Mac_INSTALLER_v3.8.0.4.dmg",
       "install_script_ref": "25107baa",
       "uninstall_script_ref": "76f9b2e9",
-      "sha256": "9dc906efdbe7acbee26cf9fdcc4f239a5196e30f54064b52025c65458fe4e207",
+      "sha256": "571d431261d1e85325750f5350b89552c4e1ac68bf9eaa0afd430df57eae8709",
       "default_categories": [
         "Productivity"
       ]

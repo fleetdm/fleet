@@ -6,6 +6,18 @@ import (
 	"testing"
 )
 
+// TestLogWriter adapts testing.TB to io.Writer for use with go-kit/log.
+// Logs are associated with the test and only shown on failure (or with -v).
+type TestLogWriter struct {
+	T testing.TB
+}
+
+func (w *TestLogWriter) Write(p []byte) (n int, err error) {
+	// Trim trailing newline because go-kit/log adds one, and t.Log() adds another.
+	w.T.Log(strings.TrimSuffix(string(p), "\n"))
+	return len(p), nil
+}
+
 // SaveEnv snapshots the current environment and restores it when the test
 // ends.
 //

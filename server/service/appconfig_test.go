@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -681,60 +682,63 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPConfigured)
 }
 
-// TestTransparencyURL tests that Fleet Premium licensees can use custom transparency urls and Fleet
-// Free licensees are restricted to the default transparency url.
-func TestTransparencyURL(t *testing.T) {
+// TestAppConfigFleetDesktopSettings tests that Fleet Premium licensees can set Fleet Desktop custom settings and that
+// Fleet Free licensees are restricted.
+func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
-		if shouldFail {
-			require.Error(t, err)
-			require.ErrorContains(t, err, "missing or invalid license")
-		} else {
-			require.NoError(t, err)
-		}
-	}
 	testCases := []struct {
 		name             string
 		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		initialSettings  fleet.FleetDesktopSettings
+		newSettings      fleet.FleetDesktopSettings
+		expectedSettings fleet.FleetDesktopSettings
+		invalid          []map[string]string
 	}{
 		{
-			name:             "customURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "",
-			shouldFailModify: true,
+			name:             "modifying Desktop settings on Free Tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "missing or invalid license"},
+				{"name": "alternative_browser_host", "reason": "missing or invalid license"},
+			},
 		},
 		{
-			name:             "customURL",
+			name:             "modifying Desktop settings on Premium Tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "customURL",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
 		},
 		{
-			name:             "emptyURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			name:             "empty values on Free tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
 		},
 		{
-			name:             "emptyURL",
+			name:             "empty values on Premium tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "customURL",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
+		},
+		{
+			name:             "using invalid values",
+			licenseTier:      fleet.TierPremium,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "@:13.com", AlternativeBrowserHost: "@:12.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "parse \"@:13.com\": first path segment in URL cannot contain colon"},
+				{"name": "alternative_browser_host", "reason": "must be a valid hostname or IP address"},
+			},
 		},
 	}
 
@@ -750,13 +754,12 @@ func TestTransparencyURL(t *testing.T) {
 				ServerSettings: fleet.ServerSettings{
 					ServerURL: "https://example.org",
 				},
-				FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.initialURL},
+				FleetDesktop: tt.initialSettings,
 			}
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return dsAppConfig, nil
 			}
-
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 				*dsAppConfig = *conf
 				return nil
@@ -765,37 +768,44 @@ func TestTransparencyURL(t *testing.T) {
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 				return nil
 			}
-
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 				return []*fleet.VPPTokenDB{}, nil
 			}
-
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				return []*fleet.ABMToken{}, nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
-			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 
-			raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: tt.newURL})
+			raw, err := json.Marshal(tt.newSettings)
 			require.NoError(t, err)
 			raw = []byte(`{"fleet_desktop":` + string(raw) + `}`)
 			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
-			checkLicenseErr(t, tt.shouldFailModify, err)
 
+			if len(tt.invalid) != 0 {
+				var invalid *fleet.InvalidArgumentError
+				ok := errors.As(err, &invalid)
+				require.True(t, ok)
+				require.Equal(t, tt.invalid, invalid.Invalid())
+			}
 			if modified != nil {
-				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, modified.FleetDesktop.AlternativeBrowserHost)
+
 				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
-				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 			}
 
 			expectedURL := fleet.DefaultTransparencyURL
 			expectedSecureframeURL := fleet.SecureframeTransparencyURL
-			if tt.expectedURL != "" {
-				expectedURL = tt.expectedURL
-				expectedSecureframeURL = tt.expectedURL
+			if tt.expectedSettings.TransparencyURL != "" {
+				expectedURL = tt.expectedSettings.TransparencyURL
+				expectedSecureframeURL = tt.expectedSettings.TransparencyURL
 			}
 
 			transparencyURL, err := svc.GetTransparencyURL(ctx)
@@ -1619,6 +1629,96 @@ func TestModifyEnableAnalytics(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedEnabled, ac.ServerSettings.EnableAnalytics)
 			}
+		})
+	}
+}
+
+func TestValidAddress(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hostname string
+		expected bool
+	}{
+		// Empty and basic cases
+		{name: "empty string", hostname: "", expected: false},
+
+		// Make sure we don't allow URLs
+		{name: "http prefix", hostname: "http://example.com", expected: false},
+		{name: "https prefix", hostname: "https://example.com", expected: false},
+		{name: "with path", hostname: "example.com/path", expected: false},
+		{name: "with query", hostname: "example.com?query=value", expected: false},
+		{name: "with fragment", hostname: "example.com#fragment", expected: false},
+
+		// Test ports are allowd
+		{name: "with port", hostname: "example.com:9090", expected: true},
+		{name: "port without hostname", hostname: ":9090", expected: false},
+		{name: "port without hostname", hostname: "   :9090", expected: false},
+
+		// Valid IPv4 addresses
+		{name: "IPv4 localhost", hostname: "127.0.0.1", expected: true},
+		{name: "IPv4 address", hostname: "192.168.1.1", expected: true},
+		{name: "IPv4 all zeros", hostname: "0.0.0.0", expected: false},
+		{name: "IPv4 loopback with port", hostname: "127.0.0.1:9090", expected: true},
+
+		// Valid IPv6 addresses
+		{name: "IPv6 localhost", hostname: "::1", expected: true},
+		{name: "IPv6 full", hostname: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", expected: true},
+		{name: "IPv6 compressed", hostname: "2001:db8::1", expected: true},
+		{name: "IPv6 all zeros", hostname: "::", expected: false},
+
+		// IPv6 with brackets
+		{name: "IPv6 localhost with brackets", hostname: "[::1]", expected: true},
+		{name: "IPv6 with brackets", hostname: "[2001:db8::1]", expected: true},
+		{name: "brackets only", hostname: "[]", expected: false},
+		{name: "empty brackets", hostname: "[", expected: false},
+		{name: "IPv6 locahost brackets with port", hostname: "[::1]:8089", expected: true},
+
+		// Valid DNS hostnames
+		{name: "localhostname", hostname: "localhost", expected: true},
+		{name: "hostname with subdomain", hostname: "api.example.com", expected: true},
+		{name: "hostname with multiple subdomains", hostname: "a.b.c.example.com", expected: true},
+		{name: "hostname with numbers", hostname: "server1.example.com", expected: true},
+		{name: "hostname starting with number", hostname: "1server.example.com", expected: true},
+		{name: "all numeric label", hostname: "123.example.com", expected: true},
+		{name: "hostname with hyphen", hostname: "my-server.example.com", expected: true},
+		{name: "hostname with multiple hyphens", hostname: "my-cool-server.example.com", expected: true},
+		{name: "single character label", hostname: "a.b.c", expected: true},
+		{name: "single character hostname", hostname: "a", expected: true},
+
+		// Invalid DNS hostnames - hyphen rules
+		{name: "label starting with hyphen", hostname: "-example.com", expected: false},
+		{name: "label ending with hyphen", hostname: "example-.com", expected: false},
+		{name: "label starting and ending with hyphen", hostname: "-example-.com", expected: false},
+		{name: "only hyphen label", hostname: "-.com", expected: false},
+
+		// Invalid DNS hostnames - special characters
+		{name: "hostname with underscore", hostname: "my_server.example.com", expected: false},
+		{name: "hostname with space", hostname: "my server.example.com", expected: false},
+		{name: "hostname with at symbol", hostname: "user@example.com", expected: false},
+		{name: "hostname with exclamation", hostname: "example!.com", expected: false},
+
+		// Invalid DNS hostnames - empty labels
+		{name: "empty label (double dot)", hostname: "example..com", expected: false},
+		{name: "leading dot", hostname: ".example.com", expected: false},
+		{name: "trailing dot only", hostname: "example.com.", expected: false},
+
+		// Length limits
+		{name: "label exactly 63 chars", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: true},
+		{name: "label 64 chars (too long)", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: false},
+
+		// Real-world examples
+		{name: "fleet server URL", hostname: "fleet.example.com", expected: true},
+		{name: "AWS endpoint", hostname: "s3.us-west-2.amazonaws.com", expected: true},
+		{name: "internal hostname", hostname: "db-primary-01.internal", expected: true},
+		{name: "gibberish", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app", expected: false},
+		{name: "gibberish II", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app:9800", expected: false},
+		{name: "hostname with port", hostname: "example:8080", expected: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := validateAddress(tc.hostname)
+			assert.Equal(t, tc.expected, result, "isValidHostnameAndPort(%q) = %v, want %v", tc.hostname, result, tc.expected)
 		})
 	}
 }

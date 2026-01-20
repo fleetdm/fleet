@@ -17,6 +17,7 @@ import (
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -68,12 +69,13 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 	decoded.TitleID = uint(titleID)
 
+	maxInstallerSize := installersize.FromContext(ctx)
 	err = r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 3 GB.",
+				Message:     fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 				InternalErr: err,
 			}
 		}
@@ -93,10 +95,10 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// unlike for uploadSoftwareInstallerRequest, every field is optional, including the file upload
 	if r.MultipartForm.File["software"] != nil || len(r.MultipartForm.File["software"]) > 0 {
 		decoded.File = r.MultipartForm.File["software"][0]
-		if decoded.File.Size > fleet.MaxSoftwareInstallerSize {
+		if decoded.File.Size > maxInstallerSize {
 			// Should never happen here since the request's body is limited to the maximum size.
 			return nil, &fleet.BadRequestError{
-				Message: "The maximum file size is 3 GB.",
+				Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 			}
 		}
 	}
@@ -273,12 +275,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 
+	maxInstallerSize := installersize.FromContext(ctx)
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 3 GB.",
+				Message:     fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 				InternalErr: err,
 			}
 		}
@@ -303,11 +306,11 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	decoded.File = r.MultipartForm.File["software"][0]
-	if decoded.File.Size > fleet.MaxSoftwareInstallerSize {
+	if decoded.File.Size > maxInstallerSize {
 		// Should never happen here since the request's body is limited to the
 		// maximum size.
 		return nil, &fleet.BadRequestError{
-			Message: "The maximum file size is 3 GB.",
+			Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 		}
 	}
 

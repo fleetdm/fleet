@@ -171,6 +171,12 @@ module.exports.custom = {
     'handbook/company/writing.md': 'mike-j-thomas',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',
+    'handbook/finance': 'rfoo2015',
+    'handbook/people': 'ireedy',
+    'handbook/it-and-enablement': 'allenhouchins',
+    'handbook/sales': 'sampfluger88',
+    'handbook/customer-success': 'zayhanlon',
+    'handbook/marketing': 'akuthiala',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -272,23 +278,23 @@ module.exports.custom = {
     '.github/workflows/dogfood-gitops.yml': 'allenhouchins',
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],// (« for changing who reviews is automatically requested from for given paths)
-    'website/config/custom.js': ['eashaw', 'mikermcneil', 'lukeheath', 'sampfluger88'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'],// (« for changing who reviews is automatically requested from for given paths)
+    'website/config/custom.js': ['eashaw', 'mikermcneil', 'lukeheath', 'sampfluger88', 'ireedy'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/company/communications.md': ['mikermcneil'],
-    'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil'],
+    'handbook/company/communications.md': ['mikermcneil', 'sampfluger88'],
+    'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],
     'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil'],
-    'handbook/finance': ['sampfluger88', 'mikermcneil'],
+    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
+    'handbook/finance': ['sampfluger88', 'mikermcneil', 'rfoo2015'],
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
-    'handbook/marketing': ['sampfluger88', 'mikermcneil'],
-    'handbook/customer-success': ['sampfluger88', ' mikermcneil'],
+    'handbook/marketing': ['sampfluger88', 'mikermcneil', 'akuthiala'],
+    'handbook/customer-success': ['sampfluger88', ' mikermcneil', 'zayhanlon'],
 
     // 🫧 Pricing and features and dev process
     'handbook/company/pricing-features-table.yml': ['noahtalerman', 'mikermcneil'],

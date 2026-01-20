@@ -1,4 +1,4 @@
-# Fleet 4.79.0 | Latest macOS only at enrollment, MDM command history, and more...
+# Fleet 4.79.0 | macOS updates, MDM command history, Android software config, and more...
 
 Fleet 4.79.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.79.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
@@ -15,7 +15,7 @@ You can now choose to enforce the latest macOS version only for newly enrolling 
 
 ### MDM command history
 
-On the **Host details** page for macOS, iOS, and iPadOS hosts, you’ll now see a list of all MDM commands: past and upcoming. This includes both Fleet-initiated commands and those triggered by an IT admins. This can help you and your support team troubleshoot why hosts are missing configuration profiles or certificates.
+On the **Host details** page for macOS, iOS, and iPadOS hosts, you’ll now see a list of all MDM commands: past and upcoming. This includes both Fleet-initiated commands and those triggered by IT admins. This can help you and your support team troubleshoot why hosts are missing configuration profiles or certificates.
 
 ### Android software configuration
 
@@ -93,5 +93,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2026-01-14">
-<meta name="articleTitle" value="Fleet 4.79.0 | macOS versioning, MDM command history, Android software config, and more...">
+<meta name="articleTitle" value="Fleet 4.79.0 | macOS updates, MDM command history, Android software config, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.79.0-1600x900@2x.png">
