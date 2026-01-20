@@ -2516,7 +2516,6 @@ team_settings:
 	noTeamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)},
 		fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
-	fmt.Println("noTeamTitles: ", noTeamTitles)
 	require.Len(t, noTeamTitles, 2)
 	require.NotNil(t, noTeamTitles[0].SoftwarePackage)
 	require.NotNil(t, noTeamTitles[1].SoftwarePackage)
