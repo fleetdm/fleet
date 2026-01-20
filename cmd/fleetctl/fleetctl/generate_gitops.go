@@ -1449,6 +1449,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	// for iOS and one for iPadOS. Use this set to deduplicate them (by filename,
 	// which is unique for a given team and platform).
 	dedupeInHouseAppsByFilename := make(map[string]struct{})
+	var byUniqueID map[string]string
 	for _, sw := range software {
 		softwareSpec := make(map[string]interface{})
 		switch {
@@ -1492,6 +1493,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			return nil, err
 		}
 
+		var slug string
+
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
 
@@ -1505,9 +1508,21 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
+				if byUniqueID == nil {
+					appsList, err := maintained_apps.FetchAppsList(context.Background())
+					if err != nil {
+						return nil, err
+					}
+					byUniqueID = make(map[string]string, len(appsList.Apps))
+					for _, a := range appsList.Apps {
+						byUniqueID[a.UniqueIdentifier] = a.Slug
+					}
+				}
+
+				slug = byUniqueID[ptr.ValOrZero(softwareTitle.BundleIdentifier)]
 				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
 					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
-					Slug: ptr.ValOrZero(softwareTitle.SoftwarePackage.Slug),
+					Slug: slug,
 				})
 				if err != nil {
 					return nil, err
@@ -1717,7 +1732,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			fmas = append(fmas, softwareSpec)
 			delete(softwareSpec, "hash_sha256")
 			delete(softwareSpec, "url")
-			softwareSpec["slug"] = softwareTitle.SoftwarePackage.Slug
+			softwareSpec["slug"] = slug
 		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
 		case sw.AppStoreApp != nil:

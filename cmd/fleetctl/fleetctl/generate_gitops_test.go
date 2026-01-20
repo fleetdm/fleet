@@ -464,7 +464,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}, nil
 	case 8:
 		return &fleet.SoftwareTitle{
-			ID: 1,
+			ID: 8,
 			SoftwarePackage: &fleet.SoftwareInstaller{
 				LabelsIncludeAny: []fleet.SoftwareScopeLabel{{
 					LabelName: "Label A",
@@ -479,10 +479,11 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Platform:             "darwin",
 				URL:                  "https://example.com/download/my-software.pkg",
 				Categories:           []string{"Browsers"},
+				BundleIdentifier:     "com.my.fma",
 				FleetMaintainedAppID: ptr.Uint(1),
-				Slug:                 ptr.String("fma1/darwin"),
 			},
-			IconUrl: ptr.String("/api/icon1.png"),
+			IconUrl:          ptr.String("/api/icon1.png"),
+			BundleIdentifier: ptr.String("com.my.fma"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -560,6 +561,15 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 					InstallDuringSetup: ptr.Bool(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
+			},
+			{
+				ID:   8,
+				Name: "My FMA",
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					InstallDuringSetup: ptr.Bool(true),
+					Name:               "my-fma.pkg",
+					Platform:           "darwin",
+				},
 			},
 		}, nil
 	}
@@ -741,6 +751,13 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "apps.json") {
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}]}`)
+			err := json.NewEncoder(w).Encode(data)
+			require.NoError(t, err)
+			return
+		}
+
 		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
 
 		var versions []*ma.FMAManifestApp
