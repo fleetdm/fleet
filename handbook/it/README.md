@@ -85,7 +85,7 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/it-and-enablement/it-and-enablement.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/it/it.rituals.yml']"></rituals>
 
 
 #### Stubs

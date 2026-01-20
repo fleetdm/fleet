@@ -11,17 +11,17 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 | Participant | Role                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Requester   | Requests recovery for their own account                                                                |
-| Recoverer   | Person with access to perform the recovery who monitors `help-it-and-enablement`                                                                                                                               |
+| Recoverer   | Person with access to perform the recovery who monitors `help-it` |
 | Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
 
 
 ### Preparing for recovery
 
 1. If the requester still has access to GitHub and/or Slack, they [ask for
-   help](https://fleetdm.com/handbook/it-and-enablement#contact-us). For non-urgent requests, please
+   help](https://fleetdm.com/handbook/it#contact-us). For non-urgent requests, please
    prefer filing an issue with the IT & Enablement team. If they do not have access,
    they can contact their manager or a teammate over the phone via voice or texting, and they will
-   [ask for help](https://fleetdm.com/handbook/it-and-enablement#contact-us) on behalf of the
+   [ask for help](https://fleetdm.com/handbook/it#contact-us) on behalf of the
    requester.
 2. The recoverer identifies the requester through a live video call.
 * If the recoverer does not know the requester well enough to positively identify them visually, the
@@ -344,7 +344,7 @@ is kept up to date.
 
 We strongly recommend using hardware security keys. Fleet configures privileged user accounts with a policy that enforces the use of hardware security keys. This prevents credential theft better than other methods of 2FA/2-SV. If you do not already have a pair of hardware security keys, order [two YubiKey 5C NFC security
 keys](https://www.yubico.com/us/product/yubikey-5-nfc/) with your company card, or ask
-for help in [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) to get one if you do not have a company card.
+for help in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) to get one if you do not have a company card.
 
 
 #### Are they YubiKeys or security keys?
@@ -362,7 +362,7 @@ Because they are the only type of Two-Factor Authentication (2FA) that protects 
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
-section](https://fleetdm.com/handbook/finance/security#2-step-verification) for more
+section](https://fleetdm.com/handbook/it/security#2-step-verification) for more
 information on the security of different types of 2FA.
 
 
@@ -942,9 +942,9 @@ Fleet requires all team members to comply with the following acceptable use requ
 
 - Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-- Teams must exclusively use legal software with a valid license installed through the "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2).  
+- Teams must exclusively use legal software with a valid license installed through the "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2).  
 
-- Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager (1Password). If you don't know how to use the password manager or safely access secrets, please ask in [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2)!
+- Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager (1Password). If you don't know how to use the password manager or safely access secrets, please ask in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2)!
 
 - Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (eg. debug profiles) should not be shared publicly.
 
@@ -1113,7 +1113,7 @@ For technical incidents:
 
 For business/operational incidents:
 - CEO (Mike McNeil)
-- Head of Digital Workplace & GTM Systems (Sam Pfluger)
+- GTM Systems Architect (Sam Pfluger)
 
 
 ### Response Teams and Responsibilities

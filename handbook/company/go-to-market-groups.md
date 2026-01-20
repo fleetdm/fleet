@@ -9,7 +9,7 @@ When communicating with future or current customers, hand-offs [between departme
 
 
 > Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
-> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
+> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), 🌐 [IT](https://fleetdm.com/handbook/it), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
 
 
 ## Current GTM groups
