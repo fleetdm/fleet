@@ -14,15 +14,15 @@ import (
 
 // OverwriteQueryResultRows overwrites the query result rows for a given query and host.
 // It deletes existing rows for the host/query and inserts the new rows.
-// If the incoming result set has more than 1000 rows, it bails early without storing anything.
+// If the incoming result set has more than the row limit, it bails early without storing anything.
 // Excess rows across all hosts are cleaned up by a separate cron job.
 func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (rowsAdded int, err error) {
 	if len(rows) == 0 {
 		return 0, nil
 	}
 
-	// Bail early if the incoming result set is too large (more than 1000 rows from a single host)
-	if len(rows) > fleet.DefaultMaxQueryReportRows {
+	// Bail early if the incoming result set is too large (more than the row limit from a single host)
+	if len(rows) > maxQueryReportRows {
 		return 0, nil
 	}
 
@@ -146,6 +146,7 @@ func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
 // Returns the list of query IDs that had excess rows deleted.
 func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) ([]uint, error) {
 	batchSize := 500
+	// Allow overriding the batch size mainly for tests.
 	if len(opts) > 0 && opts[0].BatchSize > 0 {
 		batchSize = opts[0].BatchSize
 	}
