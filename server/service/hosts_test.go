@@ -1380,7 +1380,7 @@ func TestDeleteHostCreatesActivity(t *testing.T) {
 	// Verify the activity was created
 	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
 		OrderKey:       "id",
-		OrderDirection: activity_api.OrderDesc,
+		OrderDirection: activity_api.OrderDescending,
 		PerPage:        1,
 	})
 	require.Len(t, activities, 1)
@@ -1443,7 +1443,7 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 	// Verify activities were created
 	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
 		OrderKey:       "id",
-		OrderDirection: activity_api.OrderDesc,
+		OrderDirection: activity_api.OrderDescending,
 		PerPage:        10,
 	})
 	require.GreaterOrEqual(t, len(activities), 2)
@@ -1563,7 +1563,7 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	// Verify activities were created
 	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
 		OrderKey:       "id",
-		OrderDirection: activity_api.OrderDesc,
+		OrderDirection: activity_api.OrderDescending,
 		PerPage:        20,
 	})
 	require.Greater(t, len(activities), len(prevActivities), "Should have new activities")

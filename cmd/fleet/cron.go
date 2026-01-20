@@ -1494,7 +1494,7 @@ func cronActivitiesStreaming(
 		// (1) Get batch of activities that haven't been streamed.
 		activitiesToStream, _, err := activitySvc.ListActivities(ctx, activity_api.ListOptions{
 			OrderKey:       "id",
-			OrderDirection: activity_api.OrderAsc,
+			OrderDirection: activity_api.OrderAscending,
 			PerPage:        ActivitiesToStreamBatchCount,
 			Page:           page,
 			Streamed:       ptr.Bool(false),

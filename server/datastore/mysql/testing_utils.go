@@ -992,7 +992,7 @@ func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Servi
 	// Apply defaults for test convenience and determinism.
 	if opts.OrderKey == "" {
 		opts.OrderKey = "id"
-		opts.OrderDirection = activity_api.OrderAsc
+		opts.OrderDirection = activity_api.OrderAscending
 	}
 	if opts.PerPage == 0 {
 		opts.PerPage = fleet.DefaultPerPage
