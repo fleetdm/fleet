@@ -110,7 +110,7 @@ const FleetDesktop = ({
         variant="right-panel"
         content={
           <>
-            Customize the default transparency URL and browser host to customize
+            Override the default transparency URL or browser host to customize
             Fleet Desktop experience.
           </>
         }
