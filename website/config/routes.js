@@ -687,7 +687,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/rest-api': '/docs/rest-api/rest-api',
   'GET /docs/using-fleet/configuration-files': '/docs/configuration/configuration-files/',
   'GET /docs/using-fleet/application-security': '/handbook/finance/application-security',
-  'GET /docs/using-fleet/security-audits': '/handbook/finance/security-audits',
+  'GET /docs/using-fleet/security-audits': '/handbook/it/security-audits',
   'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
   'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
   'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',

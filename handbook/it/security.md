@@ -649,7 +649,7 @@ We apply the following *Security/Password management* settings to all users as t
 | Allow password reuse                                                    | Disabled      |
 | Expiration                                                              | Never expires |
 
-We also configure [Password Alert](https://support.google.com/chrome/a/answer/9696707?visit_id=637806265550953415-394435698&rd=1#zippy=) to warn users of password re-use. See [How we protect end-user devices](https://fleetdm.com/handbook/finance/security#how-we-protect-end-user-devices).
+We also configure [Password Alert](https://support.google.com/chrome/a/answer/9696707?visit_id=637806265550953415-394435698&rd=1#zippy=) to warn users of password re-use. See [How we protect end-user devices](https://fleetdm.com/handbook/it/security#how-we-protect-end-user-devices).
 
 
 #### Account recovery
@@ -989,17 +989,17 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 
 
-- [Asset management policy](https://fleetdm.com/handbook/finance/security#asset-management-policy)
-- [Business continuity and disaster recovery policy](https://fleetdm.com/handbook/finance/security#business-continuity-and-disaster-recovery-policy)
-- [Data management policy](https://fleetdm.com/handbook/finance/security#data-management-policy)
-- [Encryption policy](https://fleetdm.com/handbook/finance/security#encryption-policy)
-- [Human resources security policy](https://fleetdm.com/handbook/finance/security#human-resources-security-policy)
-- [Incident response policy](https://fleetdm.com/handbook/finance/security#incident-response-policy)
-- [Operations security and change management policy](https://fleetdm.com/handbook/finance/security#operations-security-and-change-management-policy)
-- [Risk management policy](https://fleetdm.com/handbook/finance/security#risk-management-policy)
-- [Secure software development and product security policy](https://fleetdm.com/handbook/finance/security#secure-software-development-and-product-security-policy)
-- [Security policy management policy](https://fleetdm.com/handbook/finance/security#security-policy-management-policy)
-- [Third-party management policy](https://fleetdm.com/handbook/finance/security#third-party-management-policy)
+- [Asset management policy](https://fleetdm.com/handbook/it/security#asset-management-policy)
+- [Business continuity and disaster recovery policy](https://fleetdm.com/handbook/it/security#business-continuity-and-disaster-recovery-policy)
+- [Data management policy](https://fleetdm.com/handbook/it/security#data-management-policy)
+- [Encryption policy](https://fleetdm.com/handbook/it/security#encryption-policy)
+- [Human resources security policy](https://fleetdm.com/handbook/it/security#human-resources-security-policy)
+- [Incident response policy](https://fleetdm.com/handbook/it/security#incident-response-policy)
+- [Operations security and change management policy](https://fleetdm.com/handbook/it/security#operations-security-and-change-management-policy)
+- [Risk management policy](https://fleetdm.com/handbook/it/security#risk-management-policy)
+- [Secure software development and product security policy](https://fleetdm.com/handbook/it/security#secure-software-development-and-product-security-policy)
+- [Security policy management policy](https://fleetdm.com/handbook/it/security#security-policy-management-policy)
+- [Third-party management policy](https://fleetdm.com/handbook/it/security#third-party-management-policy)
 
 
 ### Access authorization and termination
@@ -1079,7 +1079,7 @@ For new employees who have not received a company laptop or in cases where a com
 
 | Question | Answer                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Please provide your application/solution disaster recovery RTO/RPO | RTO and RPO intervals differ depending on the service that is impacted. Please refer to https://fleetdm.com/handbook/finance/security-policies#business-continuity-and-disaster-recovery-policy
+| Please provide your application/solution disaster recovery RTO/RPO | RTO and RPO intervals differ depending on the service that is impacted. Please refer to https://fleetdm.com/handbook/it/security-policies#business-continuity-and-disaster-recovery-policy
 
 
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -1887,7 +1887,7 @@ so within a week of a report.
 
 Libraries are inventoried and monitored for vulnerabilities. Our process for fixing vulnerable
 libraries and other vulnerabilities is available in our
-[handbook](https://fleetdm.com/handbook/finance/security#vulnerability-management). We use
+[handbook](https://fleetdm.com/handbook/it/security#vulnerability-management). We use
 [Dependabot](https://github.com/dependabot) to automatically open PRs to update vulnerable dependencies.
 
 
@@ -2017,7 +2017,7 @@ This was resolved on 2025-07-30 in the `fleetdm/fleet-terraform` with [updates T
 
 The web application did not enforce user lockouts as a result of brute-force password attacks. The tester sent 20 fake passwords to the application in 5-second delays to avoid the rate limiting in place by the application.
 
-This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#5-no-account-lockout).
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/it/security#5-no-account-lockout).
 
 #### 3 - Long session timeout
 
@@ -2027,7 +2027,7 @@ This was previously documented and addressed as [a finding in our 2022 penetrati
 
 The default value was found to be five days, but session timeout is configurable for self-managed users in the application's configuration.
 
-This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#6-session-timeout-insufficient-session-expiration).
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/it/security#6-session-timeout-insufficient-session-expiration).
 
 #### 4 - Failure to validate new account emails
 
@@ -2047,7 +2047,7 @@ All user accounts that use email and password for authentication require an admi
 
 The application's authentication token was stored in the browser's DOM storage object.
 
-This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#4-insecure-storage-of-authentication-tokens).
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/it/security#4-insecure-storage-of-authentication-tokens).
 
 
 ### June 2024 penetration testing of Fleet 4.50.1
