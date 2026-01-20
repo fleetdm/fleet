@@ -16,7 +16,9 @@ import (
 
 var MigrationClient = goose.New("migration_status_tables", goose.MySqlDialect{})
 
-var outputTo = os.Stderr // can override in tests
+// can override in tests
+var outputTo = os.Stderr
+var progressInterval = time.Second * 5
 
 type migrationStep func(tx *sql.Tx) error
 
@@ -45,7 +47,7 @@ func incrementalMigrationStep(count incrementCounter, execute incrementalExecuto
 		// Every five seconds, echo the % progress of the executor
 		done := make(chan struct{})
 		go func() {
-			ticker := time.NewTicker(time.Second * 5)
+			ticker := time.NewTicker(progressInterval)
 			defer ticker.Stop()
 			for {
 				select {
