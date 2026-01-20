@@ -133,7 +133,7 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
 			}
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
-			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
+			appFromResult, appWasReported := installsByBundleID[expectedInstall.BundleIdentifier]
 
 			var terminalStatus string
 			switch {
@@ -154,8 +154,13 @@ func NewInstalledApplicationListResultsHandler(
 
 			if terminalStatus == "" {
 				poll = true
+				// use the Xcode special-case (managedonly=false) only if it wasn't reported
+				// in the current result (if it was reported and gets here, it means is still "Installing"),
+				// so we will list the full apps for verification only after it finished "installing", until
+				// it gets verified or times out doing so (and possibly once _before_ it starts installing).
+				// This minimizes the number of times we request the (~100KB large) payload of all apps.
 				requireXcodeSpecialCase = expectedInstall.BundleIdentifier == xcodeBundleID &&
-					installedAppResult.HostPlatform() == "darwin"
+					installedAppResult.HostPlatform() == "darwin" && !appWasReported
 				return nil
 			}
 
