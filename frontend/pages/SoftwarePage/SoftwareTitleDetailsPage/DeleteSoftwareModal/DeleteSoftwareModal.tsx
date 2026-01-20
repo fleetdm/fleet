@@ -16,36 +16,49 @@ const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
 const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
   "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again.";
 
-const getPendingInstallMessage = (
-  isAppStoreApp: boolean,
-  isAndroidApp: boolean,
-  name?: string
-) => {
-  console.log("isAndroidApp:", isAndroidApp);
+const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
   // Android apps do not have pending installs/uninstalls as they are initiated through setup experience or by user
   if (isAndroidApp) {
-    return ".";
+    return (
+      <p>
+        Currently, software won&apos;t be deleted from self-service (managed
+        Google Play) and won&apos;t be uninstalled from the hosts.
+      </p>
+    );
   }
 
   // VPP apps pending installs/uninstalls commands are not cancelled (future story #25912) but results only show in activity feed, as software is removed from host's software library
   if (isAppStoreApp) {
     return (
       <>
-        {" "}
-        and any pending installs or uninstalls for <strong>{name}</strong> will
-        still complete, but results will no longer appear in Fleet.
+        <p>
+          Software <strong>won&apos;t be uninstalled</strong> from hosts.
+        </p>
+        <p>
+          Pending or already started installs and uninstalls won&apos;t be
+          canceled, and the results won&apos;t appear in Fleet.
+        </p>
       </>
     );
   }
 
-  return ", but any pending installs or uninstalls will be canceled.";
+  return (
+    <>
+      <p>
+        Software <strong>won&apos;t be uninstalled</strong> from hosts.
+      </p>
+      <p>
+        Pending installs and uninstalls will be canceled. If they have already
+        started, they won&apos; be canceled, and the results won&apos;t appear
+        in Fleet.
+      </p>
+    </>
+  );
 };
 
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  softwareTitleName?: string;
-  softwareDisplayName?: string;
   onExit: () => void;
   onSuccess: () => void;
   gitOpsModeEnabled?: boolean;
@@ -56,8 +69,6 @@ interface IDeleteSoftwareModalProps {
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
-  softwareTitleName,
-  softwareDisplayName,
   onExit,
   onSuccess,
   gitOpsModeEnabled,
@@ -87,8 +98,6 @@ const DeleteSoftwareModal = ({
     onExit();
   }, [softwareId, teamId, renderFlash, onSuccess, onExit]);
 
-  const name = softwareDisplayName || softwareTitleName;
-
   return (
     <Modal
       className={baseClass}
@@ -103,25 +112,8 @@ const DeleteSoftwareModal = ({
             GitOps, it will reappear when GitOps runs.
           </InfoBanner>
         )}
-        <p>
-          Are you sure you want to delete <strong>{name}</strong>?
-        </p>
-        <ul>
-          <li>
-            Software won&apos;t be uninstalled from existing hosts
-            {getPendingInstallMessage(isAppStoreApp, isAndroidApp, name)}
-          </li>
-          <li>
-            Installs or uninstalls currently running on a host will still
-            complete, but results won&apos;t appear in Fleet.
-          </li>
-          <li>
-            Installed software will appear as{" "}
-            <strong>{softwareTitleName}</strong> in software inventories and
-            will use the default icon.
-          </li>
-        </ul>
-        <p>You cannot undo this action.</p>
+        {getPlatformMessage(isAppStoreApp, isAndroidApp)}
+        <p>Custom icon and display name will be deleted.</p>
         <div className="modal-cta-wrap">
           <Button
             variant="alert"
