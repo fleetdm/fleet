@@ -101,6 +101,13 @@
   moreInfoUrl:  
   dri: "noahtalerman"
 -
+  task: "✅ 🎉 Confirm and celebrate"
+  startedOn: "2026-01-20" 
+  frequency: "Weekly" 
+  description: "Head of Product Design (HPD) and relevant Product Designer(s) run through the confirm and celebrate responsibility: https://fleetdm.com/handbook/product-design#confirm-and-celebrate 
+  moreInfoUrl:  
+  dri: "noahtalerman"
+-
   task: "Review reference docs for upcoming release"
   startedOn: "2025-10-20"
   frequency: "Triweekly"
