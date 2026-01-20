@@ -96,12 +96,14 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		tx, err := db.Begin()
 		require.NoError(t, err)
 
+		var wasExecutorCalled bool
 		expectedErr := errors.New("count query failed")
 		step := incrementalMigrationStep(
 			func(tx *sql.Tx) (uint, error) {
 				return 0, expectedErr
 			},
 			func(tx *sql.Tx, increment func()) error {
+				wasExecutorCalled = true
 				return nil
 			},
 		)
@@ -109,6 +111,7 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		err = step(tx)
 		require.Error(t, err)
 		assert.Equal(t, expectedErr, err)
+		require.False(t, wasExecutorCalled, "executor should not be called when count call errors")
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -165,8 +168,6 @@ func TestIncrementalMigrationStep(t *testing.T) {
 					increment()
 					time.Sleep(5 * time.Millisecond)
 				}
-				// Wait for at least one progress tick
-				time.Sleep(15 * time.Millisecond)
 				return nil
 			},
 		)
@@ -175,8 +176,7 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify progress output was written
-		output := buf.String()
-		assert.Contains(t, output, "% complete")
+		assert.Equal(t, "20% complete\n40% complete\n60% complete\n80% complete\n100% complete\n", buf.String())
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -194,12 +194,12 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		// Override output and progress interval for testing
 		var buf bytes.Buffer
 		outputTo = &buf
-		progressInterval = 5 * time.Millisecond
+		progressInterval = 20 * time.Millisecond
 
 		incrementCount := 0
 		step := incrementalMigrationStep(
 			func(tx *sql.Tx) (uint, error) {
-				return 100, nil
+				return 50, nil
 			},
 			func(tx *sql.Tx, increment func()) error {
 				// Call increment multiple times
@@ -208,7 +208,7 @@ func TestIncrementalMigrationStep(t *testing.T) {
 					incrementCount++
 				}
 				// Allow time for progress ticker
-				time.Sleep(10 * time.Millisecond)
+				time.Sleep(30 * time.Millisecond)
 				return nil
 			},
 		)
@@ -216,6 +216,7 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		err = step(tx)
 		require.NoError(t, err)
 		assert.Equal(t, 50, incrementCount)
+		require.Equal(t, "100% complete\n", buf.String())
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -233,6 +234,9 @@ func TestWithSteps(t *testing.T) {
 		require.NoError(t, err)
 		defer db.Close()
 
+		var buf bytes.Buffer
+		outputTo = &buf
+
 		mock.ExpectBegin()
 
 		tx, err := db.Begin()
@@ -242,6 +246,8 @@ func TestWithSteps(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, mock.ExpectationsWereMet())
+
+		require.Empty(t, buf.String())
 	})
 
 	t.Run("single step no step output", func(t *testing.T) {
@@ -271,7 +277,7 @@ func TestWithSteps(t *testing.T) {
 
 		// Single step should not output step number
 		output := buf.String()
-		assert.NotContains(t, output, "Step")
+		assert.Empty(t, output)
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -289,7 +295,7 @@ func TestWithSteps(t *testing.T) {
 		var buf bytes.Buffer
 		outputTo = &buf
 
-		callOrder := []int{}
+		var callOrder []int
 		steps := []migrationStep{
 			func(tx *sql.Tx) error {
 				callOrder = append(callOrder, 1)
@@ -310,10 +316,7 @@ func TestWithSteps(t *testing.T) {
 		assert.Equal(t, []int{1, 2, 3}, callOrder)
 
 		// Multiple steps should output step numbers
-		output := buf.String()
-		assert.Contains(t, output, "Step 1 of 3")
-		assert.Contains(t, output, "Step 2 of 3")
-		assert.Contains(t, output, "Step 3 of 3")
+		assert.Equal(t, "Step 1 of 3\nStep 2 of 3\nStep 3 of 3\n", buf.String())
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -332,7 +335,7 @@ func TestWithSteps(t *testing.T) {
 		outputTo = &buf
 
 		expectedErr := errors.New("step 2 failed")
-		callOrder := []int{}
+		var callOrder []int
 		steps := []migrationStep{
 			func(tx *sql.Tx) error {
 				callOrder = append(callOrder, 1)
@@ -352,6 +355,7 @@ func TestWithSteps(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, expectedErr, err)
 		assert.Equal(t, []int{1, 2}, callOrder, "step 3 should not be called after step 2 fails")
+		require.Equal(t, "Step 1 of 3\nStep 2 of 3\n", buf.String())
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -379,9 +383,7 @@ func TestWithSteps(t *testing.T) {
 		err = withSteps(steps, tx)
 		require.NoError(t, err)
 
-		output := buf.String()
-		assert.Contains(t, output, "Step 1 of 2")
-		assert.Contains(t, output, "Step 2 of 2")
+		require.Equal(t, buf.String(), "Step 1 of 2\nStep 2 of 2\n")
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
