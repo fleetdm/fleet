@@ -490,7 +490,10 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	// If the query was modified in a way that requires discarding results,
 	// reset the Redis count as well.
 	if shouldDiscardQueryResults {
-		svc.liveQueryStore.SetQueryResultsCount(query.ID, 0)
+		err = svc.liveQueryStore.SetQueryResultsCount(query.ID, 0)
+		if err != nil {
+			logging.WithExtras(ctx, "err", err, "query_id", query.ID)
+		}
 	}
 
 	var teamID int64
@@ -848,7 +851,10 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 	// Reset the Redis counters for queries whose results were discarded
 	if svc.liveQueryStore != nil {
 		for queryID := range queriesToDiscardResults {
-			_ = svc.liveQueryStore.SetQueryResultsCount(queryID, 0)
+			err = svc.liveQueryStore.SetQueryResultsCount(queryID, 0)
+			if err != nil {
+				logging.WithExtras(ctx, "err", err, "query_id", queryID)
+			}
 		}
 	}
 

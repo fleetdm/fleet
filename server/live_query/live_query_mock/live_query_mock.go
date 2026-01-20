@@ -68,7 +68,8 @@ func (m *MockLiveQuery) GetQueryResultsCount(queryID uint) (int, error) {
 	if m.GetQueryResultsCountOverride != nil {
 		return m.GetQueryResultsCountOverride(queryID)
 	}
-	return 0, nil
+	args := m.Called(queryID)
+	return args.Int(0), args.Error(1)
 }
 
 // IncrQueryResultsCount mocks the live query store IncrQueryResultsCount method.
@@ -76,7 +77,8 @@ func (m *MockLiveQuery) IncrQueryResultsCount(queryID uint, amount int) (int, er
 	if m.IncrQueryResultsCountOverride != nil {
 		return m.IncrQueryResultsCountOverride(queryID, amount)
 	}
-	return 0, nil
+	args := m.Called(queryID, amount)
+	return args.Int(0), args.Error(1)
 }
 
 // SetQueryResultsCount mocks the live query store SetQueryResultsCount method.
@@ -84,7 +86,8 @@ func (m *MockLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
 	if m.SetQueryResultsCountOverride != nil {
 		return m.SetQueryResultsCountOverride(queryID, count)
 	}
-	return nil
+	args := m.Called(queryID, count)
+	return args.Error(0)
 }
 
 // DeleteQueryResultsCount mocks the live query store DeleteQueryResultsCount method.
@@ -92,5 +95,6 @@ func (m *MockLiveQuery) DeleteQueryResultsCount(queryID uint) error {
 	if m.DeleteQueryResultsCountOverride != nil {
 		return m.DeleteQueryResultsCountOverride(queryID)
 	}
-	return nil
+	args := m.Called(queryID)
+	return args.Error(0)
 }
