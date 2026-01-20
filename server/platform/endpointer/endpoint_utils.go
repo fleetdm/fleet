@@ -246,7 +246,7 @@ var (
 	xRealIP       = http.CanonicalHeaderKey("X-Real-IP")
 )
 
-func ExtractIP(r *http.Request) string {
+func extractIP(r *http.Request) string {
 	ip := r.RemoteAddr
 	if i := strings.LastIndexByte(ip, ':'); i != -1 {
 		ip = ip[:i]
