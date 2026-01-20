@@ -230,7 +230,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_install_update_available: {
     iconName: "error",
-    displayText: "Failed",
+    displayText: "Update available", // Show "Update available" modal instead of "Failed" modal as of 4.82 #31663
+    // Users can find failure information in host activity logs
     tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
       isSelfService || isHostOnline ? (
         <>
@@ -266,7 +267,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_uninstall_update_available: {
     iconName: "error",
-    displayText: "Failed (uninstall)",
+    displayText: "Update available", // Show "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
+    // Users can find failure information in host activity logs
     tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
       isSelfService || isHostOnline ? (
         <>
