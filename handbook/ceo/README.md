@@ -99,7 +99,6 @@ Once a week, the Executive Assistant will review the "community activity report"
  ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
 
 
-
 ### Schedule travel for the CEO
 
 The Executive Assistant will verify daily that the CEO's calendar is accurate for any commitment or booked travel. The Executive Assistant is the DRI for scheduling all travel arrangements for the CEO, including flights, hotels, and reservations if needed. The CEO's traveling preferences in descending order of importance are:
@@ -111,6 +110,8 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
   - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
+  - ONLY for flights where the first leg crosses international borders, then allow 90m for water and boarding.  (This is because they blockade international gates and make you wait in line AND the boarding time is longer.)  Otherwise it's always 30m, no matter what.
+  - 30 minutes for customs and redoing security when entering the US or entering any different country on any connection flight, even if there are other connections.
 
 
 ### Schedule CEO interview
