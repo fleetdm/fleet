@@ -23461,6 +23461,114 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 	bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
 	require.NoError(t, err)
 	require.NotNil(t, bypassedAt, "bypass should have been recorded after re-enabling")
+
+	// Test 8: Toggling bypass_disabled clears all existing bypasses
+	// First, set up Okta configuration (required for bypass toggle detection)
+	validCert := `-----BEGIN CERTIFICATE-----
+MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
+A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
+MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
+ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
+VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
+A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
+MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
+ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
+NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
+2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
+kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
+ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
+Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
+nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
+9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
+umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
+FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
+-----END CERTIFICATE-----`
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"conditional_access": {
+			"okta_idp_id": "https://www.okta.com/saml2/service-provider/test",
+			"okta_assertion_consumer_service_url": "https://dev-test.okta.com/sso/saml2/test",
+			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/test",
+			"okta_certificate": %q,
+			"bypass_disabled": false
+		}
+	}`, validCert)), http.StatusOK, &acResp)
+
+	// Create a second host with bypass (using unique identifiers)
+	host2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "-host2"),
+		NodeKey:         ptr.String(t.Name() + "-host2"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo2.local", t.Name()),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	createDeviceTokenForHost(t, s.ds, host2.ID, "test-conditional-access-bypass-token-2")
+	t.Cleanup(func() {
+		_ = s.ds.DeleteHost(ctx, host2.ID)
+	})
+
+	// Create bypass records for both hosts
+	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
+		nil, http.StatusOK, &bypassResp)
+	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token-2/bypass_conditional_access",
+		nil, http.StatusOK, &bypassResp)
+
+	// Verify both bypasses exist by checking the count directly
+	var count int
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		return db.QueryRowxContext(ctx, "SELECT COUNT(*) FROM host_conditional_access").Scan(&count)
+	})
+	require.Equal(t, 2, count, "both bypass records should exist")
+
+	// Toggle bypass_disabled to true - this should clear all bypasses
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"conditional_access": {
+			"bypass_disabled": true
+		}
+	}`), http.StatusOK, &acResp)
+
+	// Verify all bypasses were cleared
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		return db.QueryRowxContext(ctx, "SELECT COUNT(*) FROM host_conditional_access").Scan(&count)
+	})
+	require.Equal(t, 0, count, "all bypass records should be cleared when bypass_disabled is toggled")
+
+	// Toggle back to false - should also clear any bypasses (though there are none)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"conditional_access": {
+			"bypass_disabled": false
+		}
+	}`), http.StatusOK, &acResp)
+
+	// Create new bypasses again
+	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
+		nil, http.StatusOK, &bypassResp)
+	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token-2/bypass_conditional_access",
+		nil, http.StatusOK, &bypassResp)
+
+	// Verify bypasses exist
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		return db.QueryRowxContext(ctx, "SELECT COUNT(*) FROM host_conditional_access").Scan(&count)
+	})
+	require.Equal(t, 2, count, "both bypass records should exist again")
+
+	// Toggle bypass_disabled back to true again - should clear all bypasses
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"conditional_access": {
+			"bypass_disabled": true
+		}
+	}`), http.StatusOK, &acResp)
+
+	// Verify all bypasses were cleared again
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		return db.QueryRowxContext(ctx, "SELECT COUNT(*) FROM host_conditional_access").Scan(&count)
+	})
+	require.Equal(t, 0, count, "all bypass records should be cleared when bypass_disabled is toggled to true")
 }
 
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.

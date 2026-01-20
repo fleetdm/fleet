@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -555,6 +556,11 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			}, nil
 		}
 
+		// No bypass exists
+		ds.ConditionalAccessConsumeBypassFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+			return nil, nil
+		}
+
 		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 456}
 
 		req := httptest.NewRequest("POST", idpSSOPath, nil)
@@ -619,5 +625,157 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 
 		require.Nil(t, session)
 		require.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("allows device with bypass through despite failing conditional access policies", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			teamID := uint(1)
+			return &fleet.Host{ID: 456, TeamID: &teamID}, nil
+		}
+
+		ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
+			return []uint{10, 20}, nil
+		}
+
+		// Host is failing conditional access policies
+		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+			return []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			}, nil
+		}
+
+		ds.GetDeviceAuthTokenFunc = func(ctx context.Context, hostID uint) (string, error) {
+			return "abc123", nil
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://example.com",
+				},
+			}, nil
+		}
+
+		// Host has a bypass - return a non-nil time to indicate bypass exists
+		bypassTime := time.Now()
+		ds.ConditionalAccessConsumeBypassFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+			return &bypassTime, nil
+		}
+
+		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 456}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		w := httptest.NewRecorder()
+
+		session := provider.GetSession(w, req, nil)
+
+		// Device should be allowed through despite failing policies
+		require.NotNil(t, session, "session should be returned when device has bypass")
+		require.Equal(t, http.StatusOK, w.Code)
+		// Should use host-based identifier since no NameID in request
+		require.Equal(t, "host-456", session.NameID)
+	})
+
+	t.Run("redirects device without bypass when failing conditional access policies", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			teamID := uint(1)
+			return &fleet.Host{ID: 456, TeamID: &teamID}, nil
+		}
+
+		ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
+			return []uint{10, 20}, nil
+		}
+
+		// Host is failing conditional access policies
+		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+			return []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			}, nil
+		}
+
+		ds.GetDeviceAuthTokenFunc = func(ctx context.Context, hostID uint) (string, error) {
+			return "abc123", nil
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://example.com",
+				},
+			}, nil
+		}
+
+		// No bypass - return nil to indicate no bypass exists
+		ds.ConditionalAccessConsumeBypassFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+			return nil, nil
+		}
+
+		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 456}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		w := httptest.NewRecorder()
+
+		session := provider.GetSession(w, req, nil)
+
+		// Device should be redirected to remediation page
+		require.Nil(t, session, "session should be nil when device has no bypass")
+		require.Equal(t, http.StatusSeeOther, w.Code)
+		require.Equal(t, "https://example.com/device/abc123/policies", w.Header().Get("Location"))
+	})
+
+	t.Run("redirects device when bypass check fails with error", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			teamID := uint(1)
+			return &fleet.Host{ID: 456, TeamID: &teamID}, nil
+		}
+
+		ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
+			return []uint{10, 20}, nil
+		}
+
+		// Host is failing conditional access policies
+		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+			return []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			}, nil
+		}
+
+		ds.GetDeviceAuthTokenFunc = func(ctx context.Context, hostID uint) (string, error) {
+			return "abc123", nil
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://example.com",
+				},
+			}, nil
+		}
+
+		// Bypass check fails with database error
+		ds.ConditionalAccessConsumeBypassFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+			return nil, errors.New("database error")
+		}
+
+		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 456}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		w := httptest.NewRecorder()
+
+		session := provider.GetSession(w, req, nil)
+
+		// Device should be redirected to remediation page when bypass check fails
+		require.Nil(t, session, "session should be nil when bypass check fails")
+		require.Equal(t, http.StatusSeeOther, w.Code)
+		require.Equal(t, "https://example.com/device/abc123/policies", w.Header().Get("Location"))
 	})
 }
