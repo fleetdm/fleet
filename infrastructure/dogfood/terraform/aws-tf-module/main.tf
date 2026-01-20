@@ -761,3 +761,7 @@ module "cloudfront-software-installers" {
   enable_logging    = true
   logging_s3_bucket = module.logging_alb.log_s3_bucket_id
 }
+
+output "vpc" {
+  value = module.main.vpc
+}

@@ -14,11 +14,11 @@ output "cluster_certificate_authority_data" {
 }
 
 output "configure_kubectl" {
-  value = "aws eks update-kubeconfig --region ${var.aws_region} --name ${module.eks.cluster_name}"
+  value = "aws eks update-kubeconfig --region ${data.aws_region.current.region} --name ${module.eks.cluster_name}"
 }
 
 output "get_signoz_ui_url" {
-  value = "kubectl get svc -n signoz signoz -o jsonpath='{.status.loadBalancer.ingress[0].hostname}':8080"
+  value = "kubectl get ingress -n signoz signoz -o jsonpath='https://{.status.loadBalancer.ingress[0].hostname}'"
 }
 
 output "get_otlp_endpoint" {

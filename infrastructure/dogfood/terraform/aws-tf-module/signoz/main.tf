@@ -18,14 +18,14 @@ terraform {
 
   backend "s3" {
     bucket               = "fleet-terraform-state20220408141538466600000002"
-    key                  = "loadtesting/loadtesting/signoz/terraform.tfstate"
-    workspace_key_prefix = "loadtesting"
+    key                  = "dogfood/signoz/terraform.tfstate"
+    workspace_key_prefix = "dogfood"
     region               = "us-east-2"
     encrypt              = true
     kms_key_id           = "9f98a443-ffd7-4dbe-a9c3-37df89b2e42a"
     dynamodb_table       = "tf-remote-state-lock"
     assume_role = {
-      role_arn = "arn:aws:iam::353365949058:role/terraform-loadtesting"
+      role_arn = "arn:aws:iam::353365949058:role/terraform-dogfood"
     }
   }
 }
@@ -42,11 +42,11 @@ provider "aws" {
 
 # Read shared VPC from remote state
 data "terraform_remote_state" "dogfood" {
-  backend = "s3"
+  backend   = "s3"
+  workspace = "fleet"
   config = {
-    bucket               = "fleet-terraform-state20220408141538466600000002"
-    key                  = "fleet/terraform.tfstate"
-    workspace_key_prefix = "fleet"
+    bucket               = "fleet-terraform-remote-state"
+    key                  = "fleet"
     region               = "us-east-2"
     dynamodb_table       = "fleet-terraform-state-lock"
   }
@@ -67,6 +67,8 @@ provider "kubernetes" {
   token                  = data.aws_eks_cluster_auth.signoz.token
 }
 
+data "aws_region" "current" {}
+
 data "aws_eks_cluster_auth" "signoz" {
   name = module.eks.cluster_name
 }
@@ -76,7 +78,19 @@ data "aws_route53_zone" "dogfood" {
 }
 
 locals {
-  cluster_name = "signoz"
+  cluster_name    = "signoz"
+  signoz_domain   = "signoz.dogfood.fleetdm.com"
+  signoz_alb_name = "signoz-dogfood"
+}
+
+module "acm" {
+  source  = "terraform-aws-modules/acm/aws"
+  version = "4.3.1"
+
+  domain_name = local.signoz_domain
+  zone_id     = data.aws_route53_zone.dogfood.zone_id
+
+  wait_for_validation = true
 }
 
 # Use shared fleet VPC
@@ -218,7 +232,67 @@ resource "helm_release" "signoz" {
 
   set {
     name  = "signoz.service.type"
-    value = "LoadBalancer"
+    value = "ClusterIP"
+  }
+
+  set {
+    name  = "signoz.ingress.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "signoz.ingress.className"
+    value = "alb"
+  }
+
+  set {
+    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/scheme"
+    value = "internal"
+  }
+
+  set {
+    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/listen-ports"
+    value = "[{\"HTTPS\":443}]"
+  }
+
+  set {
+    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/certificate-arn"
+    value = module.acm.acm_certificate_arn
+  }
+
+  set {
+    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/backend-protocol"
+    value = "HTTP"
+  }
+
+  set {
+    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/target-type"
+    value = "ip"
+  }
+
+  set {
+    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/load-balancer-name"
+    value = local.signoz_alb_name
+  }
+
+  set {
+    name  = "signoz.ingress.hosts[0].host"
+    value = local.signoz_domain
+  }
+
+  set {
+    name  = "signoz.ingress.hosts[0].paths[0].path"
+    value = "/"
+  }
+
+  set {
+    name  = "signoz.ingress.hosts[0].paths[0].pathType"
+    value = "ImplementationSpecific"
+  }
+
+  set {
+    name  = "signoz.ingress.hosts[0].paths[0].port"
+    value = "8080"
   }
 
   # OTLP collector should be internal only (not publicly accessible)
@@ -231,12 +305,6 @@ resource "helm_release" "signoz" {
     name  = "otelCollector.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
     value = "internal"
   }
-
-    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:{region}:{account-id}:certificate/{certificate-id}"
-    # Terminate HTTPS at the Load Balancer and forward HTTP to backend
-    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
-    # Ensure SSL termination happens on the https port (443)
-    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
 
 
   # Clickhouse storage configuration
@@ -315,4 +383,21 @@ resource "helm_release" "signoz" {
     module.eks,
     kubernetes_storage_class_v1.gp3
   ]
+}
+
+data "aws_lb" "signoz" {
+  name       = local.signoz_alb_name
+  depends_on = [helm_release.signoz]
+}
+
+resource "aws_route53_record" "signoz" {
+  zone_id = data.aws_route53_zone.dogfood.zone_id
+  name    = local.signoz_domain
+  type    = "A"
+
+  alias {
+    name                   = data.aws_lb.signoz.dns_name
+    zone_id                = data.aws_lb.signoz.zone_id
+    evaluate_target_health = true
+  }
 }
