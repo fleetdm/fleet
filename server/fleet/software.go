@@ -511,6 +511,8 @@ type SoftwareTitleListOptions struct {
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
 	Platform            string  `query:"platform,optional"`
+	HashSHA256          string  `query:"hash_sha256,optional"`
+	PackageName         string  `query:"package_name,optional"`
 
 	// ForSetupExperience is an internal flag set when listing software via the
 	// setup experience endpoint, so that it filters out any software available
