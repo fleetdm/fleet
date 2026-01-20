@@ -631,6 +631,19 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		Source:        "apps",
 	}
 	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
+	// Get the installer ID and title for the second package
+	var installer2ID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &installer2ID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			*payload2.TeamID, payload2.Filename)
+	})
+	require.NotZero(t, installer2ID)
+	installer2, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), installer2ID)
+	require.NoError(t, err)
+	title2, err := s.ds.SoftwareTitleByID(context.Background(), *installer2.TitleID, nil, fleet.TeamFilter{})
+	require.NoError(t, err)
+	title2Name := title2.Name
 
 	// Upload a software installer to team2 with same hash as payload1 (should be allowed)
 	payload3 := &fleet.UploadSoftwareInstallerPayload{
@@ -686,7 +699,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		"team_id", fmt.Sprint(team1.ID),
 		"package_name", "EchoApp.pkg")
 	require.Len(t, resp5.SoftwareTitles, 1)
-	require.NotEmpty(t, resp5.SoftwareTitles[0].Name) // EchoApp or whatever the actual title is
+	require.Equal(t, title2Name, resp5.SoftwareTitles[0].Name)
 
 	// Test 6: Filter by package_name that doesn't exist - should return empty list
 	var resp6 listSoftwareTitlesResponse
@@ -721,7 +734,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		"package_name", "EchoApp.pkg",
 		"available_for_install", "true")
 	require.Len(t, resp10.SoftwareTitles, 1)
-	require.NotEmpty(t, resp10.SoftwareTitles[0].Name)
+	require.Equal(t, title2Name, resp10.SoftwareTitles[0].Name)
 
 	// Test 11: Combine both filters (hash and name for same package) - should work
 	var resp11 listSoftwareTitlesResponse
