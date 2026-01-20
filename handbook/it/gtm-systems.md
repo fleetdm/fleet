@@ -6,7 +6,7 @@ Whether you're measuring intent signals, cleaning up duplicate records in Salesf
 
 ## Supported GTM Systems
 
-IT & Enablement manages and supports the following GTM systems and tools:
+IT manages and supports the following GTM systems and tools:
 
 - **Salesforce** - Customer relationship management (CRM) system for tracking accounts, contacts, opportunities, and sales activities
 - **Gong.io** - Conversation intelligence and revenue analytics platform for recording and analyzing sales calls
@@ -16,11 +16,11 @@ IT & Enablement manages and supports the following GTM systems and tools:
 
 ### Responsibilities
 
-**IT & Enablement** handles account provisioning, access management, and technical setup for all GTM systems. This includes creating user accounts, managing licenses, and configuring integrations.
+**IT** handles account provisioning, access management, and technical setup for all GTM systems. This includes creating user accounts, managing licenses, and configuring integrations.
 
 **GTM Team** handles application administration and day-to-day configuration changes within these systems. This includes workflow configuration, field customization, report creation, and other operational changes that affect how the systems are used.
 
-> **Note:** This list will be updated as new systems are added or existing ones are retired. For access requests or questions about any GTM system, [contact IT & Enablement](https://fleetdm.com/handbook/it#contact-us).
+> **Note:** This list will be updated as new systems are added or existing ones are retired. For access requests or questions about any GTM system, [contact IT](https://fleetdm.com/handbook/it#contact-us).
 
 ## Measure intent signals
 

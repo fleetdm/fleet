@@ -6,7 +6,7 @@ This page covers the IT services available at Fleet, including VPN access, certi
 
 Fleet provides VPN access for team members who need secure remote access to internal resources. VPN credentials and configuration are managed through 1Password.
 
-To request VPN access or troubleshoot VPN connectivity issues, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with the IT & Enablement team.
+To request VPN access or troubleshoot VPN connectivity issues, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with the IT team.
 
 ## Certificate Authorities
 
@@ -20,7 +20,7 @@ Available certificate authority types include:
 - **Hydrant**: Third-party certificate management service
 - **Smallstep**: Certificate management platform
 
-For questions about certificate authorities or to request new CA configurations, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with the IT & Enablement team.
+For questions about certificate authorities or to request new CA configurations, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with the IT team.
 
 ## Identity Provider (IdP) Capabilities and Environments
 
@@ -32,7 +32,7 @@ IdP environments are configured to support:
 - Multi-factor authentication (MFA) requirements
 - Certificate-based authentication for device enrollment
 
-For IdP configuration requests or troubleshooting, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with the IT & Enablement team.
+For IdP configuration requests or troubleshooting, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with the IT team.
 
 ## Apple Business Manager
 
@@ -44,13 +44,13 @@ Apple Business Manager is used for:
 - Managed Apple IDs (when applicable)
 - Device assignment and management
 
-For Apple Business Manager access requests or configuration changes, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with the IT & Enablement team.
+For Apple Business Manager access requests or configuration changes, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with the IT team.
 
 ## Domain Registration and Management
 
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
-If you need to register a new domain, manage existing domains, or handle other domain-related tasks, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with the IT & Enablement team.
+If you need to register a new domain, manage existing domains, or handle other domain-related tasks, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with the IT team.
 
 
 <meta name="maintainedBy" value="allenhouchins">

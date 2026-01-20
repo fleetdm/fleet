@@ -26,17 +26,17 @@ GitHub integrates with numerous systems and tools at Fleet:
 
 1. **All new team members** receive GitHub access as part of their onboarding process.
 
-2. **For access requests or repository access**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement. Include:
+2. **For access requests or repository access**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT. Include:
    - Which repositories you need access to
    - Your role and why you need access
 
-3. **Account provisioning** is handled by IT & Enablement. You'll receive an invitation to join the Fleet GitHub organization.
+3. **Account provisioning** is handled by IT. You'll receive an invitation to join the Fleet GitHub organization.
 
 ## How to get support
 
 ### Technical issues (access, login, repository permissions)
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)
 
 ### Usage questions and workflows
 - Contact the Engineering team for code-related questions
@@ -46,7 +46,7 @@ GitHub integrates with numerous systems and tools at Fleet:
 ### License management
 - GitHub licenses are audited quarterly by the CEO and Head of Digital Workplace & GTM Systems
 - Unused seats may be downgraded to manage costs
-- If you lose access to something you still need, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
+- If you lose access to something you still need, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
 
 
 <meta name="maintainedBy" value="allenhouchins">

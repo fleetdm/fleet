@@ -28,23 +28,23 @@ Slack integrates with numerous systems and tools at Fleet:
 
 1. **All new team members** receive Slack access as part of their onboarding process.
 
-2. **For access requests or issues**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement.
+2. **For access requests or issues**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT.
 
-3. **Account provisioning** is handled automatically during onboarding, but IT & Enablement can assist with any access issues.
+3. **Account provisioning** is handled automatically during onboarding, but IT can assist with any access issues.
 
 ## How to get support
 
 ### Technical issues (access, login, app problems)
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)
 
 ### Usage questions and best practices
 - See Fleet's internal Slack guidelines and channel directory
 - [Slack Help Center](https://slack.com/help)
 
 ### Workspace administration
-- Contact IT & Enablement for workspace settings, channel management, or integration requests
-- License management is handled by IT & Enablement
+- Contact IT for workspace settings, channel management, or integration requests
+- License management is handled by IT
 
 
 <meta name="maintainedBy" value="allenhouchins">

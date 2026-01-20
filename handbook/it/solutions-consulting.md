@@ -11,10 +11,10 @@ Solutions Consultants are responsible for:
 - **Prospect outreach**: Reaching out to prospects who are not yet "sales-ready" to understand their needs and provide initial guidance
 - **Use case qualification**: Determining whether prospects understand Fleet's capabilities and see how it can solve their specific challenges
 - **Technical consultation**: Providing technical guidance and answering questions about Fleet's capabilities, architecture, and implementation
-- **Sales enablement**: Working with ADRs and AEs to share insights and context that help move prospects through the sales funnel
+- **Sales support**: Working with ADRs and AEs to share insights and context that help move prospects through the sales funnel
 - **NFR instance management**: Setting up and managing Not For Resale (NFR) instances for qualified prospects and partners
 - **GitOps training**: Developing and delivering GitOps training curriculum to help customers succeed with Fleet
-- **Prospect enablement**: Helping prospects understand Fleet's value proposition and how it fits their needs
+- **Prospect support**: Helping prospects understand Fleet's value proposition and how it fits their needs
 
 ## GTM Group Participation
 
@@ -40,7 +40,7 @@ Solutions Consultants collaborate closely with Account Development Representativ
 
 ## NFR (Not For Resale) Instances
 
-Solutions Consultants are responsible for setting up and managing NFR instances for qualified prospects and partners. NFR instances provide temporary access to Fleet's premium features for evaluation, proof-of-concept (POC) work, and partner enablement.
+Solutions Consultants are responsible for setting up and managing NFR instances for qualified prospects and partners. NFR instances provide temporary access to Fleet's premium features for evaluation, proof-of-concept (POC) work, and partner support.
 
 ### When to Use NFR Instances
 
@@ -82,10 +82,10 @@ NFR instances should **not** be used for:
 Solutions Consultants are responsible for:
 
 - **GitOps training curriculum**: Developing and delivering GitOps training materials and programs to help customers succeed with Fleet's GitOps capabilities
-- **Prospect enablement**: Helping prospects understand Fleet's GitOps features and value proposition
+- **Prospect support**: Helping prospects understand Fleet's GitOps features and value proposition
 - **Dogfooding**: Using Fleet internally to ensure we understand the product from a user's perspective
 
-> **Note:** For specific processes related to customer training and enablement, see the [Customer Success](https://fleetdm.com/handbook/customer-success) handbook page.
+> **Note:** For specific processes related to customer training, see the [Customer Success](https://fleetdm.com/handbook/customer-success) handbook page.
 
 
 <meta name="maintainedBy" value="allenhouchins">

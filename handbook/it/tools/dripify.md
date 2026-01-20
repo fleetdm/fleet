@@ -24,18 +24,18 @@ Dripify integrates with the following systems:
 
 1. **Sales and Marketing team members** who need LinkedIn automation capabilities can request Dripify access.
 
-2. **To request access**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement. Include:
+2. **To request access**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT. Include:
    - Your role and why you need Dripify access
    - Approval from your manager or department head
    - Your LinkedIn profile URL
 
-3. **Account provisioning** is handled by IT & Enablement. Once approved, you'll receive login credentials via 1Password.
+3. **Account provisioning** is handled by IT. Once approved, you'll receive login credentials via 1Password.
 
 ## How to get support
 
 ### Technical issues (access, login, integration problems)
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)
 
 ### Usage questions and best practices
 - Contact your sales or marketing manager
@@ -44,7 +44,7 @@ Dripify integrates with the following systems:
 
 ### LinkedIn compliance
 - Ensure you follow LinkedIn's terms of service and usage policies
-- Coordinate with IT & Enablement if you encounter any account restrictions or warnings
+- Coordinate with IT if you encounter any account restrictions or warnings
 
 
 <meta name="maintainedBy" value="allenhouchins">

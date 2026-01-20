@@ -1,26 +1,26 @@
-# 🌐 IT and Enablement 
+# 🌐 IT
 
-This page provides an overview of the IT & Enablement department and links to detailed processes and procedures.
+This page provides an overview of the IT department and links to detailed processes and procedures.
 
 ## Team
 
 | Role                                    | Contributor(s)
 |:----------------------------------------|:----------------------------------------------------------------------|
-| Head of IT & Enablement                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
+| Head of IT                             | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
 | Head of Digital Workplace & GTM Systems | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 | Solutions Consultant (SC)               | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)).
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/69) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
 ## Responsibilities
 
-The IT & Enablement department is directly responsible for solutions consulting, customer training curriculum, prospect enablement, and dogfooding, as well as the framework, schema, equipment, internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems, remote work, the handbook, issue templates, Zapier flows, Docusign templates, key spreadsheets, and project management tools.
+The IT department is directly responsible for solutions consulting, customer training curriculum, prospect support, and dogfooding, as well as the framework, schema, equipment, internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems, remote work, the handbook, issue templates, Zapier flows, Docusign templates, key spreadsheets, and project management tools.
 
 
 ## Processes and Procedures
@@ -29,7 +29,7 @@ The IT & Enablement department is directly responsible for solutions consulting,
 - Solutions Consultant role and responsibilities
 - Prospect outreach and use case qualification
 - Collaboration with ADRs and AEs
-- Customer training and enablement
+- Customer training
 
 ### [Hardware and Equipment](hardware-and-equipment.md)
 - Hardware procurement policies and tier configurations
@@ -162,4 +162,4 @@ Please see [handbook/people#review-Fleets-us-company-benefits](https://fleetdm.c
 
 
 <meta name="maintainedBy" value="allenhouchins">
-<meta name="title" value="🌐 IT & Enablement">
+<meta name="title" value="🌐 IT">

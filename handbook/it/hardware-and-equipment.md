@@ -17,14 +17,14 @@ Fleet uses three hardware tiers based on role requirements:
 - **Engineering tier**: For engineering roles requiring maximum performance for development, compilation, and resource-intensive tasks.
   - Department: Engineering
 - **Tech tier**: For technical roles that require virtualization and other resource-intensive applications.
-  - Departments: Product Design, IT & Enablement, Customer Success (technical roles)
+  - Departments: Product Design, IT, Customer Success (technical roles)
 - **Non-tech tier**: For non-technical roles that primarily use standard business applications and web-based tools.
   - Departments: Sales, Marketing, Finance, People
 
 ### Hardware specifications
 
 Hardware specifications and tier configurations are constantly evolving based on what is available
-in the market and our own internal benchmarking and data analysis. IT & Enablement regularly reviews
+in the market and our own internal benchmarking and data analysis. IT regularly reviews
 performance data, cost-effectiveness, and market availability to ensure we're providing the best
 equipment for each role tier while maintaining cost efficiency. Specifications will be updated
 regularly and as new hardware becomes available and testing is completed.
@@ -52,14 +52,14 @@ All MacBooks must be enrolled in Apple Business Manager (ABM) to ensure proper d
 
 In some countries, it may be faster (or the only option) for a Fleetie to purchase their MacBook locally instead of IT ordering through Fleet’s usual procurement channels.
 
-- **Purchase approval and Brex limit**: IT/Enablement will coordinate a **one-time purchase limit increase** on your Brex so you can buy your MacBook locally.
+- **Purchase approval and Brex limit**: IT will coordinate a **one-time purchase limit increase** on your Brex so you can buy your MacBook locally.
 - **What to buy**: Purchase a MacBook that matches the **hardware tier specifications on this page** (Engineering/Tech/Non-tech), unless IT has explicitly approved an exception.
 - **Receipt/expense details**: Submit the receipt in Brex and include:
   - The device model and configuration (CPU/RAM/storage)
   - The serial number (if available on the receipt or order details)
   - Any AppleCare+ / extended warranty line items (if purchased)
 - **ABM enrollment requirement**: You are responsible for ensuring the device is enrolled in **Apple Business Manager (ABM)** so it can be assigned for Automated Device Enrollment (ADE). This can be done by:
-  - **Partnering with IT/Enablement** (recommended) to coordinate enrollment and assignment, or
+  - **Partnering with IT** (recommended) to coordinate enrollment and assignment, or
   - **Manually adding the device to ABM using Apple Configurator** by following Apple’s guide: [Add devices using Apple Configurator to Apple Business Manager](https://support.apple.com/guide/apple-business-manager/add-devices-using-apple-configurator-axm200a54d59/web).
 - **Important**: Don’t complete macOS Setup Assistant past the pairing/enrollment step until the device is visible in ABM and assigned to Fleet’s device management service (MDM). Manually-added devices have a **30-day provisional period** during which the user can remove the device from ABM/supervision/MDM.
 
@@ -119,7 +119,7 @@ For secondary devices, test equipment, or temporary hardware needs, team members
 To request warehouse equipment:
 - File a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request) with details about the equipment needed and the intended use case.
 - Warehouse requests are typically fulfilled from existing inventory that has been returned or is no longer in active use.
-- If warehouse inventory cannot meet the request, IT & Enablement will procure new equipment following the standard procurement process.
+- If warehouse inventory cannot meet the request, IT will procure new equipment following the standard procurement process.
 
 ### Brex procurement recommendations
 

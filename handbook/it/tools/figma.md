@@ -25,17 +25,17 @@ Figma integrates with the following systems:
 
 1. **Product Design team members** typically receive Figma access as part of their onboarding.
 
-2. **For other team members** who need access (e.g., Engineers, Marketing), [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement. Include:
+2. **For other team members** who need access (e.g., Engineers, Marketing), [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT. Include:
    - Your role and why you need Figma access
    - Approval from your manager or the Product Design team
 
-3. **License provisioning** is handled by IT & Enablement. Once approved, you'll receive an invitation to join Fleet's Figma organization.
+3. **License provisioning** is handled by IT. Once approved, you'll receive an invitation to join Fleet's Figma organization.
 
 ## How to get support
 
 ### Technical issues (access, login, performance)
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)
 
 ### Usage questions and design workflows
 - Contact the Product Design team
@@ -44,7 +44,7 @@ Figma integrates with the following systems:
 ### License management
 - Figma licenses are audited quarterly by the CEO and Head of Digital Workplace & GTM Systems
 - Unused seats may be downgraded to free accounts to manage costs
-- If you lose access to something you still need, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
+- If you lose access to something you still need, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
 
 
 <meta name="maintainedBy" value="allenhouchins">

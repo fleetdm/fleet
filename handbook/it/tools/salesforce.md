@@ -28,17 +28,17 @@ Salesforce integrates with several other tools and systems at Fleet:
 
 1. **New team members in GTM roles** (Sales, Marketing, Customer Success) typically receive Salesforce access on their first day as part of onboarding.
 
-2. **For other team members**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement requesting Salesforce access. Include:
+2. **For other team members**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT requesting Salesforce access. Include:
    - Your role and why you need access
    - What level of access you need (view-only, standard user, etc.)
 
-3. **License provisioning** is handled by IT & Enablement. Once approved, you'll receive login credentials via 1Password.
+3. **License provisioning** is handled by IT. Once approved, you'll receive login credentials via 1Password.
 
 ## How to get support
 
 ### Technical issues (access, login, integrations)
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)
 
 ### Configuration and workflow questions
 - Contact the GTM Team or your manager

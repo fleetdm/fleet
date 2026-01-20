@@ -10,10 +10,10 @@
     labels: [ ":help-it" ]
     repo: "confidential"
 - 
-  task: "Complete IT & Enablement KPIs"
+  task: "Complete IT KPIs"
   startedOn: "2024-08-30" 
   frequency: "Weekly"
-  description: "Complete IT & Enablement KPIs for this week"
+  description: "Complete IT KPIs for this week"
   moreInfoUrl: 
   dri: "sampfluger88"
   autoIssue:   
@@ -48,7 +48,7 @@
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
   description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
-  moreInfoUrl: "https://fleetdm.com/handbook/it-and-enablement#downgrade-an-unused-license-seat"
+  moreInfoUrl: "https://fleetdm.com/handbook/it/software-and-tools#downgrade-an-unused-license-seat"
   dri: "Sampfluger88"
 -
   task: "Prepare board deck"

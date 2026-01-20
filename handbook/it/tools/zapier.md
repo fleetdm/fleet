@@ -21,32 +21,32 @@ Zapier connects many of Fleet's tools and systems:
 - [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ - Head of Digital Workplace & GTM Systems
 
 **Usage & Administration:**
-- IT & Enablement manages Zapier account and workflows
+- IT manages Zapier account and workflows
 - Individual teams may request automation workflows
 
 ## How to get access
 
-1. **Zapier access is typically managed centrally** by IT & Enablement rather than individual user accounts.
+1. **Zapier access is typically managed centrally** by IT rather than individual user accounts.
 
-2. **To request a new automation workflow**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement. Include:
+2. **To request a new automation workflow**, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT. Include:
    - What systems you want to connect
    - What the automation should do
    - Approval from your manager or department head
 
-3. **IT & Enablement will review and implement** the automation workflow if approved.
+3. **IT will review and implement** the automation workflow if approved.
 
 ## How to get support
 
 ### Technical issues (workflow problems, errors)
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)
 
 ### New automation requests
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
 - Include detailed requirements for the automation workflow
 
 ### Usage questions
-- Contact IT & Enablement for questions about existing workflows
+- Contact IT for questions about existing workflows
 - [Zapier Help Center](https://help.zapier.com/)
 
 

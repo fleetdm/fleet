@@ -25,25 +25,25 @@ Gong.io integrates with the following systems:
 
 1. **Sales team members** typically receive Gong access as part of their onboarding.
 
-2. **For other team members** who need access (e.g., Customer Success, Marketing), [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement. Include:
+2. **For other team members** who need access (e.g., Customer Success, Marketing), [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT. Include:
    - Your role and why you need access
    - Approval from your manager or department head
 
-3. **License management**: Gong licenses are managed by IT & Enablement. To avoid license redundancy, departments should coordinate license requests through IT & Enablement.
+3. **License management**: Gong licenses are managed by IT. To avoid license redundancy, departments should coordinate license requests through IT.
 
 ## How to get support
 
 ### Technical issues (access, login, recording problems)
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)
 
 ### Usage questions and training
 - Contact your sales manager or the Sales team
 - [Gong Help Center](https://help.gong.io/)
 
 ### License requests
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- IT & Enablement will verify there's no license redundancy in your department before provisioning
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- IT will verify there's no license redundancy in your department before provisioning
 
 
 <meta name="maintainedBy" value="allenhouchins">

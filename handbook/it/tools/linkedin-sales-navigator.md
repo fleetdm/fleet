@@ -25,18 +25,18 @@ LinkedIn Sales Navigator integrates with the following systems:
 
 1. **Sales team members** typically receive LinkedIn Sales Navigator access on their first day as part of onboarding, especially for go-to-market (GTM) roles.
 
-2. **For other team members** who need access, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement. Include:
+2. **For other team members** who need access, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT. Include:
    - Your role and why you need Sales Navigator access
    - Approval from your manager or department head
    - Your LinkedIn profile URL
 
-3. **License provisioning** is handled by IT & Enablement. Once approved, you'll receive login credentials via 1Password.
+3. **License provisioning** is handled by IT. Once approved, you'll receive login credentials via 1Password.
 
 ## How to get support
 
 ### Technical issues (access, login, sync problems)
-- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=) with IT & Enablement
-- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [#help-it-and-enablement](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel
+- [Create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) with IT
+- For urgent issues, mention [@sampfluger88](https://github.com/sampfluger88) in the [IT help Slack channel](https://fleetdm.slack.com/archives/C09861YJUJ2)
 
 ### Usage questions and training
 - Contact your sales manager
@@ -44,8 +44,8 @@ LinkedIn Sales Navigator integrates with the following systems:
 - Coordinate with the GTM team for best practices
 
 ### Account and billing questions
-- Contact IT & Enablement for license and billing inquiries
-- LinkedIn Sales Navigator subscriptions are managed centrally by IT & Enablement
+- Contact IT for license and billing inquiries
+- LinkedIn Sales Navigator subscriptions are managed centrally by IT
 
 
 <meta name="maintainedBy" value="allenhouchins">
