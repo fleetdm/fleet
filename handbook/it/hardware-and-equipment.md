@@ -45,8 +45,23 @@ All MacBooks must be enrolled in Apple Business Manager (ABM) to ensure proper d
 **Procurement process:**
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680).
 - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
-- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ABM. In countries that Apple does not operate or that do not allow ABM enrollment, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate.
+- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ABM. In countries that Apple does not operate or that do not allow ABM enrollment, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. If a local purchase is required, follow the guidance in [Non-US employees (local Mac purchase)](#non-us-employees-local-mac-purchase) below.
 - A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point.
+
+#### Non-US employees (local Mac purchase)
+
+In some countries, it may be faster (or the only option) for a Fleetie to purchase their MacBook locally instead of IT ordering through Fleet’s usual procurement channels.
+
+- **Purchase approval and Brex limit**: IT/Enablement will coordinate a **one-time purchase limit increase** on your Brex so you can buy your MacBook locally.
+- **What to buy**: Purchase a MacBook that matches the **hardware tier specifications on this page** (Engineering/Tech/Non-tech), unless IT has explicitly approved an exception.
+- **Receipt/expense details**: Submit the receipt in Brex and include:
+  - The device model and configuration (CPU/RAM/storage)
+  - The serial number (if available on the receipt or order details)
+  - Any AppleCare+ / extended warranty line items (if purchased)
+- **ABM enrollment requirement**: You are responsible for ensuring the device is enrolled in **Apple Business Manager (ABM)** so it can be assigned for Automated Device Enrollment (ADE). This can be done by:
+  - **Partnering with IT/Enablement** (recommended) to coordinate enrollment and assignment, or
+  - **Manually adding the device to ABM using Apple Configurator** by following Apple’s guide: [Add devices using Apple Configurator to Apple Business Manager](https://support.apple.com/guide/apple-business-manager/add-devices-using-apple-configurator-axm200a54d59/web).
+- **Important**: Don’t complete macOS Setup Assistant past the pairing/enrollment step until the device is visible in ABM and assigned to Fleet’s device management service (MDM). Manually-added devices have a **30-day provisional period** during which the user can remove the device from ABM/supervision/MDM.
 
 ### Windows devices
 
@@ -130,7 +145,7 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 
   - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
 
-- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate.
+- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ABM/ADE. In countries that Apple does not operate or that do not allow ABM enrollment, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. If a local purchase is required, follow [Non-US employees (local Mac purchase)](#non-us-employees-local-mac-purchase).
 
  > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
