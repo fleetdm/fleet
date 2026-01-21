@@ -49,9 +49,7 @@ const getLockPrimaryAccountInfo = (
 
   // team is "No team" when currentTeamId === 0
   if (currentTeamId === 0) {
-    return (
-      globalConfig?.mdm?.macos_setup.lock_primary_account_info ?? false
-    );
+    return globalConfig?.mdm?.macos_setup.lock_primary_account_info ?? false;
   }
 
   return teamConfig?.mdm?.macos_setup.lock_primary_account_info ?? false;
