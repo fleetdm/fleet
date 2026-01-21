@@ -1077,21 +1077,16 @@ WHERE
 
 	args := []any{hostID, hostID, hostID, globalOrTeamID}
 	if len(extensionPatterns) > 0 {
-		sql += `
-		AND (
-		`
-		for i, ext := range extensionPatterns {
-			if i > 0 {
-				sql += `
-			OR
-				`
-			}
-			sql += `
-			s.name LIKE ?
-			`
+		likeClauses := make([]string, 0, len(extensionPatterns))
+		for _, ext := range extensionPatterns {
+			likeClauses = append(likeClauses, "s.name LIKE ?")
 			args = append(args, ext)
 		}
 		sql += `
+		AND (
+			` + strings.Join(likeClauses, `
+			OR
+			`) + `
 		)
 		`
 	}
