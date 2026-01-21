@@ -76,7 +76,7 @@ We structure handbook pages based on audience.
   - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
 
   - `## Team`
-    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/it-and-enablement#team](https://fleetdm.com/handbook/it-and-enablement#team) for example.
+    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/people#team](https://fleetdm.com/handbook/people#team) for example.
 
   - `## Contact us`
   - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=1-custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[:help-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`.)"
@@ -132,7 +132,7 @@ The board meeting and OKR planning happen during the first week of the third mon
 
 **Day 4 _Plan and finalize_ (virtual):**
   - OKR planning (entire E-Group, over Zoom, everyone comes prepared) for 3.5 hours.
-  - OKR finalization (CEO, EA, Head of People and Head of Digital Workplace & GTM Systems to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already for Friday) for 1 hour. 
+  - OKR finalization (CEO, EA, Head of People, and GTM Systems Architect to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already for Friday) for 1 hour. 
 
 **Day 5 _Communicate_ (virtual):**
   - Each manager will work with their team to ratify, understand, and raise any objections or initial edits to the OKRs, all the way down to the ICs.
@@ -146,7 +146,7 @@ Every release cycle, each department leader discusses their [key performance ind
 In this meeting, the department leader discusses actual week-over-week progress toward the goals for a particular quarter with the CEO.
 
 - Key reviews are scheduled during the e-group time slot every three weeks and are not moved or rescheduled.  If a department leader is not available to lead a particular key review, another team member from their department will join the meeting and discuss their department's key performance indicators (KPIs).
-- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, contact 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us).
+- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, contact [People](https://fleetdm.com/handbook/people#contact-us).
 
 
 ## Hiring
@@ -166,17 +166,12 @@ Fleet accepts job applications, but the company does not list positions on gener
 
 ### Receiving job applications
 
-Every job description page ends with a "call to action", including a link to the hiring manager's LinkedIn to apply for the job directly with the hiring manager.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise. Hiring managers are encouraged to use [email/message templates](https://fleetdm.com/handbook/company/leadership#candidate-correspondence-email-templates) for consistency and efficiency.
-
-
-### Candidate correspondence email templates
-
-Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8o7_vH7lV9nM1wQCM4Vc3GxBRBDPK-mKO9HNk/edit?usp=sharing) when responding to candidates.  This helps us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and helps the company meet the aspiration of replying to all applications within one business day.
-
+Every job description page ends with a call to action that directs candidates to the contact form to apply for open positions. The contact form is used as the single intake for all job applications.
 
 ### Communicating with applicants 
 
-At Fleet, we use the contact form and email to communicate with future team members. Community members will often inquire about positions that aren't currently being hired for.  The DRI for receiving applications is Fleet's Head of People, whose team uses a set of template responses and updates Fleet's HRIS with new applicants.  Fleet's SLA for responding to applicants is 1 business day, though this doesn't necessarily mean that the hiring manager has bandwidth to take further action after that initial reply.  In that initial reply, candidates are encouraged to apply for future positions if they don't hear back further within a few days.
+At Fleet, we use the contact form to communicate with future team members. The DRI for receiving applications is the Head of People, whose team uses a confirmation message to acknowledge applications, then updates the HRIS sheet. In the initial response, candidates are advised that the contact form is the best way to apply or follow up and are encouraged to apply again for future roles if they don’t hear back within about a week.
+
 
 > **Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet?**
 >

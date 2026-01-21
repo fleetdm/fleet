@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "16.105.26011018",
+      "version": "16.105",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Word';"
       },

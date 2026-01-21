@@ -2316,6 +2316,45 @@ func TestMutateSoftware(t *testing.T) {
 				Source:  "programs",
 			},
 		},
+		{
+			name: "Homebrew imp (Integrative Modeling Platform)",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "2.23.0_13",
+				Source:  "homebrew_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "integrative-modeling-platform",
+				Version: "2.23.0_13",
+				Source:  "homebrew_packages",
+			},
+		},
+		{
+			name: "imp from non-Homebrew source (should not be renamed)",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "5.0.22",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "imp",
+				Version: "5.0.22",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Homebrew imp with different version",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "2.20.0",
+				Source:  "homebrew_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "integrative-modeling-platform",
+				Version: "2.20.0",
+				Source:  "homebrew_packages",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NotPanics(t, func() { mutateSoftware(tc.s, log.NewNopLogger()) })
