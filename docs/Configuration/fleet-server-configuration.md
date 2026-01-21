@@ -3226,7 +3226,7 @@ The best practice is to set this to 3x the number of new employees (end users) t
     sso_rate_limit_per_minute: 200
   ```
 
-### mdm.reconciler_ca_limit
+### mdm.certificate_profiles_limit
 
 If you're using Fleet to [deploy certificates](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) from a third-party certificate authority (CA), this is the maximum number of Apple (macOS, iOS, iPadOS), certificate configuration profiles Fleet installs (`InstallProfile` command) every 30 seconds. Each install also requests a certificate from your CA, so this limit also caps CA requests to the same number per 30 seconds.
 
