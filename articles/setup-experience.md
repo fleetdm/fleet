@@ -10,7 +10,7 @@ macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](
 
 ## End user authentication
 
-You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience).
+You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience). End users can use passkeys, such as YubiKeys, with macOS hosts during the authentication process.
 
 1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL. If this URL is set incorrectly, end users won't be able to enroll. On iOS hosts, they'll see a "This screen size is not supported yet" error message.
 
