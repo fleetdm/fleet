@@ -135,6 +135,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		SoftwareInstallStore:            softwareInstallStore,
 		SoftwareTitleIconStore:          softwareTitleIconStore,
 		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
+		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		config.Logger = kitlog.NewNopLogger()
@@ -3953,6 +3954,32 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	rawResp.Body.Close()                             //nolint:errcheck
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+}
+
+func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrowserHostURL() {
+	t := s.T()
+
+	token := "valid_token"
+	createHostAndDeviceToken(t, s.ds, token)
+
+	// set custom url
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host": "example.com"}}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
+
+	// try setting invalid value
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host": "@:mon's_spagetti.com"}}`), http.StatusUnprocessableEntity, &acResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
@@ -24144,4 +24171,46 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestListActivitiesAuth() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a team and team user for testing.
+	// The standard test users (s.users) only include global roles (admin, maintainer, observer).
+	// Team users must be created per-test since they're not in the standard set.
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name() + "_team",
+		Description: "Team for activities auth test",
+	})
+	require.NoError(t, err)
+
+	teamObserver := &fleet.User{
+		Name:  "Activities Team Observer",
+		Email: "activities-team-observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, teamObserver.SetPassword(test.GoodPassword, 10, 10))
+	teamObserver, err = s.ds.NewUser(ctx, teamObserver)
+	require.NoError(t, err)
+
+	// Global users can access activities
+	for _, email := range []string{
+		"admin1@example.com", // global admin
+		"user1@example.com",  // global maintainer
+		"user2@example.com",  // global observer
+	} {
+		s.setTokenForTest(t, email, test.GoodPassword)
+		var resp listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp)
+	}
+
+	// Team-only users cannot access activities
+	s.setTokenForTest(t, teamObserver.Email, test.GoodPassword)
+	var resp listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusForbidden, &resp)
+
+	// Reset to admin token
+	s.token = s.getTestAdminToken()
 }
