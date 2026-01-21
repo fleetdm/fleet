@@ -34,6 +34,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     macos_setup_assistant: null,
     enable_release_device_manually: false,
     require_all_software_macos: false,
+    lock_primary_account_info: false,
   },
   macos_migration: {
     enable: false,
