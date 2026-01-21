@@ -27,8 +27,8 @@ Key points about the flow:
 1. The SSO flow ends with a callback to the Fleet server which contains information about the user that just logged in. We store this information in the `mdm_idp_accounts` table. Because at this point we don't know from which host UUID the request is coming in, we generate a random UUID as the key to look up this information (stored as `mdm_idp_accounts.uuid`). It is called `enrollment_reference` on the `/mdm/apple/enroll` endpoint.
 2. The Fleet server responds with an enrollment profile, that contains a special `ServerURL` with a query parameter `enroll_reference` (note the name difference). This parameter has the random UUID generated in step 1. This value is also called `EnrollmentRef` or `EnrollmentReference` in the codebase.
 3. During MDM enrollment, we grab the `enroll_reference` parameter, if present, and we try to match it to a host. This allows us to link end user IdP accounts used during enrollment with a host.
-4. Before releasing the device from awaiting configuration, we send an [AccountConfiguration command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary) to the host, to pre-set the macOS local account username to the value we got stored in `mdm_idp_accounts`. The command sets the following properties:
-  - LockPrimaryAccountInfo=true
+4. Before releasing the device from awaiting configuration, we send an [AccountConfiguration command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary) to the host, to pre-populate the macOS local account username and optionally the full name with values from `mdm_idp_accounts`. The command sets the following properties:
+  - LockPrimaryAccountInfo=false (both fields remain editable)
   - PrimaryAccountUserName
   - PrimaryAccountFullName (optional - only included if a full name is available from SAML or SCIM)
 5. During a subsequent osquery device refresh, we lookup the `email` from `mdm_idp_accounts` and save it in `host_emails` table. This email shows up in host details.

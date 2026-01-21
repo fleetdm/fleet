@@ -5921,7 +5921,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	var fullAccCmd *micromdm.CommandPayload
 	require.NoError(t, plist.Unmarshal(accCmd.Raw, &fullAccCmd))
-	require.True(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
+	require.False(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
 	require.Equal(t, "SSO User 1", fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	require.Equal(t, "sso_user", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
@@ -6252,7 +6252,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	var fullAccCmd *micromdm.CommandPayload
 	require.NoError(t, plist.Unmarshal(accCmd.Raw, &fullAccCmd))
-	assert.True(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
+	assert.False(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
 	assert.Equal(t, displayName, fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	assert.Equal(t, "sso_user_no_displayname", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 

@@ -326,7 +326,7 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 
 func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
 	// Build the command dictionary dynamically based on whether fullName is provided
-	// If fullName is empty, omit PrimaryAccountFullName so the field remains editable
+	// Always include PrimaryAccountFullName when available for pre-population, but don't lock it
 	var fullNameKey string
 	if fullName != "" {
 		fullNameKey = fmt.Sprintf(`      <key>PrimaryAccountFullName</key>
@@ -343,7 +343,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 %s      <key>PrimaryAccountUserName</key>
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
-      <true />
+      <false />
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
