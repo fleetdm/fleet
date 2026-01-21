@@ -41,6 +41,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/guregu/null.v3"
@@ -7902,6 +7903,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
+
+	s.lq.On("SetQueryResultsCount", mock.Anything, mock.Anything).Return(nil)
 
 	// list specs, none yet
 	var getSpecsResp getQuerySpecsResponse
