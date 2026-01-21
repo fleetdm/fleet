@@ -147,6 +147,13 @@ allow {
   action == [read, write, write_role, change_password][_]
 }
 
+# Global observers, observer_plus, and maintainers can read users.
+allow {
+  object.type == "user"
+  subject.global_role == [observer, observer_plus, maintainer][_]
+  action == read
+}
+
 # Team admins can perform all operations on the team users (except changing their password).
 allow {
   object.type == "user"

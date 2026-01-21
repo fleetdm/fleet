@@ -112,7 +112,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		Name:             "App 3",
 		BundleIdentifier: "c-3",
 		IconURL:          "https://example.com/images/3/512x512.png",
-		LatestVersion:    "2.0.0",
+		LatestVersion:    "3.0.0",
 	}
 	var addAppResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: macOSApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)

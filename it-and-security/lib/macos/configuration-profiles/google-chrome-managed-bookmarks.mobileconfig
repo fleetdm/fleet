@@ -64,7 +64,7 @@
                             <key>name</key>
                             <string>🔐 Security (Handbook)</string>
                             <key>url</key>
-                            <string>https://fleetdm.com/handbook/finance/security#security</string>
+                            <string>https://fleetdm.com/handbook/it/security#security</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -722,20 +722,20 @@
                 </dict>
                 <dict>
                     <key>name</key>
-                    <string>🌐 IT &amp; Enablement</string>
+                    <string>🌐 IT</string>
                     <key>children</key>
                     <array>
                         <dict>
                             <key>name</key>
-                            <string>🌐 IT &amp; Enablement (Handbook)</string>
+                            <string>🌐 IT (Handbook)</string>
                             <key>url</key>
-                            <string>https://fleetdm.com/handbook/it-and-enablement</string>
+                            <string>https://fleetdm.com/handbook/it</string>
                         </dict>
                         <dict>
                             <key>name</key>
-                            <string>🌐 Kanban board (:help-it-and-enablement)</string>
+                            <string>🌐 Kanban board (:help-it)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/69</string>
+                            <string>https://github.com/orgs/fleetdm/projects/101</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -753,7 +753,7 @@
                             <key>name</key>
                             <string>Account recovery process | Security</string>
                             <key>url</key>
-                            <string>https://fleetdm.com/handbook/finance/security#account-recovery-process</string>
+                            <string>https://fleetdm.com/handbook/it/security#account-recovery-process</string>
                         </dict>
                         <dict>
                             <key>name</key>
