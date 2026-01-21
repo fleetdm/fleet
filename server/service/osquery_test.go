@@ -38,7 +38,6 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
-	testifymock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -4692,6 +4691,8 @@ func makeLiveQueryStore(t *testing.T, countToReturn int) *live_query_mock.MockLi
 		}
 		return result, nil
 	}
-	lq.On("IncrQueryResultsCount", testifymock.Anything, testifymock.Anything).Return(countToReturn+1, nil)
+	lq.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
+		return nil
+	}
 	return lq
 }

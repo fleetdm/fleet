@@ -2960,6 +2960,9 @@ func (svc *Service) saveResultLogsToQueryReports(
 		}
 	}
 
+	// Track rows added per query for batched Redis increment
+	rowsAddedByQuery := make(map[uint]int)
+
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
@@ -2999,12 +3002,15 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 
-		// Increment Redis counter after successful insert
-		if svc.liveQueryStore != nil {
-			if _, err := svc.liveQueryStore.IncrQueryResultsCount(dbQuery.ID, rowsAdded); err != nil {
-				// Log but don't fail - the insert succeeded, counter is just a heuristic
-				level.Debug(svc.logger).Log("msg", "incr query results count in redis", "err", err, "query_id", dbQuery.ID)
-			}
+		// Track rows added for batched Redis increment
+		rowsAddedByQuery[dbQuery.ID] += rowsAdded
+	}
+
+	// Batch increment Redis counters after all successful inserts
+	if svc.liveQueryStore != nil && len(rowsAddedByQuery) > 0 {
+		if err := svc.liveQueryStore.IncrQueryResultsCounts(rowsAddedByQuery); err != nil {
+			// Log but don't fail - the inserts succeeded, counter is just a heuristic
+			level.Debug(svc.logger).Log("msg", "incr query results counts in redis", "err", err)
 		}
 	}
 }

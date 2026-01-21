@@ -13,7 +13,7 @@ type MockLiveQuery struct {
 	mock.Mock
 	fleet.LiveQueryStore
 	GetQueryResultsCountsOverride   func(queryIDs []uint) (map[uint]int, error)
-	IncrQueryResultsCountOverride   func(queryID uint, amount int) (int, error)
+	IncrQueryResultsCountsOverride  func(queryIDsToAmounts map[uint]int) error
 	SetQueryResultsCountOverride    func(queryID uint, count int) error
 	DeleteQueryResultsCountOverride func(queryID uint) error
 }
@@ -72,13 +72,13 @@ func (m *MockLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, er
 	return args.Get(0).(map[uint]int), args.Error(1)
 }
 
-// IncrQueryResultsCount mocks the live query store IncrQueryResultsCount method.
-func (m *MockLiveQuery) IncrQueryResultsCount(queryID uint, amount int) (int, error) {
-	if m.IncrQueryResultsCountOverride != nil {
-		return m.IncrQueryResultsCountOverride(queryID, amount)
+// IncrQueryResultsCounts mocks the live query store IncrQueryResultsCounts method.
+func (m *MockLiveQuery) IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) error {
+	if m.IncrQueryResultsCountsOverride != nil {
+		return m.IncrQueryResultsCountsOverride(queryIDsToAmounts)
 	}
-	args := m.Called(queryID, amount)
-	return args.Int(0), args.Error(1)
+	args := m.Called(queryIDsToAmounts)
+	return args.Error(0)
 }
 
 // SetQueryResultsCount mocks the live query store SetQueryResultsCount method.

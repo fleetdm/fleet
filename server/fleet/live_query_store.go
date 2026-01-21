@@ -28,9 +28,9 @@ type LiveQueryStore interface {
 	// GetQueryResultsCounts returns the current count of query results for multiple queries.
 	// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
 	GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error)
-	// IncrQueryResultsCount increments the query results count by the given amount.
-	// Returns the new count after incrementing.
-	IncrQueryResultsCount(queryID uint, amount int) (int, error)
+	// IncrQueryResultsCounts increments the query results counts by the given amounts.
+	// Takes a map of query ID -> amount to increment.
+	IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) error
 	// SetQueryResultsCount sets the query results count for a query to a specific value.
 	// Used by the cleanup cron job after deleting excess rows to set the count to the max allowed.
 	SetQueryResultsCount(queryID uint, count int) error

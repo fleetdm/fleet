@@ -582,21 +582,41 @@ func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, e
 	return results, nil
 }
 
-// IncrQueryResultsCount increments the query results count by the given amount.
-// Returns the new count after incrementing.
-func (r *redisLiveQuery) IncrQueryResultsCount(queryID uint, amount int) (int, error) {
+// IncrQueryResultsCounts increments the query results counts by the given amounts.
+// Takes a map of query ID -> amount to increment.
+func (r *redisLiveQuery) IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) error {
+	if len(queryIDsToAmounts) == 0 {
+		return nil
+	}
+
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	key := queryResultsCountKey(queryID)
-	newValue, err := redigo.Int(conn.Do("INCRBY", key, amount))
-	if err != nil {
-		return 0, fmt.Errorf("incrby query results count: %w", err)
+	// Pipeline INCRBY requests for all query IDs
+	for queryID, amount := range queryIDsToAmounts {
+		key := queryResultsCountKey(queryID)
+		if err := conn.Send("INCRBY", key, amount); err != nil {
+			return fmt.Errorf("send incrby query results count: %w", err)
+		}
 	}
 
-	return newValue, nil
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	// Receive all results to complete the pipeline (we don't need the values)
+	for range queryIDsToAmounts {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive incrby result: %w", err)
+		}
+	}
+
+	return nil
 }
 
+// SetQueryResultsCount sets the query results count for a query to a specific value.
+// Used to reset counts to zero when a query is modified, or to adjust the count
+// in the cleanup cron job after deleting excess rows.
 func (r *redisLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
@@ -609,6 +629,8 @@ func (r *redisLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
 	return nil
 }
 
+// DeleteQueryResultsCount deletes the query results count for a query.
+// Used when deleting a query, to remove the Redis key.
 func (r *redisLiveQuery) DeleteQueryResultsCount(queryID uint) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()

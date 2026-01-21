@@ -12242,9 +12242,11 @@ func (s *integrationTestSuite) TestQueryReports() {
 		counts[queryID] = count
 		return nil
 	}
-	s.lq.IncrQueryResultsCountOverride = func(queryID uint, amount int) (int, error) {
-		counts[queryID] += amount
-		return counts[queryID], nil
+	s.lq.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
+		for queryID, amount := range queryIDsToAmounts {
+			counts[queryID] += amount
+		}
+		return nil
 	}
 	s.lq.DeleteQueryResultsCountOverride = func(queryID uint) error {
 		delete(counts, queryID)
@@ -12253,7 +12255,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	defer func() {
 		s.lq.GetQueryResultsCountsOverride = nil
 		s.lq.SetQueryResultsCountOverride = nil
-		s.lq.IncrQueryResultsCountOverride = nil
+		s.lq.IncrQueryResultsCountsOverride = nil
 		s.lq.DeleteQueryResultsCountOverride = nil
 	}()
 
