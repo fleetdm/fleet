@@ -696,7 +696,7 @@ Sets the strategy that Fleet uses to determine the IP address of the client maki
 
 > If no value can be determined via the configured setting (for example, if a number is supplied but no `x-forwarded-for` or `forwarded` headers exist on the request) then the remote address of the request will be used.
 
-For example, if a request with remote address `5.5.5.5` has these headers:
+For example, if a request from remote address `5.5.5.5` has these headers:
 ```
 X-Forwarded-For: 1.1.1.1, 2.2.2.2, 4.4.4.4, 192.168.0.120
 X-Real-IP: 2.2.2.2
