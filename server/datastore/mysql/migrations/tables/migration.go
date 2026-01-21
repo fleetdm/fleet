@@ -48,15 +48,17 @@ func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgress
 		atomicCurrent := atomic.Uint64{}
 
 		// Every five seconds, echo the % progress of the executor
-		done := make(chan struct{})
-		finished := make(chan struct{})
+		// Since we output once the migration step is complete, we need an extra channel to indicate when both the step
+		// and the "step complete" output are com0plete
+		stepComplete := make(chan struct{})
+		outputComplete := make(chan struct{})
 		go func() {
-			defer close(finished)
 			ticker := time.NewTicker(progressInterval)
 			defer ticker.Stop()
+			defer close(outputComplete)
 			for {
 				select {
-				case <-done:
+				case <-stepComplete:
 					_, _ = fmt.Fprint(outputTo, "    100% complete\n")
 					return
 				case <-ticker.C:
@@ -73,8 +75,8 @@ func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgress
 		err = execute(tx, func() {
 			atomicCurrent.Add(1)
 		})
-		close(done)
-		<-finished // Wait for the goroutine to complete
+		close(stepComplete)
+		<-outputComplete // Wait for the goroutine to complete
 		return err
 	}
 }
