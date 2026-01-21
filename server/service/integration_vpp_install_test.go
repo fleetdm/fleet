@@ -2394,3 +2394,9 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		vppAutoUpdateTest(t, &fleet.Team{ID: 0}, ipadosHostNoTeam, ipadosClientDeviceNoTeam)
 	})
 }
+
+// Test for this special-case bugfix:
+// https://github.com/fleetdm/fleet/issues/37290
+func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase() {
+	panic("unimplemented")
+}
