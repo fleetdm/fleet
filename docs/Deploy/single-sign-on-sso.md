@@ -171,7 +171,7 @@ When JIT user provisioning is turned on, Fleet will automatically create an acco
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
 To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
 
-To enable this option, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check "_Create user and sync permissions on login_" or [adjust your config](#customization-of-user-roles).
+To enable this option, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check "_Create user and sync permissions on login_" or [adjust your config](https://fleetdm.com/docs/configuration/yaml-files#sso-settings).
 
 For this to work correctly make sure that:
 
