@@ -3,14 +3,11 @@ package file
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
