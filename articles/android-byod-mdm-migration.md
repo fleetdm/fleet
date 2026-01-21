@@ -58,7 +58,7 @@ Open the App Drawer (swipe up at the home screen, or select the Apps icon), and 
 
 <img width="50%" alt="30" src="https://github.com/user-attachments/assets/93491232-8063-42b5-9971-fb190071e439" />
 
-If the device doesn't meet the requirements set up by the admin in Google Admin, the end user will be prompted to resolve these.
+When an end user signs in to their Google account, if the device doesn't meet the requirements set up by the admin in Google Admin, the end user will be prompted to resolve these.
 
 <img width="2500" height="2000" alt="image8" src="https://github.com/user-attachments/assets/294c96e3-db11-4813-8864-0eaf428eba8d" />
 
