@@ -48,7 +48,7 @@ Linux endpoints present the operational challenges as other devices:
 
 Most organizations solve these problems on macOS and Windows using device management solutions where Linux has often been left behind. Though there are powerful open-source tools available like Ansible, Puppet, OpenSCAP, osquery, each requires significant investment to learn, integrate, and maintain. Mainstream endpoint management platforms like Intune and Workspace ONE offer limited Linux support, leaving many of these management problems unresolved.
 
-## The market Is catching up
+## The market is catching up
 
 The market for device management solutions focused on Macs and Windows PCs is enormous. Organizations spend billions of dollars every year to secure these computers. There is an entire universe of tools ranging from patch management, device management, remote control, endpoint protection and more that have all focused on Windows and Macs because that’s what the enterprise was demanding.
 
