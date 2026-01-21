@@ -56,7 +56,7 @@ This section walks you through authentication, assuming you already have a runni
 
 To log in to your Fleet instance, run the following commands:
 
-1. Set the Fleet instance address
+1. Set the Fleet instance address (your Fleet server’s URL)
 
 ```sh
 > fleetctl config set --address 'https://fleet.example.com'
