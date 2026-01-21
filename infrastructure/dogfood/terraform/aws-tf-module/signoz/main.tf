@@ -80,14 +80,29 @@ data "aws_route53_zone" "dogfood" {
 locals {
   cluster_name    = "signoz"
   signoz_domain   = "signoz.dogfood.fleetdm.com"
+  otlp_domain     = "otlp.signoz.dogfood.fleetdm.com"
   signoz_alb_name = "signoz-dogfood"
+  alb_subnets     = join(",", compact(data.terraform_remote_state.dogfood.outputs.vpc.private_subnets))
+  signoz_ingress_annotations = {
+    "alb.ingress.kubernetes.io/scheme"          = "internal"
+    "alb.ingress.kubernetes.io/subnets"         = local.alb_subnets
+    "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTPS\":443}]"
+    "alb.ingress.kubernetes.io/certificate-arn" = module.acm.acm_certificate_arn
+    "alb.ingress.kubernetes.io/backend-protocol" = "HTTP"
+    "alb.ingress.kubernetes.io/target-type"     = "ip"
+    "alb.ingress.kubernetes.io/group.name"      = local.signoz_alb_name
+  }
+  otlp_ingress_annotations = merge(local.signoz_ingress_annotations, {
+    "alb.ingress.kubernetes.io/backend-protocol-version" = "GRPC"
+  })
 }
 
 module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "4.3.1"
 
-  domain_name = local.signoz_domain
+  domain_name               = local.signoz_domain
+  subject_alternative_names = [local.otlp_domain]
   zone_id     = data.aws_route53_zone.dogfood.zone_id
 
   wait_for_validation = true
@@ -131,7 +146,7 @@ module "eks" {
       min_size       = 1
       max_size       = 1
       desired_size   = 1
-      instance_types = ["t3.2xlarge"]
+      instance_types = ["t3.xlarge"]
     }
   }
 
@@ -154,6 +169,23 @@ module "ebs_csi_irsa_role" {
     main = {
       provider_arn               = module.eks.oidc_provider_arn
       namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
+    }
+  }
+}
+
+# IAM Role for AWS Load Balancer Controller Service Account (IRSA)
+module "load_balancer_controller_irsa_role" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name = "${local.cluster_name}-aws-load-balancer-controller"
+
+  attach_load_balancer_controller_policy = true
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
     }
   }
 }
@@ -208,6 +240,52 @@ resource "kubernetes_storage_class_v1" "gp3" {
   depends_on = [time_sleep.wait_for_ebs_csi]
 }
 
+# AWS Load Balancer Controller via Helm (managed add-on not available for 1.31 in all regions)
+resource "helm_release" "aws_load_balancer_controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+
+  wait          = true
+  wait_for_jobs = false
+
+  set {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
+
+  set {
+    name  = "region"
+    value = data.aws_region.current.region
+  }
+
+  set {
+    name  = "vpcId"
+    value = data.terraform_remote_state.dogfood.outputs.vpc.vpc_id
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.load_balancer_controller_irsa_role.iam_role_arn
+  }
+
+  depends_on = [
+    module.eks,
+    module.load_balancer_controller_irsa_role
+  ]
+}
+
 # SigNoz via Helm
 resource "helm_release" "signoz" {
   name       = "signoz"
@@ -222,7 +300,19 @@ resource "helm_release" "signoz" {
 
   # OTEL Collector configuration overrides for production stability
   values = [
-    file("${path.module}/otel-collector-values.yaml")
+    file("${path.module}/otel-collector-values.yaml"),
+    yamlencode({
+      signoz = {
+        ingress = {
+          annotations = local.signoz_ingress_annotations
+        }
+      }
+      otelCollector = {
+        ingress = {
+          annotations = local.otlp_ingress_annotations
+        }
+      }
+    })
   ]
 
   set {
@@ -243,36 +333,6 @@ resource "helm_release" "signoz" {
   set {
     name  = "signoz.ingress.className"
     value = "alb"
-  }
-
-  set {
-    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/scheme"
-    value = "internal"
-  }
-
-  set {
-    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/listen-ports"
-    value = "[{\"HTTPS\":443}]"
-  }
-
-  set {
-    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/certificate-arn"
-    value = module.acm.acm_certificate_arn
-  }
-
-  set {
-    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/backend-protocol"
-    value = "HTTP"
-  }
-
-  set {
-    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/target-type"
-    value = "ip"
-  }
-
-  set {
-    name  = "signoz.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/load-balancer-name"
-    value = local.signoz_alb_name
   }
 
   set {
@@ -298,12 +358,37 @@ resource "helm_release" "signoz" {
   # OTLP collector should be internal only (not publicly accessible)
   set {
     name  = "otelCollector.service.type"
-    value = "LoadBalancer"
+    value = "ClusterIP"
   }
 
   set {
-    name  = "otelCollector.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
-    value = "internal"
+    name  = "otelCollector.ingress.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "otelCollector.ingress.className"
+    value = "alb"
+  }
+
+  set {
+    name  = "otelCollector.ingress.hosts[0].host"
+    value = local.otlp_domain
+  }
+
+  set {
+    name  = "otelCollector.ingress.hosts[0].paths[0].path"
+    value = "/"
+  }
+
+  set {
+    name  = "otelCollector.ingress.hosts[0].paths[0].pathType"
+    value = "ImplementationSpecific"
+  }
+
+  set {
+    name  = "otelCollector.ingress.hosts[0].paths[0].port"
+    value = "4317"
   }
 
 
@@ -381,18 +466,54 @@ resource "helm_release" "signoz" {
 
   depends_on = [
     module.eks,
-    kubernetes_storage_class_v1.gp3
+    kubernetes_storage_class_v1.gp3,
+    helm_release.aws_load_balancer_controller
   ]
 }
 
 data "aws_lb" "signoz" {
   name       = local.signoz_alb_name
-  depends_on = [helm_release.signoz]
+  depends_on = [null_resource.wait_for_signoz_alb]
 }
 
 resource "aws_route53_record" "signoz" {
   zone_id = data.aws_route53_zone.dogfood.zone_id
   name    = local.signoz_domain
+  type    = "A"
+
+  alias {
+    name                   = data.aws_lb.signoz.dns_name
+    zone_id                = data.aws_lb.signoz.zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "null_resource" "wait_for_signoz_alb" {
+  depends_on = [helm_release.signoz]
+
+  triggers = {
+    alb_name = local.signoz_alb_name
+    run_id   = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -euo pipefail
+      for i in $(seq 1 60); do
+        if aws elbv2 describe-load-balancers --names "${local.signoz_alb_name}" --region "${data.aws_region.current.region}" >/dev/null 2>&1; then
+          exit 0
+        fi
+        sleep 10
+      done
+      echo "Timed out waiting for ALB ${local.signoz_alb_name}" >&2
+      exit 1
+    EOT
+  }
+}
+
+resource "aws_route53_record" "otlp" {
+  zone_id = data.aws_route53_zone.dogfood.zone_id
+  name    = local.otlp_domain
   type    = "A"
 
   alias {

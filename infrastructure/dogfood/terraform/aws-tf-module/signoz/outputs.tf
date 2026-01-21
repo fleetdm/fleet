@@ -17,26 +17,12 @@ output "configure_kubectl" {
   value = "aws eks update-kubeconfig --region ${data.aws_region.current.region} --name ${module.eks.cluster_name}"
 }
 
-output "get_signoz_ui_url" {
-  value = "kubectl get ingress -n signoz signoz -o jsonpath='https://{.status.loadBalancer.ingress[0].hostname}'"
-}
-
-output "get_otlp_endpoint" {
-  value = "kubectl get svc -n signoz signoz-otel-collector -o jsonpath='{.status.loadBalancer.ingress[0].hostname}':4317"
-}
-
-# Data source to get the OTLP collector service
-data "kubernetes_service" "otlp_collector" {
-  metadata {
-    name      = "signoz-otel-collector"
-    namespace = "signoz"
-  }
-
-  depends_on = [helm_release.signoz]
+output "signoz_ui_url" {
+  value = "https://${local.signoz_domain}"
 }
 
 # Output for programmatic access - internal LoadBalancer hostname
 output "otel_collector_endpoint" {
-  description = "Internal OTLP collector endpoint (hostname:port)"
-  value       = try("${data.kubernetes_service.otlp_collector.status[0].load_balancer[0].ingress[0].hostname}:4317", "LoadBalancer not ready yet")
+  description = "Internal OTLP collector endpoint (https://host:port)"
+  value       = "https://${local.otlp_domain}:443"
 }
