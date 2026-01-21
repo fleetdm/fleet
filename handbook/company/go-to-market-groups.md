@@ -85,6 +85,7 @@ At Fleet, our GTM strategy consists of:
 - [Processing intent signals](https://fleetdm.com/handbook/company/go-to-market-groups#processing-intent-signals)
 - [Research](https://fleetdm.com/handbook/company/go-to-market-groups#research)
 - [Warm-up actions](https://fleetdm.com/handbook/company/go-to-market-groups#warm-up-actions)
+- [Executive Messaging Framework - Communicating the value of Fleet to the CIO and his direct team](https://docs.google.com/document/d/17u8z_aeZiatOBzcMfRtYewxMWZjRt-UKc0gQftcg7XM/edit?tab=t.0) (private Google doc)
 - [Proof of Value (POV)](https://fleetdm.com/handbook/company/go-to-market-groups#proof-of-value-pov)
 - [Signatures](https://fleetdm.com/handbook/company/go-to-market-groups#signatures)
 

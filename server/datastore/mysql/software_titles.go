@@ -186,7 +186,12 @@ func (ds *Datastore) ListSoftwareTitles(
 			// software is supported on a per team basis, so we require both
 			return nil, 0, nil, fleet.NewInvalidArgumentError("query", fleet.FilterTitlesByPlatformNeedsTeamIdErrMsg)
 		}
-
+		if opt.HashSHA256 != "" {
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "hash_sha256 can only be provided with team_id")
+		}
+		if opt.PackageName != "" {
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "package_name can only be provided with team_id")
+		}
 	}
 
 	dbReader := ds.reader(ctx)
@@ -533,6 +538,12 @@ WHERE
 		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
 		  {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
 		{{end}}
+		{{if and (hasTeamID $) $.HashSHA256}}
+		  {{$additionalWhere = printf "%s AND si.storage_id = ?" $additionalWhere}}
+		{{end}}
+		{{if and (hasTeamID $) $.PackageName}}
+		  {{$additionalWhere = printf "%s AND si.filename = ?" $additionalWhere}}
+		{{end}}
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
@@ -606,6 +617,14 @@ GROUP BY
 		for _, platform := range platforms {
 			args = append(args, platform)
 		}
+	}
+
+	if opt.HashSHA256 != "" {
+		args = append(args, opt.HashSHA256)
+	}
+
+	if opt.PackageName != "" {
+		args = append(args, opt.PackageName)
 	}
 
 	t, err := template.New("stm").Funcs(map[string]any{

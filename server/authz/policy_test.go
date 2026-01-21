@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
@@ -2045,7 +2046,7 @@ func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 				}
 
 				obj := fmt.Sprintf("%T", tt.object)
-				if at, ok := tt.object.(AuthzTyper); ok {
+				if at, ok := tt.object.(platform_authz.AuthzTyper); ok {
 					obj = at.AuthzType()
 				}
 

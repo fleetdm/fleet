@@ -104,6 +104,12 @@ func MakeHandler(
 		fn(&eopts)
 	}
 
+	// Create the client IP extraction strategy based on config.
+	ipStrategy, err := endpointer.NewClientIPStrategy(config.Server.TrustedProxies)
+	if err != nil {
+		panic(fmt.Sprintf("invalid server.trusted_proxies configuration: %v", err))
+	}
+
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
@@ -133,7 +139,17 @@ func MakeHandler(
 		}
 	}
 
-	r.Use(publicIP)
+	// Add middleware to extract the client IP and set it in the request context.
+	r.Use(func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
+			if ip != "" {
+				r.RemoteAddr = ip
+			}
+			handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
+		})
+	})
+
 	if eopts.httpSigVerifier != nil {
 		r.Use(eopts.httpSigVerifier)
 	}
@@ -145,16 +161,6 @@ func MakeHandler(
 	addMetrics(r)
 
 	return r
-}
-
-func publicIP(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := endpointer.ExtractIP(r)
-		if ip != "" {
-			r.RemoteAddr = ip
-		}
-		handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
-	})
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -482,8 +488,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/queries/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
 	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
-
-	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})

@@ -35,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"golang.org/x/net/html/charset"
 )
 
 const (
@@ -271,6 +272,7 @@ func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
 	// decode the TOC data (in XML inside the zlib-compressed data)
 	decoder := xml.NewDecoder(zr)
 	decoder.Strict = false
+	decoder.CharsetReader = charset.NewReaderLabel
 	if err := decoder.Decode(&root); err != nil {
 		return root, fmt.Errorf("decode xar xml: %w", err)
 	}

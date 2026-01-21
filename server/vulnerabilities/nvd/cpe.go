@@ -395,6 +395,17 @@ var (
 				s.Version = newVersion
 			},
 		},
+		{
+			// Homebrew's "imp" (Integrative Modeling Platform) is incorrectly matched against
+			// Horde IMP CPEs. Rename the Homebrew package to prevent incorrect CPE
+			// matching with horde:imp.
+			matches: func(s *fleet.Software) bool {
+				return s.Name == "imp" && s.Source == "homebrew_packages"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "integrative-modeling-platform"
+			},
+		},
 	}
 )
 
