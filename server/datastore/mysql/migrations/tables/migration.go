@@ -30,10 +30,11 @@ func basicMigrationStep(statement string, errorMessage string) migrationStep {
 	}
 }
 
-type incrementCounter func(tx *sql.Tx) (uint, error)
-type incrementalExecutor func(tx *sql.Tx, increment func()) error
+type getTotalCountFn func(tx *sql.Tx) (uint, error)
+type incrementCountFn func()
+type executeWithProgressFn func(tx *sql.Tx, increment incrementCountFn) error
 
-func incrementalMigrationStep(count incrementCounter, execute incrementalExecutor) migrationStep {
+func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgressFn) migrationStep {
 	return func(tx *sql.Tx) error {
 		total, err := count(tx)
 		if err != nil {
@@ -53,9 +54,14 @@ func incrementalMigrationStep(count incrementCounter, execute incrementalExecuto
 			for {
 				select {
 				case <-done:
+					_, _ = fmt.Fprint(outputTo, "    100% complete\n")
 					return
 				case <-ticker.C:
-					_, _ = fmt.Fprintf(outputTo, "%d%% complete\n", (100*current)/total)
+					if current == total {
+						_, _ = fmt.Fprint(outputTo, "    Almost done...\n")
+					} else {
+						_, _ = fmt.Fprintf(outputTo, "    %d%% complete\n", (100*current)/total)
+					}
 				}
 			}
 		}()
@@ -71,7 +77,7 @@ func withSteps(steps []migrationStep, tx *sql.Tx) error {
 	stepCount := len(steps)
 	for i, step := range steps {
 		if stepCount > 1 {
-			_, _ = fmt.Fprintf(outputTo, "Step %d of %d\n", i+1, stepCount)
+			_, _ = fmt.Fprintf(outputTo, "  Step %d of %d\n", i+1, stepCount)
 		}
 		if err := step(tx); err != nil {
 			return err
