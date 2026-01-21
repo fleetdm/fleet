@@ -360,7 +360,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		return err
 	}
 
-	// used to cross reference against the setup experience statuse below
+	// used to cross reference against the setup experience statuses below
 	notNowCmdUUIDs := make(map[string]any)
 
 	for _, cmdUUID := range args.EnrollmentCommands {
@@ -375,7 +375,6 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 
 		var completed bool
 		for _, r := range res {
-
 			if r.Status == fleet.MDMAppleStatusNotNow {
 				notNowCmdUUIDs[cmdUUID] = ""
 			}
