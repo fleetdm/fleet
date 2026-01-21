@@ -83,16 +83,18 @@ locals {
   otlp_domain     = "otlp.signoz.dogfood.fleetdm.com"
   signoz_alb_name = "signoz-dogfood"
   alb_subnets     = join(",", compact(data.terraform_remote_state.dogfood.outputs.vpc.private_subnets))
-  signoz_ingress_annotations = {
-    "alb.ingress.kubernetes.io/scheme"          = "internal"
-    "alb.ingress.kubernetes.io/subnets"         = local.alb_subnets
-    "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTPS\":443}]"
-    "alb.ingress.kubernetes.io/certificate-arn" = module.acm.acm_certificate_arn
+  common_ingress_annotations = {
+    "alb.ingress.kubernetes.io/scheme"           = "internal"
+    "alb.ingress.kubernetes.io/subnets"          = local.alb_subnets
+    "alb.ingress.kubernetes.io/listen-ports"     = "[{\"HTTPS\":443}]"
+    "alb.ingress.kubernetes.io/certificate-arn"  = module.acm.acm_certificate_arn
     "alb.ingress.kubernetes.io/backend-protocol" = "HTTP"
-    "alb.ingress.kubernetes.io/target-type"     = "ip"
-    "alb.ingress.kubernetes.io/group.name"      = local.signoz_alb_name
+    "alb.ingress.kubernetes.io/target-type"      = "ip"
+    "alb.ingress.kubernetes.io/group.name"       = local.signoz_alb_name
+    "alb.ingress.kubernetes.io/load-balancer-name" = local.signoz_alb_name
   }
-  otlp_ingress_annotations = merge(local.signoz_ingress_annotations, {
+  signoz_ingress_annotations = local.common_ingress_annotations
+  otlp_ingress_annotations = merge(local.common_ingress_annotations, {
     "alb.ingress.kubernetes.io/backend-protocol-version" = "GRPC"
   })
 }
@@ -342,7 +344,7 @@ resource "helm_release" "signoz" {
 
   set {
     name  = "signoz.ingress.hosts[0].paths[0].path"
-    value = "/"
+    value = "/*"
   }
 
   set {
@@ -378,7 +380,7 @@ resource "helm_release" "signoz" {
 
   set {
     name  = "otelCollector.ingress.hosts[0].paths[0].path"
-    value = "/"
+    value = "/*"
   }
 
   set {
@@ -464,10 +466,72 @@ resource "helm_release" "signoz" {
     value = "1"
   }
 
+  # Uncomment to force redeployment 
+  #
+  # set {
+  #   name  = "redeployAt"
+  #   value = timestamp()
+  # }
+
   depends_on = [
     module.eks,
     kubernetes_storage_class_v1.gp3,
     helm_release.aws_load_balancer_controller
+  ]
+}
+
+resource "kubernetes_secret" "otel_bearer_token" {
+  metadata {
+    name      = "signoz-otel-bearer-token"
+    namespace = "signoz"
+  }
+
+  type = "Opaque"
+
+  string_data = {
+    otel_bearer_token = var.otel_bearer_token
+  }
+}
+
+resource "kubernetes_manifest" "otel_collector_bearer_env" {
+  manifest = {
+    apiVersion = "apps/v1"
+    kind       = "Deployment"
+    metadata = {
+      name      = "signoz-otel-collector"
+      namespace = "signoz"
+    }
+    spec = {
+      template = {
+        spec = {
+          containers = [
+            {
+              name = "collector"
+              env = [
+                {
+                  name = "OTEL_BEARER_TOKEN"
+                  valueFrom = {
+                    secretKeyRef = {
+                      name = kubernetes_secret.otel_bearer_token.metadata[0].name
+                      key  = "otel_bearer_token"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+
+  field_manager {
+    force_conflicts = true
+  }
+
+  depends_on = [
+    helm_release.signoz,
+    kubernetes_secret.otel_bearer_token
   ]
 }
 
@@ -476,6 +540,8 @@ data "aws_lb" "signoz" {
   depends_on = [null_resource.wait_for_signoz_alb]
 }
 
+
+# Route53 records may require a 2nd apply if the load balancer changes in the EKS cluster.
 resource "aws_route53_record" "signoz" {
   zone_id = data.aws_route53_zone.dogfood.zone_id
   name    = local.signoz_domain

@@ -7,6 +7,21 @@ otelCollector:
   lowCardinalityExceptionGrouping: true
 
   config:
+    extensions:
+      bearertokenauth:
+        scheme: "Bearer"
+        token: ${env:OTEL_BEARER_TOKEN}
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            auth:
+              authenticator: bearertokenauth
+          http:
+            auth:
+              authenticator: bearertokenauth
+
     exporters:
       # Logs exporter with balanced queue sizes for throughput and memory
       clickhouselogsexporter:
@@ -57,6 +72,8 @@ otelCollector:
         spike_limit_mib: 512
 
     service:
+      extensions:
+        - bearertokenauth
       pipelines:
         traces:
           processors:
