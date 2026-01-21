@@ -163,6 +163,7 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 			"okta_assertion_consumer_service_url": nil,
 			"okta_audience_uri":                   nil,
 			"okta_certificate":                    nil,
+			"bypass_disabled":                     false,
 		},
 	}
 	b, err := json.Marshal(body)
