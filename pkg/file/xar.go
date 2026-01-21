@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -300,6 +299,7 @@ func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, 
 		fileReader = bzip2.NewReader(fileReader)
 	}
 	// TODO: what other compression methods are supported?
+
 	contents, err := io.ReadAll(fileReader)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s file: %w", f.Name, err)
