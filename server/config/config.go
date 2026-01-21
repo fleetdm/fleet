@@ -658,6 +658,7 @@ type FleetConfig struct {
 	Calendar                   CalendarConfig
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+	ConditionalAccess          ConditionalAccessConfig           `yaml:"conditional_access"`
 
 	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	Packaging PackagingConfig
@@ -670,6 +671,14 @@ func (f FleetConfig) OTELEnabled() bool {
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
 	EnablePrimo       bool `yaml:"enable_primo"`
+}
+
+// ConditionalAccessConfig holds the server configuration for Okta conditional access.
+type ConditionalAccessConfig struct {
+	// CertSerialFormat specifies the format of the certificate serial number
+	// in the X-Client-Cert-Serial header. Valid values are "hex" (default) and "decimal".
+	// AWS ALB sends hex format, Caddy sends decimal format.
+	CertSerialFormat string `yaml:"cert_serial_format"`
 }
 
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
@@ -1555,6 +1564,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
+	// Conditional Access
+	man.addConfigString("conditional_access.cert_serial_format", "hex", "Format of the certificate serial number in the X-Client-Cert-Serial header (hex or decimal)")
+
 	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
 }
 
@@ -1865,6 +1877,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
 			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+		},
+		ConditionalAccess: ConditionalAccessConfig{
+			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
 		},
 	}
 

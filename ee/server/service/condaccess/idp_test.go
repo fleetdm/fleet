@@ -210,70 +210,140 @@ func TestServeMetadata(t *testing.T) {
 }
 
 func TestParseSerialNumber(t *testing.T) {
-	tests := []struct {
-		name      string
-		input     string
-		expected  uint64
-		expectErr bool
-	}{
-		{
-			name:     "simple hex number",
-			input:    "1A2B3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "hex with colons",
-			input:    "1A:2B:3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "hex with spaces",
-			input:    "1A 2B 3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "mixed colons and spaces",
-			input:    "1A:2B 3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "large serial number",
-			input:    "DEADBEEF12345678",
-			expected: 0xDEADBEEF12345678,
-		},
-		{
-			name:     "lowercase hex",
-			input:    "abcdef123456",
-			expected: 0xABCDEF123456,
-		},
-		{
-			name:      "invalid hex characters",
-			input:     "GHIJKL",
-			expectErr: true,
-		},
-		{
-			name:      "empty string",
-			input:     "",
-			expectErr: true,
-		},
-		{
-			name:      "overflow uint64",
-			input:     "FFFFFFFFFFFFFFFF1",
-			expectErr: true,
-		},
-	}
+	t.Run("hex format", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			expected  uint64
+			expectErr bool
+		}{
+			{
+				name:     "simple hex number",
+				input:    "1A2B3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "hex with colons",
+				input:    "1A:2B:3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "hex with spaces",
+				input:    "1A 2B 3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "mixed colons and spaces",
+				input:    "1A:2B 3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "large serial number",
+				input:    "DEADBEEF12345678",
+				expected: 0xDEADBEEF12345678,
+			},
+			{
+				name:     "lowercase hex",
+				input:    "abcdef123456",
+				expected: 0xABCDEF123456,
+			},
+			{
+				name:      "invalid hex characters",
+				input:     "GHIJKL",
+				expectErr: true,
+			},
+			{
+				name:      "empty string",
+				input:     "",
+				expectErr: true,
+			},
+			{
+				name:      "overflow uint64",
+				input:     "FFFFFFFFFFFFFFFF1",
+				expectErr: true,
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseSerialNumber(tt.input)
-			if tt.expectErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tt.expected, result)
-			}
-		})
-	}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result, err := parseSerialNumber(tt.input, "hex")
+				if tt.expectErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, tt.expected, result)
+				}
+			})
+		}
+	})
+
+	t.Run("decimal format", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			expected  uint64
+			expectErr bool
+		}{
+			{
+				name:     "simple decimal number",
+				input:    "123456",
+				expected: 123456,
+			},
+			{
+				name:     "decimal 10 (would be 16 if parsed as hex)",
+				input:    "10",
+				expected: 10,
+			},
+			{
+				name:     "decimal 15 (would be 21 if parsed as hex)",
+				input:    "15",
+				expected: 15,
+			},
+			{
+				name:     "large decimal number",
+				input:    "18446744073709551615",
+				expected: 18446744073709551615,
+			},
+			{
+				name:      "invalid decimal with hex chars",
+				input:     "1A2B",
+				expectErr: true,
+			},
+			{
+				name:      "empty string",
+				input:     "",
+				expectErr: true,
+			},
+			{
+				name:      "overflow uint64",
+				input:     "18446744073709551616",
+				expectErr: true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result, err := parseSerialNumber(tt.input, "decimal")
+				if tt.expectErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, tt.expected, result)
+				}
+			})
+		}
+	})
+
+	t.Run("default format is hex", func(t *testing.T) {
+		// When format is empty or unknown, it should default to hex
+		result, err := parseSerialNumber("A", "")
+		require.NoError(t, err)
+		require.Equal(t, uint64(10), result)
+
+		result, err = parseSerialNumber("A", "unknown")
+		require.NoError(t, err)
+		require.Equal(t, uint64(10), result)
+	})
 }
 
 func TestServeSSO(t *testing.T) {

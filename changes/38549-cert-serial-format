@@ -1,0 +1,1 @@
+- Added `conditional_access.cert_serial_format` server configuration option to support both hex (default) and decimal certificate serial number formats for Okta conditional access. This allows testing with Caddy reverse proxy in local environments.
