@@ -97,8 +97,9 @@ func (s *Service) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []ui
 
 // ListHostPastActivities returns past activities for a specific host.
 func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	// First ensure the user has access to list hosts
-	if err := s.authz.Authorize(ctx, &api.Activity{}, platform_authz.ActionList); err != nil {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := s.authz.Authorize(ctx, &activity.Host{}, platform_authz.ActionList); err != nil {
 		return nil, nil, err
 	}
 
