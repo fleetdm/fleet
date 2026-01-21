@@ -37,7 +37,7 @@ Fleet directs Apple device admins to iMazing Profile Creator for building Config
 
 ### Software management
 
-Jamf provides an App Catalog and integrated Apps and Books distribution for volume purchasing with scoping based on Smart Groups.
+Jamf provides an App Catalog and integrated Apps and Books distribution for volume purchasing with scoping based on Smart or Static Groups.
 
 Fleet provides software management through Fleet-maintained apps and also includes Apps and Books distribution for volume purchasing from App Stores.
 
@@ -49,7 +49,7 @@ Jamf Pro is Jamf's flagship device management solution but it is not an out-of-t
 
 Jamf's security products make use of Apple's native Endpoint Security Framework for EDR and telemetry collection enabling security monitoring and SIEM integration capabilities, but, this potentially means detection and compliance are more expensive when using Jamf's product line.
 
-Fleet approaches security and compliance through built-in software vulnerability detection and the power of osquery reporting combined with automation capabilities for enforcing and remediating controls on top of complete support for Apple's MDM specification (which includes control over basic security features like FileVault and GateKeeper.) 
+Fleet approaches security and compliance through built-in software vulnerability detection and the power of osquery reporting combined with automation capabilities for enforcing and remediating controls on top of complete support for Apple's MDM specification (which includes control over basic security features like FileVault and Gatekeeper.) 
 
 These combined capabilities make it straight-forward to enforce compliance baselines using frameworks like CIS or STIG. Threat detection in Fleet works through the creation of queries to find device processes, file systems, and network configuration, YARA-based signature matching for malware detection, and vulnerability intelligence. Security monitoring, data collection, SIEM integration and all other Fleet capabilities are included under a single license at no additional cost. Fleet provides visibility into software inventories, running processes, connected hardware, firewall status and virtually any imaginable attribute of any device via the [Fleet osquery data table schema](https://fleetdm.com/tables/) 
 
