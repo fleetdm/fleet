@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -114,17 +115,23 @@ func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "setting conditional access bypass")
 	}
 
-	// var idpFullName string
-	// endUsers, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "getting end users for bypass activity")
-	// }
+	idpFullName := "An end user"
+	endUsers, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting end users for bypass activity")
+	}
 
-	// svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeHostBypassedConditionalAccess{
-	// 	HostID:          host.ID,
-	// 	HostDisplayName: host.DisplayName(),
-	// 	IdPFullName:     "", // TODO where do we get this?
-	// })
+	if len(endUsers) > 0 {
+		idpFullName = endUsers[0].IdpFullName
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeHostBypassedConditionalAccess{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		IdPFullName:     idpFullName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating host bypass activity")
+	}
 
 	return nil
 }

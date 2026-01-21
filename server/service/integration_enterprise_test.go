@@ -23411,6 +23411,72 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		nil, http.StatusOK)
 	require.Nil(t, bypassResp.Err)
 
+	// Verify the activity was created with default idp_full_name when no SCIM user exists
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeHostBypassedConditionalAccess{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "idp_full_name": "An end user"}`, host.ID, host.DisplayName()),
+		0,
+	)
+
+	// Test 1b: Verify activity includes actual IDP name when SCIM user is present
+	hostWithScim, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "-host-with-scim"),
+		NodeKey:         ptr.String(t.Name() + "-host-with-scim"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo-scim.local", t.Name()),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	createDeviceTokenForHost(t, s.ds, hostWithScim.ID, "test-bypass-token-with-scim")
+	t.Cleanup(func() {
+		_ = s.ds.DeleteHost(ctx, hostWithScim.ID)
+	})
+
+	// Create a SCIM user and map it to the host
+	var scimUserID int64
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		res, err := db.ExecContext(ctx,
+			`INSERT INTO scim_users (user_name, given_name, family_name, active) VALUES (?, ?, ?, ?)`,
+			"john.doe@example.com", "John", "Doe", 1)
+		if err != nil {
+			return err
+		}
+		scimUserID, err = res.LastInsertId()
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx,
+			`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+			hostWithScim.ID, scimUserID)
+		return err
+	})
+	t.Cleanup(func() {
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, _ = db.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostWithScim.ID)
+			_, _ = db.ExecContext(ctx, `DELETE FROM scim_users WHERE id = ?`, scimUserID)
+			return nil
+		})
+	})
+
+	// Call bypass for host with SCIM user
+	s.DoRawNoAuth("POST", "/api/v1/fleet/device/test-bypass-token-with-scim/bypass_conditional_access",
+		nil, http.StatusOK)
+
+	// Verify the activity includes the actual IDP full name
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeHostBypassedConditionalAccess{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "idp_full_name": "John Doe"}`, hostWithScim.ID, hostWithScim.DisplayName()),
+		0,
+	)
+
+	// Consume the bypass for cleanup
+	_, _ = s.ds.ConditionalAccessConsumeBypass(ctx, hostWithScim.ID)
+
 	// Test 2: Verify the bypass was recorded (consume returns the bypass)
 	bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
 	require.NoError(t, err)
