@@ -684,6 +684,44 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
     keepalive: true
   ```
 
+### server_trusted_proxies (Fleet 4.80.1+)
+
+Sets the strategy that Fleet uses to determine the IP address of the client making a request. This address is used for rate-limiting purposes. Options are:
+
+- `none`: always take the IP from the remote address of the request
+- A comma-delimited set of IP addresses or ranges: parse the `x-forwarded-for` or `forwarded` header (if any) in the request and take the right-most IP _not_ in the list
+- A number: parse the `x-forwarded-for` or `forwarded` header (if any) and taken the Nth address from the right (`1` indicates the right-most address, `2` the second-to-right-most, etc.)
+- A string starting with `header:`: take the value of that header as the IP address
+- Empty: take the value of the IP from the `True-Client-IP` header, or else the `X-Real-IP` header, or else the left-most value of the `X-Forwarded-For` header. _This setting is deprecated: For Fleet servers directly facing the internet, `none` is recommended. Otherwise use a value compatible with your proxy setup._
+
+> If no value can be determined via the configured setting (for example, if a number is supplied but no `x-forwarded-for` or `forwarded` headers exist on the request) then the remote address of the request will be used.
+
+For example, if a request with remote address `5.5.5.5` has these headers:
+```
+X-Forwarded-For: 1.1.1.1, 2.2.2.2, 4.4.4.4, 192.168.0.120
+X-Real-IP: 2.2.2.2
+```
+
+Then depending on how `fleet_server_trusted_proxies` is set, Fleet would determine the following values for the client IP:
+
+| Trusted proxies setting | Client IP | Explanation |
+| --- | --- | --- |
+|`none` | `5.5.5.5` | The address Fleet received the request from |
+|`192.168.0.0/24, 4.4.4.4`| `2.2.2.2` | Using `X-Forwarded-For` and skipping the trusted addresses of `192.168.0.120` and `4.4.4.4` |
+|`1`| `192.168.0.120` | The first address from the right 
+|`2`| `4.4.4.4` | The second address from the right|
+|`header:x-real-ip`| `2.2.2.2` | The value of the specified header|
+|`header:x-peekaboo`| `5.5.5.5` |  The address Fleet received the request from, since the specified header doesn't exist in the request |
+|empty| `2.2.2.2` | The value of the `x-real-ip` header
+
+- Default value: empty
+- Environment variable: `FLEET_SERVER_TRUSTED_PROXIES`
+- Config file format:
+  ```yaml
+  server:
+    trusted_proxies: none
+  ```
+
 ### server_websockets_allow_unsafe_origin
 
 Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
