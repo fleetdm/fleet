@@ -8369,6 +8369,8 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 }
 
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
 	// Updates hosts and host_seen_times.
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -8587,7 +8589,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	detailsBytes, err := json.Marshal(activity)
 	require.NoError(t, err)
 
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity( // automatically creates the host_activities entry
 		ctx,
 		user1,
@@ -8714,6 +8716,31 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).Exec("INSERT INTO host_in_house_software_installs (host_id, in_house_app_id, command_uuid, platform) VALUES (?, ?, ?, ?)",
 		host.ID, inHouseID, uuid.NewString(), fleet.MacOSPlatform)
 	require.NoError(t, err)
+
+	// Seed one VPP app install for this host so DeleteHosts can be verified.
+
+	// Reuse the same “create a VPP app with team” pattern from testListHostSoftwareVPPSelfServiceTeamFilter
+	vppApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			SelfService: false,
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_deletehosts_" + t.Name(),
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "deletehosts_vpp_app",
+		BundleIdentifier: "com.app.deletehosts",
+		LatestVersion:    "1.0.0",
+	}
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, nil) // no team
+	require.NoError(t, err)
+
+	// Install the VPP app on the host: create upcoming activity + host_vpp_software_installs.
+	user := test.NewUser(t, ds, "DeleteHostsVPP", "deletehostsvpp@example.com", true)
+	cmdUUID := createVPPAppInstallRequest(t, ds, host, va.VPPAppID.AdamID, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host, cmdUUID, fleet.MDMAppleStatusAcknowledged)
 
 	// Insert into conditional_access_scep_certificates table
 	result, err = ds.writer(context.Background()).Exec(`INSERT INTO conditional_access_scep_serials () VALUES ()`)
