@@ -49,7 +49,9 @@ func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgress
 
 		// Every five seconds, echo the % progress of the executor
 		done := make(chan struct{})
+		finished := make(chan struct{})
 		go func() {
+			defer close(finished)
 			ticker := time.NewTicker(progressInterval)
 			defer ticker.Stop()
 			for {
@@ -67,11 +69,13 @@ func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgress
 				}
 			}
 		}()
-		defer close(done)
 
-		return execute(tx, func() {
+		err = execute(tx, func() {
 			atomicCurrent.Add(1)
 		})
+		close(done)
+		<-finished // Wait for the goroutine to complete
+		return err
 	}
 }
 

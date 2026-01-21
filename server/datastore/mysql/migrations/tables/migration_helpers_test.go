@@ -176,8 +176,8 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		err = step(tx)
 		require.NoError(t, err)
 
-		// Verify progress output was written
-		assert.Len(t, strings.Split(strings.Trim(buf.String(), "\n"), "\n"), 5)
+		// Verify progress output was written (includes 100% complete at the end)
+		assert.Len(t, strings.Split(strings.Trim(buf.String(), "\n"), "\n"), 6)
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -217,7 +217,7 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		err = step(tx)
 		require.NoError(t, err)
 		assert.Equal(t, 50, incrementCount)
-		require.Equal(t, "    Almost done...\n", buf.String())
+		require.Equal(t, "    Almost done...\n    100% complete\n", buf.String())
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
