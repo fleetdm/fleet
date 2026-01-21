@@ -1,10 +1,10 @@
 # Android BYOD MDM migration
 
-On BYOD Android devices, enrolling in an MDM installs a _Work Profile_, which segments corporate apps and data from the end user's personal information.
+On BYOD Android devices, enrolling in an MDM installs a [Work Profile](https://support.google.com/work/android/answer/6191949?hl=en), which segments corporate apps and data from the end user's personal information.
 
 Before you can enroll Android devices in Fleet, you must [set up Android MDM](https://fleetdm.com/guides/android-mdm-setup).
 
-Enroll Android devices into Fleet using an enrollment link. Follow our [Enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui) for instructions on how to get this link.
+Add Android hosts to Fleet using an enrollment link. Follow our [Enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui) for instructions on how to get this link.
 
 
 ## Remove the old Work Profile
@@ -23,7 +23,7 @@ On Samsung devices, open **Settings** > **Accounts and backup** > **Manage accou
 
 <img width="2500" height="2000" alt="image1" src="https://github.com/user-attachments/assets/3a711cf4-37e7-437c-b7d0-35f2b9c91b48" />
 
-After selecting **Delete** on the confirmation dialog, the old Work Profile will be removed.
+After selecting **Delete** on the confirmation dialog, the old Work Profile will be removed from the device.
 
 
 ## Enroll in Fleet
