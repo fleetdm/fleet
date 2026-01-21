@@ -5,8 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -15,19 +14,45 @@ func init() {
 
 func Up_20260121151237(tx *sql.Tx) error {
 	// Update global app config
-	if err := updateAppConfigJSON(tx, func(config *fleet.AppConfig) error {
-		if config != nil && !config.MDM.MacOSSetup.LockPrimaryAccountInfo.Valid {
-			config.MDM.MacOSSetup.LockPrimaryAccountInfo = optjson.SetBool(false)
+	var raw json.RawMessage
+	var id uint
+	row := tx.QueryRow(`SELECT id, json_value FROM app_config_json LIMIT 1`)
+	if err := row.Scan(&id, &raw); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// No config exists, skip
+		} else {
+			return fmt.Errorf("select app_config_json: %w", err)
 		}
-		return nil
-	}); err != nil {
-		return fmt.Errorf("updating app_config_json: %w", err)
+	} else {
+		var config map[string]interface{}
+		if err := json.Unmarshal(raw, &config); err != nil {
+			return fmt.Errorf("unmarshal app_config_json: %w", err)
+		}
+
+		// Navigate to mdm.macos_setup and add lock_primary_account_info if not present
+		if mdm, ok := config["mdm"].(map[string]interface{}); ok {
+			if macosSetup, ok := mdm["macos_setup"].(map[string]interface{}); ok {
+				if _, exists := macosSetup["lock_primary_account_info"]; !exists {
+					macosSetup["lock_primary_account_info"] = false
+					mdm["macos_setup"] = macosSetup
+					config["mdm"] = mdm
+
+					b, err := json.Marshal(config)
+					if err != nil {
+						return fmt.Errorf("marshal updated app_config_json: %w", err)
+					}
+					if _, err := tx.Exec(`UPDATE app_config_json SET json_value = ? WHERE id = ?`, b, id); err != nil {
+						return fmt.Errorf("update app_config_json: %w", err)
+					}
+				}
+			}
+		}
 	}
 
 	// Update default team config
 	var defaultConfigJSON json.RawMessage
-	row := tx.QueryRow(`SELECT json_value FROM default_team_config_json WHERE id = 1`)
-	if err := row.Scan(&defaultConfigJSON); err != nil {
+	defaultRow := tx.QueryRow(`SELECT json_value FROM default_team_config_json WHERE id = 1`)
+	if err := defaultRow.Scan(&defaultConfigJSON); err != nil {
 		if err == sql.ErrNoRows {
 			// Table might not exist yet, skip
 			return nil
@@ -53,7 +78,7 @@ func Up_20260121151237(tx *sql.Tx) error {
 					return fmt.Errorf("marshaling updated default_team_config_json: %w", err)
 				}
 
-				if _, err := tx.Exec(`UPDATE default_team_config_json SET json_value = ? WHERE id = 1`, updatedJSON); err != nil {
+				if _, err = tx.Exec(`UPDATE default_team_config_json SET json_value = ? WHERE id = 1`, updatedJSON); err != nil {
 					return fmt.Errorf("updating default_team_config_json: %w", err)
 				}
 			}
@@ -87,21 +112,29 @@ func Up_20260121151237(tx *sql.Tx) error {
 	}
 
 	for _, t := range teams {
-		var config fleet.TeamConfig
-		if err := json.Unmarshal(t.raw, &config); err != nil {
+		var teamConfig map[string]interface{}
+		if err := json.Unmarshal(t.raw, &teamConfig); err != nil {
 			return fmt.Errorf("unmarshalling team config: %w", err)
 		}
-		if !config.MDM.MacOSSetup.LockPrimaryAccountInfo.Valid {
-			config.MDM.MacOSSetup.LockPrimaryAccountInfo = optjson.SetBool(false)
-		}
 
-		b, err := json.Marshal(config)
-		if err != nil {
-			return fmt.Errorf("marshaling team config: %w", err)
-		}
+		// Navigate to mdm.macos_setup and add lock_primary_account_info if not present
+		if mdm, ok := teamConfig["mdm"].(map[string]interface{}); ok {
+			if macosSetup, ok := mdm["macos_setup"].(map[string]interface{}); ok {
+				if _, exists := macosSetup["lock_primary_account_info"]; !exists {
+					macosSetup["lock_primary_account_info"] = false
+					mdm["macos_setup"] = macosSetup
+					teamConfig["mdm"] = mdm
 
-		if _, err := tx.Exec(`UPDATE teams SET config = ? WHERE id = ?`, b, t.id); err != nil {
-			return fmt.Errorf("updating team config: %w", err)
+					b, err := json.Marshal(teamConfig)
+					if err != nil {
+						return fmt.Errorf("marshaling team config: %w", err)
+					}
+
+					if _, err := tx.Exec(`UPDATE teams SET config = ? WHERE id = ?`, b, t.id); err != nil {
+						return fmt.Errorf("updating team config: %w", err)
+					}
+				}
+			}
 		}
 	}
 
