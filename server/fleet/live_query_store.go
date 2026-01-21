@@ -25,9 +25,9 @@ type LiveQueryStore interface {
 	// LoadActiveQueryNames returns the names of all active queries.
 	LoadActiveQueryNames() ([]string, error)
 
-	// GetQueryResultsCount returns the current count of query results for a query.
-	// Returns 0 if the key doesn't exist (no results tracked yet).
-	GetQueryResultsCount(queryID uint) (int, error)
+	// GetQueryResultsCounts returns the current count of query results for multiple queries.
+	// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+	GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error)
 	// IncrQueryResultsCount increments the query results count by the given amount.
 	// Returns the new count after incrementing.
 	IncrQueryResultsCount(queryID uint, amount int) (int, error)

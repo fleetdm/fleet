@@ -39,8 +39,8 @@ func (q nopLiveQuery) LoadActiveQueryNames() ([]string, error) {
 	return nil, nil
 }
 
-func (q nopLiveQuery) GetQueryResultsCount(uint) (int, error) {
-	return 0, nil
+func (q nopLiveQuery) GetQueryResultsCounts([]uint) (map[uint]int, error) {
+	return make(map[uint]int), nil
 }
 
 func (q nopLiveQuery) IncrQueryResultsCount(uint, int) (int, error) {

@@ -543,21 +543,43 @@ func queryResultsCountKey(queryID uint) string {
 	return fmt.Sprintf("%s%d", queryResultsCountPrefix, queryID)
 }
 
-// GetQueryResultsCount returns the current count of query results for a query.
-// Returns 0 if the key doesn't exist.
-func (r *redisLiveQuery) GetQueryResultsCount(queryID uint) (int, error) {
+// GetQueryResultsCounts returns the current count of query results for multiple queries.
+// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error) {
+	if len(queryIDs) == 0 {
+		return make(map[uint]int), nil
+	}
+
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	key := queryResultsCountKey(queryID)
-	count, err := redigo.Int(conn.Do("GET", key))
-	if err != nil {
-		if err == redigo.ErrNil {
-			return 0, nil
+	// Pipeline GET requests for all query IDs
+	for _, queryID := range queryIDs {
+		key := queryResultsCountKey(queryID)
+		if err := conn.Send("GET", key); err != nil {
+			return nil, fmt.Errorf("send get query results count: %w", err)
 		}
-		return 0, fmt.Errorf("get query results count: %w", err)
 	}
-	return count, nil
+
+	if err := conn.Flush(); err != nil {
+		return nil, fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	// Receive results and build the map
+	results := make(map[uint]int, len(queryIDs))
+	for _, queryID := range queryIDs {
+		count, err := redigo.Int(conn.Receive())
+		if err != nil {
+			if err == redigo.ErrNil {
+				results[queryID] = 0
+				continue
+			}
+			return nil, fmt.Errorf("receive query results count: %w", err)
+		}
+		results[queryID] = count
+	}
+
+	return results, nil
 }
 
 // IncrQueryResultsCount increments the query results count by the given amount.

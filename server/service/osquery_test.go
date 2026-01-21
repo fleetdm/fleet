@@ -4682,10 +4682,16 @@ func TestUpdateFleetdVersion(t *testing.T) {
 }
 
 // makeLiveQueryStore creates a mock live query store that returns `countToReturn` from the
-// GetQueryResultsCount method.
+// GetQueryResultsCounts method.
 func makeLiveQueryStore(t *testing.T, countToReturn int) *live_query_mock.MockLiveQuery {
 	lq := live_query_mock.New(t)
-	lq.On("GetQueryResultsCount", testifymock.Anything).Return(countToReturn, nil)
+	lq.GetQueryResultsCountsOverride = func(queryIDs []uint) (map[uint]int, error) {
+		result := make(map[uint]int, len(queryIDs))
+		for _, id := range queryIDs {
+			result[id] = countToReturn
+		}
+		return result, nil
+	}
 	lq.On("IncrQueryResultsCount", testifymock.Anything, testifymock.Anything).Return(countToReturn+1, nil)
 	return lq
 }

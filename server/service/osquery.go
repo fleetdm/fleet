@@ -2945,6 +2945,21 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
+	// Batch fetch query result counts from Redis for all queries
+	var queryResultCounts map[uint]int
+	if svc.liveQueryStore != nil {
+		queryIDs := make([]uint, 0, len(queriesDBData))
+		for _, dbQuery := range queriesDBData {
+			queryIDs = append(queryIDs, dbQuery.ID)
+		}
+		var err error
+		queryResultCounts, err = svc.liveQueryStore.GetQueryResultsCounts(queryIDs)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "get result counts for queries", "err", err)
+			return
+		}
+	}
+
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
@@ -2971,12 +2986,8 @@ func (svc *Service) saveResultLogsToQueryReports(
 		// We allow 10% over the limit to ensure the cleanup cron has rows to delete,
 		// which rotates out old data and makes room for results from other hosts.
 		// Without this buffer, one host could fill the quota and block all others.
-		if svc.liveQueryStore != nil {
-			count, err := svc.liveQueryStore.GetQueryResultsCount(dbQuery.ID)
-			if err != nil {
-				level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
-				continue
-			} else if count > maxQueryReportRows+(maxQueryReportRows/10) {
+		if queryResultCounts != nil {
+			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows+(maxQueryReportRows/10) {
 				continue
 			}
 		}
