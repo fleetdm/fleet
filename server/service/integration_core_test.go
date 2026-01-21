@@ -12236,11 +12236,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	// Add mock expectations to the existing mock (the server already has a reference to it)
 	counts := make(map[uint]int)
 	s.lq.GetQueryResultsCountsOverride = func(queryIDs []uint) (map[uint]int, error) {
-		result := make(map[uint]int, len(queryIDs))
-		for _, id := range queryIDs {
-			result[id] = counts[id]
-		}
-		return result, nil
+		return counts, nil
 	}
 	s.lq.SetQueryResultsCountOverride = func(queryID uint, count int) error {
 		counts[queryID] = count
