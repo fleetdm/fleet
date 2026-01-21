@@ -1915,12 +1915,12 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 	// Reset the VPP proxy data to what it was before this test
 	s.registerResetVPPProxyData(t)
 
-	// Set an iOS and iPadOS app on the VPP response.
-	s.appleVPPProxySrvData = map[string]string{
-		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"ios": {"bundleId": "app-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
-	}
-
 	vppAutoUpdateTest := func(t *testing.T, team *fleet.Team, host *fleet.Host, deviceClient *mdmtest.TestAppleMDMClient) {
+		// Set an iOS and iPadOS app on the VPP response.
+		s.appleVPPProxySrvData = map[string]string{
+			"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"ios": {"bundleId": "app-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
+		}
+
 		if team.ID != 0 {
 			// Transfer host to team.
 			s.Do("POST", "/api/latest/fleet/hosts/transfer",
