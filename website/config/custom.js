@@ -181,7 +181,7 @@ module.exports.custom = {
     'handbook/company/README.md': 'mikermcneil',
     'handbook/company/why-this-way.md': 'mikermcneil',
     'handbook/company/communications.md': 'mikermcneil',
-    'handbook/company/leadership.md': 'mikermcneil', 
+    'handbook/company/leadership.md': 'mikermcneil',
     'handbook/it/security.md': 'allenhouchins',
     'handbook/company/go-to-market-groups.md': 'sampfluger88',
 
@@ -302,7 +302,6 @@ module.exports.custom = {
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
     'handbook/marketing': ['sampfluger88', 'mikermcneil', 'akuthiala'],
     'handbook/customer-success': ['sampfluger88', ' mikermcneil', 'zayhanlon'],
-    
 
     // 🫧 Pricing and features and dev process
     'handbook/company/pricing-features-table.yml': ['noahtalerman', 'mikermcneil'],
