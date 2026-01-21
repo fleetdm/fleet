@@ -23407,8 +23407,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 
 	// Test 1: Bypass succeeds when bypass is enabled (default, not disabled)
 	var bypassResp bypassConditionalAccessResponse
-	s.DoRawNoAuth("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
-		nil, http.StatusOK)
+	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
+		nil, http.StatusOK, &bypassResp)
 	require.Nil(t, bypassResp.Err)
 
 	// Verify the activity was created with default idp_full_name when no SCIM user exists
@@ -23484,8 +23484,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 
 	// Test 3: Calling bypass again should work (it creates a new bypass)
 	bypassResp = bypassConditionalAccessResponse{}
-	s.DoRawNoAuth("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
-		nil, http.StatusOK)
+	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
+		nil, http.StatusOK, &bypassResp)
 	require.Nil(t, bypassResp.Err)
 
 	// Consume the bypass for cleanup before testing disabled state
