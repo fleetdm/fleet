@@ -15,6 +15,7 @@ import {
   isTeamObserver,
 } from "utilities/permissions/permissions";
 import Button from "components/buttons/Button";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
@@ -94,7 +95,7 @@ export const generateTableColumnConfigs = (
       accessor: "name",
       Cell: (cellProps: ICellProps) => {
         const onClickScriptName = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
+          // Allows for a button to be clickable in a clickable row
           e.stopPropagation();
           onClickViewScript(cellProps.row.original);
         };
@@ -105,9 +106,10 @@ export const generateTableColumnConfigs = (
             onClick={onClickScriptName}
             variant="inverse"
           >
-            <span className={`script-info-text`}>
-              {cellProps.row.original.name}
-            </span>
+            <TooltipTruncatedTextCell
+              className="script-info-text"
+              value={cellProps.row.original.name}
+            />
           </Button>
         );
       },
