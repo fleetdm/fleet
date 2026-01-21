@@ -48,7 +48,7 @@ A series of enrollment screens will appear. A briefcase icon appears in the stat
 
 <img width="2500" height="2000" alt="image7" src="https://github.com/user-attachments/assets/3b7e51f9-ca35-459d-8ca7-77a9c3b767bf" />
 
-If Google authentication is enabled in [Google Workspace](https://support.google.com/work/android/answer/9415508?hl=en), the end user will be prompted to sign in to their work Google account. If a user selects Skip at this screen, they will later be required to sign in to this Google account to access apps like Google Calendar.
+If Google authentication is enabled in [Google Admin](https://support.google.com/work/android/answer/9415508?hl=en), the end user will be prompted to sign in to their work Google account. If a user selects Skip at this screen, they will later be required to sign in to this Google account to access apps like Google Calendar.
 
 <img width="50%" alt="27" src="https://github.com/user-attachments/assets/491d381b-b224-4d7e-8ae3-99f82b5c3661" />
 
@@ -58,7 +58,7 @@ Open the App Drawer (swipe up at the home screen, or select the Apps icon), and 
 
 <img width="50%" alt="30" src="https://github.com/user-attachments/assets/93491232-8063-42b5-9971-fb190071e439" />
 
-If the device doesn't meet the requirements set up by the admin in Google Workspace, the end user will be prompted to resolve these.
+If the device doesn't meet the requirements set up by the admin in Google Admin, the end user will be prompted to resolve these.
 
 <img width="2500" height="2000" alt="image8" src="https://github.com/user-attachments/assets/294c96e3-db11-4813-8864-0eaf428eba8d" />
 
