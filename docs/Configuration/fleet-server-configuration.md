@@ -3228,7 +3228,7 @@ The best practice is to set this to 3x the number of new employees (end users) t
 
 ### mdm.apple_vpp_app_metadata_api_proxy
 
-By default, Fleet server retrieves metadata for Apple VPP apps via Fleet proxy, using an authentication token hosted on fleetdm.com.
+By default, Fleet retrieves [Apple App Store (VPP) metadata](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata) from Apple using an API token from Fleet's Apple Developer account. This API token is hosted on fleetdm.com.
 
 If you have an [Apple developer account that is enabled as MDM vendor](https://developer.apple.com/help/account/service-configurations/apps-and-books-for-organizations), Fleet server can directly communicate with the [Apple Apps and Books API](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata).
 
