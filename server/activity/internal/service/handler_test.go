@@ -124,3 +124,15 @@ type mockService struct{}
 func (m *mockService) ListActivities(_ context.Context, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	panic("mockService.ListActivities should not be called in validation tests")
 }
+
+func (m *mockService) ListHostPastActivities(_ context.Context, _ uint, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	panic("mockService.ListHostPastActivities should not be called in validation tests")
+}
+
+func (m *mockService) MarkActivitiesAsStreamed(_ context.Context, _ []uint) error {
+	panic("mockService.MarkActivitiesAsStreamed should not be called in validation tests")
+}
+
+func (m *mockService) StreamActivities(_ context.Context, _ api.JSONLogger, _ uint) error {
+	panic("mockService.StreamActivities should not be called in validation tests")
+}

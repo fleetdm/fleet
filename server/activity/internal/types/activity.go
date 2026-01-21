@@ -26,7 +26,7 @@ func (o *ListOptions) GetPerPage() uint { return o.PerPage }
 func (o *ListOptions) GetOrderKey() string { return o.OrderKey }
 
 // IsDescending returns true if the order direction is descending.
-func (o *ListOptions) IsDescending() bool { return o.OrderDirection == api.OrderDesc }
+func (o *ListOptions) IsDescending() bool { return o.OrderDirection == api.OrderDescending }
 
 // GetCursorValue returns the cursor value for cursor-based pagination.
 func (o *ListOptions) GetCursorValue() string { return o.After }
@@ -43,4 +43,6 @@ func (o *ListOptions) IsSecondaryDescending() bool { return false }
 // Datastore is the datastore interface for the activity bounded context.
 type Datastore interface {
 	ListActivities(ctx context.Context, opt ListOptions) ([]*api.Activity, *api.PaginationMetadata, error)
+	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*api.Activity, *api.PaginationMetadata, error)
+	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 }

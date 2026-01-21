@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -34,8 +35,6 @@ func (r listActivitiesResponse) Error() error { return r.Err }
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
-
-var automationActivityAuthor = "Fleet"
 
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
@@ -66,7 +65,7 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			userName = &user.Name
 			userEmail = &user.Email
 		} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-			userName = &automationActivityAuthor
+			userName = ptr.String(fleet.ActivityAutomationAuthor)
 		}
 
 		go func() {
@@ -168,51 +167,6 @@ func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 
 ////////////////////////////////////////////////////////////////////////////////
 // List host past activities
-////////////////////////////////////////////////////////////////////////////////
-
-type listHostPastActivitiesRequest struct {
-	HostID      uint              `url:"id"`
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-
-func listHostPastActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listHostPastActivitiesRequest)
-	acts, meta, err := svc.ListHostPastActivities(ctx, req.HostID, req.ListOptions)
-	if err != nil {
-		return listActivitiesResponse{Err: err}, nil
-	}
-
-	return &listActivitiesResponse{Meta: meta, Activities: acts}, nil
-}
-
-func (svc *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	// First ensure the user has access to list hosts, then check the specific
-	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, nil, err
-	}
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get host")
-	}
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, nil, err
-	}
-
-	// cursor-based pagination is not supported for past activities
-	opt.After = ""
-	// custom ordering is not supported, always by date (newest first)
-	opt.OrderKey = "created_at"
-	opt.OrderDirection = fleet.OrderDescending
-	// no matching query support
-	opt.MatchQuery = ""
-	// always include metadata
-	opt.IncludeMetadata = true
-
-	return svc.ds.ListHostPastActivities(ctx, hostID, opt)
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Cancel host upcoming activity
 ////////////////////////////////////////////////////////////////////////////////
