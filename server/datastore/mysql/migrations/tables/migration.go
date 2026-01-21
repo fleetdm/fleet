@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -30,7 +31,7 @@ func basicMigrationStep(statement string, errorMessage string) migrationStep {
 	}
 }
 
-type getTotalCountFn func(tx *sql.Tx) (uint, error)
+type getTotalCountFn func(tx *sql.Tx) (uint64, error)
 type incrementCountFn func()
 type executeWithProgressFn func(tx *sql.Tx, increment incrementCountFn) error
 
@@ -44,7 +45,7 @@ func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgress
 			return nil
 		}
 
-		current := uint(0)
+		atomicCurrent := atomic.Uint64{}
 
 		// Every five seconds, echo the % progress of the executor
 		done := make(chan struct{})
@@ -57,6 +58,7 @@ func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgress
 					_, _ = fmt.Fprint(outputTo, "    100% complete\n")
 					return
 				case <-ticker.C:
+					current := atomicCurrent.Load()
 					if current == total {
 						_, _ = fmt.Fprint(outputTo, "    Almost done...\n")
 					} else {
@@ -68,7 +70,7 @@ func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgress
 		defer close(done)
 
 		return execute(tx, func() {
-			current++
+			atomicCurrent.Add(1)
 		})
 	}
 }

@@ -71,10 +71,10 @@ func TestIncrementalMigrationStep(t *testing.T) {
 
 		executeCalled := false
 		step := incrementalMigrationStep(
-			func(tx *sql.Tx) (uint, error) {
+			func(tx *sql.Tx) (uint64, error) {
 				return 0, nil
 			},
-			func(tx *sql.Tx, increment func()) error {
+			func(tx *sql.Tx, increment incrementCountFn) error {
 				executeCalled = true
 				return nil
 			},
@@ -100,10 +100,10 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		var wasExecutorCalled bool
 		expectedErr := errors.New("count query failed")
 		step := incrementalMigrationStep(
-			func(tx *sql.Tx) (uint, error) {
+			func(tx *sql.Tx) (uint64, error) {
 				return 0, expectedErr
 			},
-			func(tx *sql.Tx, increment func()) error {
+			func(tx *sql.Tx, increment incrementCountFn) error {
 				wasExecutorCalled = true
 				return nil
 			},
@@ -129,10 +129,10 @@ func TestIncrementalMigrationStep(t *testing.T) {
 
 		expectedErr := errors.New("executor failed")
 		step := incrementalMigrationStep(
-			func(tx *sql.Tx) (uint, error) {
+			func(tx *sql.Tx) (uint64, error) {
 				return 5, nil
 			},
-			func(tx *sql.Tx, increment func()) error {
+			func(tx *sql.Tx, increment incrementCountFn) error {
 				return expectedErr
 			},
 		)
@@ -160,10 +160,10 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		progressInterval = 10 * time.Millisecond
 
 		step := incrementalMigrationStep(
-			func(tx *sql.Tx) (uint, error) {
+			func(tx *sql.Tx) (uint64, error) {
 				return 10, nil
 			},
-			func(tx *sql.Tx, increment func()) error {
+			func(tx *sql.Tx, increment incrementCountFn) error {
 				// Simulate work with increments
 				for range 10 {
 					increment()
@@ -199,10 +199,10 @@ func TestIncrementalMigrationStep(t *testing.T) {
 
 		incrementCount := 0
 		step := incrementalMigrationStep(
-			func(tx *sql.Tx) (uint, error) {
+			func(tx *sql.Tx) (uint64, error) {
 				return 50, nil
 			},
-			func(tx *sql.Tx, increment func()) error {
+			func(tx *sql.Tx, increment incrementCountFn) error {
 				// Call increment multiple times
 				for range 50 {
 					increment()
@@ -217,7 +217,7 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		err = step(tx)
 		require.NoError(t, err)
 		assert.Equal(t, 50, incrementCount)
-		require.Equal(t, "100% complete\n", buf.String())
+		require.Equal(t, "    Almost done...\n", buf.String())
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -317,7 +317,7 @@ func TestWithSteps(t *testing.T) {
 		assert.Equal(t, []int{1, 2, 3}, callOrder)
 
 		// Multiple steps should output step numbers
-		assert.Equal(t, "Step 1 of 3\nStep 2 of 3\nStep 3 of 3\n", buf.String())
+		assert.Equal(t, "  Step 1 of 3\n  Step 2 of 3\n  Step 3 of 3\n", buf.String())
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -356,7 +356,7 @@ func TestWithSteps(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, expectedErr, err)
 		assert.Equal(t, []int{1, 2}, callOrder, "step 3 should not be called after step 2 fails")
-		require.Equal(t, "Step 1 of 3\nStep 2 of 3\n", buf.String())
+		require.Equal(t, "  Step 1 of 3\n  Step 2 of 3\n", buf.String())
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -384,7 +384,7 @@ func TestWithSteps(t *testing.T) {
 		err = withSteps(steps, tx)
 		require.NoError(t, err)
 
-		require.Equal(t, buf.String(), "Step 1 of 2\nStep 2 of 2\n")
+		require.Equal(t, buf.String(), "  Step 1 of 2\n  Step 2 of 2\n")
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
