@@ -79,6 +79,7 @@ func Up_20250828120836(tx *sql.Tx) error {
 				"macos_setup_assistant":          nil,
 				"bootstrap_package":              nil,
 				"enable_release_device_manually": false,
+				"lock_primary_account_info":      false,
 			},
 		},
 		"agent_options": nil,
