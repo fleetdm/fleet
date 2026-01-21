@@ -39,13 +39,40 @@ func (s *Script) ValidateNewScript() error {
 	if s.Name == "" {
 		return errors.New("The file name must not be empty.")
 	}
-	if filepath.Ext(s.Name) != ".sh" && filepath.Ext(s.Name) != ".ps1" {
-		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
+
+	ext := strings.ToLower(filepath.Ext(s.Name))
+	switch ext {
+	case ".sh", ".ps1", ".py":
+		// ok
+	default:
+		return errors.New("File type not supported. Only .sh, .py, and .ps1 file types are allowed.")
 	}
 
 	// validate the script contents as if it were already a saved script
 	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
+	}
+
+	kind, directExecute, err := shebangInfo(s.ScriptContents)
+	if err != nil {
+		return err
+	}
+	switch ext {
+	case ".sh":
+		// allow no shebang (defaults to /bin/sh), or a supported shell shebang.
+		if directExecute && kind != shebangShell {
+			return errors.New(`Shell scripts must use a shell shebang (for example, "#!/bin/sh") or no shebang. For Python, use a ".py" script.`)
+		}
+	case ".py":
+		// python scripts must be directly executable (via a python shebang).
+		if !directExecute || kind != shebangPython {
+			return errors.New(`Python scripts must start with a python shebang (for example, "#!/usr/bin/env python3").`)
+		}
+	case ".ps1":
+		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
+		if directExecute {
+			return errors.New(`PowerShell scripts must not start with a shebang ("#!").`)
+		}
 	}
 
 	return nil
@@ -361,22 +388,105 @@ const (
 // anchored, so that it matches to the end of the line
 var (
 	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
-	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`)
+	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
 )
+
+type shebangKind int
+
+const (
+	shebangNone shebangKind = iota
+	shebangShell
+	shebangPython
+)
+
+// shebangInfo inspects the script contents and returns whether it should be
+// executed directly (via the kernel's shebang support), and what kind of
+// interpreter it declares.
+//
+// Note: for backwards compatibility, scripts without a shebang are allowed and
+// will be executed using /bin/sh.
+func shebangInfo(contents string) (kind shebangKind, directExecute bool, err error) {
+	if !strings.HasPrefix(contents, "#!") {
+		return shebangNone, false, nil
+	}
+
+	// read the first line in a portable way
+	sc := bufio.NewScanner(strings.NewReader(contents))
+	if !sc.Scan() {
+		return shebangNone, false, ErrUnsupportedInterpreter
+	}
+	line := strings.TrimSpace(sc.Text())
+	if !strings.HasPrefix(line, "#!") {
+		// should not happen given the prefix check, but be defensive
+		return shebangNone, false, nil
+	}
+
+	// tokenize the shebang: "#! <interpreter> [args...]"
+	rest := strings.TrimSpace(strings.TrimPrefix(line, "#!"))
+	fields := strings.Fields(rest)
+	if len(fields) == 0 {
+		return shebangNone, false, ErrUnsupportedInterpreter
+	}
+
+	interp := fields[0]
+	base := filepath.Base(interp)
+
+	// Support env-based shebangs like "#!/usr/bin/env python3"
+	if base == "env" {
+		// Require env to be in /bin or /usr/bin (common, predictable locations)
+		if !strings.HasPrefix(interp, "/bin/") && !strings.HasPrefix(interp, "/usr/bin/") {
+			return shebangNone, false, ErrUnsupportedInterpreter
+		}
+
+		// Skip env options (e.g. -S, -i) until we find the command.
+		i := 1
+		for i < len(fields) && strings.HasPrefix(fields[i], "-") {
+			i++
+		}
+		if i >= len(fields) {
+			return shebangNone, false, ErrUnsupportedInterpreter
+		}
+		cmd := fields[i]
+		switch {
+		case cmd == "sh" || cmd == "bash" || cmd == "zsh":
+			return shebangShell, true, nil
+		case cmd == "python" || cmd == "python3" || strings.HasPrefix(cmd, "python3."):
+			return shebangPython, true, nil
+		default:
+			return shebangNone, false, ErrUnsupportedInterpreter
+		}
+	}
+
+	// For direct interpreter paths, require an absolute path. For shell scripts,
+	// we keep the historical restriction to /bin or /usr/bin. For Python, allow
+	// any absolute path (e.g. /usr/local/bin/python3, /opt/homebrew/bin/python3).
+	if !strings.HasPrefix(interp, "/") {
+		return shebangNone, false, ErrUnsupportedInterpreter
+	}
+
+	switch {
+	case base == "sh" || base == "bash" || base == "zsh":
+		if !strings.HasPrefix(interp, "/bin/") && !strings.HasPrefix(interp, "/usr/bin/") {
+			return shebangNone, false, ErrUnsupportedInterpreter
+		}
+		return shebangShell, true, nil
+	case base == "python" || base == "python3" || strings.HasPrefix(base, "python3."):
+		return shebangPython, true, nil
+	default:
+		// preserve backwards-compatibility with prior behavior for shell scripts
+		// that relied on the regex validator (primarily for /usr/bin/(ba|z)?sh).
+		if scriptHashbangValidation.MatchString(line) {
+			return shebangShell, true, nil
+		}
+		return shebangNone, false, ErrUnsupportedInterpreter
+	}
+}
 
 // ValidateShebang validates if we support a script, and whether we
 // can execute it directly, or need to pass it to a shell interpreter.
 func ValidateShebang(s string) (directExecute bool, err error) {
-	if strings.HasPrefix(s, "#!") {
-		// read the first line in a portable way
-		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `(/usr)/bin/sh`, `(/usr)/bin/bash`, `(/usr)/bin/zsh` for now
-		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return false, ErrUnsupportedInterpreter
-		}
-		return true, nil
-	}
-	return false, nil
+	_, directExecute, err = shebangInfo(s)
+	return directExecute, err
 }
 
 func ValidateHostScriptContents(s string, isSavedScript bool) error {
@@ -696,6 +806,8 @@ const BatchActivityScriptsJobName = "batch_scripts"
 func ValidateScriptPlatform(scriptName, platform string) bool {
 	switch filepath.Ext(scriptName) {
 	case ".sh":
+		return IsUnixLike(platform)
+	case ".py":
 		return IsUnixLike(platform)
 	case ".ps1":
 		return platform == "windows"

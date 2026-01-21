@@ -4534,6 +4534,11 @@ If the Fleet instance is provided required parameters to complete setup.
 
 ## Scripts
 
+Supported script file types:
+- `.sh` (Shell) for macOS and Linux
+- `.py` (Python) for macOS and Linux (must include a python shebang such as `#!/usr/bin/env python3`)
+- `.ps1` (PowerShell) for Windows
+
 ### Batch-apply scripts
 
 _Available in Fleet Premium_

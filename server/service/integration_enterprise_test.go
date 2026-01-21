@@ -8128,12 +8128,12 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
 
-	// file name is not .sh
+	// file name is not a supported script type
 	body, headers = generateNewScriptMultipartRequest(t,
 		"not_sh.txt", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Validation Failed: File type not supported. Only .sh and .ps1 file type is allowed.")
+	require.Contains(t, errMsg, "Validation Failed: File type not supported. Only .sh, .py, and .ps1 file types are allowed.")
 
 	// file content is empty
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -8149,12 +8149,12 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script is too large. It's limited to 500,000 characters")
 
-	// invalid hashbang
+	// python shebang in .sh script should be rejected
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script2.sh", []byte(`#!/bin/python`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Interpreter not supported.")
+	require.Contains(t, errMsg, "Shell scripts must use a shell shebang")
 
 	// script already exists with this name for this no-team
 	body, headers = generateNewScriptMultipartRequest(t,

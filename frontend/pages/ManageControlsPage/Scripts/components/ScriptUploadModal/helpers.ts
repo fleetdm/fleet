@@ -9,10 +9,10 @@ export const getErrorMessage = (err: unknown) => {
 
   if (
     apiErrMessage.includes(
-      "File type not supported. Only .sh and .ps1 file type is allowed"
+      "File type not supported. Only .sh, .py, and .ps1 file types are allowed"
     )
   ) {
-    return "Couldn't add. The file should be .sh or .ps1 file.";
+    return "Couldn't add. The file should be a .sh, .py, or .ps1 file.";
   } else if (apiErrMessage.includes("Secret variable")) {
     return generateSecretErrMsg(err);
   }
