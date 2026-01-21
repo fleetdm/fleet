@@ -1291,12 +1291,6 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
-			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
-		}
-
 		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
 			USING
 				upcoming_activities
@@ -1313,6 +1307,12 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	  			WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL`, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "hide existing install counts")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
 		}
 	}
 
