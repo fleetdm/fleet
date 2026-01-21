@@ -706,7 +706,7 @@ Then depending on how `fleet_server_trusted_proxies` is set, Fleet would determi
 
 | Trusted proxies setting | Client IP | Explanation |
 | --- | --- | --- |
-|`none` | `5.5.5.5` | The address Fleet received the request from |
+|`"none"` | `5.5.5.5` | The address Fleet received the request from |
 |`192.168.0.0/24, 4.4.4.4`| `2.2.2.2` | Using `X-Forwarded-For` and skipping the trusted addresses of `192.168.0.120` and `4.4.4.4` |
 |`1`| `192.168.0.120` | The first address from the right 
 |`2`| `4.4.4.4` | The second address from the right|
