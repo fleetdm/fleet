@@ -2974,8 +2974,8 @@ func (svc *Service) saveResultLogsToQueryReports(
 		if svc.liveQueryStore != nil {
 			count, err := svc.liveQueryStore.GetQueryResultsCount(dbQuery.ID)
 			if err != nil {
-				// Log but don't fail - allow insert and let cleanup cron handle excess
-				level.Debug(svc.logger).Log("msg", "get query results count from redis", "err", err, "query_id", dbQuery.ID)
+				level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
+				continue
 			} else if count > maxQueryReportRows+(maxQueryReportRows/10) {
 				continue
 			}

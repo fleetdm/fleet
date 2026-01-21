@@ -37,7 +37,10 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting query results for host")
 		}
-		deletedRows, _ := result.RowsAffected()
+		deletedRows, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting rows affected for delete")
+		}
 
 		// Insert the new rows
 		valueStrings := make([]string, 0, len(rows))
@@ -56,7 +59,10 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting new rows")
 		}
-		insertedRows, _ := result.RowsAffected()
+		insertedRows, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting rows affected for insert")
+		}
 
 		rowsAdded = int(insertedRows - deletedRows)
 		return nil
