@@ -45,10 +45,10 @@ data "terraform_remote_state" "dogfood" {
   backend   = "s3"
   workspace = "fleet"
   config = {
-    bucket               = "fleet-terraform-remote-state"
-    key                  = "fleet"
-    region               = "us-east-2"
-    dynamodb_table       = "fleet-terraform-state-lock"
+    bucket         = "fleet-terraform-remote-state"
+    key            = "fleet"
+    region         = "us-east-2"
+    dynamodb_table = "fleet-terraform-state-lock"
   }
 }
 
@@ -84,13 +84,13 @@ locals {
   signoz_alb_name = "signoz-dogfood"
   alb_subnets     = join(",", compact(data.terraform_remote_state.dogfood.outputs.vpc.private_subnets))
   common_ingress_annotations = {
-    "alb.ingress.kubernetes.io/scheme"           = "internal"
-    "alb.ingress.kubernetes.io/subnets"          = local.alb_subnets
-    "alb.ingress.kubernetes.io/listen-ports"     = "[{\"HTTPS\":443}]"
-    "alb.ingress.kubernetes.io/certificate-arn"  = module.acm.acm_certificate_arn
-    "alb.ingress.kubernetes.io/backend-protocol" = "HTTP"
-    "alb.ingress.kubernetes.io/target-type"      = "ip"
-    "alb.ingress.kubernetes.io/group.name"       = local.signoz_alb_name
+    "alb.ingress.kubernetes.io/scheme"             = "internal"
+    "alb.ingress.kubernetes.io/subnets"            = local.alb_subnets
+    "alb.ingress.kubernetes.io/listen-ports"       = "[{\"HTTPS\":443}]"
+    "alb.ingress.kubernetes.io/certificate-arn"    = module.acm.acm_certificate_arn
+    "alb.ingress.kubernetes.io/backend-protocol"   = "HTTP"
+    "alb.ingress.kubernetes.io/target-type"        = "ip"
+    "alb.ingress.kubernetes.io/group.name"         = local.signoz_alb_name
     "alb.ingress.kubernetes.io/load-balancer-name" = local.signoz_alb_name
   }
   signoz_ingress_annotations = local.common_ingress_annotations
@@ -105,7 +105,7 @@ module "acm" {
 
   domain_name               = local.signoz_domain
   subject_alternative_names = [local.otlp_domain]
-  zone_id     = data.aws_route53_zone.dogfood.zone_id
+  zone_id                   = data.aws_route53_zone.dogfood.zone_id
 
   wait_for_validation = true
 }
