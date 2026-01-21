@@ -8,16 +8,21 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import validHostname from "components/forms/validators/valid_hostname";
+
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
 
 import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
+import TooltipWrapper from "../../../../../components/TooltipWrapper";
 
 interface IFleetDesktopFormData {
-  transparencyUrl: string;
+  transparencyURL: string;
+  alternativeBrowserHost: string;
 }
 interface IFleetDesktopFormErrors {
-  transparency_url?: string | null;
+  transparencyURL?: string | null;
+  alternativeBrowserHost?: string | null;
 }
 const baseClass = "app-config-form";
 
@@ -30,37 +35,65 @@ const FleetDesktop = ({
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<IFleetDesktopFormData>({
-    transparencyUrl:
+    transparencyURL:
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
+    alternativeBrowserHost:
+      appConfig.fleet_desktop?.alternative_browser_host || "",
   });
 
   const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
 
-  const onInputChange = ({ value }: IInputFieldParseTarget) => {
-    setFormData({ transparencyUrl: value.toString() });
-    setFormErrors({});
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      [name]: value.toString(),
+    }));
+    setFormErrors((prevErrors) => {
+      const newErrors = { ...prevErrors };
+      delete newErrors[name as keyof IFleetDesktopFormErrors];
+      return newErrors;
+    });
   };
 
   const validateForm = () => {
-    const { transparencyUrl } = formData;
+    const { transparencyURL, alternativeBrowserHost } = formData;
 
     const errors: IFleetDesktopFormErrors = {};
+
     if (
-      transparencyUrl &&
-      !validUrl({ url: transparencyUrl, protocols: ["http", "https"] })
+      transparencyURL &&
+      !validUrl({ url: transparencyURL, protocols: ["http", "https"] })
     ) {
-      errors.transparency_url = `Custom transparency URL must include protocol (e.g. https://)`;
+      errors.transparencyURL = `Custom transparency URL must include protocol (e.g. https://)`;
+    }
+
+    if (alternativeBrowserHost && !validHostname(alternativeBrowserHost)) {
+      errors.alternativeBrowserHost = `Browser host must be a valid hostname or IP address (e.g. example.com, 192.168.1.50) and may include a port.`;
     }
 
     setFormErrors(errors);
   };
+
+  const getAlternativeBrowserHostUrlTooltip = () => (
+    <>
+      If you are using mTLS for your agent-server communication, specify an
+      alternative host to direct Fleet Desktop through.
+      <CustomLink
+        url="https://fleetdm.com/learn-more-about/alternative-browser-host"
+        text="Learn more "
+        variant="tooltip-link"
+        newTab
+      />
+    </>
+  );
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const formDataForAPI = {
       fleet_desktop: {
-        transparency_url: formData.transparencyUrl,
+        transparency_url: formData.transparencyURL,
+        alternative_browser_host: formData.alternativeBrowserHost,
       },
     };
 
@@ -76,32 +109,48 @@ const FleetDesktop = ({
       <PageDescription
         variant="right-panel"
         content={
-          <>
-            {" "}
-            When an end user clicks “About Fleet” in the Fleet Desktop menu, by
-            default they are taken to{" "}
-            <CustomLink
-              url="https://fleetdm.com/transparency"
-              text="https://fleetdm.com/transparency"
-              newTab
-              multiline
-            />{" "}
-            . You can override the URL to take them to a resource of your
-            choice.
-          </>
+          <>Override default URLs to customize the Fleet Desktop experience.</>
         }
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
         <InputField
           label="Custom transparency URL"
           onChange={onInputChange}
-          name="transparency_url"
-          value={formData.transparencyUrl}
+          name="transparencyURL"
+          value={formData.transparencyURL}
           parseTarget
           onBlur={validateForm}
-          error={formErrors.transparency_url}
+          error={formErrors.transparencyURL}
           placeholder="https://fleetdm.com/transparency"
           disabled={gitOpsModeEnabled}
+          helpText={
+            <>
+              {" "}
+              By default, end users who click &quot;About Fleet&quot; in the
+              Fleet Desktop menu are taken to{" "}
+              <CustomLink
+                url="https://fleetdm.com/transparency"
+                text="https://fleetdm.com/transparency"
+                newTab
+                multiline
+              />{" "}
+            </>
+          }
+        />
+        <InputField
+          label={
+            <TooltipWrapper tipContent={getAlternativeBrowserHostUrlTooltip()}>
+              Browser host
+            </TooltipWrapper>
+          }
+          onChange={onInputChange}
+          onBlur={validateForm}
+          name="alternativeBrowserHost"
+          value={formData.alternativeBrowserHost}
+          parseTarget
+          error={formErrors.alternativeBrowserHost}
+          disabled={gitOpsModeEnabled}
+          helpText="If not set, Fleet Desktop uses your Fleet web address."
         />
         <GitOpsModeTooltipWrapper
           tipOffset={-8}

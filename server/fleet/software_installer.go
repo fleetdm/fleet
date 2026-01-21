@@ -11,14 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// MaxSoftwareInstallerSize is the maximum size allowed for software
-// installers. This is enforced by the endpoints that upload installers.
-const MaxSoftwareInstallerSize = 3000 * units.MiB
 const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 
 // SoftwareInstallerStore is the interface to store and retrieve software
@@ -417,6 +413,10 @@ type HostSoftwareInstallerResult struct {
 	// PolicyID is the id of the policy that triggered the install, or
 	// nil if the install was not triggered by a policy failure
 	PolicyID *uint `json:"policy_id" db:"policy_id"`
+	// AttemptNumber tracks which retry attempt this is for policy automation installations.
+	// nil = not triggered by a policy
+	// 1,2,3 attempt, 3 being max retries
+	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
 }
 
 const (
@@ -838,6 +838,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		LabelsExcludeAny:   spec.LabelsExcludeAny,
 		InstallDuringSetup: spec.InstallDuringSetup,
 		Icon:               spec.Icon,
+		Categories:         spec.Categories,
 	}
 }
 

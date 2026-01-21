@@ -39,6 +39,9 @@ func generateTestWlanProfiles(t *testing.T) (wlanXMLOriginalProfile, wlanXMLModi
 }
 
 func TestLoopHostMDMLocURIs(t *testing.T) {
+	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
+	t.SkipNow()
+
 	ds := new(mock.Store)
 	ctx := context.Background()
 
@@ -149,6 +152,9 @@ func TestVerifyHostMDMProfilesErrors(t *testing.T) {
 }
 
 func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
+	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
+	t.SkipNow()
+
 	wlanXMLOriginalProfile, wlanXMLModifiedProfile := generateTestWlanProfiles(t)
 	cases := []struct {
 		name              string

@@ -315,11 +315,11 @@ type SoftwareAutoUpdateConfig struct {
 	AutoUpdateEnabled *bool `json:"auto_update_enabled,omitempty" db:"auto_update_enabled"`
 	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty" db:"auto_update_start_time"`
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty" db:"auto_update_window_start"`
 	// AutoUpdateEndTime is the end of the maintenance window for the software title.
 	// If the end time is less than the start time, the window wraps to the next day.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty" db:"auto_update_end_time"`
+	AutoUpdateEndTime *string `json:"auto_update_window_end,omitempty" db:"auto_update_window_end"`
 }
 
 type SoftwareAutoUpdateSchedule struct {
@@ -610,9 +610,12 @@ func (hse *HostSoftwareEntry) UnmarshalJSON(b []byte) error {
 }
 
 type PathSignatureInformation struct {
-	InstalledPath  string  `json:"installed_path"`
-	TeamIdentifier string  `json:"team_identifier"`
-	HashSha256     *string `json:"hash_sha256"`
+	InstalledPath  string `json:"installed_path"`
+	TeamIdentifier string `json:"team_identifier"`
+	// json struct tag difference here is for backwards compatibility. API field was initially "hash_sha256", though it is specifically the CD hash (sha256).
+	CDHashSHA256     *string `json:"hash_sha256"`
+	ExecutableSHA256 *string `json:"executable_sha256"`
+	ExecutablePath   *string `json:"executable_path"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -801,8 +804,8 @@ type VPPBatchPayload struct {
 	Platform            InstallableDevicePlatform `json:"platform"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
-	AutoUpdateStartTime *string                   `json:"auto_update_start_time,omitempty"`
-	AutoUpdateEndTime   *string                   `json:"auto_update_end_time,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 }
 
 func (v VPPBatchPayload) GetPlatform() string {
@@ -827,8 +830,8 @@ type VPPBatchPayloadWithPlatform struct {
 	DisplayName         string          `json:"display_name"`
 	Configuration       json.RawMessage `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`
-	AutoUpdateStartTime *string         `json:"auto_update_start_time,omitempty"`
-	AutoUpdateEndTime   *string         `json:"auto_update_end_time,omitempty"`
+	AutoUpdateStartTime *string         `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string         `json:"auto_update_window_end,omitempty"`
 }
 
 type SoftwareCategory struct {

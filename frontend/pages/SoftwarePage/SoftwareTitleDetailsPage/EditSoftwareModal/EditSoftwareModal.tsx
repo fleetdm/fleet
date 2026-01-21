@@ -12,10 +12,7 @@ import {
 } from "interfaces/software";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
-import softwareAPI, {
-  MAX_FILE_SIZE_BYTES,
-  MAX_FILE_SIZE_MB,
-} from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -58,6 +55,7 @@ interface IEditSoftwareModalProps {
   name: string;
   displayName: string;
   source?: string;
+  iconUrl?: string | null;
 }
 
 const EditSoftwareModal = ({
@@ -73,6 +71,7 @@ const EditSoftwareModal = ({
   name,
   displayName,
   source,
+  iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
@@ -200,15 +199,6 @@ const EditSoftwareModal = ({
   // Edit package API call
   const onEditPackage = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
-
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      setIsUpdatingSoftware(false);
-      return;
-    }
 
     try {
       await softwareAPI.editSoftwarePackage({
@@ -404,9 +394,14 @@ const EditSoftwareModal = ({
           name={name}
           displayName={displayName}
           source={source}
-          iconUrl={softwareInstaller.icon_url || undefined}
+          iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
           isIosOrIpadosApp={isIosOrIpadosApp}
+          mobileVersion={
+            ("latest_version" in softwareInstaller &&
+              softwareInstaller.latest_version) ||
+            softwareInstaller.version
+          }
         />
       )}
       {!!pendingPackageUpdates.software && showFileProgressModal && (
