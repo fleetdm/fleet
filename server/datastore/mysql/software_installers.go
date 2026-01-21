@@ -909,6 +909,7 @@ SELECT
 FROM
   software_installers si
   JOIN software_titles st ON st.id = si.title_id
+  LEFT JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
   %s
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?`,

@@ -130,15 +130,31 @@ func NewInstalledApplicationListResultsHandler(
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
+			// If ExpectedVersion is empty (legacy installs), we only check if the app is installed.
+			// Otherwise, we require both installed status and version match.
+			versionMatches := expectedInstall.ExpectedVersion == "" || appFromResult.Version == expectedInstall.ExpectedVersion
+
 			var terminalStatus string
 			switch {
-			case appFromResult.Installed:
+			case appFromResult.Installed && versionMatches:
 				if err := setter.verifyFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
+			case appFromResult.Installed && !versionMatches:
+				// App is installed but version doesn't match, log and continue polling
+				level.Debug(logger).Log(
+					"msg", "app installed but version mismatch",
+					"host_uuid", installedAppResult.HostUUID(),
+					"bundle_identifier", expectedInstall.BundleIdentifier,
+					"expected_version", expectedInstall.ExpectedVersion,
+					"installed_version", appFromResult.Version,
+				)
+				// Fall through to poll, the app exists but wrong version, keep waiting for update
+				poll = true
+				return nil
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
 				if err := setter.failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
