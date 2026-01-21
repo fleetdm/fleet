@@ -3228,7 +3228,7 @@ The best practice is to set this to 3x the number of new employees (end users) t
 
 ### mdm.apple_vpp_app_store_region
 
-Override the default region (`us`) for the Apple App Store storefront.
+Specify the Apple App Store region. The region affects the availability of apps in Fleet. For example, if you [add apps to Apple Business Manager](https://fleetdm.com/guides/install-app-store-apps#apple-vpp) that aren't available in the `de` region, they won't appear in Fleet.
 
 - Default value: us
 - Environment variable: `FLEET_MDM_APPLE_VPP_APP_STORE_REGION`
@@ -3239,29 +3239,33 @@ Override the default region (`us`) for the Apple App Store storefront.
   ```
 
 
+### mdm.apple_vpp_app_metadata_api_proxy
 
-### mdm.apple_vpp_app_metadata_endpoint_url
+By default, Fleet server retrieves metadata for Apple VPP apps via Fleet proxy, using an authentication token hosted on fleetdm.com.
 
-Override the default region (`us`) for the Apple App Store storefront.
+If you have an [Apple developer account that is enabled as MDM vendor](https://developer.apple.com/help/account/service-configurations/apps-and-books-for-organizations), Fleet server can directly communicate with the [Apple Apps and Books API](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata).
 
-- Default value: ...
-- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_ENDPOINT_URL`
+If set to `false` then you must specify [mdm.apple_vpp_app_metadata_api_bearer_token](#mdm-apple-vpp-app-metadata-api-bearer-token).
+
+
+- Default value: true
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_API_PROXY`
 - Config file format:
   ```yaml
   mdm:
-    apple_vpp_app_metadata_endpoint_url: https://...
+    apple_vpp_app_metadata_api_url: false
   ```
 
-### mdm.apple_vpp_app_metadata_endpoint_bearer_token
+### mdm.apple_vpp_app_metadata_api_bearer_token
 
-Override the default region (`us`) for the Apple App Store storefront.
+Bearer token to authenticate requests to Apple Apps and Books API. This is required if [mdm.apple_vpp_app_metadata_api_proxy](#mdm-apple-vpp-app-metadata-api-proxy) is set to `false`.
 
-- Default value: ...
-- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_ENDPOINT_BEARER_TOKEN`
+- Default value: none
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_API_BEARER_TOKEN`
 - Config file format:
   ```yaml
   mdm:
-    apple_vpp_app_metadata_endpoint_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+    apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
 ## Partnerships
