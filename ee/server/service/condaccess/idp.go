@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -391,15 +392,22 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 
 		hostRemediationUrl := fmt.Sprintf("%s/device/%s/policies", config.ServerSettings.ServerURL, authToken)
 
-		bypassedAt, err := p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
-		if err != nil {
-			level.Error(p.logger).Log(
-				"msg", "failed to check conditional access host bypass",
-				"host_id", p.hostID,
-				"err", err,
-			)
-			http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
-			return nil
+		bypassEnabled := config.ConditionalAccess == nil ||
+			!config.ConditionalAccess.BypassDisabled.Valid ||
+			!config.ConditionalAccess.BypassDisabled.Value
+
+		var bypassedAt *time.Time
+		if bypassEnabled {
+			bypassedAt, err = p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+			if err != nil {
+				level.Error(p.logger).Log(
+					"msg", "failed to check conditional access host bypass",
+					"host_id", p.hostID,
+					"err", err,
+				)
+				http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
+				return nil
+			}
 		}
 
 		if bypassedAt == nil {
