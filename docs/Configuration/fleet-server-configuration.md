@@ -784,7 +784,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 If enabled, the server will return gzip-compressed responses for HTTP requests to clients that indicate support. Client support is determined by the presence of `gzip` in an `Accept-Encoding` request header.
 
-Enable this to significantly reduce the outbound bandwidth from the Fleet server at a small expense to CPU utilization on the server. In a future Fleet release this may default on.
+Enable this to significantly reduce the outbound bandwidth from the Fleet server at a small expense to CPU utilization on the server.
 
 - Default value: false
 - Environment variable: `FLEET_SERVER_GZIP_RESPONSES`
