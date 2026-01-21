@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -299,7 +300,6 @@ func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, 
 		fileReader = bzip2.NewReader(fileReader)
 	}
 	// TODO: what other compression methods are supported?
-
 	contents, err := io.ReadAll(fileReader)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s file: %w", f.Name, err)
@@ -579,8 +579,8 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 			version = fleet.Preprocess(bundle.CFBundleShortVersionString)
 		}
 
-		// Stop extracting name if we found a bundle that
-		// matches the bundle identifier in pkg-info root
+		// Stop updating metadata if we found a bundle that
+		// matches the bundle identifier in pkg-info
 		if identifier == p.Identifier {
 			foundMetadata = true
 		}
