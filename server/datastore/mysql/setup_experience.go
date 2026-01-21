@@ -423,17 +423,20 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 }
 
 func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
-	switch platform {
-	case string(fleet.MacOSPlatform),
-		string(fleet.IOSPlatform),
-		string(fleet.IPadOSPlatform),
-		string(fleet.AndroidPlatform),
-		"windows",
-		"linux":
-		// ok, valid platform
-	default:
-		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
-			platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.AndroidPlatform, fleet.IPadOSPlatform)
+	// I believe this can be removed, as the platforms are validated before this function
+	for p := range strings.SplitSeq(strings.ReplaceAll(platform, "macos", "darwin"), ",") {
+		switch p {
+		case string(fleet.MacOSPlatform),
+			string(fleet.IOSPlatform),
+			string(fleet.IPadOSPlatform),
+			string(fleet.AndroidPlatform),
+			"windows",
+			"linux":
+			// ok, valid platform
+		default:
+			return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
+				p, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.AndroidPlatform, fleet.IPadOSPlatform)
+		}
 	}
 
 	opts.IncludeMetadata = true

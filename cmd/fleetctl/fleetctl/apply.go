@@ -95,7 +95,7 @@ func applyCommand() *cli.Command {
 			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
 
-			_, _, _, _, err = fleetClient.ApplyGroup(c.Context, false, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+			_, _, _, _, err = fleetClient.ApplyGroup(c.Context, false, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, nil)
 			if err != nil {
 				return err
 			}

@@ -780,6 +780,18 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
     private_key_sts_external_id: your_unique_id
   ```
 
+### server_max_installer_size
+
+Maximum size for software installer uploads. Accepts human-readable size values with suffixes like `K`, `M`, `G`, `T` (binary, e.g., `10GiB` = 10 * 1024³ bytes) or `KB`, `MB`, `GB`, `TB` (decimal, e.g., `10GB` = 10 * 1000³ bytes). Plain numbers are interpreted as bytes.
+
+- Default value: `10GiB`
+- Environment variable: `FLEET_SERVER_MAX_INSTALLER_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    max_installer_size: 10GiB
+  ```
+
 ## Auth
 
 ### auth_sso_session_validity_period
@@ -1033,7 +1045,7 @@ Valid time units are `s`, `m`, `h`.
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -1047,7 +1059,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1247,7 +1259,7 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -2069,6 +2081,225 @@ The value of the Content-Type header to use in [Kafka REST Proxy API calls](http
   ```yaml
   kafkarest:
     content_type_value: application/vnd.kafka.json.v2+json
+  ```
+
+## NATS
+
+NATS subject configuration options (`nats_status_subject`, `nats_result_subject`,
+and `nats_audit_subject`) support dynamic subject generation using templates.
+Subjects can be constant strings, or templates containing expressions enclosed
+in curly braces (`{...}`).
+
+Template expressions are evaluated using [expr](https://expr-lang.org/) and have
+access to the log data via the `log` variable. Fields can be accessed using dot
+notation, such as `log.name` and `log.decorations.hostname`.
+
+#### Example log
+```json
+{
+  "action": "snapshot",
+  "decorations": {
+    "host_uuid": "85c1244f-9176-2445-8ceb-d6569dc1b417",
+    "hostname": "webserver"
+  },
+  "name": "pack/Global/process_events",
+  "snapshot": [
+    {"pid": "1234", "name": "nginx", "cmdline": "/usr/sbin/nginx"}
+  ]
+}
+```
+
+#### Example subject templates
+| Description         | Template                                          | Result                       |
+|---------------------|---------------------------------------------------|------------------------------|
+| Route by hostname   | `results.{log.decorations.hostname}`              | `results.webserver`          |
+| Extract query name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
+| Action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver` |
+
+### nats_server
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+The URL of the NATS server to connect to for publishing logs.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_SERVER`
+- Config file format:
+  ```yaml
+  nats:
+    server: nats://localhost:4222
+  ```
+
+### nats_status_subject
+
+This flag only has effect if `osquery_status_log_plugin` is set to `nats`.
+
+The NATS subject that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_STATUS_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    status_subject: osquery_status
+  ```
+
+### nats_result_subject
+
+This flag only has effect if `osquery_result_log_plugin` is set to `nats`.
+
+The NATS subject that osquery result logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_RESULT_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    result_subject: osquery_result
+  ```
+
+### nats_audit_subject
+
+This flag only has effect if `activity_audit_log_plugin` is set to `nats`.
+
+The NATS subject that audit logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_AUDIT_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    audit_subject: fleet_audit
+  ```
+
+### nats_cred_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the NATS [credentials file](https://docs.nats.io/using-nats/developer/connecting/creds) for authentication. Cannot be used together with `nats_nkey_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_CRED_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    cred_file: /path/to/nats.creds
+  ```
+
+### nats_nkey_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the NATS [NKey seed file](https://docs.nats.io/using-nats/developer/connecting/nkey) for authentication. Cannot be used together with `nats_cred_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_NKEY_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    nkey_file: /path/to/nats.nk
+  ```
+
+### nats_tls_client_crt_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the TLS client certificate file for NATS connection. Must be used together with `nats_tls_client_key_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_TLS_CLIENT_CRT_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    tls_client_crt_file: /path/to/client.crt
+  ```
+
+### nats_tls_client_key_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the TLS client key file for NATS connection. Must be used together with `nats_tls_client_crt_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_TLS_CLIENT_KEY_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    tls_client_key_file: /path/to/client.key
+  ```
+
+### nats_ca_crt_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the CA certificate file for verifying the NATS server certificate.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_CA_CRT_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    ca_crt_file: /path/to/ca.crt
+  ```
+
+### nats_compression
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Compression algorithm to use for log payloads before publishing to NATS. Supported values are `gzip`, `snappy`, and `zstd`. When not specified, logs are published uncompressed.
+
+- Default value: none (no compression)
+- Environment variable: `FLEET_NATS_COMPRESSION`
+- Config file format:
+  ```yaml
+  nats:
+    compression: gzip
+  ```
+
+### nats_jetstream
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Enable NATS JetStream for log publishing. When enabled, logs are published using JetStream instead of core NATS.
+
+- Default value: false
+- Environment variable: `FLEET_NATS_JETSTREAM`
+- Config file format:
+  ```yaml
+  nats:
+    jetstream: true
+  ```
+
+### nats_timeout
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
+
+- Default value: 30s
+- Environment variable: `FLEET_NATS_TIMEOUT`
+- Config file format:
+  ```yaml
+  nats:
+    timeout: 1m
   ```
 
 ## Email backend

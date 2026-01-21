@@ -196,10 +196,10 @@ type ABMTermsUpdater interface {
 // MDMIdPAccount contains account information of a third-party IdP that can be
 // later used for MDM operations like creating local accounts.
 type MDMIdPAccount struct {
-	UUID     string
-	Username string
-	Fullname string
-	Email    string
+	UUID     string `db:"uuid"`
+	Username string `db:"username"`
+	Fullname string `db:"fullname"`
+	Email    string `db:"email"`
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -350,6 +350,9 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
+	// ResultsMetadata contains command-specific metadata.
+	// VPP install commands includes a "software_installed" boolean.
+	ResultsMetadata map[string]any `json:"results_metadata,omitempty" db:"-"`
 }
 
 // MDMCommand represents an MDM command that has been enqueued for
@@ -442,22 +445,6 @@ type MDMProfilesSummary struct {
 	Failed uint `json:"failed" db:"failed"`
 }
 
-func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSummary {
-	var s1, s2 MDMProfilesSummary
-	if mdmPS != nil {
-		s1 = *mdmPS
-	}
-	if other != nil {
-		s2 = *other
-	}
-	return &MDMProfilesSummary{
-		Verified:  s1.Verified + s2.Verified,
-		Verifying: s1.Verifying + s2.Verifying,
-		Pending:   s1.Pending + s2.Pending,
-		Failed:    s1.Failed + s2.Failed,
-	}
-}
-
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
@@ -544,6 +531,15 @@ const (
 	MDMOperationTypeInstall MDMOperationType = "install"
 	MDMOperationTypeRemove  MDMOperationType = "remove"
 )
+
+func (o MDMOperationType) IsValid() bool {
+	switch o {
+	case MDMOperationTypeInstall, MDMOperationTypeRemove:
+		return true
+	default:
+		return false
+	}
+}
 
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
@@ -924,6 +920,9 @@ const (
 	MDMAssetConditionalAccessIDPCert MDMAssetName = "conditional_access_idp_cert"
 	// MDMAssetConditionalAccessIDPKey is the private key Fleet uses to sign SAML assertions as an IdP for conditional access
 	MDMAssetConditionalAccessIDPKey MDMAssetName = "conditional_access_idp_key"
+
+	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
+	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
 )
 
 type MDMConfigAsset struct {
@@ -1130,6 +1129,7 @@ func (p InstallableDevicePlatform) IsApplePlatform() bool {
 type AppleDevicesToRefetch struct {
 	HostID              uint                   `db:"host_id"`
 	UUID                string                 `db:"uuid"`
+	InstalledFromDEP    bool                   `db:"installed_from_dep"`
 	CommandsAlreadySent MDMCommandsAlreadySent `db:"commands_already_sent"`
 }
 

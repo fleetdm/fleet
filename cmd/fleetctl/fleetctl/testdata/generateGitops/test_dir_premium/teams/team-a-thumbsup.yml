@@ -46,6 +46,7 @@ controls:
   windows_updates:
     deadline_days: 95
     grace_period_days: 92
+labels:
 name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
@@ -80,6 +81,19 @@ software:
     - Label D
     platform: darwin
     self_service: true
+  - app_store_id: com.example.setup-experience-software
+    icon:
+      path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
+    platform: android
+    self_service: true
+    setup_experience: true
+  - app_store_id: com.example.ios-auto-update
+    auto_update_enabled: true
+    auto_update_window_end: "03:00"
+    auto_update_window_start: "01:00"
+    icon:
+      path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
+    platform: ios
   packages:
   - categories:
     - Browsers

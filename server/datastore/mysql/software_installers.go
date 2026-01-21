@@ -163,7 +163,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 	return result, nil
 }
 
-func (ds *Datastore) checkVPPAppExistsForTitleIdentifier(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier, source, browser string) (bool, error) {
+func (ds *Datastore) checkVPPAppExistsForTitleIdentifier(ctx context.Context, q sqlx.QueryerContext, teamID *uint, platform, bundleIdentifier, source, browser string) (bool, error) {
 	const stmt = `
 SELECT
 	1
@@ -183,7 +183,7 @@ WHERE
 		globalOrTeamID = *teamID
 	}
 	var exists int
-	err := sqlx.GetContext(ctx, q, &exists, stmt, fleet.MacOSPlatform, globalOrTeamID, bundleIdentifier, source, browser)
+	err := sqlx.GetContext(ctx, q, &exists, stmt, platform, globalOrTeamID, bundleIdentifier, source, browser)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, ctxerr.Wrap(ctx, err, "check VPP app exists for title identifier")
 	}
@@ -195,6 +195,18 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		// caller must ensure this is not nil; if caller intends no labels to be created,
 		// payload.ValidatedLabels should point to an empty struct.
 		return 0, 0, errors.New("validated labels must not be nil")
+	}
+
+	err = ds.checkSoftwareConflictsByIdentifier(ctx, payload)
+	if err != nil {
+		teamName, err := ds.getTeamName(ctx, payload.TeamID)
+		if err != nil {
+			return 0, 0, ctxerr.Wrap(ctx, err, "get team for installer conflict error")
+		}
+
+		return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+			Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, payload.Title, teamName),
+		}, "vpp app conflicts with existing software installer")
 	}
 
 	// Insert in house app instead of software installer
@@ -221,27 +233,6 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
-	}
-
-	// check if a VPP app already exists for that software title in the same
-	// platform (macOS) and team.
-	if payload.Platform == string(fleet.MacOSPlatform) {
-		exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx),
-			payload.TeamID, payload.BundleIdentifier, payload.Source, "")
-		if err != nil {
-			return 0, 0, ctxerr.Wrap(ctx, err, "check VPP app exists for title identifier")
-		}
-		if exists {
-			teamName, err := ds.getTeamName(ctx, payload.TeamID)
-			if err != nil {
-				return 0, 0, ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
-			}
-
-			return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
-				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-					payload.Title, teamName),
-			}, "vpp app conflicts with existing software installer")
-		}
 	}
 
 	// Enforce team-scoped uniqueness by storage hash, aligning upload behavior with GitOps.
@@ -1429,6 +1420,7 @@ SELECT
 	hsi.host_id AS host_id,
 	COALESCE(st.name, hsi.software_title_name) AS software_title,
 	hsi.software_title_id,
+	hsi.software_installer_id,
 	COALESCE(hsi.execution_status, '') AS status,
 	hsi.installer_filename AS software_package,
 	hsi.user_id AS user_id,
@@ -1439,7 +1431,8 @@ SELECT
 	hsi.policy_id,
 	hsi.created_at as created_at,
 	hsi.updated_at as updated_at,
-	st.source
+	st.source,
+	hsi.attempt_number
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
@@ -1458,6 +1451,7 @@ SELECT
 	ua.host_id AS host_id,
 	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
 	siua.software_title_id,
+	siua.software_installer_id,
 	'pending_install' AS status,
 	ua.payload->>'$.installer_filename' AS software_package,
 	ua.user_id AS user_id,
@@ -1468,7 +1462,8 @@ SELECT
 	siua.policy_id AS policy_id,
 	ua.created_at as created_at,
 	ua.updated_at as updated_at,
-	st.source
+	st.source,
+	NULL AS attempt_number
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
@@ -1928,7 +1923,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
-  (name, source, extension_for, bundle_identifier)
+  (name, source, extension_for, bundle_identifier, upgrade_code)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE
@@ -1943,7 +1938,7 @@ SELECT
   id
 FROM
   software_titles
-WHERE (unique_identifier, source, extension_for) IN (%s)
+WHERE (unique_identifier, source) IN (%s) AND extension_for = ''
 `
 
 	const getSoftwareTitle = `
@@ -2364,7 +2359,7 @@ WHERE
 			// platform (if that platform is macOS), then this is a conflict.
 			// See https://github.com/fleetdm/fleet/issues/32082
 			if installer.Platform == string(fleet.MacOSPlatform) {
-				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, installer.BundleIdentifier, installer.Source, "")
+				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, installer.Platform, installer.BundleIdentifier, installer.Source, "")
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "check existing VPP app for installer title identifier")
 				}
@@ -2381,17 +2376,13 @@ WHERE
 				installer.Title,
 				installer.Source,
 				"",
-				func() *string {
-					if strings.TrimSpace(installer.BundleIdentifier) != "" {
-						return &installer.BundleIdentifier
-					}
-					return nil
-				}(),
+				installer.GetBundleIdentifierForDB(),
+				installer.GetUpgradeCodeForDB(),
 			)
 		}
 
 		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?,?),", len(installers)),
+			strings.Repeat("(?,?,?,?,?),", len(installers)),
 			",",
 		)
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
@@ -2401,15 +2392,10 @@ WHERE
 		var titleIDs []uint
 		args = []any{}
 		for _, installer := range installers {
-			args = append(
-				args,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
-				"",
-			)
+			args = append(args, installer.UniqueIdentifier(), installer.Source)
 		}
 		values = strings.TrimSuffix(
-			strings.Repeat("(?,?,?),", len(installers)),
+			strings.Repeat(`(?,?),`, len(installers)),
 			",",
 		)
 
@@ -2549,7 +2535,7 @@ WHERE
 			}
 
 			var titleID uint
-			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source)
+			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, installer.UniqueIdentifier(), installer.Source)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting software title id for software installer with name %q", installer.Filename)
 			}
@@ -3113,17 +3099,18 @@ func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx s
 FROM
 		hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
+		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id = ?
 WHERE
 		EXISTS (%s)
-		AND platform = 'android'
+		AND h.platform = 'android'
 `, filter)
 
 	var queryResults []struct {
 		UUID            string  `db:"uuid"`
 		AppliedPolicyID *string `db:"applied_policy_id"`
 	}
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host uuids included in software scope")
+	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
 	res := make(map[string]string, len(queryResults))
@@ -3236,4 +3223,57 @@ WHERE
 	}
 
 	return byTeam, nil
+}
+
+func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+	// if this is an in-house app, check if an installer exists
+	if payload.Extension == "ipa" {
+		// at the point where this method is called, we attempt to create both iOS and iPadOS entries
+		// for ipa apps, so check for conflicts on either platform.
+		for platform, source := range map[string]string{
+			string(fleet.IOSPlatform):    "ios_apps",
+			string(fleet.IPadOSPlatform): "ipados_apps",
+		} {
+			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, platform, softwareTypeInstaller)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if software installer exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("software installer", payload.Title)
+			}
+
+			exists, err = ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("VPP app", payload.Title)
+			}
+		}
+	} else {
+		// check if a VPP app already exists for that software title in the same
+		// platform and team.
+		if payload.Platform == string(fleet.MacOSPlatform) || payload.Platform == string(fleet.IOSPlatform) || payload.Platform == string(fleet.IPadOSPlatform) {
+			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("VPP app", payload.Title)
+			}
+		}
+
+		// check if an in-house app with the same bundle id already exists.
+		if payload.BundleIdentifier != "" {
+			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInHouseApp)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if in-house app exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("in-house app", payload.Title)
+			}
+		}
+	}
+
+	return nil
 }

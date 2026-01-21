@@ -1284,7 +1284,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	// set a script result, will activate both VPP apps
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// get host script result now returns the result
@@ -1308,6 +1308,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	rawCmd := string(cmd.Raw)
 	require.Contains(t, rawCmd, ">"+vppApp1.VPPAppTeam.AdamID+"<")
 	require.Contains(t, rawCmd, ">"+vpp1_1+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>0</integer>`, "MacOS VPP app install command should have ManagementFlags 0")
 
 	// insert a result for that command and create the past activity,
 	// which triggers the next activity to be activated (should be none
@@ -1425,7 +1427,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	swRes, err := ds.GetSoftwareInstallResults(ctx, sw1_1)
@@ -1447,7 +1449,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:      h1.ID,
 		ExecutionID: sw1_2,
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// because the install and uninstall are for the same software installer,
@@ -1483,6 +1485,18 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
 	require.Equal(t, ihaCmd, pendingActs[1].UUID)
 
+	// get next nano command for iOS host is the VPP app
+	nanoCtx = &mdm.Request{EnrollID: &mdm.EnrollID{ID: hIOS.UUID}, Context: ctx}
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, vpp1_1_ios, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+vppApp1IOS.VPPAppTeam.AdamID+"<")
+	require.Contains(t, rawCmd, ">"+vpp1_1_ios+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>1</integer>`)
+
 	// record a result for the VPP app install, which will activate the in-house app
 	cmdRes = &mdm.CommandResults{
 		CommandUUID: vpp1_1_ios,
@@ -1505,6 +1519,15 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 1)
 	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, ihaCmd, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+ihaCmd+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>1</integer>`)
 
 	// enqueue a VPP app request for iOS host once more
 	vpp1_1_ios = uuid.NewString()
@@ -1656,7 +1679,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending script execution request
@@ -1670,7 +1693,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	// set a result for the script
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending uninstall request
@@ -1683,7 +1706,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		HostID:      h1.ID,
 		ExecutionID: sw1_2,
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending vpp app install

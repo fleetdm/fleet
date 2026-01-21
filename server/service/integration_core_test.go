@@ -30,10 +30,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
@@ -2105,6 +2105,14 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts[0].Labels, 2)
 	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
 	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
+
+	// With "include_device_status" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "include_device_status", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *resp.Hosts[0].MDM.DeviceStatus)
+	require.Equal(t, string(fleet.PendingActionNone), *resp.Hosts[0].MDM.PendingAction)
 }
 
 func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths() {
@@ -2145,18 +2153,23 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 
 	// Add installed paths and signature information
 	swPaths := map[string]struct{}{}
+	testCdHash := "abc123hash"
+	testExecHash := "def456hash"
+	testExecPath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 	for _, s := range software {
-		pathItems := [][3]string{
-			{"/Applications/Google Chrome.app", "EQHXZ8M8AV", "abc123hash"},
-			{"/Users/test/Applications/Google Chrome.app", "", ""},
+		pathItems := [][5]string{
+			{"/Applications/Google Chrome.app", "EQHXZ8M8AV", testCdHash, testExecHash, testExecPath},
+			{"/Users/test/Applications/Google Chrome.app", "", "", "", ""},
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
 			cdHash := pathItem[2]
+			eHash := pathItem[3]
+			ePath := pathItem[4]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, eHash, fleet.SoftwareFieldSeparator, ePath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -2215,14 +2228,20 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	sigInfo0 := sw.PathSignatureInformation[0]
 	assert.Equal(t, "/Applications/Google Chrome.app", sigInfo0.InstalledPath)
 	assert.Equal(t, "EQHXZ8M8AV", sigInfo0.TeamIdentifier)
-	assert.NotNil(t, sigInfo0.HashSha256)
-	assert.Equal(t, "abc123hash", *sigInfo0.HashSha256)
+	assert.NotNil(t, sigInfo0.CDHashSHA256)
+	assert.Equal(t, testCdHash, *sigInfo0.CDHashSHA256)
+	assert.NotNil(t, *sigInfo0.ExecutableSHA256)
+	assert.Equal(t, testExecHash, *sigInfo0.ExecutableSHA256)
+	assert.NotNil(t, *sigInfo0.ExecutablePath)
+	assert.Equal(t, testExecPath, *sigInfo0.ExecutablePath)
 
 	// Verify second signature information (user-level without team identifier)
 	sigInfo1 := sw.PathSignatureInformation[1]
 	assert.Equal(t, "/Users/test/Applications/Google Chrome.app", sigInfo1.InstalledPath)
 	assert.Equal(t, "", sigInfo1.TeamIdentifier)
-	assert.Nil(t, sigInfo1.HashSha256)
+	assert.Nil(t, sigInfo1.CDHashSHA256)
+	assert.Nil(t, sigInfo1.ExecutableSHA256)
+	assert.Nil(t, sigInfo1.ExecutablePath)
 
 	// Also verify the JSON marshaling by checking the raw JSON response
 	rawResp := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, "populate_software", "true")
@@ -3496,7 +3515,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.Equal(t, tm2.ID, *getResp.Host.TeamID)
 
 	// get all hosts label
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	labelID := lblIDs["All Hosts"]
 
@@ -5162,7 +5181,7 @@ func (s *integrationTestSuite) TestLabels() {
 func (s *integrationTestSuite) TestListHostsByLabel() {
 	t := s.T()
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblIDs, 1)
 	labelID := lblIDs["All Hosts"]
@@ -5285,6 +5304,15 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
+	assert.Equal(t, string(hostsJson), string(labelsJson))
+
+	// Do request with include_device_status, since it's an additional feature
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "include_device_status", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true", "include_device_status", "true")
+
+	// Converting to formatted JSON for easier diffs
+	hostsJson, _ = json.MarshalIndent(hostsResp, "", "  ")
+	labelsJson, _ = json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
 }
 
@@ -8001,6 +8029,9 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusNotFound, &applyResp)
 
+	activitiesBeforeInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+
 	// valid templates - test team name (not team ID)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
@@ -8019,11 +8050,44 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusOK, &applyResp)
 
+	// Only one activity per team
+	activitiesAfterInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name),
+		0,
+	)
+
 	// list specs
 	var listCertifcatesResp listCertificateTemplatesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 2)
 	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
+
+	lastActivityID := s.lastActivityMatches("", "", 0)
+
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 1",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name:                   "Template 2",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// No new activities created
+	currentActivityID := s.lastActivityMatches("", "", 0)
+	assert.Equal(t, lastActivityID, currentActivityID, "no new activity should be created when re-applying same certificates")
 
 	// Create a host to get certificate get by id endpoint
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -8066,7 +8130,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	})
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
 	require.NoError(t, resp.Body.Close())
-	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed)
+	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed) // failed because no IDP user to replace variables
 
 	// Add an IDP user for the host
 	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
@@ -8105,12 +8169,23 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	// batch delete certificate templates
 	var delBatchResp deleteCertificateTemplateSpecsResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids": []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+		"ids":     []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+		"team_id": team.ID,
 	}, http.StatusOK, &delBatchResp)
+
+	// Verify activity was created for deleting certificates
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name),
+		0,
+	)
 
 	// list specs
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
+
+	activitiesBeforeNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
 
 	// certificate templates for "No team"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8135,6 +8210,16 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 			},
 		},
 	}, http.StatusOK, &applyResp)
+
+	// Only one activity was created for "No team"
+	activitiesAfterNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		`{"team_id": null, "team_name": null}`,
+		0,
+	)
 
 	// list specs for "no team" (team_id 0)
 	var noTeamCertificatesResp listCertificateTemplatesResponse
@@ -8716,7 +8801,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	for name := range fleet.ReservedLabelNames() {
 		builtinNames = append(builtinNames, name)
 	}
-	lblMap, err := s.ds.LabelIDsByName(context.Background(), builtinNames)
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), builtinNames, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblMap, len(builtinNames))
 
@@ -8837,7 +8922,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lblMap, 1)
 
@@ -9640,7 +9725,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 		{Name: t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual, Query: "select 1", Hosts: []string{hosts[2].Hostname}},
 	})
 	require.NoError(t, err)
-	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()})
+	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
 	customLabelID := lids[t.Name()]
@@ -10816,7 +10901,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	})
 	require.NoError(t, err)
 
-	var resp endpoint_utils.JsonError
+	var resp endpointer.JsonError
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
@@ -11603,7 +11688,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 		NodeKey:         ptr.String(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
-		Platform:        "darwin",
+		Platform:        "windows",
 	})
 	require.NoError(t, err)
 
@@ -13474,7 +13559,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	host2 := newHostFunc("host2", nil)
 	teamHost2 := newHostFunc("teamHost2", &team1.ID)
 
-	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 1)
 	allHostsLabelID, ok := ls["All Hosts"]
@@ -13547,13 +13632,13 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 		Labels: []string{"manualLabel2", "does not exist"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\". All labels must exist")
 	// Multiple inexistent labels should fail to be added.
 	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
 		Labels: []string{"manualLabel2", "does not exist", "does not exist 2"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist")
 	// A dynamic non-builtin label should fail to be added.
 	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
 		Labels: []string{dynamicLabel1.Name},
@@ -13578,13 +13663,13 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 		Labels: []string{manualLabel2.Name, "does not exist"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\". All labels must exist")
 	// Multiple inexistent labels should fail to be deleted.
 	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
 		Labels: []string{manualLabel2.Name, "does not exist", "does not exist 2"},
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist.")
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist")
 	// Multiple dynamic labels should fail to be deleted.
 	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
 		Labels: []string{manualLabel2.Name, dynamicLabel1.Name, "All Hosts"},
@@ -13922,26 +14007,31 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	// Google Chrome.app will have two installed paths one with team identifier set
 	// the other one set to empty.
 	swPaths := map[string]struct{}{}
+	testCdHash := "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
+	testExecHash := "f5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
+	testExecPath := "/some/path/Google Chrome.app/Contents/MacOS/Google Chrome"
 	for _, s := range software {
-		pathItems := [][3]string{{fmt.Sprintf("/some/path/%s", s.Name), "", ""}}
+		pathItems := [][5]string{{fmt.Sprintf("/some/path/%s", s.Name), "", "", "", ""}}
 		if s.Name == "Safari.app" {
-			pathItems = [][3]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "", "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"},
+			pathItems = [][5]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "", testCdHash, testExecHash, testExecPath},
 			}
 		}
 		if s.Name == "Google Chrome.app" {
-			pathItems = [][3]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", ""},
-				{fmt.Sprintf("/some/other/path/%s", s.Name), "", ""},
+			pathItems = [][5]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", "", "", ""},
+				{fmt.Sprintf("/some/other/path/%s", s.Name), "", "", "", ""},
 			}
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
 			cdHash := pathItem[2]
+			execHash := pathItem[3]
+			execPath := pathItem[4]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, execHash, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -13966,7 +14056,9 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation, 1)
 	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
-	require.Equal(t, "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb", *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].HashSha256)
+	require.Equal(t, testCdHash, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
+	require.Equal(t, testExecHash, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, testExecPath, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].ExecutablePath)
 
 	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
@@ -13982,8 +14074,12 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	})
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
-	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].HashSha256)
-	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].HashSha256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].ExecutableSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].ExecutablePath)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].CDHashSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].ExecutableSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].ExecutablePath)
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
@@ -14548,6 +14644,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 			GigsTotalDiskSpace:        128.0, // 64GB system + 64GB external
 			GigsDiskSpaceAvailable:    35.0,  // 10GB + 25GB available
 			PercentDiskSpaceAvailable: 27.34, // 35/128 * 100
+			UUID:                      uuid.NewString(),
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
@@ -14856,11 +14953,12 @@ INSERT INTO host_certificate_templates (
 	certificate_template_id,
 	status,
 	fleet_challenge,
-	operation_type
-) VALUES (?, ?, ?, ?, ?);
+	operation_type,
+	name
+) VALUES (?, ?, ?, ?, ?, ?);
 	`
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install")
+		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install", savedTemplate.Name)
 		require.NoError(t, err)
 		return nil
 	})
@@ -14896,6 +14994,7 @@ INSERT INTO host_certificate_templates (
 		name                    string
 		templateID              uint
 		newStatus               string
+		newOperationType        *string
 		detail                  *string
 		expectedResponseStatus  int
 		expectedResponseMessage string
@@ -14948,13 +15047,55 @@ INSERT INTO host_certificate_templates (
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
 		},
+		{
+			name:                   "with operation_type install",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String("install"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                   "with operation_type remove",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String("remove"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                   "with operation_type empty string",
+			templateID:             certificateTemplateID,
+			newStatus:              "verified",
+			expectedResponseStatus: http.StatusOK,
+			newOperationType:       ptr.String(""),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
+		{
+			name:                    "with invalid operation_type",
+			templateID:              certificateTemplateID,
+			newStatus:               "verified",
+			expectedResponseStatus:  http.StatusUnprocessableEntity,
+			expectedResponseMessage: "must be 'install' or 'remove'",
+			newOperationType:        ptr.String("invalid_operation"),
+			headers: map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("TestUpdateHostCertificateTemplate:%s", tc.name), func(t *testing.T) {
 			req, err := json.Marshal(updateCertificateStatusRequest{
-				Status: tc.newStatus,
-				Detail: tc.detail,
+				Status:        tc.newStatus,
+				Detail:        tc.detail,
+				OperationType: tc.newOperationType,
 			})
 			require.NoError(t, err)
 
@@ -14962,4 +15103,377 @@ INSERT INTO host_certificate_templates (
 			require.NoError(t, resp.Body.Close())
 		})
 	}
+}
+
+func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestDeleteCertificateTemplate Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("TestDeleteCertificateTemplate SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	certTemplate := &fleet.CertificateTemplate{
+		Name:                   "TestDeleteCertificateTemplate-Cert",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject",
+	}
+	savedTemplate, err := s.ds.CreateCertificateTemplate(ctx, certTemplate)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate)
+	certificateTemplateID := savedTemplate.ID
+	certTemplateName := savedTemplate.Name
+
+	// Create hosts with different certificate template statuses
+	hostPending, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-template-host-pending",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostDelivered, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-template-host-delivered",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostVerified, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-template-host-verified",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostFailed, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-template-host-failed",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	// Insert host_certificate_templates with various statuses
+	insertSQL := `
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		// Pending status - should be deleted
+		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certificateTemplateID, "pending", "install", nil, certTemplateName)
+		require.NoError(t, err)
+		// Delivered status - should be updated to pending/remove
+		_, err = q.ExecContext(ctx, insertSQL, hostDelivered.UUID, certificateTemplateID, "delivered", "install", "challenge1", certTemplateName)
+		require.NoError(t, err)
+		// Verified status - should be updated to pending/remove
+		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certificateTemplateID, "verified", "install", "challenge2", certTemplateName)
+		require.NoError(t, err)
+		// Failed status - should be deleted (never successfully installed)
+		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certificateTemplateID, "failed", "install", "challenge3", certTemplateName)
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Enable Android MDM so GetHost returns certificate template profiles
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appCfg.MDM.AndroidEnabledAndConfigured
+	appCfg.MDM.AndroidEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	err = s.ds.SetAndroidEnabledAndConfigured(ctx, true)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		_ = s.ds.SaveAppConfig(ctx, appCfg)
+		_ = s.ds.SetAndroidEnabledAndConfigured(ctx, origAndroidEnabled)
+	}()
+
+	// Helper to find the certificate template profile by name
+	findProfile := func(profiles *[]fleet.HostMDMProfile, name string) *fleet.HostMDMProfile {
+		if profiles == nil {
+			return nil
+		}
+		for _, p := range *profiles {
+			if p.Name == name {
+				return &p
+			}
+		}
+		return nil
+	}
+
+	// Verify the records exist before deletion via GetHost API
+	var getHostResp getHostResponse
+	for _, tc := range []struct {
+		host           *fleet.Host
+		hostName       string
+		expectedStatus string
+	}{
+		{hostPending, "hostPending", string(fleet.CertificateTemplatePending)},
+		{hostDelivered, "hostDelivered", string(fleet.CertificateTemplateDelivered)},
+		{hostVerified, "hostVerified", string(fleet.CertificateTemplateVerified)},
+		{hostFailed, "hostFailed", string(fleet.CertificateTemplateFailed)},
+	} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.Profiles, "%s should have MDM profiles before deletion", tc.hostName)
+
+		profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+		require.NotNil(t, profile, "%s should have certificate template profile %s before deletion", tc.hostName, certTemplateName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, tc.expectedStatus, *profile.Status, "%s profile status should be %s before deletion", tc.hostName, tc.expectedStatus)
+		require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "%s profile operation_type should be install before deletion", tc.hostName)
+	}
+
+	// Delete the certificate template via API
+	var deleteResp deleteCertificateTemplateResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusOK, &deleteResp)
+
+	// After deletion:
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
+	//   (kept for cron job to process removal from devices)
+
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
+	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
+
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
+	for _, tc := range []struct {
+		host     *fleet.Host
+		hostName string
+	}{
+		{hostDelivered, "hostDelivered"},
+		{hostVerified, "hostVerified"},
+	} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+		profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName)
+		require.NotNil(t, profile, "%s should have pending remove profile after deletion", tc.hostName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
+		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
+	}
+}
+
+func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestDeleteCertificateTemplateSpec Team"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("TestDeleteCertificateTemplateSpec SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	// Create two certificate templates
+	certTemplate1 := &fleet.CertificateTemplate{
+		Name:                   "TestDeleteCertificateTemplateSpec-Cert1",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 1",
+	}
+	savedTemplate1, err := s.ds.CreateCertificateTemplate(ctx, certTemplate1)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate1)
+	certTemplateID1 := savedTemplate1.ID
+	certTemplateName1 := savedTemplate1.Name
+
+	certTemplate2 := &fleet.CertificateTemplate{
+		Name:                   "TestDeleteCertificateTemplateSpec-Cert2",
+		TeamID:                 teamID,
+		CertificateAuthorityID: caID,
+		SubjectName:            "CN=Test Subject 2",
+	}
+	savedTemplate2, err := s.ds.CreateCertificateTemplate(ctx, certTemplate2)
+	require.NoError(t, err)
+	require.NotNil(t, savedTemplate2)
+	certTemplateID2 := savedTemplate2.ID
+	certTemplateName2 := savedTemplate2.Name
+
+	// Create hosts with different certificate template statuses
+	hostPending, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-spec-host-pending",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostDelivered, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-spec-host-delivered",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostVerified, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-spec-host-verified",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	hostFailed, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:     uuid.New().String(),
+		Hostname: "test-delete-cert-spec-host-failed",
+		Platform: "android",
+		TeamID:   &teamID,
+	})
+	require.NoError(t, err)
+
+	// Insert host_certificate_templates with various statuses for both templates
+	insertSQL := `
+		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		// Template 1 - hosts with pending and delivered status
+		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certTemplateID1, "pending", "install", nil, certTemplateName1)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, insertSQL, hostDelivered.UUID, certTemplateID1, "delivered", "install", "challenge1", certTemplateName1)
+		require.NoError(t, err)
+
+		// Template 2 - hosts with verified and failed status
+		_, err = q.ExecContext(ctx, insertSQL, hostVerified.UUID, certTemplateID2, "verified", "install", "challenge2", certTemplateName2)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, insertSQL, hostFailed.UUID, certTemplateID2, "failed", "install", "challenge3", certTemplateName2)
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Enable Android MDM so GetHost returns certificate template profiles
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appCfg.MDM.AndroidEnabledAndConfigured
+	appCfg.MDM.AndroidEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	err = s.ds.SetAndroidEnabledAndConfigured(ctx, true)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		_ = s.ds.SaveAppConfig(ctx, appCfg)
+		_ = s.ds.SetAndroidEnabledAndConfigured(ctx, origAndroidEnabled)
+	}()
+
+	// Helper to find the certificate template profile by name
+	findProfile := func(profiles *[]fleet.HostMDMProfile, name string) *fleet.HostMDMProfile {
+		if profiles == nil {
+			return nil
+		}
+		for _, p := range *profiles {
+			if p.Name == name {
+				return &p
+			}
+		}
+		return nil
+	}
+
+	// Verify the records exist before deletion via GetHost API
+	var getHostResp getHostResponse
+	for _, tc := range []struct {
+		host           *fleet.Host
+		hostName       string
+		expectedStatus string
+		templateName   string
+	}{
+		{hostPending, "hostPending", string(fleet.CertificateTemplatePending), certTemplateName1},
+		{hostDelivered, "hostDelivered", string(fleet.CertificateTemplateDelivered), certTemplateName1},
+		{hostVerified, "hostVerified", string(fleet.CertificateTemplateVerified), certTemplateName2},
+		{hostFailed, "hostFailed", string(fleet.CertificateTemplateFailed), certTemplateName2},
+	} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.Profiles, "%s should have MDM profiles before deletion", tc.hostName)
+
+		profile := findProfile(getHostResp.Host.MDM.Profiles, tc.templateName)
+		require.NotNil(t, profile, "%s should have certificate template profile %s before deletion", tc.hostName, tc.templateName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, tc.expectedStatus, *profile.Status, "%s profile status should be %s before deletion", tc.hostName, tc.expectedStatus)
+		require.Equal(t, fleet.MDMOperationTypeInstall, profile.OperationType, "%s profile operation_type should be install before deletion", tc.hostName)
+	}
+
+	// Delete both certificate templates via spec endpoint (batch delete)
+	var delBatchResp deleteCertificateTemplateSpecsResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{certTemplateID1, certTemplateID2},
+		"team_id": teamID,
+	}, http.StatusOK, &delBatchResp)
+
+	// Verify certificate templates were deleted
+	_, err = s.ds.GetCertificateTemplateById(ctx, certTemplateID1)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "certificate template 1 should be deleted")
+
+	_, err = s.ds.GetCertificateTemplateById(ctx, certTemplateID2)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "certificate template 2 should be deleted")
+
+	// After deletion:
+	// - hostPending (pending/install) should have NO profile (record was deleted - never installed)
+	// - hostFailed (failed/install) should have NO profile (record was deleted - never successfully installed)
+	// - hostDelivered, hostVerified should have pending/remove profiles
+	//   (kept for cron job to process removal from devices)
+
+	// Verify hostPending has no profile after deletion (was pending/install, never installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostPending.ID), nil, http.StatusOK, &getHostResp)
+	profile := findProfile(getHostResp.Host.MDM.Profiles, certTemplateName1)
+	require.Nil(t, profile, "hostPending should not have certificate template profile after deletion")
+
+	// Verify hostFailed has no profile after deletion (was failed/install, never successfully installed)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostFailed.ID), nil, http.StatusOK, &getHostResp)
+	profile = findProfile(getHostResp.Host.MDM.Profiles, certTemplateName2)
+	require.Nil(t, profile, "hostFailed should not have certificate template profile after deletion")
+
+	// Verify hosts that had delivered/verified status now have pending/remove profiles
+	for _, tc := range []struct {
+		host         *fleet.Host
+		hostName     string
+		templateName string
+	}{
+		{hostDelivered, "hostDelivered", certTemplateName1},
+		{hostVerified, "hostVerified", certTemplateName2},
+	} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+		profile := findProfile(getHostResp.Host.MDM.Profiles, tc.templateName)
+		require.NotNil(t, profile, "%s should have pending remove profile after deletion", tc.hostName)
+		require.NotNil(t, profile.Status, "%s profile status should not be nil", tc.hostName)
+		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
+		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
+	}
+}
+
+func (s *integrationTestSuite) TestDevieStatusMappingForHostsEndpoints() {
 }

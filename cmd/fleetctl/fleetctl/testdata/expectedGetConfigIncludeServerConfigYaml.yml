@@ -3,6 +3,7 @@ apiVersion: v1
 kind: config
 spec:
   fleet_desktop:
+    alternative_browser_host: ""
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false

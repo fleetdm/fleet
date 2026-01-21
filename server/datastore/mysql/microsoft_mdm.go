@@ -374,7 +374,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 			statusCode := ""
 			if status, ok := enrichedSyncML.CmdRefUUIDToStatus[cmd.CommandUUID]; ok && status.Data != nil {
 				statusCode = *status.Data
-				if status.Cmd != nil && *status.Cmd == fleet.CmdAtomic {
+				if status.Cmd != nil {
 					// The raw MDM command may contain a $FLEET_SECRET_XXX, which should never be exposed or stored unencrypted.
 					// Note: As of 2024/12/17, on <Add>, <Replace>, and <Exec> commands are exposed to Windows MDM users, so we should not see any secrets in <Atomic> commands. This code is here for future-proofing.
 					rawCommandStr := string(cmd.RawCommand)
@@ -2467,7 +2467,7 @@ func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, fail
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
-	stmt := `SELECT command_uuid, raw_command, target_loc_uri, created_at, updated_at 
+	stmt := `SELECT command_uuid, raw_command, target_loc_uri, created_at, updated_at
 		FROM windows_mdm_commands WHERE`
 
 	args := []any{}
