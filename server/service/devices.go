@@ -501,7 +501,7 @@ func bypassConditionalAccessEndpoint(ctx context.Context, request any, svc fleet
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return listDevicePoliciesResponse{Err: err}, nil
+		return bypassConditionalAccessResponse{Err: err}, nil
 	}
 
 	if err := svc.BypassConditionalAccess(ctx, host); err != nil {
