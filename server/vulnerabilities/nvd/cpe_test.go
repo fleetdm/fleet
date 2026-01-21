@@ -2316,6 +2316,118 @@ func TestMutateSoftware(t *testing.T) {
 				Source:  "programs",
 			},
 		},
+		{
+			name: "MacVim with known Vim version (9.0.1897 -> 178)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.0.1897",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "178",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with known Vim version (9.1.0 -> 179)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.1.0",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "179",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with prerelease Vim version (9.1.1577 -> 181.2)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.1.1577",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "181.2",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with unknown Vim version (leaves as-is)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.2.9999",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.2.9999",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim from wrong source (not transformed)",
+			s: &fleet.Software{
+				Name:    "MacVim",
+				Version: "9.0.1897",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "MacVim",
+				Version: "9.0.1897",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Homebrew imp (Integrative Modeling Platform)",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "2.23.0_13",
+				Source:  "homebrew_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "integrative-modeling-platform",
+				Version: "2.23.0_13",
+				Source:  "homebrew_packages",
+			},
+		},
+		{
+			name: "imp from non-Homebrew source (should not be renamed)",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "5.0.22",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "imp",
+				Version: "5.0.22",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Homebrew imp with different version",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "2.20.0",
+				Source:  "homebrew_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "integrative-modeling-platform",
+				Version: "2.20.0",
+				Source:  "homebrew_packages",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NotPanics(t, func() { mutateSoftware(tc.s, log.NewNopLogger()) })
