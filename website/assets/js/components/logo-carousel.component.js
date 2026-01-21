@@ -149,7 +149,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Prenuvo logo" src="/images/logos/logo-prenuvo-106x32@2x.png">
           <img alt="Gitlab logo" src="/images/logos/logo-gitlab-111x32@2x.png">
           <img alt="Fastly logo" src="/images/logos/logo-fastly-60x32@2x.png">
-          <img alt="Drata logo" src="/images/logos/logo-drata-105x32@2x.png"> <!-- First visible image-->
+          <img alt="Drata logo" src="/images/logos/logo-drata-105x32@2x.png">
           <img alt="Hubspot logo" src="/images/logos/logo-hubspot-113x32@2x.png">
           <!-- Group four -->
           <img alt="Censys logo" src="/images/logos/logo-censys-110x32@2x.png">
