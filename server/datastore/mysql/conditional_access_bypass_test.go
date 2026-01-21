@@ -20,6 +20,7 @@ func TestConditionalAccessBypass(t *testing.T) {
 		{"ConditionalAccessBypassDevice", testConditionalAccessBypassDevice},
 		{"ConditionalAccessConsumeBypass", testConditionalAccessConsumeBypass},
 		{"ConditionalAccessClearBypasses", testConditionalAccessClearBypasses},
+		{"ConditionalAccessBypassDeletedWithHost", testConditionalAccessBypassDeletedWithHost},
 	}
 
 	for _, c := range cases {
@@ -177,4 +178,41 @@ func testConditionalAccessClearBypasses(t *testing.T, ds *Datastore) {
 	err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access")
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+}
+
+func testConditionalAccessBypassDeletedWithHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	// Create a bypass record for the host
+	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Verify the bypass record exists
+	var count int
+	err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id = ?", host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	// Delete the host
+	err = ds.DeleteHost(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Verify the bypass record was also deleted
+	err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id = ?", host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count, "bypass record should be deleted when host is deleted")
 }
