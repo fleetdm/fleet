@@ -1,47 +1,53 @@
--
-  task: "Recognize and benchmark workiversaries"
+- task: "Recognize and benchmark workiversaries"
   startedOn: "2024-07-15"
   frequency: "Monthly"
-  description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked"
+  description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked."
   moreInfoUrl: "https://fleetdm.com/handbook/people#recognize-employee-workiversaries"
   dri: "ireedy"
   autoIssue:
-    labels: [ ":help-people" ]
+    labels: [":help-people"]
     repo: "confidential"
--
-  task: "Prepare all hands deck"
+- task: "Prepare all hands deck"
   startedOn: "2023-07-01"
   frequency: "Monthly"
-  description: "Preparing the all hands deck"
+  description: "Preparing the all-hands deck."
   moreInfoUrl: "https://fleetdm.com/handbook/people#preparing-for-the-all-hands"
   dri: "ireedy"
   autoIssue:
-    labels: [ ":help-people" ]
+    labels: [":help-people"]
     repo: "confidential"
--
-  task: "Share recording of all hands meeting"
+- task: "Share recording of all hands meeting"
   startedOn: "2023-07-01"
   frequency: "Monthly"
-  description: "Sharing the all hands recording"
+  description: "Share the all-hands recording."
   moreInfoUrl: "https://fleetdm.com/handbook/people#share-recording-of-all-hands-meeting"
   dri: "ireedy"
--
-  task: "Run regular payroll"
+- task: "Downgrade unused license seats"
+  startedOn: "2024-03-31"
+  frequency: "Quarterly"
+  description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter."
+  moreInfoUrl: "https://fleetdm.com/handbook/people#downgrade-an-unused-license-seat"
+  dri: "ireedy"
+- task: "Prepare board deck"
+  startedOn: "2023-09-25"
+  frequency: "Quarterly"
+  description: "Prepare slide deck for the next board meeting."
+  dri: "ireedy"
+- task: "Run regular payroll"
   startedOn: "2024-02-24"
   frequency: "Monthly"
-  description: "Verify auto-populated payroll for all full time employees is accurate, and approve for processing."
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-payroll"
+  description: "Verify auto-populated payroll for all full-time employees is accurate, and approve for processing."
+  moreInfoUrl: "https://fleetdm.com/handbook/poeple#run-payroll"
   dri: "ireedy"
   autoIssue:
-    labels: [ ":help-people" ]
+    labels: [":help-people"]
     repo: "confidential"
--
-  task: "Run US contractor payroll"
+- task: "Run US contractor payroll"
   startedOn: "2024-02-27"
   frequency: "Monthly"
-  description: "Manually process US contractor payroll by verifying and syncing time contractor worked, then processing payment."
-  moreInfoUrl:  "https://fleetdm.com/handbook/finance#run-us-contractor-payroll"
+  description: "Manually process US contractor payroll by verifying and syncing the time the contractor worked, then processing the payment."
+  moreInfoUrl: "https://fleetdm.com/handbook/people#run-us-contractor-payroll"
   dri: "ireedy"
   autoIssue:
-    labels: [ ":help-people" ]
+    labels: [":help-people"]
     repo: "confidential"

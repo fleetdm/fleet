@@ -238,3 +238,12 @@ type SetupExperienceCount struct {
 	Scripts    uint `db:"scripts"`
 	VPP        uint `db:"vpp"`
 }
+
+var SetupExperienceSupportedPlatforms = []string{
+	"macos",
+	"ios",
+	"ipados",
+	"windows",
+	"linux",
+	"android",
+}
