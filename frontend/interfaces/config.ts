@@ -80,6 +80,7 @@ export interface IMdmConfig {
     enable_release_device_manually: boolean | null;
     manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
+    lock_primary_account_info: boolean;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {

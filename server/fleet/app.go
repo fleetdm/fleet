@@ -531,6 +531,7 @@ type MacOSSetup struct {
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
+	LockPrimaryAccountInfo      bool                               `json:"lock_primary_account_info"`
 }
 
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {

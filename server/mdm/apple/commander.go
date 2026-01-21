@@ -324,14 +324,19 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
-func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string, lockPrimaryAccountInfo bool) error {
 	// Build the command dictionary dynamically based on whether fullName is provided
-	// Always include PrimaryAccountFullName when available for pre-population, but don't lock it
+	// Always include PrimaryAccountFullName when available for pre-population
 	var fullNameKey string
 	if fullName != "" {
 		fullNameKey = fmt.Sprintf(`      <key>PrimaryAccountFullName</key>
       <string>%s</string>
 `, fullName)
+	}
+
+	lockValue := "false"
+	if lockPrimaryAccountInfo {
+		lockValue = "true"
 	}
 
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -343,7 +348,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 %s      <key>PrimaryAccountUserName</key>
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
-      <false />
+      <%s />
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
@@ -351,7 +356,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullNameKey, userName, uuid)
+</plist>`, fullNameKey, userName, lockValue, uuid)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }

@@ -234,21 +234,26 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 			}
 			// Otherwise if we got a not found error, we can't enable manual agent install.
 			if *payload.ManualAgentInstall && err != nil {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn't enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting setup experience information")
 			}
 			if sec.Installers != 0 || sec.VPP != 0 {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn't enable manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
 			}
 			if sec.Scripts != 0 {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn't enable manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
 			}
 			ac.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
 			didUpdate = true
 		}
+	}
+
+	if payload.LockPrimaryAccountInfo != nil && ac.MDM.MacOSSetup.LockPrimaryAccountInfo != *payload.LockPrimaryAccountInfo {
+		ac.MDM.MacOSSetup.LockPrimaryAccountInfo = *payload.LockPrimaryAccountInfo
+		didUpdate = true
 	}
 
 	if didUpdate {
