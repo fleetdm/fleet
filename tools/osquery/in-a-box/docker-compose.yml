@@ -136,7 +136,7 @@ services:
       - fleet-preview
 
   s3:
-    image: rustfs/rustfs:1.0.0-alpha.73
+    image: rustfs/rustfs:1.0.0-alpha.80
     entrypoint: sh
     command: -c 'mkdir -p /data/software-installers-preview && /usr/bin/rustfs /data'
     environment:

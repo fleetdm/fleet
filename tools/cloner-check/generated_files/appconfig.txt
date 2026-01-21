@@ -56,6 +56,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	EnableJITRoleSync	bool
 github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	SSOServerURL	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	FleetDesktop	fleet.FleetDesktopSettings
 github.com/fleetdm/fleet/v4/server/fleet/FleetDesktopSettings	TransparencyURL	string
+github.com/fleetdm/fleet/v4/server/fleet/FleetDesktopSettings	AlternativeBrowserHost	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	VulnerabilitySettings	fleet.VulnerabilitySettings
 github.com/fleetdm/fleet/v4/server/fleet/VulnerabilitySettings	DatabasesPath	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	WebhookSettings	fleet.WebhookSettings
@@ -200,5 +201,6 @@ github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaIDPID	opt
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAssertionConsumerServiceURL	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAudienceURI	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaCertificate	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	BypassDisabled	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	strictDecoding	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	didUnmarshalLegacySettings	[]string
