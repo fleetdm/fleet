@@ -99,6 +99,7 @@ type ConditionalAccessSettings struct {
 	OktaAssertionConsumerServiceURL optjson.String `json:"okta_assertion_consumer_service_url"`
 	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
 	OktaCertificate                 optjson.String `json:"okta_certificate"`
+	BypassDisabled                  optjson.Bool   `json:"bypass_disabled"`
 }
 
 // OktaConfigured returns true if all Okta conditional access fields are configured.
