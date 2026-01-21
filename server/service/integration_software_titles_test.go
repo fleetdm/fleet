@@ -84,6 +84,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		TeamID:            &team.ID,
 		DisplayName:       ptr.String(strings.Repeat(" ", 5)),
 	}, http.StatusUnprocessableEntity, "Cannot have a display name that is all whitespace.")
+
 	// Should update the display name even if no other fields are passed
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
@@ -123,6 +124,18 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	s.Assert().Len(resp.SoftwareTitles, 1)
 	s.Assert().Equal("RubyUpdate1", resp.SoftwareTitles[0].DisplayName)
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:           titleID,
+		TeamID:            &team.ID,
+		PostInstallScript: ptr.String("updated post install script"),
+	}, http.StatusOK, "")
+
+	// Entity has display name
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
+	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
 
 	// set self service to true
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
