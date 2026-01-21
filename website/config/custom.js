@@ -177,6 +177,13 @@ module.exports.custom = {
     'handbook/sales': 'sampfluger88',
     'handbook/customer-success': 'zayhanlon',
     'handbook/marketing': 'akuthiala',
+    'handbook/README.md': 'mikermcneil',
+    'handbook/company/README.md': 'mikermcneil',
+    'handbook/company/why-this-way.md': 'mikermcneil',
+    'handbook/company/communications.md': 'mikermcneil',
+    'handbook/company/leadership.md': 'mikermcneil',
+    'handbook/it/security.md': 'allenhouchins',
+    'handbook/company/go-to-market-groups.md': 'sampfluger88',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -320,7 +327,7 @@ module.exports.custom = {
     '.github/workflows': ['sampfluger88', 'lukeheath'],//« CI/CD workflows
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'], // (« for changing who reviews is automatically requested from for given paths)
     '.gitignore': ['lukeheath', 'rfairburn', 'sampfluger88'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
