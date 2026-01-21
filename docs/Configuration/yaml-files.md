@@ -31,7 +31,7 @@ package_path: package_name.yml
 package_path: ../software/package_name.yml
 ```
 
-Specialized API-only users, who can modify configurations via GitOps but cannot access the Fleet UI, can be created through `fleetctl user create` with the `--api-only` flag. For best practices, assign these users the `GitOps` role and specify global or team scope in the UI.
+Specialized API-only users, who can modify configurations via GitOps but cannot access the Fleet UI, can be created through `fleetctl user create` with the `--api-only` flag. Best practice is to assign these users the `GitOps` role and specify global or team scope in the UI.
 
 ## labels
 
