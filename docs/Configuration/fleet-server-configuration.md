@@ -3226,19 +3226,6 @@ The best practice is to set this to 3x the number of new employees (end users) t
     sso_rate_limit_per_minute: 200
   ```
 
-### mdm.apple_vpp_app_store_region
-
-Specify the Apple App Store region. The region affects the availability of apps in Fleet. For example, if you [add apps to Apple Business Manager](https://fleetdm.com/guides/install-app-store-apps#apple-vpp) that aren't available in the `de` region, they won't appear in Fleet.
-
-- Default value: us
-- Environment variable: `FLEET_MDM_APPLE_VPP_APP_STORE_REGION`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_vpp_app_store_region: de
-  ```
-
-
 ### mdm.apple_vpp_app_metadata_api_proxy
 
 By default, Fleet server retrieves metadata for Apple VPP apps via Fleet proxy, using an authentication token hosted on fleetdm.com.
