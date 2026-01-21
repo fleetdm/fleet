@@ -3211,7 +3211,7 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----END RSA PRIVATE KEY-----
   ```
 
-### mdm.sso_rate_limit_per_minute
+### mdm.sso​_rate​_limit​_per​_minute
 
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
 [Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
@@ -3224,6 +3224,44 @@ The best practice is to set this to 3x the number of new employees (end users) t
   ```yaml
   mdm:
     sso_rate_limit_per_minute: 200
+  ```
+
+### mdm.apple_vpp_app_store_region
+
+Override the default region (`us`) for the Apple App Store storefront.
+
+- Default value: us
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_STORE_REGION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_vpp_app_store_region: de
+  ```
+
+
+
+### mdm.apple_vpp_app_metadata_endpoint_url
+
+Override the default region (`us`) for the Apple App Store storefront.
+
+- Default value: ...
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_ENDPOINT_URL`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_vpp_app_metadata_endpoint_url: https://...
+  ```
+
+### mdm.apple_vpp_app_metadata_endpoint_bearer_token
+
+Override the default region (`us`) for the Apple App Store storefront.
+
+- Default value: ...
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_ENDPOINT_BEARER_TOKEN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_vpp_app_metadata_endpoint_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
 ## Partnerships
