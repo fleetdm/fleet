@@ -395,6 +395,55 @@ var (
 				s.Version = newVersion
 			},
 		},
+		{
+			// MacVim uses dual versioning: MacVim release numbers (r178, r179, etc.) and bundled Vim versions (9.0.1897, 9.1.0, etc.)
+			// NVD CVEs reference MacVim release numbers, but Fleet inventories the bundled Vim version from macOS metadata.
+			// See https://github.com/macvim-dev/macvim/releases for version mappings.
+			matches: func(s *fleet.Software) bool {
+				return s.Name == "MacVim" && s.BundleIdentifier == "org.vim.MacVim" && s.Source == "apps"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				vimToMacVimMap := map[string]string{
+					// r182 series
+					"9.1.2068": "182.1", // r182.1 (prerelease)
+					"9.1.1887": "182",   // r182 (stable)
+					// r181 series
+					"9.1.1577": "181.2", // r181.2 (prerelease)
+					"9.1.1251": "181.1", // r181.1 (prerelease)
+					"9.1.1128": "181",   // r181 (stable)
+					// r180 series
+					"9.1.1050": "180.2", // r180.2 (prerelease)
+					"9.1.1000": "180.1", // r180.1 (prerelease)
+					"9.1.0727": "180",   // r180 (stable)
+					// r179 series
+					"9.1.0695": "179.1", // r179.1 (prerelease)
+					"9.1.0":    "179",   // r179 (stable)
+					// r178 series
+					"9.0.1897": "178", // r178 (stable)
+				}
+
+				if macVimRelease, ok := vimToMacVimMap[s.Version]; ok {
+					level.Debug(logger).Log("msg", "converting MacVim Vim version to release number",
+						"original_version", s.Version, "macvim_release", macVimRelease)
+					s.Version = macVimRelease
+				} else {
+					// For unknown versions, leave as-is to avoid false negatives
+					level.Debug(logger).Log("msg", "unknown MacVim Vim version, unable to convert to release number",
+						"version", s.Version)
+				}
+			},
+		},
+		{
+			// Homebrew's "imp" (Integrative Modeling Platform) is incorrectly matched against
+			// Horde IMP CPEs. Rename the Homebrew package to prevent incorrect CPE
+			// matching with horde:imp.
+			matches: func(s *fleet.Software) bool {
+				return s.Name == "imp" && s.Source == "homebrew_packages"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "integrative-modeling-platform"
+			},
+		},
 	}
 )
 
