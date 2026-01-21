@@ -549,6 +549,11 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+		// Associate the host with a SCIM user if one exists. This enables fields like
+		// idp_full_name, idp_groups, and idp_department to appear in the API response.
+		if err := svc.fleetDS.MaybeAssociateHostWithScimUser(ctx, fleetHost.Host.ID); err != nil {
+			level.Error(svc.logger).Log("msg", "failed to associate host with SCIM user", "err", err, "host_id", fleetHost.Host.ID)
+		}
 	}
 
 	// Create pending certificate templates for this newly enrolled host.

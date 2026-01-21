@@ -1,0 +1,1 @@
+- Fixed Android hosts not automatically populating IdP full name, groups, and department fields upon enrollment.
