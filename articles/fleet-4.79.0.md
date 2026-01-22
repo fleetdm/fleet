@@ -1,7 +1,7 @@
 # Fleet 4.79.0 | macOS updates, MDM command history, Android software config, and more...
 
 <div purpose="embedded-content">
-   <iframe src="[https://www.youtube.com/embed/xD4_GhxduAE?si=HQpPtW8V6zEtLzEm](https://www.youtube.com/watch?v=M8r8SUtCiX4)" frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/M8r8SUtCiX4?si=A9LG1v4r42wG8pP_" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.79.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.79.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
