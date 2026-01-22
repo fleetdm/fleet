@@ -136,7 +136,7 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 - Conditional access
 - Certificate Authorities (CAs)
 - Certificate delivery & renewal
-- Encryption
+- Host disk encryption
 - CIS benchmarks 
 
 
@@ -205,7 +205,7 @@ To make a change to Fleet:
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
-Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`), the `:release` label, and notify the product group's Engineer Manager to make sure the changes go through testing (QA) before release.
+Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`), the `:release` label, and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
 
 When an [open source contributor](https://fleetdm.com/handbook/company#open-source) proposes a change in the form of a pull request (PR), the PR will be [reviewed](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and then merged or closed.
 
@@ -400,7 +400,7 @@ After these considerations, if you still think you've found a blocker, alert the
 
 #### Sub-tasks
 
-The simplest way to manage work is to use a single user story issue, then pass it around between contributors/asignees as seldom as possible.  But on a case-by-case basis, for particular user stories and teams, it can sometimes be worthwhile to invest additional overhead in creating separate **unestimated sub-task** issues ("sub-tasks").
+The simplest way to manage work is to use a single user story issue, then pass it around between contributors/assignees as seldom as possible.  But on a case-by-case basis, for particular user stories and teams, it can sometimes be worthwhile to invest additional overhead in creating separate **unestimated sub-task** issues ("sub-tasks").
 
 A user story is estimated to fit within 1 sprint and drives business value when released, independent of other stories.  Sub-tasks are not.
 
@@ -503,8 +503,8 @@ New requests are reviewed daily by the Head of Product Design and a former IT ad
 To prioritize a new feature, it must meet one of these criteria:
 
 1. Bug
-2. Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
-3. Contributes to Fleet's [near-term roadmap](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063).
+2. Small UX improvement (`~spiffier` label) that isn't quite a bug but it's so small that it's worthwhile
+3. Contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year (`~product-maturity` label)
 4. Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
 5. Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
 
@@ -974,6 +974,27 @@ Each sprint is marked by five essential ceremonies:
 5. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review the next release. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 6. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
 
+
+### Working through the sprint
+
+At sprint kickoff, the EM or TL may assign planned issues to specific contributors. Other planned sprint work may remain unassigned until a contributor is ready to pick it up.
+
+1. **Aim for one issue in progress at a time.** When possible, complete the current task before starting another. Do not self-assign issues until you are ready to work on them.
+2. **Pick up unassigned sprint work as tasks complete.** When an issue moves to the next stage (e.g., ready for QA), if you have no other planned issues assigned to you, select the next unassigned item from the sprint board.
+3. **Help finish sprint work when all planned items are assigned.** If no unassigned sprint work remains:
+   - Assist with engineering QA for in-flight issues.
+   - Help complete sub-issues for active user stories.
+4. **Look ahead when sprint work is done.** If all sprint work is complete or blocked, check the team's drafting board for issues in the "Estimated" column. Prioritize unreleased bugs over released bugs.
+
+#### Bug prioritization
+
+When selecting which bug to work on next, prioritize in the following order:
+
+1. **P0, P1, P2 bugs**: High-priority bugs take precedence over all other bugs.
+2. **Customer bugs**: Bugs with a `customer-` label are prioritized because they directly impact customers.
+3. **Flaky tests**: Flaky tests impact engineering velocity and should be addressed promptly.
+4. **Dogfood issues**: Bugs with the `~dogfood` label are prioritized because we have the best context for reproducing and fixing them.
+5. **Oldest bugs**: Among remaining bugs, work on the oldest first.
 
 ## Outside contributions
 

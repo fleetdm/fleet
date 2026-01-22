@@ -511,6 +511,8 @@ type SoftwareTitleListOptions struct {
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
 	Platform            string  `query:"platform,optional"`
+	HashSHA256          string  `query:"hash_sha256,optional"`
+	PackageName         string  `query:"package_name,optional"`
 
 	// ForSetupExperience is an internal flag set when listing software via the
 	// setup experience endpoint, so that it filters out any software available
@@ -610,9 +612,12 @@ func (hse *HostSoftwareEntry) UnmarshalJSON(b []byte) error {
 }
 
 type PathSignatureInformation struct {
-	InstalledPath  string  `json:"installed_path"`
-	TeamIdentifier string  `json:"team_identifier"`
-	HashSha256     *string `json:"hash_sha256"`
+	InstalledPath  string `json:"installed_path"`
+	TeamIdentifier string `json:"team_identifier"`
+	// json struct tag difference here is for backwards compatibility. API field was initially "hash_sha256", though it is specifically the CD hash (sha256).
+	CDHashSHA256     *string `json:"hash_sha256"`
+	ExecutableSHA256 *string `json:"executable_sha256"`
+	ExecutablePath   *string `json:"executable_path"`
 }
 
 // HostSoftware is the set of software installed on a specific host

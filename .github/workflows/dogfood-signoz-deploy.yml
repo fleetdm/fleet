@@ -1,0 +1,85 @@
+name: Deploy Dogfood SigNoz
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Terraform workspace to deploy SigNoz into."
+        required: true
+        default: "fleet"
+      dry_run:
+        description: Dry run only? No "terraform apply"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+    working-directory: infrastructure/dogfood/terraform/aws-tf-module/signoz
+
+env:
+  AWS_REGION: us-east-2
+  AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
+  TF_ACTIONS_WORKING_DIR: infrastructure/dogfood/terraform/aws-tf-module/signoz
+  TF_WORKSPACE: ${{ github.event.inputs.workspace }}
+  TF_VAR_otel_bearer_token: ${{ secrets.DOGFOOD_SIGNOZ_OTEL_BEARER_TOKEN }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Dogfood SigNoz
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - id: fail-on-main
+        run: "false"
+        if: ${{ github.ref == 'main' }}
+
+      - uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
+        with:
+          role-to-assume: ${{ env.AWS_IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
+        with:
+          terraform_version: 1.10.2
+          terraform_wrapper: false
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@18a212d6b26e63d2e08d083e82f0597a6095f08c # v4.0.0
+        with:
+          version: v1.31.0
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --region "${AWS_REGION}" --name signoz
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+      - name: Terraform fmt
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color
+        continue-on-error: true
+      - name: Terraform Apply
+        if: inputs.dry_run == false
+        id: apply
+        run: terraform apply -auto-approve

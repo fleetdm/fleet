@@ -70,6 +70,7 @@ data "aws_iam_policy_document" "gha-permissions" {
       "s3:*",
       "lambda:*",
       "ecs:*",
+      "eks:*",
       "rds:*",
       "rds-data:*",
       "secretsmanager:*",

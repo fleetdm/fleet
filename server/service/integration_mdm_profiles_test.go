@@ -1030,15 +1030,17 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 		// report osquery results with N2 missing and confirm N2 marked
 		// as verifying and other profiles are marked as verified
+
 		reportHostProfs("N1")
-		expectedProfileStatuses["N2"] = fleet.MDMDeliveryPending
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryPending
 		checkProfilesStatus(t)
 		expectedRetryCounts["N2"] = 1
 		checkRetryCounts(t)
 
 		// report osquery results with N2 present and confirm that all profiles are verified
 		verifyCommands(1, syncml.CmdStatusOK)
+
 		reportHostProfs("N1", "N2")
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
 		checkProfilesStatus(t)
@@ -1206,6 +1208,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		"N1": {{"200", "L1", "D1"}},
 		"N2": {{"200", "L2", "D2"}, {"200", "L3", "D3"}},
 	}
+
 	reportHostProfs := func(profileNames ...string) {
 		selectedReports := make(map[string][]profileData)
 		for _, name := range profileNames {
@@ -3435,7 +3438,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Configuration profiles can't be signed. Fleet wil sign the profile for you.")
+	require.Contains(t, errMsg, "Configuration profiles can't be signed. Fleet will sign the profile for you.")
 
 	// Apple/Android invalid json declaration
 	body, headers = generateNewProfileMultipartRequest(t,
@@ -8379,11 +8382,15 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 		profilePayload := syncml.ForTestWithData([]syncml.TestCommand{
 			{Verb: "Add", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/AllowLocation", Data: "1"},
 		})
+		profilePayloadNonAtomic := syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+			{Verb: "Add", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/AtomicLocation", Data: "1"},
+		})
 
 		profileName := "RetryProfile"
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: profileName, Contents: profilePayload},
+				{Name: profileName + "NonAtomic", Contents: profilePayloadNonAtomic},
 			}},
 			http.StatusNoContent)
 
@@ -8424,13 +8431,26 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 			if cmd.Verb == "Status" {
 				continue
 			}
-			syncCmd := fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmd.Cmd.CmdID.Value,
-				Cmd:     ptr.String(cmd.Verb),
-				Data:    ptr.String(syncml.CmdStatusAtomicFailed),
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+
+			var syncCmd fleet.SyncMLCmd
+			if cmd.Verb == "Atomic" {
+				syncCmd = fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmd.Cmd.CmdID.Value,
+					Cmd:     ptr.String(cmd.Verb),
+					Data:    ptr.String(syncml.CmdStatusAtomicFailed),
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				}
+			} else {
+				syncCmd = fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmd.Cmd.CmdID.Value,
+					Cmd:     ptr.String(cmd.Verb),
+					Data:    ptr.String(syncml.CmdStatusAlreadyExists),
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				}
 			}
 			mdmDevice.AppendResponse(syncCmd)
 
@@ -8449,9 +8469,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 				}
 			}
 		}
-		cmds, err = mdmDevice.SendResponse() // we have atomic replace (resend after 418 attempt in this cmd list here)
+		cmds, err = mdmDevice.SendResponse() // we have atomic replace and normal replace (resend after 418 attempt in this cmd list here)
 		require.NoError(t, err)
-		require.Len(t, cmds, 2) // stsatus + atomic replace
+		require.Len(t, cmds, 3) // status + atomic replace + replace
 
 		// After initial 418 resend: pending, empty detail, retries = 0.
 		profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)

@@ -11,7 +11,7 @@ All team members should attend the "All hands" every month.  "All hands" meeting
 
 ### E-group 
 
-Every week, the "Executive" or "E-group", including the CEO, CTO, Head of Product Design, CRO, CFO, VP of Customer Success, and Head of Digital Workplace & GTM Systems, will hold a 30-minute "¶ 🗣 Roundup (E-Group)" meeting to discuss the company's immediate needs and address any blockers.
+Every week, the "Executive" or "E-group", including the CEO, CTO, Head of Product Design, CRO, CFO, VP of Customer Success, will hold a 30-minute "¶ 🗣 Roundup (E-Group)" meeting to discuss the company's immediate needs and address any blockers.
 
 Every three weeks, the E-group will meet for a more in-depth discussion immediately following the "¶ 🗣 Roundup (E-Group)" meeting, regarding the achievement of strategic short and long-term company goals. This is the "¶ 🗣 E-Group review" meeting, typically held from 3-5pm CT.  If one of the department heads cannot attend this meeting, the Executive Assistant will reschedule the E-group review as close to the original time as possible, while verifying that all E-group members can attend. 
 
@@ -21,6 +21,8 @@ The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13
 ### Strategy
 
 You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
+
+You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our prospects.
 
 You can find all planned events in the ["🎪 Events" (private Google doc)](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1931288160#gid=1931288160).  And in the [📈 OKRs (private Google doc)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=1846478041), you can read about:
 - Current and upcoming quarterly goals, and the company's progress towards them
@@ -33,7 +35,7 @@ The ambition of Fleet's product roadmap is to reach [product maturity](http://fl
 
 ## Security 
 
-Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/finance/security#human-resources-security-policy), [carry Yubikeys](https://fleetdm.com/handbook/finance/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/finance/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/finance/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/finance/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
+Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), [carry Yubikeys](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
 
 
 ### Trust
@@ -59,13 +61,14 @@ Fleet is successful because of our customers and community, and those relationsh
 | Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Video                                | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Social media                         | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Events                               | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Swag                                 | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Onboarding and training              | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
 | Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
-| Information technology (IT)          | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
-| Internal tools & equipment           | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
+| Information technology (IT)          | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it#team)_</sup></sub>
+| Internal tools & equipment           | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it#team)_</sup></sub>
 | Bookkeeping, AR/AP                   | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
 | Legal contracts                      | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
 | Customer renewals                    | <sup><sub>_See [🌦️ VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
@@ -86,7 +89,7 @@ Fleet is successful because of our customers and community, and those relationsh
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
-| Fleet-maintained apps                  | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
+| Fleet-maintained apps                  | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
 
 
 
@@ -113,7 +116,7 @@ Fleet is successful because of our customers and community, and those relationsh
 > ***Zoom***
 > We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings. By default, some settings have been intentionally locked and can't be changed, but others can be adjusted on your [profile settings](https://zoom.us/profile/setting) page.
 >
-> Need help with Zoom? Reach out to 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us).
+> Need help with Zoom? Reach out to 🌐 [IT](https://fleetdm.com/handbook/it#contact-us).
 
 
 ### Recording meetings
@@ -124,11 +127,11 @@ Capturing video from meetings with customers, prospects, and community members o
   - If the call has external participants and is recorded, this call is stored in Gong for future use. 
 To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
   - Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). 
-If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us) for help. They will delete it immediately without watching the video. 
+If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to 🌐 [IT](https://fleetdm.com/handbook/it#contact-us) for help. They will delete it immediately without watching the video. 
   - Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. 
 
 Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. 
-Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us) if you have questions or concerns.  
+Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, 🌐 [IT](https://fleetdm.com/handbook/it#contact-us) if you have questions or concerns.  
 
 
 > ***Excluding calls from being recorded***
@@ -167,7 +170,7 @@ Our Zoom meetings are configured to let participants join before the host arrive
 **External meetings**: When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. 
 
-> Need a Calendly account? Reach out to 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us).
+> Need a Calendly account? Reach out to 🌐 [IT](https://fleetdm.com/handbook/it#contact-us).
 
 It is important to [set your working hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 
@@ -179,7 +182,7 @@ It is also common practice to block out time for focused work. In an all-remote 
 ["**No agenda, no attenda**."](https://about.gitlab.com/company/culture/all-remote/live-doc-meetings/#gitlab-meeting-best-practices) Every work-related meeting should have an editable agenda (e.g. edit access shared with all attendees) attached to the calendar invite. 
 - To create a meeting agenda please make a copy of [Fleet's meeting template](https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/copy).
 
-> Tired of making agendas manually? Ask the 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us) about our [meeting notes automation](https://fleetdm.zoom.us/clips/share/Gd69AuhMSqGIN7NE8JxPvA). Please do not use Google Calendar's automatic agenda/notes creation function, as it does not adhere to Fleet's preferred agenda format. If the automatic agenda doc has been created in error, edit the calendar invite to delete it from the meeting to avoid confusion.
+> Tired of making agendas manually? Ask the 💸 [GTM Systems Architect](https://fleetdm.com/handbook/finance#contact-us) about our [meeting notes automation](https://fleetdm.zoom.us/clips/share/Gd69AuhMSqGIN7NE8JxPvA). Please do not use Google Calendar's automatic agenda/notes creation function, as it does not adhere to Fleet's preferred agenda format. If the automatic agenda doc has been created in error, edit the calendar invite to delete it from the meeting to avoid confusion.
 
 
 ### Modifying an event organized by someone else
@@ -191,7 +194,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 ### Shared calendars
 
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
-Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) and the appropriate DRI will reply with feedback.
+Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/people#contact-us) and the appropriate DRI will reply with feedback.
 
 ### 1:1 meetings 
 
@@ -224,7 +227,7 @@ There are [several special email addresses](https://docs.google.com/document/d/1
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with the CEO, Executive Assistant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Executive Assistant, Head of People, GTM Systems Architect, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -233,7 +236,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and Head of Digital Workplace & GTM Systems)_
+- **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and GTM Systems Architect)_
 
 
 ## Company database
@@ -252,7 +255,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 - To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
-> **Need an app that you don't see in Fleet Slack?** [Create a IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) to request an app be added to the Fleet Slack workspace.
+> **Need an app that you don't see in Fleet Slack?** [Create a IT issue](https://fleetdm.com/handbook/it#contact-us) to request an app be added to the Fleet Slack workspace.
 
 
 ### Key Slack channels
@@ -287,7 +290,7 @@ Any change to fleetdm.com follows the same process as [making changes](https://f
 
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
-The [IT & Enablement team](https://fleetdm.com/handbook/it-and-enablement#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
+The [Product Design](https://fleetdm.com/handbook/product-design#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
 
 ## Design at Fleet
@@ -354,7 +357,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 > ***Create an issue from a Slack message***
 >
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
-> - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [#g-it-and-enablement](https://github.com/fleetdm/confidential/issues#workspaces/g-it-and-enablement-6451748b4eb15200131d4bab/board) kanban board.
+> - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [:help-it](https://github.com/orgs/fleetdm/projects/101) kanban board.
 
 
 
@@ -366,7 +369,14 @@ To process intake team members will:
 - Inspect each item in the "📨 New requests" column and understand the next steps needed to complete the task.
 - Indicate to the requestor when they can expect the task to be completed by placing each item in the appropriate column (e.g. Not yet, Planned, In progress) and estimate if necessary.
 - If the goal/user story is unclear, assign the issue to the requestor and at-mention them in an issue comment asking to clarify the intended action. 
-- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed. 
+- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.
+
+
+
+### Propose an event
+
+Fleet's Marketing team is responsible for deciding/signing off on the events Fleet will participate in. To propose an event, complete the steps in the [Propose event issue](https://github.com/fleetdm/confidential/issues/new?template=prepare-event.md). Once the requester has completed all steps, the marketing team will process your request within 72 business hours.
+
 
 
 ### Estimation points
@@ -480,7 +490,7 @@ When attending a conference or traveling for Fleet, keep the following in mind:
 - **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
 - **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
 - **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
-- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/it-and-enablement#contact-us) by providing the following information:
+- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/finance#contact-us) by providing the following information:
   - The start and end dates for your trip.
   - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
   - The [price of your hotel or Airbnb](https://fleetdm.com/handbook/company/communications#lodging) per night
@@ -558,12 +568,12 @@ Your Brex card may be used for up to $500 USD per month in coworking costs. Plea
 
 ### Relocating
 
-When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
+When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/people#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
 ## Tools and equipment
 
-Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) on the 🌐 IT & Enablement kanban board.
+Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
 
 
 ### Requesting new equipment
@@ -572,7 +582,7 @@ As soon as an offer is accepted, IT & Enablement will reach out to the new team 
 
 - **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
 
-- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Workplace & GTM Systems. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
+- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of IT. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 
 - **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
@@ -581,7 +591,7 @@ As soon as an offer is accepted, IT & Enablement will reach out to the new team 
 
 #### Requesting IT support
 
-If you are in need of IT support, reach out to 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us) to assist with a software or hardware issue. [Open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement%2C%3Ait-gtm&projects=&template=1-custom-request.md&title=) and a Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
+If you are in need of IT support, reach out to 🌐 [IT](https://fleetdm.com/handbook/it#contact-us) to assist with a software or hardware issue. [Open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) and a Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
 
 
 ## Taking time off
@@ -650,7 +660,7 @@ Variable compensation (i.e. commission) is reviewed and submitted for processing
 
 #### Compensation changes
 
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/people#update-a-team-members-compensation).
 
 
 #### Exercise stock options
@@ -801,10 +811,10 @@ For below, please see 📖[handbook/company/communications#issue-labels](https:/
 For above, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/communications#issue-labels).
 
 ##### Vulnerability monitoring
-Please see 📖[handbook/it-and-enablement#check-production-dependencies-of-fleetdm-com](https://fleetdm.com/handbook/it-and-enablement#check-production-dependencies-of-fleetdm-com).
+Please see 📖[handbook/engineering#check-production-dependencies-of-fleetdm-com](https://fleetdm.com/handbook/engineering#check-production-dependencies-of-fleetdm-com).
 
 ##### Testing changes
-Please see 📖[handbook/it-and-enablement#test-fleetdm-com-locally](https://fleetdm.com/handbook/it-and-enablement#test-fleetdm-com-locally).
+Please see 📖[handbook/engineering#test-fleetdm-com-locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally).
 
 ##### Cloudflare
 Please see 📖[handbook/engineering#edit-a-dns-record](https://fleetdm.com/handbook/engineering#edit-a-dns-record).

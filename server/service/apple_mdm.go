@@ -502,7 +502,7 @@ func CheckProfileIsNotSigned(data []byte) error {
 	mc := mobileconfig.Mobileconfig(data)
 	if mc.IsSignedProfile() {
 		return &fleet.BadRequestError{
-			Message: "Couldn't add. Configuration profiles can't be signed. Fleet wil sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles",
+			Message: "Couldn't add. Configuration profiles can't be signed. Fleet will sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles",
 		}
 	}
 	return nil
@@ -3958,6 +3958,73 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 	return nil, nil
 }
 
+var versionPattern = regexp.MustCompile(
+	`^v?\s*(\d+(?:\.\d+)*)\s*$`,
+)
+
+// trimLeadingZeros converts "00123" → "123", "000" → "0", "0" → "0"
+func trimLeadingZeros(s string) string {
+	s = strings.TrimLeft(s, "0")
+	if s == "" {
+		return "0"
+	}
+	return s
+}
+
+// toValidSemVer is a best effort transformation to make `version` a valid semantic version.
+// Currently doesn't support fixing versions that have non-numerical pre-release strings (because
+// we haven't seen those in the wild for the apps where this method is used, currently VPP apps).
+func toValidSemVer(version string) string {
+	// Cleanup spaces.
+	version = strings.TrimSpace(version)
+	if version == "" {
+		// Empty version, nothing to clean up.
+		return version
+	}
+
+	versionModified := strings.ReplaceAll(version, "-", ".")
+	matches := versionPattern.FindStringSubmatch(versionModified)
+	if matches == nil {
+		// May not be a valid version string, nothing we can do.
+		return version
+	}
+
+	partsStr := matches[1]
+	parts := strings.Split(partsStr, ".")
+
+	// Clean each numeric part (remove leading zeros)
+	// Leading zeros are not valid in semantic versioning.
+	cleanParts := make([]string, 0, len(parts))
+	for _, p := range parts {
+		clean := trimLeadingZeros(p)
+		cleanParts = append(cleanParts, clean)
+	}
+
+	switch len(cleanParts) {
+	case 1: // major
+		version = cleanParts[0]
+	case 2: // major.minor
+		version = fmt.Sprintf("%s.%s", cleanParts[0], cleanParts[1])
+	case 3: // major.minor.patch
+		version = fmt.Sprintf("%s.%s.%s", cleanParts[0], cleanParts[1], cleanParts[2])
+	case 4: // major.minor.patch.build
+		build := cleanParts[3]
+		if build == "0" {
+			version = fmt.Sprintf("%s.%s.%s", cleanParts[0], cleanParts[1], cleanParts[2])
+		} else {
+			version = fmt.Sprintf("%s.%s.%s-%s", cleanParts[0], cleanParts[1], cleanParts[2], build)
+		}
+	default: // For safety: more than 4 parts, take first 3 + rest as pre-release.
+		version = fmt.Sprintf("%s.%s.%s-%s",
+			cleanParts[0],
+			cleanParts[1],
+			cleanParts[2],
+			strings.Join(cleanParts[3:], "."))
+	}
+
+	return version
+}
+
 func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	ctx context.Context,
 	host *fleet.Host,
@@ -4085,7 +4152,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	)
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithinUpdateSchedule {
 		// Load software title.
-		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, host.TeamID, fleet.TeamFilter{})
+		teamID := host.TeamID
+		if teamID == nil {
+			teamID = ptr.Uint(0)
+		}
+		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, teamID, fleet.TeamFilter{})
 		if err != nil {
 			level.Error(logger).Log(
 				"msg", "software title by id",
@@ -4142,6 +4213,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
+		installedVersion = toValidSemVer(installedVersion)
 		if installedVersion == "" {
 			// software.Version is empty when !software.Installed, which means the software is installing (see unmarshalAppList).
 			// Here's a sample:
@@ -4168,18 +4240,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		if _, err := fleet.VersionToSemverVersion(softwareTitle.AppStoreApp.LatestVersion); err != nil {
+		latestVersion := toValidSemVer(softwareTitle.AppStoreApp.LatestVersion)
+		if _, err := fleet.VersionToSemverVersion(latestVersion); err != nil {
 			level.Error(logger).Log(
 				"msg", "invalid latest version",
-				"version", softwareTitle.AppStoreApp.LatestVersion,
+				"version", latestVersion,
 			)
 			continue
 		}
-		if fleet.CompareVersions(softwareTitle.AppStoreApp.LatestVersion, installedVersion) != 1 {
+		if fleet.CompareVersions(latestVersion, installedVersion) != 1 {
 			// Installed version is equal or higher than latest version, so nothing to do here.
 			level.Debug(logger).Log(
 				"msg", "skipping software version",
-				"latest_version", softwareTitle.AppStoreApp.LatestVersion,
+				"latest_version", latestVersion,
 				"installed_version", installedVersion,
 			)
 			continue
