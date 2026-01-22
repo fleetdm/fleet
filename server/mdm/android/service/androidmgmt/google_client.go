@@ -36,8 +36,8 @@ type GoogleClient struct {
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &GoogleClient{}
 
-func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getEnv dev_mode.GetEnv) Client {
-	androidServiceCredentials := getEnv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
+func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv dev_mode.GetEnv) Client {
+	androidServiceCredentials := getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		return nil
 	}
