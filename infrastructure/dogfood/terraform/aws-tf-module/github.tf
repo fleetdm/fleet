@@ -105,4 +105,12 @@ data "aws_iam_policy_document" "gha-permissions" {
     ]
     resources = ["*"]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "sts:AssumeRole"
+    ]
+    resources = ["arn:aws:iam::353365949058:role/terraform-dogfood"]
+  }
 }
