@@ -127,8 +127,8 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	setIfEmpty(&cfg.S3.SoftwareInstallersSecretAccessKey, "locals3")
 	if cfg.S3.SoftwareInstallersAccessKeyID == "locals3" && cfg.S3.SoftwareInstallersSecretAccessKey == "locals3" {
 		// can't rely on zero values
-		cfg.S3.CarvesDisableSSL = true
-		cfg.S3.CarvesForceS3PathStyle = true
+		cfg.S3.SoftwareInstallersDisableSSL = true
+		cfg.S3.SoftwareInstallersForceS3PathStyle = true
 	}
 }
 
