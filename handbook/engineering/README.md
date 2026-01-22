@@ -132,7 +132,7 @@ To provide full-time focus to the role, the business hours on-call engineer is n
 
 Engineering Managers are asked to be aware of the [after-hours incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the after-hours incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
 
-After-hours incident on-call engineers are available outside the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time outside business hours to any `@incident-oncall` mention.
+After-hours incident on-call engineers are available outside the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time outside business hours to any `@incident-oncall` mention. To assist with this SLA, all mentions will be triaged as incidents in incident.io.
 
 
 #### Assume after hours on-call engineer alias
