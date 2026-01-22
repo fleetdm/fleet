@@ -141,6 +141,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncry
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableEndUserAuthentication	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	LockPrimaryAccountInfo	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSSetupAssistant	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableReleaseDeviceManually	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	Script	optjson.String
