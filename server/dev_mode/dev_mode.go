@@ -1,6 +1,9 @@
 package dev_mode
 
-import "os"
+import (
+	"os"
+	"testing"
+)
 
 var IsEnabled bool
 
@@ -19,9 +22,15 @@ func Env(name string) string {
 	return os.Getenv(name)
 }
 
-func SetOverride(name string, value string) {
+func SetOverride(name string, value string, cleanup ...*testing.T) { // optional parameter to reset on test cleanup
 	IsEnabled = true // if we're setting overrides, we're in a test environment so want to turn dev mode on
 	envOverrides[name] = value
+
+	if len(cleanup) > 0 {
+		cleanup[0].Cleanup(func() {
+			ClearOverride(name)
+		})
+	}
 }
 
 func ClearOverride(name string) {

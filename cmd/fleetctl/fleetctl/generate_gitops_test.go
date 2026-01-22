@@ -786,8 +786,7 @@ func configureFMAManifestServer(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(manifestServer.Close)
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	t.Cleanup(func() { os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL") })
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 }
 
 func TestGenerateGitops(t *testing.T) {

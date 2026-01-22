@@ -25,7 +25,7 @@ func TestGetLatest(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	defer srv.Close()
-	t.Setenv("FLEET_DEV_GDMF_URL", srv.URL)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
 
 	// test the function
 	d := fleet.MDMAppleMachineInfo{

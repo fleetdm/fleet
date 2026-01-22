@@ -12,8 +12,7 @@ import (
 
 func TestGetBaseURL(t *testing.T) {
 	t.Run("with env variable", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-testing.fleetdm.com")
-		defer dev_mode.ClearAllOverrides()
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-testing.fleetdm.com", t)
 		require.Equal(t, "https://download-testing.fleetdm.com", getBaseURL())
 	})
 
@@ -39,7 +38,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, json.NewEncoder(w).Encode(expectedMetadata))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL)
+	dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL, t)
 
 	meta, err := GetMetadata()
 	require.NoError(t, err)
@@ -48,7 +47,7 @@ func TestGetMetadata(t *testing.T) {
 
 func TestGetMetadataErrorScenarios(t *testing.T) {
 	t.Run("invalid URL", func(t *testing.T) {
-		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "://invalid-url")
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "://invalid-url", t)
 		_, err := GetMetadata()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid URL")
@@ -59,7 +58,7 @@ func TestGetMetadataErrorScenarios(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
 		t.Cleanup(server.Close)
-		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL)
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL, t)
 
 		_, err := GetMetadata()
 		require.Error(t, err)
@@ -74,7 +73,7 @@ func TestGetMetadataErrorScenarios(t *testing.T) {
 			require.NoError(t, err)
 		}))
 		t.Cleanup(server.Close)
-		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL)
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL, t)
 
 		_, err := GetMetadata()
 		require.Error(t, err)
@@ -84,7 +83,7 @@ func TestGetMetadataErrorScenarios(t *testing.T) {
 
 func TestGetPKGManifestURL(t *testing.T) {
 	t.Run("with env variable", func(t *testing.T) {
-		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-test.fleetdm.com")
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-test.fleetdm.com", t)
 		require.Equal(t, "https://download-test.fleetdm.com/stable/fleetd-base-manifest.plist", GetPKGManifestURL())
 	})
 
