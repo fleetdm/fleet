@@ -113,6 +113,26 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
   - ONLY for flights where the first leg crosses international borders, then allow 90m for water and boarding.  (This is because they blockade international gates and make you wait in line AND the boarding time is longer.)  Otherwise it's always 30m, no matter what.
   - 30 minutes for customs and redoing security when entering the US or entering any different country on any connection flight, even if there are other connections.
 
+The CEO's calendar should reflect the following schedule (all times are default assumptions and subject to change depending on senario):
+- 45 min for time to pack.
+  - Calendar event name: 🧳 Pack
+- Travel time from the CEO's home to the airport, assume 30 min for this. 
+  - Calendar event name: Travel to NAME_OF_AIRPORT
+  - Location: Address of the airport the CEO is flying from.
+- Time30min for 🕶️ security 
+30min Get water and boarding
+🛫
+🛬
+30min Get water
+Uber to hotel or wherever he needs to go (with location in event)
+Check in to hotel (30 min)
+(Side quest along the way) 
+🚌Travel
+🪥Find a toothbrush
+🚌Travel
+Or Uber home
+
+
 
 ### Schedule CEO interview
 
