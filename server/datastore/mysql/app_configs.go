@@ -36,13 +36,18 @@ func (ds *Datastore) GetCurrentTime(ctx context.Context) (time.Time, error) {
 }
 
 func (ds *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	return appConfigDB(ctx, ds.reader(ctx))
+	return appConfigDB(ctx, ds.reader(ctx), ds.serverPrivateKey)
 }
 
-func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, error) {
+func appConfigDB(ctx context.Context, q sqlx.QueryerContext, serverPrivateKey string) (*fleet.AppConfig, error) {
 	info := &fleet.AppConfig{}
-	var bytes []byte
-	err := sqlx.GetContext(ctx, q, &bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
+
+	// Query both the JSON value and the encrypted Google Calendar API key
+	var row struct {
+		JSONValue       []byte `db:"json_value"`
+		EncryptedApiKey []byte `db:"google_calendar_api_key_encrypted"`
+	}
+	err := sqlx.GetContext(ctx, q, &row, `SELECT json_value, google_calendar_api_key_encrypted FROM app_config_json LIMIT 1`)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "selecting app config")
 	}
@@ -52,26 +57,165 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 
 	info.ApplyDefaults()
 
-	err = json.Unmarshal(bytes, info)
+	err = json.Unmarshal(row.JSONValue, info)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling config")
 	}
+
+	// Decrypt the Google Calendar API key if present
+	if len(row.EncryptedApiKey) > 0 {
+		if serverPrivateKey == "" {
+			return nil, ctxerr.New(ctx, "server private key is required to read Google Calendar integration. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+		decryptedApiKey, err := decrypt(row.EncryptedApiKey, serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "decrypting Google Calendar API key")
+		}
+		var apiKey map[string]string
+		if err := json.Unmarshal(decryptedApiKey, &apiKey); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling decrypted Google Calendar API key")
+		}
+		// Set the API key on the first Google Calendar integration
+		if len(info.Integrations.GoogleCalendar) > 0 {
+			info.Integrations.GoogleCalendar[0].ApiKey = apiKey
+		}
+	}
+
 	return info, nil
 }
 
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		configBytes, err := json.Marshal(info)
+		// Check if there's a Google Calendar API key to encrypt
+		var encryptedApiKey []byte
+		configToSave := info
+
+		if len(info.Integrations.GoogleCalendar) > 0 && len(info.Integrations.GoogleCalendar[0].ApiKey) > 0 {
+			// Google Calendar has an API key - we need to encrypt it
+			if ds.serverPrivateKey == "" {
+				return ctxerr.New(ctx, "server private key is required to configure Google Calendar integration. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			}
+
+			// Encrypt the API key
+			apiKeyJSON, err := json.Marshal(info.Integrations.GoogleCalendar[0].ApiKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "marshaling Google Calendar API key")
+			}
+			encryptedApiKey, err = encrypt(apiKeyJSON, ds.serverPrivateKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "encrypting Google Calendar API key")
+			}
+
+			// Create a copy of the config with the API key cleared from the JSON
+			configToSave = info.Copy()
+			for _, gc := range configToSave.Integrations.GoogleCalendar {
+				gc.ApiKey = nil
+			}
+		}
+
+		configBytes, err := json.Marshal(configToSave)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marshaling config")
 		}
 
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
-			configBytes,
+			`INSERT INTO app_config_json(json_value, google_calendar_api_key_encrypted) VALUES(?, ?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value), google_calendar_api_key_encrypted = VALUES(google_calendar_api_key_encrypted)`,
+			configBytes, encryptedApiKey,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert app_config_json")
+		}
+
+		return nil
+	})
+}
+
+// MigrateGoogleCalendarApiKeyEncryption migrates any existing plaintext Google Calendar API key
+// stored in the json_value column to the encrypted google_calendar_api_key_encrypted column.
+// This is called by a worker job after the database migration that adds the encrypted column.
+func (ds *Datastore) MigrateGoogleCalendarApiKeyEncryption(ctx context.Context) error {
+	if ds.serverPrivateKey == "" {
+		return ctxerr.New(ctx, "server private key is required to migrate Google Calendar API key encryption")
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Read the current app config JSON and encrypted column
+		var row struct {
+			JSONValue       []byte `db:"json_value"`
+			EncryptedApiKey []byte `db:"google_calendar_api_key_encrypted"`
+		}
+		err := sqlx.GetContext(ctx, tx, &row,
+			`SELECT json_value, google_calendar_api_key_encrypted FROM app_config_json LIMIT 1`)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// No app config, nothing to migrate
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "reading app_config_json for migration")
+		}
+
+		// If already encrypted, nothing to do
+		if len(row.EncryptedApiKey) > 0 {
+			return nil
+		}
+
+		// Parse the JSON to extract Google Calendar config
+		var config struct {
+			Integrations struct {
+				GoogleCalendar []struct {
+					Domain string            `json:"domain"`
+					ApiKey map[string]string `json:"api_key_json"`
+				} `json:"google_calendar"`
+			} `json:"integrations"`
+		}
+		if err := json.Unmarshal(row.JSONValue, &config); err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshaling app_config_json for migration")
+		}
+
+		// Check if there's any Google Calendar integration with an API key to migrate
+		var apiKeyToEncrypt map[string]string
+		for _, gc := range config.Integrations.GoogleCalendar {
+			if len(gc.ApiKey) > 0 {
+				apiKeyToEncrypt = gc.ApiKey
+				break
+			}
+		}
+
+		if apiKeyToEncrypt == nil {
+			// No API key to migrate
+			return nil
+		}
+
+		// Encrypt the API key
+		apiKeyJSON, err := json.Marshal(apiKeyToEncrypt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshaling Google Calendar API key for encryption")
+		}
+		encryptedApiKey, err := encrypt(apiKeyJSON, ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypting Google Calendar API key")
+		}
+
+		// Now we need to update the JSON to remove the plaintext api_key_json.
+		// We'll re-parse the full config, clear the api_key_json, and marshal it back.
+		var fullConfig fleet.AppConfig
+		if err := json.Unmarshal(row.JSONValue, &fullConfig); err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshaling full app_config for migration")
+		}
+		for _, gc := range fullConfig.Integrations.GoogleCalendar {
+			gc.ApiKey = nil
+		}
+		updatedJSON, err := json.Marshal(fullConfig)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshaling updated app_config for migration")
+		}
+
+		// Update both columns
+		_, err = tx.ExecContext(ctx,
+			`UPDATE app_config_json SET json_value = ?, google_calendar_api_key_encrypted = ?`,
+			updatedJSON, encryptedApiKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating app_config_json with encrypted Google Calendar API key")
 		}
 
 		return nil

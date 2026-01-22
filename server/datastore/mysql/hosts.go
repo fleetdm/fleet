@@ -3546,7 +3546,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
-	ac, err := appConfigDB(ctx, ds.reader(ctx))
+	ac, err := appConfigDB(ctx, ds.reader(ctx), ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}

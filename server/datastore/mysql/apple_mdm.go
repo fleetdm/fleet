@@ -1459,6 +1459,7 @@ func createHostFromMDMDB(
 	devices []hostToCreateFromMDM,
 	fromADE bool,
 	macOSTeam, iosTeam, ipadTeam *uint,
+	serverPrivateKey string,
 ) (int64, []fleet.Host, error) {
 	// NOTE: order of arguments for teams is important, see statement.
 	args := []any{iosTeam, ipadTeam, macOSTeam}
@@ -1578,7 +1579,7 @@ func createHostFromMDMDB(
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	appCfg, err := appConfigDB(ctx, tx)
+	appCfg, err := appConfigDB(ctx, tx, serverPrivateKey)
 	if err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
 	}
@@ -1619,7 +1620,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 				UUID:           &deviceInfo.UDID,
 			},
 		}
-		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID)
+		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID, ds.serverPrivateKey)
 		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
 			level.Info(ds.logger).Log("msg", fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
@@ -1695,6 +1696,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			htc,
 			true,
 			teamIDs[0], teamIDs[1], teamIDs[2],
+			ds.serverPrivateKey,
 		)
 		if err != nil {
 			return err

@@ -389,6 +389,8 @@ type NewAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) (*fleet.A
 
 type SaveAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) error
 
+type MigrateGoogleCalendarApiKeyEncryptionFunc func(ctx context.Context) error
+
 type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error)
 
 type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error
@@ -2298,6 +2300,9 @@ type DataStore struct {
 
 	SaveAppConfigFunc        SaveAppConfigFunc
 	SaveAppConfigFuncInvoked bool
+
+	MigrateGoogleCalendarApiKeyEncryptionFunc        MigrateGoogleCalendarApiKeyEncryptionFunc
+	MigrateGoogleCalendarApiKeyEncryptionFuncInvoked bool
 
 	GetEnrollSecretsFunc        GetEnrollSecretsFunc
 	GetEnrollSecretsFuncInvoked bool
@@ -5621,6 +5626,13 @@ func (s *DataStore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) er
 	s.SaveAppConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveAppConfigFunc(ctx, info)
+}
+
+func (s *DataStore) MigrateGoogleCalendarApiKeyEncryption(ctx context.Context) error {
+	s.mu.Lock()
+	s.MigrateGoogleCalendarApiKeyEncryptionFuncInvoked = true
+	s.mu.Unlock()
+	return s.MigrateGoogleCalendarApiKeyEncryptionFunc(ctx)
 }
 
 func (s *DataStore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {

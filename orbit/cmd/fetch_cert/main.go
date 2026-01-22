@@ -189,7 +189,7 @@ func getSigner(rootDir string, logger zerolog.Logger) (*httpsig.Signer, error) {
 
 func loadCredentials(rootDir string, logger zerolog.Logger) (*Credentials, error) {
 	secureHWDevice, err := securehw.New(rootDir, logger)
-	if err != nil {
+	if err != nil { //nolint:staticcheck // SA4023: this is intentional - always fails on non-Linux platforms
 		return nil, fmt.Errorf("failed to initialize secure hardware device: %w", err)
 	}
 

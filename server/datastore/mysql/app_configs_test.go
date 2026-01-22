@@ -13,12 +13,18 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAppConfig(t *testing.T) {
 	ds := CreateMySQLDS(t)
+
+	// Add the google_calendar_api_key_encrypted column if it doesn't exist
+	// This is needed for tests to run before the migration is applied
+	_, _ = ds.writer(context.Background()).ExecContext(context.Background(),
+		`ALTER TABLE app_config_json ADD COLUMN google_calendar_api_key_encrypted BLOB`)
 
 	cases := []struct {
 		name string
@@ -36,6 +42,9 @@ func TestAppConfig(t *testing.T) {
 		{"GetConfigEnableDiskEncryption", testGetConfigEnableDiskEncryption},
 		{"IsEnrollSecretAvailable", testIsEnrollSecretAvailable},
 		{"YaraRulesRoundtrip", testYaraRulesRoundtrip},
+		{"GoogleCalendarApiKeyEncryption", testGoogleCalendarApiKeyEncryption},
+		{"GoogleCalendarApiKeyEncryptionMissingPrivateKey", testGoogleCalendarApiKeyEncryptionMissingPrivateKey},
+		{"MigrateGoogleCalendarApiKeyEncryption", testMigrateGoogleCalendarApiKeyEncryption},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -732,4 +741,255 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	// Get rule that doesn't exist
 	_, err = ds.YaraRuleByName(ctx, "wildcard.yar")
 	require.Error(t, err)
+}
+
+func testGoogleCalendarApiKeyEncryption(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	defer TruncateTables(t, ds)
+
+	// Set a private key for encryption
+	originalKey := ds.serverPrivateKey
+	ds.serverPrivateKey = "12345678901234567890123456789012" // 32 bytes for AES-256
+	defer func() { ds.serverPrivateKey = originalKey }()
+
+	// Create an app config with Google Calendar integration
+	apiKey := map[string]string{
+		"type":         "service_account",
+		"project_id":   "test-project",
+		"private_key":  "test-key",
+		"client_email": "test@example.com",
+	}
+
+	ac := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test Org",
+		},
+		Integrations: fleet.Integrations{
+			GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+				{
+					Domain: "example.com",
+					ApiKey: apiKey,
+				},
+			},
+		},
+	}
+
+	// Save the config - API key should be encrypted
+	err := ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	// Read directly from database to verify the API key is NOT in the JSON
+	var row struct {
+		JSONValue       []byte `db:"json_value"`
+		EncryptedApiKey []byte `db:"google_calendar_api_key_encrypted"`
+	}
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `SELECT json_value, google_calendar_api_key_encrypted FROM app_config_json LIMIT 1`)
+	require.NoError(t, err)
+
+	// Verify the JSON doesn't contain the API key
+	var jsonConfig map[string]any
+	err = json.Unmarshal(row.JSONValue, &jsonConfig)
+	require.NoError(t, err)
+	integrations, ok := jsonConfig["integrations"].(map[string]any)
+	require.True(t, ok)
+	googleCalendar, ok := integrations["google_calendar"].([]any)
+	require.True(t, ok)
+	require.Len(t, googleCalendar, 1)
+	gcConfig, ok := googleCalendar[0].(map[string]any)
+	require.True(t, ok)
+	apiKeyValue, hasApiKey := gcConfig["api_key_json"]
+	// API key should either not be present or be null (not a populated map)
+	if hasApiKey {
+		require.Nil(t, apiKeyValue, "API key should be null in JSON")
+	}
+
+	// Verify the encrypted column has data
+	require.NotEmpty(t, row.EncryptedApiKey, "Encrypted API key should be stored")
+
+	// Read the config back using AppConfig - API key should be decrypted
+	retrievedConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Len(t, retrievedConfig.Integrations.GoogleCalendar, 1)
+	require.Equal(t, "example.com", retrievedConfig.Integrations.GoogleCalendar[0].Domain)
+	require.Equal(t, apiKey, retrievedConfig.Integrations.GoogleCalendar[0].ApiKey)
+
+	// Update config without changing the API key
+	retrievedConfig.OrgInfo.OrgName = "Updated Org Name"
+	err = ds.SaveAppConfig(ctx, retrievedConfig)
+	require.NoError(t, err)
+
+	// Verify the API key is still correct
+	retrievedConfig2, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "Updated Org Name", retrievedConfig2.OrgInfo.OrgName)
+	require.Equal(t, apiKey, retrievedConfig2.Integrations.GoogleCalendar[0].ApiKey)
+
+	// Clear the API key
+	retrievedConfig2.Integrations.GoogleCalendar[0].ApiKey = nil
+	err = ds.SaveAppConfig(ctx, retrievedConfig2)
+	require.NoError(t, err)
+
+	// Verify encrypted column is now empty
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `SELECT json_value, google_calendar_api_key_encrypted FROM app_config_json LIMIT 1`)
+	require.NoError(t, err)
+	require.Empty(t, row.EncryptedApiKey, "Encrypted API key should be cleared")
+
+	// Read back and verify no API key
+	retrievedConfig3, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Len(t, retrievedConfig3.Integrations.GoogleCalendar, 1)
+	require.Nil(t, retrievedConfig3.Integrations.GoogleCalendar[0].ApiKey)
+}
+
+func testGoogleCalendarApiKeyEncryptionMissingPrivateKey(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	defer TruncateTables(t, ds)
+
+	// Clear the private key
+	originalKey := ds.serverPrivateKey
+	ds.serverPrivateKey = ""
+	defer func() { ds.serverPrivateKey = originalKey }()
+
+	// Try to save config with Google Calendar API key - should fail
+	apiKey := map[string]string{
+		"type":         "service_account",
+		"project_id":   "test-project",
+		"private_key":  "test-key",
+		"client_email": "test@example.com",
+	}
+
+	ac := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test Org",
+		},
+		Integrations: fleet.Integrations{
+			GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+				{
+					Domain: "example.com",
+					ApiKey: apiKey,
+				},
+			},
+		},
+	}
+
+	err := ds.SaveAppConfig(ctx, ac)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "server private key is required to configure Google Calendar integration")
+
+	// Set private key and save successfully
+	ds.serverPrivateKey = "12345678901234567890123456789012" // 32 bytes for AES-256
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	// Clear private key and try to read - should fail
+	ds.serverPrivateKey = ""
+	_, err = ds.AppConfig(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "server private key is required to read Google Calendar integration")
+
+	// Restore private key and verify we can read
+	ds.serverPrivateKey = "12345678901234567890123456789012" // 32 bytes for AES-256
+	retrievedConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, apiKey, retrievedConfig.Integrations.GoogleCalendar[0].ApiKey)
+}
+
+func testMigrateGoogleCalendarApiKeyEncryption(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	defer TruncateTables(t, ds)
+
+	// Set a private key for encryption
+	originalKey := ds.serverPrivateKey
+	ds.serverPrivateKey = "98765432109876543210987654321098" // 32 bytes for AES-256
+	defer func() { ds.serverPrivateKey = originalKey }()
+
+	// Insert old-format config with API key in JSON
+	apiKey := map[string]string{
+		"type":         "service_account",
+		"project_id":   "test-project",
+		"private_key":  "test-key",
+		"client_email": "test@example.com",
+	}
+
+	oldConfig := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test Org",
+		},
+		Integrations: fleet.Integrations{
+			GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+				{
+					Domain: "example.com",
+					ApiKey: apiKey,
+				},
+			},
+		},
+	}
+
+	configJSON, err := json.Marshal(oldConfig)
+	require.NoError(t, err)
+
+	// Delete any existing config and insert directly into database with API key in JSON, encrypted column NULL
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM app_config_json`)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO app_config_json(json_value, google_calendar_api_key_encrypted) VALUES(?, NULL)`,
+		configJSON)
+	require.NoError(t, err)
+
+	// Verify the old format exists
+	var row struct {
+		JSONValue       []byte `db:"json_value"`
+		EncryptedApiKey []byte `db:"google_calendar_api_key_encrypted"`
+	}
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `SELECT json_value, google_calendar_api_key_encrypted FROM app_config_json LIMIT 1`)
+	require.NoError(t, err)
+	require.Empty(t, row.EncryptedApiKey, "Encrypted column should be empty before migration")
+
+	var jsonConfig map[string]any
+	err = json.Unmarshal(row.JSONValue, &jsonConfig)
+	require.NoError(t, err)
+	integrations, ok := jsonConfig["integrations"].(map[string]any)
+	require.True(t, ok)
+	googleCalendar, ok := integrations["google_calendar"].([]any)
+	require.True(t, ok)
+	require.Len(t, googleCalendar, 1)
+
+	// Run migration
+	err = ds.MigrateGoogleCalendarApiKeyEncryption(ctx)
+	require.NoError(t, err)
+
+	// Verify the encrypted column now has data
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `SELECT json_value, google_calendar_api_key_encrypted FROM app_config_json LIMIT 1`)
+	require.NoError(t, err)
+	require.NotEmpty(t, row.EncryptedApiKey, "Encrypted column should have data after migration")
+
+	// Verify the JSON no longer has the API key
+	err = json.Unmarshal(row.JSONValue, &jsonConfig)
+	require.NoError(t, err)
+	integrations, ok = jsonConfig["integrations"].(map[string]any)
+	require.True(t, ok)
+	googleCalendar, ok = integrations["google_calendar"].([]any)
+	require.True(t, ok)
+	require.Len(t, googleCalendar, 1)
+	gcConfig, ok := googleCalendar[0].(map[string]any)
+	require.True(t, ok)
+	apiKeyValue, hasApiKey := gcConfig["api_key_json"]
+	// API key should either not be present or be null (not a populated map)
+	if hasApiKey {
+		require.Nil(t, apiKeyValue, "API key should be null in JSON after migration")
+	}
+
+	// Verify we can read the config and get the API key
+	retrievedConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, apiKey, retrievedConfig.Integrations.GoogleCalendar[0].ApiKey)
+
+	// Run migration again - should be idempotent (no error, no changes)
+	err = ds.MigrateGoogleCalendarApiKeyEncryption(ctx)
+	require.NoError(t, err)
+
+	// Verify data is still correct
+	retrievedConfig2, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, apiKey, retrievedConfig2.Integrations.GoogleCalendar[0].ApiKey)
 }

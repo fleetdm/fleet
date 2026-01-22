@@ -491,6 +491,9 @@ type Datastore interface {
 
 	NewAppConfig(ctx context.Context, info *AppConfig) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
+	// MigrateGoogleCalendarApiKeyEncryption migrates any existing plaintext Google Calendar API key
+	// to the encrypted column. This is called by a worker job after the database migration runs.
+	MigrateGoogleCalendarApiKeyEncryption(ctx context.Context) error
 
 	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
 	GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*EnrollSecret, error)

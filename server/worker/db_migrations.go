@@ -23,7 +23,8 @@ type DBMigrationTask string
 
 // List of supported tasks.
 const (
-	DBMigrateVPPTokenTask DBMigrationTask = "migrate_vpp_token" //nolint: gosec
+	DBMigrateVPPTokenTask             DBMigrationTask = "migrate_vpp_token"               //nolint: gosec
+	DBEncryptGoogleCalendarApiKeyTask DBMigrationTask = "encrypt_google_calendar_api_key" //nolint: gosec
 )
 
 // DBMigration is the job processor for the db_migration job.
@@ -56,6 +57,10 @@ func (m *DBMigration) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	case DBMigrateVPPTokenTask:
 		err := m.migrateVPPToken(ctx)
 		return ctxerr.Wrap(ctx, err, "running migrate VPP token task")
+
+	case DBEncryptGoogleCalendarApiKeyTask:
+		err := m.encryptGoogleCalendarApiKey(ctx)
+		return ctxerr.Wrap(ctx, err, "running encrypt Google Calendar API key task")
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
@@ -90,6 +95,14 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 	// the migated token should target "All teams"
 	_, err = m.Datastore.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
 	return ctxerr.Wrap(ctx, err, "update VPP token teams")
+}
+
+func (m *DBMigration) encryptGoogleCalendarApiKey(ctx context.Context) error {
+	err := m.Datastore.MigrateGoogleCalendarApiKeyEncryption(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "migrate Google Calendar API key encryption")
+	}
+	return nil
 }
 
 func extractVPPTokenFromMigration(migratedToken *fleet.VPPTokenDB) (tokData *fleet.VPPTokenData, didUpdateMetadata bool, err error) {
