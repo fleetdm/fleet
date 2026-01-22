@@ -1,0 +1,1 @@
+Fixed SCEP proxy to use standard base64 encoding for PKIOperation GET requests, ensuring compatibility with standard SCEP servers.
