@@ -1,0 +1,84 @@
+# OTEL Collector configuration overrides for production stability
+# These settings fix ClickHouse timeout issues by adding proper timeouts,
+# retry logic, and sending queues.
+
+otelCollector:
+  # Enable low cardinality exception grouping to reduce exception noise
+  lowCardinalityExceptionGrouping: true
+
+  config:
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      bearertokenauth:
+        scheme: "Bearer"
+        token: ${env:OTEL_BEARER_TOKEN}
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            auth:
+              authenticator: bearertokenauth
+          http:
+            auth:
+              authenticator: bearertokenauth
+
+    exporters:
+      # Logs exporter with balanced queue sizes for throughput and memory
+      clickhouselogsexporter:
+        timeout: 60s
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+        sending_queue:
+          enabled: true
+          num_consumers: 10
+          queue_size: 10000
+
+      # Traces exporter must handle spans after tail_sampling
+      clickhousetraces:
+        timeout: 120s
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+        sending_queue:
+          enabled: true
+          num_consumers: 10
+          queue_size: 10000
+
+      # Metadata exporter with increased timeout and retry support
+      metadataexporter:
+        timeout: 60s
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+
+    processors:
+      # Optimized batch processor to send data more frequently
+      # Smaller batches reduce memory pressure
+      batch:
+        send_batch_size: 2000
+        timeout: 5s
+
+      # Memory limiter to prevent out-of-memory by applying back pressure
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 11264
+        spike_limit_mib: 512
+
+    service:
+      extensions:
+        - health_check
+        - bearertokenauth
+      pipelines:
+        traces:
+          processors:
+            - memory_limiter
+            - batch
