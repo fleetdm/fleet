@@ -73,6 +73,8 @@ data "aws_eks_cluster_auth" "signoz" {
   name = module.eks.cluster_name
 }
 
+data "aws_caller_identity" "current" {}
+
 data "aws_route53_zone" "dogfood" {
   name = "dogfood.fleetdm.com."
 }
@@ -83,6 +85,9 @@ locals {
   otlp_domain     = "otlp.signoz.dogfood.fleetdm.com"
   signoz_alb_name = "signoz-dogfood"
   alb_subnets     = join(",", compact(data.terraform_remote_state.dogfood.outputs.vpc.private_subnets))
+  admin_role_arn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/admin"
+  github_actions_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/github-actions-role"
+  sso_admin_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_DogfoodAdministrators_646894fd206a2661"
   common_ingress_annotations = {
     "alb.ingress.kubernetes.io/scheme"             = "internal"
     "alb.ingress.kubernetes.io/subnets"            = local.alb_subnets
@@ -152,8 +157,44 @@ module "eks" {
     }
   }
 
-  # Enable cluster creator admin access
-  enable_cluster_creator_admin_permissions = true
+  # Use explicit access entries to avoid creator-role drift.
+  enable_cluster_creator_admin_permissions = false
+
+  access_entries = {
+    admin = {
+      principal_arn = local.admin_role_arn
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+    github_actions = {
+      principal_arn = local.github_actions_role_arn
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+    sso_admin = {
+      principal_arn = local.sso_admin_role_arn
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
 
   # Enable OIDC provider for IRSA (IAM Roles for Service Accounts)
   enable_irsa = true
