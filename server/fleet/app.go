@@ -285,9 +285,9 @@ func (c *AppConfig) MDMUrl() string {
 //   - https://foo.example.com:8080 -> https://okta.foo.example.com:8080
 //
 // Returns an error if the server URL is not configured or cannot be parsed.
-func (c *AppConfig) ConditionalAccessIdPSSOURL(getEnv dev_mode.GetEnv) (string, error) {
+func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv dev_mode.GetEnv) (string, error) {
 	// Check for dev override
-	if devURL := getEnv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
+	if devURL := getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
 		return devURL, nil
 	}
 
