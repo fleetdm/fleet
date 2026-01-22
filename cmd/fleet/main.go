@@ -92,15 +92,13 @@ wish to override the default value.
 	return rootCmd
 }
 
-// setIfEmpty sets target to value if target is empty.
-func setIfEmpty(target *string, value string) {
-	if *target == "" {
-		*target = value
-	}
-}
-
 func applyDevFlags(cfg *config.FleetConfig) {
 	// set database and object storage configs to work with local docker-compose setup if a given value is missing
+	setIfEmpty := func(target *string, value string) {
+		if *target == "" {
+			*target = value
+		}
+	}
 
 	setIfEmpty(&cfg.Mysql.Username, "fleet")
 	setIfEmpty(&cfg.Mysql.Database, "fleet")
