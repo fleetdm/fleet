@@ -729,7 +729,7 @@ Customer Success members are instructed to `@incident-oncall` in `#help-engineer
 
 Incidents that occur during business hours should be handled by the business-hours on-call engineer and should not use `@incident-oncall`.
 
-In some cases, the Customer Success team member will continue communicating with the impacted customer or customers. In others, the on-call engineer will communicate directly. Team members should use their judgment and coordinate on a case-by-case basis.
+The Customer Success team member who reports the incident will continue communicating with the impacted customer or customers and is responsible for maintaining open lines of communication during the incident. If needed, the on-call engineer may be asked to communicate directly with impacted customers to facilitate faster resolution. Team members should use their judgment and coordinate on a case-by-case basis.
 
 Each product group maintains two engineers assigned to after-hours incident on-call. Engineers in this rotation should be comfortable leading mitigation efforts during an after-hours production incident.
 
