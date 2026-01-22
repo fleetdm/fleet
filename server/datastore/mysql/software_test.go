@@ -6394,6 +6394,9 @@ func testListHostSoftwareFailInstallThenTransferTeam(t *testing.T, ds *Datastore
 	require.Len(t, sw, 3)
 	require.Equal(t, sw[0].Name, "bar")
 	require.NotNil(t, sw[0].SoftwarePackage)
+	// Verify that LastInstall is populated for failed installs
+	require.NotNil(t, sw[0].SoftwarePackage.LastInstall, "LastInstall should be populated for failed installs")
+	require.Equal(t, hostInstall1, sw[0].SoftwarePackage.LastInstall.InstallUUID, "LastInstall.InstallUUID should match the install request UUID")
 	require.Equal(t, sw[1].Name, "foo")
 	require.NotNil(t, sw[1].SoftwarePackage)
 	require.Equal(t, sw[2].Name, "vpp1")
@@ -6479,6 +6482,9 @@ func testListHostSoftwareFailInstallThenLabelExclude(t *testing.T, ds *Datastore
 	require.Len(t, sw, 1)
 	require.Equal(t, "bar", sw[0].Name)
 	require.NotNil(t, sw[0].SoftwarePackage)
+	// Verify that LastInstall is populated for failed installs
+	require.NotNil(t, sw[0].SoftwarePackage.LastInstall, "LastInstall should be populated for failed installs")
+	require.Equal(t, hostInstall, sw[0].SoftwarePackage.LastInstall.InstallUUID, "LastInstall.InstallUUID should match the install request UUID")
 
 	// Now add the host to the exclude label
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
@@ -6542,6 +6548,10 @@ func testListHostSoftwareFailVPPInstallThenLabelExclude(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	require.Len(t, sw, 1)
 	require.Equal(t, "vpp_app_fail_test", sw[0].Name)
+	require.NotNil(t, sw[0].AppStoreApp)
+	// Verify that LastInstall is populated for failed VPP installs
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall, "LastInstall should be populated for failed VPP installs")
+	require.Equal(t, vppCmdUUID, sw[0].AppStoreApp.LastInstall.CommandUUID, "LastInstall.CommandUUID should match the install command UUID")
 
 	// Add host to exclude label
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
