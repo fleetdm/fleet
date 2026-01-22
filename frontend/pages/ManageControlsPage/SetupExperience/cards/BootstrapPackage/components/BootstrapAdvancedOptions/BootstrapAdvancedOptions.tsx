@@ -79,13 +79,17 @@ const BootstrapAdvancedOptions = ({
                     Install Fleet&apos;s agent (fleetd) manually
                   </TooltipWrapper>
                 </Checkbox>
-                <Button
-                  disabled={gitopsDisable || disableInstallManually || isSaving}
-                  type="submit"
-                  isLoading={isSaving}
-                >
-                  Save
-                </Button>
+                <div>
+                  <Button
+                    disabled={
+                      gitopsDisable || disableInstallManually || isSaving
+                    }
+                    type="submit"
+                    isLoading={isSaving}
+                  >
+                    Save
+                  </Button>
+                </div>
               </div>
             )}
           />
