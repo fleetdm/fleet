@@ -89,7 +89,7 @@ jobs:
 
       - name: Ensure no FLEET_DEV_* env var overrides are set in non-test code
         run: |
-          if grep -R 'SetOverride("FLEET_DEV' --include="*.go" --exclude="*_test.go" --exclude="testing_utils.go" --exclude-dir="./pkg/mdm/mdmtest" .; then
+          if grep -R 'SetOverride("FLEET_DEV' --include="*.go" --exclude="*_test.go" --exclude="testing_utils.go" --exclude-dir="mdmtest" .; then
             echo "Error: Found FLEET_DEV_* overrides in non-test code." >&2
             exit 1
           else
