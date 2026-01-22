@@ -502,7 +502,7 @@ func CheckProfileIsNotSigned(data []byte) error {
 	mc := mobileconfig.Mobileconfig(data)
 	if mc.IsSignedProfile() {
 		return &fleet.BadRequestError{
-			Message: "Couldn't add. Configuration profiles can't be signed. Fleet wil sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles",
+			Message: "Couldn't add. Configuration profiles can't be signed. Fleet will sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles",
 		}
 	}
 	return nil
