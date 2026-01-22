@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 )
 
-const url = "https://github.com/fleetdm/fleet/issues?q=is%3Aopen%20project%3Afleetdm%2F71%20label%3A%3Aproduct"
+const urlStr = "https://github.com/fleetdm/fleet/issues?q=is%3Aopen%20project%3Afleetdm%2F71%20label%3A%3Aproduct"
 
 const (
 	owner = "fleetdm"
@@ -19,7 +20,7 @@ const (
 )
 
 func main() {
-	resp, err := http.Get(url)
+	resp, err := http.Get(urlStr)
 	if err != nil {
 		panic(err)
 	}
@@ -31,7 +32,6 @@ func main() {
 	}
 
 	html := string(body)
-
 	tickets := extractTicketNumbers(html)
 
 	token := os.Getenv("GITHUB_TOKEN")
@@ -39,8 +39,13 @@ func main() {
 		panic("GITHUB_TOKEN is not set")
 	}
 
-	err = addLabelsToTickets(token, tickets, []string{":release"})
-	if err != nil {
+	// remove ":product"
+	if err := applyLabelsToTickets(token, tickets, []string{":product"}, false); err != nil {
+		panic(err)
+	}
+
+	// add ":release"
+	if err := applyLabelsToTickets(token, tickets, []string{":release"}, true); err != nil {
 		panic(err)
 	}
 }
@@ -64,29 +69,50 @@ func extractTicketNumbers(html string) []int {
 	return result
 }
 
-func addLabelsToTickets(token string, issueNumbers []int, labels []string) error {
+// add=true  -> add labels
+// add=false -> remove labels
+func applyLabelsToTickets(token string, issueNumbers []int, labels []string, add bool) error {
 	for _, issueNumber := range issueNumbers {
+		if add {
+			payload, err := json.Marshal(map[string][]string{
+				"labels": labels,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to marshal labels JSON: %w", err)
+			}
 
-		payload, err := json.Marshal(map[string][]string{
-			"labels": labels,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to marshal labels JSON: %w", err)
-		}
+			cmd := exec.Command("curl",
+				"-s",
+				"-X", "POST",
+				"-H", "Authorization: Bearer "+token,
+				"-H", "Accept: application/vnd.github+json",
+				"-H", "Content-Type: application/json",
+				"-d", string(payload),
+				fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d/labels", owner, repo, issueNumber),
+			)
 
-		cmd := exec.Command("curl",
-			"-s",
-			"-X", "POST",
-			"-H", "Authorization: Bearer "+token,
-			"-H", "Accept: application/vnd.github+json",
-			"-H", "Content-Type: application/json",
-			"-d", string(payload),
-			fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d/labels", owner, repo, issueNumber),
-		)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("failed to add labels to issue #%d: %w, output: %s", issueNumber, err, output)
+			}
 
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("failed to add labels to issue #%d: %w, output: %s", issueNumber, err, output)
+		} else {
+			for _, label := range labels {
+				escaped := url.PathEscape(label)
+
+				cmd := exec.Command("curl",
+					"-s",
+					"-X", "DELETE",
+					"-H", "Authorization: Bearer "+token,
+					"-H", "Accept: application/vnd.github+json",
+					fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d/labels/%s", owner, repo, issueNumber, escaped),
+				)
+
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("failed to remove label %q from issue #%d: %w, output: %s", label, issueNumber, err, output)
+				}
+			}
 		}
 	}
 
