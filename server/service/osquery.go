@@ -3171,7 +3171,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 	}
 	// If we only inserted an error row, don't count it against the limit.
 	if len(result.Snapshot) == 0 {
-		rowsAdded = rowsAdded - 1
+		rowsAdded--
 	}
 	return rowsAdded, nil
 }
