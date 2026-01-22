@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -282,12 +281,10 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 			}
 		}
 
-		authUrl := os.Getenv("FLEET_DEV_VPP_PROXY_AUTH_URL")
+		authUrl := dev_mode.Env("FLEET_DEV_VPP_PROXY_AUTH_URL")
 		if authUrl == "" {
 			authUrl = "https://fleetdm.com/api/vpp/v1/auth"
 		}
-
-		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr")
 
 		appConfig, err := ds.AppConfig(ctx)
 		if err != nil {
