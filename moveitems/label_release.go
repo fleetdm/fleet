@@ -5,11 +5,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 )
 
 const url = "https://github.com/fleetdm/fleet/issues?q=is%3Aopen%20project%3Afleetdm%2F71%20label%3A%3Aproduct"
+
+const (
+	owner = "fleetdm"
+	repo  = "fleet"
+)
 
 func main() {
 	resp, err := http.Get(url)
@@ -24,22 +31,37 @@ func main() {
 	}
 
 	html := string(body)
-	printTickets(html)
+
+	tickets := extractTicketNumbers(html)
+
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		panic("GITHUB_TOKEN is not set")
+	}
+
+	err = addLabelsToTickets(token, tickets, []string{":release"})
+	if err != nil {
+		panic(err)
+	}
 }
 
-func printTickets(html string) {
-	re := regexp.MustCompile(`/fleetdm/fleet/issues/\d+`)
-	matches := re.FindAllString(html, -1)
+func extractTicketNumbers(html string) []int {
+	re := regexp.MustCompile(`/fleetdm/fleet/issues/(\d+)`)
+	matches := re.FindAllStringSubmatch(html, -1)
 
-	seen := map[string]bool{}
+	seen := map[int]bool{}
+	var result []int
 
 	for _, m := range matches {
-		if seen[m] {
+		num, _ := strconv.Atoi(m[1])
+		if seen[num] {
 			continue
 		}
-		seen[m] = true
-		fmt.Println("https://github.com" + m)
+		seen[num] = true
+		result = append(result, num)
 	}
+
+	return result
 }
 
 func addLabelsToTickets(token string, issueNumbers []int, labels []string) error {
