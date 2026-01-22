@@ -9,6 +9,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -661,27 +663,60 @@ func testCleanupQueryResultRows(t *testing.T, ds *Datastore) {
 func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
 	query := test.NewQuery(t, ds, nil, "Query With Results", "SELECT 1", user.ID, true)
+	query2 := test.NewQuery(t, ds, nil, "Query Without Results", "SELECT 1", user.ID, true)
+	query3 := test.NewQuery(t, ds, nil, "Query With Some Results", "SELECT 1", user.ID, true)
+
 	mockTime := time.Now().UTC().Truncate(time.Second)
 	maxRows := 10
 
 	// Create 15 hosts and insert 1 row per host (need different hosts since
 	// OverwriteQueryResultRows deletes existing rows for the same host/query)
-	for i := range 15 {
+	for i := range 25 {
 		host := test.NewHost(t, ds, "host"+string(rune('a'+i)), "192.168.1.100", "serial"+string(rune('a'+i)), "uuid"+string(rune('a'+i)), time.Now())
-		rows := []*fleet.ScheduledQueryResultRow{{
+		rowsForQuery1 := []*fleet.ScheduledQueryResultRow{{
 			QueryID:     query.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime.Add(time.Duration(i) * time.Minute),
 			Data:        ptr.RawMessage([]byte(`{"index": ` + string(rune('0'+i%10)) + `}`)),
 		}}
-		_, err := ds.OverwriteQueryResultRows(context.Background(), rows, fleet.DefaultMaxQueryReportRows)
+		rowsForQuery2 := []*fleet.ScheduledQueryResultRow{{
+			QueryID:     query2.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime.Add(time.Duration(i) * time.Minute),
+			Data:        nil,
+		}}
+		dataForQuery3 := ptr.RawMessage(nil)
+		if i%2 == 0 {
+			dataForQuery3 = ptr.RawMessage([]byte(`{"index": ` + string(rune('0'+i%10)) + `}`))
+		}
+		rowsForQuery3 := []*fleet.ScheduledQueryResultRow{{
+			QueryID:     query3.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime.Add(time.Duration(i) * time.Minute),
+			Data:        dataForQuery3,
+		}}
+		_, err := ds.OverwriteQueryResultRows(context.Background(), rowsForQuery1, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		_, err = ds.OverwriteQueryResultRows(context.Background(), rowsForQuery2, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		_, err = ds.OverwriteQueryResultRows(context.Background(), rowsForQuery3, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 	}
 
-	// Verify we have 15 rows
+	// Verify we have 25 rows for the data query
 	count, err := ds.ResultCountForQuery(context.Background(), query.ID)
 	require.NoError(t, err)
-	require.Equal(t, 15, count)
+	require.Equal(t, 25, count)
+
+	// Verify we have 0 rows for the non-data query
+	count, err = ds.ResultCountForQuery(context.Background(), query2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// Verify we have 13 rows for the some-data query
+	count, err = ds.ResultCountForQuery(context.Background(), query3.ID)
+	require.NoError(t, err)
+	require.Equal(t, 13, count)
 
 	// Run cleanup with maxRows = 10, using a small batch size to test batching
 	opts := fleet.CleanupExcessQueryResultRowsOptions{BatchSize: 2}
@@ -690,7 +725,7 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Contains(t, queryCounts, query.ID)
 	require.Equal(t, maxRows, queryCounts[query.ID])
 
-	// Verify only 10 rows remain
+	// Verify only 10 rows remain for query1
 	count, err = ds.ResultCountForQuery(context.Background(), query.ID)
 	require.NoError(t, err)
 	require.Equal(t, maxRows, count)
@@ -699,4 +734,32 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	results, err := ds.QueryResultRows(context.Background(), query.ID, fleet.TeamFilter{User: user})
 	require.NoError(t, err)
 	require.Len(t, results, maxRows)
+
+	// Verify 0 rows remain for query2
+	count, err = ds.ResultCountForQuery(context.Background(), query2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// Check that no rows were actually deleted for query2
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		stmt := "SELECT COUNT(*) FROM query_results WHERE query_id = ?"
+		var result int
+		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, query2.ID))
+		assert.Equal(t, 25, result)
+		return nil
+	})
+
+	// Verify 10 rows remain for query3
+	count, err = ds.ResultCountForQuery(context.Background(), query2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// Check that we actually have 22 rows (the 10 with data, and the 12 without data)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		stmt := "SELECT COUNT(*) FROM query_results WHERE query_id = ?"
+		var result int
+		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, query3.ID))
+		assert.Equal(t, 22, result)
+		return nil
+	})
 }

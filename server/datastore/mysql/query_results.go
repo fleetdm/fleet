@@ -184,7 +184,7 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
             SELECT query_id, id,
                 ROW_NUMBER() OVER (PARTITION BY query_id ORDER BY id DESC) as rn
             FROM query_results
-            WHERE query_id IN (?) 
+            WHERE query_id IN (?) AND data IS NOT NULL
         ) cutoff
         WHERE rn = ?
     `
@@ -201,7 +201,7 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		for _, c := range queryCutoffs {
 			deleteStmt := `
                 DELETE FROM query_results
-                WHERE query_id = ? AND id < ?
+                WHERE query_id = ? AND id < ? AND data IS NOT NULL
                 LIMIT ?
             `
 			for {

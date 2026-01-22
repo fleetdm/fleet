@@ -2986,11 +2986,8 @@ func (svc *Service) saveResultLogsToQueryReports(
 		}
 
 		// Check Redis counter for approximate count (fast, distributed check).
-		// We allow 10% over the limit to ensure the cleanup cron has rows to delete,
-		// which rotates out old data and makes room for results from other hosts.
-		// Without this buffer, one host could fill the quota and block all others.
 		if queryResultCounts != nil {
-			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows+(maxQueryReportRows/10) {
+			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows {
 				continue
 			}
 		}
