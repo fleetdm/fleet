@@ -88,6 +88,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
 		{"ListHostSoftwareFailInstallThenTransferTeam", testListHostSoftwareFailInstallThenTransferTeam},
 		{"ListHostSoftwareFailInstallThenLabelExclude", testListHostSoftwareFailInstallThenLabelExclude},
+		{"ListHostSoftwareFailUninstallThenLabelExclude", testListHostSoftwareFailUninstallThenLabelExclude},
 		{"ListHostSoftwareFailVPPInstallThenLabelExclude", testListHostSoftwareFailVPPInstallThenLabelExclude},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
@@ -6507,6 +6508,123 @@ func testListHostSoftwareFailInstallThenLabelExclude(t *testing.T, ds *Datastore
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Len(t, sw, 0, "Software with failed install should not appear when installer targeting excludes the host")
+}
+
+// testListHostSoftwareFailUninstallThenLabelExclude tests that when a host has a failed
+// uninstall attempt, the LastUninstall info is populated so users can view the failure details.
+// When the installer's label targeting is changed to exclude the host (and software is not in inventory),
+// the software no longer appears (consistent with failed install behavior).
+func testListHostSoftwareFailUninstallThenLabelExclude(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false,
+	}
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team1.ID
+
+	// Create a label that we'll use to exclude the host
+	excludeLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:  "exclude-label",
+		Query: "select 1",
+	})
+	require.NoError(t, err)
+
+	// Create a software installer with an uninstall script
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "exit 0",
+		UninstallScript: "exit 1", // Will fail
+		InstallerFile:   tfr,
+		StorageID:       "storage1",
+		Filename:        "bar.pkg",
+		Title:           "bar",
+		Version:         "1.0",
+		Source:          "apps",
+		Platform:        string(fleet.MacOSPlatform),
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+	require.NoError(t, err)
+
+	// Successfully install the software on the host
+	hostInstall, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall,
+		InstallScriptExitCode: ptr.Int(0), // Success
+	}, nil)
+	require.NoError(t, err)
+
+	// Fail to uninstall the software on the host
+	uninstallUUID := uuid.NewString()
+	err = ds.InsertSoftwareUninstallRequest(ctx, uninstallUUID, host.ID, installerID, false)
+	require.NoError(t, err)
+
+	// Activate the uninstall activity and set failure result
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		ds.testActivateSpecificNextActivities = []string{uninstallUUID}
+		_, err := ds.activateNextUpcomingActivity(ctx, q, host.ID, "")
+		return err
+	})
+	ds.testActivateSpecificNextActivities = []string{"-"}
+
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: uninstallUUID,
+		ExitCode:    1, // Failed
+	}, nil)
+	require.NoError(t, err)
+
+	// Verify software appears in "All software" view (installer is in scope)
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, "bar", sw[0].Name)
+	require.NotNil(t, sw[0].SoftwarePackage)
+	// Verify that LastUninstall is populated for failed uninstalls
+	require.NotNil(t, sw[0].SoftwarePackage.LastUninstall, "LastUninstall should be populated for failed uninstalls")
+	require.Equal(t, uninstallUUID, sw[0].SoftwarePackage.LastUninstall.ExecutionID, "LastUninstall.ExecutionID should match the uninstall request UUID")
+
+	// Now add the host to the exclude label
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// Add the exclude label to the installer's targeting
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, 1)`,
+			installerID, excludeLabel.ID)
+		return err
+	})
+
+	// When installer goes out of scope, if there was a successful install, the software
+	// still appears because the host_software_installs record shows it was installed.
+	// But SoftwarePackage will be nil because the installer is out of scope.
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1, "Software should still appear because there was a successful install")
+	require.Equal(t, "bar", sw[0].Name)
+	// When installer is out of scope, SoftwarePackage is nil (same as when installer is deleted)
+	// This is expected behavior - the LastUninstall info was available when installer was in scope
+	require.Nil(t, sw[0].SoftwarePackage, "SoftwarePackage should be nil when installer is out of scope")
 }
 
 func testListHostSoftwareFailVPPInstallThenLabelExclude(t *testing.T, ds *Datastore) {

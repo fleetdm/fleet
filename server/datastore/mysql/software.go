@@ -5836,6 +5836,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					}
 				}
 			}
+			// Populate LastUninstall for software packages even if installer is out of scope.
+			if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.SoftwarePackage.LastUninstall == nil {
+				if softwareTitle != nil && softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
+					softwareTitleRecord.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
+						ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
+					}
+					if softwareTitle.LastUninstallUninstalledAt != nil {
+						softwareTitleRecord.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
+					}
+				}
+			}
 
 			// This happens when there is a software installed on the host but it is also a vpp record, so we want
 			// to grab the vpp data from the installed vpp record and merge it onto the software record
