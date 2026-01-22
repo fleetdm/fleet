@@ -82,7 +82,7 @@ module.exports = {
       });
 
       if(!recordIds.salesforceAccountId) {
-        throw new Error(`Could not create campaign member record, a salesforce contact record (${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`)
+        throw new Error(`Could not create campaign member record, a salesforce contact record (${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
       }
 
       // Add contact to campaign.

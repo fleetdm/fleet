@@ -68,9 +68,7 @@ module.exports = {
       throw 'campaignNotFound';
     }
 
-    // Use sails.helpers.flow.build to login to salesforce and create the new campaign member object.
-    let newCampaignMember = await sails.helpers.flow.build(async ()=>{
-      // login to Salesforce
+    await sails.helpers.flow.build(async ()=>{
       return await salesforceConnection.sobject('CampaignMember')
       .create({
         Id: campaignRecord.Id,
