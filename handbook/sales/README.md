@@ -44,9 +44,10 @@ AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spr
 
 To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
 
+
 ### Introduce Fleet's CEO
 
-To get the CEO's attention and introduce him to an account, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
+To get the CEO's attention and introduce him to an account, @-mention his Executive Assistant (`@SFriendLee`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) with the LinkedIn URL(s) of the people you would like the CEO to connect with. The EA will send all connect requests within the same business day. 
 
 
 ### Track an objection
