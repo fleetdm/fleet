@@ -707,7 +707,7 @@ How to escalate:
 
 #### Changing of the guard
 
-The business-hours on-call engineer changes each week on Monday. A Slack reminder notifies the on-call alias of the handoff. Please do the following:
+The business-hours on-call engineer changes each week on Monday. A Slack reminder notifies the `@oncall` alias of the handoff. Please do the following:
 
 1. The new on-call engineer should update the `@oncall` Slack user group to point to themselves.
 2. Hand off active conversations (Slack threads, issues, PRs, etc.).  
