@@ -48,6 +48,8 @@ Apps can be installed manually on each host's **Host details** page. For macOS a
 
 Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
 
+> Currently, if a host's OS version is incompatible with the latest app version, clicking Update will always revert the status to Update available. This occurs because Fleet targets the latest App Store version, but the host can only install the last compatible version for its OS.
+
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
