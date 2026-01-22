@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { InjectedRouter, Link } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
@@ -19,6 +19,7 @@ import Slider from "components/forms/fields/Slider";
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Button from "components/buttons/Button";
 import Radio from "components/forms/fields/Radio";
 import validUrl from "components/forms/validators/valid_url";
 import RevealButton from "components/buttons/RevealButton";
@@ -31,6 +32,7 @@ import PoliciesPaginatedList, {
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 interface IOtherWorkflowsModalProps {
+  router: InjectedRouter;
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
   availableIntegrations: IGlobalIntegrations | ITeamIntegrations;
   availablePolicies: IPolicy[];
@@ -65,6 +67,7 @@ const getIntegrationType = (integration?: IIntegration) => {
 const baseClass = "other-workflows-modal";
 
 const OtherWorkflowsModal = ({
+  router,
   automationsConfig,
   availableIntegrations,
   availablePolicies,
@@ -134,6 +137,10 @@ const OtherWorkflowsModal = ({
       default:
         noop();
     }
+  };
+
+  const onAddIntegration = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS);
   };
 
   const onSelectIntegration = (selected: string | number) => {
@@ -292,12 +299,14 @@ const OtherWorkflowsModal = ({
     ) : (
       <div className={`form-field ${baseClass}__no-integrations`}>
         <div className="form-field__label">You have no integrations.</div>
-        <Link
-          to={PATHS.ADMIN_INTEGRATIONS}
-          className={`${baseClass}__add-integration-link`}
-        >
-          Add integration
-        </Link>
+        <div>
+          <Button
+            onClick={onAddIntegration}
+            disabled={gitOpsModeEnabled || !isPolicyAutomationsEnabled} // Not keyboard accessible if modal is disabled
+          >
+            Add integration
+          </Button>
+        </div>
       </div>
     );
   };
