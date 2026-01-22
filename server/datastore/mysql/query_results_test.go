@@ -724,6 +724,10 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Contains(t, queryCounts, query.ID)
 	require.Equal(t, maxRows, queryCounts[query.ID])
+	require.Contains(t, queryCounts, query2.ID)
+	require.Equal(t, 0, queryCounts[query2.ID])
+	require.Contains(t, queryCounts, query3.ID)
+	require.Equal(t, maxRows, queryCounts[query3.ID])
 
 	// Verify only 10 rows remain for query1
 	count, err = ds.ResultCountForQuery(context.Background(), query.ID)
