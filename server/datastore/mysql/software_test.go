@@ -6516,6 +6516,7 @@ func testListHostSoftwareFailInstallThenLabelExclude(t *testing.T, ds *Datastore
 // the software no longer appears (consistent with failed install behavior).
 func testListHostSoftwareFailUninstallThenLabelExclude(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
 	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
 	nanoEnroll(t, ds, host, false)
