@@ -5913,6 +5913,8 @@ WHERE
 		return nil, err
 	}
 
+	level.Info(ds.logger).Log("msg", "get hosts with previously deleted dep assignments", "serials", strings.Join(matchingSerials, ","))
+
 	for _, serial := range matchingSerials {
 		result[serial] = struct{}{}
 	}
