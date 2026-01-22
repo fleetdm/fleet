@@ -93,9 +93,17 @@ wish to override the default value.
 }
 
 func applyDevFlags(cfg *config.FleetConfig) {
-	cfg.Mysql.Username = "fleet"
-	cfg.Mysql.Database = "fleet"
-	cfg.Mysql.Password = "insecure"
+	// set database and object storage configs to work with local docker-compose setup if a given value is missing
+
+	if cfg.Mysql.Username == "" {
+		cfg.Mysql.Username = "fleet"
+	}
+	if cfg.Mysql.Database == "" {
+		cfg.Mysql.Database = "fleet"
+	}
+	if cfg.Mysql.Password == "" {
+		cfg.Mysql.Password = "insecure"
+	}
 
 	if cfg.Prometheus.BasicAuth.Username == "" {
 		cfg.Prometheus.BasicAuth.Username = "fleet"
@@ -104,28 +112,52 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		cfg.Prometheus.BasicAuth.Password = "insecure"
 	}
 
-	// Allow the carves bucket to be overridden in dev mode
 	if cfg.S3.CarvesBucket == "" {
 		cfg.S3.CarvesBucket = "carves-dev"
+	}
+	if cfg.S3.CarvesRegion == "" {
 		cfg.S3.CarvesRegion = "localhost"
+	}
+	if cfg.S3.CarvesPrefix == "" {
 		cfg.S3.CarvesPrefix = "dev-prefix"
+	}
+	if cfg.S3.CarvesEndpointURL == "" {
 		cfg.S3.CarvesEndpointURL = "http://localhost:9000"
+	}
+	if cfg.S3.CarvesAccessKeyID == "" {
 		cfg.S3.CarvesAccessKeyID = "locals3"
+	}
+	if cfg.S3.CarvesSecretAccessKey == "" {
 		cfg.S3.CarvesSecretAccessKey = "locals3"
+	}
+	if cfg.S3.CarvesAccessKeyID == "locals3" && cfg.S3.CarvesSecretAccessKey == "locals3" {
+		// can't rely on zero values
 		cfg.S3.CarvesDisableSSL = true
 		cfg.S3.CarvesForceS3PathStyle = true
 	}
 
-	// Allow the software installers bucket to be overridden in dev mode
 	if cfg.S3.SoftwareInstallersBucket == "" {
 		cfg.S3.SoftwareInstallersBucket = "software-installers-dev"
+	}
+	if cfg.S3.SoftwareInstallersRegion == "" {
 		cfg.S3.SoftwareInstallersRegion = "localhost"
+	}
+	if cfg.S3.SoftwareInstallersPrefix == "" {
 		cfg.S3.SoftwareInstallersPrefix = "dev-prefix"
+	}
+	if cfg.S3.SoftwareInstallersEndpointURL == "" {
 		cfg.S3.SoftwareInstallersEndpointURL = "http://localhost:9000"
+	}
+	if cfg.S3.SoftwareInstallersAccessKeyID == "" {
 		cfg.S3.SoftwareInstallersAccessKeyID = "locals3"
+	}
+	if cfg.S3.SoftwareInstallersSecretAccessKey == "" {
 		cfg.S3.SoftwareInstallersSecretAccessKey = "locals3"
-		cfg.S3.SoftwareInstallersDisableSSL = true
-		cfg.S3.SoftwareInstallersForceS3PathStyle = true
+	}
+	if cfg.S3.SoftwareInstallersAccessKeyID == "locals3" && cfg.S3.SoftwareInstallersSecretAccessKey == "locals3" {
+		// can't rely on zero values
+		cfg.S3.CarvesDisableSSL = true
+		cfg.S3.CarvesForceS3PathStyle = true
 	}
 }
 
