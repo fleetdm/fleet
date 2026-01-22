@@ -53,7 +53,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@18a212d6b26e63d2e08d083e82f0597a6095f08c # v4.0.0
+        uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede # v4
         with:
           version: v1.31.0
 
