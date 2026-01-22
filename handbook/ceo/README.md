@@ -236,7 +236,7 @@ Mike and the Fleet team
 
 ### Manually archive a Slack channel
 
-Follow these steps to archive a channel and save memories (e.g. pictures or videos)
+Use the following steps to manually archive a Slack channel and save any artifacts, e.g., images, attachments, or videos:
 1. Download all pictures and videos in the channel to your device you want to archive.
 2. Go to the [memories folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ?usp=drive_link) in Google Drive and create a new folder.
 3. When naming the new folder, put as many details as possible regarding the event the memories were taken place at.
