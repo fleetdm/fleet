@@ -145,9 +145,9 @@ module "eks" {
   # Managed node group
   eks_managed_node_groups = {
     default = {
-      min_size       = 1
-      max_size       = 1
-      desired_size   = 1
+      min_size       = 2
+      max_size       = 3
+      desired_size   = 2
       instance_types = ["t3.xlarge"]
     }
   }
@@ -488,45 +488,24 @@ resource "kubernetes_secret" "otel_bearer_token" {
 
   type = "Opaque"
 
-  string_data = {
-    otel_bearer_token = var.otel_bearer_token
+  data = {
+    OTEL_BEARER_TOKEN = var.otel_bearer_token
   }
 }
 
-resource "kubernetes_manifest" "otel_collector_bearer_env" {
-  manifest = {
-    apiVersion = "apps/v1"
-    kind       = "Deployment"
-    metadata = {
-      name      = "signoz-otel-collector"
-      namespace = "signoz"
-    }
-    spec = {
-      template = {
-        spec = {
-          containers = [
-            {
-              name = "collector"
-              env = [
-                {
-                  name = "OTEL_BEARER_TOKEN"
-                  valueFrom = {
-                    secretKeyRef = {
-                      name = kubernetes_secret.otel_bearer_token.metadata[0].name
-                      key  = "otel_bearer_token"
-                    }
-                  }
-                }
-              ]
-            }
-          ]
-        }
-      }
-    }
+resource "null_resource" "patch_otel_collector_bearer_env" {
+  triggers = {
+    token_hash   = sha256(var.otel_bearer_token)
+    helm_release = tostring(helm_release.signoz.metadata[0].revision)
   }
 
-  field_manager {
-    force_conflicts = true
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -euo pipefail
+      kubectl -n signoz set env deployment/signoz-otel-collector \
+        --containers=collector \
+        --from=secret/${kubernetes_secret.otel_bearer_token.metadata[0].name}
+    EOT
   }
 
   depends_on = [

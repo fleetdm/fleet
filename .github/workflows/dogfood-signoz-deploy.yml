@@ -57,6 +57,14 @@ jobs:
           terraform_version: 1.10.2
           terraform_wrapper: false
 
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@18a212d6b26e63d2e08d083e82f0597a6095f08c # v4.0.0
+        with:
+          version: v1.31.0
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --region "${AWS_REGION}" --name signoz
+
       - name: Terraform Init
         id: init
         run: terraform init
