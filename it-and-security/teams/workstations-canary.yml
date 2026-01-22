@@ -312,6 +312,8 @@ software:
         - Apple Silicon macOS hosts
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
+    - slug: okta-verify/darwin
+      self_service: true
     # Windows apps
     - slug: slack/windows # Slack for Windows
       display_name: "Slack"
