@@ -506,4 +506,9 @@ module.exports.custom = {
   // vppProxyTokenKeyId: '',
   // vppProxyTokenPrivateKey: '',
 
+
+  // Eventbrite API
+  // eventbriteOrgId: '',
+  // eventbriteApiToken: '',
+
 };
