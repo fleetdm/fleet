@@ -853,7 +853,7 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 	}
 
 	if len(labels) != len(uniqueNames) {
-		return nil, fleet.NewInvalidLabelError(uniqueNames, labels)
+		return nil, fleet.NewMissingLabelError(uniqueNames, labels)
 	}
 
 	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {

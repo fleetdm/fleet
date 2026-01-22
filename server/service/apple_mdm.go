@@ -975,10 +975,10 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 	}
 
 	if len(labels) != len(uniqueNames) {
-		labelError := fleet.NewInvalidLabelError(uniqueNames, labels)
+		labelError := fleet.NewMissingLabelError(uniqueNames, labels)
 		return nil, &fleet.BadRequestError{
 			InternalErr: labelError,
-			Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", labelError.InvalidLabelName),
+			Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", labelError.MissingLabelName),
 		}
 	}
 

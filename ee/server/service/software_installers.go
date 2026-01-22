@@ -221,11 +221,11 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 
 	byName, err := svc.BatchValidateLabels(ctx, teamID, names)
 	if err != nil {
-		var invalidLabelErr *fleet.InvalidLabelError
-		if errors.As(err, &invalidLabelErr) {
+		var missingLabelErr *fleet.MissingLabelError
+		if errors.As(err, &missingLabelErr) {
 			return nil, &fleet.BadRequestError{
-				InternalErr: invalidLabelErr,
-				Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", invalidLabelErr.InvalidLabelName),
+				InternalErr: missingLabelErr,
+				Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", missingLabelErr.MissingLabelName),
 			}
 		}
 		return nil, err
