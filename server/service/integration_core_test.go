@@ -12578,7 +12578,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", emptyslreq, http.StatusOK, &emptyslres)
 	require.NoError(t, emptyslres.Err)
 	require.Equal(t, 2, counts[usbDevicesQuery.ID])
-	require.Equal(t, 4, counts[osqueryInfoQuery.ID])
+	// Count stays the same because error rows don't count against the limit.
+	require.Equal(t, 3, counts[osqueryInfoQuery.ID])
 
 	gqrr = getQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)

@@ -2,8 +2,6 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -168,55 +166,88 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		return nil, ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")
 	}
 
-	queryCounts := make(map[uint]int)
-	for _, queryID := range queryIDs {
-		// Find the cutoff ID: the row at position maxQueryReportRows when ordered by id DESC.
-		// Since we only do deletes + inserts (no updates), higher ID = more recently inserted.
-		// Rows with id <= cutoff should be deleted.
-		var cutoffID uint
-		cutoffStmt := `
-			SELECT id FROM query_results
-			WHERE query_id = ? AND data IS NOT NULL
-			ORDER BY id DESC
-			LIMIT 1 OFFSET ?
-		`
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &cutoffID, cutoffStmt, queryID, maxQueryReportRows); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// Fewer rows than the limit, nothing to delete for this query
-				// Still get the count to sync Redis
-				count, err := ds.ResultCountForQuery(ctx, queryID)
+	// Nothing to do, bail early.
+	if len(queryIDs) == 0 {
+		return map[uint]int{}, nil
+	}
+
+	// Get the cutoff IDs for each query in one query.
+	// Cutoff is the ID of the Nth most recent row,
+	// where N is the maxQueryReportRows.
+	type cutoffRow struct {
+		QueryID  uint `db:"query_id"`
+		CutoffID uint `db:"cutoff_id"`
+	}
+	var queryCutoffs []cutoffRow
+	cutoffStmt := `
+        SELECT query_id, id as cutoff_id FROM (
+            SELECT query_id, id,
+                ROW_NUMBER() OVER (PARTITION BY query_id ORDER BY id DESC) as rn
+            FROM query_results
+            WHERE query_id IN (?) 
+        ) cutoff
+        WHERE rn = ?
+    `
+	query, args, err := sqlx.In(cutoffStmt, queryIDs, maxQueryReportRows)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building cutoff query")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryCutoffs, ds.reader(ctx).Rebind(query), args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting cutoffs")
+	}
+
+	// Delete excess rows from each query, in batches.
+	if len(queryCutoffs) > 0 {
+		for _, c := range queryCutoffs {
+			deleteStmt := `
+                DELETE FROM query_results
+                WHERE query_id = ? AND id < ?
+                LIMIT ?
+            `
+			for {
+				result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, c.QueryID, c.CutoffID, batchSize)
 				if err != nil {
-					return nil, ctxerr.Wrapf(ctx, err, "counting rows for query %d", queryID)
+					return nil, ctxerr.Wrapf(ctx, err, "cleaning up query %d", c.QueryID)
 				}
-				queryCounts[queryID] = count
-				continue
+				rowsAffected, _ := result.RowsAffected()
+				if rowsAffected == 0 {
+					break
+				}
 			}
-			return nil, ctxerr.Wrapf(ctx, err, "finding cutoff for query %d", queryID)
 		}
+	}
 
-		// Delete in batches
-		deleteStmt := `
-			DELETE FROM query_results
-			WHERE query_id = ? AND data IS NOT NULL AND id <= ?
-			LIMIT ?
-		`
-		for {
-			result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryID, cutoffID, batchSize)
-			if err != nil {
-				return nil, ctxerr.Wrapf(ctx, err, "cleaning up excess query results for query %d", queryID)
-			}
-			rowsAffected, _ := result.RowsAffected()
-			if rowsAffected == 0 {
-				break
-			}
-		}
+	// Count the results for each query.
+	// This will be used to sync Redis counters.
+	type countRow struct {
+		QueryID uint `db:"query_id"`
+		Count   int  `db:"count"`
+	}
+	var counts []countRow
+	countStmt := `
+        SELECT query_id, COUNT(*) as count
+        FROM query_results
+        WHERE query_id IN (?) AND data IS NOT NULL
+        GROUP BY query_id
+    `
+	query, args, err = sqlx.In(countStmt, queryIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building count query")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &counts, ds.reader(ctx).Rebind(query), args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting counts")
+	}
 
-		// Get actual count after cleanup to sync Redis
-		count, err := ds.ResultCountForQuery(ctx, queryID)
-		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "counting rows after cleanup for query %d", queryID)
+	queryCounts := make(map[uint]int)
+	for _, c := range counts {
+		queryCounts[c.QueryID] = c.Count
+	}
+
+	// Include queries with 0 results
+	for _, qid := range queryIDs {
+		if _, ok := queryCounts[qid]; !ok {
+			queryCounts[qid] = 0
 		}
-		queryCounts[queryID] = count
 	}
 
 	return queryCounts, nil

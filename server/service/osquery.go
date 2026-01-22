@@ -3172,6 +3172,10 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 	if rowsAdded, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
 		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
+	// If we only inserted an error row, don't count it against the limit.
+	if len(result.Snapshot) == 0 {
+		rowsAdded = rowsAdded - 1
+	}
 	return rowsAdded, nil
 }
 
