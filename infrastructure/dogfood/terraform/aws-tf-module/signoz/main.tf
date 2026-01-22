@@ -160,6 +160,12 @@ module "eks" {
   # Use explicit access entries to avoid creator-role drift.
   enable_cluster_creator_admin_permissions = false
 
+  kms_key_administrators = [
+    local.admin_role_arn,
+    local.github_actions_role_arn,
+    local.sso_admin_role_arn
+  ]
+
   access_entries = {
     admin = {
       principal_arn = local.admin_role_arn
