@@ -31,7 +31,7 @@ package_path: package_name.yml
 package_path: ../software/package_name.yml
 ```
 
-You may also wish to create specialized API-only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
+Specialized API-only users, who can modify configurations via GitOps but cannot access the Fleet UI, can be created through `fleetctl user create` with the `--api-only` flag. Best practice is to assign these users the `GitOps` role and specify global or team scope in the UI.
 
 ## labels
 
@@ -981,6 +981,8 @@ Can only be configured for all teams (`org_settings`).
 ### webhook_settings
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status [automations](https://fleetdm.com/docs/using-fleet/automations).
+
+- `interval` is how often policy webhooks/tickets and host status webhooks are triggered, formatted as number + unit of measurement (e.g. `"90m"`). Can be specified in seconds (`"s"`), minutes (`"m"`), or hours (`"h"`). (Default: `"24h"`)
 
 #### activities_webhook
 

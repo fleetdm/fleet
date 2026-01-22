@@ -925,7 +925,7 @@ The `Authorization` header must be formatted as follows:
 Authorization: Node key <node_key>
 ```
 
-OR 
+OR
 
 ```
 Authorization: Bearer <token>
@@ -945,7 +945,7 @@ the `$FLEET_*` variables will not be replaced.
 Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
 ```
 
-OR 
+OR
 
 ```http
 Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
@@ -973,7 +973,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
       "created_at": "2025-11-04T00:00:00Z",
-    }  
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -1005,7 +1005,7 @@ The `Authorization` header must be formatted as follows:
 Authorization: Node key <node_key>
 ```
 
-OR 
+OR
 
 ```
 Authorization: Bearer <token>
@@ -1168,7 +1168,7 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
 
 - [Get Okta certificate](#get-okta-certificate)
 - [Get Okta configuration profile](#get-okta-configuration-profile)
-- [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id) 
+- [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id)
 
 ### Get Okta certificate
 
@@ -2190,6 +2190,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type  | Description   |
 | ---------------------             | ----- | ---------------------------------------------------------------------------------------------- |
+| interval          |               | string | How often policy webhooks/tickets and host status webhooks are triggered, formatted as number + unit of measurement (e.g. `"90m"`). Can be specified in seconds (`"s"`), minutes (`"m"`), or hours (`"h"`). (Default: `"24h"`) |
 | host_status_webhook               | array | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook).           |
 | failing_policies_webhook          | array | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook). |
 | vulnerabilities_webhook           | array | See [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook).   |
@@ -3664,7 +3665,7 @@ Returns the information of the specified host.
 }
 ```
 
-`extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+`browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
@@ -3885,7 +3886,7 @@ If `hostname` is specified when there is more than one host with the same hostna
           "status": "verifying",
           "operation_type": "install",
           "scope": "device",
-          "managed_local_account": "", 
+          "managed_local_account": "",
           "detail": ""
         }
       ]
@@ -3898,7 +3899,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
-`extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 #### Get host by device token
 
@@ -4105,7 +4106,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 }
 ```
 
-`extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 ### Delete host
 
@@ -4676,7 +4677,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
-On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again. 
+On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
@@ -5023,7 +5024,7 @@ _Available in Fleet Premium_
 
 Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). 
+To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command) and sends a [Device Location](https://developer.apple.com/documentation/devicemanagement/device-location-command) MDM command. To see location, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint.
 
@@ -6298,7 +6299,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 
 Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are assigned to "No team" (Fleet Premium).
 
-For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list. 
+For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list.
 
 For Windows profiles, Fleet applies new profiles or updates when content changes, and deletes profiles no longer in the list. It does not send commands to remove configuration profiles from Windows hosts.
 
@@ -7476,7 +7477,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 
 > Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
-> 
+>
 > Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
 
 #### Example
@@ -10498,7 +10499,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed_uninstall": 0
       },
       "installer_id": 332,
-      "install_script": null, 
+      "install_script": null,
       "uninstall_script": null,
       "post_install_script": null,
       "pre_install_query": null,
@@ -11655,7 +11656,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 }
 ```
 
-`browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 ---
 

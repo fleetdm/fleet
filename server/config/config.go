@@ -22,6 +22,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
@@ -114,6 +116,8 @@ type ServerConfig struct {
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
+	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
+	TrustedProxies                   string        `yaml:"trusted_proxies"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1175,6 +1179,9 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
+	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.DefaultMaxInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
+	man.addConfigString("server.trusted_proxies", "",
+		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1638,6 +1645,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
+			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
+			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2077,6 +2086,33 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	return durationVal
 }
 
+// addConfigByteSize adds a byte size config that accepts human-readable values like "10GiB", "500MB", "1G"
+func (man Manager) addConfigByteSize(key string, defVal string, usage string) {
+	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
+
+	// Add default
+	man.addDefault(key, defVal)
+}
+
+// getConfigByteSize retrieves a byte size from the loaded config, parsing human-readable strings
+// like "10GiB", "500MB", "1G" into int64 byte values
+func (man Manager) getConfigByteSize(key string) int64 {
+	interfaceVal := man.getInterfaceVal(key)
+	stringVal, err := cast.ToStringE(interfaceVal)
+	if err != nil {
+		panic("Unable to cast to string for key " + key + ": " + err.Error())
+	}
+
+	byteSize, err := units.RAMInBytes(stringVal)
+	if err != nil {
+		panic("Unable to parse byte size for key " + key + ": " + err.Error())
+	}
+
+	return byteSize
+}
+
 // panics if the config is invalid, this is handled by Viper (this is how all
 // getConfigT helpers indicate errors). The default value is only applied if
 // there is no task-specific config (i.e., no "task=true" config format for that
@@ -2214,7 +2250,11 @@ func TestConfig() FleetConfig {
 			AuditLogFile:  testLogFile,
 			MaxSize:       500,
 		},
-		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"},
+		Server: ServerConfig{
+			PrivateKey: "72414F4A688151F75D032F5CDA095FC4",
+			// smaller than normal max to allow for testing max in CI, while being above the multipart chunk size
+			MaxInstallerSizeBytes: 513 * units.MiB,
+		},
 	}
 }
 

@@ -67,6 +67,8 @@ type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+
 type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
@@ -78,6 +80,8 @@ type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
 
 type DeleteUserFunc func(ctx context.Context, id uint) error
+
+type CountGlobalAdminsFunc func(ctx context.Context) (int, error)
 
 type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
@@ -290,6 +294,8 @@ type ListUpcomingHostMaintenanceWindowsFunc func(ctx context.Context, hid uint) 
 type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error)
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
+
+type GetDeviceAuthTokenFunc func(ctx context.Context, hostID uint) (string, error)
 
 type FailingPoliciesCountFunc func(ctx context.Context, host *fleet.Host) (uint, error)
 
@@ -1810,6 +1816,9 @@ type DataStore struct {
 	ListUsersFunc        ListUsersFunc
 	ListUsersFuncInvoked bool
 
+	UsersByIDsFunc        UsersByIDsFunc
+	UsersByIDsFuncInvoked bool
+
 	UserByEmailFunc        UserByEmailFunc
 	UserByEmailFuncInvoked bool
 
@@ -1827,6 +1836,9 @@ type DataStore struct {
 
 	DeleteUserFunc        DeleteUserFunc
 	DeleteUserFuncInvoked bool
+
+	CountGlobalAdminsFunc        CountGlobalAdminsFunc
+	CountGlobalAdminsFuncInvoked bool
 
 	PendingEmailChangeFunc        PendingEmailChangeFunc
 	PendingEmailChangeFuncInvoked bool
@@ -2145,6 +2157,9 @@ type DataStore struct {
 
 	SetOrUpdateDeviceAuthTokenFunc        SetOrUpdateDeviceAuthTokenFunc
 	SetOrUpdateDeviceAuthTokenFuncInvoked bool
+
+	GetDeviceAuthTokenFunc        GetDeviceAuthTokenFunc
+	GetDeviceAuthTokenFuncInvoked bool
 
 	FailingPoliciesCountFunc        FailingPoliciesCountFunc
 	FailingPoliciesCountFuncInvoked bool
@@ -4481,6 +4496,13 @@ func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return s.ListUsersFunc(ctx, opt)
 }
 
+func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+	s.mu.Lock()
+	s.UsersByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UsersByIDsFunc(ctx, ids)
+}
+
 func (s *DataStore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
 	s.mu.Lock()
 	s.UserByEmailFuncInvoked = true
@@ -4521,6 +4543,13 @@ func (s *DataStore) DeleteUser(ctx context.Context, id uint) error {
 	s.DeleteUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteUserFunc(ctx, id)
+}
+
+func (s *DataStore) CountGlobalAdmins(ctx context.Context) (int, error) {
+	s.mu.Lock()
+	s.CountGlobalAdminsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountGlobalAdminsFunc(ctx)
 }
 
 func (s *DataStore) PendingEmailChange(ctx context.Context, userID uint, newEmail string, token string) error {
@@ -5263,6 +5292,13 @@ func (s *DataStore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint,
 	s.SetOrUpdateDeviceAuthTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateDeviceAuthTokenFunc(ctx, hostID, authToken)
+}
+
+func (s *DataStore) GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.GetDeviceAuthTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceAuthTokenFunc(ctx, hostID)
 }
 
 func (s *DataStore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {

@@ -116,6 +116,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
+	github.com/realclientip/realclientip-go v1.0.0
 	github.com/remitly-oss/httpsig-go v1.2.0
 	github.com/rs/zerolog v1.32.0
 	github.com/russellhaering/goxmldsig v1.4.0
