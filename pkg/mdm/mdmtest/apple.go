@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -539,8 +540,7 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	// engineering/cleverness but for now, we're signing the request with
 	// our mock certs and setting this env var to skip the verification.
 
-	// TODO this workaround is broken if we don't allow FLEET_DEV_* env vars in normal operation
-	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	mockedCert, mockedKey, err := apple_mdm.NewSCEPCACertKey()
 	if err != nil {
 		return fmt.Errorf("creating mock certificates: %w", err)
@@ -549,7 +549,7 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}
-	os.Unsetenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
+	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 
 	var scepInfo struct {
 		PayloadContent []struct {
