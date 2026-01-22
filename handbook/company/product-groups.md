@@ -725,7 +725,7 @@ In the Slack reminder thread, the outgoing on-call engineer should include a bri
 
 ### After-hours incident on-call engineer
 
-Customer Success members are instructed to `@incident-oncall` in `#help-engineering` to report [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring after hours.
+Customer Success members are instructed to `@incident-oncall` in `#help-engineering` to report [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring after business hours.
 
 Incidents that occur during business hours should be handled by the business-hours on-call engineer and should not use `@incident-oncall`.
 
@@ -737,7 +737,7 @@ Each product group maintains two engineers assigned to after-hours incident on-c
 
 #### After-hours incident on-call responsibilities
 
-The after-hours incident on-call engineer is responsible for responding within one hour to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring outside of business hours and triaging into our [incident response process](https://fleetdm.com/handbook/company/communications#incident-response-process). 
+The after-hours incident on-call engineer is responsible for responding within one hour to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring outside of business hours and triaging into our [incident response process](https://fleetdm.com/handbook/company/engineering#incident-response-process). 
 
 Any mentions that do not meet [P0 criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) or are during business hours should be acknowledged and redirected to business hours on-call.
 
