@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -244,14 +244,14 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 
 func getBaseURL() string {
 	region := "us"
-	if os.Getenv("FLEET_DEV_VPP_REGION") != "" {
-		region = os.Getenv("FLEET_DEV_VPP_REGION")
+	if dev_mode.Env("FLEET_DEV_VPP_REGION") != "" {
+		region = dev_mode.Env("FLEET_DEV_VPP_REGION")
 	}
-	if os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") == "apple" {
+	if dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") == "apple" {
 		return fmt.Sprintf(appleHostAndScheme+"/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
 	}
-	if os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") != "" {
-		return os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
+	if dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") != "" {
+		return dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
 	}
 	return fmt.Sprintf("https://fleetdm.com/api/vpp/v1/metadata/%s?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
 }
@@ -266,7 +266,7 @@ type DataStore interface {
 }
 
 func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Authenticator {
-	token := os.Getenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN")
+	token := dev_mode.Env("FLEET_DEV_VPP_METADATA_BEARER_TOKEN")
 	if token != "" {
 		return func(bool) (string, error) { return token, nil }
 	}
@@ -281,7 +281,7 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 			}
 		}
 
-		authUrl := os.Getenv("FLEET_DEV_VPP_PROXY_AUTH_URL")
+		authUrl := dev_mode.Env("FLEET_DEV_VPP_PROXY_AUTH_URL")
 		if authUrl == "" {
 			authUrl = "https://fleetdm.com/api/vpp/v1/auth"
 		}

@@ -19,7 +19,7 @@ type Metadata struct {
 }
 
 func getBaseURL() string {
-	devURL := os.Getenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL")
+	devURL := os.Getenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL") // no dev_mode proxy as this is fleetd
 	if devURL != "" {
 		return devURL
 	}

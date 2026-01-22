@@ -12,6 +12,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
@@ -35,8 +36,8 @@ type GoogleClient struct {
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &GoogleClient{}
 
-func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(string) string) Client {
-	androidServiceCredentials := getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
+func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getEnv dev_mode.GetEnv) Client {
+	androidServiceCredentials := getEnv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		return nil
 	}
