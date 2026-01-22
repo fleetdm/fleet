@@ -22,7 +22,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 	}
 
 	// Bail early if the incoming result set is too large (more than the row limit from a single host)
-	if len(rows) > maxQueryReportRows {
+	if len(rows) > 1000 {
 		return 0, nil
 	}
 
@@ -160,10 +160,9 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 	// Get all distinct query_ids that have results and are scheduled queries with discard_data = false
 	var queryIDs []uint
 	selectStmt := `
-		SELECT DISTINCT qr.query_id
-		FROM query_results qr
-		INNER JOIN queries q ON qr.query_id = q.id
-		WHERE q.discard_data = false AND qr.data IS NOT NULL
+		SELECT id
+		FROM queries
+		WHERE discard_data = false AND logging_type = 'snapshot'
 	`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs, selectStmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")
