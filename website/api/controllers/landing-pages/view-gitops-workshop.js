@@ -98,70 +98,8 @@ module.exports = {
         eventbriteLink: event.url,
         eventTime: eventTimeDetailsString,
       };
-
-
       futureGitopsWorkshops.push(eventDetails);
     });
-
-
-
-
-
-
-    // for(let event of responseFromEventbriteApi.events) {
-    //   // Get the venue location for each event.
-    //   let eventVenueResponse = await sails.helpers.http.get.with({
-    //     url: `https://www.eventbriteapi.com/v3/venues/${event.venue_id}/`,
-    //     headers: {
-    //       authorization: `Bearer ${sails.config.custom.eventbriteApiToken}`
-    //     },
-    //   }).tolerate((err)=>{
-    //     sails.log.warn(`When a user visited the gitops workshop page, details about a venue for an event (${event.name.text}) could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
-    //   });
-
-
-
-
-    //   let startAndEndTimeFormatter = new Intl.DateTimeFormat('en-US', {
-    //     timeZone: event.start.timezone,
-    //     hour: 'numeric',
-    //     minute: 'numeric',
-    //     hour12: true
-    //   });
-
-    //   let formattedTimeZoneString = new Intl.DateTimeFormat('en-US', {
-    //     timeZone: event.start.timezone,
-    //     timeZoneName: 'short'
-    //   }).format(startDate);
-
-    //   // Format the date
-
-
-    //   // Format start and end times
-    //   let startTime = timeFormatter.format(startDate);
-    //   let endTime = timeFormatter.format(endDate);
-    //   // Remove ":00" from times if present and lowercase
-    //   startTime = startTime.replace(':00 ', '').toLowerCase();
-    //   endTime = endTime.replace(':00 ', '').toLowerCase();
-
-    //   // Get timezone abbreviation
-    //   let tzParts = tzFormatter.formatToParts(startDate);
-    //   let timeZoneName = tzParts.find(p => p.type === "timeZoneName").value;
-
-    //   // Combine into final string
-    //   let eventTimeDetails = datePart + " from " + startTime + " to " + endTime + " " + timeZoneName;
-
-    //   let eventDetails = {
-    //     workshopCity: eventVenueResponse.address.city,
-    //     workshopAddress: eventVenueResponse.name,
-    //     eventbriteLink: event.url,
-    //     eventTime: eventTimeDetails,
-
-    //   };
-    //   console.log(eventDetails);
-    //   futureGitopsWorkshops.push(eventDetails);
-    // }
-
 
     // Respond with view.
     return {
