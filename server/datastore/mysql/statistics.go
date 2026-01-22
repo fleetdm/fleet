@@ -233,3 +233,29 @@ func (ds *Datastore) CleanupStatistics(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (ds *Datastore) GetTableRowCounts(ctx context.Context) (map[string]uint, error) {
+	return ds.getTableRowCountsViaInformationSchema(ctx)
+}
+
+func (ds *Datastore) getTableRowCountsViaInformationSchema(ctx context.Context) (map[string]uint, error) {
+	var results []struct {
+		Table string `db:"TABLE_NAME"`
+		Rows  uint   `db:"table_rows"`
+	}
+
+	if err := sqlx.SelectContext(
+		ctx,
+		ds.reader(ctx),
+		&results,
+		"SELECT table_name, COALESCE(table_rows, 0) table_rows FROM information_schema.tables WHERE table_schema = (SELECT DATABASE())",
+	); err != nil {
+		return nil, err
+	}
+
+	var byName = make(map[string]uint)
+	for _, row := range results {
+		byName[row.Table] = row.Rows
+	}
+	return byName, nil
+}
