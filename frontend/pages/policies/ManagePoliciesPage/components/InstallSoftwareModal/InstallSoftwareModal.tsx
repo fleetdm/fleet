@@ -83,6 +83,22 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
   return `${platformString}${versionString}`;
 };
 
+// Get the original software-id state from original API call
+const getOriginalSoftwareState = (policy: IFormPolicy) => {
+  const originalSwId = policy.install_software?.software_title_id ?? null;
+
+  const originallyEnabled = originalSwId !== null;
+
+  return { originallyEnabled, originalSwId };
+};
+
+// If a policy row as edited in the form, compute the current UI state.
+const getCurrentSoftwareState = (policy: IFormPolicy) => {
+  const nowEnabled = !!policy.installSoftwareEnabled;
+  const nowSwId = policy.swIdToInstall ?? null;
+  return { nowEnabled, nowSwId };
+};
+
 const InstallSoftwareModal = ({
   onExit,
   onSubmit,
@@ -136,9 +152,27 @@ const InstallSoftwareModal = ({
   );
 
   const onUpdateInstallSoftware = useCallback(() => {
-    if (paginatedListRef.current) {
-      onSubmit(paginatedListRef.current.getDirtyItems());
+    if (!paginatedListRef.current) {
+      return;
     }
+
+    const dirtyItems = paginatedListRef.current.getDirtyItems();
+
+    const trulyDirtyItems = dirtyItems.filter((item) => {
+      const { originallyEnabled, originalSwId } = getOriginalSoftwareState(
+        item
+      );
+      const { nowEnabled, nowSwId } = getCurrentSoftwareState(item);
+
+      const turnedOn = !originallyEnabled && nowEnabled;
+      const turnedOff = originallyEnabled && !nowEnabled;
+      const swChanged =
+        originallyEnabled && nowEnabled && nowSwId !== originalSwId;
+
+      return turnedOn || turnedOff || swChanged;
+    });
+
+    onSubmit(trulyDirtyItems);
   }, [onSubmit]);
 
   const onSelectPolicySoftware = (
