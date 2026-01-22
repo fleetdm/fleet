@@ -23,12 +23,14 @@
     "stripe": "17.3.1"
   },
   "devDependencies": {
+    "@rsbuild/plugin-less": "^1.5.0",
     "eslint": "5.16.0",
     "grunt": "1.0.4",
     "htmlhint": "0.11.0",
     "lesshint": "6.3.6",
     "marked": "4.0.10",
     "sails-hook-grunt": "^5.0.0",
+    "sails-hook-shipwright": "^1.1.0",
     "yaml": "1.10.2"
   },
   "scripts": {

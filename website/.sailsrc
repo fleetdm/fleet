@@ -1,4 +1,7 @@
 {
+  "hooks": {
+    "grunt": false
+  },
   "generators": {
     "modules": {
       "landing-page": "./generators/landing-page"
