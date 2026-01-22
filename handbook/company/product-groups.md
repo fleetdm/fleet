@@ -702,7 +702,7 @@ To achieve quick first-response times, you are encouraged to say things like:
 
 How to escalate:
 
-1. Spend up to 30 minutes investigating the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)).  
+1. Spend up to 10-15 minutes investigating the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)).  
 2. Create a new thread in `#help-engineering`, tagging the relevant product group and including any findings or links from your investigation.
 
 #### Changing of the guard
