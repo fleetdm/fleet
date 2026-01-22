@@ -76,6 +76,7 @@ export interface IMdmConfig {
   macos_setup: {
     bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
+    lock_primary_account_info: boolean;
     macos_setup_assistant: string | null;
     enable_release_device_manually: boolean | null;
     manual_agent_install: boolean | null;

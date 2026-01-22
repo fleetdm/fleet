@@ -254,11 +254,16 @@ const mdmService = {
     return sendRequest("GET", MDM_EULA(token));
   },
 
-  updateEndUserAuthentication: (teamId: number, isEnabled: boolean) => {
+  updateEndUserAuthentication: (
+    teamId: number,
+    isEnabled: boolean,
+    lockPrimaryAccountInfo: boolean
+  ) => {
     const { MDM_SETUP } = endpoints;
     return sendRequest("PATCH", MDM_SETUP, {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
+      lock_primary_account_info: lockPrimaryAccountInfo,
     });
   },
 

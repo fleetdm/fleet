@@ -26,11 +26,13 @@ const getTooltipCopy = (android = false) => {
 interface IEndUserAuthFormProps {
   currentTeamId: number;
   defaultIsEndUserAuthEnabled: boolean;
+  defaultLockPrimaryAccountInfo: boolean;
 }
 
 const EndUserAuthForm = ({
   currentTeamId,
   defaultIsEndUserAuthEnabled,
+  defaultLockPrimaryAccountInfo,
 }: IEndUserAuthFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
@@ -39,10 +41,17 @@ const EndUserAuthForm = ({
   const [isEndUserAuthEnabled, setEndUserAuthEnabled] = useState(
     defaultIsEndUserAuthEnabled
   );
+  const [lockPrimaryAccountInfo, setLockPrimaryAccountInfo] = useState(
+    defaultLockPrimaryAccountInfo
+  );
   const [isUpdating, setIsUpdating] = useState(false);
 
   const onToggleEndUserAuth = (newCheckVal: boolean) => {
     setEndUserAuthEnabled(newCheckVal);
+  };
+
+  const onToggleLockPrimaryAccountInfo = (newCheckVal: boolean) => {
+    setLockPrimaryAccountInfo(newCheckVal);
   };
 
   const onClickSave = async () => {
@@ -50,11 +59,12 @@ const EndUserAuthForm = ({
     try {
       await mdmAPI.updateEndUserAuthentication(
         currentTeamId,
-        isEndUserAuthEnabled
+        isEndUserAuthEnabled,
+        lockPrimaryAccountInfo
       );
       renderFlash("success", "Successfully updated!");
     } catch {
-      renderFlash("error", "Couldn’t update. Please try again.");
+      renderFlash("error", "Couldn't update. Please try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -88,6 +98,13 @@ const EndUserAuthForm = ({
           onChange={onToggleEndUserAuth}
         >
           Turn on
+        </Checkbox>
+        <Checkbox
+          disabled={gitOpsModeEnabled}
+          value={lockPrimaryAccountInfo}
+          onChange={onToggleLockPrimaryAccountInfo}
+        >
+          Lock primary account info
         </Checkbox>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (

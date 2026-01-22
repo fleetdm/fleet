@@ -525,6 +525,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 type MacOSSetup struct {
 	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
+	LockPrimaryAccountInfo      bool                               `json:"lock_primary_account_info"`
 	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant"`
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`

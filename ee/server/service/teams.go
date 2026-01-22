@@ -1841,6 +1841,11 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
+	if payload.LockPrimaryAccountInfo != nil && tm.Config.MDM.MacOSSetup.LockPrimaryAccountInfo != *payload.LockPrimaryAccountInfo {
+		tm.Config.MDM.MacOSSetup.LockPrimaryAccountInfo = *payload.LockPrimaryAccountInfo
+		didUpdate = true
+	}
+
 	if payload.EnableReleaseDeviceManually != nil {
 		if tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
 			tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
