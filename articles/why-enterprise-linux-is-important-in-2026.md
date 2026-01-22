@@ -1,6 +1,8 @@
 # Why enterprise Linux is important in 2026
 
-The Linux project began in 1991 when Linus Torvalds created a free kernel for his personal computer inspired by the Unix operating system. With the stability of Unix and an open-source development model, Linux stood in sharp contrast to mainstream operating system development in the 1990s. ([Steve Ballmer](https://www.theregister.com/2001/06/02/ballmer_linux_is_a_cancer/) infamously referred to Linux as a “cancer.”)
+The Linux project began in 1991 when Linus Torvalds created a free kernel for his personal computer, inspired by the Unix operating system. With the stability of Unix and an open-source development model, Linux stood in sharp contrast to mainstream operating system development in the 1990s.
+
+In the 1990s and early 2000s, Linux wasn't just unfamiliar. Incumbents actively resisted it. Microsoft's [Steve Ballmer](https://www.theregister.com/2001/06/02/ballmer_linux_is_a_cancer/) publicly framed Linux as a threat, reinforcing the idea that it didn't belong in enterprise environments.
 
 From the beginning, Linux attracted a loyal community of enthusiasts willing to roll up their sleeves and contribute to the project. Linux gained traction by powering servers and backend systems, but, as a replacement open-source desktop operating system, its breakthrough always felt just out of reach. Even as alternatives like ChromeOS and Android emerged in the enterprise (both of which are based on the Linux kernel) IT departments continued to limit employee choice to Windows and macOS.
 
