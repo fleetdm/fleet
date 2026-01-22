@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 	"google.golang.org/api/androidmanagement/v1"
@@ -17,7 +18,7 @@ import (
 
 // Required env vars:
 var (
-	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
+	androidServiceCredentials = dev_mode.Env("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	androidProjectID          string
 )
 

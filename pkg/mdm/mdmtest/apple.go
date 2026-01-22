@@ -538,6 +538,8 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	// believe this could be done with a little bit of reverse
 	// engineering/cleverness but for now, we're signing the request with
 	// our mock certs and setting this env var to skip the verification.
+
+	// TODO this workaround is broken if we don't allow FLEET_DEV_* env vars in normal operation
 	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	mockedCert, mockedKey, err := apple_mdm.NewSCEPCACertKey()
 	if err != nil {
