@@ -292,6 +292,18 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreAll: true,
 		},
+		// Gitk and Git GUI CVEs should not match the base git package
+		// These CVEs affect gitk/git-gui which is git-gui on Homebrew
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2025-27613": {}, // Gitk file creation/truncation via OS command injection
+				"CVE-2025-27614": {}, // Gitk arbitrary command execution
+				"CVE-2025-46835": {}, // Git GUI arbitrary file overwrite
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "git" && cpeMeta.Product == "git"
+			},
+		},
 	}
 
 	for i, rule := range rules {
