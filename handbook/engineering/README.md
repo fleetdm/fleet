@@ -143,7 +143,7 @@ The on-call engineer is responsible for:
 
 - Knowing [the after-hours incidenton-call rotation](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call).
 - Completing the [incident.io on-call engineer onboarding steps](https://help.incident.io/articles/3472064049-get-started-as-an-on-call-responder) sent via email when invited to incident.io.
-- Confirming the app is configured to push notifications through silent mode.
+- Confirming the app is configured to push notifications through Do Not Disturb.
 - Performing the [after-hours incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call-responsibilities).
 
 
