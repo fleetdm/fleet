@@ -5825,7 +5825,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				}
 			}
 			// Here and below: populate LastInstall for software packages, VPP apps, and in-house apps
-			//even if installer is out of scope so failed install attempts show the execution ID for viewing details.
+			// even if installer is out of scope so failed install attempts show the execution ID for viewing details.
 			if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.SoftwarePackage.LastInstall == nil {
 				if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
 					softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
