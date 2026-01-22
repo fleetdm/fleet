@@ -234,7 +234,7 @@ Mike and the Fleet team
 5. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
 
 
-### Archive channel and save memories
+### Manually archive a Slack channel
 
 Follow these steps to archive a channel and save memories (e.g. pictures or videos)
 1. Download all pictures and videos in the channel to your device you want to archive.
