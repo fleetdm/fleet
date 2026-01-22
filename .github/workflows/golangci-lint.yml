@@ -80,8 +80,8 @@ jobs:
 
       - name: Ensure all FLEET_DEV_* env var accesses are proxied
         run: |
-          if grep -R 'os.Getenv("FLEET_DEV' --include="*.go" . | grep -v '// no dev_mode proxy'; then
-            echo "Error: Found unproxied FLEET_DEV_* env var access. Please proxy via dev_mode.Env(), or add '// no dev_mode proxy' on the same line to allowlist." >&2
+          if grep -R 'os.Getenv("FLEET_DEV' --include="*.go" .; then
+            echo "Error: Found unproxied FLEET_DEV_* env var access. Please proxy via dev_mode.Env()." >&2
             exit 1
           else
             echo "OK: No unproxied FLEET_DEV_* env var accesses found."

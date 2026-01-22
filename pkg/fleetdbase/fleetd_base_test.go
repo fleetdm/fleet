@@ -6,12 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetBaseURL(t *testing.T) {
 	t.Run("with env variable", func(t *testing.T) {
-		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-testing.fleetdm.com")
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-testing.fleetdm.com")
+		defer dev_mode.ClearAllOverrides()
 		require.Equal(t, "https://download-testing.fleetdm.com", getBaseURL())
 	})
 
