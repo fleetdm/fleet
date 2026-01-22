@@ -135,6 +135,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		SoftwareInstallStore:            softwareInstallStore,
 		SoftwareTitleIconStore:          softwareTitleIconStore,
 		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
+		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		config.Logger = kitlog.NewNopLogger()
@@ -3953,6 +3954,32 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	rawResp.Body.Close()                             //nolint:errcheck
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+}
+
+func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrowserHostURL() {
+	t := s.T()
+
+	token := "valid_token"
+	createHostAndDeviceToken(t, s.ds, token)
+
+	// set custom url
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host": "example.com"}}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
+
+	// try setting invalid value
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"alternative_browser_host": "@:mon's_spagetti.com"}}`), http.StatusUnprocessableEntity, &acResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
@@ -12359,6 +12386,85 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
 			"team_id", fmt.Sprintf("%d", *payload.TeamID))
+	})
+
+	t.Run("patch software installer categories", func(t *testing.T) {
+		var labelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "some install script",
+			PreInstallQuery:   "some pre install query",
+			PostInstallScript: "some post install script",
+			Filename:          "ruby.deb",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:            "ruby",
+			Version:          "1:2.5.1",
+			Source:           "deb_packages",
+			StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:         "linux",
+			LabelsIncludeAny: []string{t.Name()},
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// check the software installer
+		_, titleID := checkSoftwareInstaller(t, s.ds, payload)
+
+		// patch the software installer to change the categories and self-service
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":      {"0"},
+			"categories":   {"Browsers", "Productivity"},
+			"self_service": {"true"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		expectedPayload := *payload
+		expectedPayload.Categories = []string{"Browsers", "Productivity"}
+		expectedPayload.SelfService = true
+		checkSoftwareInstaller(t, s.ds, payload)
+
+		meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), nil, titleID, false)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+
+		// patch the software installer to change the categories and nothing else
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":    {"0"},
+			"categories": {"Browsers"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		expectedPayload.Categories = []string{"Browsers"}
+		checkSoftwareInstaller(t, s.ds, payload)
+
+		meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), nil, titleID, false)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+
+		// patch the software installer to change the self-service and nothing else
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":      {"0"},
+			"self_service": {"false"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		expectedPayload.SelfService = false
+		checkSoftwareInstaller(t, s.ds, payload)
+
+		meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), nil, titleID, false)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
 	})
 }
 
@@ -23045,13 +23151,14 @@ func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
 
 	// Helper function to build Okta conditional access payloads
 	// Passing nil for a field will emit null in the JSON
-	oktaPayload := func(idp, acs, aud, cert *string) []byte {
+	oktaPayload := func(idp, acs, aud, cert *string, bypass *bool) []byte {
 		body := map[string]any{
 			"conditional_access": map[string]any{
 				"okta_idp_id":                         idp,
 				"okta_assertion_consumer_service_url": acs,
 				"okta_audience_uri":                   aud,
 				"okta_certificate":                    cert,
+				"bypass_disabled":                     bypass,
 			},
 		}
 		b, err := json.Marshal(body)
@@ -23086,6 +23193,8 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	aud := "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
 	invalidURL := "not-a-valid-url"
 	invalidCert := "not-a-valid-pem-certificate"
+	trueBool := true
+	falseBool := false
 
 	// GET config should return empty Okta fields initially
 	var acResp appConfigResponse
@@ -23096,15 +23205,16 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	require.False(t, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid)
 	require.False(t, acResp.ConditionalAccess.OktaAudienceURI.Valid)
 	require.False(t, acResp.ConditionalAccess.OktaCertificate.Valid)
+	require.False(t, acResp.ConditionalAccess.BypassDisabled.Valid)
 
 	// Test 1: Try to set only some Okta fields (should fail validation)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, nil, nil, nil), http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, nil, nil, nil, nil), http.StatusUnprocessableEntity)
 
 	// Test 2: Try to set 3 out of 4 fields (should fail validation)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, nil), http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, nil, nil), http.StatusUnprocessableEntity)
 
 	// Test 3: Set all 4 Okta fields with valid values (should succeed)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCert), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCert, &trueBool), http.StatusOK)
 
 	// GET config should now return the Okta fields
 	acResp = appConfigResponse{}
@@ -23114,6 +23224,8 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	assert.Equal(t, acs, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
 	assert.Equal(t, aud, acResp.ConditionalAccess.OktaAudienceURI.Value)
 	assert.Equal(t, validCert, acResp.ConditionalAccess.OktaCertificate.Value)
+	assert.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+	assert.True(t, acResp.ConditionalAccess.BypassDisabled.Value)
 
 	// Verify activity was created for adding Okta config
 	s.lastActivityOfTypeMatches(
@@ -23123,10 +23235,10 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	)
 
 	// Test 4: Try to set invalid URL for assertion_consumer_service_url (should fail)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &invalidURL, &aud, &validCert), http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &invalidURL, &aud, &validCert, &falseBool), http.StatusUnprocessableEntity)
 
 	// Test 5: Try to set invalid PEM certificate (should fail)
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &invalidCert), http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &invalidCert, &falseBool), http.StatusUnprocessableEntity)
 
 	// Test 6: Clear all Okta configuration by setting all fields to null
 	// First verify Okta is currently configured (from Test 3)
@@ -23135,7 +23247,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	require.True(t, acResp.ConditionalAccess.OktaIDPID.Valid, "Okta should be configured before Test 6")
 
 	// Now clear it
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(nil, nil, nil, nil), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(nil, nil, nil, nil, nil), http.StatusOK)
 
 	// Verify all fields are now null/empty
 	acResp = appConfigResponse{}
@@ -23146,6 +23258,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	assert.False(t, acResp.ConditionalAccess.OktaAssertionConsumerServiceURL.Valid)
 	assert.False(t, acResp.ConditionalAccess.OktaAudienceURI.Valid)
 	assert.False(t, acResp.ConditionalAccess.OktaCertificate.Valid)
+	assert.False(t, acResp.ConditionalAccess.BypassDisabled.Valid)
 
 	// Verify activity was created for deleting Okta config
 	// Note: Using lastActivityOfTypeMatches which searches the last 10 activities
@@ -23157,7 +23270,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 
 	// Test 7: Verify an unrelated config change doesn't affect Okta settings when Okta is configured
 	// First, set up Okta config again
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCert), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCert, &trueBool), http.StatusOK)
 
 	// Make an unrelated change (e.g., org_name)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -23178,7 +23291,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	// Test 8: Verify activity is created when editing Okta config
 	// Change one of the fields (e.g., the IDP ID)
 	newIdp := "https://www.okta.com/saml2/service-provider/newvalue123"
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&newIdp, &acs, &aud, &validCert), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&newIdp, &acs, &aud, &validCert, &trueBool), http.StatusOK)
 
 	// Verify the field was changed
 	acResp = appConfigResponse{}
@@ -23231,13 +23344,48 @@ mH6v0Wtbra/Ck/QjLbGj3zg/PGfpDiMwXFRCwTn+YjUFmNN/XYyfjqEaR7TbJ3H+
 qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 -----END CERTIFICATE-----`
 	validCertMultiple := validCert + "\n" + secondValidCert
-	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCertMultiple), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCertMultiple, &trueBool), http.StatusOK)
 
 	// Verify the configuration is saved with multiple certificates
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.True(t, acResp.ConditionalAccess.OktaCertificate.Valid)
 	assert.Equal(t, validCertMultiple, acResp.ConditionalAccess.OktaCertificate.Value)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+	assert.True(t, acResp.ConditionalAccess.BypassDisabled.Value)
+
+	// Change only if bypass is disabled
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCertMultiple, &falseBool), http.StatusOK)
+
+	// Verify the was changed
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+	assert.False(t, acResp.ConditionalAccess.BypassDisabled.Value)
+
+	// Verify activity was created for editing Okta config
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeUpdateConditionalAccessBypass{}.ActivityName(),
+		"{\"bypass_disabled\": false}",
+		0,
+	)
+
+	// Change only if bypass is disabled
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaPayload(&idp, &acs, &aud, &validCertMultiple, &trueBool), http.StatusOK)
+
+	// Verify the was changed
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+	assert.True(t, acResp.ConditionalAccess.BypassDisabled.Value)
+
+	// Verify activity was created for editing Okta config
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeUpdateConditionalAccessBypass{}.ActivityName(),
+		"{\"bypass_disabled\": true}",
+		0,
+	)
+
 }
 
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.
@@ -23604,14 +23752,45 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		require.NoError(t, err)
 		require.Equal(t, expectedPayload.Filename, meta.Name)
 		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
-		require.Equal(t, expectedPayload.Categories, meta.Categories)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+
+		// patch only the categories (test fix for https://github.com/fleetdm/fleet/issues/36069)
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":    {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"categories": {"Browsers"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		expectedPayload.Categories = []string{"Browsers"}
+
+		meta, err = s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
+
+		// patch only the self-service
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":      {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"self_service": {"false"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+		expectedPayload.SelfService = false
+
+		meta, err = s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
+		require.NoError(t, err)
+		require.Equal(t, expectedPayload.Filename, meta.Name)
+		require.Equal(t, expectedPayload.LabelsExcludeAny[0], meta.LabelsExcludeAny[0].LabelName)
+		require.Equal(t, expectedPayload.SelfService, meta.SelfService)
+		require.ElementsMatch(t, expectedPayload.Categories, meta.Categories)
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test2.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`,
+			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test2.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": false}`,
 				labelResp.Label.ID, labelResp.Label.Name, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore
@@ -24144,4 +24323,46 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestListActivitiesAuth() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a team and team user for testing.
+	// The standard test users (s.users) only include global roles (admin, maintainer, observer).
+	// Team users must be created per-test since they're not in the standard set.
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name() + "_team",
+		Description: "Team for activities auth test",
+	})
+	require.NoError(t, err)
+
+	teamObserver := &fleet.User{
+		Name:  "Activities Team Observer",
+		Email: "activities-team-observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, teamObserver.SetPassword(test.GoodPassword, 10, 10))
+	teamObserver, err = s.ds.NewUser(ctx, teamObserver)
+	require.NoError(t, err)
+
+	// Global users can access activities
+	for _, email := range []string{
+		"admin1@example.com", // global admin
+		"user1@example.com",  // global maintainer
+		"user2@example.com",  // global observer
+	} {
+		s.setTokenForTest(t, email, test.GoodPassword)
+		var resp listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp)
+	}
+
+	// Team-only users cannot access activities
+	s.setTokenForTest(t, teamObserver.Email, test.GoodPassword)
+	var resp listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusForbidden, &resp)
+
+	// Reset to admin token
+	s.token = s.getTestAdminToken()
 }

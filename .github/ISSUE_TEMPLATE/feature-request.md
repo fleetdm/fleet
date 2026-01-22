@@ -14,6 +14,10 @@ If you're a Fleetie and filling out this request on behalf of a Fleet customer, 
 - [ ] Unpacked: TODO: Head of Product Design (HPD) checks this box when the request goes through "Unpacking the why": https://fleetdm.com/handbook/product-design#unpacking-the-why
 - [ ] Gong snippet: TODO
 
+### Interpretation _(optional)_
+
+How do you interpret the customer's words? What's Fleet missing? What does the customer's ideal workflow look like?
+
 -->
 
 ## Screenshots and/or screen recording
