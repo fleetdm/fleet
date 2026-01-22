@@ -78,6 +78,24 @@ jobs:
         run: |
           go run ./tools/cloner-check/main.go -check
 
+      - name: Ensure all FLEET_DEV_* env var accesses are proxied
+        run: |
+          if grep -R 'os.Getenv("FLEET_DEV' --include="*.go" . | grep -v '// no dev_mode proxy'; then
+            echo "Error: Found unproxied FLEET_DEV_* env var access. Please proxy via dev_mode.Env(), or add '// no dev_mode proxy' on the same line to allowlist." >&2
+            exit 1
+          else
+            echo "OK: No unproxied FLEET_DEV_* env var accesses found."
+          fi
+
+      - name: Ensure no FLEET_DEV_* env var overrides are set in non-test code
+        run: |
+          if grep -R 'SetOverride("FLEET_DEV' --include="*.go" --exclude="*_test.go" --exclude="testing_utils.go" --exclude-dir="./pkg/mdm/mdmtest" .; then
+            echo "Error: Found FLEET_DEV_* overrides in non-test code." >&2
+            exit 1
+          else
+            echo "OK: No FLEET_DEV_* overrides in non-test code."
+          fi
+
   golangci-incremental:
     # Only run on pull requests (needs base branch for incremental comparison)
     if: github.event_name == 'pull_request'
