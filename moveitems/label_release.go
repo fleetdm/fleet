@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -46,6 +48,26 @@ func main() {
 	html := string(body)
 	tickets := extractTicketNumbers(html)
 
+	// Print tickets BEFORE changing anything
+	fmt.Printf("Found %d ticket(s) in project %d with label :product\n", len(tickets), projectNumber)
+	for _, n := range tickets {
+		fmt.Printf("#%d  https://github.com/%s/%s/issues/%d\n", n, owner, repo, n)
+	}
+
+	if len(tickets) == 0 {
+		return
+	}
+
+	// Ask for permission
+	fmt.Print("\nProceed to remove ':product' and add ':release' to these tickets? (y/N): ")
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	answer := strings.TrimSpace(strings.ToLower(line))
+	if answer != "y" && answer != "yes" {
+		fmt.Println("Cancelled. No changes made.")
+		return
+	}
+
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
 		panic("GITHUB_TOKEN is not set")
@@ -60,6 +82,8 @@ func main() {
 	if err := applyLabelsToTickets(token, tickets, []string{":release"}, true); err != nil {
 		panic(err)
 	}
+
+	fmt.Println("Done.")
 }
 
 func extractTicketNumbers(html string) []int {
