@@ -14,7 +14,7 @@ module.exports = {
     location: { type: 'string', required: true },
     numberOfHosts: { type: 'string', required: true },
     managedPlatforms: { type: {}, required: true },
-    willingToHost: { type: 'string', required: true },
+    willingToHost: { type: 'string'},
   },
 
 
