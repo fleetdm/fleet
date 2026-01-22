@@ -46,7 +46,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 
 > Currently, if a host's OS version is incompatible with the latest app version, clicking Update will always revert the status to Update available. This occurs because Fleet targets the latest App Store version, but the host can only install the last compatible version for its OS.
 
