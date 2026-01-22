@@ -2,6 +2,7 @@ package condaccess
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,9 +10,9 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -522,7 +523,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 		require.Equal(t, "user@example.com", session.NameID)
 	})
 
-	t.Run("redirects to remediate for failing conditional access policies", func(t *testing.T) {
+	t.Run("redirects to device policy page for failing conditional access policies", func(t *testing.T) {
 		ds := new(mock.Store)
 
 		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
@@ -540,6 +541,54 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
 			}, nil
+		}
+
+		ds.GetDeviceAuthTokenFunc = func(ctx context.Context, hostID uint) (string, error) {
+			return "abc123", nil
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://example.com",
+				},
+			}, nil
+		}
+
+		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 456}
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		w := httptest.NewRecorder()
+
+		session := provider.GetSession(w, req, nil)
+
+		require.Nil(t, session)
+		require.Equal(t, http.StatusSeeOther, w.Code)
+		require.Equal(t, "https://example.com/device/abc123/policies", w.Header().Get("Location"))
+	})
+
+	t.Run("redirects to remediate for failing conditional access policies when no auth token", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			teamID := uint(1)
+			return &fleet.Host{ID: 456, TeamID: &teamID}, nil
+		}
+
+		ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
+			return []uint{10, 20}, nil
+		}
+
+		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+			return []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
+			}, nil
+		}
+
+		ds.GetDeviceAuthTokenFunc = func(ctx context.Context, hostID uint) (string, error) {
+			return "", sql.ErrNoRows
 		}
 
 		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 456}

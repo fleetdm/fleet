@@ -35,12 +35,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
+	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/api/androidmanagement/v1"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -51,6 +53,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
@@ -123,14 +126,15 @@ type integrationMDMTestSuite struct {
 	scepChallenge             string
 	appleVPPConfigSrv         *httptest.Server
 	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
-	appleITunesSrv            *httptest.Server
-	appleITunesSrvData        map[string]string
+	appleVPPProxySrv          *httptest.Server
+	appleVPPProxySrvData      map[string]string
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
 	scepConfig                *eeservice.SCEPConfigService
 	androidAPIClient          *android_mock.Client
 	androidSvc                android.Service
 	proxyCallbackURL          string
+	jwtSigningKey             *rsa.PrivateKey
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -157,6 +161,8 @@ var defaultVPPAssetList = []vpp.Asset{
 		AvailableCount: 1,
 	},
 }
+
+const defaultFakeJWTKeyID = "fleetdefaultkeyid"
 
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
@@ -213,7 +219,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule)
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
+		Package:       "com.fleetdm.agent",
+		SigningSHA256: "abc123def456",
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -279,22 +288,29 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
+	// Create a software title icon store
+	iconDir := s.T().TempDir()
+	softwareTitleIconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+	require.NoError(s.T(), err)
+
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Logger:                serverLogger,
-		FleetConfig:           &fleetCfg,
-		MDMStorage:            mdmStorage,
-		DEPStorage:            depStorage,
-		SCEPStorage:           scepStorage,
-		MDMPusher:             mdmPushService,
-		Pool:                  s.redisPool,
-		Lq:                    s.lq,
-		SoftwareInstallStore:  softwareInstallerStore,
-		BootstrapPackageStore: bootstrapPackageStore,
-		androidMockClient:     androidMockClient,
-		androidModule:         androidSvc,
+		DBConns:                s.dbConns,
+		Logger:                 serverLogger,
+		FleetConfig:            &fleetCfg,
+		MDMStorage:             mdmStorage,
+		DEPStorage:             depStorage,
+		SCEPStorage:            scepStorage,
+		MDMPusher:              mdmPushService,
+		Pool:                   s.redisPool,
+		Lq:                     s.lq,
+		SoftwareInstallStore:   softwareInstallerStore,
+		SoftwareTitleIconStore: softwareTitleIconStore,
+		BootstrapPackageStore:  bootstrapPackageStore,
+		androidMockClient:      androidMockClient,
+		androidModule:          androidSvc,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -381,10 +397,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
+							return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+						}),
+						schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
 							if s.onCleanupScheduleDone != nil {
 								defer s.onCleanupScheduleDone()
 							}
-							return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+							return android_service.RenewCertificateTemplates(ctx, ds, logger)
 						}),
 					)
 					return cleanupsSchedule, nil
@@ -406,7 +425,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onAndroidProfileJobDone()
 								}()
 							}
-							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient)
+							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
+								Package:       "com.fleetdm.agent",
+								SigningSHA256: "abc123def456",
+							})
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -640,35 +662,34 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write(resp)
 	}))
 
-	s.appleITunesSrvData = map[string]string{
+	// deviceFamilies: "mac" -> osx platform, "iphone" -> ios platform, "ipad" -> ios platform
+	s.appleVPPProxySrvData = map[string]string{
 		// macOS app
-		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
+		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac"]}}`,
 		// macOS, iOS, iPadOS app
-		"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
+		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"osx": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.1"}}, "ios": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`,
 		// iPadOS app
-		"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
-
-		"4": `{"bundleId": "d-4", "artworkUrl512": "https://example.com/images/4", "version": "4.0.0", "trackName": "App 4", "TrackID": 4}`,
-		// App with 0 licenses
-		"5": `{"bundleId": "e-5", "artworkUrl512": "https://example.com/images/5", "version": "5.0.0", "trackName": "App 5", "TrackID": 5}`,
+		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "c-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["ipad"]}}`,
+		// macOS app
+		"4": `{"id": "4", "attributes": {"name": "App 4", "platformAttributes": {"osx": {"bundleId": "d-4", "artwork": {"url": "https://example.com/images/4/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "4.0.0"}}}, "deviceFamilies": ["mac"]}}`,
+		// App with 0 licenses - macOS app
+		"5": `{"id": "5", "attributes": {"name": "App 5", "platformAttributes": {"osx": {"bundleId": "e-5", "artwork": {"url": "https://example.com/images/5/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "5.0.0"}}}, "deviceFamilies": ["mac"]}}`,
 	}
 
-	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with
-
-		adamIDString := r.URL.Query().Get("id")
+	s.appleVPPProxySrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		adamIDString := r.URL.Query().Get("ids")
 		adamIDs := strings.Split(adamIDString, ",")
 
 		var objs []string
 		for _, a := range adamIDs {
-			data, ok := s.appleITunesSrvData[a]
+			data, ok := s.appleVPPProxySrvData[a]
 			if !ok {
 				continue
 			}
 			objs = append(objs, data)
 		}
 
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+		_, _ = w.Write(fmt.Appendf(nil, `{"data": [%s]}`, strings.Join(objs, ",")))
 	}))
 
 	s.appleGDMFSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -682,7 +703,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.T().Setenv("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL)
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
-	s.T().Setenv("FLEET_DEV_ITUNES_URL", s.appleITunesSrv.URL)
+	s.T().Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", s.appleVPPProxySrv.URL)
+	// Set a static bearer token so the authenticator doesn't try to call an auth endpoint (tested elsewhere)
+	s.T().Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "test-bearer-token")
 
 	s.mockedDownloadFleetdmMeta = fleetdbase.Metadata{
 		MSIURL:           fmt.Sprintf("https://download-testing.fleetdm.com/archive/stable/%s/fleetd-base.msi", uuid.NewString()),
@@ -722,8 +745,39 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
-	s.T().Cleanup(s.appleITunesSrv.Close)
+	s.T().Cleanup(s.appleVPPProxySrv.Close)
 	s.T().Cleanup(s.appleGDMFSrv.Close)
+
+	// Setup fake JWKs server for Azure JWT verification
+	metadata := jwkset.JWKMetadataOptions{
+		KID: defaultFakeJWTKeyID,
+	}
+	options := jwkset.JWKOptions{
+		Metadata: metadata,
+	}
+
+	// Create the JWK from the key and options.
+	jwk, err := jwkset.NewJWKFromKey(testKey, options)
+	require.NoError(s.T(), err)
+
+	jwkSet := jwkset.NewMemoryStorage()
+
+	err = jwkSet.KeyWrite(ctx, jwk)
+	require.NoError(s.T(), err)
+
+	jwksServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jwks.json" {
+			response, err := jwkSet.JSONPublic(r.Context())
+			require.NoError(s.T(), err)
+
+			w.Header().Set("Content-Type", "application/json")
+			_, err = w.Write(response)
+			require.NoError(s.T(), err)
+		}
+	}))
+	s.T().Cleanup(jwksServer.Close)
+	s.jwtSigningKey = testKey
+	s.T().Setenv("FLEET_DEV_AZURE_JWT_JWKS_URI", jwksServer.URL+"/jwks.json")
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -1436,6 +1490,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	serialNumber := mdmtest.RandSerialNumber()
 	fleetHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		UUID:             uuid.NewString(),
 		HardwareSerial:   serialNumber,
 		HardwareModel:    model,
 		Platform:         platform,
@@ -1455,6 +1510,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
 	mdmDevice.SerialNumber = serialNumber
+	mdmDevice.UUID = fleetHost.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -1479,25 +1535,25 @@ func enrollWindowsHostInMDMViaOrbit(t *testing.T, host *fleet.Host, ds fleet.Dat
 }
 
 // Simulates a host being orbit enrolled first then an MDM enrollment coming via the settings app
-func createWindowsHostThenEnrollMDMViaSettingsApp(ds fleet.Datastore, fleetServerURL, email string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
-	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), ds)
-	mdmDevice := enrollWindowsMDMViaSettingsApp(t, ds, fleetServerURL, email)
+func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(fleetServerURL, email string) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
+	host := createOrbitEnrolledHost(s.T(), "windows", uuid.NewString(), s.ds)
+	mdmDevice := s.enrollWindowsMDMViaSettingsApp(fleetServerURL, email)
 	return host, mdmDevice
 }
 
 // Note that this method only creates the MDM Enrollment but it will still need to be linked to the host record either
 // via DS methods or by simualting a refetch.
-func enrollWindowsMDMViaSettingsApp(t *testing.T, ds fleet.Datastore, fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE())
+func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 	err := mdmDevice.Enroll()
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
-func enrollWindowsHostInMDMViaAutopilot(t *testing.T, ds fleet.Datastore, fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email)
+func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 	err := mdmDevice.Enroll()
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
@@ -7651,7 +7707,20 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 	t := s.T()
 
 	// Preparing the GetPolicies Request message with Azure JWT token
-	azureADTok := "ZXlKMGVYQWlPaUpLVjFRaUxDSmhiR2NpT2lKU1V6STFOaUlzSW5nMWRDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUlzSW10cFpDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUo5LmV5SmhkV1FpT2lKb2RIUndjem92TDIxaGNtTnZjMnhoWW5NdWIzSm5MeUlzSW1semN5STZJbWgwZEhCek9pOHZjM1J6TG5kcGJtUnZkM011Ym1WMEwyWmhaVFZqTkdZekxXWXpNVGd0TkRRNE15MWlZelptTFRjMU9UVTFaalJoTUdFM01pOGlMQ0pwWVhRaU9qRTJPRGt4TnpBNE5UZ3NJbTVpWmlJNk1UWTRPVEUzTURnMU9Dd2laWGh3SWpveE5qZzVNVGMxTmpZeExDSmhZM0lpT2lJeElpd2lZV2x2SWpvaVFWUlJRWGt2T0ZSQlFVRkJOV2gwUTNFMGRERjNjbHBwUTIxQmVEQlpWaTloZGpGTVMwRkRPRXM1Vm10SGVtNUdXVGxzTUZoYWVrZHVha2N6VVRaMWVIUldNR3QxT1hCeFJXdFRZeUlzSW1GdGNpSTZXeUp3ZDJRaUxDSnljMkVpWFN3aVlYQndhV1FpT2lJeU9XUTVaV1E1T0MxaE5EWTVMVFExTXpZdFlXUmxNaTFtT1RneFltTXhaRFl3TldVaUxDSmhjSEJwWkdGamNpSTZJakFpTENKa1pYWnBZMlZwWkNJNkltRXhNMlkzWVdVd0xURXpPR0V0TkdKaU1pMDVNalF5TFRka09USXlaVGRqTkdGak15SXNJbWx3WVdSa2NpSTZJakU0Tmk0eE1pNHhPRGN1TWpZaUxDSnVZVzFsSWpvaVZHVnpkRTFoY21OdmMweGhZbk1pTENKdmFXUWlPaUpsTTJNMU5XVmtZeTFqTXpRNExUUTBNVFl0T0dZd05TMHlOVFJtWmpNd05qVmpOV1VpTENKd2QyUmZkWEpzSWpvaWFIUjBjSE02THk5d2IzSjBZV3d1YldsamNtOXpiMlowYjI1c2FXNWxMbU52YlM5RGFHRnVaMlZRWVhOemQyOXlaQzVoYzNCNElpd2ljbWdpT2lJd0xrRldTVUU0T0ZSc0xXaHFlbWN3VXpoaU0xZFdXREJ2UzJOdFZGRXpTbHB1ZUUxa1QzQTNUbVZVVm5OV2FYVkhOa0ZRYnk0aUxDSnpZM0FpT2lKdFpHMWZaR1ZzWldkaGRHbHZiaUlzSW5OMVlpSTZJa1pTUTJ4RldURk9ObXR2ZEdWblMzcFplV0pFTjJkdFdGbGxhVTVIUkZrd05FSjJOV3R6ZDJGeGJVRWlMQ0owYVdRaU9pSm1ZV1UxWXpSbU15MW1NekU0TFRRME9ETXRZbU0yWmkwM05UazFOV1kwWVRCaE56SWlMQ0oxYm1seGRXVmZibUZ0WlNJNkluUmxjM1JBYldGeVkyOXpiR0ZpY3k1dmNtY2lMQ0oxY0c0aU9pSjBaWE4wUUcxaGNtTnZjMnhoWW5NdWIzSm5JaXdpZFhScElqb2lNVGg2WkVWSU5UZFRSWFZyYWpseGJqRm9aMlJCUVNJc0luWmxjaUk2SWpFdU1DSjkuVG1FUlRsZktBdWo5bTVvQUc2UTBRblV4VEFEaTNFamtlNHZ3VXo3UTdqUUFVZVZGZzl1U0pzUXNjU2hFTXVxUmQzN1R2VlpQanljdEVoRFgwLVpQcEVVYUlSempuRVEyTWxvc21SZURYZzhrYkhNZVliWi1jb0ZucDEyQkVpQnpJWFBGZnBpaU1GRnNZZ0hSSF9tSWxwYlBlRzJuQ2p0LTZSOHgzYVA5QS1tM0J3eV91dnV0WDFNVEVZRmFsekhGa04wNWkzbjZRcjhURnlJQ1ZUYW5OanlkMjBBZFRMbHJpTVk0RVBmZzRaLThVVTctZkcteElycWVPUmVWTnYwOUFHV192MDd6UkVaNmgxVk9tNl9nelRGcElVVURuZFdabnFLTHlySDlkdkF3WnFFSG1HUmlTNElNWnRFdDJNTkVZSnhDWHhlSi1VbWZJdV9tUVhKMW9R"
+	// Preparing the SecurityToken Request message with Azure JWT token
+	claims := &jwt.MapClaims{
+		"upn":         "fleetie@example.com",
+		"tid":         "tenant_id",
+		"unique_name": "foo_bar",
+		"scp":         "mdm_delegation",
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = defaultFakeJWTKeyID
+	tokenString, err := token.SignedString(s.jwtSigningKey)
+	require.NoError(t, err)
+
+	azureADTok := base64.URLEncoding.EncodeToString([]byte(tokenString))
 	requestBytes, err := s.newGetPoliciesMsg(false, azureADTok)
 	require.NoError(t, err)
 
@@ -7814,7 +7883,19 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	t := s.T()
 
 	// Preparing the SecurityToken Request message with Azure JWT token
-	azureADTok := "ZXlKMGVYQWlPaUpLVjFRaUxDSmhiR2NpT2lKU1V6STFOaUlzSW5nMWRDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUlzSW10cFpDSTZJaTFMU1ROUk9XNU9VamRpVW05bWVHMWxXbTlZY1dKSVdrZGxkeUo5LmV5SmhkV1FpT2lKb2RIUndjem92TDIxaGNtTnZjMnhoWW5NdWIzSm5MeUlzSW1semN5STZJbWgwZEhCek9pOHZjM1J6TG5kcGJtUnZkM011Ym1WMEwyWmhaVFZqTkdZekxXWXpNVGd0TkRRNE15MWlZelptTFRjMU9UVTFaalJoTUdFM01pOGlMQ0pwWVhRaU9qRTJPRGt4TnpBNE5UZ3NJbTVpWmlJNk1UWTRPVEUzTURnMU9Dd2laWGh3SWpveE5qZzVNVGMxTmpZeExDSmhZM0lpT2lJeElpd2lZV2x2SWpvaVFWUlJRWGt2T0ZSQlFVRkJOV2gwUTNFMGRERjNjbHBwUTIxQmVEQlpWaTloZGpGTVMwRkRPRXM1Vm10SGVtNUdXVGxzTUZoYWVrZHVha2N6VVRaMWVIUldNR3QxT1hCeFJXdFRZeUlzSW1GdGNpSTZXeUp3ZDJRaUxDSnljMkVpWFN3aVlYQndhV1FpT2lJeU9XUTVaV1E1T0MxaE5EWTVMVFExTXpZdFlXUmxNaTFtT1RneFltTXhaRFl3TldVaUxDSmhjSEJwWkdGamNpSTZJakFpTENKa1pYWnBZMlZwWkNJNkltRXhNMlkzWVdVd0xURXpPR0V0TkdKaU1pMDVNalF5TFRka09USXlaVGRqTkdGak15SXNJbWx3WVdSa2NpSTZJakU0Tmk0eE1pNHhPRGN1TWpZaUxDSnVZVzFsSWpvaVZHVnpkRTFoY21OdmMweGhZbk1pTENKdmFXUWlPaUpsTTJNMU5XVmtZeTFqTXpRNExUUTBNVFl0T0dZd05TMHlOVFJtWmpNd05qVmpOV1VpTENKd2QyUmZkWEpzSWpvaWFIUjBjSE02THk5d2IzSjBZV3d1YldsamNtOXpiMlowYjI1c2FXNWxMbU52YlM5RGFHRnVaMlZRWVhOemQyOXlaQzVoYzNCNElpd2ljbWdpT2lJd0xrRldTVUU0T0ZSc0xXaHFlbWN3VXpoaU0xZFdXREJ2UzJOdFZGRXpTbHB1ZUUxa1QzQTNUbVZVVm5OV2FYVkhOa0ZRYnk0aUxDSnpZM0FpT2lKdFpHMWZaR1ZzWldkaGRHbHZiaUlzSW5OMVlpSTZJa1pTUTJ4RldURk9ObXR2ZEdWblMzcFplV0pFTjJkdFdGbGxhVTVIUkZrd05FSjJOV3R6ZDJGeGJVRWlMQ0owYVdRaU9pSm1ZV1UxWXpSbU15MW1NekU0TFRRME9ETXRZbU0yWmkwM05UazFOV1kwWVRCaE56SWlMQ0oxYm1seGRXVmZibUZ0WlNJNkluUmxjM1JBYldGeVkyOXpiR0ZpY3k1dmNtY2lMQ0oxY0c0aU9pSjBaWE4wUUcxaGNtTnZjMnhoWW5NdWIzSm5JaXdpZFhScElqb2lNVGg2WkVWSU5UZFRSWFZyYWpseGJqRm9aMlJCUVNJc0luWmxjaUk2SWpFdU1DSjkuVG1FUlRsZktBdWo5bTVvQUc2UTBRblV4VEFEaTNFamtlNHZ3VXo3UTdqUUFVZVZGZzl1U0pzUXNjU2hFTXVxUmQzN1R2VlpQanljdEVoRFgwLVpQcEVVYUlSempuRVEyTWxvc21SZURYZzhrYkhNZVliWi1jb0ZucDEyQkVpQnpJWFBGZnBpaU1GRnNZZ0hSSF9tSWxwYlBlRzJuQ2p0LTZSOHgzYVA5QS1tM0J3eV91dnV0WDFNVEVZRmFsekhGa04wNWkzbjZRcjhURnlJQ1ZUYW5OanlkMjBBZFRMbHJpTVk0RVBmZzRaLThVVTctZkcteElycWVPUmVWTnYwOUFHV192MDd6UkVaNmgxVk9tNl9nelRGcElVVURuZFdabnFLTHlySDlkdkF3WnFFSG1HUmlTNElNWnRFdDJNTkVZSnhDWHhlSi1VbWZJdV9tUVhKMW9R"
+	claims := &jwt.MapClaims{
+		"upn":         "fleetie@example.com",
+		"tid":         "tenant_id",
+		"unique_name": "foo_bar",
+		"scp":         "mdm_delegation",
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = defaultFakeJWTKeyID
+	tokenString, err := token.SignedString(s.jwtSigningKey)
+	require.NoError(t, err)
+
+	azureADTok := base64.URLEncoding.EncodeToString([]byte(tokenString))
 	requestBytes, err := s.newSecurityTokenMsg(azureADTok, false, false)
 	require.NoError(t, err)
 
@@ -7907,7 +7988,8 @@ func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
 	// Checking response content
 	resContent := string(resBytes)
 	require.Contains(t, resContent, "inputToken.name = 'wresult'")
-	require.Contains(t, resContent, "form.action = \"ms-app://windows.immersivecontrolpanel\"")
+	// we expect the URL to be escaped
+	require.Contains(t, resContent, `form.action = "ms-app:\/\/windows.immersivecontrolpanel"`)
 	require.Contains(t, resContent, "performPost()")
 
 	// Getting token content
@@ -7927,6 +8009,79 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 	require.NoError(t, err)
 	require.NotEmpty(t, resBytes)
 	require.Contains(t, resContent, "forbidden")
+}
+
+func (s *integrationMDMTestSuite) TestAppruValidationInGetAuthRequest() {
+	t := s.T()
+
+	// Test cases with invalid appru values that should bail due to exiting before auth check
+	invalidAppruCases := []struct {
+		name  string
+		appru string
+	}{
+		{
+			name:  "javascript injection",
+			appru: "%3Bfor%20(var%20key%20in%20localStorage)%7B%20alert(key)%7D%3B%2F%2F",
+		},
+		{
+			name:  "javascript protocol",
+			appru: "javascript:alert(1)",
+		},
+		{
+			name:  "data URI",
+			appru: "data:text/html,<script>alert(1)</script>",
+		},
+		{
+			name:  "empty scheme",
+			appru: "://example.com",
+		},
+		{
+			name:  "plain text",
+			appru: "not-a-url",
+		},
+	}
+
+	for _, tc := range invalidAppruCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
+			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
+
+			resBytes, err := io.ReadAll(resp.Body)
+			resContent := string(resBytes)
+			require.NoError(t, err)
+			require.NotEmpty(t, resBytes)
+			require.Contains(t, resContent, "forbidden")
+
+			resp.Body.Close()
+		})
+	}
+
+	// Also verify valid URLs still work
+	validAppruCases := []struct {
+		name  string
+		appru string
+	}{
+		{
+			name:  "ms-app scheme",
+			appru: "ms-app%3A%2F%2Fwindows.immersivecontrolpanel",
+		},
+		{
+			name:  "https scheme",
+			appru: "https%3A%2F%2Fexample.com%2Fcallback",
+		},
+		{
+			name:  "http scheme",
+			appru: "http%3A%2F%2Flocalhost%2Fcallback",
+		},
+	}
+
+	for _, tc := range validAppruCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
+			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
+			resp.Body.Close()
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) TestValidGetTOC() {
@@ -8310,7 +8465,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	require.NoError(t, err)
 
 	azureMail := "foo.bar.baz@example.com"
-	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail)
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 	require.NoError(t, d.Enroll())
 
 	checkinAndAck := func(expectFleetdCmds bool) {
@@ -8401,6 +8556,36 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	checkinAndAck(false)
 }
 
+func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
+	t := s.T()
+	ctx := context.Background()
+
+	// define a global enroll secret
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	// We could generate the key differently, this just ensures it's generated the same as the "happy path" tests
+	_, badKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+
+	autopilotUserMail := "swan@example.com"
+
+	// Bad key
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(badKey, defaultFakeJWTKeyID))
+	err = mdmDevice.Enroll()
+	require.Error(s.T(), err)
+
+	// Good key but wrong ID
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, "bad-key-id"))
+	err = mdmDevice.Enroll()
+	require.Error(s.T(), err)
+
+	// Happy path to ensure the setup is correct
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+	err = mdmDevice.Enroll()
+	require.NoError(s.T(), err)
+}
+
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping() {
 	t := s.T()
 	ctx := context.Background()
@@ -8417,11 +8602,11 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// Enroll another host to ensure the wires don't get crossed somehow
 	autopilotUserMail := "swan@example.com"
-	autopilotDevice := enrollWindowsHostInMDMViaAutopilot(t, s.ds, s.server.URL, autopilotUserMail)
+	autopilotDevice := s.enrollWindowsHostInMDMViaAutopilot(s.server.URL, autopilotUserMail)
 	require.NoError(t, autopilotDevice.Enroll())
 
 	settingsAppUserMail := "fleetie@example.com"
-	settingsAppHost, settingsAppDevice := createWindowsHostThenEnrollMDMViaSettingsApp(s.ds, s.server.URL, settingsAppUserMail, t)
+	settingsAppHost, settingsAppDevice := s.createWindowsHostThenEnrollMDMViaSettingsApp(s.server.URL, settingsAppUserMail)
 	require.NoError(t, settingsAppDevice.Enroll())
 
 	// Transfer the host to the team. Ensure it doesn't wind up in "No team" at the end
@@ -11587,7 +11772,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
 				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, Categories: []string{"Browsers"}},
 			},
 		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
 	)
@@ -11601,6 +11786,16 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform})
 	meta, err := s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.MacOSPlatform, &tmGood.ID)
 	require.NoError(t, err)
+
+	var listSwTitles listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
+	for _, st := range listSwTitles.SoftwareTitles {
+		if st.AppStoreApp.AppStoreID == s.appleVPPConfigSrvConfig.Assets[1].AdamID {
+			var getSWTitle getSoftwareTitleResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", st.ID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(tmGood.ID))
+			s.Assert().ElementsMatch([]string{"Browsers"}, getSWTitle.SoftwareTitle.AppStoreApp.Categories)
+		}
+	}
 
 	actual := assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}]
 	// Only macOS version should be self-service
@@ -11901,7 +12096,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
 	checkJobs([]string{driveAppID})
 
-	var listSwTitles listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
 	s.Assert().Len(listSwTitles.SoftwareTitles, 2)
@@ -12114,7 +12308,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	cmd, err = mdmClient.AcknowledgeCertificateList(mdmClient.UUID, cmd.CommandUUID, testCerts)
 	require.NoError(t, err)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
-	_, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
+	_, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE", "America/Los_Angeles")
 	require.NoError(t, err)
 
 	commands, err = s.ds.GetHostMDMCommands(context.Background(), host.ID)
@@ -12169,7 +12363,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	cmd, err = mdmClientIPad.AcknowledgeCertificateList(mdmClientIPad.UUID, cmd.CommandUUID, testCerts)
 	require.NoError(t, err)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
-	cmd, err = mdmClientIPad.AcknowledgeDeviceInformation(mdmClientIPad.UUID, cmd.CommandUUID, deviceNameIPad, "iPad 10")
+	cmd, err = mdmClientIPad.AcknowledgeDeviceInformation(mdmClientIPad.UUID, cmd.CommandUUID, deviceNameIPad, "iPad 10", "America/Los_Angeles")
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
@@ -12235,7 +12429,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.NoError(t, err)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	const deviceNameRenamed = "My new iPhone"
-	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
+	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE", "America/Los_Angeles")
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
@@ -12297,7 +12491,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Equal(t, "CertificateList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeCertificateList(mdmClient.UUID, cmd.CommandUUID, []*x509.Certificate{})
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
-	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
+	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE", "America/Los_Angeles")
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
@@ -12422,7 +12616,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			},
 			Name:             "App 1",
 			BundleIdentifier: "a-1",
-			IconURL:          "https://example.com/images/1",
+			IconURL:          "https://example.com/images/1/512x512.png",
 			LatestVersion:    "1.0.0",
 		}
 
@@ -12465,7 +12659,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			},
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
-			IconURL:          "https://example.com/images/1",
+			IconURL:          "https://example.com/images/1/512x512.png",
 			LatestVersion:    "1.0.0",
 		}
 
@@ -12542,7 +12736,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.False(t, updateAppResp.AppStoreApp.SelfService)
 		require.Equal(t, fleet.MacOSPlatform, updateAppResp.AppStoreApp.Platform)
 
-		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`
+		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`
 		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(activityData, team.Name,
 				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
@@ -12573,7 +12767,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		// delete the VPP app
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID))
-		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2", "team_id": %d, "platform": "%s", "labels_include_any": [{"id": %d, "name": %q}]}`
+		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "team_id": %d, "platform": "%s", "labels_include_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(activityData, team.Name,
 				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
@@ -12589,7 +12783,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			},
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
-			IconURL:          "https://example.com/images/2",
+			IconURL:          "https://example.com/images/2/512x512.png",
 			LatestVersion:    "2.0.0",
 		}
 
@@ -12602,7 +12796,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			},
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
-			IconURL:          "https://example.com/images/2",
+			IconURL:          "https://example.com/images/2/512x512.png",
 			LatestVersion:    "2.0.0",
 		}
 
@@ -12764,7 +12958,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 	iPadOSApp := fleet.VPPApp{
@@ -12776,7 +12970,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
+		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 	iOSApp := fleet.VPPApp{
@@ -12788,7 +12982,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
+		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 	expectedApps := []*fleet.VPPApp{
@@ -12804,8 +12998,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			},
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
-			IconURL:          "https://example.com/images/2",
-			LatestVersion:    "2.0.0",
+			IconURL:          "https://example.com/images/2/512x512.png",
+			LatestVersion:    "2.0.1",
 		},
 		{
 			VPPAppTeam: fleet.VPPAppTeam{
@@ -12816,7 +13010,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			},
 			Name:             "App 3",
 			BundleIdentifier: "c-3",
-			IconURL:          "https://example.com/images/3",
+			IconURL:          "https://example.com/images/3/512x512.png",
 			LatestVersion:    "3.0.0",
 		},
 	}
@@ -12871,7 +13065,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
 		"team_id", fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/1", "team_id": %d, "platform": "%s"}`, team.Name,
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/1/512x512.png", "team_id": %d, "platform": "%s"}`, team.Name,
 			addedApp.Name, addedApp.AdamID, team.ID, addedApp.Platform), 0)
 
 	// deleting it again fails, not found
@@ -13080,6 +13274,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			http.StatusOK, &addAppResp)
 	}
 
+	var failedCmdUUID string
+	errorOnInstallApplicationCommand := func(errorCode int) {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		assert.NotNil(t, cmd)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+			case "InstallApplication":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				failedCmdUUID = cmd.CommandUUID
+				t.Logf("Failed command UUID: %s", failedCmdUUID)
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: errorCode}})
+				require.NoError(t, err)
+			}
+		}
+	}
+
 	// Trigger install to the host
 	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
@@ -13099,21 +13311,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate failed installation on the host
-	cmd, err := mdmDevice.Idle()
-	var failedCmdUUID string
-	require.NoError(t, err)
-	assert.NotNil(t, cmd)
-	for cmd != nil {
-		var fullCmd micromdm.CommandPayload
-		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
-		case "InstallApplication":
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			failedCmdUUID = cmd.CommandUUID
-			t.Logf("Failed command UUID: %s", failedCmdUUID)
-			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
-			require.NoError(t, err)
-		}
-	}
+	errorOnInstallApplicationCommand(1234)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
@@ -13128,7 +13326,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_auto_update": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			errApp.Name,
@@ -13139,6 +13337,95 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		),
 		0,
 	)
+
+	// We store the old failedCmdUUID to restore after this 9610, since it's used further down.
+	storedFailedCmdUUID := failedCmdUUID
+
+	// Trigger a 9610 failure to see retry happening
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	s.runWorker()
+
+	// Simulate failed installation on the host
+	errorOnInstallApplicationCommand(9610)
+
+	// Verify the retry_count was increased to 1 for the failedCmdUUID
+	var retryCount int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 1, retryCount)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 0)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 0, countResp.Count)
+
+	oldFailedCmdUUID := failedCmdUUID
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, oldFailedCmdUUID, failedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 2, retryCount)
+
+	oldFailedCmdUUID = failedCmdUUID
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 3, retryCount)
+
+	oldFailedCmdUUID = failedCmdUUID
+	// Final time where we mark the app as failed
+	errorOnInstallApplicationCommand(9610)
+	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
+	})
+	require.Equal(t, 3, retryCount)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_auto_update": false}`,
+			mdmHost.ID,
+			mdmHost.DisplayName(),
+			macOSApp.Name,
+			macOSApp.AdamID,
+			failedCmdUUID,
+			fleet.SoftwareInstallFailed,
+			mdmHost.Platform,
+		),
+		0,
+	)
+
+	// Restore failedCmdUUID to the original failed command UUID for further processing.
+	failedCmdUUID = storedFailedCmdUUID
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
@@ -13153,7 +13440,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Simulate successful installation on the host
 	var installCmdUUID string
-	cmd, err = mdmDevice.Idle()
+	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
@@ -13201,7 +13488,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_auto_update": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			addedApp.Name,
@@ -13459,7 +13746,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			s.lastActivityMatches(
 				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 				fmt.Sprintf(
-					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_auto_update": false}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,
@@ -13545,7 +13832,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 
@@ -13678,7 +13965,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		},
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
-		IconURL:          "https://example.com/images/1",
+		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 	iPadOSApp := fleet.VPPApp{
@@ -13690,7 +13977,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
+		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 	iOSApp := fleet.VPPApp{
@@ -13702,7 +13989,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		},
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
+		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 	expectedApps := []*fleet.VPPApp{
@@ -13718,8 +14005,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			},
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
-			IconURL:          "https://example.com/images/2",
-			LatestVersion:    "2.0.0",
+			IconURL:          "https://example.com/images/2/512x512.png",
+			LatestVersion:    "2.0.1", // different version for macOS
 		},
 		{
 			VPPAppTeam: fleet.VPPAppTeam{
@@ -13730,7 +14017,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			},
 			Name:             "App 3",
 			BundleIdentifier: "c-3",
-			IconURL:          "https://example.com/images/3",
+			IconURL:          "https://example.com/images/3/512x512.png",
 			LatestVersion:    "3.0.0",
 		},
 	}
@@ -14192,7 +14479,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "host_platform": "%s", "from_auto_update": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			macOSApp.Name,
@@ -14310,7 +14597,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "host_platform": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "host_platform": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "from_auto_update": false}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			mdmHost2.Platform,
@@ -17444,29 +17731,32 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 }
 
-// registerResetITunesData resets the iTunes data after tests in `t` complete.
-func (s *integrationMDMTestSuite) registerResetITunesData(t *testing.T) {
-	oldApps := s.appleITunesSrvData
-	t.Cleanup(func() { s.appleITunesSrvData = oldApps })
+// registerResetVPPProxyData resets the VPP proxy data after tests in `t` complete.
+func (s *integrationMDMTestSuite) registerResetVPPProxyData(t *testing.T) {
+	oldApps := s.appleVPPProxySrvData
+	t.Cleanup(func() { s.appleVPPProxySrvData = oldApps })
 }
 
 func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Reset the iTunes data to what it was before this test
-	s.registerResetITunesData(t)
+	// Reset the VPP proxy data to what it was before this test
+	s.registerResetVPPProxyData(t)
 
-	// Set up 3 apps - macOS, iOS, and iPadOS
-	s.appleITunesSrvData = map[string]string{
-		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-		"2": `{"bundleId": "d-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s"] }`,
-		"3": `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
+	// Set up 3 apps - macOS, iOS, and iPadOS (using new VPP proxy format)
+	s.appleVPPProxySrvData = map[string]string{
+		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["mac"]}}`,
+		// Add a space to the version and make sure we are trimming it (we've seen that in Meta Horizon app `"versionDisplay":" 353.0"`)
+		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": " 2.0.0 "}}}, "deviceFamilies": ["iphone"]}}`,
+		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["ipad"]}}`,
 	}
 
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
+
+	noopAuthenticator := func(bool) (string, error) { return "", nil } // authentication is tested elsewhere
 
 	// Set up VPP token
 	orgName := "Fleet Device Management Inc."
@@ -17488,7 +17778,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// No VPP apps added yet, so this is a no-op
-	err := vpp.RefreshVersions(ctx, s.ds)
+	err := vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
 	require.NoError(t, err)
 
 	var appResp getAppStoreAppsResponse
@@ -17537,11 +17827,10 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
 
 	// "update" the versions
-	s.appleITunesSrvData["1"] = `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "9.9.9", "trackName": "App 1", "TrackID": 1}`
-	s.appleITunesSrvData["2"] = `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "10.10.10", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`
+	s.appleVPPProxySrvData["1"] = `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}}, "deviceFamilies": ["mac"]}}`
+	s.appleVPPProxySrvData["2"] = `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"osx": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}, "ios": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`
 
-	err = vpp.RefreshVersions(ctx, s.ds)
+	err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
 	require.NoError(t, err)
 
 	// 1 and 2 should be updated
@@ -17562,24 +17851,26 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
 
 	// Refresh again. There are no version changes this time, so this is a no-op.
-	err = vpp.RefreshVersions(ctx, s.ds)
+	err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
 	require.NoError(t, err)
 }
 
 func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	t := s.T()
 
-	// Reset the iTunes data to what it was before this test
-	s.registerResetITunesData(t)
+	// Reset the VPP proxy data to what it was before this test
+	s.registerResetVPPProxyData(t)
 
 	// Set up app with adamID 1 with iOS, iPadOS, macOS (e.g. WhatsApp).
 	// Set up app with adamID 2 with iOS and iPadOS.
 	// Set up app with adamID 3 with iOS.
-	s.appleITunesSrvData = map[string]string{
-		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`,
-		"2": `{"bundleId": "d-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
-		"3": `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPhone5s-iPhone5s"] }`,
+	s.appleVPPProxySrvData = map[string]string{
+		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.2.3"}}, "ios": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.3.0"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`,
+		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
+		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
 	}
+
+	noopAuthenticator := func(bool) (string, error) { return "", nil } // authentication is tested elsewhere
 
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
@@ -17668,9 +17959,9 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 
 	// Check versions before refresh
 	for titleID, expectedVersion := range map[uint]string{
-		app1MacOS.TitleID:  "1.0.0",
-		app1IOS.TitleID:    "1.0.0",
-		app1IPadOS.TitleID: "1.0.0",
+		app1MacOS.TitleID:  "1.2.3",
+		app1IOS.TitleID:    "1.3.0",
+		app1IPadOS.TitleID: "1.3.0",
 		app2IOS.TitleID:    "2.0.0",
 		app2IPadOS.TitleID: "2.0.0",
 		app3IOS.TitleID:    "3.0.0",
@@ -17682,17 +17973,17 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	}
 
 	// "Update" the versions for Adam ID "1" and "2".
-	s.appleITunesSrvData["1"] = `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "9.9.9", "trackName": "App 1", "TrackID": 1, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`
-	s.appleITunesSrvData["2"] = `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "10.10.10", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s", "iPadAir-iPadAir"]}`
+	s.appleVPPProxySrvData["1"] = `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}, "ios": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.8"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`
+	s.appleVPPProxySrvData["2"] = `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}}, "deviceFamilies": ["iphone", "ipad"]}}`
 
-	err := vpp.RefreshVersions(t.Context(), s.ds)
+	err := vpp.RefreshVersions(t.Context(), s.ds, noopAuthenticator)
 	require.NoError(t, err)
 
 	// Check versions after refresh
 	for titleID, expectedVersion := range map[uint]string{
 		app1MacOS.TitleID:  "9.9.9",
-		app1IOS.TitleID:    "9.9.9",
-		app1IPadOS.TitleID: "9.9.9",
+		app1IOS.TitleID:    "9.9.8",
+		app1IPadOS.TitleID: "9.9.8",
 		app2IOS.TitleID:    "10.10.10",
 		app2IPadOS.TitleID: "10.10.10",
 		app3IOS.TitleID:    "3.0.0",
@@ -17704,16 +17995,16 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	}
 
 	// "Update" the version for Adam ID "3".
-	s.appleITunesSrvData["3"] = `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "11.11.11", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPhone5s-iPhone5s"] }`
+	s.appleVPPProxySrvData["3"] = `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "11.11.11"}}}, "deviceFamilies": ["iphone"]}}`
 
-	err = vpp.RefreshVersions(t.Context(), s.ds)
+	err = vpp.RefreshVersions(t.Context(), s.ds, noopAuthenticator)
 	require.NoError(t, err)
 
 	// Check versions after refresh
 	for titleID, expectedVersion := range map[uint]string{
 		app1MacOS.TitleID:  "9.9.9",
-		app1IOS.TitleID:    "9.9.9",
-		app1IPadOS.TitleID: "9.9.9",
+		app1IOS.TitleID:    "9.9.8",
+		app1IPadOS.TitleID: "9.9.8",
 		app2IOS.TitleID:    "10.10.10",
 		app2IPadOS.TitleID: "10.10.10",
 		app3IOS.TitleID:    "11.11.11",
@@ -17725,7 +18016,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	}
 
 	// Refresh again. There are no version changes this time, so this is a no-op.
-	err = vpp.RefreshVersions(t.Context(), s.ds)
+	err = vpp.RefreshVersions(t.Context(), s.ds, noopAuthenticator)
 	require.NoError(t, err)
 }
 
@@ -17859,7 +18150,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	s.setSkipWorkerJobs(t)
 
 	// get the All hosts label ID
-	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 1)
 	allHostsLblID := ls["All Hosts"]
@@ -17947,7 +18238,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	s.setSkipWorkerJobs(t)
 
 	// get the All hosts label ID
-	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, ls, 1)
 	allHostsLblID := ls["All Hosts"]
@@ -18245,7 +18536,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneADE() {
 			cmd, err = mdmDevice.AcknowledgeCertificateList(mdmDevice.UUID, cmd.CommandUUID, []*x509.Certificate{})
 			require.NoError(t, err)
 		case "DeviceInformation":
-			cmd, err = mdmDevice.AcknowledgeDeviceInformation(mdmDevice.UUID, cmd.CommandUUID, "Test Name", "iPhone 16")
+			cmd, err = mdmDevice.AcknowledgeDeviceInformation(mdmDevice.UUID, cmd.CommandUUID, "Test Name", "iPhone 16", "America/Los_Angeles")
 			require.NoError(t, err)
 		default:
 			require.Fail(t, "unexpected command", cmd.Command.RequestType)
@@ -19440,7 +19731,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 	require.True(t, fleet.IsNotFound(err))
 
 	// Make sure l2t2 in t2 is unaffected.
-	_, _, err = s.ds.Label(t.Context(), l2t2.ID, fleet.TeamFilter{})
+	_, _, err = s.ds.Label(t.Context(), l2t2.ID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	// Make sure label membership for l1t1 is gone.
@@ -19994,4 +20285,100 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 	require.NoError(t, err)
 	err = s.ds.DeleteTeam(t.Context(), t2.ID)
 	require.NoError(t, err)
+}
+
+func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDevices() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	// create a manually-enrolled (BYOD) ios host
+	hostBYOD, mdmClientBYOD := s.createAppleMobileHostThenEnrollMDM("ios")
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostBYOD.ID, false, true, s.server.URL, false, "", "", false))
+
+	// Refetch host
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostBYOD.ID), nil, http.StatusOK)
+
+	// check expected command types
+	commands, err := s.ds.GetHostMDMCommands(ctx, hostBYOD.ID)
+	require.NoError(t, err)
+	require.Len(t, commands, 3)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{
+		{HostID: hostBYOD.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: hostBYOD.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+		{HostID: hostBYOD.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+	}, commands)
+
+	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool, wantAppListCount int) {
+		var installedAppListCount int
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				installedAppListCount++
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				require.NotNil(t, fullCmd.Command)
+				require.NotNil(t, fullCmd.Command.InstalledApplicationList)
+				require.Equal(t, managedOnly, fullCmd.Command.InstalledApplicationList.ManagedAppsOnly)
+
+				cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
+				require.NoError(t, err)
+
+			case "DeviceInformation":
+				cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, "My iPhone", "iPhone X", "America/Los_Angeles")
+				require.NoError(t, err)
+
+			default:
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			}
+		}
+		require.Equal(t, wantAppListCount, installedAppListCount)
+	}
+
+	checkExpectedCommands(mdmClientBYOD, true, 1)
+
+	// create a company-owned ios host
+	hostDEP, mdmClientDEP := s.createAppleMobileHostThenEnrollMDM("ios")
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostDEP.ID, false, true, s.server.URL, true, "", "", false))
+
+	// Refetch host
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostDEP.ID), nil, http.StatusOK)
+
+	commands, err = s.ds.GetHostMDMCommands(ctx, hostDEP.ID)
+	require.NoError(t, err)
+	require.Len(t, commands, 3)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{
+		{HostID: hostDEP.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: hostDEP.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+		{HostID: hostDEP.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+	}, commands)
+
+	checkExpectedCommands(mdmClientDEP, false, 1)
+
+	// run the cron-based refetch, will not do anything as the devices were just refetched
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
+	require.NoError(t, err)
+
+	checkExpectedCommands(mdmClientBYOD, true, 0)
+	checkExpectedCommands(mdmClientDEP, false, 0)
+
+	// change the detail_updated_at of the devices to > 1h ago, and run the refetch again
+	hostBYOD.DetailUpdatedAt = time.Now().Add(-24 * time.Hour)
+	hostDEP.DetailUpdatedAt = time.Now().Add(-24 * time.Hour)
+	require.NoError(t, s.ds.UpdateHost(ctx, hostBYOD))
+	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
+
+	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
+	require.NoError(t, err)
+
+	checkExpectedCommands(mdmClientBYOD, true, 1)
+	checkExpectedCommands(mdmClientDEP, false, 1)
 }

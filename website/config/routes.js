@@ -650,14 +650,15 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
-  'GET /handbook/security': '/handbook/finance/security',
-  'GET /handbook/digital-experience/security': '/handbook/finance/security',
-  'GET /handbook/business-operations/security-policies': '/handbook/finance/security',
-  'GET /handbook/business-operations/application-security': '/handbook/finance/security',
-  'GET /handbook/business-operations/security-audits': '/handbook/finance/security',
-  'GET /handbook/business-operations/security': '/handbook/finance/security',
-  'GET /handbook/business-operations/vendor-questionnaires': '/handbook/finance/security',
+  'GET /handbook/security': '/handbook/it/security',
+  'GET /handbook/digital-experience/security': '/handbook/it/security',
+  'GET /handbook/business-operations/security-policies': '/handbook/it/security',
+  'GET /handbook/business-operations/application-security': '/handbook/it/security',
+  'GET /handbook/business-operations/security-audits': '/handbook/it/security',
+  'GET /handbook/business-operations/security': '/handbook/it/security',
+  'GET /handbook/business-operations/vendor-questionnaires': '/handbook/it/security',
   'GET /handbook/handbook': '/handbook/company/handbook',
+  'GET /handbook/company/handbook': '/handbook/company/writing',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
   'GET /platform': '/',
@@ -668,7 +669,7 @@ module.exports.routes = {
   'GET /handbook/customers': '/handbook/sales/',
   'GET /handbook/product': '/handbook/product-design',
   'GET /handbook/business-operations': '/handbook/finance',
-  'GET /handbook/digital-experience': '/handbook/it-and-enablement',
+  'GET /handbook/digital-experience': '/handbook/it',
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
@@ -686,7 +687,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/rest-api': '/docs/rest-api/rest-api',
   'GET /docs/using-fleet/configuration-files': '/docs/configuration/configuration-files/',
   'GET /docs/using-fleet/application-security': '/handbook/finance/application-security',
-  'GET /docs/using-fleet/security-audits': '/handbook/finance/security-audits',
+  'GET /docs/using-fleet/security-audits': '/handbook/it/security-audits',
   'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
   'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
   'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
@@ -1088,7 +1089,7 @@ module.exports.routes = {
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
-  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
+  'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#turn-on-apple-mdm',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
@@ -1158,9 +1159,11 @@ module.exports.routes = {
   'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience#bootstrap-package',
   'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
+  'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#automatic-enrollment',
   'GET /learn-more-about/macos-configuration-profiles-same-scope': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
+  'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
 
   // Sitemap
   // =============================================================================================================
@@ -1259,6 +1262,7 @@ module.exports.routes = {
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+  'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
 
 
 
@@ -1271,6 +1275,13 @@ module.exports.routes = {
   'POST /api/v1/microsoft-compliance-partner/device': { action: 'microsoft-proxy/update-one-devices-compliance-status', csrf: false },
   'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', },
   'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/receive-redirect-from-microsoft', },
+
+  //
+  //  ╦  ╦╔═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ╚╗╔╝╠═╝╠═╝  ║║║║╣  ║ ╠═╣ ║║╠═╣ ║ ╠═╣  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //   ╚╝ ╩  ╩    ╩ ╩╚═╝ ╩ ╩ ╩═╩╝╩ ╩ ╩ ╩ ╩  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/vpp/v1/auth': { action: 'vpp-proxy/register-one-fleet-instance-using-vpp', csrf: false },
+  'GET /api/vpp/v1/metadata/:storeRegion': { action: 'vpp-proxy/get-vpp-app-metadata' },
 
   // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
   // =============================================================================================================

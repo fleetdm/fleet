@@ -16,7 +16,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
+- To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.)
   - Any Fleet team member can [view the kanban boards](https://fleetdm.com/handbook/company/product-groups#current-product-groups) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -436,7 +436,7 @@ When this occurs, we will begin receiving the following error message when attem
 
 2. Log in using the credentials stored in 1Password under "Apple developer account".
 
-3. Contact the Head of Digital Workplace & GTM Systems to determine which phone number to use for 2FA.
+3. Contact the GTM Systems Architect to determine which phone number to use for 2FA.
 
 4. Complete the 2FA process to log in.
 

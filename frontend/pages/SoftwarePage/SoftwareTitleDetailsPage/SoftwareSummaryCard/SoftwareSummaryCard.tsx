@@ -19,6 +19,7 @@ import TitleVersionsTable from "./TitleVersionsTable";
 import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
+import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
 
 interface ISoftwareSummaryCard {
   softwareTitle: ISoftwareTitleDetails;
@@ -51,6 +52,10 @@ const SoftwareSummaryCard = ({
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
+  const [
+    showEditAutoUpdateConfigModal,
+    setShowEditAutoUpdateConfigModal,
+  ] = useState(false);
 
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
   // software installed
@@ -108,10 +113,16 @@ const SoftwareSummaryCard = ({
   const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
+  const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
+
+  const canEditAutoUpdateConfig =
+    softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
+  const onClickEditAutoUpdateConfig = () =>
+    setShowEditAutoUpdateConfigModal(true);
 
   return (
     <>
@@ -140,6 +151,9 @@ const SoftwareSummaryCard = ({
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
           }
+          onClickEditAutoUpdateConfig={
+            canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
+          }
         />
         {showVersionsTable && (
           <TitleVersionsTable
@@ -153,7 +167,7 @@ const SoftwareSummaryCard = ({
           />
         )}
       </Card>
-      {showEditIconModal && hasValidTeamId && softwareInstaller && (
+      {showEditIconModal && softwareInstallerOnTeam && (
         <EditIconModal
           softwareId={softwareId}
           teamIdForApi={teamId}
@@ -175,7 +189,7 @@ const SoftwareSummaryCard = ({
           }}
         />
       )}
-      {showEditSoftwareModal && hasValidTeamId && softwareInstaller && (
+      {showEditSoftwareModal && softwareInstallerOnTeam && (
         <EditSoftwareModal
           router={router}
           softwareId={softwareId}
@@ -189,15 +203,24 @@ const SoftwareSummaryCard = ({
           name={softwareTitle.name}
           displayName={softwareTitle.display_name || softwareTitle.name}
           source={softwareTitle.source}
+          iconUrl={softwareTitle.icon_url}
         />
       )}
-      {showEditConfigurationModal && hasValidTeamId && softwareInstaller && (
+      {showEditConfigurationModal && softwareInstallerOnTeam && (
         <EditConfigurationModal
           softwareInstaller={softwareInstaller as IAppStoreApp}
           softwareId={softwareId}
           teamId={teamId}
           refetchSoftwareTitle={refetchSoftwareTitle}
           onExit={() => setShowEditConfigurationModal(false)}
+        />
+      )}
+      {showEditAutoUpdateConfigModal && softwareInstallerOnTeam && (
+        <EditAutoUpdateConfigModal
+          softwareTitle={softwareTitle}
+          teamId={teamId}
+          refetchSoftwareTitle={refetchSoftwareTitle}
+          onExit={() => setShowEditAutoUpdateConfigModal(false)}
         />
       )}
     </>

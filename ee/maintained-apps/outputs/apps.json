@@ -422,13 +422,6 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "name": "Company Portal",
-      "slug": "company-portal/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft.CompanyPortal",
-      "description": "Microsoft Company Portal is the app for accessing company resources and managing devices in a secure environment."
-    },
-    {
       "name": "CotEditor",
       "slug": "coteditor/darwin",
       "platform": "darwin",
@@ -570,9 +563,9 @@
     },
     {
       "name": "Docker Desktop",
-      "slug": "docker/darwin",
+      "slug": "docker-desktop/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.docker.docker",
+      "unique_identifier": "com.electron.dockerdesktop",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
@@ -1010,13 +1003,6 @@
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
-      "name": "Microsoft Teams",
-      "slug": "microsoft-teams/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Teams",
-      "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
-    },
-    {
       "name": "Microsoft Word",
       "slug": "microsoft-word/darwin",
       "platform": "darwin",
@@ -1045,6 +1031,13 @@
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
+      "name": "Nextcloud",
+      "slug": "nextcloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nextcloud.desktopclient",
+      "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
+    },
+    {
       "name": "NordPass",
       "slug": "nordpass/darwin",
       "platform": "darwin",
@@ -1057,6 +1050,13 @@
       "platform": "darwin",
       "unique_identifier": "com.nordvpn.macos",
       "description": "NordVPN is a VPN client for secure internet access and private browsing."
+    },
+    {
+      "name": "Notepad++",
+      "slug": "notepad++/windows",
+      "platform": "windows",
+      "unique_identifier": "Notepad++",
+      "description": "Notepad++ is a text editor for Windows."
     },
     {
       "name": "Notion Calendar",
@@ -1232,6 +1232,13 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonvpn.mac",
       "description": "ProtonVPN is a VPN client focusing on security."
+    },
+    {
+      "name": "Proxifier",
+      "slug": "proxifier/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.initex.proxifier.v3.macos",
+      "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
       "name": "PyCharm Community Edition",

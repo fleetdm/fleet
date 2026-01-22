@@ -46,6 +46,7 @@ controls:
   windows_updates:
     deadline_days: 95
     grace_period_days: 92
+labels:
 name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
@@ -86,6 +87,28 @@ software:
     platform: android
     self_service: true
     setup_experience: true
+  - app_store_id: com.example.ios-auto-update
+    auto_update_enabled: true
+    auto_update_window_end: "03:00"
+    auto_update_window_start: "01:00"
+    icon:
+      path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
+    platform: ios
+  fleet_maintained_apps:
+  - categories:
+    - Browsers
+    icon:
+      path: "../lib/team-a-👍/icons/my-fma-darwin-icon.png"
+    labels_include_any:
+    - Label A
+    - Label B
+    post_install_script:
+      path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall"
+    pre_install_query:
+      path: "../lib/team-a-👍/queries/my-fma-darwin-preinstallquery.yml"
+    self_service: true
+    setup_experience: true
+    slug: fma1/darwin
   packages:
   - categories:
     - Browsers
