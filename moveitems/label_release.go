@@ -12,14 +12,26 @@ import (
 	"strconv"
 )
 
-const urlStr = "https://github.com/fleetdm/fleet/issues?q=is%3Aopen%20project%3Afleetdm%2F71%20label%3A%3Aproduct"
-
 const (
 	owner = "fleetdm"
 	repo  = "fleet"
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		panic("Usage: go run label_release.go <project_number>")
+	}
+
+	projectNumber, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		panic("Invalid project number")
+	}
+
+	urlStr := fmt.Sprintf(
+		"https://github.com/fleetdm/fleet/issues?q=is%%3Aopen%%20project%%3Afleetdm%%2F%d%%20label%%3A%%3Aproduct",
+		projectNumber,
+	)
+
 	resp, err := http.Get(urlStr)
 	if err != nil {
 		panic(err)
