@@ -103,28 +103,48 @@ When merging a pull request from a community contributor:
 
 If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
 
+
 ### Close a stale community PR
 
 If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
 
-### Schedule developer on-call workload
 
-Engineering Managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and reduce estimate capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+### Schedule business hours on-call engineer workload
 
-On-call engineers are available during the business hours of 9am - 5pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities) requires a 1-hour response time during business hours to any @oncall mention.
+Engineering Managers are asked to be aware of the [business hours on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+
+On-call engineers are available during the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
 
 
-### Assume developer on-call alias
+#### Assume business hours on-call engineer alias
 
-The on-call developer is responsible for:
+The on-call engineer is responsible for:
 
-- Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
-- Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
+- Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call).
+- Performing the [business hours on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
-- Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
-- Working on an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
+- Successfully [transferring the on-call persona to the next engineer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
-To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
+To provide full-time focus to the role, the business hours on-call engineer is not expected to work on sprint issues during their on-call assignment.
+
+
+### Schedule after-hours incident on-call engineer workload
+
+Engineering Managers are asked to be aware of the [after-hours incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the after-hours incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
+
+After-hours incident on-call engineers are available outside the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time outside business hours to any `@incident-oncall` mention.
+
+
+#### Assume after hours on-call engineer alias
+
+After-hours incident on-call engineer rotation, alias assignment, and incident notification are managed through incident.io and reported in the #help-incidents channel. 
+
+The on-call engineer is responsible for: 
+
+- Knowing [the after-hours incidenton-call rotation](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call).
+- Completing the [incident.io on-call engineer onboarding steps](https://help.incident.io/articles/3472064049-get-started-as-an-on-call-responder) sent via email when invited to incident.io.
+- Confirming the app is configured to push notifications through silent mode.
+- Performing the [after-hours incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call-responsibilities).
 
 
 ### Create a release candidate
@@ -136,6 +156,7 @@ All minor releases go through the release candidate process before they are publ
 2. Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch.
 
 During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
+
 
 ### Merge unreleased bug fixes into the release candidate
 
