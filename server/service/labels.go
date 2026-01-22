@@ -853,10 +853,7 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 	}
 
 	if len(labels) != len(uniqueNames) {
-		return nil, &fleet.BadRequestError{
-			Message:     "some or all the labels provided don't exist",
-			InternalErr: fmt.Errorf("names provided: %v", labelNames),
-		}
+		return nil, fleet.NewInvalidLabelError(uniqueNames, labels)
 	}
 
 	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
