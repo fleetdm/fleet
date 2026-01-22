@@ -52,6 +52,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 You can also download the configuration profile (`.mobileconfig`) and change values in code editor. If you want to change the icon, use iMazing Profile Editor and follow the steps above.
 
 Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/configuration-profiles/fleet-self-service.mobileconfig).
+
 ## IT admin experience
 
 How to view, update, install, or uninstall self-service software:
@@ -62,6 +63,8 @@ How to view, update, install, or uninstall self-service software:
 4. To update, install, or uninstall, select **Update**, **Install**, or **Uninstall**.
 
 **Update** appears for [eligible updates](#how-updates-work), regardless of whether the app is set to self-service.
+
+> Currently, if a host's OS version is incompatible with the latest app version, clicking Update will always revert the status to Update available. This occurs because Fleet targets the latest App Store version, but the host can only install the last compatible version for its OS.
 
 Tips:
 
