@@ -8321,7 +8321,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	s.token = s.getCachedUserToken(observerEmail, observerPwd)
 
 	// Delete with observer
-	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
 		"ids":     []uint{savedNoTeamCertTemplates[0].ID},
 		"team_id": uint(0), // "No team"
 	}, http.StatusForbidden)
@@ -8356,7 +8356,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &team2CertResp)
 	var forbiddenDelResp deleteCertificateTemplateSpecsResponse
 	// Delete with team 1 id and certificate from team 2
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
 		"ids":     []uint{team2CertResp.ID},
 		"team_id": team.ID,
 	}, http.StatusForbidden, &forbiddenDelResp)
