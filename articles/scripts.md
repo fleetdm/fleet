@@ -11,7 +11,7 @@ Script execution is disabled by default. Continue reading to learn how to enable
 
 ## Enable scripts
 
-If you use Fleet's macOS MDM features, scripts are automatically enabled for macOS hosts that have MDM turned on. You're set!
+If you use Fleet's macOS and/or Windows MDM features, scripts are automatically enabled for macOS and Windows hosts that have MDM turned on. You're set!
 
 If you don't use MDM features, to enable scripts, we'll [deploy Fleet's agent (fleetd)](https://fleetdm.com/guides/enroll-hosts) with scripts enabled:
 
