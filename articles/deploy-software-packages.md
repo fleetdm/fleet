@@ -112,7 +112,7 @@ Once the package is installed, Fleet will automatically refetch the host's vital
 
 > Editing the advanced options cancels all pending installations and uninstallations for that package. Installs and uninstalls currently running on a host will complete, but results won't appear in Fleet. The software's host counts will be reset.
 
-## Uninstall package
+## Uninstall the package
 
 After a software package is installed on a host, it can be uninstalled on the host via the UI.
 
