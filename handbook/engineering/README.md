@@ -153,7 +153,7 @@ The on-call engineer is responsible for:
 
 Fleet responds to all P0 incidents by initiating our incident response process: 
 
-1. Create a new incident response issue in our confidential repo. 
+1. Create a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) in our confidential repo. 
 2. Edit the issue template to reflect the details of the incident. 
 3. Assign to the on-call engineer that received the incident for initial triage, as well as the current infrastrucure on-call engineer. 
 4. Complete the steps listed based on the type of incident.
