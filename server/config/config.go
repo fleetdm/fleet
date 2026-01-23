@@ -118,6 +118,7 @@ type ServerConfig struct {
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
+	GzipResponses                    bool          `yaml:"gzip_responses"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1182,6 +1183,7 @@ func (man Manager) addConfigs() {
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.DefaultMaxInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
+	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")

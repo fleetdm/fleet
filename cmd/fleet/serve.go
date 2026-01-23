@@ -1318,12 +1318,14 @@ the way that the Fleet server works.
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
-				// Wrap API handler with gzip compression
-				gzipWrapper, err := gzhttp.NewWrapper()
-				if err != nil {
-					initFatal(err, "initializing gzip compression wrapper")
+				if config.Server.GzipResponses {
+					// Wrap API handler with gzip compression
+					gzipWrapper, err := gzhttp.NewWrapper()
+					if err != nil {
+						initFatal(err, "initializing gzip compression wrapper")
+					}
+					apiHandler = gzipWrapper(apiHandler)
 				}
-				apiHandler = gzipWrapper(apiHandler)
 
 				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
 					svc,
