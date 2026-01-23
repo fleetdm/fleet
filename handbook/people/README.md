@@ -299,6 +299,15 @@ Once notified, People takes the following steps:
 6. Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
 
 
+### Retire a KPI
+The ["🗓️ KPIs"](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) sheet feeds data into the ["🪴🌧️🦉 Investor updates"](https://docs.google.com/spreadsheets/d/10T7Q9iuHA4vpfV7qZCm6oMd5U1bLftBSobYD0RR8RkM/edit?gid=0#gid=0) sheet. Because of this linkage, retiring a KPI requires updating both sheets to avoid broken references or incorrect reporting. To retire a KPI, the Head of People will:
+1. Move the KPI to the retired section of the "🗓️ KPIs" sheet
+2. Validate that each column in "🪴🌧️🦉 Investor updates" still reflects the correct data
+3. If retiring the KPI caused column positions to change:
+   - Locate the new column position in the "🗓️ KPIs"
+   - Update the relevant cell in row 2 of the "🪴🌧️🦉 Investor updates" with the new column location
+4. Scan "🪴🌧️🦉 Investor updates" to confirm all metrics are populating as expected and no data is missing or misaligned.
+
 ### Review Fleet's US company benefits
 
 Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
