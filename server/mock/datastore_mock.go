@@ -67,7 +67,7 @@ type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
-type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
 
 type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
 
@@ -4491,7 +4491,7 @@ func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return s.ListUsersFunc(ctx, opt)
 }
 
-func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
 	s.mu.Lock()
 	s.UsersByIDsFuncInvoked = true
 	s.mu.Unlock()

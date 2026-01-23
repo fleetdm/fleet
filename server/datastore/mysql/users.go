@@ -158,10 +158,8 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 	return users, nil
 }
 
-// UsersByIDs returns users matching the provided IDs.
-// Note: This method does NOT load team memberships. It's currently only used
-// by the activity bounded context for user enrichment, which doesn't need teams.
-func (ds *Datastore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+// UsersByIDs returns user summaries matching the provided IDs.
+func (ds *Datastore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -172,7 +170,7 @@ func (ds *Datastore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User,
 		return nil, ctxerr.Wrap(ctx, err, "build users by IDs query")
 	}
 
-	var users []*fleet.User
+	var users []*fleet.UserSummary
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select users by IDs")
 	}

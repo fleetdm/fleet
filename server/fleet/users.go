@@ -12,6 +12,24 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// UserSummary contains a subset of the user fields.
+type UserSummary struct {
+	UpdateCreateTimestamps
+	ID                       uint    `json:"id" db:"id"`
+	Password                 []byte  `json:"-" db:"password"`
+	Salt                     string  `json:"-" db:"salt"`
+	Name                     string  `json:"name" db:"name"`
+	Email                    string  `json:"email" db:"email"`
+	AdminForcedPasswordReset bool    `json:"force_password_reset" db:"admin_forced_password_reset"`
+	GravatarURL              string  `json:"gravatar_url" db:"gravatar_url"`
+	Position                 string  `json:"position,omitempty" db:"position"` // job role
+	SSOEnabled               bool    `json:"sso_enabled" db:"sso_enabled"`
+	MFAEnabled               bool    `json:"mfa_enabled" db:"mfa_enabled"`
+	GlobalRole               *string `json:"global_role" db:"global_role"`
+	APIOnly                  bool    `json:"api_only" db:"api_only"`
+	InviteID                 *uint   `json:"-" db:"invite_id"`
+}
+
 // User is the model struct that represents a Fleet user.
 type User struct {
 	UpdateCreateTimestamps

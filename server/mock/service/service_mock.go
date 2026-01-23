@@ -37,7 +37,7 @@ type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule,
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
 
-type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
 
 type GetTransparencyURLFunc func(ctx context.Context) (string, error)
 
@@ -2226,7 +2226,7 @@ func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (use
 	return s.ListUsersFunc(ctx, opt)
 }
 
-func (s *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+func (s *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
 	s.mu.Lock()
 	s.UsersByIDsFuncInvoked = true
 	s.mu.Unlock()
