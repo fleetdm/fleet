@@ -284,6 +284,15 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW == "windows"
 			},
 		},
+		// CVE-2024-7006 only targets Linux operating systems (libtiff vulnerability)
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-7006": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "linux"
+			},
+		},
 		// these CVEs only target iOS, and we don't yet support iOS vuln scanning (and can't tell iOS/Mac CPEs apart yet)
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{

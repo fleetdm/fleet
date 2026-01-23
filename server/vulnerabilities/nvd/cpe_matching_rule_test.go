@@ -261,4 +261,23 @@ func TestGetKnownNVDBugRules(t *testing.T) {
 	require.True(t, ok)
 	ok = rule.CPEMatches(cpeMeta)
 	require.False(t, ok)
+
+	// Test that CVE-2024-7006 (libtiff) only matches on Linux.
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2024-7006")
+	require.True(t, ok)
+
+	// Should not match on Windows
+	cpeMetaWindows, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:windows:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(cpeMetaWindows))
+
+	// Should not match on macOS
+	cpeMetaMacOS, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:macos:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(cpeMetaMacOS))
+
+	// Should match on Linux
+	cpeMetaLinux, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:linux:*:*")
+	require.NoError(t, err)
+	require.True(t, rule.CPEMatches(cpeMetaLinux))
 }
