@@ -7,6 +7,7 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import paths from "router/paths";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -46,15 +47,13 @@ const API_KEY_JSON_PLACEHOLDER = `{
   "universe_domain": "googleapis.com"
 }`;
 
-const MASKED_VALUE = "********";
-
 // Check if the API key JSON object contains obfuscated values
 const isObfuscatedApiKey = (apiKeyJson: Record<string, string>): boolean => {
   if (!apiKeyJson || Object.keys(apiKeyJson).length === 0) {
     return false;
   }
   // If all values are "********", the API key is obfuscated
-  return Object.values(apiKeyJson).every((value) => value === MASKED_VALUE);
+  return Object.values(apiKeyJson).every((value) => value === UNCHANGED_PASSWORD_API_RESPONSE);
 };
 
 interface ICalendarsFormErrors {
@@ -109,7 +108,7 @@ const Calendars = (): JSX.Element => {
           // Show masked value in UI
           setFormData({
             domain: data.integrations.google_calendar[0].domain,
-            apiKeyJson: MASKED_VALUE,
+            apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
           });
         } else {
           // Show the actual API key JSON
@@ -138,7 +137,7 @@ const Calendars = (): JSX.Element => {
       errors.domain = "Domain must be completed";
     }
     // Skip JSON validation if the value is the masked placeholder
-    if (curFormData.apiKeyJson && curFormData.apiKeyJson !== MASKED_VALUE) {
+    if (curFormData.apiKeyJson && curFormData.apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE) {
       try {
         JSON.parse(curFormData.apiKeyJson);
       } catch (e: unknown) {
@@ -175,10 +174,10 @@ const Calendars = (): JSX.Element => {
 
     // Determine the API key to submit
     let apiKeyToSubmit;
-    if (formData.apiKeyJson === MASKED_VALUE) {
+    if (formData.apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE) {
       // User didn't change the masked value, don't send it (backend will preserve existing)
       apiKeyToSubmit = undefined;
-    } else if (formData.apiKeyJson && formData.apiKeyJson !== MASKED_VALUE) {
+    } else if (formData.apiKeyJson && formData.apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE) {
       // User provided a new API key
       apiKeyToSubmit = JSON.parse(formData.apiKeyJson);
     } else {
@@ -320,7 +319,7 @@ const Calendars = (): JSX.Element => {
                       error={formErrors.apiKeyJson}
                       disabled={gomEnabled}
                       helpText={
-                        apiKeyJson === MASKED_VALUE
+                        apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE
                           ? "API key is configured. Replace with a new key to update."
                           : undefined
                       }

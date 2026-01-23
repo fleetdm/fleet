@@ -10,6 +10,8 @@ import { IHost } from "interfaces/host";
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
 
+export const UNCHANGED_PASSWORD_API_RESPONSE = "********";
+
 export enum PolicyResponse {
   PASSING = "passing",
   FAILING = "failing",
