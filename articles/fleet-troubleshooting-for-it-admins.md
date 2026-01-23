@@ -41,6 +41,15 @@ If you're trying to troubleshoot macOS hosts, you can [run a script](../docs/sol
 6. Grab the logs from `/var/log/orbit/orbit.stderr.log`.
 
 
+## Server-side logs
+
+Use [fleetctl](https://fleetdm.com/guides/fleetctl) to see server logs.
+
+```bash
+fleetctl debug errors
+```
+
+
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Steven Palmesano">
 <meta name="authorGitHubUsername" value="spalmesano0">
