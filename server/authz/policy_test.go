@@ -142,7 +142,7 @@ func TestAuthorizeActivity(t *testing.T) {
 		{user: test.UserObserverPlus, object: activity, action: read, allow: true},
 		{user: test.UserGitOps, object: activity, action: read, allow: false},
 
-		// Team roles cannot read activites.
+		// Team roles cannot read activities.
 		{user: test.UserTeamAdminTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
@@ -156,7 +156,7 @@ func TestAuthorizeActivity(t *testing.T) {
 		{user: test.UserObserver, object: bcActivity, action: readAction, allow: true},
 		{user: test.UserObserverPlus, object: bcActivity, action: readAction, allow: true},
 		{user: test.UserGitOps, object: bcActivity, action: readAction, allow: false},
-		// Team roles cannot read activites.
+		// Team roles cannot read activities.
 		{user: test.UserTeamAdminTeam1, object: bcActivity, action: readAction, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: bcActivity, action: readAction, allow: false},
 		{user: test.UserTeamObserverTeam1, object: bcActivity, action: readAction, allow: false},
