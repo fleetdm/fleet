@@ -1,5 +1,5 @@
 // @ts-ignore
-import { Parser } from "utilities/node-sql-parser/sqlite";
+import { Parser } from "node-sql-parser";
 
 export const EMPTY_QUERY_ERR = "Query text must be present";
 export const INVALID_SYNTAX_ERR = "Syntax error. Please review before saving.";
