@@ -1,6 +1,6 @@
 # Automations
 
-You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send query results to webhooks, create tickerts, reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
+You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send query results to webhooks, create tickets, and reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
 
 Automations are triggered by policies. Policies run every 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval)) and run in ascending order by policy ID after the ID is turned into a string ("100" runs before "53" which runs before "7").
 
