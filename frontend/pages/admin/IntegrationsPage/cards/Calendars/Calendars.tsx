@@ -53,7 +53,9 @@ const isObfuscatedApiKey = (apiKeyJson: Record<string, string>): boolean => {
     return false;
   }
   // If all values are "********", the API key is obfuscated
-  return Object.values(apiKeyJson).every((value) => value === UNCHANGED_PASSWORD_API_RESPONSE);
+  return Object.values(apiKeyJson).every(
+    (value) => value === UNCHANGED_PASSWORD_API_RESPONSE
+  );
 };
 
 interface ICalendarsFormErrors {
@@ -137,7 +139,10 @@ const Calendars = (): JSX.Element => {
       errors.domain = "Domain must be completed";
     }
     // Skip JSON validation if the value is the masked placeholder
-    if (curFormData.apiKeyJson && curFormData.apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE) {
+    if (
+      curFormData.apiKeyJson &&
+      curFormData.apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE
+    ) {
       try {
         JSON.parse(curFormData.apiKeyJson);
       } catch (e: unknown) {
@@ -177,7 +182,10 @@ const Calendars = (): JSX.Element => {
     if (formData.apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE) {
       // User didn't change the masked value, don't send it (backend will preserve existing)
       apiKeyToSubmit = undefined;
-    } else if (formData.apiKeyJson && formData.apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE) {
+    } else if (
+      formData.apiKeyJson &&
+      formData.apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE
+    ) {
       // User provided a new API key
       apiKeyToSubmit = JSON.parse(formData.apiKeyJson);
     } else {
