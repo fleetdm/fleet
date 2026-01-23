@@ -7,7 +7,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -15,7 +14,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 
 /**
@@ -29,7 +27,6 @@ class ApiClientReenrollTest {
     private lateinit var context: Context
     private lateinit var mockWebServer: MockWebServer
 
-    private val apiKeyPref = stringPreferencesKey("api_key")
     private val serverUrlPref = stringPreferencesKey("server_url")
     private val enrollSecretPref = stringPreferencesKey("enroll_secret")
     private val hardwareUuidPref = stringPreferencesKey("hardware_uuid")
@@ -37,6 +34,9 @@ class ApiClientReenrollTest {
 
     @Before
     fun setup() = runTest {
+        // Enable test mode for KeystoreManager to avoid Android Keystore dependency
+        KeystoreManager.enableTestMode()
+
         context = RuntimeEnvironment.getApplication()
         mockWebServer = MockWebServer()
         mockWebServer.start()
@@ -57,97 +57,94 @@ class ApiClientReenrollTest {
     @After
     fun tearDown() {
         mockWebServer.shutdown()
+        KeystoreManager.disableTestMode()
     }
 
     private suspend fun clearDataStore() {
         context.prefDataStore.edit { it.clear() }
     }
 
-    private suspend fun setApiKey(key: String) {
-        context.prefDataStore.edit {
-            it[apiKeyPref] = KeystoreManager.encrypt(key)
-        }
-    }
-
-    private suspend fun getStoredApiKey(): String? {
-        val encrypted = context.prefDataStore.data.first()[apiKeyPref] ?: return null
-        return KeystoreManager.decrypt(encrypted)
-    }
-
-    @Test
-    fun `getOrbitConfig re-enrolls on 401 and retries with new key`() = runTest {
-        // Set up old key
-        setApiKey("old-node-key")
-
-        // First request returns 401 (old key rejected)
-        mockWebServer.enqueue(
-            MockResponse()
-                .setResponseCode(401)
-                .setBody("""{"error": "invalid node key"}"""),
-        )
-
-        // Re-enrollment request succeeds with new key
+    private fun enqueueEnrollmentSuccess(nodeKey: String) {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
-                .setBody("""{"orbit_node_key": "new-node-key"}"""),
+                .setBody("""{"orbit_node_key": "$nodeKey"}"""),
         )
+    }
 
-        // Retry request succeeds
+    private fun enqueueConfigSuccess() {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
                 .setBody("""{"notifications": {}}"""),
         )
-
-        // Act
-        val result = ApiClient.getOrbitConfig()
-
-        // Assert: Request succeeded
-        assertTrue("Expected success but got: ${result.exceptionOrNull()}", result.isSuccess)
-
-        // Assert: New key is stored
-        assertEquals("new-node-key", getStoredApiKey())
-
-        // Assert: Correct requests were made
-        assertEquals(3, mockWebServer.requestCount)
-
-        // First request: original config request with old key
-        val firstRequest = mockWebServer.takeRequest()
-        assertEquals("/api/fleet/orbit/config", firstRequest.path)
-        assertTrue(firstRequest.body.readUtf8().contains("old-node-key"))
-
-        // Second request: enrollment
-        val enrollRequest = mockWebServer.takeRequest()
-        assertEquals("/api/fleet/orbit/enroll", enrollRequest.path)
-        assertTrue(enrollRequest.body.readUtf8().contains("test-enroll-secret"))
-
-        // Third request: retry config request with new key
-        val retryRequest = mockWebServer.takeRequest()
-        assertEquals("/api/fleet/orbit/config", retryRequest.path)
-        assertTrue(retryRequest.body.readUtf8().contains("new-node-key"))
     }
 
-    @Test
-    fun `getCertificateTemplate re-enrolls on 401 and retries with new key`() = runTest {
-        // Set up old key
-        setApiKey("old-node-key")
-
-        // First request returns 401
+    private fun enqueue401() {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(401)
                 .setBody("""{"error": "invalid node key"}"""),
         )
+    }
 
-        // Re-enrollment succeeds
-        mockWebServer.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody("""{"orbit_node_key": "new-node-key"}"""),
-        )
+    @Test
+    fun `getOrbitConfig re-enrolls on 401 and retries with new key`() = runTest {
+        // First call: no key exists, so enrollment happens, then config succeeds
+        enqueueEnrollmentSuccess("first-node-key")
+        enqueueConfigSuccess()
 
-        // Retry succeeds with certificate template
+        val firstResult = ApiClient.getOrbitConfig()
+        assertTrue("First call should succeed", firstResult.isSuccess)
+        assertEquals(2, mockWebServer.requestCount) // enroll + config
+
+        // Verify first enrollment used the enroll secret
+        val firstEnroll = mockWebServer.takeRequest()
+        assertEquals("/api/fleet/orbit/enroll", firstEnroll.path)
+        assertTrue(firstEnroll.body.readUtf8().contains("test-enroll-secret"))
+
+        // Verify first config used first-node-key
+        val firstConfig = mockWebServer.takeRequest()
+        assertEquals("/api/fleet/orbit/config", firstConfig.path)
+        assertTrue(firstConfig.body.readUtf8().contains("first-node-key"))
+
+        // Second call: server returns 401 (simulating host deletion), triggering re-enrollment
+        enqueue401()
+        enqueueEnrollmentSuccess("second-node-key")
+        enqueueConfigSuccess()
+
+        val secondResult = ApiClient.getOrbitConfig()
+        assertTrue("Second call should succeed after re-enrollment", secondResult.isSuccess)
+        assertEquals(5, mockWebServer.requestCount) // +3: config(401) + enroll + config
+
+        // Verify: config with old key returned 401
+        val rejectedConfig = mockWebServer.takeRequest()
+        assertEquals("/api/fleet/orbit/config", rejectedConfig.path)
+        assertTrue(rejectedConfig.body.readUtf8().contains("first-node-key"))
+
+        // Verify: re-enrollment happened
+        val reEnroll = mockWebServer.takeRequest()
+        assertEquals("/api/fleet/orbit/enroll", reEnroll.path)
+        assertTrue(reEnroll.body.readUtf8().contains("test-enroll-secret"))
+
+        // Verify: retry used new key
+        val retryConfig = mockWebServer.takeRequest()
+        assertEquals("/api/fleet/orbit/config", retryConfig.path)
+        assertTrue(retryConfig.body.readUtf8().contains("second-node-key"))
+    }
+
+    @Test
+    fun `getCertificateTemplate re-enrolls on 401 and retries with new key`() = runTest {
+        // First: establish initial enrollment
+        enqueueEnrollmentSuccess("first-node-key")
+        enqueueConfigSuccess()
+        ApiClient.getOrbitConfig()
+        mockWebServer.takeRequest() // enroll
+        mockWebServer.takeRequest() // config
+
+        // Now test getCertificateTemplate with 401
+        enqueue401()
+        enqueueEnrollmentSuccess("second-node-key")
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
@@ -167,23 +164,41 @@ class ApiClientReenrollTest {
                 ),
         )
 
-        // Act
         val result = ApiClient.getCertificateTemplate(123)
 
-        // Assert
         assertTrue("Expected success but got: ${result.exceptionOrNull()}", result.isSuccess)
-        assertEquals("new-node-key", getStoredApiKey())
-        assertEquals(3, mockWebServer.requestCount)
 
-        // Verify enrollment was called
-        mockWebServer.takeRequest() // First request (401)
+        // Verify the flow: cert request (401) -> enroll -> cert request (success)
+        val rejectedRequest = mockWebServer.takeRequest()
+        assertEquals("/api/fleetd/certificates/123", rejectedRequest.path)
+        // GET requests send node key in Authorization header, not body
+        assertTrue(
+            "Expected first-node-key in Authorization header",
+            rejectedRequest.getHeader("Authorization")?.contains("first-node-key") == true,
+        )
+
         val enrollRequest = mockWebServer.takeRequest()
         assertEquals("/api/fleet/orbit/enroll", enrollRequest.path)
+
+        val retryRequest = mockWebServer.takeRequest()
+        assertEquals("/api/fleetd/certificates/123", retryRequest.path)
+        // Verify retry uses new key in Authorization header
+        assertTrue(
+            "Expected second-node-key in Authorization header",
+            retryRequest.getHeader("Authorization")?.contains("second-node-key") == true,
+        )
     }
 
     @Test
     fun `does not re-enroll on non-401 errors`() = runTest {
-        setApiKey("test-key")
+        // Establish initial enrollment
+        enqueueEnrollmentSuccess("test-key")
+        enqueueConfigSuccess()
+        ApiClient.getOrbitConfig()
+        val initialRequestCount = mockWebServer.requestCount
+
+        // Clear recorded requests
+        repeat(initialRequestCount) { mockWebServer.takeRequest() }
 
         // Return 500 error
         mockWebServer.enqueue(
@@ -192,43 +207,36 @@ class ApiClientReenrollTest {
                 .setBody("""{"error": "server error"}"""),
         )
 
-        // Act
         val result = ApiClient.getOrbitConfig()
 
-        // Assert: Request failed
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message?.contains("500") == true)
 
-        // Assert: Key unchanged, no enrollment
-        assertEquals("test-key", getStoredApiKey())
-        assertEquals(1, mockWebServer.requestCount)
+        // Only 1 request - no re-enrollment attempt
+        assertEquals(1, mockWebServer.requestCount - initialRequestCount)
     }
 
     @Test
     fun `re-enrollment failure propagates error`() = runTest {
-        setApiKey("old-key")
+        // Establish initial enrollment
+        enqueueEnrollmentSuccess("old-key")
+        enqueueConfigSuccess()
+        ApiClient.getOrbitConfig()
+        val initialRequestCount = mockWebServer.requestCount
 
-        // First request returns 401
-        mockWebServer.enqueue(
-            MockResponse()
-                .setResponseCode(401)
-                .setBody("""{"error": "invalid node key"}"""),
-        )
-
-        // Re-enrollment fails
+        // Config returns 401, then re-enrollment fails
+        enqueue401()
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(500)
                 .setBody("""{"error": "enrollment failed"}"""),
         )
 
-        // Act
         val result = ApiClient.getOrbitConfig()
 
-        // Assert: Request failed due to enrollment failure
         assertTrue(result.isFailure)
 
-        // Assert: Only 2 requests (original + failed enrollment, no retry)
-        assertEquals(2, mockWebServer.requestCount)
+        // 2 requests: config(401) + failed enrollment (no retry after failed enrollment)
+        assertEquals(2, mockWebServer.requestCount - initialRequestCount)
     }
 }
