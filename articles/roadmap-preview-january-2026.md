@@ -15,7 +15,7 @@ In the next 3 months, Fleet will ship...
 - 📡 Use Okta as a certificate authority (CA) with a dynamic challenge
 - 👨‍💻 More macOS and Windows Fleet-maintained apps
 - 🎯 Smarter patching: Fleet auto-fills minimum version numbers in patch policies
-- 🪟 Better Windows configuration profiles
+- 🪟 Removals for Windows configuration profiles
 - 📄 Simple certificate deployment for Wi-Fi and VPN on company-owned Linux computers
 - ⬇️ Download signed installers in one click with no Terminal or certificates required
 
