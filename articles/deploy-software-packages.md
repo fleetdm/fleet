@@ -129,7 +129,7 @@ After a software package is installed on a host, it can be uninstalled on the ho
   * You can use a dropdown above the table to filter software **Available for install** or software available in **Self-service**.
 * On **Software details** page select **Delete** icon in the section where you can see uploaded package file.
 
-> Deleting a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software but will not uninstall the software from hosts where it is already installed.
+> Deleting a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software, but will not uninstall the software from hosts where it is already installed.
 
 ## Manage packages with Fleet's REST API
 
