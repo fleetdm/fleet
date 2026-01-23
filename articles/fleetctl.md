@@ -24,7 +24,9 @@ for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetd
 
 Run this script again to update fleetctl if you've installed it this way.
 
-You can also manually download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases). Be sure to match the version of the binary with the version of your Fleet server.
+> Be sure to match the version of the fleetctl with the version of your Fleet server.
+
+You can also manually download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases).
 
 Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
 
