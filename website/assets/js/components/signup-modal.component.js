@@ -35,7 +35,14 @@ parasails.registerComponent('signupModal', {
         firstName: {required: true},
         lastName: {required: true},
         emailAddress: {required: true, isEmail: true},
-        password: {required: true, minLength: 8},
+        password: {
+          required: true,
+          minLength: 12,
+          maxLength: 48,
+          custom: (value)=>{
+            return value.match(/^(?=.*\d)(?=.*[^A-Za-z0-9]).{12,48}$/);
+          }
+        },
       },
       // Login form
       loginFormData: {},
@@ -89,8 +96,10 @@ parasails.registerComponent('signupModal', {
               <label purpose="modal-form-label" for="password">Choose a password *</label>
               <input tabindex="2" purpose="modal-form-input" class="form-control" id="password" type="password"  :class="[signupFormErrors.password ? 'is-invalid' : '']" v-model.trim="signupFormData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
               <div class="invalid-feedback" v-if="signupFormErrors.password === 'minLength'">Password too short.</div>
+              <div class="invalid-feedback" v-if="signupFormErrors.password === 'maxLength'">Password too long.</div>
+              <div class="invalid-feedback" v-if="signupFormErrors.password === 'custom'">Password does not meet requirements.</div>
               <div class="invalid-feedback" v-if="signupFormErrors.password === 'required'">Please enter a password.</div>
-              <p purpose="modal-form-note" class="mt-2"> Minimum length is 8 characters</p>
+              <p purpose="modal-form-note" class="mt-2">Passwords must be 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).</p>
             </div>
             <div class="row">
               <div class="col-12 col-sm-6 pr-sm-2">
@@ -176,7 +185,8 @@ parasails.registerComponent('signupModal', {
     // (Note: This isn't just for convenience-- it's crucial that
     // the parent logic can use this event to update its scope.)
     $(this.$el).on('hide.bs.modal', ()=>{
-
+      // Close the mobile navigation menu if it is open.
+      $('#navbarToggleExternalContent').collapse('hide');
       this._bsModalIsAnimatingOut = true;
       this.$emit('close');
 

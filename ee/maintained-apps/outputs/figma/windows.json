@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "125.10.4",
+      "version": "126.0.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Figma' AND publisher = 'Figma, Inc.';"
       },
-      "installer_url": "https://desktop.figma.com/win/build/Figma-125.10.4.exe",
+      "installer_url": "https://desktop.figma.com/win/build/Figma-126.0.4.exe",
       "install_script_ref": "442d71b3",
       "uninstall_script_ref": "e33afd6b",
-      "sha256": "5e5f692733001f84c6b7d32bebcb31878448701baad6701cfbe475818c5e3cdc",
+      "sha256": "6b22f90c997feb2a084c7d156822e503dc17f419c9eacb1825c54fdd372e0aa2",
       "default_categories": [
         "Productivity"
       ]

@@ -17,13 +17,15 @@ type SignupURLsCreateFunc func(ctx context.Context, serverURL string, callbackUR
 
 type EnterprisesCreateFunc func(ctx context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error)
 
-type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error)
+type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error)
 
 type EnterprisesDevicesPatchFunc func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
 
 type EnterprisesDevicesGetFunc func(ctx context.Context, deviceName string) (*androidmanagement.Device, error)
 
 type EnterprisesDevicesDeleteFunc func(ctx context.Context, deviceName string) error
+
+type EnterprisesDevicesListPartialFunc func(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error)
 
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
@@ -55,6 +57,9 @@ type Client struct {
 
 	EnterprisesDevicesDeleteFunc        EnterprisesDevicesDeleteFunc
 	EnterprisesDevicesDeleteFuncInvoked bool
+
+	EnterprisesDevicesListPartialFunc        EnterprisesDevicesListPartialFunc
+	EnterprisesDevicesListPartialFuncInvoked bool
 
 	EnterprisesEnrollmentTokensCreateFunc        EnterprisesEnrollmentTokensCreateFunc
 	EnterprisesEnrollmentTokensCreateFuncInvoked bool
@@ -91,11 +96,11 @@ func (p *Client) EnterprisesCreate(ctx context.Context, req androidmgmt.Enterpri
 	return p.EnterprisesCreateFunc(ctx, req)
 }
 
-func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 	p.mu.Lock()
 	p.EnterprisesPoliciesPatchFuncInvoked = true
 	p.mu.Unlock()
-	return p.EnterprisesPoliciesPatchFunc(ctx, policyName, policy)
+	return p.EnterprisesPoliciesPatchFunc(ctx, policyName, policy, opts)
 }
 
 func (p *Client) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
@@ -117,6 +122,13 @@ func (p *Client) EnterprisesDevicesDelete(ctx context.Context, deviceName string
 	p.EnterprisesDevicesDeleteFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesDevicesDeleteFunc(ctx, deviceName)
+}
+
+func (p *Client) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesListPartialFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesListPartialFunc(ctx, enterpriseName, pageToken)
 }
 
 func (p *Client) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {

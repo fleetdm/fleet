@@ -12,8 +12,8 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -24,14 +24,15 @@ func notFound(kind string) *common_mysql.NotFoundError {
 }
 
 type existsError struct {
-	Identifier   interface{}
+	Identifier   any
 	ResourceType string
 	TeamID       *uint
+	TeamName     *string
 
 	fleet.ErrorWithUUID
 }
 
-func alreadyExists(kind string, identifier interface{}) error {
+func alreadyExists(kind string, identifier any) *existsError {
 	if s, ok := identifier.(string); ok {
 		identifier = strconv.Quote(s)
 	}
@@ -41,8 +42,13 @@ func alreadyExists(kind string, identifier interface{}) error {
 	}
 }
 
-func (e *existsError) WithTeamID(teamID uint) error {
+func (e *existsError) WithTeamID(teamID uint) *existsError {
 	e.TeamID = &teamID
+	return e
+}
+
+func (e *existsError) WithTeamName(name string) *existsError {
+	e.TeamName = &name
 	return e
 }
 
@@ -52,8 +58,11 @@ func (e *existsError) Error() string {
 		msg += fmt.Sprintf(" %v", e.Identifier)
 	}
 	msg += " already exists"
-	if e.TeamID != nil {
-		msg += fmt.Sprintf(" with TeamID %d", *e.TeamID)
+	switch {
+	case e.TeamID != nil:
+		msg += fmt.Sprintf(" with TeamID %d.", *e.TeamID)
+	case e.TeamName != nil:
+		msg += fmt.Sprintf(" with team %q.", *e.TeamName)
 	}
 	return msg
 }

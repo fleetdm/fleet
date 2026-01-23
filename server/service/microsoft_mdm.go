@@ -11,14 +11,14 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"html/template"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
+	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -410,7 +410,7 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 	}
 }
 
-// getSTSAuthContent Retuns STS auth content
+// getSTSAuthContent Returns STS auth content
 func getSTSAuthContent(data string) mdm_types.Errorer {
 	return MDMAuthContainer{
 		Data: &data,
@@ -778,6 +778,17 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
+// isValidAppru validates that appru is a valid URL with an allowed scheme.
+// It returns true if appru is a valid URL with http, https, or ms-app scheme.
+func isValidAppru(appru string) bool {
+	parsed, err := url.Parse(appru)
+	if err != nil {
+		return false
+	}
+
+	return slices.Contains([]string{"http", "https", "ms-app"}, parsed.Scheme)
+}
+
 // mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
 func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
 	params := request.(*SoapRequestContainer).Params
@@ -792,6 +803,11 @@ func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc flee
 
 	if (len(appru) == 0) || (len(loginHint) == 0) {
 		return getSTSAuthContent(""), errors.New("expected STS params are empty")
+	}
+
+	// Validate that appru is a valid URL
+	if !isValidAppru(appru) {
+		return getSTSAuthContent(""), fmt.Errorf("non-URL appru parameter attempted: %q", appru)
 	}
 
 	// Getting the STS endpoint HTML content
@@ -1005,7 +1021,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 	if authToken.IsAzureJWTToken() {
 
 		// Validate the JWT Auth token by retreving its claims
-		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(authToken.Content)
+		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(ctx, authToken.Content)
 		if err != nil {
 			return "", "", fmt.Errorf("binary security token claim failed: %v", err)
 		}
@@ -1248,11 +1264,6 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
-// isValidUPN checks if the provided user ID is a valid UPN
-func isValidUPN(userID string) bool {
-	return upnRegex.MatchString(userID)
-}
-
 // isTrustedRequest checks if the incoming request was sent from MDM enrolled device
 func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) error {
 	if reqSyncML == nil {
@@ -1308,9 +1319,6 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	return errors.New("calling device is not trusted")
 }
 
-// regex to validate UPN
-var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
 func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string) (bool, error) {
 	// checking first if the device was enrolled through programmatic flow
@@ -1321,7 +1329,7 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
-	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
+	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
 		var isPresent bool
 		if enrolledDevice.HostUUID != "" {
 			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
@@ -1531,15 +1539,18 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
-	enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
-	if enrichedSyncML.HasCommands() {
-		if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML); err != nil {
-			return nil, fmt.Errorf("store incoming msgs: %w", err)
-		}
-	}
+	// List of CmdRef that need to be re-issued as <Replace> commands
+	// However it's a list of nested Command IDs, and not something we can use directly for command_uuid in windows_mdm_commands
+	alreadyExistsCmdIDs := []string{}
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
+		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" {
+			// 418 = Already exists, and indicate that an <Add> failed due to the item already existing on the device
+			// We need to re-issue a <Replace> command for this item
+			alreadyExistsCmdIDs = append(alreadyExistsCmdIDs, *protoCMD.Cmd.CmdRef)
+		}
+
 		// Alerts, Results and Status don't require a status response
 		switch protoCMD.Verb {
 		case mdm_types.CmdAlert:
@@ -1556,7 +1567,63 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID.Value, protoCMD.Verb, syncml.CmdStatusOK))
 	}
 
+	// We gain an additional benefit of doing this here, which is since we processIncoming before grabbing Pending CMDs,
+	// we get this new resend to send back to the Windows MDM protocol, so it gets processed almost immediately, instead
+	// of having to wait for the next check-in.
+	topLevelExists, err := handleResendingAlreadyExistsCommands(ctx, svc, alreadyExistsCmdIDs, deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
+	if enrichedSyncML.HasCommands() {
+		if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML, topLevelExists); err != nil {
+			return nil, fmt.Errorf("store incoming msgs: %w", err)
+		}
+	}
+
 	return responseCmds, nil
+}
+
+func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alreadyExistsCmdIDs []string, deviceID string) ([]string, error) {
+	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, alreadyExistsCmdIDs)
+	if err != nil {
+		return nil, fmt.Errorf("get commands for resending: %w", err)
+	}
+
+	// We use a new list here to track the top-level (atomic) commandID so that we can skip it being re-triggered in the saveResponse flow.
+	topLevelExists := []string{}
+	for _, cmd := range commands {
+		if !strings.Contains(string(cmd.RawCommand), "<Add>") {
+			// Only Add commands can be re-issued as Replace
+			continue
+		}
+
+		// Copy value, and avoid referencing the old values
+		newCmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  cmd.CommandUUID,
+			TargetLocURI: cmd.TargetLocURI,
+		}
+		newCmd.RawCommand = make([]byte, len(cmd.RawCommand))
+		copy(newCmd.RawCommand, cmd.RawCommand)
+
+		newCmd.RawCommand = []byte(strings.ReplaceAll(string(newCmd.RawCommand), "<Add>", "<Replace>"))
+		newCmd.RawCommand = []byte(strings.ReplaceAll(string(newCmd.RawCommand), "</Add>", "</Replace>"))
+
+		// Generate a new top-level command UUID, so we can track it separately
+		newCmd.CommandUUID = uuid.NewString()
+		newCmd.RawCommand = []byte(strings.ReplaceAll(string(newCmd.RawCommand), cmd.CommandUUID, newCmd.CommandUUID))
+
+		// We use the NEW top-level command UUID here, instead of the old to let the save response track and save the 418 response
+		// however we don't want it to correlate anything in this run with this new command we are adding, so we populate the list
+		// which will be used to skip it, in the save response.
+		topLevelExists = append(topLevelExists, newCmd.CommandUUID)
+		err = svc.ds.ResendWindowsMDMCommand(ctx, deviceID, newCmd, cmd)
+		if err != nil {
+			return nil, fmt.Errorf("re-insert command for resending: %w", err)
+		}
+	}
+	return topLevelExists, nil
 }
 
 // getPendingMDMCmds returns the list of pending MDM commands for the device
@@ -1575,12 +1642,14 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
 			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
 		}
-		cmd := new(mdm_types.SyncMLCmd)
-		if err := xml.Unmarshal([]byte(rawCommandWithSecret), cmd); err != nil {
+		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
+		if err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
 			continue
 		}
-		cmds = append(cmds, cmd)
+		for _, pcmd := range parsedCmds {
+			cmds = append(cmds, &pcmd)
+		}
 	}
 
 	return cmds, nil
@@ -1806,6 +1875,15 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
 
+	reqNotInOOBE := false
+	notInOOBEStr, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemNotInOobe)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+	if notInOOBEStr == "true" {
+		reqNotInOOBE = true
+	}
+
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            reqDeviceID,
@@ -1817,7 +1895,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		MDMEnrollUserID:        userID, // This could be Host UUID or UPN email
 		MDMEnrollProtoVersion:  reqEnrollVersion,
 		MDMEnrollClientVersion: reqAppVersion,
-		MDMNotInOOBE:           false,
+		MDMNotInOOBE:           reqNotInOOBE,
 		HostUUID:               hostUUID,
 	}
 
@@ -1826,7 +1904,9 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	}
 
 	// TODO: azure enrollments come with an empty uuid, I haven't figured
-	// out a good way to identify the device.
+	// out a good way to identify the device here.
+	// Note that we currently do the Enrollment->Host mapping during the next
+	// refetch of the host
 	displayName := reqDeviceName
 	var serial string
 	if hostUUID != "" {
@@ -2100,7 +2180,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFText:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdText(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2108,7 +2188,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFXml:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdXml(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2116,7 +2196,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFInteger:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdInt(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2124,7 +2204,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFBase64:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdBase64(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2132,7 +2212,7 @@ func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTar
 		return nil, errInvalidParameters
 
 	case mdm_types.SFBoolean:
-		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
 			rawCmd := newSyncMLCmdBool(cmdVerb, cmdTarget, cmdData)
 			return rawCmd, nil
 		}
@@ -2445,43 +2525,85 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 // Windows equivalent of Apple's Commander struct, but I'd like
 // to keep it simpler for now until we understand more.
 func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fleet.MDMWindowsCommand, error) {
-	rawCommand := []byte(fmt.Sprintf(`<Atomic>%s</Atomic>`, profileBytes))
-	cmd := new(mdm_types.SyncMLCmd)
-	if err := xml.Unmarshal(rawCommand, cmd); err != nil {
-		return nil, fmt.Errorf("unmarshalling profile: %w", err)
+	rawCommand := profileBytes
+	if strings.Contains(string(rawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") && !strings.Contains(string(rawCommand), "<Atomic>") {
+		// It's a SCEP profile, so wrap it with <Atomic>
+		rawCommand = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", rawCommand)
 	}
-	// set the CmdID for the <Atomic> command
-	cmd.CmdID = mdm_types.CmdID{
-		Value:               commandUUID,
-		IncludeFleetComment: true,
-	}
-	// generate a CmdID for any nested <Replace>
-	for i := range cmd.ReplaceCommands {
-		cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	// generate a CmdID for any nested <Add>
-	for i := range cmd.AddCommands {
-		cmd.AddCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	// generate a CmdID for any nested <Exec>
-	for i := range cmd.ExecCommands {
-		cmd.ExecCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	rawCommand, err := xml.Marshal(cmd)
+	cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(rawCommand)
 	if err != nil {
-		return nil, fmt.Errorf("marshalling command: %w", err)
+		return nil, fmt.Errorf("unmarshalling profile bytes: %w", err)
+	}
+
+	if len(cmds) == 0 {
+		return nil, errors.New("no commands found in profile")
+	}
+
+	if len(cmds) == 1 {
+		// We know it's either atomic or just a single command, so just set the commandUUID to the first top level element.
+		cmd := cmds[0]
+		cmd.CmdID = mdm_types.CmdID{
+			Value:               commandUUID,
+			IncludeFleetComment: true,
+		}
+
+		if cmd.XMLName.Local == mdm_types.CmdAtomic {
+			// Iterate through all nested commands and set their CmdID as well
+			// generate a CmdID for any nested <Replace>
+			for i := range cmd.ReplaceCommands {
+				cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+
+			// generate a CmdID for any nested <Add>
+			for i := range cmd.AddCommands {
+				cmd.AddCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+
+			// generate a CmdID for any nested <Exec>
+			for i := range cmd.ExecCommands {
+				cmd.ExecCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+		}
+
+		marshalledRawCommand, err := xml.Marshal(cmd)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling command: %w", err)
+		}
+		rawCommand = marshalledRawCommand
+	} else {
+		// We know this is non-atomic, since we have a list of commands, which only happens with multiple top-level elements.
+		for i, cmd := range cmds {
+
+			cmd.CmdID = mdm_types.CmdID{
+				Value:               uuid.NewString(),
+				IncludeFleetComment: true,
+			}
+
+			if i == 0 {
+				// First element in a non-atomic profile
+				cmd.CmdID = mdm_types.CmdID{
+					Value:               commandUUID,
+					IncludeFleetComment: true,
+				}
+			}
+
+			cmds[i] = cmd
+		}
+
+		marshalledRawCommand, err := xml.Marshal(cmds)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling commands: %w", err)
+		}
+		rawCommand = marshalledRawCommand
 	}
 
 	command := &fleet.MDMWindowsCommand{

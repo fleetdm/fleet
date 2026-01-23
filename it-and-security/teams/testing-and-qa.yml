@@ -82,6 +82,8 @@ software:
     # macOS apps
     - slug: privileges/darwin # Privileges for macOS
       self_service: true
+    - slug: cursor/darwin # Cursor for macOS
+      self_service: true
     # Windows apps
     - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true

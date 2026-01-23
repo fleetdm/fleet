@@ -29,14 +29,13 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 	}
 
-	titleName, _ := strings.CutSuffix(payload.Filename, ".ipa")
-	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, titleName, payload.BundleID, "ipados_apps")
+	titleIDipad, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ipados_apps")
 	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
 	}
-	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, titleName, payload.BundleID, "ios_apps")
+	titleIDios, err := ds.getOrGenerateInHouseAppTitleID(ctx, payload.Title, payload.BundleID, "ios_apps")
 	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "insertInHouseApp")
+		return 0, 0, ctxerr.Wrap(ctx, err, "generating software title")
 	}
 
 	var installerID uint
@@ -48,31 +47,15 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			return alreadyExists("in-house app", payload.Filename)
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+			return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
 		}
 
-		argsIos := []any{
-			tid,
-			globalOrTeamID,
-			payload.Filename,
-			payload.StorageID,
-			payload.Version,
-			payload.BundleID,
-			titleIDios,
-			"ios",
-			payload.SelfService,
-		}
-		argsIpad := []any{
-			tid,
-			globalOrTeamID,
-			payload.Filename,
-			payload.StorageID,
-			payload.Version,
-			payload.BundleID,
-			titleIDipad,
-			"ipados",
-			payload.SelfService,
-		}
+		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
+		argsIpad := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDipad, "ipados", payload.SelfService}
 
 		_, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
 		if err != nil {
@@ -91,8 +74,8 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 }
 
 func (ds *Datastore) getOrGenerateInHouseAppTitleID(ctx context.Context, name string, bundleID string, source string) (uint, error) {
-	selectStmt := `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ?)`
-	selectArgs := []any{bundleID, source, name, source}
+	selectStmt := `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ?`
+	selectArgs := []any{bundleID, source}
 	insertStmt := `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 	insertArgs := []any{name, source, bundleID}
 
@@ -130,7 +113,12 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 	res, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		if IsDuplicate(err) {
-			err = alreadyExists("In-house app", payload.Filename)
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err)
+			}
+			err = alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
@@ -287,6 +275,13 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		}
 
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			if IsDuplicate(err) {
+				teamName, err := ds.getTeamName(ctx, payload.TeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err)
+				}
+				return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			}
 			return ctxerr.Wrap(ctx, err, "update in house app")
 		}
 
@@ -323,11 +318,18 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
 		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM in_house_apps WHERE id = ?)`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete software title display name")
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete in house app")
 		}
-		return err
+		return nil
 	})
 	return err
 }
@@ -609,7 +611,8 @@ SELECT
 		hihsi.command_uuid AS command_uuid,
 		ncr.updated_at AS ack_at,
 		ncr.status AS install_command_status,
-		iha.bundle_identifier AS bundle_identifier
+		iha.bundle_identifier AS bundle_identifier,
+		iha.version AS expected_version
 FROM nano_command_results ncr
 JOIN host_in_house_software_installs hihsi ON hihsi.command_uuid = ncr.command_uuid
 JOIN in_house_apps iha ON iha.id = hihsi.in_house_app_id AND iha.platform = hihsi.platform
@@ -734,6 +737,15 @@ SELECT
 FROM
   software_titles
 WHERE (unique_identifier, source, extension_for) IN (%s)
+`
+
+	const getSoftwareTitle = `
+SELECT
+	id
+FROM
+	software_titles
+WHERE
+	unique_identifier = ? AND source = ? AND extension_for = ''
 `
 
 	const cancelAllPendingInHouseInstalls = `
@@ -886,7 +898,7 @@ FROM
 	in_house_apps
 WHERE
 	global_or_team_id = ?	AND
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = '')
+	title_id = ?
 `
 
 	const insertNewOrEditedInstaller = `
@@ -902,8 +914,7 @@ INSERT INTO in_house_apps (
 	self_service,
 	url
 ) VALUES (
-  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND extension_for = ''),
-  ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 ON DUPLICATE KEY UPDATE
   filename = VALUES(filename),
@@ -990,6 +1001,28 @@ VALUES
 	%s
 `
 
+	const getDisplayNamesForTeam = `
+SELECT
+	stdn.software_title_id, stdn.display_name
+FROM
+	software_title_display_names stdn
+INNER JOIN
+	in_house_apps iha ON stdn.software_title_id = iha.title_id AND stdn.team_id = iha.global_or_team_id
+WHERE
+	stdn.team_id = ?
+`
+
+	const deleteDisplayNamesNotInList = `
+DELETE
+	stdn
+FROM
+	software_title_display_names stdn
+INNER JOIN
+	in_house_apps iha ON stdn.software_title_id = iha.title_id AND stdn.team_id = iha.global_or_team_id
+WHERE
+	stdn.team_id = ? AND stdn.software_title_id NOT IN (?)
+`
+
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	if tmID != nil {
@@ -997,8 +1030,8 @@ VALUES
 	}
 
 	// NOTE: at the time of implementation, in-house apps do not support install
-	// during setup, automatic install (via policies), categories, and
-	// uninstalls, so the related validations and updates that are done in
+	// during setup, automatic install (via policies), and uninstalls,
+	// so the related validations and updates that are done in
 	// BatchSetSoftwareInstallers are removed here.
 
 	var activateAffectedHostIDs []uint
@@ -1028,6 +1061,12 @@ VALUES
 				return ctxerr.Wrap(ctx, err, "mark all host in-house installs as removed")
 			}
 
+			// reuse query to delete all display names associated with in-house apps, by providing just 0
+			// which should make the WHERE clause equivalent to WHERE stdn.team_id = ? AND TRUE
+			if _, err := tx.ExecContext(ctx, deleteDisplayNamesNotInList, globalOrTeamID, 0); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all display names associated with in-house apps")
+			}
+
 			if _, err := tx.ExecContext(ctx, deleteAllInHouseInstallersInTeam, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete obsolete in-house installers")
 			}
@@ -1035,11 +1074,49 @@ VALUES
 			return nil
 		}
 
+		// Get team name for error messages
+		teamName, err := ds.getTeamName(ctx, tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for conflict check")
+		}
+
 		var args []any
 		for _, installer := range installers {
+			// Check for installers that target iOS/iPadOS if they conflict with an existing VPP app
+			if installer.BundleIdentifier != "" {
+				// Check for iOS VPP app conflict
+				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(fleet.IOSPlatform), installer.BundleIdentifier, "ios_apps", "")
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check if VPP app (ios) exists for in-house app")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
+					}, "in-house app conflicts with existing VPP app (ios)")
+				}
+
+				// Check for iPadOS VPP app conflict
+				exists, err = ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(fleet.IPadOSPlatform), installer.BundleIdentifier, "ipados_apps", "")
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check if VPP app (ipados) exists for in-house app")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
+					}, "in-house app conflicts with existing VPP app (ipados)")
+				}
+			}
+
+			var providedTitle *string
+			if installer.Title != "" {
+				providedTitle = &installer.Title // for IPAs downloaded via URL; IPAs referenced by hash won't have this
+			}
+
 			args = append(
 				args,
-				strings.TrimSuffix(installer.Filename, ".ipa"),
+				providedTitle,       // if IPA is downloaded as part of the GitOps run, we'll have this via metadata extraction
+				installer.StorageID, // if the IPA already exists in the DB, pull the name from an existing title if possible
+				strings.TrimSuffix(installer.Filename, ".ipa"), // if neither of the above turns up anything, fall back to filename
 				installer.Source,
 				"",
 				func() *string {
@@ -1051,7 +1128,8 @@ VALUES
 			)
 		}
 
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(installers)), ",")
+		values := strings.TrimSuffix(strings.Repeat(
+			"(COALESCE(?, (SELECT name FROM software_titles st JOIN in_house_apps iha ON iha.title_id = st.id AND iha.storage_id = ? ORDER BY st.id ASC LIMIT 1), ?),?,?,?),", len(installers)), ",")
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert new/edited software titles")
 		}
@@ -1113,6 +1191,14 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "mark obsolete host in-house installs as removed")
 		}
 
+		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete display names")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
+		}
+
 		stmt, args, err = sqlx.In(deleteInHouseInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete in-house installers")
@@ -1121,9 +1207,32 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "delete obsolete in-house installers")
 		}
 
+		// Fill a map of title IDs for this team that have a display name
+		var titlesWithDisplayNames []struct {
+			TitleID uint   `db:"software_title_id"`
+			Name    string `db:"display_name"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &titlesWithDisplayNames, getDisplayNamesForTeam, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load display names for updating")
+		}
+		displayNameIDMap := make(map[uint]string, len(titlesWithDisplayNames))
+		for _, d := range titlesWithDisplayNames {
+			displayNameIDMap[d.TitleID] = d.Name
+		}
+
 		for _, installer := range installers {
 			if installer.ValidatedLabels == nil {
 				return ctxerr.Errorf(ctx, "labels have not been validated for in-house app with name %s", installer.Filename)
+			}
+
+			titleArgs := []any{
+				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
+				installer.Source,
+			}
+			var titleID uint
+			err = sqlx.GetContext(ctx, tx, &titleID, getSoftwareTitle, titleArgs...)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting software title id for existing installer with name %q", installer.Filename)
 			}
 
 			wasUpdatedArgs := []any{
@@ -1131,8 +1240,7 @@ VALUES
 				installer.StorageID,
 				// WHERE clause
 				globalOrTeamID,
-				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
-				installer.Source,
+				titleID,
 			}
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
@@ -1148,8 +1256,7 @@ VALUES
 			}
 
 			args := []any{
-				BundleIdentifierOrName(installer.BundleIdentifier, strings.TrimSuffix(installer.Filename, ".ipa")),
-				installer.Source,
+				titleID,
 				tmID,
 				globalOrTeamID,
 				installer.Filename,
@@ -1275,6 +1382,14 @@ VALUES
 				}
 			}
 
+			// update display name for the software title if it needs to be updated or inserted
+			// no deletions will happen, display names will be set to empty if needed
+			if name, ok := displayNameIDMap[titleID]; (ok && name != installer.DisplayName) || (!ok && installer.DisplayName != "") {
+				if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
+					return ctxerr.Wrapf(ctx, err, "update software title display name for in-house app with name %q", installer.Filename)
+				}
+			}
+
 			// perform side effects if this was an update (related to pending install requests)
 			if len(existing) > 0 {
 				affectedHostIDs, err := ds.runInHouseUpdateSideEffectsInTransaction(
@@ -1380,4 +1495,66 @@ WHERE in_house_app_id = ?
 	}
 
 	return affectedHostIDs, nil
+}
+
+func (ds *Datastore) CheckConflictingInstallerExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error) {
+	return ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), teamID, bundleIdentifier, platform, softwareTypeInstaller)
+}
+
+func (ds *Datastore) CheckConflictingInHouseAppExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error) {
+	return ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), teamID, bundleIdentifier, platform, softwareTypeInHouseApp)
+}
+
+func (ds *Datastore) checkInstallerOrInHouseAppExists(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier, platform string, swType softwareType) (bool, error) {
+	stmt := fmt.Sprintf(`
+SELECT 1
+FROM
+	software_titles st
+	INNER JOIN %[1]ss ON st.id = %[1]ss.title_id AND %[1]ss.global_or_team_id = ?
+WHERE
+	st.unique_identifier = ?
+	AND %[1]ss.platform = ?
+`, swType)
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	var exists int
+	err := sqlx.GetContext(ctx, q, &exists, stmt, globalOrTeamID, bundleIdentifier, platform)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("check %s exists", swType))
+	}
+	return exists == 1, nil
+}
+
+func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
+	const stmt = `
+SELECT st.name
+FROM software_titles st
+INNER JOIN in_house_apps iha ON iha.title_id = st.id AND
+	iha.global_or_team_id = ?
+INNER JOIN vpp_apps va ON va.bundle_identifier = st.bundle_identifier
+INNER JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND
+	vat.global_or_team_id = ?
+WHERE
+	va.adam_id = ?
+	AND va.platform = ?
+	AND iha.platform = va.platform
+LIMIT 1
+`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	err = sqlx.GetContext(ctx, q, &title, stmt, globalOrTeamID, globalOrTeamID, appID.AdamID, appID.Platform)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, "", nil
+		}
+		return false, "", err
+	}
+	return true, title, nil
 }

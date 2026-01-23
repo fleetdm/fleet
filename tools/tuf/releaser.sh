@@ -149,7 +149,7 @@ update_osquery_schema_and_flags () {
     # 4. Commit and PR.
     git commit -m "Update osquery schemas and flags to $version"
     git push origin "$branch_name"
-    prompt "A PR will be created to trigger a Github Action to build osqueryd."
+    prompt "A PR will be created to update osquery schema and flags."
     gh pr create -f -B main -t "Update osquery schema and flags to $version"
     popd
 }
@@ -176,9 +176,6 @@ release_fleetd_to_edge () {
     pushd "$GIT_REPOSITORY_DIRECTORY"
     git tag "$ORBIT_TAG"
     git push origin "$ORBIT_TAG"
-    if [[ "$SKIP_PR" != "1" ]]; then
-        create_fleetd_release_pr
-    fi
     popd
     DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY="$ARTIFACTS_DOWNLOAD_DIRECTORY/desktop"
     mkdir -p "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY"
@@ -316,7 +313,7 @@ release_to_production () {
         # Sleeping 5 minutes to allow for Cloudflare caches to clear.
         sleep 300
         gh workflow run "Update documentation of current versions of TUF fleetd components"
-        prompt "Make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+        prompt "When releasing to stable, make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
     fi
 }
 
@@ -426,19 +423,20 @@ elif [[ $ACTION == "release-to-production" ]]; then
 elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
     create_fleetd_release_pr
 elif [[ $ACTION == "update-osquery-schema" ]]; then
+    pushd website
     # Strip leading 'v' from `node --version` and get major
     NODE_VERSION=$(node --version | sed 's/^v//')
     NODE_MAJOR=${NODE_VERSION%%.*}
-
     EXPECTED_NODE_RANGE=$(jq -r '.engines.node' package.json)
     # Extract the first numeric sequence (major) from the range, e.g., 24 from "^24.10.0"
     EXPECTED_MAJOR=$(echo "$EXPECTED_NODE_RANGE" | sed -E 's/^[^0-9]*([0-9]+).*/\1/')
-
     if [[ "$NODE_MAJOR" != "$EXPECTED_MAJOR" ]]; then
       echo "Your Node.js $NODE_VERSION does not satisfy engines.node ($EXPECTED_NODE_RANGE)."
       echo "Please use Node $EXPECTED_MAJOR.x (e.g., 24.10.0)."
       exit 1
     fi
+    popd
+
     update_osquery_schema_and_flags "$VERSION"
 else
     echo "Unsupported action: $ACTION"

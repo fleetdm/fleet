@@ -116,3 +116,7 @@ fleet_tables_*.ext
 # Local dev files
 .env
 .tool-versions
+.zed/
+
+# Required to not make `fleet-desktop` macOS executable built with a `dirty` flag (see #35006).
+Fleet\ Desktop.app

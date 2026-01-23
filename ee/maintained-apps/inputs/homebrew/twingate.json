@@ -1,0 +1,8 @@
+{
+  "name": "Twingate",
+  "unique_identifier": "com.twingate.macos",
+  "token": "twingate",
+  "installer_format": "pkg",
+  "slug": "twingate/darwin",
+  "default_categories": ["Productivity"]
+}

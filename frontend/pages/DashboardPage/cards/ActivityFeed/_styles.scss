@@ -2,6 +2,7 @@
   @include vertical-card-layout;
   position: relative;
   min-height: 500px;
+  gap: $pad-medium;
 
   &__header-wrap {
     .form-field {

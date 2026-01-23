@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "8.12.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'Agilebits Inc.';"
+      },
+      "installer_url": "https://c.1password.com/dist/1P/win8/1PasswordSetup-8.12.0.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "fa26f99c",
+      "sha256": "806fb53081d26c0ef9292110e827755c1f61379d24461291c5da88db8860b0f6",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "fa26f99c": "# 1Password Uninstall Script\n# Closes running processes before uninstalling to prevent hangs\n\n$product_code = \"{6D3897EB-1591-4B42-9F66-74C5863A5E1D}\"\n$timeoutSeconds = 300  # 5 minute timeout\n\n# Close any running 1Password processes\nGet-Process -Name \"1Password*\" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue\nStart-Sleep -Seconds 2\n\n# Fleet uninstalls app using product code that's extracted on upload\n$process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n# Wait for process with timeout\n$completed = $process.WaitForExit($timeoutSeconds * 1000)\n\nif (-not $completed) {\n    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n    Exit 1603  # ERROR_INSTALL_FAILURE\n}\n\n# Check exit code and output result\nif ($process.ExitCode -eq 0) {\n    Write-Output \"Exit 0\"\n    Exit 0\n} else {\n    Write-Output \"Exit $($process.ExitCode)\"\n    Exit $process.ExitCode\n}\n\n"
+  }
+}

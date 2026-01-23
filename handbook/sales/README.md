@@ -16,7 +16,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.)
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/74) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -30,7 +30,7 @@ The Sales department is directly responsible for attaining the revenue goals of 
 
 Use the following steps to add an account to Salesforce if one doesn't exist already:
 1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a duplicate, parent, or child account doesn't already exist. 
-2. If the account already exists, reach out to the [Head of Digital Workspace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
+2. If the account already exists, reach out to the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
 
 
 ### Respond to a customer feature comparison request
@@ -44,9 +44,10 @@ AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spr
 
 To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
 
+
 ### Introduce Fleet's CEO
 
-To get the CEO's attention and introduce him to an account, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
+To get the CEO's attention and introduce him to an account, @-mention his Executive Assistant (`@SFriendLee`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) with the LinkedIn URL(s) of the people you would like the CEO to connect with. The EA will send all connect requests within the same business day. 
 
 
 ### Track an objection
@@ -67,7 +68,7 @@ Use the following steps to change a contact's organization in Salesforce:
 
 ### Review Salesforce opportunities
 
-Every week, the sales manager will review the necessary opportunities with internal stakeholders. The AE or CSM who owned the deal, their manager, the Head of Marketing, Head of Digital Workplace & GTM Systems, and the CEO will review all opportunities on the "[Ω Ops for review](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001qyE12AI/view?queryScope=userFolders)" report in Salesforce. Opportunities will be reviewed for a number of reasons, including: 
+Every week, the sales manager will review the necessary opportunities with internal stakeholders. The AE or CSM who owned the deal, their manager, the Head of Marketing, GTM Systems Architect, and the CEO will review all opportunities on the "[Ω Ops for review](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001qyE12AI/view?queryScope=userFolders)" report in Salesforce. Opportunities will be reviewed for a number of reasons, including: 
 - If the opportunity is older than 30 days, but the prospect hasn't been sent an order form yet.
 - Any closed-lost new business or expansion opportunity from the previous week.
 - Any opportunity with a closed date pushed into a different quarter.
@@ -78,13 +79,13 @@ If no opportunities meet these criteria, the meeting is used to discuss the olde
 ### Communicate Gross new ARR added
 
 Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, the CEO and CRO will measure the amount of "Gross new ARR" added towards the goal set forth by the CEO. To do this:
-1. Before the meeting, the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
+1. Before the meeting, the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
 2. Before the meeting, the Executive Assistant will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based on "Close date" and add it to the doc. 
 3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed), the Executive Assistant will calculate the progress toward the goal and "Amount left to close" and add it to the doc. 
 4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
-### Send a subscription quote
+### Send a reseller subscription quote
 
 Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
 1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
@@ -134,10 +135,23 @@ Account Executives (AEs) are responsible for the project management and completi
 To complete a security questionnaire, the AE assigned to the account will:
 
 1. Create an issue linking the questionnaire and any other context needed. 
-2. [Use the handbook](https://fleetdm.com/handbook/finance/security#vendor-questionnaires) to answer the questions with links to appropriate sections in the handbook.
-3. If there are outstanding questions, the AE will assign the issue to the Solutions Consultant (SC) associated to the opportunity.
+2. [Use the handbook](https://fleetdm.com/handbook/it/security#vendor-questionnaires) to answer the questions with links to appropriate sections in the handbook.
+3. If there are outstanding questions, the AE will assign the issue to the Solutions Consultant (SC) associated with the opportunity.
 4. The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the AE.
-5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue `@`mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
+5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue, @`mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
+
+
+### Update Salesforce “Attributed to” field on an opportunity
+
+The “Attributed to” field in the Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built out the process that would automate how we track attribution and measure ROI associated with our program spend.  
+
+The “Attributed to” field is associated with a Salesforce user. The opportunity owner will have to determine the correct user to add to the field when the opportunity is created. The rule to determine which user to add to the field:
+
+- Inbound: For all opportunities created based on inbound leads (e.g., digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with the CMO’s name
+- Outbound-AE: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the AE's name.
+- Outbound-SDR: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the SDR’s name
+- Channel: If a deal was referred to us from a Channel Partner (deal-reg approved by Channel Manager), update the field with the Channel Manager’s name.
+- All other sources: For opportunities that do not fall under any of the above categories, update the field with the CMO's name
 
 
 ## Rituals
@@ -151,7 +165,7 @@ The following stubs are included only to make links backward compatible.
 ##### Fleet Premium
 ##### Fleet Free
 ##### Emergency (P0) request communications
-Please see [handbook/company/communications#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas) for all sections above.
+Please see [handbook/company/communications#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos) for all sections above.
 ##### Submit a customer contract for legal review
 ##### Standard terms
 ##### Non-standard NDAs

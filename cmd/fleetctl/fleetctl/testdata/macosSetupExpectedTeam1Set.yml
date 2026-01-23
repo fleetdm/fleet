@@ -20,6 +20,7 @@ spec:
         custom_settings: null
       android_settings:
         custom_settings: null
+        certificates: null
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
@@ -32,12 +33,15 @@ spec:
       macos_updates:
         deadline: null
         minimum_version: null
+        update_new_hosts: null
       ios_updates:
         deadline: null
         minimum_version: null
+        update_new_hosts: null
       ipados_updates:
         deadline: null
         minimum_version: null
+        update_new_hosts: null
       windows_updates:
         deadline_days: null
         grace_period_days: null

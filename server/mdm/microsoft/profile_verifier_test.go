@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -629,6 +630,78 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toVerify: []string{"N1", "N2"},
 		},
 		{
+			name: "full user-scope profile verifies without validation",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./User/some-other-loc-uri-key`,
+						Data: "non related data",
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			toVerify: []string{"N1"},
+		},
+		{
+			name: "mix of user-scoped profile and device-scoped profile verifies only device paths",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./User/some-other-loc-uri-key",
+						Data:   "non related data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/some-other-loc-uri-key",
+						Data:   "L1",
+					},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./User/loc-uri",
+						Data:   "non related data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/loc-uri",
+						Data:   "L1",
+					},
+				}), 0},
+			},
+			report: []osqueryReport{
+				{
+					"N1", "404", "./Device/some-other-loc-uri-key", "",
+				},
+				{
+					"N2", "200", "./Device/loc-uri", "L1",
+				},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+				{
+					ProfileUUID: "uuid-N2",
+					Name:        "N2",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			toVerify: []string{"N2"},
+			toRetry:  []string{"N1"},
+		},
+		{
 			name: "failed scep profile stays failed",
 			hostProfiles: []hostProfile{
 				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
@@ -663,6 +736,57 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toVerify: []string{},
 			toFail:   []string{},
 			toRetry:  []string{}, // It should not do anything on SCEP profiles.
+		},
+		{
+			name: "non atomic profile with multiple locURIs verifies only if all locURIs match",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 3},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "DifferentData"},
+			},
+			toVerify: []string{},
+			toFail:   []string{"N1"},
+			toRetry:  []string{},
+		},
+		{
+			name: "non atomic profile with multiple locURIs verifies if all locURIs match",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "D1.1"},
+			},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: "non atomic and atomic profiles does not interfere",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L2", Data: "D2"},
+				}), 3},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "D1.1"},
+			},
+			toVerify: []string{"N1"},
+			toFail:   []string{"N2"},
+			toRetry:  []string{},
 		},
 	}
 
@@ -722,9 +846,9 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			}
 
 			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error {
-				require.ElementsMatch(t, tt.toVerify, toVerify, "profiles to verify don't match")
-				require.ElementsMatch(t, tt.toFail, toFail, "profiles to fail don't match")
-				require.ElementsMatch(t, tt.toRetry, toRetry, "profiles to retry don't match")
+				assert.ElementsMatch(t, tt.toVerify, toVerify, "profiles to verify don't match")
+				assert.ElementsMatch(t, tt.toFail, toFail, "profiles to fail don't match")
+				assert.ElementsMatch(t, tt.toRetry, toRetry, "profiles to retry don't match")
 				return nil
 			}
 
@@ -1067,6 +1191,77 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-456</Data></Item></Replace>`,
 		},
 		{
+			name:             "host serial fleet variable",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: test-serial-456</Data></Item></Replace>`,
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-456"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID:           "test-uuid-456",
+							HardwareSerial: "test-serial-456",
+						},
+					}, nil
+				}
+			},
+		},
+		{
+			name:             "host serial fleet variable with blank serial",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectError:      true,
+			processingError:  "There is no serial number for this host. Fleet couldn't populate $FLEET_VAR_HOST_HARDWARE_SERIAL.",
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-456"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID: "test-uuid-456",
+							ID:   1234,
+						},
+					}, nil
+				}
+			},
+		},
+		{
+			name:             "host serial with multiple hosts matching the same UUID",
+			hostUUID:         "test-uuid-789",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectError:      true,
+			processingError:  "Found 2 hosts with UUID test-uuid-789. Profile variable substitution for $FLEET_VAR_HOST_HARDWARE_SERIAL requires exactly one host",
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.True(t, ds.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked)
+			},
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-789"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID:           "test-uuid-789",
+							HardwareSerial: "test-serial-456",
+						},
+						{
+							UUID:           "test-uuid-789",
+							HardwareSerial: "test-serial-789",
+						},
+					}, nil
+				}
+				ds.UpdateOrDeleteHostMDMWindowsProfileFunc = func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error {
+					return nil
+				}
+			},
+		},
+		{
+			name:             "host platform fleet variable",
+			hostUUID:         "test-uuid-67",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Platform: $FLEET_VAR_HOST_PLATFORM</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Platform: windows</Data></Item></Replace>`,
+		},
+		{
 			name:             "scep windows certificate id",
 			hostUUID:         "test-host-1234-uuid",
 			profileContents:  `<Replace><Data>SCEP: $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data></Replace>`,
@@ -1250,4 +1445,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			}
 		})
 	}
+
+	require.Len(t, hostIDForUUIDCache, 3) // make sure cache is populated by IdP var host UUID lookups
 }

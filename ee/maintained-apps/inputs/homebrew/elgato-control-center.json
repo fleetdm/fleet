@@ -1,0 +1,8 @@
+{
+  "name": "Elgato Control Center",
+  "unique_identifier": "com.corsair.ControlCenter",
+  "token": "elgato-control-center",
+  "installer_format": "zip",
+  "slug": "elgato-control-center/darwin",
+  "default_categories": ["Productivity"]
+}

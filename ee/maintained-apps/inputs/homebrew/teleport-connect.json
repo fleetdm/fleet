@@ -1,0 +1,8 @@
+{
+  "name": "Teleport Connect",
+  "unique_identifier": "gravitational.teleport.connect",
+  "token": "teleport-connect",
+  "installer_format": "dmg",
+  "slug": "teleport-connect/darwin",
+  "default_categories": ["Productivity"]
+}

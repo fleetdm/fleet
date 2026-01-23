@@ -1,0 +1,12 @@
+{
+  "name": "Adobe Acrobat Reader",
+  "slug": "adobe-acrobat-reader/windows",
+  "package_identifier": "Adobe.Acrobat.Reader.64-bit",
+  "unique_identifier": "Adobe Acrobat (64-bit)",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/adobe_acrobat_reader_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/adobe_acrobat_reader_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

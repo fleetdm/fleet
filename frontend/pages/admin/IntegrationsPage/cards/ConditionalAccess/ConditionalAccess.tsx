@@ -25,7 +25,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import { useQuery } from "react-query";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
-import { IConfig } from "interfaces/config";
+import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 
 import SectionCard from "../MdmSettings/components/SectionCard";
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
@@ -105,10 +105,20 @@ const DeleteConditionalAccessModal = ({
         </p>
       </>
     ) : (
-      <p>
-        Fleet will be disconnected from Okta and will stop blocking end users
-        from logging in with single sign-on.
-      </p>
+      <>
+        <p>
+          Before you delete, first unblock all end users.{" "}
+          <CustomLink
+            text="Learn how"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/disable-okta-conditional-access`}
+            newTab
+          />
+        </p>
+        <p>
+          If you don&apos;t, end users will stay blocked even after deleting
+          Okta.
+        </p>
+      </>
     );
 
   return (
@@ -235,19 +245,9 @@ const ConditionalAccess = () => {
   const {
     microsoft_entra_tenant_id: entraTenantId,
     microsoft_entra_connection_configured: entraConfigured,
-    okta_idp_id: oktaIdpId,
-    okta_assertion_consumer_service_url: oktaAcsUrl,
-    okta_audience_uri: oktaAudienceUri,
-    okta_certificate: oktaCertificate,
   } = config?.conditional_access || {};
 
-  // Determine if Okta is configured (all 4 fields must be present)
-  const oktaConfigured = !!(
-    oktaIdpId &&
-    oktaAcsUrl &&
-    oktaAudienceUri &&
-    oktaCertificate
-  );
+  const oktaConfigured = isOktaConditionalAccessConfigured(config);
 
   // Check if this is a managed cloud deployment (Microsoft Entra requires proxy infrastructure)
   const isManagedCloud = config?.license?.managed_cloud || false;

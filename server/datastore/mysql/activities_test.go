@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -32,9 +32,7 @@ func TestActivity(t *testing.T) {
 	}{
 		{"UsernameChange", testActivityUsernameChange},
 		{"New", testActivityNew},
-		{"ListActivitiesStreamed", testListActivitiesStreamed},
 		{"EmptyUser", testActivityEmptyUser},
-		{"PaginationMetadata", testActivityPaginationMetadata},
 		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
 		{"ListHostPastActivities", testListHostPastActivities},
 		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
@@ -86,6 +84,8 @@ func (d dummyActivity) HostIDs() []uint {
 }
 
 func testActivityUsernameChange(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+
 	u := &fleet.User{
 		Password:    []byte("asd"),
 		Name:        "fullname",
@@ -116,8 +116,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 		),
 	)
 
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 
@@ -125,8 +124,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	err = ds.SaveUser(context.Background(), u)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "newname", *activities[0].ActorFullName)
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
@@ -136,14 +134,15 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Nil(t, activities[0].ActorGravatar)
 }
 
 func testActivityNew(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+
 	u := &fleet.User{
 		Password:   []byte("asd"),
 		Name:       "fullname",
@@ -182,114 +181,35 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 		),
 	)
 
-	opt := fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    0,
-			PerPage: 1,
-		},
+	opt := activity_api.ListOptions{
+		Page:    0,
+		PerPage: 1,
 	}
-	activities, _, err := ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, context.Background(), activitySvc, opt)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Equal(t, "test1", activities[0].Type)
 
-	opt = fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    1,
-			PerPage: 1,
-		},
+	opt = activity_api.ListOptions{
+		Page:    1,
+		PerPage: 1,
 	}
-	activities, _, err = ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, opt)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Equal(t, "test2", activities[0].Type)
 
-	opt = fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    0,
-			PerPage: 10,
-		},
+	opt = activity_api.ListOptions{
+		Page:    0,
+		PerPage: 10,
 	}
-	activities, _, err = ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, opt)
 	assert.Len(t, activities, 2)
 }
 
-func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
-	u := &fleet.User{
-		Password:   []byte("asd"),
-		Name:       "fullname",
-		Email:      "email@asd.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
-	}
-	_, err := ds.NewUser(context.Background(), u)
-	require.Nil(t, err)
-
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
-		),
-	)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
-		),
-	)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test3",
-				details: map[string]interface{}{"detail": 3},
-			}, nil, timestamp,
-		),
-	)
-
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	assert.Len(t, activities, 3)
-
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].ID < activities[j].ID
-	})
-
-	err = ds.MarkActivitiesAsStreamed(context.Background(), []uint{activities[0].ID})
-	require.NoError(t, err)
-
-	// Reload activities (with streamed field updated).
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	assert.Len(t, activities, 3)
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].ID < activities[j].ID
-	})
-
-	nonStreamed, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
-		Streamed: ptr.Bool(false),
-	})
-	require.NoError(t, err)
-	assert.Len(t, nonStreamed, 2)
-	require.Equal(t, nonStreamed[0], activities[1])
-	require.Equal(t, nonStreamed[1], activities[2])
-
-	streamed, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
-		Streamed: ptr.Bool(true),
-	})
-	require.NoError(t, err)
-	assert.Len(t, streamed, 1)
-	require.Equal(t, streamed[0], activities[0])
-}
-
 func testActivityEmptyUser(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+
 	timestamp := time.Now()
 	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	require.NoError(
@@ -317,84 +237,9 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 		),
 	)
 
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
-}
-
-func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	for i := 0; i < 3; i++ {
-		require.NoError(
-			t, ds.NewActivity(
-				ctx, nil, dummyActivity{
-					name:    fmt.Sprintf("test-%d", i),
-					details: map[string]interface{}{},
-				}, nil, timestamp,
-			),
-		)
-	}
-
-	cases := []struct {
-		name  string
-		opts  fleet.ListOptions
-		count int
-		meta  *fleet.PaginationMetadata
-	}{
-		{
-			"default options",
-			fleet.ListOptions{PerPage: 0},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-		{
-			"per page 2",
-			fleet.ListOptions{PerPage: 2},
-			2,
-			&fleet.PaginationMetadata{HasNextResults: true},
-		},
-		{
-			"per page 2 - page 1",
-			fleet.ListOptions{PerPage: 2, Page: 1},
-			1,
-			&fleet.PaginationMetadata{HasPreviousResults: true},
-		},
-		{
-			"per page 3",
-			fleet.ListOptions{PerPage: 3},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-		{
-			`after "0" - orderKey "a.id"`,
-			fleet.ListOptions{After: "0", OrderKey: "a.id"},
-			3,
-			nil,
-		},
-		{
-			"per page 4",
-			fleet.ListOptions{PerPage: 4},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			activities, metadata, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{ListOptions: c.opts})
-			require.NoError(t, err)
-			assert.Len(t, activities, c.count)
-			if c.meta == nil {
-				assert.Nil(t, metadata)
-			} else {
-				require.NotNil(t, metadata)
-				assert.Equal(t, c.meta.HasNextResults, metadata.HasNextResults)
-				assert.Equal(t, c.meta.HasPreviousResults, metadata.HasPreviousResults)
-			}
-		})
-	}
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
@@ -832,47 +677,41 @@ func testListHostPastActivities(t *testing.T, ds *Datastore) {
 	cases := []struct {
 		name    string
 		expActs []dummyActivity
-		opts    fleet.ListActivitiesOptions
+		opts    fleet.ListOptions
 		expMeta *fleet.PaginationMetadata
 	}{
 		{
 			name:    "fetch page one",
 			expActs: []dummyActivity{activities[0]},
 			expMeta: &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    0,
-					PerPage: 1,
-				},
+			opts: fleet.ListOptions{
+				Page:    0,
+				PerPage: 1,
 			},
 		},
 		{
 			name:    "fetch page two",
 			expActs: []dummyActivity{activities[1]},
 			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    1,
-					PerPage: 1,
-				},
+			opts: fleet.ListOptions{
+				Page:    1,
+				PerPage: 1,
 			},
 		},
 		{
 			name:    "fetch all activities",
 			expActs: activities,
 			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    0,
-					PerPage: 2,
-				},
+			opts: fleet.ListOptions{
+				Page:    0,
+				PerPage: 2,
 			},
 		},
 	}
 
 	for _, c := range cases {
-		c.opts.ListOptions.IncludeMetadata = true
-		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts.ListOptions)
+		c.opts.IncludeMetadata = true
+		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts)
 		require.NoError(t, err)
 		require.Len(t, acts, len(c.expActs))
 		require.Equal(t, c.expMeta, meta)
@@ -893,6 +732,7 @@ func testListHostPastActivities(t *testing.T, ds *Datastore) {
 }
 
 func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -967,8 +807,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 4)
 	nonExpiredActivityID := activities[0].ID
 	expiredActivityID := activities[1].ID
@@ -998,8 +837,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 3)
 	require.Equal(t, nonExpiredActivityID, activities[0].ID)
 	require.Equal(t, nonExpiredHostActivityID, activities[1].ID)
@@ -1021,6 +859,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 }
 
 func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -1066,8 +905,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 1500)
 	var queriesLen int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1092,8 +930,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 1000)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
@@ -1103,8 +940,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 500)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
@@ -1114,8 +950,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 250)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
@@ -1125,8 +960,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 250)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
@@ -1283,7 +1117,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	// set a script result, will activate both VPP apps
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// get host script result now returns the result
@@ -1307,6 +1141,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	rawCmd := string(cmd.Raw)
 	require.Contains(t, rawCmd, ">"+vppApp1.VPPAppTeam.AdamID+"<")
 	require.Contains(t, rawCmd, ">"+vpp1_1+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>0</integer>`, "MacOS VPP app install command should have ManagementFlags 0")
 
 	// insert a result for that command and create the past activity,
 	// which triggers the next activity to be activated (should be none
@@ -1326,7 +1162,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 
-	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1)
+	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1, "")
 	require.NoError(t, err)
 	require.Len(t, appleCmdRes, 1)
 	require.Equal(t, "Acknowledged", appleCmdRes[0].Status)
@@ -1407,7 +1243,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 
-	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2)
+	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2, "")
 	require.NoError(t, err)
 	require.Len(t, appleCmdRes, 1)
 	require.Equal(t, "Error", appleCmdRes[0].Status)
@@ -1424,7 +1260,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	swRes, err := ds.GetSoftwareInstallResults(ctx, sw1_1)
@@ -1446,7 +1282,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:      h1.ID,
 		ExecutionID: sw1_2,
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// because the install and uninstall are for the same software installer,
@@ -1482,6 +1318,18 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
 	require.Equal(t, ihaCmd, pendingActs[1].UUID)
 
+	// get next nano command for iOS host is the VPP app
+	nanoCtx = &mdm.Request{EnrollID: &mdm.EnrollID{ID: hIOS.UUID}, Context: ctx}
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, vpp1_1_ios, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+vppApp1IOS.VPPAppTeam.AdamID+"<")
+	require.Contains(t, rawCmd, ">"+vpp1_1_ios+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>1</integer>`)
+
 	// record a result for the VPP app install, which will activate the in-house app
 	cmdRes = &mdm.CommandResults{
 		CommandUUID: vpp1_1_ios,
@@ -1504,6 +1352,15 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 1)
 	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, ihaCmd, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+ihaCmd+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+        <integer>1</integer>`)
 
 	// enqueue a VPP app request for iOS host once more
 	vpp1_1_ios = uuid.NewString()
@@ -1655,7 +1512,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending script execution request
@@ -1669,7 +1526,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	// set a result for the script
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending uninstall request
@@ -1682,7 +1539,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		HostID:      h1.ID,
 		ExecutionID: sw1_2,
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending vpp app install

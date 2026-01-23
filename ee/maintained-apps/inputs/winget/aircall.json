@@ -1,0 +1,10 @@
+{
+  "name": "Aircall",
+  "slug": "aircall/windows",
+  "package_identifier": "Aircall.Aircall",
+  "unique_identifier": "Aircall",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}

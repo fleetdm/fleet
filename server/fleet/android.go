@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,7 +43,6 @@ var AndroidForbiddenJSONKeys = map[string]string{
 	"uninstallAppsDisabled":         `Android configuration profile can't include "uninstallAppsDisabled" setting. Software management is coming soon.`,
 	"blockApplicationsEnabled":      `Android configuration profile can't include "blockApplicationsEnabled" setting. Software management is coming soon.`,
 	"appAutoUpdatePolicy":           `Android configuration profile can't include "appAutoUpdatePolicy" setting. Software management is coming soon.`,
-	"systemUpdate":                  `Android configuration profile can't include "systemUpdate" setting. OS updates are coming soon.`,
 	"kioskCustomLauncherEnabled":    `Android configuration profile can't include "kioskCustomLauncherEnabled" setting. Currently, only personal hosts are supported.`,
 	"kioskCustomization":            `Android configuration profile can't include "kioskCustomization" setting. Currently, only personal hosts are supported.`,
 	"persistentPreferredActivities": `Android configuration profile can't include "persistentPreferredActivities" setting. Currently, only personal hosts are supported.`,
@@ -52,7 +50,13 @@ var AndroidForbiddenJSONKeys = map[string]string{
 	"encryptionPolicy":              `Android configuration profile can't include "encryptionPolicy" setting. Currently, disk encryption isn't supported.`,
 }
 
-func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
+// AndroidPremiumOnlyJSONKeys are keys that may not be included in user-provided Android
+// configuration profiles for non-Premium licenses and associated error messages when they are included
+var AndroidPremiumOnlyJSONKeys = map[string]string{
+	"systemUpdate": `Android OS updates ("systemUpdate") is Fleet Premium only.`,
+}
+
+func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	if len(bytes.TrimSpace(m.RawJSON)) == 0 {
 		return errors.New("The file should include valid JSON.")
 	}
@@ -75,26 +79,38 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
 			return errors.New(errMsg)
 		}
 
+		if !isPremium {
+			if errMsg, ok := AndroidPremiumOnlyJSONKeys[key]; ok {
+				return errors.New(errMsg)
+			}
+		}
+
 		if !IsAndroidPolicyFieldValid(key) {
 			return fmt.Errorf("Invalid JSON payload. Unknown key %q", key)
 		}
 	}
 
+	if err := json.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
+		return parseAndroidProfileValidationError(err)
+	}
+
 	return nil
 }
 
-// MDMAndroidPolicyRequest represents a request made to the Android Management
-// API (AMAPI) to patch the policy or the device (as made by
-// androidsvc.ReconcileProfiles).
-type MDMAndroidPolicyRequest struct {
-	RequestUUID          string           `db:"request_uuid"`
-	RequestName          string           `db:"request_name"`
-	PolicyID             string           `db:"policy_id"`
-	Payload              []byte           `db:"payload"`
-	StatusCode           int              `db:"status_code"`
-	ErrorDetails         sql.Null[string] `db:"error_details"`
-	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
-	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
+func parseAndroidProfileValidationError(err error) error {
+	var typeErr *json.UnmarshalTypeError
+
+	// Check for type mismatches (e.g., array where object expected)
+	if errors.As(err, &typeErr) {
+		fieldPath := typeErr.Field
+		if fieldPath == "" {
+			fieldPath = "<root>"
+		}
+		return fmt.Errorf("Invalid JSON payload. %q format is wrong.", fieldPath)
+	}
+
+	// Fallback for any other unexpected errors
+	return errors.New("Invalid JSON payload.")
 }
 
 type MDMAndroidProfilePayload struct {
@@ -126,7 +142,7 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
-		Status:        p.Status,
+		Status:        p.Status.StringPtr(),
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",
@@ -171,4 +187,45 @@ func initPolicyFieldsCache() {
 func IsAndroidPolicyFieldValid(fieldName string) bool {
 	policyFieldsOnce.Do(initPolicyFieldsCache)
 	return policyFieldsCache[fieldName]
+}
+
+var validAndroidWorkProfileWidgets = map[string]struct{}{
+	"WORK_PROFILE_WIDGETS_UNSPECIFIED": {},
+	"WORK_PROFILE_WIDGETS_ALLOWED":     {},
+	"WORK_PROFILE_WIDGETS_DISALLOWED":  {},
+}
+
+// ValidateAndroidAppConfiguration validates Android app configuration JSON.
+// Configuration must be valid JSON with only "managedConfiguration" and/or
+// "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
+func ValidateAndroidAppConfiguration(config json.RawMessage) error {
+	if len(config) == 0 {
+		return &BadRequestError{
+			Message: "Couldn't update configuration. Invalid JSON.",
+		}
+	}
+
+	type androidAppConfig struct {
+		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+		WorkProfileWidgets   string          `json:"workProfileWidgets"`
+	}
+
+	var cfg androidAppConfig
+	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
+		if strings.Contains(err.Error(), "unknown field") {
+			return &BadRequestError{
+				Message: `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+			}
+		}
+
+		return &BadRequestError{
+			Message: "Couldn't update configuration. Invalid JSON.",
+		}
+	}
+
+	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
+	}
+
+	return nil
 }

@@ -1,6 +1,5 @@
 import React from "react";
 import classnames from "classnames";
-import { noop } from "lodash";
 
 import { IHostEndUser } from "interfaces/host";
 
@@ -31,7 +30,11 @@ interface IUserProps {
   disableFullNameTooltip?: boolean;
   disableGroupsTooltip?: boolean;
   className?: string;
-  onClickUpdateUser?: () => void;
+  onClickUpdateUser?: (
+    e:
+      | React.MouseEvent<HTMLButtonElement>
+      | React.KeyboardEvent<HTMLButtonElement>
+  ) => void;
 }
 
 const User = ({
@@ -40,7 +43,7 @@ const User = ({
   disableFullNameTooltip = false,
   disableGroupsTooltip = false,
   className,
-  onClickUpdateUser = noop,
+  onClickUpdateUser,
 }: IUserProps) => {
   const classNames = classnames(baseClass, className);
 

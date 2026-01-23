@@ -47,6 +47,10 @@ variable "cloudfront_private_key" {}
 variable "webhook_url" {
   description = "Webhook URL used for Webhook Logging Destination"
 }
+variable "otel_bearer_token" {
+  sensitive   = true
+  description = "Bearer token for OTLP ingest into SigNoz."
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -55,9 +59,13 @@ locals {
   fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
   geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
   extra_environment_variables = {
-    FLEET_LICENSE_KEY   = var.fleet_license
-    FLEET_LOGGING_DEBUG = "true"
-    FLEET_LOGGING_JSON  = "true"
+    FLEET_LICENSE_KEY             = var.fleet_license
+    FLEET_LOGGING_DEBUG           = "true"
+    FLEET_LOGGING_JSON            = "true"
+    FLEET_LOGGING_TRACING_ENABLED = "true"
+    FLEET_LOGGING_TRACING_TYPE    = "opentelemetry"
+    OTEL_SERVICE_NAME             = local.customer
+    OTEL_EXPORTER_OTLP_ENDPOINT   = "https://otlp.signoz.dogfood.fleetdm.com"
     # FLEET_LOGGING_TRACING_ENABLED              = "true"
     # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
@@ -72,7 +80,7 @@ locals {
     FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
     FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
     FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
-
+    FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA              = local.cert_path
@@ -84,6 +92,9 @@ locals {
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
+  }
+  signoz_secrets = {
+    OTEL_EXPORTER_OTLP_HEADERS = "${aws_secretsmanager_secret.signoz_otel_bearer_token.arn}:OTEL_EXPORTER_OTLP_HEADERS::"
   }
   # idp_metadata_file = "${path.module}/files/idp-metadata.xml"
 
@@ -130,7 +141,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.17.0"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.18.3"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -172,8 +183,10 @@ module "main" {
     mem      = 4096
     pid_mode = "task"
     autoscaling = {
-      min_capacity = 2
-      max_capacity = 5
+      min_capacity                 = 2
+      max_capacity                 = 5
+      cpu_tracking_target_value    = 70
+      memory_tracking_target_value = 70
     }
     awslogs = {
       name      = local.customer
@@ -199,13 +212,19 @@ module "main" {
     )
     extra_execution_iam_policies = concat(
       module.mdm.extra_execution_iam_policies,
-      [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn, aws_iam_policy.entra_conditional_access.arn],
+      [
+        aws_iam_policy.sentry.arn,
+        aws_iam_policy.osquery_sidecar.arn,
+        aws_iam_policy.entra_conditional_access.arn,
+        aws_iam_policy.signoz_otel_bearer_token.arn
+      ],
       module.cloudfront-software-installers.extra_execution_iam_policies,
     ) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_secrets = merge(
       local.entra_conditional_access_secrets,
       module.mdm.extra_secrets,
       local.sentry_secrets,
+      local.signoz_secrets,
       module.cloudfront-software-installers.extra_secrets
     )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
@@ -425,11 +444,36 @@ data "aws_iam_policy_document" "sentry" {
   }
 }
 
+resource "aws_secretsmanager_secret" "signoz_otel_bearer_token" {
+  name = "${local.customer}-signoz-otel-bearer-token"
+}
+
+resource "aws_secretsmanager_secret_version" "signoz_otel_bearer_token" {
+  secret_id = aws_secretsmanager_secret.signoz_otel_bearer_token.id
+  secret_string = jsonencode({
+    OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Bearer ${var.otel_bearer_token}"
+  })
+}
+
+resource "aws_iam_policy" "signoz_otel_bearer_token" {
+  name   = "fleet-signoz-otel-bearer-token-policy"
+  policy = data.aws_iam_policy_document.signoz_otel_bearer_token.json
+}
+
+data "aws_iam_policy_document" "signoz_otel_bearer_token" {
+  statement {
+    actions = [
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [aws_secretsmanager_secret.signoz_otel_bearer_token.arn]
+  }
+}
+
 module "migrations" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.1.0"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
   ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.main.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -438,6 +482,7 @@ module "migrations" {
   ecs_service              = module.main.byo-vpc.byo-db.byo-ecs.service.name
   desired_count            = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
   min_capacity             = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  max_capacity             = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.max_capacity
   vuln_service             = module.vuln-processing.vuln_service_arn
 }
 
@@ -468,7 +513,7 @@ module "osquery-carve" {
 }
 
 module "monitoring" {
-  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.5.1"
+  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.8.0"
   customer_prefix        = local.customer
   fleet_ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
   albs = [
@@ -504,7 +549,7 @@ module "monitoring" {
     mysql_host                 = module.main.byo-vpc.rds.cluster_reader_endpoint
     mysql_database             = module.main.byo-vpc.rds.cluster_database_name
     mysql_user                 = module.main.byo-vpc.rds.cluster_master_username
-    mysql_password_secret_name = module.main.byo-vpc.secrets.secret_ids["${local.customer}-database-password"]
+    mysql_password_secret_name = "${local.customer}-database-password"
     rds_security_group_id      = module.main.byo-vpc.rds.security_group_id
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id
@@ -512,7 +557,36 @@ module "monitoring" {
     delay_tolerance = "4h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
     run_interval = "1 hour"
+    # Optional: ignore_list = ["comma", "delimited", "cron", "names", "to", "ignore"]
+    # ignore_list = []
   }
+  # log_monitoring = {
+  #   invalid-secret = {
+  #     log_group_name     = module.main.byo-vpc.byo-db.byo-ecs.logging_config.awslogs-group
+  #     pattern            = "{ $.internal = \"invalid secret\" }"
+  #     evaluation_periods = 1
+  #     period             = 3600
+  #     threshold          = 1
+  #   }
+  #   duplicate-identifier = {
+  #     log_group_name     = module.main.byo-vpc.byo-db.byo-ecs.logging_config.awslogs-group
+  #     pattern            = "{ $.msg = \"osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data\" }"
+  #     evaluation_periods = 1
+  #     period             = 3600
+  #     threshold          = 1
+  #   }
+  #   limit-exceeded = {
+  #     log_group_name     = module.main.byo-vpc.byo-db.byo-ecs.logging_config.awslogs-group
+  #     pattern            = "{ $.err = \"limit exceeded\" }"
+  #     evaluation_periods = 1
+  #     period             = 60
+  #     threshold          = 1
+  #   }
+  # }
+  depends_on = [
+    module.main,
+    module.acm
+  ]
 }
 
 module "logging_alb" {
@@ -599,9 +673,9 @@ module "notify_slack_p2" {
 }
 
 module "ses" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
-  zone_id = aws_route53_zone.main.zone_id
-  domain  = "dogfood.fleetdm.com"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  zone_id           = aws_route53_zone.main.zone_id
+  domain            = "dogfood.fleetdm.com"
   extra_txt_records = []
   custom_mail_from = {
     enabled       = true
@@ -720,7 +794,7 @@ resource "aws_iam_policy" "osquery_sidecar" {
 }
 
 module "cloudfront-software-installers" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.0.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.1.0"
   customer          = local.customer
   s3_bucket         = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.bucket_name
   s3_kms_key_id     = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.kms_key_id
@@ -728,4 +802,8 @@ module "cloudfront-software-installers" {
   private_key       = var.cloudfront_private_key
   enable_logging    = true
   logging_s3_bucket = module.logging_alb.log_s3_bucket_id
+}
+
+output "vpc" {
+  value = module.main.vpc
 }

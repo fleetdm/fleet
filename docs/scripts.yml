@@ -14,7 +14,7 @@
 
     echo "Then, ask the end user to type in /Users/Shared, press Return, and locate orbit.stderr.log (Orbit logs) and fleet-desktop.log (Fleet Desktop logs) files."
 
-- name: Create conditional access allow file.
+- name: Create conditional access allow file
   platform: macos
   description: Create an allow file used for Microsoft Entra conditional access.
   script: |

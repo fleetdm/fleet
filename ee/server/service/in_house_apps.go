@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string, software *fleet.SoftwareTitle) (*fleet.SoftwareInstaller, error) {
@@ -19,6 +23,15 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 
 	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop
+	}
+
+	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
+		trimmed := strings.TrimSpace(*payload.DisplayName)
+		if trimmed == "" && *payload.DisplayName != "" {
+			return nil, fleet.NewInvalidArgumentError("display_name", "Cannot have a display name that is all whitespace.")
+		}
+
+		*payload.DisplayName = trimmed
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
@@ -38,14 +51,16 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if payload.SelfService != nil {
 		selfService = *payload.SelfService
 	}
+	displayName := ptr.ValOrZero(payload.DisplayName)
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        teamName,
-		TeamID:          actTeamID,
-		SoftwarePackage: &existingInstaller.Name,
-		SoftwareTitleID: payload.TitleID,
-		SoftwareIconURL: existingInstaller.IconUrl,
-		SelfService:     selfService,
+		SoftwareTitle:       existingInstaller.SoftwareTitle,
+		TeamName:            teamName,
+		TeamID:              actTeamID,
+		SoftwarePackage:     &existingInstaller.Name,
+		SoftwareTitleID:     payload.TitleID,
+		SoftwareIconURL:     existingInstaller.IconUrl,
+		SelfService:         selfService,
+		SoftwareDisplayName: displayName,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
@@ -152,18 +167,29 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get app config")
 	}
 
-	var tid uint
-	if teamID != nil {
-		tid = *teamID
-	}
-	downloadUrl := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
-
 	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get in house app metadata")
 	}
 
-	tmpl := template.Must(template.New("").Parse(`
+	downloadURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, ptr.ValOrZero(teamID))
+
+	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
+		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.InHouseAppSignedURLExpiry)
+		if err != nil {
+			// We log the error and continue to send the Fleet server URL for the in-house app
+			level.Error(svc.logger).Log("msg", "error signing in-house app URL; check CloudFront configuration", "err", err)
+		} else {
+			downloadURL = signedURL
+		}
+	}
+
+	// Escape & characters in case of using CloudFront signed URL
+	var funcMap = map[string]any{
+		"xml": mobileconfig.XMLEscapeString,
+	}
+
+	tmpl := template.Must(template.New("").Funcs(funcMap).Parse(`
 <plist version="1.0">
   <dict>
     <key>items</key>
@@ -175,7 +201,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
             <key>kind</key>
             <string>software-package</string>
             <key>url</key>
-            <string>{{ .URL }}</string>
+            <string>{{ .URL | xml }}</string>
           </dict>
           <dict>
             <key>kind</key>
@@ -209,7 +235,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		Version  string
 		Name     string
 		URL      string
-	}{meta.BundleIdentifier, meta.Version, meta.SoftwareTitle, downloadUrl})
+	}{meta.BundleIdentifier, meta.Version, meta.SoftwareTitle, downloadURL})
 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "rendering app manifest")

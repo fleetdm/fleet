@@ -7,7 +7,7 @@
         <p purpose="hero-text">Pick from a curated software catalog or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.</p>
         <div purpose="button-row" class="d-flex justify-content-start">
           <a class="btn btn-primary" purpose="contact-button" href="/contact">Get a demo</a>
-          <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
+          <signup-button :is-logged-in="!! this.me"></signup-button>
         </div>
       </div>
       <div purpose="hero-slides">
@@ -37,10 +37,10 @@
               <img class="d-block w-100" src="/images/software-management-feature-slide-1-1072x480-@2x.png" alt="First slide">
             </div>
             <div class="carousel-item">
-              <img class="d-block w-100" src="/images/software-management-feature-slide-2-1072x480@2x.png" alt="Second slide">
+              <img class="d-block w-100" src="/images/software-management-feature-slide-2-2144x960@2x.png" alt="Second slide">
             </div>
             <div class="carousel-item">
-              <img class="d-block w-100" src="/images/software-management-feature-slide-3-1072x480@2x.png" alt="Third slide">
+              <img class="d-block w-100" src="/images/software-management-feature-slide-3-2144x960@2x.png" alt="Third slide">
             </div>
           </div>
         </div>
@@ -63,7 +63,7 @@
       
       <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-center mx-auto align-items-center">
         <div purpose="feature-image">
-          <img alt="Deploy software your own way" src="/images/feature-image-fleet-maintained-software-528x377@2x.png">
+          <img alt="Deploy software your own way" src="/images/feature-image-fleet-maintained-software-1056x754@2x.png">
         </div>
         <div purpose="feature-text" class="d-flex flex-column">
           <h3>Deploy software your own way</h3>
@@ -87,13 +87,13 @@
           </div>
         </div>
         <div purpose="feature-image">
-          <img alt="Automate patch management" src="/images/feature-image-automate-patch-management-528x377@2x.png">
+          <img alt="Automate patch management" src="/images/feature-image-automate-patch-management-1056x754@2x.png">
         </div>
       </div>
 
       <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-center mx-auto align-items-center">
         <div purpose="feature-image">
-          <img alt="The right software at the right moment" src="/images/feature-image-self-service-528x377@2x.png">
+          <img alt="The right software at the right moment" src="/images/feature-image-self-service-1056x754@2x.png">
         </div>
         <div purpose="feature-text" class="d-flex flex-column">
           <h3>The right software at the right moment</h3>
@@ -220,7 +220,7 @@
       <h2>Manage software consistently</h2>
       <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
         <a class="btn btn-primary" purpose="contact-button" href="/contact">Get a demo</a>
-        <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
+        <signup-button :is-logged-in="!! this.me"></signup-button>
       </div>
     </div>
   </div>

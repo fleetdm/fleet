@@ -2,14 +2,16 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -58,6 +60,7 @@ type addAppStoreAppRequest struct {
 	LabelsIncludeAny []string                        `json:"labels_include_any"`
 	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
 	Categories       []string                        `json:"categories"`
+	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
 }
 
 type addAppStoreAppResponse struct {
@@ -76,6 +79,7 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		LabelsExcludeAny:     req.LabelsExcludeAny,
 		AddAutoInstallPolicy: req.AutomaticInstall,
 		Categories:           req.Categories,
+		Configuration:        req.Configuration,
 	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil
@@ -97,13 +101,22 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 //////////////////////////////////////////////////////////////////////////////
 
 type updateAppStoreAppRequest struct {
-	TitleID          uint     `url:"title_id"`
-	TeamID           *uint    `json:"team_id"`
-	SelfService      bool     `json:"self_service"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
-	Categories       []string `json:"categories"`
-	DisplayName      *string  `json:"display_name"`
+	TitleID           uint            `url:"title_id"`
+	TeamID            *uint           `json:"team_id"`
+	SelfService       *bool           `json:"self_service"`
+	LabelsIncludeAny  []string        `json:"labels_include_any"`
+	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
+	Categories        []string        `json:"categories"`
+	Configuration     json.RawMessage `json:"configuration,omitempty"`
+	DisplayName       *string         `json:"display_name"`
+	AutoUpdateEnabled *bool           `json:"auto_update_enabled,omitempty"`
+	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
+	// AutoUpdateStartTime is the end of the maintenance window for the software title.
+	// If the end time is less than the start time, the window wraps to the next day.
+	// This is only applicable when viewing a title in the context of a team.
+	AutoUpdateEndTime *string `json:"auto_update_window_end,omitempty"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -116,20 +129,61 @@ func (r updateAppStoreAppResponse) Error() error { return r.Err }
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
-	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny, req.Categories, req.DisplayName)
+	updatedApp, activity, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, fleet.AppStoreAppUpdatePayload{
+		SelfService:      req.SelfService,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsExcludeAny: req.LabelsExcludeAny,
+		Categories:       req.Categories,
+		Configuration:    req.Configuration,
+		DisplayName:      req.DisplayName,
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   req.AutoUpdateEnabled,
+			AutoUpdateStartTime: req.AutoUpdateStartTime,
+			AutoUpdateEndTime:   req.AutoUpdateEndTime,
+		},
+	})
 	if err != nil {
+		return updateAppStoreAppResponse{Err: err}, nil
+	}
+
+	if req.AutoUpdateEnabled != nil {
+		// Update AutoUpdateConfig separately
+		err = svc.UpdateSoftwareTitleAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   req.AutoUpdateEnabled,
+			AutoUpdateStartTime: req.AutoUpdateStartTime,
+			AutoUpdateEndTime:   req.AutoUpdateEndTime,
+		})
+		if err != nil {
+			return updateAppStoreAppResponse{Err: err}, nil
+		}
+	}
+
+	// Re-fetch the software title to get the updated auto-update config.
+	updatedTitle, err := svc.SoftwareTitleByID(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return updateAppStoreAppResponse{Err: err}, nil
+	}
+	if updatedTitle.AutoUpdateEnabled != nil {
+		activity.AutoUpdateEnabled = updatedTitle.AutoUpdateEnabled
+		if *updatedTitle.AutoUpdateEnabled {
+			activity.AutoUpdateStartTime = updatedTitle.AutoUpdateStartTime
+			activity.AutoUpdateEndTime = updatedTitle.AutoUpdateEndTime
+		}
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
 
 	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string, displayName *string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -227,7 +281,7 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 
 	decoded.File = r.MultipartForm.File["token"][0]
 
-	id, err := endpoint_utils.UintFromRequest(r, "id")
+	id, err := endpointer.UintFromRequest(r, "id")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse vpp token id")
 	}

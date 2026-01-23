@@ -86,6 +86,25 @@ func TestGetCACertMessage(t *testing.T) {
 	}
 }
 
+func TestEncodeSCEPRequest_PKIOperation_UsesStdBase64(t *testing.T) {
+	// Data that encodes to "++++////" in standard base64
+	testData := []byte{0xfb, 0xef, 0xbe, 0xff, 0xff, 0xff}
+
+	req, _ := http.NewRequest("GET", "http://example.com/scep", nil)
+	if err := scepserver.EncodeSCEPRequest(t.Context(), req, scepserver.SCEPRequest{
+		Operation: "PKIOperation",
+		Message:   testData,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify message decodes correctly with StdEncoding (not URLEncoding)
+	msg := req.URL.Query().Get("message")
+	if _, err := base64.StdEncoding.DecodeString(msg); err != nil {
+		t.Fatalf("message should be valid standard base64: %v", err)
+	}
+}
+
 func TestPKIOperation(t *testing.T) {
 	server, _, teardown := newServer(t)
 	defer teardown()

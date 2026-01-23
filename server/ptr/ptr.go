@@ -21,6 +21,16 @@ func Uint(x uint) *uint {
 	return &x
 }
 
+// UintOrNilIfZero returns nil if the supplied value is zero, else a pointer to the provided uint.
+// This is useful for cases that expect nil to be supplied for "No team" instead of zero, and allows for
+// a quick way to sidestep e.g. https://github.com/fleetdm/fleet/issues/37729 (which ptr.Uint() would cause).
+func UintOrNilIfZero(x uint) *uint {
+	if x > 0 {
+		return &x
+	}
+	return nil
+}
+
 // Bool returns a pointer to the provided bool.
 func Bool(x bool) *bool {
 	return &x
@@ -75,4 +85,16 @@ func Duration(x time.Duration) *time.Duration {
 // T is the generic version to get the pointer of any type.
 func T[T any](x T) *T {
 	return &x
+}
+
+// ValOrZero returns the value of x if x is not nil, and the zero value
+// for T otherwise.
+func ValOrZero[T any](x *T) T {
+	var ret T
+
+	if x != nil {
+		return *x
+	}
+
+	return ret
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -30,7 +31,7 @@ func TestEnterprisesAuth(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	activityModule := activities.NewActivityModule(fleetDS, logger)
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -129,7 +130,7 @@ func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
 	fleetDS := InitCommonDSMocks()
 	activityModule := activities.NewActivityModule(fleetDS, logger)
 
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -217,6 +218,12 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return &fleet.Job{}, nil
 	}
+	ds.Store.MarkAllPendingAndroidVPPInstallsAsFailedFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.Store.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+		return 0, nil
+	}
 	return &ds
 }
 
@@ -240,14 +247,43 @@ func TestGetEnterprise(t *testing.T) {
 
 		fleetDS := InitCommonDSMocks()
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, enterprise)
-		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
+		assert.False(t, androidAPIClient.EnterprisesListFuncInvoked, "Should not call android API in get to avoid hitting quotas")
 	})
+
+	t.Run("enterprise not found in database", func(t *testing.T) {
+		androidAPIClient := android_mock.Client{}
+		androidAPIClient.InitCommonMocks()
+
+		// Override GetEnterpriseFunc to return not found
+		fleetDS := InitCommonDSMocks()
+		fleetDS.Store.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+			return nil, &notFoundError{}
+		}
+
+		activityModule := activities.NewActivityModule(fleetDS, logger)
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+		require.NoError(t, err)
+
+		enterprise, err := svc.GetEnterprise(ctx)
+		require.Error(t, err)
+		require.Nil(t, enterprise)
+
+		// Should not call Google API if enterprise not found in database
+		assert.False(t, androidAPIClient.EnterprisesListFuncInvoked)
+		assert.Contains(t, err.Error(), "No enterprise found")
+	})
+}
+
+func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
+	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
 	t.Run("enterprise actually deleted - enterprise NOT in LIST", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
@@ -277,12 +313,11 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
-		enterprise, err := svc.GetEnterprise(ctx)
+		err = svc.VerifyExistingEnterpriseIfAny(ctx)
 		require.Error(t, err)
-		require.Nil(t, enterprise)
 
 		// Verify LIST API was called
 		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
@@ -327,12 +362,11 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
-		enterprise, err := svc.GetEnterprise(ctx)
-		require.NoError(t, err) // Should succeed since LIST found the enterprise
-		require.NotNil(t, enterprise)
+		err = svc.VerifyExistingEnterpriseIfAny(ctx)
+		require.NoError(t, err)
 
 		// Verify LIST API was called
 		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
@@ -369,12 +403,11 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
-		enterprise, err := svc.GetEnterprise(ctx)
+		err = svc.VerifyExistingEnterpriseIfAny(ctx)
 		require.Error(t, err)
-		require.Nil(t, enterprise)
 
 		// Verify LIST API was called
 		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
@@ -411,12 +444,11 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
-		enterprise, err := svc.GetEnterprise(ctx)
+		err = svc.VerifyExistingEnterpriseIfAny(ctx)
 		require.Error(t, err)
-		require.Nil(t, enterprise)
 
 		// Should still return 404 for deleted enterprise even if SetAndroidEnabledAndConfigured fails
 		assert.Contains(t, err.Error(), "Android Enterprise has been deleted")
@@ -479,20 +511,18 @@ func TestGetEnterprise(t *testing.T) {
 				}
 
 				activityModule := activities.NewActivityModule(fleetDS, logger)
-				svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+				svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 				require.NoError(t, err)
 
-				enterprise, err := svc.GetEnterprise(ctx)
+				err = svc.VerifyExistingEnterpriseIfAny(ctx)
 
 				if tc.shouldFindInList {
 					// Enterprise found in list
 					require.NoError(t, err)
-					require.NotNil(t, enterprise)
 					assert.False(t, setAndroidCalled, "Should not turn off Android when enterprise exists")
 				} else {
 					// Enterprise not found in list - should be deletion
 					require.Error(t, err)
-					require.Nil(t, enterprise)
 					assert.True(t, setAndroidCalled, "Should turn off Android when enterprise deleted")
 					assert.Contains(t, err.Error(), "Android Enterprise has been deleted")
 				}
@@ -511,15 +541,13 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
-		enterprise, err := svc.GetEnterprise(ctx)
-		require.Error(t, err)
-		require.Nil(t, enterprise)
+		err = svc.VerifyExistingEnterpriseIfAny(ctx)
+		require.Nil(t, err)
 
 		// Should not call Google API if enterprise not found in database
 		assert.False(t, androidAPIClient.EnterprisesListFuncInvoked)
-		assert.Contains(t, err.Error(), "No enterprise found")
 	})
 }

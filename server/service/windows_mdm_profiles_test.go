@@ -105,11 +105,11 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 					<Target>
 						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
 					</Target>
-					<Data>$FLEET_VAR_HOST_HARDWARE_SERIAL</Data>
+					<Data>$FLEET_VAR_HOST_FAKE</Data>
 				</Item>
 			</Replace>`,
 			wantErr:     true,
-			errContains: "Fleet variable $FLEET_VAR_HOST_HARDWARE_SERIAL is not supported in Windows profiles",
+			errContains: "Fleet variable $FLEET_VAR_HOST_FAKE is not supported in Windows profiles",
 		},
 		{
 			name: "HOST_UUID with another unsupported variable",

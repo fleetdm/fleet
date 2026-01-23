@@ -15,7 +15,7 @@ resource "aws_kms_key" "main" {
 }
 
 resource "aws_ecr_repository" "loadtest" {
-  name                 = "${local.customer}-osq"
+  name = "${local.customer}-osq"
 
   image_scanning_configuration {
     scan_on_push = true

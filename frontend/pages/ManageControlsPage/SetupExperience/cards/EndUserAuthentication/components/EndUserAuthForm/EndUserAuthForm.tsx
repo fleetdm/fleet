@@ -6,11 +6,11 @@ import classnames from "classnames";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import TooltipWrapper from "components/TooltipWrapper";
-import { Link } from "react-router";
 
 const baseClass = "end-user-auth-form";
 
@@ -66,20 +66,17 @@ const EndUserAuthForm = ({
       <form>
         <p className={classes}>
           Require end users to authenticate with your{" "}
-          <Link to={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}>
-            identity provider (IdP)
-          </Link>{" "}
-          when they set up their new hosts.
-          <br />
-          <TooltipWrapper tipContent={getTooltipCopy()}>
-            macOS
-          </TooltipWrapper>{" "}
+          <CustomLink
+            url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
+            text="identity provider (IdP)"
+          />{" "}
+          when they set up their new hosts.{" "}
+          <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>{" "}
           hosts will also be required to agree to an{" "}
-          <Link
-            to={`${PATHS.ADMIN_INTEGRATIONS_MDM}#end-user-license-agreement`}
-          >
-            end user license agreement (EULA)
-          </Link>{" "}
+          <CustomLink
+            url={`${PATHS.ADMIN_INTEGRATIONS_MDM}#end-user-license-agreement`}
+            text="end user license agreement (EULA)"
+          />{" "}
           if configured.
         </p>
         <Checkbox

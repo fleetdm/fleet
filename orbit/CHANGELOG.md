@@ -1,11 +1,35 @@
-## Orbit 1.50.0 (Nov 14, 2025)
+## Orbit 1.51.0 (Jan 20, 2026)
+
+* Improved "Fleet Desktop" description in Windows' system tray.
+
+* Updated Orbit CA certs.
+
+* Switched Fleet logo in macOS Desktop from a PNG to an SVG.
+
+* Fixed bugs in auto-update of `.tar.gz` components ("Fleet Desktop" and osqueryd) in orbit.
+
+* Updated go to 1.25.5.
+
+* Fixed macOS `fleet-desktop` that was being displayed as dirty by `go version -m`.
+
+* Updated github.com/shoenig/go-m1cpu to v0.1.7 to fix a build warning on Apple silicon.
+
+* Implemented the `executable_hashes` `fleetd` table, providing easy access to the sha256 hashes of a binary, either passed directly via a PATH clause, or discovered within a .app bundle when the path to the bundle is provided in the WHERE clause.
+
+## Orbit 1.50.2 (Dec 12, 2025)
+
+* Fixed an issue where macOS devices would fail to enroll when end-user authentication was configured.
+
+## Orbit 1.50.1 (Nov 27, 2025)
 
 * Upgraded macadmins osquery-extension to v1.2.7.
+
 * Exposed `crowdstrike_falcon` osquery table from macadmins extension.
 
 * Added support for requiring end-user authentication before enrolling Windows and Linux devices.
 
 * Added `yaml_to_json` table for converting YAML in input to JSON in output.  
+
 * Added `file_contents` table for retrieving contents of a file. This table is like `file_lines` but returns the full file contents in a single row rather than a separate row for each line.
 
 * Fixed handling of various parsing bugs that caused the falconctl_options table to fail to load in some circumsatances.

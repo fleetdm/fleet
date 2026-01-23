@@ -95,7 +95,7 @@ func getFrom(e fleet.Email) (string, error) {
 
 func (m mailService) SendEmail(ctx context.Context, e fleet.Email) error {
 	if !e.SMTPSettings.SMTPConfigured {
-		return errors.New("requires that SMTP or SES is configured in order to send verification email")
+		return errors.New("requires that SMTP or SES (email) is configured.")
 	}
 	msg, err := getMessageBody(e, getFrom)
 	if err != nil {

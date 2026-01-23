@@ -10,6 +10,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -205,6 +208,15 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 }
 
 func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
+	// Create OTEL span for job processing (parent span should be: cron.scheduled_tick.integrations)
+	ctx, span := otel.Tracer("github.com/fleetdm/fleet/v4/server/worker").Start(ctx, fmt.Sprintf("worker.process_job.%s", job.Name),
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.Int64("job.id", int64(job.ID)), // nolint:gosec,G115
+		),
+	)
+	defer span.End()
+
 	j, ok := w.registry[job.Name]
 	if !ok {
 		if w.TestIgnoreUnknownJobs {
@@ -218,7 +230,11 @@ func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 		args = *job.Args
 	}
 
-	return j.Run(ctx, args)
+	err := j.Run(ctx, args)
+	if err != nil {
+		span.RecordError(err)
+	}
+	return err
 }
 
 type failingPoliciesTplArgs struct {

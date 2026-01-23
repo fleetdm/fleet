@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Check if we have at least 2 arguments
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 <is_applied_value> <version_id1> [version_id2] [version_id3] ..."
+    exit 1
+fi
+
+is_applied=$1
+shift  # Remove first argument, leaving only version IDs
+
+# Check if we have only one remaining argument and it contains commas
+if [ $# -eq 1 ] && [[ "$1" == *","* ]]; then
+    # Single argument with commas - use as is
+    version_ids="$1"
+else
+    # Multiple arguments or single argument without commas - join with commas
+    version_ids=$(IFS=','; echo "$*")
+fi
+
+docker compose exec mysql mysql -uroot -ptoor -Dfleet -e "UPDATE migration_status_tables SET is_applied = $is_applied WHERE version_id IN ($version_ids);"

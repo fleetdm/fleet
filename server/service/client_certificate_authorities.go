@@ -21,3 +21,11 @@ func (c *Client) ApplyCertificateAuthoritiesSpec(groupedCAs fleet.GroupedCertifi
 	var responseBody batchApplyCertificateAuthoritiesResponse
 	return c.authenticatedRequestWithQuery(req, verb, path, &responseBody, opts.RawQuery())
 }
+
+// GetCertificateAuthorities fetches the list of certificate authorities
+func (c *Client) GetCertificateAuthorities() ([]*fleet.CertificateAuthoritySummary, error) {
+	verb, path := "GET", "/api/latest/fleet/certificate_authorities"
+	var responseBody listCertificateAuthoritiesResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	return responseBody.CertificateAuthorities, err
+}

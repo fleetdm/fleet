@@ -11,13 +11,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
-| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
+| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
 | Customer Success Manager (CSM)        | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1)).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) Slack channel.)
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/79) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
@@ -147,10 +147,19 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
+### Track a customer promise
+
+Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. The [Customer promises internal spreadsheet](https://docs.google.com/spreadsheets/d/11Z6zDD4UQktc34IZTtRpNmYZMqndjfLDgFP92P4s7cI/edit?gid=0#gid=0) is our current source of truth. It will be maintained and updated by the Customer Success team. Each CSM is responsible for adding in the following when they are assigned a new customer with contractual promises: 
+1. The name of the customer
+2. The feature that was promised
+3. The date that it's due
+4. The current status of that feature
+
+The SVP of Customer Success is the DRI for ensuring customer promise delivery and communicating delays in delivery to the CSM team, in conjunction with the Head of Product Design. Any potential delays in customer promises are addressed with a contract amendment highlighting the updated delivery timeline and is to be signed by the customer via DocuSign, or via an email highlighting the updated delivery time which requires a written response from the customer acknowledging the new timeline. 
 
 ### Close out a completed customer promise
 
-Customer promises are contractually obligated feature requests, with guaranteed completion in specific timeframes. These are always represented in a signed contract with the customer. Document the completion of a customer promise through the following steps:
+Document the completion of a customer promise through the following steps:
 1. When a customer promise is thought to be complete, Fleet's product team will reach out and ask the assigned CSM for confirmation from the customer.
 2. Once notified, reach out to your customer and schedule a meeting to review the work that has been done, and to make sure it meets their requirements.
 3. At the end of the customer promise review meeting, tell your customer that you will be sending over an email going over the discussion and completion of their promise.
@@ -198,6 +207,7 @@ During the window of time available to investigate an issue, use the resources a
   - Escalate to other CSE's or CSA's.
   - Contact the developer on-call.
 
+Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
 ### Contact the developer on-call
 
@@ -206,6 +216,14 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
   - Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
 
 - An automated weekly [on-call handoff](https://fleetdm.com/handbook/engineering#handoff) Slack thread in #g-engineering provides the opportunity to discuss highlights, improvements, and hand off ongoing issues.
+
+### Contact the infrastructure engineer on-call
+
+The acting infrastructure engineer on-call rotation is reflected in the [📈KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0&range=F2 ). The individual on-call is responsible for responding to infrastructure-related Slack comments, Slack threads, and GitHub issues raised by customers and the community that the CSE team cannot address. These may be related to self-hosted or Fleet Managed cloud bugs or performance issues, which are suspected to be infrastructure-related. 
+- To reach the infrastructure engineer on-call for assistance, a CSE or developer should mention them in Slack using `@infrastructure-oncall` in the [#help-infrastructure](https://fleetdm.slack.com/archives/C051QJU3D0V) channel or in the customer channel where the original request lives. 
+  - Support issues must be handled in the relevant customer or internal Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future and help the infrastructure engineering team focused on their planned work.
+  - A CSE or CSA must always triage and process suspected infrastructure issues before tagging in the infrastructure engineer on-call.
+  - If your request for infrastructure is not urgent and/or not related to a suspected bug or performance issue impacting a customer, please create an issue on the [#help-customers kanban board](https://github.com/orgs/fleetdm/projects/79/views/1?filterQuery=) and @ mention the SVP of Customer Success to request prioritization. 
 
 
 ### Onboard a customer success team member
@@ -241,25 +259,25 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
 
 ### Respond to messages and alerts 
 
-Customer Support and 24/7 on-call Engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. 
-- The 24/7 on-call is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provided detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
-- We respond within 1-hour during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information while researching/escalating to find answers internally.
+Customer Support Engineers (CSEs) are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, MacAdmins Slack and dedicated customer Slack channels. 
+- The 24/7 infrastructure on-call engineer is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers when tagged in for assistance. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provide detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
+- We respond within 1-hour or less during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information while researching/escalating to find answers internally.
 
 
 ### Maintain first responder SLA
 
 The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #help-customers Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
-- **First responders:** Robert Fairburn, Kathy Satterlee
+- **First responders:** Robert Fairburn, Jorge Falcon
 
 Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
 - **Escalations (in order):** » Eric Shaw (fleetdm.com) » Zay Hanlon » Luke Heath » Mike McNeil
 
-All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
+All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @infrastructure-oncall Slack alias.
 
 
 ### Communicate feedback on prioritized customer requests
 
-When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) adds the `~customer request` label to the feature request issue and files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
 After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-unicorns` label.
 
@@ -281,6 +299,22 @@ Refunds for Fleet Premium licenses purchased on the self-service license dispens
 
 Once you submit the form, Stripe will refund the user's payment and cancel their subscription.
 
+
+### Respond to a data-deletion request
+
+When a user requests that we delete all data we have stored about them, their data will need to be removed from the following places:
+1. **fleetdm.com**
+    - Create a confidential website request issue
+    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website working group will delete the account and let you know in a comment when the user account is deleted.
+2.  **Salesforce**
+    1. Search Salesforce for the user's email address, delete the contact record, and any related historical event records associated with the user's contact record.
+3. **Stripe** 
+    - If the user created an account on the Fleet website, a Stripe customer profile will have been created for their email address.
+    - Follow these steps to delete the profile: 
+        1. Log in to Stripe using the shared credentials in 1Password 
+        2. Search for the user's email address
+        3. Select the user's Stripe customer record
+        4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
  
 ## Rituals
 
@@ -288,6 +322,9 @@ Once you submit the form, Stripe will refund the user's payment and cancel their
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
+
+##### Customer support service level agreements (SLAs)
+Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
 
 ##### Runbooks
 Please see [Handbook/customer-success#respond-to-messages-and-alerts](https://www.fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts)

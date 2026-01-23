@@ -15,6 +15,12 @@ Download and install [Node.js](https://nodejs.org/en).
 Install fleetctl with npm (included in Node.js).
 
 ```sh
+npm install -g fleetctl
+```
+
+If you see an error such as `Please try running this command again as root/Administrator` or `Permission denied`, run this command instead: `sudo npm install -g fleetctl`.
+
+```sh
 sudo npm install -g fleetctl
 ```
 
@@ -124,7 +130,7 @@ fleetctl user create --name 'API User' --email 'api@example.com' --password 'tem
 On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a team:
 
 ```sh
-fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --team 4: gitops
+fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --team 4:gitops
 ```
 
 #### Changing permissions

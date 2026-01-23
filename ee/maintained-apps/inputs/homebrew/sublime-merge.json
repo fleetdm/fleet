@@ -1,0 +1,8 @@
+{
+  "name": "Sublime Merge",
+  "unique_identifier": "com.sublimemerge",
+  "token": "sublime-merge",
+  "installer_format": "zip",
+  "slug": "sublime-merge/darwin",
+  "default_categories": ["Developer tools"]
+}
