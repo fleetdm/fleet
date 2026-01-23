@@ -95,20 +95,20 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 
 ### Settle event strategy
 
-Fleet's [Content Specialist](https://fleetdm.com/handbook/marketing#team) is the project manager for executing Fleet events efficiently. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a Fleetie will be giving a talk or otherwise representing the brand.
+Fleet's [Content Specialist](https://fleetdm.com/handbook/marketing#team) serves as the project manager for efficiently executing Fleet events. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor, and even events where Fleet's only involvement is that a Fleetie will give a talk or otherwise represent the brand.
 - Field/sales events and GitOps workshops are settled 1 sprint in advance.
 - Conferences are settled 1 quarter in advance. 
 
-Once events have been settled for a particular time frame, i.e decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
+Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
 
 1. Add all upcoming proposed and approved events to the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). Propose the events that Fleet will attend and the strategy for those events, including:
-  - Who from Fleet will attend.
+  - Who from Fleet will attend?
   - The training plan for Fleet attendees.
-  - Which talk proposal Fleet will submit.
+  - Which talk proposal will Fleet submit?
   - All event materials, including printouts, banners, swag given out, and even the clothing worn by Fleeties.
   - Estimated budget, including sponsorship or airfare, and lodging for attendees.
 2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, Head of GTM Architecture, and Manager of Training and Enablement.
-  - First during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
+  - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
   - Next, Marketing will decide which conferences in the **following quarter** the company will invest time or money into. 
 3. After the meeting, the Content Specialist will communicate the settled events by
   - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
