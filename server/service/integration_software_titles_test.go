@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -809,12 +810,6 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		}
 	}
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_titles")
-		mysql.DumpTable(t, q, "host_software")
-		return nil
-	})
-
 	s.Require().NotZero(titleID)
 
 	var listResp listHostsResponse
@@ -846,6 +841,13 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		fmt.Sprint(titleID),
 	)
 	s.Require().Len(listResp.Hosts, 1)
+	s.Assert().NotNil(listResp.SoftwareTitle)
 	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
 	s.Assert().Equal("bar", listResp.SoftwareTitle.Name)
+	v := reflect.ValueOf(*listResp.SoftwareTitle)
+	for i := 0; i < v.NumField(); i++ {
+		if v.Type().Field(i).Name != "ID" && v.Type().Field(i).Name != "Name" {
+			s.Assert().True(v.Field(i).IsZero())
+		}
+	}
 }
