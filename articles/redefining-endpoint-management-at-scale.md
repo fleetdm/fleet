@@ -61,6 +61,6 @@ We are proud to serve some of the most advanced engineering teams in the world, 
 <meta name="articleTitle" value="Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports">
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
-<meta name="category" value="articles">
+<meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-01-23">
 <meta name="description" value="Fleet’s open approach to device management is validated in Gartner’s 2026 reports, highlighting GitOps, scale, transparency, and real-time data.">
