@@ -21,6 +21,9 @@ In the next 3 months, Fleet will ship...
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
 - 🦾 Create and manage local admin accounts
+- 🔄 Escrow and rotate macOS Recovery Lock passwords
+- ✨ Auto-install apps on iOS
+- 📱 Managed mobile app configuration
 - 🔐 "Least privilege" API-only users
 
 Any feedback or questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
