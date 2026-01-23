@@ -74,7 +74,13 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 func newTestService() (*idpService, *mock.Store) {
 	ds := new(mock.Store)
 	logger := kitlog.NewNopLogger()
-	return &idpService{ds: ds, logger: logger}, ds
+	return &idpService{ds: ds, logger: logger, certSerialFormat: config.CertSerialFormatHex}, ds
+}
+
+func newTestServiceWithCertFormat(certFormat string) (*idpService, *mock.Store) {
+	ds := new(mock.Store)
+	logger := kitlog.NewNopLogger()
+	return &idpService{ds: ds, logger: logger, certSerialFormat: certFormat}, ds
 }
 
 func mockAppConfigFunc(serverURL string) func(context.Context) (*fleet.AppConfig, error) {
@@ -210,70 +216,142 @@ func TestServeMetadata(t *testing.T) {
 }
 
 func TestParseSerialNumber(t *testing.T) {
-	tests := []struct {
-		name      string
-		input     string
-		expected  uint64
-		expectErr bool
-	}{
-		{
-			name:     "simple hex number",
-			input:    "1A2B3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "hex with colons",
-			input:    "1A:2B:3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "hex with spaces",
-			input:    "1A 2B 3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "mixed colons and spaces",
-			input:    "1A:2B 3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "large serial number",
-			input:    "DEADBEEF12345678",
-			expected: 0xDEADBEEF12345678,
-		},
-		{
-			name:     "lowercase hex",
-			input:    "abcdef123456",
-			expected: 0xABCDEF123456,
-		},
-		{
-			name:      "invalid hex characters",
-			input:     "GHIJKL",
-			expectErr: true,
-		},
-		{
-			name:      "empty string",
-			input:     "",
-			expectErr: true,
-		},
-		{
-			name:      "overflow uint64",
-			input:     "FFFFFFFFFFFFFFFF1",
-			expectErr: true,
-		},
-	}
+	t.Run("hex format", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			expected  uint64
+			expectErr bool
+		}{
+			{
+				name:     "simple hex number",
+				input:    "1A2B3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "hex with colons",
+				input:    "1A:2B:3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "hex with spaces",
+				input:    "1A 2B 3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "mixed colons and spaces",
+				input:    "1A:2B 3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "large serial number",
+				input:    "DEADBEEF12345678",
+				expected: 0xDEADBEEF12345678,
+			},
+			{
+				name:     "lowercase hex",
+				input:    "abcdef123456",
+				expected: 0xABCDEF123456,
+			},
+			{
+				name:      "invalid hex characters",
+				input:     "GHIJKL",
+				expectErr: true,
+			},
+			{
+				name:      "empty string",
+				input:     "",
+				expectErr: true,
+			},
+			{
+				name:      "overflow uint64",
+				input:     "FFFFFFFFFFFFFFFF1",
+				expectErr: true,
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseSerialNumber(tt.input)
-			if tt.expectErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tt.expected, result)
-			}
-		})
-	}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result, err := parseSerialNumber(tt.input, config.CertSerialFormatHex)
+				if tt.expectErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, tt.expected, result)
+				}
+			})
+		}
+	})
+
+	t.Run("decimal format", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			expected  uint64
+			expectErr bool
+		}{
+			{
+				name:     "simple decimal number",
+				input:    "1234567890",
+				expected: 1234567890,
+			},
+			{
+				name:     "serial number 10 (bug case)",
+				input:    "10",
+				expected: 10,
+			},
+			{
+				name:     "serial number 15 (bug case)",
+				input:    "15",
+				expected: 15,
+			},
+			{
+				name:      "large serial number",
+				input:     "542242443644849078027064623851697342324729218861",
+				expected:  0, // Too large for uint64
+				expectErr: true,
+			},
+			{
+				name:     "max uint64",
+				input:    "18446744073709551615",
+				expected: 18446744073709551615,
+			},
+			{
+				name:      "invalid decimal characters",
+				input:     "12ABC34",
+				expectErr: true,
+			},
+			{
+				name:      "empty string",
+				input:     "",
+				expectErr: true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result, err := parseSerialNumber(tt.input, config.CertSerialFormatDecimal)
+				if tt.expectErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, tt.expected, result)
+				}
+			})
+		}
+	})
+
+	t.Run("default format is hex", func(t *testing.T) {
+		// When format is empty or unknown, should default to hex
+		result, err := parseSerialNumber("A", "")
+		require.NoError(t, err)
+		require.Equal(t, uint64(10), result)
+
+		result, err = parseSerialNumber("A", "unknown")
+		require.NoError(t, err)
+		require.Equal(t, uint64(10), result)
+	})
+
 }
 
 func TestServeSSO(t *testing.T) {
@@ -351,6 +429,31 @@ func TestServeSSO(t *testing.T) {
 				require.True(t, ds.AppConfigFuncInvoked)
 			})
 		}
+	})
+
+	t.Run("decimal format parses serial correctly (bug fix)", func(t *testing.T) {
+		// This test verifies the bug fix: when using Caddy as reverse proxy,
+		// serial numbers are sent in decimal format. For example, serial "10"
+		// in decimal should be looked up as 10, not 16 (which is what hex parsing would give).
+		svc, ds := newTestServiceWithCertFormat(config.CertSerialFormatDecimal)
+
+		ds.GetConditionalAccessCertHostIDBySerialNumberFunc = func(ctx context.Context, serial uint64) (uint, error) {
+			// When using decimal format, "10" should be parsed as 10, not 16
+			require.Equal(t, uint64(10), serial)
+			return 123, nil
+		}
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(false)
+
+		req := httptest.NewRequest("POST", idpSSOPath, nil)
+		req.Header.Set("X-Client-Cert-Serial", "10") // Caddy sends decimal format
+		w := httptest.NewRecorder()
+
+		svc.serveSSO(w, req)
+
+		require.Equal(t, http.StatusSeeOther, w.Code)
+		require.True(t, ds.GetConditionalAccessCertHostIDBySerialNumberFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
 	})
 
 	t.Run("infrastructure errors return 500", func(t *testing.T) {

@@ -58,8 +58,9 @@ func (e *notFoundError) IsNotFound() bool {
 
 // idpService implements the Okta conditional access IdP functionality.
 type idpService struct {
-	ds     fleet.Datastore
-	logger kitlog.Logger
+	ds               fleet.Datastore
+	logger           kitlog.Logger
+	certSerialFormat string
 }
 
 // RegisterIdP registers the HTTP handlers for Okta conditional access IdP endpoints.
@@ -74,8 +75,9 @@ func RegisterIdP(
 	}
 
 	svc := &idpService{
-		ds:     ds,
-		logger: kitlog.With(logger, "component", "conditional-access-idp"),
+		ds:               ds,
+		logger:           kitlog.With(logger, "component", "conditional-access-idp"),
+		certSerialFormat: fleetConfig.ConditionalAccess.CertSerialFormat,
 	}
 
 	// Create logging middleware
@@ -164,10 +166,10 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse serial number (hex string to uint64)
-	serial, err := parseSerialNumber(serialStr)
+	// Parse serial number (hex or decimal string to uint64, based on config)
+	serial, err := parseSerialNumber(serialStr, s.certSerialFormat)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "invalid certificate serial format", "serial", serialStr, "err", err)
+		level.Error(s.logger).Log("msg", "invalid certificate serial format", "serial", serialStr, "format", s.certSerialFormat, "err", err)
 		http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 		return
 	}
@@ -257,22 +259,27 @@ func (w *statusInterceptingWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
-// parseSerialNumber parses a certificate serial number from hex string to uint64.
+// parseSerialNumber parses a certificate serial number from hex or decimal string to uint64.
 // The serial number is provided by the load balancer in the X-Client-Cert-Serial header.
 //
 // SECURITY NOTE: This function only supports certificate serial numbers up to uint64 max
 // (18,446,744,073,709,551,615). While X.509 allows serial numbers up to 160 bits, this
 // limitation is acceptable because Fleet controls the Certificate Authority and generates
 // all certificates via SCEP
-func parseSerialNumber(serialStr string) (uint64, error) {
-	// Remove any colons or spaces that might be in the serial number
+func parseSerialNumber(serialStr string, format string) (uint64, error) {
+	// Remove any colons or spaces that might be in the serial number (common in hex format)
 	serialStr = strings.ReplaceAll(serialStr, ":", "")
 	serialStr = strings.ReplaceAll(serialStr, " ", "")
 
-	// Parse as hex (base 16) to uint64
-	serial, err := strconv.ParseUint(serialStr, 16, 64)
+	// Determine the base for parsing
+	base := 16 // default to hex
+	if format == config.CertSerialFormatDecimal {
+		base = 10
+	}
+
+	serial, err := strconv.ParseUint(serialStr, base, 64)
 	if err != nil {
-		return 0, fmt.Errorf("parse serial number: %w", err)
+		return 0, fmt.Errorf("parse serial number (format=%s): %w", format, err)
 	}
 
 	return serial, nil
