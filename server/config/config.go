@@ -1649,6 +1649,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
+			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
