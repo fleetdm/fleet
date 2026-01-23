@@ -66,6 +66,8 @@ How to view, update, install, or uninstall self-service software:
 
 Currently, for Apple App Store (VPP) apps, if a macOS host is running an app version that can’t be updated because the latest App Store version requires a newer macOS version, Fleet always shows “Update available.” The update then always fails, since the latest app version is incompatible with the host’s OS.
 
+To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
+
 Tips:
 
 - Use the **Software > Library** table to quickly identify and action pending updates.
