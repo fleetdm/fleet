@@ -271,7 +271,6 @@ func parseSerialNumber(serialStr string, format string) (uint64, error) {
 	serialStr = strings.ReplaceAll(serialStr, ":", "")
 	serialStr = strings.ReplaceAll(serialStr, " ", "")
 
-	// Determine the base for parsing
 	base := 16 // default to hex
 	if format == config.CertSerialFormatDecimal {
 		base = 10

@@ -296,12 +296,12 @@ func TestParseSerialNumber(t *testing.T) {
 				expected: 1234567890,
 			},
 			{
-				name:     "serial number 10 (bug case)",
+				name:     "serial number 10",
 				input:    "10",
 				expected: 10,
 			},
 			{
-				name:     "serial number 15 (bug case)",
+				name:     "serial number 15",
 				input:    "15",
 				expected: 15,
 			},
@@ -345,11 +345,11 @@ func TestParseSerialNumber(t *testing.T) {
 		// When format is empty or unknown, should default to hex
 		result, err := parseSerialNumber("A", "")
 		require.NoError(t, err)
-		require.Equal(t, uint64(10), result)
+		require.EqualValues(t, 10, result)
 
 		result, err = parseSerialNumber("A", "unknown")
 		require.NoError(t, err)
-		require.Equal(t, uint64(10), result)
+		require.EqualValues(t, 10, result)
 	})
 
 }
@@ -400,19 +400,22 @@ func TestServeSSO(t *testing.T) {
 
 	t.Run("valid certificate with different serial formats", func(t *testing.T) {
 		tests := []struct {
-			name   string
-			serial string
+			name           string
+			serial         string
+			certFormat     string
+			expectedSerial uint64
 		}{
-			{"plain hex", "DEADBEEF"},
-			{"hex with colons", "DE:AD:BE:EF"},
+			{"hex plain", "DEADBEEF", config.CertSerialFormatHex, 0xDEADBEEF},
+			{"hex with colons", "DE:AD:BE:EF", config.CertSerialFormatHex, 0xDEADBEEF},
+			{"decimal", "10", config.CertSerialFormatDecimal, 10},
 		}
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				svc, ds := newTestService()
+				svc, ds := newTestServiceWithCertFormat(tt.certFormat)
 
 				ds.GetConditionalAccessCertHostIDBySerialNumberFunc = func(ctx context.Context, serial uint64) (uint, error) {
-					require.Equal(t, uint64(0xDEADBEEF), serial)
+					require.Equal(t, tt.expectedSerial, serial)
 					return 123, nil
 				}
 				ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
@@ -429,31 +432,6 @@ func TestServeSSO(t *testing.T) {
 				require.True(t, ds.AppConfigFuncInvoked)
 			})
 		}
-	})
-
-	t.Run("decimal format parses serial correctly (bug fix)", func(t *testing.T) {
-		// This test verifies the bug fix: when using Caddy as reverse proxy,
-		// serial numbers are sent in decimal format. For example, serial "10"
-		// in decimal should be looked up as 10, not 16 (which is what hex parsing would give).
-		svc, ds := newTestServiceWithCertFormat(config.CertSerialFormatDecimal)
-
-		ds.GetConditionalAccessCertHostIDBySerialNumberFunc = func(ctx context.Context, serial uint64) (uint, error) {
-			// When using decimal format, "10" should be parsed as 10, not 16
-			require.Equal(t, uint64(10), serial)
-			return 123, nil
-		}
-		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
-		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(false)
-
-		req := httptest.NewRequest("POST", idpSSOPath, nil)
-		req.Header.Set("X-Client-Cert-Serial", "10") // Caddy sends decimal format
-		w := httptest.NewRecorder()
-
-		svc.serveSSO(w, req)
-
-		require.Equal(t, http.StatusSeeOther, w.Code)
-		require.True(t, ds.GetConditionalAccessCertHostIDBySerialNumberFuncInvoked)
-		require.True(t, ds.AppConfigFuncInvoked)
 	})
 
 	t.Run("infrastructure errors return 500", func(t *testing.T) {
