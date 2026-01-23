@@ -334,9 +334,7 @@ The client certificates can also be pushed to existing installations by placing 
 
 #### Alternative browser host
 
-If using Fleet Desktop, you may want to specify an alternative host for Fleet Desktop traffic (such as the "My device" 
-URL in the Fleet tray icon). This is useful when you want to ensure that Fleet Desktop traffic goes through a custom 
-proxy for an extra layer of security.
+If using Fleet Desktop, you may want to specify an alternative host for Fleet Desktop traffic (such as the "My device" URL in the Fleet tray icon). This is useful when you want to ensure that Fleet Desktop traffic goes through a custom proxy for an extra layer of security.
 
 **Note**: This "alternative host" should not require client certificates on the TLS connection.
 
@@ -351,8 +349,7 @@ fleetctl package
   [...]
 ```
 
-2. Via GitOps or the UI: You can configure the alternative host in the UI by navigating to 
-**Settings > Organization settings > Fleet Desktop**, or via GitOps by adding the following to your `default.yml`:
+2. Via GitOps or the UI: You can configure the alternative host in the UI by navigating to **Settings > Organization settings > Fleet Desktop**, or via GitOps by adding the following to your `default.yml`:
 ```yaml
 ...
 fleet_desktop:
@@ -360,8 +357,7 @@ fleet_desktop:
 ...
 ```
 
-If the setting is specified via both the flag and UI/GitOps, the value in the UI/GitOps will take precedence. If this 
-setting is not used, you will need to configure client TLS certificates on devices' browsers.
+If the setting is specified via both the flag and UI/GitOps, the value in the UI/GitOps will take precedence. If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
 
 #### fleetd Chrome browser extension
 
