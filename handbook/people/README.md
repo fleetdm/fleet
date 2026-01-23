@@ -309,6 +309,7 @@ The ["🗓️ KPIs" (confidential)](https://docs.google.com/spreadsheets/d/1Hso0
    - Update the relevant cell in row 2 of the "🪴🌧️🦉 Investor updates" with the new column location.
 4. Scan "🪴🌧️🦉 Investor updates" to confirm all metrics are populating as expected and no data is missing or misaligned.
 
+
 ### Review Fleet's US company benefits
 
 Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
