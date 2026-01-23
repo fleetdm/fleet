@@ -1757,31 +1757,49 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	}
 
+	payload2 := payload
+	payload2.BundleIdentifier = "com.bar"
+	payload2.Filename = "bar.ipa"
+	payload2.StorageID = "id5678"
+
 	inHouseAppID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
 	require.NoError(t, err)
-
-	createInHouseAppInstallRequest(t, ds, host.ID, inHouseAppID, titleID, user)
-
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		DumpTable(t, tx, "nano_enrollments")
-		DumpTable(t, tx, "host_mdm")
-		DumpTable(t, tx, "host_in_house_software_installs")
-		DumpTable(t, tx, "upcoming_activities")
-		return nil
-	})
-
-	_, activities, err := ds.MDMTurnOff(ctx, host.UUID)
+	inHouseAppID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
 	require.NoError(t, err)
-	fmt.Println(activities)
 
-	var verifiedAt *time.Time
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, tx, &verifiedAt,
-			"SELECT verification_failed_at FROM host_in_house_software_installs WHERE in_house_app_id = ?", inHouseAppID)
-	})
+	ipaReq := createInHouseAppInstallRequest(t, ds, host.ID, inHouseAppID, titleID, user)
+	ipaReq2 := createInHouseAppInstallRequest(t, ds, host.ID, inHouseAppID2, titleID2, user)
+	// TODO: add more
+
+	// ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+	// 	DumpTable(t, tx, "nano_enrollments")
+	// 	DumpTable(t, tx, "host_mdm")
+	// 	DumpTable(t, tx, "host_in_house_software_installs", "id", "host_id", "in_house_app_id", "user_id", "platform", "removed", "canceled", "verification_failed_at", "updated_at")
+	// 	DumpTable(t, tx, "upcoming_activities", "id", "host_id", "user_id", "activity_type", "activated_at")
+	// 	DumpTable(t, tx, "in_house_app_upcoming_activities")
+	// 	DumpTable(t, tx, "in_house_apps")
+	// 	return nil
+	// })
+
+	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 1, Failed: 0}, *summary)
+
+	fmt.Printf("%+v\n\n\n", summary)
+
+	checkUpcomingActivities(t, ds, host, ipaReq, ipaReq2)
+
+	// turn off MDM for the host
+	_, activitiesToCreate, err := ds.MDMTurnOff(ctx, host.UUID)
+	require.NoError(t, err)
+	fmt.Println(activitiesToCreate)
 
 	// we expect host_iha_installs to have verification_fail_at not NULL
 	// and upcoming activities vpp/iha to be cleared
-	fmt.Println(verifiedAt)
+	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
+
+	checkUpcomingActivities(t, ds, host)
 
 }
