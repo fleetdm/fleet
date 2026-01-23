@@ -35,6 +35,24 @@ interface IScriptDropdownField {
 
 export type IPolicyRunScriptFormData = IFormPolicy[];
 
+export const getTrulyDirtyItems = (dirtyItems: IFormPolicy[]) =>
+  dirtyItems.filter((item) => {
+    // Original state from policy row as loaded into the list
+    const originalScriptId = item.run_script?.id ?? null;
+    const originallyEnabled = originalScriptId !== null;
+
+    // Current state from UI form
+    const nowEnabled = !!item.runScriptEnabled;
+    const nowScriptId = item.scriptIdToRun ?? null;
+
+    const turnedOn = !originallyEnabled && nowEnabled;
+    const turnedOff = originallyEnabled && !nowEnabled;
+    const scriptChanged =
+      originallyEnabled && nowEnabled && nowScriptId !== originalScriptId;
+
+    return turnedOn || turnedOff || scriptChanged;
+  });
+
 interface IPolicyRunScriptModal {
   onExit: () => void;
   onSubmit: (formData: IPolicyRunScriptFormData) => void;
@@ -70,31 +88,10 @@ const PolicyRunScriptModal = ({
   );
 
   const onUpdate = useCallback(() => {
-    if (!paginatedListRef.current) {
-      return;
-    }
+    if (!paginatedListRef.current) return;
 
     const dirtyItems = paginatedListRef.current.getDirtyItems();
-
-    const trulyDirtyItems = dirtyItems.filter((item) => {
-      console.log("item", item);
-      // Original state from policy row as loaded into the list
-      const originalScriptId = item.run_script?.id ?? null;
-      const originallyEnabled = originalScriptId !== null;
-
-      // Current state from UI form
-      const nowEnabled = !!item.runScriptEnabled;
-      const nowScriptId = item.scriptIdToRun ?? null;
-
-      const turnedOn = !originallyEnabled && nowEnabled;
-      const turnedOff = originallyEnabled && !nowEnabled;
-      const scriptChanged =
-        originallyEnabled && nowEnabled && nowScriptId !== originalScriptId;
-
-      return turnedOn || turnedOff || scriptChanged;
-    });
-
-    onSubmit(trulyDirtyItems);
+    onSubmit(getTrulyDirtyItems(dirtyItems));
   }, [onSubmit]);
 
   const onSelectPolicyScript = (
