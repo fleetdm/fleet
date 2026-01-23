@@ -33,6 +33,7 @@ func TestInHouseApps(t *testing.T) {
 		{"EditDeleteInHouseInstallersActivateNextActivity", testEditDeleteInHouseInstallersActivateNextActivity},
 		{"Categories", testInHouseAppsCategories},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameInHouse},
+		{"InHouseAppsCancelledOnUnenroll", testInHouseAppsCancelledOnUnenroll},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1730,4 +1731,44 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	names = getAllDisplayNames()
 	require.Len(t, names, 2)
+}
+
+func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create an mdm enrolled host to have a pending install request
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	nanoEnroll(t, ds, host, false)
+
+	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           host.UUID,
+		HardwareSerial: "test-serial",
+		Platform:       string(fleet.IOSPlatform),
+	}, false)
+	require.NoError(t, err)
+
+	// TODO: table driven test with different installers
+
+	payload := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user.ID,
+		BundleIdentifier: "com.foo",
+		Filename:         "foo.ipa",
+		StorageID:        "id1234",
+		Extension:        "ipa",
+		SelfService:      false,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		CategoryIDs:      []uint{1, 2},
+	}
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		DumpTable(t, tx, "nano_enrollments")
+		DumpTable(t, tx, "host_mdm")
+		DumpTable(t, tx, "in_house_apps")
+		return nil
+	})
+
 }
