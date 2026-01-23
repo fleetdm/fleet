@@ -13,9 +13,11 @@ minute=$(date +"%-M")
 ORBIT_PATCH=$(( (day << 11) | (hour << 6) | minute )) # must fit into 16-bit number
 ORBIT_VERSION="$ORBIT_MAJOR.$ORBIT_MINOR.$ORBIT_PATCH"
 ORBIT_COMMIT=$(git rev-parse HEAD)
+DISABLE_DIRTY_CHECK=1
 
 export ORBIT_MAJOR
 export ORBIT_MINOR
 export ORBIT_PATCH
 export ORBIT_VERSION
 export ORBIT_COMMIT
+export DISABLE_DIRTY_CHECK

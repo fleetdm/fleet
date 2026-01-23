@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -38,13 +39,14 @@ import (
 )
 
 type withDS struct {
-	s  *suite.Suite
-	ds *mysql.Datastore
+	s       *suite.Suite
+	ds      *mysql.Datastore
+	dbConns *common_mysql.DBConnections
 }
 
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
-	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
+	ts.ds, ts.dbConns = mysql.CreateNamedMySQLDSWithConns(t, dbName)
 	// remove any migration-created labels
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
@@ -93,6 +95,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 		Lq:          ts.lq,
 		FleetConfig: &cfg,
 		Pool:        redisPool,
+		DBConns:     ts.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		opts.Logger = kitlog.NewNopLogger()
@@ -160,11 +163,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return nil
 	})
 
-	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := ts.ds.DeleteLabel(ctx, lbl.Name)
+			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
 			require.NoError(t, err)
 		}
 	}

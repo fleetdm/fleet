@@ -30,9 +30,23 @@ export const getHostSoftwareFilterFromQueryParams = (
 const PRE_RELEASE_ORDER = ["alpha", "beta", "rc", ""];
 
 /**
- * Removes build metadata from a version string (e.g., "1.0.0+build" -> "1.0.0").
+ * Removes build metadata and parenthesized build info from a version string.
+ * Examples:
+ *   "1.0.0+build.1"        -> "1.0.0"
+ *   "8.0 (build 6300)"     -> "8.0"
+ *   "8.1.2 (Build 6300)"   -> "8.1.2"
  */
-const stripBuildMetadata = (version: string): string => version.split("+")[0];
+const stripBuildMetadata = (version: string): string => {
+  if (typeof version !== "string") {
+    return "";
+  }
+
+  // First drop any parenthesized "build ..." suffix, e.g. "8.0 (build 6300)" -> "8.0"
+  const withoutParenBuild = version.replace(/\s*\(build\s+[^)]+\)\s*$/i, "");
+
+  // Then drop standard SemVer +build metadata, e.g. "1.0.0+build.1" -> "1.0.0"
+  return withoutParenBuild.split("+")[0];
+};
 
 /**
  * Splits a version string into an array of numeric and string segments.
@@ -435,9 +449,7 @@ export const getSoftwareSubheader = ({
         : "Software installed on work profile (Managed Apple Account).";
     }
     if (hostMdmEnrollmentStatus === "On (manual)") {
-      return isMyDevicePage
-        ? "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
-        : "Software installed on this host. Built-in apps (e.g. Calculator) aren't included.";
+      return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";
     }
   }
   return isMyDevicePage

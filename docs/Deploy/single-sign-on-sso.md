@@ -140,6 +140,16 @@ IdPs generally requires the following information:
 
 After supplying the above information, your IdP will generate an issuer URI and metadata that will be used to configure Fleet as a service provider.
 
+## Service provider metadata
+
+Fleet doesn't generate SP metadata XML files. Most major identity providers (like Okta, Microsoft Entra ID, and Google Workspace) work without this file. You can configure SSO by entering Fleet's details directly in your IdP.
+
+If your IdP requires an SP metadata XML file, you can generate one using a third-party tool like [SAMLTool.com's SP Metadata XML Builder](https://www.samltool.com/sp_metadata.php).
+
+You'll need to enter the **Assertion Consumer Service URL**, **Entity ID**, and **Name ID Format** values.
+
+After generating the XML file, upload it to your identity provider according to their documentation.
+
 ## Fleet configuration
 
 To configure SSO in Fleet head to **Settings > Integrations > Single sign-on (SSO) > Fleet users**.
@@ -162,7 +172,7 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 `Applies only to Fleet Premium`
 
-Fleet automates user creation using just-in-time (JIT) provisioning. Fleet uses System for Cross-domain Identity Management (SCIM) to [map end users' identity provider (IdP) information to host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). SCIM for user provisioning is coming soon.
+Fleet automates user creation using just-in-time (JIT) provisioning. Fleet uses System for Cross-domain Identity Management (SCIM) to [map end users' identity provider (IdP) information to host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). SCIM for user provisioning is [coming soon](https://github.com/fleetdm/fleet/issues/15671).
 
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization. The new account's email and full name are copied from the user data in the SSO response.
 

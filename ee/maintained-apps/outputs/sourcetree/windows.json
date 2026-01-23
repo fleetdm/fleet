@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.4.27",
+      "version": "3.4.28",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Sourcetree Enterprise' AND publisher = 'Atlassian';"
       },
-      "installer_url": "https://product-downloads.atlassian.com/software/sourcetree/windows/ga/SourcetreeEnterpriseSetup_3.4.27.msi",
+      "installer_url": "https://product-downloads.atlassian.com/software/sourcetree/windows/ga/SourcetreeEnterpriseSetup_3.4.28.msi",
       "install_script_ref": "17f62246",
       "uninstall_script_ref": "68f17a4a",
-      "sha256": "8999c801177338dab61680b1d80c6f2e131f6a8220565425203e87f2b60da659",
+      "sha256": "950d4f93aa8bfed389bade9a81684411aedca39ecec76576289bfc9d9999df29",
       "default_categories": [
         "Developer tools"
       ],

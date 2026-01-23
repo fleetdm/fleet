@@ -44,7 +44,7 @@ NUDGE_VERSION=stable
 ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.19.0
+    OSQUERY_VERSION=5.20.0
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -122,6 +122,12 @@ for system in $SYSTEMS; do
        ORBIT_COMMIT=$ORBIT_COMMIT \
        ORBIT_BINARY_PATH=$orbit_target \
        go run ./orbit/tools/build/build.go
+    elif [ $system == "windows" ]; then
+        CGO_ENABLED=0 ORBIT_VERSION=$ORBIT_VERSION make orbit-windows
+        mv orbit.exe orbit-windows.exe
+    elif [ $system == "windows-arm64" ]; then
+        CGO_ENABLED=0 ORBIT_VERSION=$ORBIT_VERSION make orbit-windows-arm64
+        mv orbit.exe orbit-windows-arm64.exe
     else
       race_value=false
       # Enable race on macOS Intel at least.

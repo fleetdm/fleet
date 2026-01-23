@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -54,6 +54,7 @@ func TestScripts(t *testing.T) {
 		{"TestMarkActivitiesAsCompleted", testMarkActivitiesAsCompleted},
 		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
+		{"CountHostScriptAttempts", testCountHostScriptAttempts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -117,7 +118,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Runtime:     2,
 		ExitCode:    0,
 		Timeout:     300,
-	})
+	}, nil)
 	require.NoError(t, err)
 	assert.Empty(t, action)
 	assert.NotNil(t, hsr)
@@ -130,7 +131,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Runtime:     22,
 		ExitCode:    1,
 		Timeout:     360,
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Nil(t, hsr)
 
@@ -207,7 +208,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Runtime:     10,
 		ExitCode:    1,
 		Timeout:     300,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// the script result can be retrieved
@@ -275,7 +276,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Runtime:     1,
 		ExitCode:    0,
 		Timeout:     0,
-	})
+	}, nil)
 	require.NoError(t, err)
 	// createdUnsignedScript is now activated, record its result
 
@@ -286,7 +287,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Runtime:     1,
 		ExitCode:    math.MaxUint32,
 		Timeout:     300,
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.EqualValues(t, -1, *unsignedScriptResult.ExitCode)
 }
@@ -610,7 +611,7 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 				HostID:      hostID,
 				ExecutionID: execID,
 				ExitCode:    int(*exitCode),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			// force the test timestamp
@@ -1020,7 +1021,7 @@ func testLockHostViaScript(t *testing.T, ds *Datastore) {
 		HostID:      s.HostID,
 		ExecutionID: s.ExecutionID,
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "lock_ref", action)
 
@@ -1103,7 +1104,7 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 		HostID:      s.HostID,
 		ExecutionID: s.ExecutionID,
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "unlock_ref", action)
 
@@ -1146,7 +1147,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				HostID:      hostID,
 				ExecutionID: status.LockScript.ExecutionID,
 				ExitCode:    0,
-			})
+			}, nil)
 			require.NoError(t, err)
 			assert.Equal(t, "lock_ref", action)
 
@@ -1172,7 +1173,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				HostID:      hostID,
 				ExecutionID: status.UnlockScript.ExecutionID,
 				ExitCode:    -1,
-			})
+			}, nil)
 			require.NoError(t, err)
 			assert.Equal(t, "unlock_ref", action)
 
@@ -1199,7 +1200,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				HostID:      hostID,
 				ExecutionID: status.UnlockScript.ExecutionID,
 				ExitCode:    0,
-			})
+			}, nil)
 			require.NoError(t, err)
 			assert.Equal(t, "unlock_ref", action)
 
@@ -1226,7 +1227,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				HostID:      hostID,
 				ExecutionID: status.LockScript.ExecutionID,
 				ExitCode:    2,
-			})
+			}, nil)
 			require.NoError(t, err)
 			assert.Equal(t, "lock_ref", action)
 
@@ -1285,7 +1286,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 					HostID:      hostID,
 					ExecutionID: status.WipeScript.ExecutionID,
 					ExitCode:    1,
-				})
+				}, nil)
 				require.NoError(t, err)
 				assert.Equal(t, "wipe_ref", action)
 
@@ -1311,7 +1312,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 					HostID:      hostID,
 					ExecutionID: status.WipeScript.ExecutionID,
 					ExitCode:    0,
-				})
+				}, nil)
 				require.NoError(t, err)
 				assert.Equal(t, "wipe_ref", action)
 
@@ -1655,7 +1656,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		ExecutionID: hsr.ExecutionID,
 		Output:      "foo",
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// record a failed result for the current pending script
@@ -1664,7 +1665,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		ExecutionID: scriptExecution.ExecutionID,
 		Output:      "foo",
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, &team1.ID, p1.ID)
@@ -1908,7 +1909,7 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 		ExecutionID: host1Upcoming[0].ExecutionID,
 		Output:      "foo",
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 	// Get the summary again
 	summary, err = ds.BatchExecuteSummary(ctx, execID)
@@ -1925,7 +1926,7 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Get the summary again
@@ -2060,7 +2061,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: host1Upcoming[0].ExecutionID,
 		Output:      "foo",
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Get the summary again
@@ -2084,7 +2085,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
 		ExitCode:    -1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Get the summary again
@@ -2417,7 +2418,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 		ExecutionID: host1Upcoming[0].ExecutionID,
 		Output:      "foo",
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Set host 2 to have a failed script result
@@ -2426,7 +2427,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
 		ExitCode:    -1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Cancel the execution for host 3
@@ -2557,7 +2558,7 @@ func testBatchScriptCancel(t *testing.T, ds *Datastore) {
 		ExecutionID: upcoming1[0].ExecutionID,
 		Output:      "",
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	upcoming1, err = ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
@@ -2983,4 +2984,149 @@ func testUpdateScriptToSameContent(t *testing.T, ds *Datastore) {
 	sAfter, err := ds.Script(ctx, script.ID)
 	require.NoError(t, err)
 	require.Equal(t, originalContentID, sAfter.ScriptContentID)
+}
+
+func testCountHostScriptAttempts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create test data
+	host := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "test.sh",
+		ScriptContents: "echo test",
+	})
+	require.NoError(t, err)
+
+	// no attempts exist, count 0
+	count, err := ds.CountHostScriptAttempts(ctx, host.ID, script.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// script execution attempt
+	execReq1, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   host.ID,
+		ScriptID: &script.ID,
+		PolicyID: &policy.ID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, execReq1.ExecutionID)
+
+	// Set result for first attempt
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: execReq1.ExecutionID,
+		Output:      "output1",
+		Runtime:     1,
+		ExitCode:    1, // failed
+	}, nil)
+	require.NoError(t, err)
+
+	// 1 attempt, count should be 1
+	count, err = ds.CountHostScriptAttempts(ctx, host.ID, script.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	// retry
+	execReq2, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   host.ID,
+		ScriptID: &script.ID,
+		PolicyID: &policy.ID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, execReq2.ExecutionID)
+
+	// Set result for second attempt
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: execReq2.ExecutionID,
+		Output:      "output2",
+		Runtime:     2,
+		ExitCode:    1, // failed again
+	}, ptr.Int(2))
+	require.NoError(t, err)
+
+	// 2 attempts, count should be 2
+	count, err = ds.CountHostScriptAttempts(ctx, host.ID, script.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	// retry
+	execReq3, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   host.ID,
+		ScriptID: &script.ID,
+		PolicyID: &policy.ID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, execReq3.ExecutionID)
+
+	// Set result for third attempt
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: execReq3.ExecutionID,
+		Output:      "output3",
+		Runtime:     3,
+		ExitCode:    0, // success
+	}, ptr.Int(3))
+	require.NoError(t, err)
+
+	// 3 attempts, count should be 3
+	count, err = ds.CountHostScriptAttempts(ctx, host.ID, script.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
+
+	// script execution but without policy_id
+	execReq4, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   host.ID,
+		ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, execReq4.ExecutionID)
+
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: execReq4.ExecutionID,
+		Output:      "output4",
+		Runtime:     4,
+		ExitCode:    0,
+	}, ptr.Int(0))
+	require.NoError(t, err)
+
+	// Count should not change
+	count, err = ds.CountHostScriptAttempts(ctx, host.ID, script.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
+
+	// new host
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2Key", "host2UUID", time.Now())
+	count, err = ds.CountHostScriptAttempts(ctx, host2.ID, script.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// Same host, different policy
+	policy2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "test policy 2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+	count, err = ds.CountHostScriptAttempts(ctx, host.ID, script.ID, policy2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// Same host and policy, new script
+	script2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "test2.sh",
+		ScriptContents: "echo test2",
+	})
+	require.NoError(t, err)
+	count, err = ds.CountHostScriptAttempts(ctx, host.ID, script2.ID, policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
 }

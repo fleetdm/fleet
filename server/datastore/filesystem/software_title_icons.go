@@ -130,7 +130,7 @@ func (s *SoftwareTitleIconStore) Cleanup(ctx context.Context, usedIconIDs []stri
 	return count, ctxerr.Wrap(ctx, errors.Join(errs...), "delete unused software title icons")
 }
 
-func (s *SoftwareTitleIconStore) Sign(ctx context.Context, _ string) (string, error) {
+func (s *SoftwareTitleIconStore) Sign(ctx context.Context, _ string, _ time.Duration) (string, error) {
 	return "", ctxerr.New(ctx, "signing not supported for software title icons in filesystem store")
 }
 
