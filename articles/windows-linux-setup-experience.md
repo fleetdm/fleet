@@ -17,7 +17,7 @@ Here's what you can configure, and in what order each happen, to your Windows an
 Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue.
 Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 
-When wiping and re-enrolling a host, remember to delete the host from Fleet. If the host isn't deleted, end user authentication won't be enforced when it re-enrolls. 
+When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, end user authentication won’t be enforced when it re-enrolls.
 
 > If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, end user authentication won't be enforced.
 
