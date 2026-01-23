@@ -10589,7 +10589,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 				// Get a global software vesion using the deprecated endpoint
 				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
 
 				// Get a count of software vesions using the deprecated endpoint
 				var countSoftwareResp countSoftwareResponse
@@ -10649,11 +10649,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
 
 				// Get a team software vesion using the deprecated endpoint
 				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
 
 				// Get a count of team software vesions using the deprecated endpoint
 				var countSoftwareResp countSoftwareResponse

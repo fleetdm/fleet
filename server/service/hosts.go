@@ -310,8 +310,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 						Name: name,
 					}
 				}
-				// If name helper also returns not found, leave softwareTitle nil.
-
+			// If name helper also returns not found, leave softwareTitle nil.
 			default:
 				return listHostsResponse{Err: errGlobal}, nil
 			}

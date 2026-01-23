@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -759,4 +760,92 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		"team_id", fmt.Sprint(team1.ID),
 		"available_for_install", "true")
 	require.GreaterOrEqual(t, len(respAll.SoftwareTitles), 2) // At least the two packages we uploaded
+}
+
+func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_2_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	team2 := newTeamResp.Team
+
+	// Enroll a host
+	token := "good_token"
+	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	var addResp addHostsToTeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &team.ID,
+		HostIDs: []uint{host.ID},
+	}, http.StatusOK, &addResp)
+
+	// create some software for that host
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.1", Source: "deb_packages"},
+	}
+	_, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	s.Require().NoError(err)
+
+	s.Require().NoError(s.ds.LoadHostSoftware(ctx, host, false))
+	fmt.Printf("host.Software: %v\n", host.Software)
+
+	s.Require().NoError(s.ds.SyncHostsSoftware(ctx, time.Now()))
+
+	sw, _, err := s.ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{})
+	s.Require().NoError(err)
+
+	var titleID uint
+	for _, s := range sw {
+		if s.Name == "bar" {
+			titleID = s.ID
+		}
+	}
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "software_titles")
+		mysql.DumpTable(t, q, "host_software")
+		return nil
+	})
+
+	s.Require().NotZero(titleID)
+
+	var listResp listHostsResponse
+	s.DoJSON(
+		"GET",
+		"/api/latest/fleet/hosts",
+		nil,
+		http.StatusOK,
+		&listResp,
+		"team_id",
+		fmt.Sprint(team.ID),
+		"software_title_id",
+		fmt.Sprint(titleID),
+	)
+	s.Require().Len(listResp.Hosts, 1)
+	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
+	s.Assert().Equal("bar", listResp.SoftwareTitle.Name)
+
+	// Use the other team ID, should still get a response with the name and title ID
+	s.DoJSON(
+		"GET",
+		"/api/latest/fleet/hosts",
+		nil,
+		http.StatusOK,
+		&listResp,
+		"team_id",
+		fmt.Sprint(team2.ID),
+		"software_title_id",
+		fmt.Sprint(titleID),
+	)
+	s.Require().Len(listResp.Hosts, 1)
+	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
+	s.Assert().Equal("bar", listResp.SoftwareTitle.Name)
 }

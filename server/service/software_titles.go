@@ -244,18 +244,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 func (svc *Service) SoftwareTitleNameForHostFilter(
 	ctx context.Context,
 	id uint,
-) (string, error) {
+) (softwareTitleName string, err error) {
 	// Intentionally skip team-scoped inventory auth: only minimal title name.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return "", err
 	}
 
-	name, err := svc.ds.SoftwareTitleNameForHostFilter(ctx, id)
+	softwareTitleName, err = svc.ds.SoftwareTitleNameForHostFilter(ctx, id)
 	if err != nil {
 		return "", err
 	}
 
-	return name, nil
+	return softwareTitleName, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
