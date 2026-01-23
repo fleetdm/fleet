@@ -120,7 +120,7 @@ After a software package is installed on a host, it can be uninstalled on the ho
 * Select the host from which you want to uninstall the software package.
 * Select **Software > Library** on the host details page.
 * Use the dropdown to select software **Available for install** or use the search bar to search for your software by name.
-* Select **Install** action in the rightmost column of the table. Uninstall will happen automatically or when the host comes online.
+* Select the **Install** action in the rightmost column of the table. Uninstall will happen automatically or when the host comes online.
 * Check uninstall status in the **Host > Software > Library > Status column** or the **Host > Details > Activity**.
 
 ## Delete package
