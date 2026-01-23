@@ -65,6 +65,7 @@ How to view, update, install, or uninstall self-service software:
 **Update** appears for [eligible updates](#how-updates-work), regardless of whether the app is set to self-service.
 
 Currently, for Apple App Store (VPP) apps, if a macOS host is running an app version that can’t be updated because the latest App Store version requires a newer macOS version, Fleet always shows “Update available.” The update then always fails, since the latest app version is incompatible with the host’s OS.
+
 Tips:
 
 - Use the **Software > Library** table to quickly identify and action pending updates.
