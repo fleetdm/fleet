@@ -533,7 +533,19 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 					{APIToken: "zendesktoken"},
 				},
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
-					{ApiKey: map[string]string{fleet.GoogleCalendarPrivateKey: "google-calendar-private-key"}},
+					{ApiKey: map[string]string{
+						"type":                         "service_account",
+						"project_id":                   "test-project-123",
+						"private_key_id":               "key-id-456",
+						fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----",
+						fleet.GoogleCalendarEmail:      "test@test-project.iam.gserviceaccount.com",
+						"client_id":                    "123456789",
+						"auth_uri":                     "https://accounts.google.com/o/oauth2/auth",
+						"token_uri":                    "https://oauth2.googleapis.com/token",
+						"auth_provider_x509_cert_url":  "https://www.googleapis.com/oauth2/v1/certs",
+						"client_x509_cert_url":         "https://www.googleapis.com/robot/v1/metadata/x509/test",
+						"universe_domain":              "googleapis.com",
+					}},
 				},
 			},
 		}, nil
@@ -612,8 +624,19 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
-				// Google Calendar private key is not obfuscated
-				require.Equal(t, ac.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey], "google-calendar-private-key")
+				// Verify all fields in Google Calendar API key are obfuscated
+				gcApiKey := ac.Integrations.GoogleCalendar[0].ApiKey
+				require.Equal(t, gcApiKey["type"], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey["project_id"], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey["private_key_id"], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey[fleet.GoogleCalendarPrivateKey], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey[fleet.GoogleCalendarEmail], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey["client_id"], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey["auth_uri"], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey["token_uri"], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey["auth_provider_x509_cert_url"], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey["client_x509_cert_url"], fleet.MaskedPassword)
+				require.Equal(t, gcApiKey["universe_domain"], fleet.MaskedPassword)
 			}
 		})
 	}

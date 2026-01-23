@@ -686,6 +686,14 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
+	for _, gcIntegration := range c.Integrations.GoogleCalendar {
+		if len(gcIntegration.ApiKey) > 0 {
+			// Obfuscate the entire Google Calendar API key
+			for key := range gcIntegration.ApiKey {
+				gcIntegration.ApiKey[key] = MaskedPassword
+			}
+		}
+	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
 	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
