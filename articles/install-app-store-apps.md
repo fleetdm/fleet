@@ -34,11 +34,23 @@ You can also manage which Google Play Store apps are available for self-service 
 
 1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
 
-2. Search for the app you want to remove and select the app to head to it's **Software detail**s** page.
+2. Search for the app you want to remove and select the app to head to its **Software details** page.
 
-3. To edit the app, on the **Software details** page, select the pencil (edit) icon.
+3. To edit the app's name or icon, click the Actions button and select **Edit appearance**.
 
-4. To remove the app, on the **Software details** page, select the trash can (delete) icon.
+4. To configure the app's self-service categories or change which hosts can install the app, click the Actions button and select **Edit software**.
+
+5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
+
+## Configure automatic updates for an app (iOS / iPadOS only)
+
+1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+
+2. Search for the app you want to configure and select the app to head to its **Software details** page.
+
+3. Click the **Actions** button and select **Schedule auto updates**.
+
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the Target configuration (this configuration will also affect which hosts can install the app themselves via the self-service feature).
 
 ## Install an app
 
@@ -46,7 +58,9 @@ You can also manage which Google Play Store apps are available for self-service 
 
 Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
+
+> VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
 
 ### Google Play (Android)
 
