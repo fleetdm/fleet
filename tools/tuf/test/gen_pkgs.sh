@@ -52,14 +52,14 @@ using_localhost() {
 if [ -n "$GENERATE_PKG" ]; then
     echo "Generating pkg..."
     if using_localhost "$PKG_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+        GENERATE_PKG_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=pkg \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$PKG_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_PKG_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
@@ -79,7 +79,7 @@ fi
 if [ -n "$GENERATE_DEB" ]; then
     echo "Generating deb (amd64)..."
     if using_localhost "$DEB_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+        GENERATE_DEB_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=deb \
@@ -87,7 +87,7 @@ if [ -n "$GENERATE_DEB" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$DEB_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_DEB_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
@@ -107,7 +107,7 @@ fi
 if [ -n "$GENERATE_DEB_ARM64" ]; then
     echo "Generating deb (arm64)..."
     if using_localhost "$DEB_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+        GENERATE_DEB_ARM64_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=deb \
@@ -115,7 +115,7 @@ if [ -n "$GENERATE_DEB_ARM64" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$DEB_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_DEB_ARM64_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
@@ -135,7 +135,7 @@ fi
 if [ -n "$GENERATE_RPM" ]; then
     echo "Generating rpm (amd64)..."
     if using_localhost "$RPM_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+        GENERATE_RPM_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=rpm \
@@ -143,7 +143,7 @@ if [ -n "$GENERATE_RPM" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$RPM_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_RPM_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
@@ -163,7 +163,7 @@ fi
 if [ -n "$GENERATE_RPM_ARM64" ]; then
     echo "Generating rpm (arm64)..."
     if using_localhost "$RPM_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+        GENERATE_RPM_ARM64_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=rpm \
@@ -171,7 +171,7 @@ if [ -n "$GENERATE_RPM_ARM64" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$RPM_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_RPM_ARM64_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
@@ -191,7 +191,7 @@ fi
 if [ -n "$GENERATE_PKG_TAR_ZST" ]; then
     echo "Generating pkg.tar.zst (amd64)..."
     if using_localhost "$PKG_TAR_ZST_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+        GENERATE_PKG_TAR_ZST_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=pkg.tar.zst \
@@ -199,7 +199,7 @@ if [ -n "$GENERATE_PKG_TAR_ZST" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$PKG_TAR_ZST_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_PKG_TAR_ZST_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
@@ -219,7 +219,7 @@ fi
 if [ -n "$GENERATE_PKG_TAR_ZST_ARM64" ]; then
     echo "Generating pkg.tar.zst (arm64)..."
     if using_localhost "$PKG_TAR_ZST_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+       GENERATE_PKG_TAR_ZST_ARM64_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=pkg.tar.zst \
@@ -227,7 +227,7 @@ if [ -n "$GENERATE_PKG_TAR_ZST_ARM64" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$PKG_TAR_ZST_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_PKG_TAR_ZST_ARM64_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
@@ -247,14 +247,14 @@ fi
 if [ -n "$GENERATE_MSI" ]; then
     echo "Generating msi..."
     if using_localhost "$MSI_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+        GENERATE_MSI_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=msi \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$MSI_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_MSI_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
@@ -273,7 +273,7 @@ fi
 if [ -n "$GENERATE_MSI_ARM64" ]; then
     echo "Generating msi (arm64)..."
     if using_localhost "$MSI_FLEET_URL" ; then
-        USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
+        GENERATE_MSI_ARM64_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
     fi
     ./build/fleetctl package \
         --type=msi \
@@ -281,7 +281,7 @@ if [ -n "$GENERATE_MSI_ARM64" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$MSI_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        ${USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${GENERATE_MSI_ARM64_USE_LOCALHOST_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
         ${DEBUG:+--debug} \
