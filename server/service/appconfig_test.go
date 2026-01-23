@@ -1928,4 +1928,42 @@ func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
 		// Returned config should be obfuscated
 		require.Equal(t, fleet.MaskedPassword, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
 	})
+
+	t.Run("preserve API key when fully masked values sent", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}
+
+		// Send fully masked api_key_json (simulates frontend accidentally sending obfuscated values)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": {
+						"client_email": "********",
+						"private_key": "********",
+						"project_id": "********"
+					}
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be preserved, not overwritten with masked values (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey["project_id"])
+
+		// Returned config should be obfuscated
+		require.Equal(t, fleet.MaskedPassword, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
+		require.Equal(t, fleet.MaskedPassword, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
+	})
 }

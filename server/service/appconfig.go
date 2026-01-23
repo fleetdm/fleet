@@ -405,8 +405,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if newAppConfig.Integrations.GoogleCalendar != nil {
 		for i, newGC := range newAppConfig.Integrations.GoogleCalendar {
 			if i < len(appConfig.Integrations.GoogleCalendar) {
-				if len(newGC.ApiKey) == 0 {
-					// api_key_json was omitted from the update, preserve the existing value
+				// Check if api_key_json was omitted or is fully masked
+				isMasked := len(newGC.ApiKey) > 0
+				if isMasked {
+					for _, value := range newGC.ApiKey {
+						if value != fleet.MaskedPassword {
+							isMasked = false
+							break
+						}
+					}
+				}
+
+				if len(newGC.ApiKey) == 0 || isMasked {
+					// api_key_json was omitted or fully masked, preserve the existing value
 					if len(oldAppConfig.Integrations.GoogleCalendar) > i {
 						appConfig.Integrations.GoogleCalendar[i].ApiKey = oldAppConfig.Integrations.GoogleCalendar[i].ApiKey
 					}
