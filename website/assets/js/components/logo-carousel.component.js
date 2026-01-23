@@ -12,13 +12,16 @@ parasails.registerComponent('logoCarousel', {
   //  ╔═╗╦═╗╔═╗╔═╗╔═╗
   //  ╠═╝╠╦╝║ ║╠═╝╚═╗
   //  ╩  ╩╚═╚═╝╩  ╚═╝
-  props: [],
+  props: [
+    'displayBottomRow'
+  ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
     return {
+      bottomRowVisible: this.displayBottomRow ? true : false,
       isSafariThirteen: bowser.safari && _.startsWith(bowser.version, '13'),
       isIosThirteen: bowser.safari && _.startsWith(bowser.version, '13') && bowser.ios,
     };
@@ -126,8 +129,8 @@ parasails.registerComponent('logoCarousel', {
       <div purpose="fade-left"></div>
       <div purpose="fade-right"></div>
     </div>
-    <div purpose="logo-carousel-bottom">
-      <div purpose="logo-row" class="d-flex flex-row-reverse align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
+    <div purpose="logo-carousel-bottom" v-if="bottomRowVisible">
+      <div purpose="logo-row" class="d-flex flex-row-reverse align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']" >
         <a href="/testimonials">
 
           <!-- Group two -->
