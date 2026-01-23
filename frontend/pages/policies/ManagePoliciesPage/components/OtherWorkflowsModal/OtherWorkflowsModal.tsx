@@ -87,6 +87,7 @@ const OtherWorkflowsModal = ({
   const allIntegrations: IIntegration[] = [];
   jira && allIntegrations.push(...jira);
   zendesk && allIntegrations.push(...zendesk);
+  const hasAvailableIntegrations = allIntegrations.length > 0;
 
   const dropdownOptions = allIntegrations.map(
     ({ group_id, project_key, url }) => ({
@@ -264,7 +265,7 @@ const OtherWorkflowsModal = ({
   };
 
   const renderIntegrations = () => {
-    return jira?.length || zendesk?.length ? (
+    return hasAvailableIntegrations ? (
       <>
         <div className={`${baseClass}__integrations`}>
           <Dropdown
@@ -309,6 +310,20 @@ const OtherWorkflowsModal = ({
         </div>
       </div>
     );
+  };
+
+  // Disable saving if ticket workflow is selected but no integration is chosen
+  const disableSave = (changedItems: IFormPolicy[]) => {
+    if (
+      isPolicyAutomationsEnabled &&
+      !isWebhookEnabled &&
+      !hasAvailableIntegrations
+    ) {
+      // Similar error message to no integration selected for vuln automations in ManageSoftwareAutomationModal
+      return "Add an integration to create tickets for policy automations.";
+    }
+
+    return false; // saving is allowed
   };
 
   return (
@@ -394,6 +409,7 @@ const OtherWorkflowsModal = ({
               onCancel={onExit}
               teamId={teamId}
               disableList={!isPolicyAutomationsEnabled}
+              disableSave={disableSave}
             />
           ) : (
             <>
