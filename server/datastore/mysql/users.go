@@ -26,6 +26,9 @@ const userSelectColumns = `id, created_at, updated_at, password, salt, name, ema
 	admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role,
 	api_only, mfa_enabled, invite_id`
 
+// userSummaryColumns are the columns selected for UserSummary.
+const userSummaryColumns = `id, name, email, gravatar_url, api_only`
+
 // NewUser creates a new user
 func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
@@ -165,7 +168,7 @@ func (ds *Datastore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserS
 	}
 
 	query, args, err := sqlx.In(
-		fmt.Sprintf("SELECT %s FROM users WHERE id IN (?)", userSelectColumns), ids)
+		fmt.Sprintf("SELECT %s FROM users WHERE id IN (?)", userSummaryColumns), ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build users by IDs query")
 	}
