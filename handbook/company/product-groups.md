@@ -174,6 +174,21 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
 
+### Engineering operations group
+
+The goal of the Engineering operations working group is to make changes that promote engineering velocity, quality, and stability. 
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
+| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Product Manager                   | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Quality Assurance                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
+| Software Engineer                 | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C0A91KW6Q0G), [kanban board](https://github.com/orgs/fleetdm/projects/103), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-eng-ops) for this product group is `#g-eng-ops`.
+
+
 <!--
 Example working group section
 ### Name
