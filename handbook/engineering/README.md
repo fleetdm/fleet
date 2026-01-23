@@ -134,6 +134,8 @@ Engineering Managers are asked to be aware of the [after-hours incident on-call 
 
 After-hours incident on-call engineers are available outside the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time outside business hours to any `@incident-oncall` mention. To assist with this SLA, all mentions will be triaged as incidents in incident.io.
 
+> If an after-hours incident occurs, the engineer's manager removes some or all of the week's planned capacity to provide time for incident response and recovery.
+
 
 #### Assume after hours on-call engineer alias
 
