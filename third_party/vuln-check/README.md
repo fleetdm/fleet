@@ -9,7 +9,7 @@ Fleet has several dependencies that were copied directly into the repository rat
 This directory solves that problem by creating "dummy" manifest files that list these dependencies at their copied versions. This allows:
 
 - **GitHub Dependabot** to detect vulnerabilities and create alerts
-- **govulncheck** to scan for Go vulnerabilities
+- **osv-scanner** to scan for Go and npm vulnerabilities
 - **npm audit** to scan for JavaScript vulnerabilities
 - Other security scanning tools to identify issues
 
