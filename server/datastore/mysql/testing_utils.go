@@ -520,20 +520,18 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...st
 	t.Logf(">> dumping table %s:", tableName)
 
 	data := [][]string{}
-	var columnNames []string
+	columns, err := rows.Columns()
+	require.NoError(t, err)
 
 	var anyDst []any
 	var strDst []sql.NullString
 	for rows.Next() {
 		if anyDst == nil {
-			cols, err := rows.Columns()
-			require.NoError(t, err)
-			anyDst = make([]any, len(cols))
-			strDst = make([]sql.NullString, len(cols))
-			for i := range cols {
+			anyDst = make([]any, len(columns))
+			strDst = make([]sql.NullString, len(columns))
+			for i := range columns {
 				anyDst[i] = &strDst[i]
 			}
-			columnNames = cols
 		}
 		require.NoError(t, rows.Scan(anyDst...))
 
@@ -549,7 +547,7 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...st
 	}
 	require.NoError(t, rows.Err())
 
-	printDumpTable(t, columnNames, data)
+	printDumpTable(t, columns, data)
 	t.Logf("<< dumping table %s completed", tableName)
 }
 
