@@ -98,7 +98,10 @@ const Calendars = (): JSX.Element => {
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
-      if (data.integrations.google_calendar) {
+      if (
+        Array.isArray(data.integrations.google_calendar) &&
+        data.integrations.google_calendar.length > 0
+      ) {
         const apiKeyJsonObj = data.integrations.google_calendar[0].api_key_json;
 
         // Check if the API key is obfuscated
