@@ -8,13 +8,13 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/pkg/certificate"
-	"github.com/fleetdm/fleet/v4/pkg/file"
-
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
@@ -153,7 +153,14 @@ var shellCommand = &cli.Command{
 			// leaving the extension runner waiting for the socket.
 			// NOTE(lucas): `--extensions_require` doesn't seem to work with
 			// thrift extensions?
-			registerExtensionRunner(&g, r.ExtensionSocketPath()+extensionPathPostfix)
+			registerExtensionRunner(
+				&g,
+				r.ExtensionSocketPath()+extensionPathPostfix,
+				table.NewEmptyExtension(
+					"orbit_info",
+					"Please connect to orbit-osquery extension socket to query this table",
+				),
+			)
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
