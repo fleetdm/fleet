@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.12.0",
+      "version": "2025.12.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop';"
       },
-      "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2025.12.0/Bitwarden-2025.12.0-universal.dmg",
+      "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2025.12.1/Bitwarden-2025.12.1-universal.dmg",
       "install_script_ref": "3cba6100",
       "uninstall_script_ref": "539722b8",
-      "sha256": "0612790dad9bd98f2af27141154ae1c4e3e5b5918e9edbe1f2cdb01f11bd79b9",
+      "sha256": "e2fcda7e03bf4bee3ab07cdb0e8ab8b78d5558e5f871be19ce2f02d63337f9b9",
       "default_categories": [
         "Productivity"
       ]

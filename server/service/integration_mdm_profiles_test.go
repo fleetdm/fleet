@@ -994,9 +994,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
-		fmt.Println("VERBOSE: got commands:", cmds)
-		// profile installs + Acks for each profile install, and then a single status
-		require.Len(t, cmds, wantProfileInstalls*2+1)
+		// profile installs + 2 protocol commands acks
+		require.Len(t, cmds, wantProfileInstalls+2)
 		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
 		atomicCmds := 0
@@ -1022,9 +1021,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	}
 
 	t.Run("retry after verifying", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
-
 		// upload test profiles then simulate expired grace period by setting updated_at timestamp of profiles back by 48 hours
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// profiles to install + 2 boilerplate <Status>
@@ -1055,9 +1051,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	t.Run("retry after verification", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
-
 		// report osquery results with N1 missing and confirm that the N1 marked as pending (initial retry)
 		reportHostProfs("N2")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryPending
@@ -1079,9 +1072,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	t.Run("retry after device error", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
-
 		// add another profile
 		newProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}})
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
@@ -1116,9 +1106,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	t.Run("repeated device error", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
-
 		// add another profile
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N4",
@@ -1127,7 +1114,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// trigger a profile sync and confirm that the install profile command for N4 was sent and
 		// simulate a device error
-		verifyCommands(3, syncml.CmdStatusAtomicFailed)
+		verifyCommands(1, syncml.CmdStatusAtomicFailed)
 		expectedProfileStatuses["N4"] = fleet.MDMDeliveryPending
 		checkProfilesStatus(t)
 		expectedRetryCounts["N4"] = 1
@@ -1135,7 +1122,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 		// trigger a profile sync and confirm that the install profile
 		// command for N4 was sent and simulate a second device error
-		verifyCommands(3, syncml.CmdStatusAtomicFailed)
+		verifyCommands(1, syncml.CmdStatusAtomicFailed)
 		expectedProfileStatuses["N4"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
@@ -1146,8 +1133,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	t.Run("retry count does not reset", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
 		// add another profile
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N5",
@@ -1219,12 +1204,12 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		}
 	}
 
-	/* hostProfileReports := map[string][]profileData{
+	hostProfileReports := map[string][]profileData{
 		"N1": {{"200", "L1", "D1"}},
 		"N2": {{"200", "L2", "D2"}, {"200", "L3", "D3"}},
-	} */
-	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-	/* reportHostProfs := func(profileNames ...string) {
+	}
+
+	reportHostProfs := func(profileNames ...string) {
 		selectedReports := make(map[string][]profileData)
 		for _, name := range profileNames {
 			if reports, exists := hostProfileReports[name]; exists {
@@ -1232,7 +1217,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 			}
 		}
 		s.reportWindowsOSQueryProfiles(ctx, t, h, selectedReports)
-	} */
+	}
 
 	verifyCommands := func(wantProfileInstalls int, status string) {
 		s.awaitTriggerProfileSchedule(t)
@@ -1279,11 +1264,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		checkProfilesStatus(t) // all profiles verifying
 
 		// report osquery results and confirm that all profiles are verified
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		/* reportHostProfs("N1", "N2")
+		reportHostProfs("N1", "N2")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
-		checkProfilesStatus(t) */
+		checkProfilesStatus(t)
 
 		// trigger a profile sync and confirm that no profiles were sent
 		verifyCommands(0, syncml.CmdStatusOK)
@@ -1309,11 +1293,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		checkProfilesStatus(t) // all profiles verifying
 
 		// report osquery results and confirm that all profiles are verified
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		/* reportHostProfs("N1", "N2")
+		reportHostProfs("N1", "N2")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
-		checkProfilesStatus(t) */
+		checkProfilesStatus(t)
 
 		// trigger a profile sync and confirm that no profiles were sent
 		verifyCommands(0, syncml.CmdStatusOK)
@@ -1326,8 +1309,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		// Confirm that one profile was sent and its status
 		verifyCommands(1, syncml.CmdStatusOK)
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		// expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
 		checkProfilesStatus(t) // all profiles verifying
 	})
 }
@@ -3456,7 +3438,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Configuration profiles can't be signed. Fleet wil sign the profile for you.")
+	require.Contains(t, errMsg, "Configuration profiles can't be signed. Fleet will sign the profile for you.")
 
 	// Apple/Android invalid json declaration
 	body, headers = generateNewProfileMultipartRequest(t,
@@ -7759,10 +7741,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
 
 func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution() {
 	t := s.T()
-
-	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-	t.SkipNow()
-
 	ctx := context.Background()
 
 	// Create a team

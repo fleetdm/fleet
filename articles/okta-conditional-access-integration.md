@@ -108,7 +108,7 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 2. Click **Add authenticator**.
 3. Find **IdP Authenticator** and click **Add**.
 4. In the **Identity Provider** dropdown, select **Fleet**.
-5. For the logo, download the [Fleet logo](https://raw.githubusercontent.com/fleetdm/fleet/main/orbit/cmd/desktop/fleet-logo.svg) and upload it.
+5. For the logo, download the [Fleet logo](http://fleetdm.com/images/press-kit/fleet-logo-mark.svg) and upload it.
 6. Click **Add**.
 
 ### Step 6: Add Fleet to an authentication policy
