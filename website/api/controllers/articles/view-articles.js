@@ -97,7 +97,7 @@ module.exports = {
         pageDescriptionForMeta = 'Listen to the Future of Device Management podcast.';
         break;
       case 'articles':
-        pageTitleForMeta = 'Blog';
+        pageTitleForMeta = 'Blogs';
         pageDescriptionForMeta = 'Read the latest articles from the Fleet team and community.';
         break;
     }
