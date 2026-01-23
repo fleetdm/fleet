@@ -37,7 +37,7 @@ Fleet prefers 64-bit x86 versions of applications when available. Installing on 
 
 Fleet verifies install and uninstall scripts for each maintained app, and keeps the scripts up to date as an app's vendor releases new versions. You can override Fleet's scripts, or add pre-install queries or post-install scripts, either when adding the app (by clicking **Advanced options**) or later on (by editing the package).
 
-## Install app
+## Install the app
 
 You can install a Fleet-maintained app three ways:
 
@@ -47,7 +47,7 @@ You can install a Fleet-maintained app three ways:
 
 You can track the installation process in the **Activities** section on the **Details** tab of this **Host Details** page.
 
-## Uninstall app
+## Uninstall the app
 
 To remove the app, navigate to the **Host Details** page for the appropriate host, then to the **Software** tab. Find the app, then click on the **Actions** drop-down, then **Uninstall**.
 

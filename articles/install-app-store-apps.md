@@ -18,12 +18,12 @@ Currently, Fleet only supports Apple App Store apps from the United States (US) 
 
 4. To add Google Play Store (Android) apps, head to the [Google Play Store](https://play.google.com/store/apps), find the app, and copy the ID at the end of the URL (e.g. "com.android.chrome")
 
-## Edit or delete app
+## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
-2. Search for the app you want to remove and select the app to head to it's **Software details** page.
-3. On the **Software details** page, select the **Actions > Edit software** to to edit the app's [self-service](https://fleetdm.com/guides/software-self-service) status and categories, or to change its target to different sets of hosts.
-4 On the **Software details** page, select the **Actions > Edit appearance** to edit the apps's icon and display name. The icon and display name can be edited for software available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded and on **My device > Self-service**. If display name is not set, then default name (ingested by osquery) will be used.
+2. Search for the app you want to delete and select the app to head to its **Software details** page.
+3. On the **Software details** page, select **Actions > Edit software** to edit the app's [self-service](https://fleetdm.com/guides/software-self-service) status and categories, or to change its target to different sets of hosts.
+4 On the **Software details** page, select **Actions > Edit appearance** to edit the apps's icon and display name. The icon and display name can be edited for software that is available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded, as well as on **My device > Self-service**. If the display name is not set, then the default name (ingested by osquery) will be used.
 5. To delete the app, on the **Software details** page, select the trash can (delete) icon.
 
 ## Install app
