@@ -261,38 +261,37 @@ object ApiClient : CertificateApiClient {
         }
     }
 
-    override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> =
-        withReenrollOnUnauthorized {
-            val nodeKeyResult = getNodeKeyOrEnroll()
-            val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-                return@withReenrollOnUnauthorized Result.failure(error)
-            }
-
-            val credentials = getEnrollmentCredentials()
-                ?: return@withReenrollOnUnauthorized Result.failure(Exception("enroll credentials not set"))
-
-            makeRequest(
-                endpoint = "/api/fleetd/certificates/$certificateId",
-                method = "GET",
-                body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
-                bodySerializer = GetCertificateTemplateRequest.serializer(),
-                responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
-            ).fold(
-                onSuccess = { wrapper ->
-                    val template = wrapper.certificate
-                    Log.i(TAG, "successfully retrieved certificate template ${template.id}: ${template.name}")
-                    val scepUrl = template.buildScepUrl(
-                        serverUrl = credentials.baseUrl,
-                        hostUUID = credentials.hardwareUUID,
-                    )
-                    Result.success(CertificateTemplateResult(template, scepUrl))
-                },
-                onFailure = { throwable ->
-                    Log.e(TAG, "failed to get certificate template $certificateId")
-                    Result.failure(throwable)
-                },
-            )
+    override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> = withReenrollOnUnauthorized {
+        val nodeKeyResult = getNodeKeyOrEnroll()
+        val orbitNodeKey = nodeKeyResult.getOrElse { error ->
+            return@withReenrollOnUnauthorized Result.failure(error)
         }
+
+        val credentials = getEnrollmentCredentials()
+            ?: return@withReenrollOnUnauthorized Result.failure(Exception("enroll credentials not set"))
+
+        makeRequest(
+            endpoint = "/api/fleetd/certificates/$certificateId",
+            method = "GET",
+            body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
+            bodySerializer = GetCertificateTemplateRequest.serializer(),
+            responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
+        ).fold(
+            onSuccess = { wrapper ->
+                val template = wrapper.certificate
+                Log.i(TAG, "successfully retrieved certificate template ${template.id}: ${template.name}")
+                val scepUrl = template.buildScepUrl(
+                    serverUrl = credentials.baseUrl,
+                    hostUUID = credentials.hardwareUUID,
+                )
+                Result.success(CertificateTemplateResult(template, scepUrl))
+            },
+            onFailure = { throwable ->
+                Log.e(TAG, "failed to get certificate template $certificateId")
+                Result.failure(throwable)
+            },
+        )
+    }
 
     override suspend fun updateCertificateStatus(
         certificateId: Int,
