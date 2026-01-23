@@ -95,9 +95,9 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 	var orderDirection api.OrderDirection
 	switch orderDirectionString {
 	case "desc":
-		orderDirection = api.OrderDesc
+		orderDirection = api.OrderDescending
 	case "asc", "":
-		orderDirection = api.OrderAsc
+		orderDirection = api.OrderAscending
 	default:
 		return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "unknown order_direction: " + orderDirectionString})
 	}

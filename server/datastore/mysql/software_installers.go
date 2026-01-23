@@ -909,6 +909,7 @@ SELECT
 FROM
   software_installers si
   JOIN software_titles st ON st.id = si.title_id
+  LEFT JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
   %s
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?`,
@@ -1290,12 +1291,6 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
-			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
-		}
-
 		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
 			USING
 				upcoming_activities
@@ -1312,6 +1307,12 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	  			WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL`, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "hide existing install counts")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
 		}
 	}
 
@@ -2882,12 +2883,15 @@ SELECT
   si.url,
   si.storage_id AS hash_sha256,
   si.fleet_maintained_app_id,
+  COALESCE(fma.slug, '') AS slug,
   COALESCE(icons.filename, '') AS icon_filename,
   COALESCE(icons.storage_id, '') AS icon_hash_sha256
 FROM
 	software_installers si
 	LEFT JOIN software_title_icons icons ON
 		icons.software_title_id = si.title_id AND icons.team_id = si.global_or_team_id
+	LEFT JOIN fleet_maintained_apps fma ON
+		si.fleet_maintained_app_id = fma.id
 WHERE
 	global_or_team_id = ?
 
@@ -2899,8 +2903,9 @@ SELECT
 	iha.url,
 	iha.storage_id as hash_sha256,
 	NULL as fleet_maintained_app_id,
-  COALESCE(icons.filename, '') AS icon_filename,
-  COALESCE(icons.storage_id, '') AS icon_hash_sha256
+	'' as slug,
+	COALESCE(icons.filename, '') AS icon_filename,
+	COALESCE(icons.storage_id, '') AS icon_hash_sha256
 FROM
 	in_house_apps iha
 	LEFT JOIN software_title_icons icons ON

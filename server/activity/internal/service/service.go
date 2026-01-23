@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // Service is the activity bounded context service implementation.
@@ -51,18 +50,12 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 	}
 
 	// If searching, also search users table to get matching user IDs.
-	// Use graceful degradation for authorization errors only: if user search fails
-	// due to authorization, proceed without user-based filtering rather than failing.
 	if opt.MatchQuery != "" {
 		userIDs, err := s.users.FindUserIDs(ctx, opt.MatchQuery)
-		switch {
-		case err == nil:
-			internalOpt.MatchingUserIDs = userIDs
-		case platform_authz.IsForbidden(err):
-			level.Debug(s.logger).Log("msg", "user search forbidden, proceeding without user filter", "err", err)
-		default:
+		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "failed to search users for activity query")
 		}
+		internalOpt.MatchingUserIDs = userIDs
 	}
 
 	activities, meta, err := s.store.ListActivities(ctx, internalOpt)
@@ -71,14 +64,8 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 	}
 
 	// Enrich activities with user data via ACL.
-	// Use graceful degradation for authorization errors only: if user enrichment fails
-	// due to authorization, return activities without user data rather than failing.
 	if err := s.enrichWithUserData(ctx, activities); err != nil {
-		if platform_authz.IsForbidden(err) {
-			level.Debug(s.logger).Log("msg", "user enrichment forbidden, proceeding without enrichment", "err", err)
-		} else {
-			return nil, nil, ctxerr.Wrap(ctx, err, "failed to enrich activities with user data")
-		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "failed to enrich activities with user data")
 	}
 
 	return activities, meta, nil

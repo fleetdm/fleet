@@ -1,3 +1,9 @@
+## Fleet 4.79.1 (Jan 19, 2026)
+
+### Bug fixes
+
+- Fixed bug in host activity card UI where activities related to MDM commands should be hidden when Apple MDM features are turned off in Fleet.
+
 ## Fleet 4.79.0 (Jan 14, 2025)
 
 ### IT Admins
@@ -69,7 +75,7 @@
 
 - Added additional validation to URL parameter for MS MDM auth endpoint
 
-## Fleet 4.78.1 (Jan 05, 2026)
+## Fleet 4.78.1 (Jan 06, 2026)
 
 ### Bug fixes
 

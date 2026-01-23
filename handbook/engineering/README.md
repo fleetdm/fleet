@@ -436,7 +436,7 @@ When this occurs, we will begin receiving the following error message when attem
 
 2. Log in using the credentials stored in 1Password under "Apple developer account".
 
-3. Contact the Head of Digital Workplace & GTM Systems to determine which phone number to use for 2FA.
+3. Contact the GTM Systems Architect to determine which phone number to use for 2FA.
 
 4. Complete the 2FA process to log in.
 

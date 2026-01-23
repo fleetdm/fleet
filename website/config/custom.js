@@ -173,10 +173,17 @@ module.exports.custom = {
     'handbook/product-design': 'noahtalerman',
     'handbook/finance': 'rfoo2015',
     'handbook/people': 'ireedy',
-    'handbook/it-and-enablement': 'allenhouchins',
+    'handbook/it': 'allenhouchins',
     'handbook/sales': 'sampfluger88',
     'handbook/customer-success': 'zayhanlon',
     'handbook/marketing': 'akuthiala',
+    'handbook/README.md': 'mikermcneil',
+    'handbook/company/README.md': 'mikermcneil',
+    'handbook/company/why-this-way.md': 'mikermcneil',
+    'handbook/company/communications.md': 'mikermcneil',
+    'handbook/company/leadership.md': 'mikermcneil',
+    'handbook/it/security.md': 'allenhouchins',
+    'handbook/company/go-to-market-groups.md': 'sampfluger88',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -290,7 +297,7 @@ module.exports.custom = {
     'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],
     'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
+    'handbook/it': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
     'handbook/finance': ['sampfluger88', 'mikermcneil', 'rfoo2015'],
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
     'handbook/marketing': ['sampfluger88', 'mikermcneil', 'akuthiala'],
@@ -317,10 +324,20 @@ module.exports.custom = {
     // Config as code for infrastructure, internal security and IT use cases, and more.
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
-    '.github/workflows': ['sampfluger88', 'lukeheath'],//« CI/CD workflows
+    '.github/workflows': ['lukeheath'],//« CI/CD workflows
+
+    // Issue templates
+    '.github/ISSUE_TEMPLATE/3-sale.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/2-expansion.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/9-renewal.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/prepare-event.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/technical-evaluation.md': ['allenhouchins', 'sampfluger88'],
+    '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
+    '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
+
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'], // (« for changing who reviews is automatically requested from for given paths)
     '.gitignore': ['lukeheath', 'rfairburn', 'sampfluger88'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 

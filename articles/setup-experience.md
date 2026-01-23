@@ -18,11 +18,11 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
    to populate and lock the macOS local account **Account Name**. For example, a
    "johndoe@example.com" email will turn into a "johndoe" account name.
 
-> **NOTE**  If the host is restarted during the mdm enrollment process, there may be an issue with populating the macOS local account creation screen. The fields are not guaranteed to be populated with the user's IDP email and username.
+> If the host is restarted during automatic enrollment (DEP), the macOS local account fields won't be populated with the user's IDP email and username.
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
-4. In Fleet, configure your IdP by heading to **Settings > Integrations > Mobile device management (MDM) > End user authentication**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Single sign-on (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a

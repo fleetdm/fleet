@@ -72,6 +72,9 @@ module.exports = {
     linkedinUrl: {
       type: 'string',
     },
+    relatedCampaign: {
+      type: 'string',
+    }
   },
 
 
@@ -86,7 +89,7 @@ module.exports = {
   },
 
 
-  fn: async function ({ salesforceAccountId, salesforceContactId, eventType, linkedinUrl, intentSignal, eventContent, eventContentUrl, fleetWebsitePageUrl, websiteVisitReason}) {
+  fn: async function ({ salesforceAccountId, salesforceContactId, eventType, linkedinUrl, intentSignal, eventContent, eventContentUrl, fleetWebsitePageUrl, websiteVisitReason, relatedCampaign}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -137,7 +140,8 @@ module.exports = {
         Interactor_profile_url__c: linkedinUrl,// eslint-disable-line camelcase
 
         Page_URL__c: fleetWebsitePageUrl,// eslint-disable-line camelcase
-        Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase
+        Website_visit_reason__c: websiteVisitReason,// eslint-disable-line camelcase
+        Related_campaign__c: relatedCampaign// eslint-disable-line camelcase
       });
     }).intercept((err)=>{
       return new Error(`An error occured when creating a new Historical event record in Salesforce. full error ${require('util').inspect(err, {depth: null})}`);
