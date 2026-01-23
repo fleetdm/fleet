@@ -302,7 +302,7 @@ Once notified, People takes the following steps:
 ### Retire a KPI
 
 The ["🗓️ KPIs" (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) sheet feeds data into the ["🪴🌧️🦉 Investor updates" (confidential)](https://docs.google.com/spreadsheets/d/10T7Q9iuHA4vpfV7qZCm6oMd5U1bLftBSobYD0RR8RkM/edit?gid=0#gid=0) sheet. Because of this linkage, retiring a KPI requires updating both sheets to avoid broken references or incorrect reporting. To retire a KPI, the Head of People will:
-1. Move the KPI to the retired section of the "🗓️ KPIs" sheet
+1. Move the KPI to the retired section of the "🗓️ KPIs" sheet.
 2. Validate that each column in "🪴🌧️🦉 Investor updates" still reflects the correct data
 3. If retiring the KPI caused column positions to change:
    - Locate the new column position in the "🗓️ KPIs"
