@@ -33,7 +33,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		last_enrolled_at
 	FROM
 		hosts
-	WHERE uuid = ? AND platform LIKE ?
+	WHERE uuid = ? AND platform = ?
 	`
 	var lastEnrolledAt sql.NullTime
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
@@ -46,6 +46,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		}
 	}
 	// If the host was enrolled more than 24 hours ago, don't enqueue any items.
+	// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
 	if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
 		level.Debug(ds.logger).Log("msg", "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
 		return false, nil
