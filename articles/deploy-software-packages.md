@@ -90,7 +90,7 @@ Fleet also provides an `$UPGRADE_CODE` placeholder for MSIs. This placeholder is
 
 > Uninstall scripts do _not_ download the installer package to a host before running; if a .tar.gz archive includes an uninstall script, the contents of that script and any dependencies should be copied into the uninstall script text field rather than referred to by filename.
 
-## Install package
+## Install the package
 
 After a software package is added to a team, it can be installed on hosts via the UI.
 
