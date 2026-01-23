@@ -40,6 +40,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/olekukonko/tablewriter"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
 )
@@ -518,35 +519,58 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...st
 
 	t.Logf(">> dumping table %s:", tableName)
 
+	data := [][]string{}
+	var columnNames []string
+
 	var anyDst []any
 	var strDst []sql.NullString
-	var sb strings.Builder
 	for rows.Next() {
 		if anyDst == nil {
 			cols, err := rows.Columns()
 			require.NoError(t, err)
 			anyDst = make([]any, len(cols))
 			strDst = make([]sql.NullString, len(cols))
-			for i := 0; i < len(cols); i++ {
+			for i := range cols {
 				anyDst[i] = &strDst[i]
 			}
-			t.Logf("%v", cols)
+			columnNames = cols
 		}
 		require.NoError(t, rows.Scan(anyDst...))
 
-		sb.Reset()
+		row := []string{}
 		for _, v := range strDst {
 			if v.Valid {
-				sb.WriteString(v.String)
+				row = append(row, v.String)
 			} else {
-				sb.WriteString("NULL")
+				row = append(row, "NULL")
 			}
-			sb.WriteString("\t")
 		}
-		t.Logf("%s", sb.String())
+		data = append(data, row)
 	}
 	require.NoError(t, rows.Err())
+
+	printDumpTable(t, columnNames, data)
 	t.Logf("<< dumping table %s completed", tableName)
+}
+
+func printDumpTable(t *testing.T, cols []string, rows [][]string) {
+	var w io.Writer = os.Stdout
+	table := tablewriter.NewWriter(w)
+	table.SetRowLine(false)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAutoFormatHeaders(false)
+	table.SetHeaderLine(true)
+	// table.SetCenterSeparator(" ")
+	// table.SetColumnSeparator("")
+	// table.SetBorder(true)
+	// table.SetTablePadding("\t")
+	// table.SetNoWhiteSpace(true)
+
+	table.SetHeader(cols)
+	table.AppendBulk(rows)
+	table.Render()
 }
 
 func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
