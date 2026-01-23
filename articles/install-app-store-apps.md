@@ -48,7 +48,6 @@ Apps can be installed manually on each host's **Host details** page. For macOS a
 
 Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 
-
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
