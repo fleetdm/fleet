@@ -1968,10 +1968,18 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
 		// app installs, so we return those to the MDM lifecycle to handle.
-		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform)
+		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeVPP)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking pending vpp installs as failed for host")
 		}
+		users2, activities2, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeInHouseApp)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marking pending in house app installs as failed for host")
+		}
+		fmt.Println(activities2)
+		// TODO(JK): ummm....
+		users = append(users, users2...)
+		activities = append(activities, activities2...)
 
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
@@ -1985,6 +1993,9 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 		err = updateHostRefetchRequestedDB(ctx, tx, host.ID, true)
 		return ctxerr.Wrap(ctx, err, "setting host refetch requested")
 	})
+	if err != nil {
+		fmt.Println("ummmmmmmmmmmmmmm : ", err)
+	}
 	return users, activities, err
 }
 
