@@ -14,7 +14,7 @@ In the next 3 months, Fleet will ship...
 - 🔧 Self-service scripts on macOS
 - 📡 Use Okta as a certificate authority (CA) with a dynamic challenge
 - 👨‍💻 More macOS and Windows Fleet-maintained apps
-- 🎯 Smarter patching: Fleet auto-fills minimum version numbers in patch policies
+- 🎯 Patch policies: Fleet auto-fills minimum version
 - 🪟 Removals for Windows configuration profiles
 - ⬇️ Download signed installers in one click with no Terminal or certificates required
 
