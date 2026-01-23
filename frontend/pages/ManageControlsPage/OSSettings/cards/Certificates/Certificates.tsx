@@ -21,6 +21,7 @@ import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -140,7 +141,7 @@ const Certificates = ({
           HeadingComponent={() => (
             <UploadListHeading
               entityName="Certificate"
-              createEntityText="Create"
+              createEntityText="Add"
               onClickAdd={() => setShowAddCertModal(true)}
             />
           )}
@@ -153,14 +154,14 @@ const Certificates = ({
 
             const details = (
               <>
-                {caName} &bull; Uploaded{" "}
+                {caName} &bull; Added{" "}
                 {formatDistanceToNow(new Date(created_at))} ago
               </>
             );
             return (
               <ListItem
                 graphic="file-certificate"
-                title={name}
+                title={<TooltipTruncatedText value={name} />}
                 details={details}
                 actions={
                   <GitOpsModeTooltipWrapper

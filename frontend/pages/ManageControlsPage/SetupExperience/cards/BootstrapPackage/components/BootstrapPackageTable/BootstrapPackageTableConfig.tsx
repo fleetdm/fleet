@@ -9,10 +9,11 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
 interface IStatusCellValue {
   displayName: string;
-  statusName: "success" | "pending" | "error";
+  statusName: IndicatorStatus;
   value: BootstrapPackageStatus;
   tooltip?: string | JSX.Element;
 }
@@ -125,7 +126,7 @@ const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   },
   pending: {
     displayName: "Pending",
-    statusName: "pending",
+    statusName: "pendingPartial",
     value: BootstrapPackageStatus.PENDING,
     tooltip: "The host will install the package when it enrolls.",
   },

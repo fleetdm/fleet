@@ -106,7 +106,8 @@ form,
     gap: $pad-medium;
   }
 
-  .button {
+  // Override button width to auto unless icon-only which has fixed widths
+  .button:not(.button--icon):not(.button--icon__small) {
     width: auto;
   }
 

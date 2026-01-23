@@ -47,7 +47,11 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		}
 		if count > 0 {
 			// ios or ipados version of this installer exists
-			return alreadyExists("In-house app", payload.Filename)
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+			return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
 		}
 
 		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
@@ -109,7 +113,12 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 	res, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		if IsDuplicate(err) {
-			err = alreadyExists("In-house app", payload.Filename)
+			teamName, err := ds.getTeamName(ctx, payload.TeamID)
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err)
+			}
+			err = alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 	}
@@ -267,7 +276,11 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			if IsDuplicate(err) {
-				return alreadyExists("In-house app", payload.Filename)
+				teamName, err := ds.getTeamName(ctx, payload.TeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err)
+				}
+				return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
 			}
 			return ctxerr.Wrap(ctx, err, "update in house app")
 		}
@@ -598,7 +611,8 @@ SELECT
 		hihsi.command_uuid AS command_uuid,
 		ncr.updated_at AS ack_at,
 		ncr.status AS install_command_status,
-		iha.bundle_identifier AS bundle_identifier
+		iha.bundle_identifier AS bundle_identifier,
+		iha.version AS expected_version
 FROM nano_command_results ncr
 JOIN host_in_house_software_installs hihsi ON hihsi.command_uuid = ncr.command_uuid
 JOIN in_house_apps iha ON iha.id = hihsi.in_house_app_id AND iha.platform = hihsi.platform
@@ -726,11 +740,11 @@ WHERE (unique_identifier, source, extension_for) IN (%s)
 `
 
 	const getSoftwareTitle = `
-SELECT 
-	id 
-FROM 
-	software_titles 
-WHERE 
+SELECT
+	id
+FROM
+	software_titles
+WHERE
 	unique_identifier = ? AND source = ? AND extension_for = ''
 `
 
@@ -1060,8 +1074,39 @@ WHERE
 			return nil
 		}
 
+		// Get team name for error messages
+		teamName, err := ds.getTeamName(ctx, tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for conflict check")
+		}
+
 		var args []any
 		for _, installer := range installers {
+			// Check for installers that target iOS/iPadOS if they conflict with an existing VPP app
+			if installer.BundleIdentifier != "" {
+				// Check for iOS VPP app conflict
+				exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(fleet.IOSPlatform), installer.BundleIdentifier, "ios_apps", "")
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check if VPP app (ios) exists for in-house app")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
+					}, "in-house app conflicts with existing VPP app (ios)")
+				}
+
+				// Check for iPadOS VPP app conflict
+				exists, err = ds.checkVPPAppExistsForTitleIdentifier(ctx, tx, tmID, string(fleet.IPadOSPlatform), installer.BundleIdentifier, "ipados_apps", "")
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check if VPP app (ipados) exists for in-house app")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, installer.Title, teamName),
+					}, "in-house app conflicts with existing VPP app (ipados)")
+				}
+			}
+
 			var providedTitle *string
 			if installer.Title != "" {
 				providedTitle = &installer.Title // for IPAs downloaded via URL; IPAs referenced by hash won't have this
@@ -1450,4 +1495,66 @@ WHERE in_house_app_id = ?
 	}
 
 	return affectedHostIDs, nil
+}
+
+func (ds *Datastore) CheckConflictingInstallerExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error) {
+	return ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), teamID, bundleIdentifier, platform, softwareTypeInstaller)
+}
+
+func (ds *Datastore) CheckConflictingInHouseAppExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error) {
+	return ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), teamID, bundleIdentifier, platform, softwareTypeInHouseApp)
+}
+
+func (ds *Datastore) checkInstallerOrInHouseAppExists(ctx context.Context, q sqlx.QueryerContext, teamID *uint, bundleIdentifier, platform string, swType softwareType) (bool, error) {
+	stmt := fmt.Sprintf(`
+SELECT 1
+FROM
+	software_titles st
+	INNER JOIN %[1]ss ON st.id = %[1]ss.title_id AND %[1]ss.global_or_team_id = ?
+WHERE
+	st.unique_identifier = ?
+	AND %[1]ss.platform = ?
+`, swType)
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	var exists int
+	err := sqlx.GetContext(ctx, q, &exists, stmt, globalOrTeamID, bundleIdentifier, platform)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("check %s exists", swType))
+	}
+	return exists == 1, nil
+}
+
+func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
+	const stmt = `
+SELECT st.name
+FROM software_titles st
+INNER JOIN in_house_apps iha ON iha.title_id = st.id AND
+	iha.global_or_team_id = ?
+INNER JOIN vpp_apps va ON va.bundle_identifier = st.bundle_identifier
+INNER JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND
+	vat.global_or_team_id = ?
+WHERE
+	va.adam_id = ?
+	AND va.platform = ?
+	AND iha.platform = va.platform
+LIMIT 1
+`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	err = sqlx.GetContext(ctx, q, &title, stmt, globalOrTeamID, globalOrTeamID, appID.AdamID, appID.Platform)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, "", nil
+		}
+		return false, "", err
+	}
+	return true, title, nil
 }

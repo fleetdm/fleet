@@ -17,7 +17,6 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -27,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-sql-driver/mysql"
@@ -106,6 +106,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestLockUnlockWipeIphone", testLockUnlockWipeIphone},
 		{"TestGetLatestAppleMDMCommandOfType", testGetLatestAppleMDMCommandOfType},
 		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
+		{"DeviceLocation", testDeviceLocation},
+		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
 	}
 
 	for _, c := range cases {
@@ -268,7 +270,7 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
 	// break the profile by deleting the label
-	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name))
+	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
 	require.NoError(t, err)
@@ -5390,6 +5392,16 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.Zero(t, sum.Failed)
 	require.Zero(t, sum.Installed)
 	require.EqualValues(t, 1, sum.Pending)
+
+	// Mark the host as if it skipped the bootstrap package installation
+	err = ds.RecordSkippedHostBootstrapPackage(ctx, host.UUID)
+	require.NoError(t, err)
+
+	sum, err = ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
+	require.NoError(t, err)
+	require.Zero(t, sum.Failed)
+	require.Zero(t, sum.Installed)
+	require.Zero(t, sum.Pending)
 }
 
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
@@ -5633,6 +5645,10 @@ func testLockUnlockWipeIphone(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "EnableLostMode", true)
+	require.NoError(t, err)
+
+	// Record a location from the DeviceLocation command
+	err = ds.InsertHostLocationData(ctx, fleet.HostLocationData{HostID: host.ID, Latitude: 42.42, Longitude: -42.42})
 	require.NoError(t, err)
 
 	// it is now locked
@@ -7140,9 +7156,23 @@ func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore
 	err = commander.EnqueueCommand(ctx, []string{hostUUIDToUserEnrollmentID[hosts[3].UUID], hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, rawCmd2)
 	require.NoError(t, err)
 
-	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	firstIds, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID, hostUUIDToUserEnrollmentID[hosts[3].UUID], hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, ids)
+	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID, hostUUIDToUserEnrollmentID[hosts[3].UUID], hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, firstIds)
+
+	// Get a list of pending ID's 3 times and match against the first list, to avoid test flakiness.
+	// In a real world scenario it's okay for it to be the same as we will fetch it again later.
+	allAttemptsWereEqual := true
+	for range 3 {
+		secondIds, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+		require.NoError(t, err)
+		isIdsEqual := assert.ObjectsAreEqualValues(firstIds, secondIds)
+		if !isIdsEqual {
+			allAttemptsWereEqual = false
+			break
+		}
+	}
+	require.False(t, allAttemptsWereEqual, "GetEnrollmentIDsWithPendingMDMAppleCommands returned the same result 3 times in a row")
 
 	err = storage.StoreCommandReport(&mdm.Request{
 		EnrollID: &mdm.EnrollID{ID: hostUUIDToUserEnrollmentID[hosts[3].UUID]},
@@ -9582,4 +9612,86 @@ func testSetLockCommandForLostModeCheckin(t *testing.T, ds *Datastore) {
 	// Fails if trying to insert on existing row
 	err = ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
 	require.Error(t, err)
+}
+
+func testDeviceLocation(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	iOSHost := newTestHostWithPlatform(t, ds, "iphone_"+t.Name(), string(fleet.IOSPlatform), nil)
+
+	expected := fleet.HostLocationData{HostID: iOSHost.ID, Latitude: 42.42, Longitude: -42.42}
+	err := ds.InsertHostLocationData(ctx, expected)
+	require.NoError(t, err)
+
+	locData, err := ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, expected, *locData)
+
+	// Update data
+	expected = fleet.HostLocationData{HostID: iOSHost.ID, Latitude: 20.25, Longitude: 20.25}
+	err = ds.InsertHostLocationData(ctx, expected)
+	require.NoError(t, err)
+
+	locData, err = ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, expected, *locData)
+
+	err = ds.DeleteHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	_, err = ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := newTestHostWithPlatform(t, ds, "macos", "macos", nil)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid) VALUES (?, ?)`, host.ID, uuid.NewString())
+		return err
+	})
+
+	cooldowns, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	require.NoError(t, err)
+	require.Len(t, cooldowns, 0, "no failed assign response")
+
+	// Set failed and assigned response within the last minute
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET assign_profile_response = ?, retry_job_id = 0, response_updated_at = NOW() WHERE host_id = ?`, fleet.DEPAssignProfileResponseFailed, host.ID)
+		return err
+	})
+	cooldowns, err = ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	require.NoError(t, err)
+	require.Len(t, cooldowns, 0, "failed but still in cooldown")
+
+	// Set response_updated_at to be dep cooldown + 10 seconds to avoid timing issues
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET response_updated_at = DATE_SUB(NOW(), INTERVAL ? SECOND) WHERE host_id = ?`, depCooldownPeriod.Seconds()+10, host.ID)
+		return err
+	})
+	cooldowns, err = ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	require.NoError(t, err)
+	require.Len(t, cooldowns, 1, "failed and cooldown expired")
+
+	// Generate 200 entries to test limit and order by
+	for i := range 200 {
+		h := newTestHostWithPlatform(t, ds, fmt.Sprintf("host-%d", i), "macos", nil)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid, assign_profile_response, response_updated_at, retry_job_id) VALUES (?, ?, ?, DATE_SUB(NOW(), INTERVAL ? SECOND), 0)`, h.ID, uuid.NewString(), fleet.DEPAssignProfileResponseFailed, depCooldownPeriod.Seconds()+10)
+			return err
+		})
+	}
+
+	cooldowns, err = ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	require.NoError(t, err)
+	require.Len(t, cooldowns, 1, "only expect no team ID")
+	allSerials := []string{}
+	for _, cd := range cooldowns {
+		allSerials = append(allSerials, cd...)
+	}
+	require.Len(t, allSerials, apple_mdm.DEPSyncLimit, "limit process cooldowns to sync limit")
+	require.LessOrEqual(t, len(allSerials), 1000, "never go above 1000 devices as per Apple's recommendations")
 }

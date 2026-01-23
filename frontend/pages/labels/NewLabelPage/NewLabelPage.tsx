@@ -321,8 +321,13 @@ const NewLabelPage = ({
       await labelsAPI.create(formData);
       router.push(PATHS.MANAGE_LABELS);
       renderFlash("success", "Label added successfully.");
-    } catch {
-      renderFlash("error", "Couldn't add label. Please try again.");
+    } catch (error) {
+      renderFlash(
+        "error",
+        (error as { status: number }).status === 409
+          ? "A label with this name already exists."
+          : "Couldn't add label. Please try again."
+      );
     }
     setIsUpdating(false);
   };

@@ -57,7 +57,11 @@ const (
 	// SCEPProxyPath is the HTTP path that serves the SCEP proxy service. The path is followed by identifier.
 	SCEPProxyPath = "/mdm/scep/proxy/"
 
+	// It's important we don't sync more than 1000 at a time,
+	// as we also process DEP cooldowns and limit how many we process with this variable
 	DEPSyncLimit = 200
+
+	VPPLicenseNotFound = 9610
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
@@ -1402,27 +1406,41 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return nil
 	}
 	logger.Log("msg", "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
-	commandUUID := uuid.NewString()
 
 	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3*len(devices))
-	installedAppsUUIDs := make([]string, 0, len(devices))
+	installedAppsUUIDs := struct {
+		ManagedOnly []string
+		All         []string
+	}{}
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
-			installedAppsUUIDs = append(installedAppsUUIDs, device.UUID)
+			if isBYODDevice := !device.InstalledFromDEP; isBYODDevice {
+				installedAppsUUIDs.ManagedOnly = append(installedAppsUUIDs.ManagedOnly, device.UUID)
+			} else {
+				installedAppsUUIDs.All = append(installedAppsUUIDs.All, device.UUID)
+			}
 			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
 				HostID:      device.HostID,
 				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 			})
 		}
 	}
-	if len(installedAppsUUIDs) > 0 {
-		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
-		if turnedOffError != nil {
-			return turnedOffError
-		}
-		if err != nil && !turnedOff {
-			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+	if len(installedAppsUUIDs.ManagedOnly)+len(installedAppsUUIDs.All) > 0 {
+		for i, uuids := range [][]string{installedAppsUUIDs.ManagedOnly, installedAppsUUIDs.All} {
+			managedOnly := i == 0
+			if len(uuids) == 0 {
+				continue
+			}
+
+			commandUUID := uuid.NewString()
+			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+			turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
+			if turnedOffError != nil {
+				return turnedOffError
+			}
+			if err != nil && !turnedOff {
+				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+			}
 		}
 	}
 
@@ -1437,6 +1455,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 	if len(certsListUUIDs) > 0 {
+		commandUUID := uuid.NewString()
 		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
 		if turnedOffError != nil {
@@ -1459,6 +1478,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 	if len(deviceInfoUUIDs) > 0 {
+		commandUUID := uuid.NewString()
 		err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
 		if turnedOffError != nil {

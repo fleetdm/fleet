@@ -116,7 +116,10 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 	}
 
 	// No pending lock, create a new one
-	unlockPIN = GenerateRandomPin(6)
+	unlockPIN, err = GenerateRandomPin(6)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating random PIN for DeviceLock")
+	}
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -236,7 +239,10 @@ func (svc *MDMAppleCommander) DisableLostMode(ctx context.Context, host *fleet.H
 }
 
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
-	pin := GenerateRandomPin(6)
+	pin, err := GenerateRandomPin(6)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating random PIN for EraseDevice")
+	}
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -399,6 +405,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>WiFiMAC</string>
             <string>ProductName</string>
 			<string>IsMDMLostModeEnabled</string>
+			<string>TimeZone</string>
         </array>
         <key>RequestType</key>
         <string>DeviceInformation</string>
@@ -462,6 +469,25 @@ func (svc *MDMAppleCommander) CertificateList(ctx context.Context, hostUUIDs []s
 		</dict>
 	</dict>
 </plist>`, cmdUUID)
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
+func (svc *MDMAppleCommander) DeviceLocation(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>DeviceLocation</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>
+`, cmdUUID)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
