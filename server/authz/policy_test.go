@@ -146,7 +146,7 @@ func TestAuthorizeActivity(t *testing.T) {
 		{user: test.UserTeamAdminTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: activity, action: read, allow: false},
 
 		// Bounded context (bc) Activity - same authorization rules apply
@@ -160,6 +160,7 @@ func TestAuthorizeActivity(t *testing.T) {
 		{user: test.UserTeamAdminTeam1, object: bcActivity, action: readAction, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: bcActivity, action: readAction, allow: false},
 		{user: test.UserTeamObserverTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: bcActivity, action: readAction, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: bcActivity, action: readAction, allow: false},
 	})
 }
