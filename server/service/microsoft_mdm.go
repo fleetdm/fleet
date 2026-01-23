@@ -592,10 +592,10 @@ func newCharacteristic(typ string, parms []mdm_types.Param, characteristics []md
 // signedClientCert is the signed client certificate bytes
 func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint string, identityCert []byte, signedClientFingerprint string, signedClientCert []byte) mdm_types.Characteristic {
 	// Target Cert Store selection based on Enrollment type
-	targetCertStore := "User"
+	/* targetCertStore := "System"
 	if enrollmentType == "Device" {
 		targetCertStore = "System"
-	}
+	} */
 
 	root := newCharacteristic("Root", nil, []mdm_types.Characteristic{
 		newCharacteristic("System", nil, []mdm_types.Characteristic{
@@ -606,7 +606,7 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 	})
 
 	my := newCharacteristic("My", nil, []mdm_types.Characteristic{
-		newCharacteristic(targetCertStore, nil, []mdm_types.Characteristic{
+		newCharacteristic("System", nil, []mdm_types.Characteristic{
 			newCharacteristic(signedClientFingerprint, []mdm_types.Param{
 				newParm("EncodedCertificate", base64.StdEncoding.EncodeToString(signedClientCert), ""),
 			}, nil),
@@ -645,7 +645,8 @@ func isEligibleForWindowsMDMMigration(host *fleet.Host, mdmInfo *fleet.HostMDM) 
 // The Application Provisioning configuration is used for bootstrapping a device with an OMA DM account
 // The paramenters here maps to the W7 application CSP
 // https://learn.microsoft.com/en-us/windows/client-management/mdm/w7-application-csp
-func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic {
+func NewApplicationProvisioningData(mdmEndpoint string, clientCertSubject string) mdm_types.Characteristic {
+	fmt.Println("App prov doc client cert subject:", clientCertSubject)
 	provDoc := newCharacteristic("APPLICATION", []mdm_types.Param{
 		// The PROVIDER-ID parameter specifies the server identifier for a management server used in the current management session
 		newParm("PROVIDER-ID", syncml.DocProvisioningAppProviderID, ""),
@@ -675,6 +676,8 @@ func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic
 
 		// The BACKCOMPATRETRYDISABLED parameter is used to specify whether to retry resending a package with an older protocol version
 		newParm("BACKCOMPATRETRYDISABLED", "", ""),
+
+		newParm("SSLCLIENTCERTSEARCHCRITERIA", fmt.Sprintf("Subject=CN%%3D%s,OU%3DFleet&Stores=My%5CSystem", clientCertSubject), ""),
 	}, []mdm_types.Characteristic{
 		// CLIENT specifies that the server authenticates itself to the OMA DM Client at the DM protocol level.
 		newCharacteristic("APPAUTH", []mdm_types.Param{
@@ -707,7 +710,9 @@ func NewDMClientProvisioningData() mdm_types.Characteristic {
 	dmClient := newCharacteristic("DMClient", nil, []mdm_types.Characteristic{
 		newCharacteristic("Provider", nil, []mdm_types.Characteristic{
 			newCharacteristic(syncml.DocProvisioningAppProviderID,
-				[]mdm_types.Param{}, []mdm_types.Characteristic{
+				[]mdm_types.Param{
+					newParm("RequireMessageSigning", "true", syncml.DmClientBoolType),
+				}, []mdm_types.Characteristic{
 					newCharacteristic("Poll", []mdm_types.Param{
 						// AllUsersPollOnFirstLogin - enabled
 						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollalluserspollonfirstlogin
@@ -1812,7 +1817,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	}
 
 	// Preparing the Application Provisioning information
-	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint)
+	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint, reqHWDeviceID)
 
 	// Preparing the DM Client Provisioning information
 	appDMClientProvisioningData := NewDMClientProvisioningData()
@@ -1820,6 +1825,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	// And finally returning the Base64 encoded representation of the Provisioning Doc XML
 	provDoc := NewProvisioningDoc(certStoreProvisioningData, appConfigProvisioningData, appDMClientProvisioningData)
 	encodedProvDoc, err := provDoc.GetEncodedB64Representation()
+	fmt.Println("Encoded prov doc:", encodedProvDoc)
 	if err != nil {
 		return "", err
 	}
