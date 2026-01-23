@@ -3,10 +3,6 @@ name: Deploy Dogfood SigNoz
 on:
   workflow_dispatch:
     inputs:
-      workspace:
-        description: "Terraform workspace to deploy SigNoz into."
-        required: true
-        default: "fleet"
       dry_run:
         description: Dry run only? No "terraform apply"
         type: boolean
@@ -25,7 +21,6 @@ env:
   AWS_REGION: us-east-2
   AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
   TF_ACTIONS_WORKING_DIR: infrastructure/dogfood/terraform/aws-tf-module/signoz
-  TF_WORKSPACE: ${{ github.event.inputs.workspace }}
   TF_VAR_otel_bearer_token: ${{ secrets.DOGFOOD_SIGNOZ_OTEL_BEARER_TOKEN }}
 
 permissions:
@@ -58,7 +53,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@18a212d6b26e63d2e08d083e82f0597a6095f08c # v4.0.0
+        uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede # v4
         with:
           version: v1.31.0
 
