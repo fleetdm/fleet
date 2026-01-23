@@ -87,6 +87,7 @@ Fleet Premium subscription details:
     // If the submitter has a marketing attribution cookie, send the details when creating/updating a contact/account/historical record.
     let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
     // Note: We're using sails.helpers.flow.build INSIDE of a build helper here so that errors from the Salesforce helpers do not prevent the support email from being sent.
+    // This is so we can be sure the website has had time to create/update CRM records before unthread attempts creates them with no parent account record.
     sails.helpers.flow.build(async ()=>{
 
       await sails.helpers.flow.build(async ()=>{
