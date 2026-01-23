@@ -16,7 +16,6 @@ In the next 3 months, Fleet will ship...
 - 👨‍💻 More macOS and Windows Fleet-maintained apps
 - 🎯 Smarter patching: Fleet auto-fills minimum version numbers in patch policies
 - 🪟 Removals for Windows configuration profiles
-- 📄 Simple certificate deployment for Wi-Fi and VPN on company-owned Linux computers
 - ⬇️ Download signed installers in one click with no Terminal or certificates required
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
