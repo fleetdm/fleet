@@ -1739,13 +1739,10 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 
 	// create an mdm enrolled host to have a pending install request
 	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	host.HardwareSerial = "test-serial"
 	nanoEnroll(t, ds, host, false)
 
-	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
-		UUID:           host.UUID,
-		HardwareSerial: "test-serial",
-		Platform:       string(fleet.IOSPlatform),
-	}, false)
+	err := ds.MDMAppleUpsertHost(ctx, host, false)
 	require.NoError(t, err)
 
 	// TODO: table driven test with different installers
@@ -1758,17 +1755,33 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		SelfService:      false,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		CategoryIDs:      []uint{1, 2},
 	}
 
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	inHouseAppID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
 	require.NoError(t, err)
+
+	createInHouseAppInstallRequest(t, ds, host.ID, inHouseAppID, titleID, user)
 
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		DumpTable(t, tx, "nano_enrollments")
 		DumpTable(t, tx, "host_mdm")
-		DumpTable(t, tx, "in_house_apps")
+		DumpTable(t, tx, "host_in_house_software_installs")
+		DumpTable(t, tx, "upcoming_activities")
 		return nil
 	})
+
+	_, activities, err := ds.MDMTurnOff(ctx, host.UUID)
+	require.NoError(t, err)
+	fmt.Println(activities)
+
+	var verifiedAt *time.Time
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &verifiedAt,
+			"SELECT verification_failed_at FROM host_in_house_software_installs WHERE in_house_app_id = ?", inHouseAppID)
+	})
+
+	// we expect host_iha_installs to have verification_fail_at not NULL
+	// and upcoming activities vpp/iha to be cleared
+	fmt.Println(verifiedAt)
 
 }
