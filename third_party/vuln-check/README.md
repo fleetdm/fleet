@@ -62,4 +62,4 @@ npm audit
 ## Related documentation
 
 - [ADR-0004: Third-party library vendoring](../../docs/Contributing/adr/0004-third-party-vendoring.md)
-- [GitHub Issue #31605](https://github.com/fleetdm/fleet/issues/31605)
+- [GitHub issue #31605 that created this file](https://github.com/fleetdm/fleet/issues/31605)
