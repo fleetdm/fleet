@@ -24,7 +24,9 @@ Learn more about automatically installing software [the Automatically install so
 * Click the **Add software** button in the top right corner.
 * Select the **Custom package** tab.
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, and `.ps1` files are supported.
-* If you check the **Automatic install** box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist. Note: Automatic install is not supported for payload-free packages (`.sh` and `.ps1` files).
+* If you check the **Automatic install** box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist. 
+
+> **Note:** Automatic install is not supported for payload-free packages (`.sh` and `.ps1` files).
 * To allow users to install the software from Fleet Desktop, check the **Self-service** checkbox.
 * To customize installer behavior, click on **Advanced options**.
 
