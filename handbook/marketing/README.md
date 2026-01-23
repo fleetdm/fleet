@@ -21,7 +21,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
-## Marketing Assets
+## Marketing assets
 
 This list (for now) will be in chronological order as assets are created:
 
