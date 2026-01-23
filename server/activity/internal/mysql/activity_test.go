@@ -262,8 +262,8 @@ func testListActivitiesOrdering(t *testing.T, env *testEnv) {
 		wantFirst string
 		wantLast  string
 	}{
-		{"created_at desc", "created_at", activityapi.OrderDesc, "activity_newest", "activity_oldest"},
-		{"created_at asc", "created_at", activityapi.OrderAsc, "activity_oldest", "activity_newest"},
+		{"created_at desc", "created_at", activityapi.OrderDescending, "activity_newest", "activity_oldest"},
+		{"created_at asc", "created_at", activityapi.OrderAscending, "activity_oldest", "activity_newest"},
 	}
 
 	for _, tc := range cases {
@@ -277,7 +277,7 @@ func testListActivitiesOrdering(t *testing.T, env *testEnv) {
 	}
 
 	// Verify ID ordering works
-	activities, _, err := env.ds.ListActivities(ctx, listOpts(withOrder("id", activityapi.OrderAsc)))
+	activities, _, err := env.ds.ListActivities(ctx, listOpts(withOrder("id", activityapi.OrderAscending)))
 	require.NoError(t, err)
 	require.Len(t, activities, 3)
 	assert.Less(t, activities[0].ID, activities[1].ID)
@@ -293,13 +293,13 @@ func testListActivitiesCursorPagination(t *testing.T, env *testEnv) {
 	}
 
 	// Get first page
-	activities, _, err := env.ds.ListActivities(ctx, listOpts(withPerPage(2), withOrder("id", activityapi.OrderAsc)))
+	activities, _, err := env.ds.ListActivities(ctx, listOpts(withPerPage(2), withOrder("id", activityapi.OrderAscending)))
 	require.NoError(t, err)
 	require.Len(t, activities, 2)
 	lastID := activities[1].ID
 
 	// Get next page using cursor
-	activities, _, err = env.ds.ListActivities(ctx, listOpts(withPerPage(2), withOrder("id", activityapi.OrderAsc), withAfter(fmt.Sprintf("%d", lastID))))
+	activities, _, err = env.ds.ListActivities(ctx, listOpts(withPerPage(2), withOrder("id", activityapi.OrderAscending), withAfter(fmt.Sprintf("%d", lastID))))
 	require.NoError(t, err)
 	require.Len(t, activities, 2)
 	for _, a := range activities {
