@@ -106,7 +106,7 @@ Once the package is installed, Fleet will automatically refetch the host's vital
 ## Edit the package
 
 * Navigate to the **Software** page, choose a team, and select the software you want to edit.
-  * You can use a dropdown above the table to filter software **Available for install** or software available in **Self-service**.
+  * Use a dropdown above the table to filter software **Available for install** or software available in **Self-service**.
 * On **Software details** page select **Actions > Edit software** to edit the software's [self-service](https://fleetdm.com/guides/software-self-service) status, change its target to different sets of hosts, or edit advanced options like pre-install query, install script, post-install script, and uninstall script.
 * Select **Actions > Edit appearance** to edit the software's icon and display name. The icon and display name can be edited for software available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded and on **My device > Self-service**. If display name is not set, then default name (ingested by osquery) will be used.
 
