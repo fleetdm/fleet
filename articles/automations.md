@@ -13,11 +13,11 @@ You can automatically send activites to a webhook URL or a [log destination](htt
 
 ## Policy automations
 
-Policy automations are triggered if a policy is newly failing on at least one host.
+Policy automations are triggered if a policy is newly failing on at least one host. A policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
 
-> Note that a policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
+Automations are only fired for Fleet's scheduled policy runs. Running a live policy doesn't trigger automations.
 
-Fleet checks whether to trigger policy automations once per day by default.
+Fleet triggers policy automations once per day by default ([configurable](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings)).
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 
