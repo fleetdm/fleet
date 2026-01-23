@@ -44,19 +44,17 @@ This directory solves that problem by creating "dummy" manifest files that list 
 
 ## Running vulnerability scans locally
 
-### Go vulnerabilities
+### Go and npm vulnerabilities
 
+Since this directory contains no Go source files (by design), source-based tools like `govulncheck ./...` won't work. Use tools that scan `go.mod` directly:
+
+**Using osv-scanner** (recommended):
 ```bash
+go install github.com/google/osv-scanner/cmd/osv-scanner@latest
 cd third_party/vuln-check
-go install golang.org/x/vuln/cmd/govulncheck@latest
-govulncheck ./...
-```
-
-### npm vulnerabilities
-
-```bash
-cd third_party/vuln-check
-npm audit
+# To include npm dependencies in the scan, first generate a lock file:
+npm i --package-lock-only
+osv-scanner scan .
 ```
 
 ## Related documentation
