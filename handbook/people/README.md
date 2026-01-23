@@ -305,7 +305,7 @@ The ["🗓️ KPIs" (confidential)](https://docs.google.com/spreadsheets/d/1Hso0
 1. Move the KPI to the retired section of the "🗓️ KPIs" sheet.
 2. Validate that each column in "🪴🌧️🦉 Investor updates" still reflects the correct data.
 3. If retiring the KPI caused column positions to change:
-   - Locate the new column position in the "🗓️ KPIs"
+   - Locate the new column position in the "🗓️ KPIs". 
    - Update the relevant cell in row 2 of the "🪴🌧️🦉 Investor updates" with the new column location
 4. Scan "🪴🌧️🦉 Investor updates" to confirm all metrics are populating as expected and no data is missing or misaligned.
 
