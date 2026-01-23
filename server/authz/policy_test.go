@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -127,6 +128,7 @@ func TestAuthorizeActivity(t *testing.T) {
 	t.Parallel()
 
 	activity := &fleet.Activity{}
+	apiActivity := &activity_api.Activity{}
 
 	runTestCases(t, []authTestCase{
 		// All global roles except GitOps can read activities.
@@ -143,6 +145,19 @@ func TestAuthorizeActivity(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: activity, action: read, allow: false},
+
+		// Activity bounded context type (api.Activity) - same authorization rules apply
+		{user: nil, object: apiActivity, action: string(platform_authz.ActionRead), allow: false},
+		{user: test.UserAdmin, object: apiActivity, action: string(platform_authz.ActionRead), allow: true},
+		{user: test.UserMaintainer, object: apiActivity, action: string(platform_authz.ActionRead), allow: true},
+		{user: test.UserObserver, object: apiActivity, action: string(platform_authz.ActionRead), allow: true},
+		{user: test.UserObserverPlus, object: apiActivity, action: string(platform_authz.ActionRead), allow: true},
+		{user: test.UserGitOps, object: apiActivity, action: string(platform_authz.ActionRead), allow: false},
+		// Team roles cannot read activites.
+		{user: test.UserTeamAdminTeam1, object: apiActivity, action: string(platform_authz.ActionRead), allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: apiActivity, action: string(platform_authz.ActionRead), allow: false},
+		{user: test.UserTeamObserverTeam1, object: apiActivity, action: string(platform_authz.ActionRead), allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: apiActivity, action: string(platform_authz.ActionRead), allow: false},
 	})
 }
 
