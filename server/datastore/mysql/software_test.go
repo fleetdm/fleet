@@ -90,6 +90,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareFailInstallThenLabelExclude", testListHostSoftwareFailInstallThenLabelExclude},
 		{"ListHostSoftwareFailUninstallThenLabelExclude", testListHostSoftwareFailUninstallThenLabelExclude},
 		{"ListHostSoftwareFailVPPInstallThenLabelExclude", testListHostSoftwareFailVPPInstallThenLabelExclude},
+		{"ListHostSoftwareFailInHouseInstallThenLabelExclude", testListHostSoftwareFailInHouseInstallThenLabelExclude},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
@@ -6691,6 +6692,78 @@ func testListHostSoftwareFailVPPInstallThenLabelExclude(t *testing.T, ds *Datast
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Len(t, sw, 0, "VPP app with failed install should not appear when targeting excludes the host")
+}
+
+// testListHostSoftwareFailInHouseInstallThenLabelExclude tests that when a host has a failed
+// in-house app install attempt, the LastInstall info is populated so users can view the failure details.
+func testListHostSoftwareFailInHouseInstallThenLabelExclude(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	nanoEnroll(t, ds, host, false)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false,
+		IsMDMEnrolled:              true, // required for in-house apps
+	}
+
+	// Create an exclude label
+	excludeLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-inhouse-label", Query: "select 1"})
+	require.NoError(t, err)
+
+	// Create an in-house app installer
+	inHouseID, inHouseTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "inhouse_fail_test",
+		Source:           "ios_apps",
+		Filename:         "inhouse_fail_test.ipa",
+		Extension:        "ipa",
+		BundleIdentifier: "com.test.inhousefail",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, inHouseID)
+	require.NotZero(t, inHouseTitleID)
+
+	// Create a FAILED in-house app install request
+	inHouseCmdUUID := createInHouseAppInstallRequest(t, ds, host.ID, inHouseID, inHouseTitleID, user)
+	ds.testActivateSpecificNextActivities = []string{inHouseCmdUUID}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	createInHouseAppInstallResult(t, ds, host, inHouseCmdUUID, "Error") // Failed install
+
+	// Verify in-house app appears in "All software" view (failed install should show initially)
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, "inhouse_fail_test", sw[0].Name)
+	require.NotNil(t, sw[0].SoftwarePackage, "SoftwarePackage should be populated for in-house apps")
+	// Verify that LastInstall is populated for failed in-house installs
+	require.NotNil(t, sw[0].SoftwarePackage.LastInstall, "LastInstall should be populated for failed in-house installs")
+	require.Equal(t, inHouseCmdUUID, sw[0].SoftwarePackage.LastInstall.CommandUUID, "LastInstall.CommandUUID should match the install command UUID")
+
+	// Add host to exclude label
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// Add exclude label to in-house app targeting (in-house apps use in_house_app_labels table)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, 1)`,
+			inHouseID, excludeLabel.ID)
+		return err
+	})
+
+	// Now, the in-house app should NOT appear because it failed and is out of scope
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 0, "In-house app with failed install should not appear when targeting excludes the host")
 }
 
 func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore) {
