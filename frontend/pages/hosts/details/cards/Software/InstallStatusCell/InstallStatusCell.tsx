@@ -252,13 +252,13 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   failed_install_update_available: {
     iconName: "error",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
-    // Users can find failure information in host activity logs
+    // Tooltip indicates failure info in host activity logs
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
     iconName: "error",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
-    // Users can find failure information in host activity logs
+    // Tooltip indicates failure info in host activity logs
     tooltip: failedUninstallTooltip,
   },
   // Script package statuses

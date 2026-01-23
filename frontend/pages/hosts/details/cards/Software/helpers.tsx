@@ -213,6 +213,7 @@ export const getUiStatus = (
   }
 
   // 0.5 Treat failed install/uninstall as installed if versions still present as of 4.82 #31663
+  // UI tooltip indicates failure info in host activity logs, but shows the "Installed" status along with the install details modal
   if (
     (status === "failed_install" || status === "failed_uninstall") &&
     installed_versions &&
