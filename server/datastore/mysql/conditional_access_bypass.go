@@ -15,9 +15,9 @@ func (ds *Datastore) ConditionalAccessBypassDevice(ctx context.Context, hostID u
 	INSERT INTO
 		host_conditional_access (host_id, bypassed_at)
 	VALUES
-		(?, NOW())
+		(?, NOW(6))
 	ON DUPLICATE KEY UPDATE
-		bypassed_at = NOW()`
+		bypassed_at = NOW(6)`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting host conditional bypass")
@@ -48,7 +48,7 @@ func (ds *Datastore) ConditionalAccessConsumeBypass(ctx context.Context, hostID 
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var t time.Time
-		err := tx.QueryRowxContext(ctx, selectStmt, hostID).Scan(&t)
+		err := sqlx.GetContext(ctx, tx, &t, selectStmt, hostID)
 		if errors.Is(err, sql.ErrNoRows) {
 			// There is no conditional access bypass, no rows is not an error
 			return nil

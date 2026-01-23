@@ -392,19 +392,13 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 
 		hostRemediationUrl := fmt.Sprintf("%s/device/%s/policies", config.ServerSettings.ServerURL, authToken)
 
-		bypassEnabled := config.ConditionalAccess == nil ||
-			!config.ConditionalAccess.BypassDisabled.Valid ||
-			!config.ConditionalAccess.BypassDisabled.Value
+		bypassEnabled := config.ConditionalAccess == nil || config.ConditionalAccess.BypassEnabled()
 
 		var bypassedAt *time.Time
 		if bypassEnabled {
 			bypassedAt, err = p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
 			if err != nil {
-				level.Error(p.logger).Log(
-					"msg", "failed to check conditional access host bypass",
-					"host_id", p.hostID,
-					"err", err,
-				)
+				ctxerr.Handle(ctx, fmt.Errorf("failed to check conditional access host bypass for host %d: %w", p.hostID, err))
 				http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
 				return nil
 			}

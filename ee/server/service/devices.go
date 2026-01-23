@@ -107,7 +107,7 @@ func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "getting device config")
 	}
 
-	if ac.ConditionalAccess != nil && ac.ConditionalAccess.BypassDisabled.Valid && ac.ConditionalAccess.BypassDisabled.Value {
+	if ac.ConditionalAccess != nil && !ac.ConditionalAccess.BypassEnabled() {
 		return fleet.NewUserMessageError(errors.New("conditional access bypass disabled"), http.StatusForbidden)
 	}
 
@@ -115,17 +115,16 @@ func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "setting conditional access bypass")
 	}
 
-	idpFullName := "An end user"
-	endUsers, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
+	idpFullName, err := fleet.GetEndUserIdpFullName(ctx, svc.ds, host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting end users for bypass activity")
 	}
 
-	if len(endUsers) > 0 {
-		idpFullName = endUsers[0].IdpFullName
+	if idpFullName == "" {
+		idpFullName = "An end user"
 	}
 
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeHostBypassedConditionalAccess{
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeHostBypassedConditionalAccess{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		IdPFullName:     idpFullName,

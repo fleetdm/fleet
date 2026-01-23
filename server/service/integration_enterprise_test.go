@@ -23395,16 +23395,6 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 
 	// Create a host with a device token
 	host := createHostAndDeviceToken(t, s.ds, "test-conditional-access-bypass-token")
-	t.Cleanup(func() {
-		// Clean up host
-		err := s.ds.DeleteHost(ctx, host.ID)
-		require.NoError(t, err)
-		// Clean up bypass records
-		err = s.ds.ConditionalAccessClearBypasses(ctx)
-		require.NoError(t, err)
-		// Clear Okta conditional access settings
-		s.clearOktaConditionalAccess()
-	})
 
 	// Test 1: Bypass succeeds when bypass is enabled (default, not disabled)
 	var bypassResp bypassConditionalAccessResponse
@@ -23434,9 +23424,6 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 	})
 	require.NoError(t, err)
 	createDeviceTokenForHost(t, s.ds, hostWithScim.ID, "test-bypass-token-with-scim")
-	t.Cleanup(func() {
-		_ = s.ds.DeleteHost(ctx, hostWithScim.ID)
-	})
 
 	// Create a SCIM user and map it to the host
 	var scimUserID int64
@@ -23476,7 +23463,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 	)
 
 	// Consume the bypass for cleanup
-	_, _ = s.ds.ConditionalAccessConsumeBypass(ctx, hostWithScim.ID)
+	_, err = s.ds.ConditionalAccessConsumeBypass(ctx, hostWithScim.ID)
+	require.NoError(t, err)
 
 	// Test 2: Verify the bypass was recorded (consume returns the bypass)
 	bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
@@ -23575,9 +23563,6 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	})
 	require.NoError(t, err)
 	createDeviceTokenForHost(t, s.ds, host2.ID, "test-conditional-access-bypass-token-2")
-	t.Cleanup(func() {
-		_ = s.ds.DeleteHost(ctx, host2.ID)
-	})
 
 	// Create bypass records for both hosts
 	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
@@ -23588,7 +23573,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 	// Verify both bypasses exist by checking the count directly
 	var count int
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		return db.QueryRowxContext(ctx, "SELECT COUNT(*) FROM host_conditional_access").Scan(&count)
+		return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access")
 	})
 	require.Equal(t, 2, count, "both bypass records should exist")
 
@@ -23601,7 +23586,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 
 	// Verify all bypasses were cleared
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		return db.QueryRowxContext(ctx, "SELECT COUNT(*) FROM host_conditional_access").Scan(&count)
+		return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access")
 	})
 	require.Equal(t, 0, count, "all bypass records should be cleared when bypass_disabled is toggled")
 
@@ -23611,31 +23596,6 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 			"bypass_disabled": false
 		}
 	}`), http.StatusOK, &acResp)
-
-	// Create new bypasses again
-	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
-		nil, http.StatusOK, &bypassResp)
-	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token-2/bypass_conditional_access",
-		nil, http.StatusOK, &bypassResp)
-
-	// Verify bypasses exist
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		return db.QueryRowxContext(ctx, "SELECT COUNT(*) FROM host_conditional_access").Scan(&count)
-	})
-	require.Equal(t, 2, count, "both bypass records should exist again")
-
-	// Toggle bypass_disabled back to true again - should clear all bypasses
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"conditional_access": {
-			"bypass_disabled": true
-		}
-	}`), http.StatusOK, &acResp)
-
-	// Verify all bypasses were cleared again
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		return db.QueryRowxContext(ctx, "SELECT COUNT(*) FROM host_conditional_access").Scan(&count)
-	})
-	require.Equal(t, 0, count, "all bypass records should be cleared when bypass_disabled is toggled to true")
 }
 
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.

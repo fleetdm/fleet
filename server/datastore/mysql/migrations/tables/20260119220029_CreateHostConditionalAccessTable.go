@@ -15,8 +15,8 @@ func Up_20260119220029(tx *sql.Tx) error {
 			id int unsigned NOT NULL AUTO_INCREMENT,
 			host_id int unsigned NOT NULL,
 			bypassed_at timestamp,
-			created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+			updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (id),
 			UNIQUE KEY idx_host_conditional_access_host_id (host_id)
 		)
