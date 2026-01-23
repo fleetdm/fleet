@@ -30,14 +30,11 @@ func TestFleetFlagsAcceptGzip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
 			flags := FleetFlags(tt.version, u)
-			found := false
-			for _, f := range flags {
-				if f == "--tls_accept_gzip=true" {
-					found = true
-					break
-				}
+			if tt.wantFlag {
+				assert.Contains(t, flags, "--tls_accept_gzip=true", "version %s missing flag", tt.version)
+			} else {
+				assert.NotContains(t, flags, "--tls_accept_gzip=true", "version %s unexpected flag", tt.version)
 			}
-			assert.Equal(t, tt.wantFlag, found, "version %s flag presence mismatch", tt.version)
 		})
 	}
 }
