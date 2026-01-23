@@ -687,6 +687,9 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 
 	// Delete IdP accounts for Windows/Linux hosts only. macOS hosts are excluded
 	// because they have different re-enrollment behavior.
+	// Additionally, for dual-boot scenarios where a machine has the same UUID across
+	// multiple OS installations, we only delete the IdP account if there's no other
+	// host with the same UUID (e.g., a macOS installation on the same hardware).
 	var windowsLinuxUUIDs []string
 	for _, info := range hostInfos {
 		if info.Platform == "windows" || fleet.IsLinux(info.Platform) {
@@ -694,12 +697,37 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 	}
 	if len(windowsLinuxUUIDs) > 0 {
-		stmt, args, err = sqlx.In(`DELETE FROM host_mdm_idp_accounts WHERE host_uuid IN (?)`, windowsLinuxUUIDs)
+		// Check if any of these UUIDs have other hosts (e.g., dual-boot macOS)
+		// that should retain the IdP account association.
+		var uuidsWithOtherHosts []string
+		stmt, args, err = sqlx.In(`SELECT DISTINCT uuid FROM hosts WHERE uuid IN (?)`, windowsLinuxUUIDs)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "building delete statement for host_mdm_idp_accounts")
+			return ctxerr.Wrapf(ctx, err, "building select statement for remaining hosts with same uuid")
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting host_mdm_idp_accounts for host uuids %v", windowsLinuxUUIDs)
+		if err := sqlx.SelectContext(ctx, tx, &uuidsWithOtherHosts, stmt, args...); err != nil {
+			return ctxerr.Wrapf(ctx, err, "selecting remaining hosts with same uuid")
+		}
+
+		// Filter out UUIDs that still have other hosts
+		uuidsToDelete := make([]string, 0, len(windowsLinuxUUIDs))
+		uuidsWithOtherHostsSet := make(map[string]struct{}, len(uuidsWithOtherHosts))
+		for _, uuid := range uuidsWithOtherHosts {
+			uuidsWithOtherHostsSet[uuid] = struct{}{}
+		}
+		for _, uuid := range windowsLinuxUUIDs {
+			if _, exists := uuidsWithOtherHostsSet[uuid]; !exists {
+				uuidsToDelete = append(uuidsToDelete, uuid)
+			}
+		}
+
+		if len(uuidsToDelete) > 0 {
+			stmt, args, err = sqlx.In(`DELETE FROM host_mdm_idp_accounts WHERE host_uuid IN (?)`, uuidsToDelete)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "building delete statement for host_mdm_idp_accounts")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting host_mdm_idp_accounts for host uuids %v", uuidsToDelete)
+			}
 		}
 	}
 
