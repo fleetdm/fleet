@@ -24,7 +24,7 @@ for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetd
 
 Run this script again to update fleetctl if you've installed it this way.
 
-> Be sure to match the version of the fleetctl with the version of your Fleet server.
+> Be sure to match the version of fleetctl with the version of your Fleet server.
 
 You can also manually download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases).
 
