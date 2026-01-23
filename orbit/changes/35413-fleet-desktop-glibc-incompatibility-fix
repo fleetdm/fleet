@@ -1,0 +1,1 @@
+- Added `musl-tools` to fleet-desktop build process to fix GLIBC incompatibility that caused orbit agent to fail when updating fleet-desktop on Ubuntu 20.04.
