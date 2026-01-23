@@ -46,6 +46,17 @@ const API_KEY_JSON_PLACEHOLDER = `{
   "universe_domain": "googleapis.com"
 }`;
 
+const MASKED_VALUE = "********";
+
+// Check if the API key JSON object contains obfuscated values
+const isObfuscatedApiKey = (apiKeyJson: Record<string, string>): boolean => {
+  if (!apiKeyJson || Object.keys(apiKeyJson).length === 0) {
+    return false;
+  }
+  // If all values are "********", the API key is obfuscated
+  return Object.values(apiKeyJson).every((value) => value === MASKED_VALUE);
+};
+
 interface ICalendarsFormErrors {
   domain?: string | null;
   apiKeyJson?: string | null;
@@ -88,15 +99,23 @@ const Calendars = (): JSX.Element => {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
       if (data.integrations.google_calendar) {
-        setFormData({
-          domain: data.integrations.google_calendar[0].domain,
-          // Formats string for better UI readability
-          apiKeyJson: JSON.stringify(
-            data.integrations.google_calendar[0].api_key_json,
-            null,
-            "\t"
-          ),
-        });
+        const apiKeyJsonObj = data.integrations.google_calendar[0].api_key_json;
+
+        // Check if the API key is obfuscated
+        if (isObfuscatedApiKey(apiKeyJsonObj)) {
+          // Show masked value in UI
+          setFormData({
+            domain: data.integrations.google_calendar[0].domain,
+            apiKeyJson: MASKED_VALUE,
+          });
+        } else {
+          // Show the actual API key JSON
+          setFormData({
+            domain: data.integrations.google_calendar[0].domain,
+            // Formats string for better UI readability
+            apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
+          });
+        }
       }
     },
   });
@@ -115,7 +134,8 @@ const Calendars = (): JSX.Element => {
     if (!curFormData.domain && !!curFormData.apiKeyJson) {
       errors.domain = "Domain must be completed";
     }
-    if (curFormData.apiKeyJson) {
+    // Skip JSON validation if the value is the masked placeholder
+    if (curFormData.apiKeyJson && curFormData.apiKeyJson !== MASKED_VALUE) {
       try {
         JSON.parse(curFormData.apiKeyJson);
       } catch (e: unknown) {
@@ -150,16 +170,30 @@ const Calendars = (): JSX.Element => {
 
     evt.preventDefault();
 
+    // Determine the API key to submit
+    let apiKeyToSubmit;
+    if (formData.apiKeyJson === MASKED_VALUE) {
+      // User didn't change the masked value, don't send it (backend will preserve existing)
+      apiKeyToSubmit = undefined;
+    } else if (formData.apiKeyJson && formData.apiKeyJson !== MASKED_VALUE) {
+      // User provided a new API key
+      apiKeyToSubmit = JSON.parse(formData.apiKeyJson);
+    } else {
+      // No API key
+      apiKeyToSubmit = null;
+    }
+
     // Format for API
     const formDataToSubmit =
-      formData.apiKeyJson === "" && formData.domain === ""
+      apiKeyToSubmit === null && formData.domain === ""
         ? [] // Send empty array if no keys are set
         : [
             {
               domain: formData.domain,
-              api_key_json:
-                (formData.apiKeyJson && JSON.parse(formData.apiKeyJson)) ||
-                null,
+              // Only include api_key_json if it's not undefined (masked value not changed)
+              ...(apiKeyToSubmit !== undefined && {
+                api_key_json: apiKeyToSubmit,
+              }),
             },
           ];
 
@@ -282,6 +316,11 @@ const Calendars = (): JSX.Element => {
                       inputClassName={`${baseClass}__api-key-json`}
                       error={formErrors.apiKeyJson}
                       disabled={gomEnabled}
+                      helpText={
+                        apiKeyJson === MASKED_VALUE
+                          ? "API key is configured. Replace with a new key to update."
+                          : undefined
+                      }
                     />
                     <InputField
                       label="Primary domain"
