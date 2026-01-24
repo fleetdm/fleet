@@ -10,7 +10,7 @@ Proposed
 
 ## Context
 
-Fleet currently uses [go-kit/log](https://github.com/go-kit/log) for structured logging throughout the codebase. While go-kit/log has served us well, it has a fundamental limitation: **it lacks native context support**. The `Logger.Log(keyvals...)` interface doesn't accept a `context.Context` parameter.
+Fleet currently uses [go-kit/log](https://github.com/go-kit/log) for structured logging throughout the codebase. While go-kit/log has served us well, it has a fundamental limitation: **it lacks native context support.** The `Logger.Log(keyvals...)` interface doesn't accept a `context.Context` parameter.
 
 This limitation became apparent when implementing [ADR-0005: Standardize on OpenTelemetry for observability](0005-opentelemetry-standardization.md). To correlate logs with distributed traces, we need to inject `trace_id` and `span_id` from the OpenTelemetry span context into log entries. With go-kit/log, this requires fragile workarounds like pointer-based context tracking or manually recreating loggers when spans change.
 
@@ -136,6 +136,19 @@ With OpenTelemetry configured, logs automatically include `trace_id` and `span_i
 - **Third-party dependencies**: Some forked packages (nanodep, nanomdm) use go-kit patterns and may need updates
 - **Temporary complexity**: During transition, codebase will have both logging styles
 - **Breaking changes**: Logger interface changes may affect any code that accepts logger parameters
+- **Log format changes**: See below
+
+### Log output format changes
+
+slog's JSONHandler defaults differ from Fleet's current log format. To minimize disruption for customers parsing Fleet logs, we will configure slog via [`ReplaceAttr`](https://pkg.go.dev/log/slog#HandlerOptions) to maintain the current format:
+
+| Field            | Current format  | slog default    | Our configuration           |
+|------------------|-----------------|-----------------|-----------------------------|
+| Timestamp key    | `ts`            | `time`          | `ts` (preserved)            |
+| Timestamp format | RFC3339         | RFC3339Nano     | RFC3339 (preserved)         |
+| Level case       | `info`, `debug` | `INFO`, `DEBUG` | `info`, `debug` (preserved) |
+
+This ensures backward compatibility; any existing log parsing tools will continue to work without modification.
 
 ### Future considerations
 
