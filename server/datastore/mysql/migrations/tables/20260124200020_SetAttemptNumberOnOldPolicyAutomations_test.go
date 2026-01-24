@@ -36,9 +36,9 @@ func TestUp_20260124200020(t *testing.T) {
 	installerID := execNoErrLastID(t, db, `
 		INSERT INTO software_installers (
 			team_id, global_or_team_id, title_id, storage_id, filename,
-			extension, version, install_script_content_id, platform, package_ids
-		) VALUES (?, ?, ?, "storage", "test.pkg", "pkg", "1.0", ?, "darwin", "")
-	`, teamID, teamID, titleID, scriptContentID)
+			extension, version, install_script_content_id, uninstall_script_content_id, platform, package_ids
+		) VALUES (?, ?, ?, "storage", "test.pkg", "pkg", "1.0", ?, ?, "darwin", "")
+	`, teamID, teamID, titleID, scriptContentID, scriptContentID)
 
 	// Insert host_script_results with NULL attempt_number and exit_code set
 	scriptResultID1 := execNoErrLastID(t, db, `
@@ -51,7 +51,7 @@ func TestUp_20260124200020(t *testing.T) {
 	scriptResultID2 := execNoErrLastID(t, db, `
 		INSERT INTO host_script_results (
 			host_id, execution_id, script_content_id, output, exit_code, script_id, policy_id, attempt_number
-		) VALUES (1, "exec-2", ?, NULL, NULL, ?, ?, NULL)
+		) VALUES (1, "exec-2", ?, "", NULL, ?, ?, NULL)
 	`, scriptContentID, scriptID, policyID)
 
 	// Insert host_software_installs with NULL attempt_number and install_script_exit_code set
