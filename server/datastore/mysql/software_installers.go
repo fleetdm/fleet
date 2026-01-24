@@ -723,10 +723,29 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			}
 		}
 
+		// When an installer is modified reset attempt numbers for policy automations
+		if err := ds.resetInstallerPolicyAutomationAttempts(ctx, tx, payload.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting policy automation attempts for installer")
+		}
+
 		return nil
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installer")
+	}
+
+	return nil
+}
+
+// resetScriptPolicyAutomationAttempts resets all attempt numbers for software installer executions for policy automations
+func (ds *Datastore) resetInstallerPolicyAutomationAttempts(ctx context.Context, db sqlx.ExecerContext, installerID uint) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE host_software_installs
+		SET attempt_number = 0
+		WHERE software_installer_id = ? AND policy_id IS NOT NULL AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, installerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset policy automation installer attempts")
 	}
 
 	return nil
