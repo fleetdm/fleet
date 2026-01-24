@@ -18,6 +18,7 @@ import com.example.hello2.core.parseSelectSql
 import com.example.hello2.ui.theme.Hello2Theme
 import com.example.hello2.tables.DemoABTable
 import com.example.hello2.tables.PhoneTimeTable
+import com.example.hello2.tables.InstalledAppsTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -38,6 +39,7 @@ class MainActivity : ComponentActivity() {
         // Register tables
         TableRegistry.register(DemoABTable)
         TableRegistry.register(PhoneTimeTable)
+        TableRegistry.register(InstalledAppsTable(applicationContext))
 
         enableEdgeToEdge()
 
