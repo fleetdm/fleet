@@ -235,7 +235,7 @@ the account verification message.)`,
         psychologicalStageChangeReason = this.req.session.adAttributionString;
       }
     }
-    let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;// Will be undefined if this is not set.
+    let attributionDetailsOrUndefined = this.req.session.marketingAttribution;// Will be undefined if this is not set.
 
     sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       emailAddress: newEmailAddress,
@@ -244,7 +244,7 @@ the account verification message.)`,
       // organization: emailDomain,// Note: organization is not provided because we're relying on the enrichment helper to find the correct account for this person.
       contactSource: 'Website - Sign up',
       psychologicalStageChangeReason,
-      marketingAttributionCookie: attributionCookieOrUndefined
+      marketingAttributionInformation: attributionDetailsOrUndefined
     }).exec((err)=>{
       if(err){
         sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
