@@ -211,26 +211,19 @@ will be disabled and/or hidden in the UI.
 
             // If a user does not have a marketingAttribution dictionary set in their session , check for UTM parameters
             if(!req.session.marketingAttribution) {
-
               if(req.cookies.marketingAttribution){
-                sails.log('retrieving existing information from cookie before clearing it.');
                 // If a user previously had a marketingAttribution cookie set, we'll set it in the users session, and create a new expiresAt timestamp
                 marketingAttributionInformation = req.cookies.marketingAttribution;
                 marketingAttributionInformation.expiresAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
                 // Clear the cookie that is no longer in use (if it is set).
                 res.clearCookie('marketingAttribution');
               }
-              sails.log('setting new marketing attribution!');
               req.session.marketingAttribution = marketingAttributionInformation;
-              sails.log(req.session.marketingAttribution);
             } else {
-              sails.log('req.session.marketingAttribution exists.');
               // If the user has marketingAttribution details set in their session, we'll check the timestamp to see if the attribution details have expired.
               if(req.session.marketingAttribution.expiresAt < Date.now()) {
-                sails.log('Marketing attribution is no longer valid :)');
                 req.session.marketingAttribution = marketingAttributionInformation;
               }
-              sails.log(req.session.marketingAttribution);
             }
 
             // Check for website personalization parameter, and if valid, absorb it in the session.
