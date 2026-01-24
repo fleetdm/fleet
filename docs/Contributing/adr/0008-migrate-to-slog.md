@@ -20,7 +20,7 @@ The standard solution is context-aware logging, which Go 1.21 introduced with th
 
 slog has seen rapid adoption since its introduction in Go 1.21:
 
-- **[Teleport](https://github.com/gravitational/teleport/issues/28109)**: Migrating from logrus to slog, citing that "as part of the standard library, slog is likely to enjoy long-term support" and that logrus is "no longer actively developed"
+- **[Teleport](https://github.com/gravitational/teleport/pull/34173/changes)**: Migrating from logrus to slog, citing that "as part of the standard library, slog is likely to enjoy long-term support" and that logrus is "no longer actively developed"
 
 - **[Kubernetes klog](https://github.com/kubernetes/klog)**: Added slog interoperability in v2.110.1, allowing applications to route log output between klog and slog handlers. Their [Contextual Logging KEP](https://github.com/kubernetes/enhancements/blob/master/keps/sig-instrumentation/3077-contextual-logging/README.md#integration-with-logslog) explicitly references slog integration
 
