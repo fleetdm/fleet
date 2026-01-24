@@ -66,7 +66,7 @@ module.exports = {
       ],
     },
 
-    marketingAttributionCookie: {
+    marketingAttributionInformation: {
       type: {},
       description: 'The contents of the marketingAttribution cookie set in the requesting user\'s browser',
     }
@@ -89,7 +89,7 @@ module.exports = {
 
   },
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal, marketingAttributionCookie}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal, marketingAttributionInformation}) {
 
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
@@ -155,14 +155,11 @@ module.exports = {
     //  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔╦╗╔═╗╦═╗╦╔═╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╔╦╗╔╦╗╦═╗╦╔╗ ╦ ╦╔╦╗╦╔═╗╔╗╔
     //  ╠═╝╠╦╝║ ║║  ║╣ ║╣ ╚═╗╚═╗  ║║║╠═╣╠╦╝╠╩╗║╣  ║ ║║║║║ ╦  ╠═╣ ║  ║ ╠╦╝║╠╩╗║ ║ ║ ║║ ║║║║
     //  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝╚═╝  ╩ ╩╩ ╩╩╚═╩ ╩╚═╝ ╩ ╩╝╚╝╚═╝  ╩ ╩ ╩  ╩ ╩╚═╩╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
-    //  ╔═╗╔═╗╔═╗╦╔═╦╔═╗
-    //  ║  ║ ║║ ║╠╩╗║║╣
-    //  ╚═╝╚═╝╚═╝╩ ╩╩╚═╝
     let attributionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
-    if(marketingAttributionCookie) {
+    if(marketingAttributionInformation) {
       attributionDetails = {};
       // Determine if this user is "Digital" or "Organic"
-      let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
+      let lowerCaseMediumValue = marketingAttributionInformation.medium ? marketingAttributionInformation.medium.toLowerCase() : '';
       let sourceFriendlyNameByCodeName = {
         // "Organic" sources:
         // os: 'Organic search',
@@ -179,17 +176,17 @@ module.exports = {
 
       attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
 
-      attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
+      attributionDetails.initialUrl = marketingAttributionInformation.initialUrl;
 
       if(['ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
-        attributionDetails.campaign = marketingAttributionCookie.campaign;
+        attributionDetails.campaign = marketingAttributionInformation.campaign;
         attributionDetails.sourceChannel = 'Digital';
       } else {
         // If no medium was provided via utm parameter, set the source channel to "Organic".
         attributionDetails.sourceChannel = 'Organic';
 
-        if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
+        if(!marketingAttributionInformation.referrer || marketingAttributionInformation.referrer === 'https://fleetdm.com/') {
           // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
           attributionDetails.sourceChannelDetails = 'Direct traffic (DT)';
           attributionDetails.campaign = 'Default-DT-Direct';
@@ -220,11 +217,11 @@ module.exports = {
             'https://www.quora.com/',
           ];
 
-          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.includes(marketingAttributionCookie.referrer)) {
+          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.includes(marketingAttributionInformation.referrer)) {
             // If search engine » Organic search
             attributionDetails.sourceChannelDetails = 'Organic search (OS)';
             attributionDetails.campaign = 'Default-OS-Organic';
-          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.includes(marketingAttributionCookie.referrer)) {
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.includes(marketingAttributionInformation.referrer)) {
             // If social media » Organic social
             attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
             attributionDetails.campaign = 'Default-SOC-Social';
