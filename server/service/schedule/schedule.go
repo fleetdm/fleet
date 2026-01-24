@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -31,6 +32,7 @@ type ReloadInterval func(ctx context.Context) (time.Duration, error)
 // continues with the next.
 type Schedule struct {
 	ctx        context.Context
+	traceCtx   context.Context // updated with span context for trace-aware logging
 	name       string
 	instanceID string
 	logger     log.Logger
@@ -166,6 +168,7 @@ func New(
 ) *Schedule {
 	sch := &Schedule{
 		ctx:                  ctx,
+		traceCtx:             ctx,
 		name:                 name,
 		instanceID:           instanceID,
 		logger:               log.NewNopLogger(),
@@ -183,6 +186,8 @@ func New(
 		sch.logger = log.NewNopLogger()
 	}
 	sch.logger = log.With(sch.logger, "instanceID", instanceID)
+	// Wrap with TraceLogger so logs automatically include trace_id/span_id when spans are active
+	sch.logger = logging.NewTraceLogger(&sch.traceCtx, sch.logger)
 	sch.errors = make(fleet.CronScheduleErrors)
 	return sch
 }
@@ -241,6 +246,7 @@ func (s *Schedule) Start() {
 					attribute.String("cron.instance", s.instanceID),
 					attribute.String("cron.type", "triggered"),
 				)
+				s.traceCtx = ctx // update for trace-aware logging
 
 				level.Debug(s.logger).Log("msg", "done, trigger received")
 
@@ -288,6 +294,7 @@ func (s *Schedule) Start() {
 					attribute.String("cron.instance", s.instanceID),
 					attribute.String("cron.type", "scheduled_tick"),
 				)
+				s.traceCtx = ctx // update for trace-aware logging
 
 				level.Debug(s.logger).Log("msg", "done, tick received")
 
