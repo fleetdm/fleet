@@ -171,6 +171,10 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	}
 	keyvals = append(keyvals, "method", requestMethod, "uri", requestURI, "took", time.Since(l.StartTime))
 
+	if tc := getOTELTraceContext(ctx); tc != nil {
+		keyvals = append(keyvals, "trace_id", tc.TraceID, "span_id", tc.SpanID)
+	}
+
 	if len(l.Extras) > 0 {
 		keyvals = append(keyvals, l.Extras...)
 	}
