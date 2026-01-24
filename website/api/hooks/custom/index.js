@@ -185,6 +185,10 @@ will be disabled and/or hidden in the UI.
               res.setHeader(`Permissions-Policy`, `camera=(), microphone=(), usb=()`);// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Permissions-Policy
             }//ﬁ
 
+            // FUTURE: Remove this code used for testing
+            if(req.param('clearAttribution')){
+              req.session.marketingAttribution = undefined;
+            }
             // Check for query parameters set by ad clicks.
             // This is used to track the reason behind a psychological stage change.
             // If the user performs any action that causes a stage change
@@ -196,24 +200,39 @@ will be disabled and/or hidden in the UI.
               req.session.visitedSiteFromAdAt = Date.now();
             }
 
+            let marketingAttributionInformation = {
+              source: req.param('utm_source'),// will be undefined if this is not set
+              medium: req.param('utm_medium'),// will be undefined if this is not set
+              campaign: req.param('utm_campaign'),// will be undefined if this is not set
+              referrer: req.get('referer'),
+              initialUrl: req.url,
+              expiresAt: Date.now() + (1000 * 60 * 60 * 24 * 30)// 30 days from now.
+            };
 
-            // If a user does not have a marketingAttriution cookie set, check for UTM parameters
-            if(!req.cookies.marketingAttribution) {
-              let marketingAttributionCookieInformation = {
-                source: req.param('utm_source'),// will be undefined if this is not set
-                medium: req.param('utm_medium'),// will be undefined if this is not set
-                campaign: req.param('utm_campaign'),// will be undefined if this is not set
-                referrer: req.get('referer'),
-                initialUrl: req.url,
-              };
-              // Add the information to a new cookie for this user that expires 30 days from when it is set.
-              res.cookie('marketingAttribution', marketingAttributionCookieInformation, {maxAge: (1000 * 60 * 60 * 24 * 30)});
+            // If a user does not have a marketingAttribution dictionary set in their session , check for UTM parameters
+            if(!req.session.marketingAttribution) {
+
+              if(req.cookies.marketingAttribution){
+                sails.log('retrieving existing information from cookie before clearing it.');
+                // If a user previously had a marketingAttribution cookie set, we'll set it in the users session, and create a new expiresAt timestamp
+                marketingAttributionInformation = req.cookies.marketingAttribution;
+                marketingAttributionInformation.expiresAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
+                // Clear the cookie that is no longer in use (if it is set).
+                res.clearCookie('marketingAttribution');
+              }
+              sails.log('setting new marketing attribution!');
+              req.session.marketingAttribution = marketingAttributionInformation;
+              sails.log(req.session.marketingAttribution);
+            } else {
+              sails.log('req.session.marketingAttribution exists.');
+              // If the user has marketingAttribution details set in their session, we'll check the timestamp to see if the attribution details have expired.
+              if(req.session.marketingAttribution.expiresAt < Date.now()) {
+                sails.log('Marketing attribution is no longer valid :)');
+                req.session.marketingAttribution = marketingAttributionInformation;
+              }
+              sails.log(req.session.marketingAttribution);
             }
 
-            // FUTURE: Remove this code used for testing
-            if(req.param('clearAttributionCookie')){
-              res.clearCookie('marketingAttribution');
-            }
             // Check for website personalization parameter, and if valid, absorb it in the session.
             // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters
@@ -365,7 +384,7 @@ will be disabled and/or hidden in the UI.
                       lastName: sanitizedUser.lastName,
                       organization: sanitizedUser.organization,
                       contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
-                      marketingAttributionCookie: attributionCookieOrUndefined,
+                      marketingAttributionInformation: attributionDetailsOrUndefined,
                     });
                     let websiteVisitReason;
                     if(req.session.adAttributionString && req.session.visitedSiteFromAdAt) {
