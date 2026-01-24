@@ -448,6 +448,7 @@ func testGetCertificateTemplatesByIdsAndTeam(t *testing.T, ds *Datastore) {
 				lastID, err = res.LastInsertId()
 				require.NoError(t, err)
 				erroneousId = uint(lastID) //nolint:gosec
+				IDs = append(IDs, erroneousId)
 			},
 			func(t *testing.T, ds *Datastore) {
 				templates, err := ds.GetCertificateTemplatesByIdsAndTeam(ctx, IDs, teamID)

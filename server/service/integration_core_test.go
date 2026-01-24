@@ -8319,6 +8319,8 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	// Switch to observer user
 	s.token = s.getCachedUserToken(observerEmail, observerPwd)
+	// just in case test fails, restore to admin
+	defer func() { s.token = s.getTestAdminToken() }()
 
 	// Delete with observer
 	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
