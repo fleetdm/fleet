@@ -182,6 +182,11 @@ func (e PermissionError) PermissionError() []map[string]string {
 	return forbidden
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e PermissionError) IsClientError() bool {
+	return true
+}
+
 // OTAForbiddenError is a special kind of forbidden error that intentionally
 // exposes information about the error so it can be shown in iPad/iPhone native
 // dialogs during OTA enrollment.
@@ -212,6 +217,11 @@ func (e OTAForbiddenError) Internal() string {
 	return e.InternalErr.Error()
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e OTAForbiddenError) IsClientError() bool {
+	return true
+}
+
 // licenseError is returned when the application is not properly licensed.
 type licenseError struct {
 	ErrorWithUUID
@@ -223,6 +233,11 @@ func (e licenseError) Error() string {
 
 func (e licenseError) StatusCode() int {
 	return http.StatusPaymentRequired
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e licenseError) IsClientError() bool {
+	return true
 }
 
 // MDMNotConfiguredError is used when an MDM endpoint or resource is accessed
@@ -239,6 +254,11 @@ func (e *MDMNotConfiguredError) Error() string {
 	return MDMNotConfiguredMessage
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e *MDMNotConfiguredError) IsClientError() bool {
+	return true
+}
+
 // WindowsMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
 // without having Windows MDM correctly configured.
 type WindowsMDMNotConfiguredError struct{}
@@ -253,6 +273,11 @@ func (e *WindowsMDMNotConfiguredError) Error() string {
 	return WindowsMDMNotConfiguredMessage
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e *WindowsMDMNotConfiguredError) IsClientError() bool {
+	return true
+}
+
 // AndroidMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
 // without having Android MDM correctly configured.
 type AndroidMDMNotConfiguredError struct{}
@@ -265,6 +290,11 @@ func (e *AndroidMDMNotConfiguredError) StatusCode() int {
 
 func (e *AndroidMDMNotConfiguredError) Error() string {
 	return AndroidMDMNotConfiguredMessage
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *AndroidMDMNotConfiguredError) IsClientError() bool {
+	return true
 }
 
 // NotConfiguredError is a generic "not configured" error that can be used

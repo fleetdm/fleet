@@ -51,6 +51,57 @@ func TestUserMessageErrors(t *testing.T) {
 	}
 }
 
+func TestIsClientError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      ErrWithIsClientError
+		expected bool
+	}{
+		{
+			name:     "InvalidArgumentError",
+			err:      &InvalidArgumentError{},
+			expected: true,
+		},
+		{
+			name:     "PermissionError",
+			err:      PermissionError{},
+			expected: true,
+		},
+		{
+			name:     "OTAForbiddenError",
+			err:      OTAForbiddenError{},
+			expected: true,
+		},
+		{
+			name:     "licenseError",
+			err:      &licenseError{},
+			expected: true,
+		},
+		{
+			name:     "MDMNotConfiguredError",
+			err:      &MDMNotConfiguredError{},
+			expected: true,
+		},
+		{
+			name:     "WindowsMDMNotConfiguredError",
+			err:      &WindowsMDMNotConfiguredError{},
+			expected: true,
+		},
+		{
+			name:     "AndroidMDMNotConfiguredError",
+			err:      &AndroidMDMNotConfiguredError{},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.err.IsClientError()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestFleetdErrors(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
 	require.NoError(t, err)

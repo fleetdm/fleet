@@ -387,3 +387,49 @@ func TestLogFields(t *testing.T) {
 		require.ElementsMatch(t, c.want, got)
 	}
 }
+
+func TestIsClientError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "generic error",
+			err:      errors.New("generic error"),
+			expected: false,
+		},
+		{
+			name:     "context.Canceled",
+			err:      context.Canceled,
+			expected: true,
+		},
+		{
+			name:     "context.DeadlineExceeded",
+			err:      context.DeadlineExceeded,
+			expected: true,
+		},
+		{
+			name:     "wrapped context.Canceled",
+			err:      fmt.Errorf("wrapped: %w", context.Canceled),
+			expected: true,
+		},
+		{
+			name:     "InvalidArgumentError (implements IsClientError)",
+			err:      &fleet.InvalidArgumentError{},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isClientError(tt.err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
