@@ -34,7 +34,6 @@ The Go team noted that "structured logging has consistently ranked high in Go's 
 
 - ~320 files import `github.com/go-kit/log`
 - Logging is used in services, cron jobs, workers, MDM components, and HTTP middleware
-- Some third-party dependencies (nanodep, nanomdm) also use go-kit/log patterns
 
 ## Decision
 
@@ -45,7 +44,7 @@ We will:
 1. **Adopt slog** as the standard logging interface for all new code
 2. **Use otelslog bridge** for automatic OpenTelemetry trace correlation
 3. **Migrate incrementally** using an adapter layer during transition
-4. **Update existing code** package-by-package over multiple releases
+4. **Update existing code** package-by-package over multiple PRs
 5. **Deprecate go-kit/log usage** once migration is complete
 
 ### Implementation plan
@@ -63,11 +62,11 @@ We will:
 
 3. Update application initialization in `cmd/fleet/serve.go` to configure slog as default logger
 
-4. Add linting rule to enforce context-aware logging methods (`slog.InfoContext`, etc.) and flag non-context methods (`slog.Info`, etc.) to ensure trace correlation is not bypassed
+4. Add linting rule to enforce context-aware logging methods (`slog.InfoContext`, etc.) and flag non-context methods (`slog.Info`, etc.) to ensure trace correlation is not bypassed. One option is [forbidigo](https://golangci-lint.run/docs/linters/configuration/#forbidigo)
 
 #### Phase 2: Incremental migration
 
-Migrate packages in order of dependency (leaf packages first):
+Migrate packages:
 
 1. **server/contexts/logging** - Update LoggingContext to use slog
 2. **server/service/schedule** - Cron job scheduling
@@ -121,22 +120,48 @@ With OpenTelemetry configured, logs automatically include `trace_id` and `span_i
 
 - **Native context support**: `slog.InfoContext(ctx, ...)` passes context to every log call, enabling automatic trace correlation without workarounds
 - **Standard library with zero dependencies**: No external packages required, always compatible with Go versions, stable API guaranteed by Go's compatibility promise
-- **OpenTelemetry integration**: Official `otelslog` bridge provides automatic trace_id/span_id injection
+- **OpenTelemetry integration**: Native support for distributed tracing correlation (see detailed subsection below)
 - **Built-in testing support**: The [`testing/slogtest`](https://pkg.go.dev/testing/slogtest) package provides utilities for verifying handler implementations; log messages can serve as test assertions for code paths and variable values
 - **Leveled logging built-in**: Debug, Info, Warn, Error levels are first-class citizens, unlike go-kit/log which requires the separate `level` package
 - **JSON output built-in**: `slog.JSONHandler` provides production-ready JSON logging without additional configuration; go-kit/log requires custom encoders
-- **Handler extensibility**: Easy to swap or chain handlers for different output formats, filtering, or destinations (e.g., [slog-multi](https://github.com/samber/slog-multi) for fan-out)
-- **Attribute type safety**: `slog.Attr` provides typed attributes, reducing runtime errors from mismatched key-value pairs
+- **Handler extensibility**: Easy to swap or chain handlers for different output formats, filtering, or destinations (e.g., could add a handler to forward server logs to a third-party logging service without changing application code)
+- **Attribute type safety**: [`slog.Attr`](https://pkg.go.dev/log/slog#hdr-Attrs_and_Values) provides typed attributes, reducing runtime errors from mismatched key-value pairs
 - **Reduced onboarding friction**: New team members familiar with Go's standard library can contribute immediately without learning go-kit patterns
 
 ### Negative
 
 - **Migration effort**: ~320 files need updates; this is a significant undertaking
 - **Learning curve**: Team members need to learn slog patterns
-- **Third-party dependencies**: Some forked packages (nanodep, nanomdm) use go-kit patterns and may need updates
 - **Temporary complexity**: During transition, codebase will have both logging styles
 - **Breaking changes**: Logger interface changes may affect any code that accepts logger parameters
 - **Log format changes**: See below
+
+### OpenTelemetry integration
+
+slog's context-aware design enables seamless integration with OpenTelemetry distributed tracing:
+
+#### Automatic trace correlation
+
+The official [otelslog bridge](https://pkg.go.dev/go.opentelemetry.io/contrib/bridges/otelslog) automatically injects `trace_id` and `span_id` into every log entry when a span is active in the context:
+
+```go
+// When configured with otelslog handler, this automatically includes trace context
+logger.InfoContext(ctx, "processing request", "user_id", userID)
+// Output: {"ts":"...","level":"info","msg":"processing request","user_id":"123","trace_id":"abc...","span_id":"def..."}
+```
+
+This eliminates the need for manual trace ID extraction that go-kit/log would require.
+
+#### Automatic span error status
+
+slog handlers can be configured to automatically mark the current span's status as error when logging at error level:
+
+```go
+// This both logs the error AND marks the span status as error
+logger.ErrorContext(ctx, "operation failed", "err", err)
+```
+
+This ensures traces accurately reflect failures without requiring separate `span.SetStatus(codes.Error, ...)` calls, reducing boilerplate and preventing missed error annotations.
 
 ### Log output format changes
 
