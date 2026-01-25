@@ -7,7 +7,7 @@ volumes:
 
 services:
   mysql:
-    image: mysql
+    image: mysql:8
     platform: linux/x86_64
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
@@ -19,7 +19,11 @@ services:
     cap_add:
       - SYS_NICE
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -28,7 +32,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis
+    image: redis:6
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis:/data
@@ -74,7 +78,7 @@ services:
       - FLEET_SERVER_CERT=${FLEET_SERVER_CERT}
       - FLEET_SERVER_KEY=${FLEET_SERVER_KEY}
       # Secrets
-      - FLEET_SERVER_PRIVATE_KEY=${FLEET_SERVER_PRIVATE_KEY}     # Run 'openssl rand -base64 32' to generate
+      - FLEET_SERVER_PRIVATE_KEY=${FLEET_SERVER_PRIVATE_KEY} # Run 'openssl rand -base64 32' to generate
       - FLEET_LICENSE_KEY=${FLEET_LICENSE_KEY}
       # System tuning & other options
       - FLEET_SESSION_DURATION=${FLEET_SESSION_DURATION}
@@ -91,7 +95,7 @@ services:
       - FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID=${FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID}
       - FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY=${FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY}
       - FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE=${FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE}
-      # Override FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL when using a different S3 compatible 
+      # Override FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL when using a different S3 compatible
       # object storage backend (such as RustFS) or running S3 locally with localstack.
       # Leave this blank to use the default S3 service endpoint.
       - FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL=${FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL}
@@ -99,7 +103,7 @@ services:
       # to short-circuit region discovery
       - FLEET_S3_SOFTWARE_INSTALLERS_REGION=${FLEET_S3_SOFTWARE_INSTALLERS_REGION}
     ports:
-      - "${FLEET_SERVER_PORT}:${FLEET_SERVER_PORT}"   # UI/API
+      - "${FLEET_SERVER_PORT}:${FLEET_SERVER_PORT}" # UI/API
     volumes:
       - data:/fleet
       - logs:/logs
@@ -107,7 +111,8 @@ services:
       - ./certs/fleet.crt:/fleet/fleet.crt:ro
       - ./certs/fleet.key:/fleet/fleet.key:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:${FLEET_SERVER_PORT}/healthz"]
+      test:
+        ["CMD", "wget", "-qO-", "http://127.0.0.1:${FLEET_SERVER_PORT}/healthz"]
       interval: 10s
       timeout: 5s
       retries: 12
