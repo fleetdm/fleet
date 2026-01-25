@@ -40,6 +40,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"CertificateTemplateReinstalledAfterTransferBackToOriginalTeam", testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam},
 		{"GetAndroidCertificateTemplatesForRenewal", testGetAndroidCertificateTemplatesForRenewal},
 		{"SetAndroidCertificateTemplatesForRenewal", testSetAndroidCertificateTemplatesForRenewal},
+		{"GetOrCreateFleetChallengeForCertificateTemplate", testGetOrCreateFleetChallengeForCertificateTemplate},
 	}
 
 	for _, c := range cases {
@@ -865,15 +866,30 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivering, *r.Status)
 	}
 
-	// Step 4: Transition to delivered with challenges
-	challenges := map[uint]string{
-		setup.template.ID: "challenge-abc",
-		templateTwo.ID:    "challenge-xyz",
-	}
-	err = ds.TransitionCertificateTemplatesToDelivered(ctx, "android-host", challenges)
+	// Step 4: Transition to delivered (challenges are created on-demand)
+	err = ds.TransitionCertificateTemplatesToDelivered(ctx, "android-host", []uint{setup.template.ID, templateTwo.ID})
 	require.NoError(t, err)
 
-	// Verify final state
+	// Verify delivered state (no challenges yet)
+	records, err = ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
+	require.NoError(t, err)
+	require.Len(t, records, 2)
+	for _, r := range records {
+		require.NotNil(t, r.Status)
+		require.EqualValues(t, fleet.CertificateTemplateDelivered, *r.Status)
+		require.Nil(t, r.FleetChallenge) // Challenge not created yet
+	}
+
+	// Step 5: Create challenges on-demand (simulating device fetch)
+	challenge1, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, "android-host", setup.template.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, challenge1)
+
+	challenge2, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, "android-host", templateTwo.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, challenge2)
+
+	// Verify challenges are now set
 	records, err = ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
 	require.NoError(t, err)
 	require.Len(t, records, 2)
@@ -882,9 +898,9 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, *r.Status)
 		require.NotNil(t, r.FleetChallenge)
 		if r.CertificateTemplateID == setup.template.ID {
-			require.Equal(t, "challenge-abc", *r.FleetChallenge)
+			require.Equal(t, challenge1, *r.FleetChallenge)
 		} else {
-			require.Equal(t, "challenge-xyz", *r.FleetChallenge)
+			require.Equal(t, challenge2, *r.FleetChallenge)
 		}
 	}
 
@@ -1703,4 +1719,102 @@ func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 	// Test empty slice doesn't error
 	err = ds.SetAndroidCertificateTemplatesForRenewal(ctx, []fleet.HostCertificateTemplateForRenewal{})
 	require.NoError(t, err)
+}
+
+func testGetOrCreateFleetChallengeForCertificateTemplate(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test setup
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team challenge"})
+	require.NoError(t, err)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Name: ptr.String("test ca challenge"),
+		Type: string(fleet.CAConfigCustomSCEPProxy),
+		URL:  ptr.String("http://localhost:8080/scep"),
+	})
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+	host := test.NewHost(t, ds, "host-challenge", "192.168.1.1", "host_key_challenge", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+
+	t.Run("returns error for non-existent template", func(t *testing.T) {
+		_, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, 99999)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("returns error for non-delivered status", func(t *testing.T) {
+		// Create a separate template for this test
+		pendingTemplate, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			TeamID:                 team.ID,
+			Name:                   "test template pending",
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=test-pending",
+		})
+		require.NoError(t, err)
+
+		// Insert a pending certificate template
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_certificate_templates
+				(host_uuid, certificate_template_id, status, operation_type, name, uuid)
+			VALUES (?, ?, ?, ?, 'test', UUID_TO_BIN(UUID(), true))`,
+			host.UUID, pendingTemplate.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
+		require.NoError(t, err)
+
+		_, err = ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, pendingTemplate.ID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("creates challenge on first call and returns same on subsequent calls", func(t *testing.T) {
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			TeamID:                 team.ID,
+			Name:                   "test template challenge",
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=test",
+		})
+		require.NoError(t, err)
+
+		// Insert a delivered certificate template WITHOUT a challenge
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_certificate_templates
+				(host_uuid, certificate_template_id, status, operation_type, name, uuid, fleet_challenge)
+			VALUES (?, ?, ?, ?, 'test', UUID_TO_BIN(UUID(), true), NULL)`,
+			host.UUID, template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall)
+		require.NoError(t, err)
+
+		// First call should create a challenge
+		challenge, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, template.ID)
+		require.NoError(t, err)
+		require.NotEmpty(t, challenge)
+		require.Len(t, challenge, 32) // Base64 encoded 24 bytes
+
+		// Verify challenge was stored in host_certificate_templates
+		var storedChallenge string
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &storedChallenge,
+			`SELECT fleet_challenge FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			host.UUID, template.ID)
+		require.NoError(t, err)
+		require.Equal(t, challenge, storedChallenge)
+
+		// Verify challenge was also inserted into challenges table
+		var createdAt time.Time
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &createdAt,
+			`SELECT created_at FROM challenges WHERE challenge = ?`, challenge)
+		require.NoError(t, err)
+		require.WithinDuration(t, time.Now(), createdAt, 5*time.Second)
+
+		// Subsequent call should return the same challenge
+		challenge2, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, template.ID)
+		require.NoError(t, err)
+		require.Equal(t, challenge, challenge2)
+
+		// Verify only one challenge exists in challenges table
+		var count int
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM challenges WHERE challenge = ?`, challenge)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+	})
 }
