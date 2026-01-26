@@ -710,5 +710,20 @@
     "filter": {
       "target_sw": ["intellij"]
     }
+  },
+  {
+    "software": {
+      "name": ["/(?i)^pgadmin ?4/"],
+      "source": [
+        "programs",
+        "deb_packages",
+        "rpm_packages",
+        "homebrew_packages"
+      ]
+    },
+    "filter": {
+      "product": ["pgadmin_4"],
+      "vendor": ["pgadmin"]
+    }
   }
 ]

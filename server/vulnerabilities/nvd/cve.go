@@ -598,6 +598,24 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
+	// pgAdmin CVEs in NVD use target_sw=postgresql and product=pgadmin_4, but Fleet generates
+	// CPEs with platform-based target_sw (macos, windows, linux) and may use different product
+	// names (pgadmin, pgadmin4). Add aliases with target_sw=postgresql and product name
+	// variations to match NVD's criteria.
+	// See https://github.com/fleetdm/fleet/issues/37957.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "pgadmin" &&
+			(cpeItem.Product == "pgadmin_4" || cpeItem.Product == "pgadmin" || cpeItem.Product == "pgadmin4") {
+			// Add aliases with product name variations and target_sw=postgresql
+			for _, productName := range []string{"pgadmin", "pgadmin_4", "pgadmin4"} {
+				newItem := *cpeItem
+				newItem.Product = productName
+				newItem.TargetSW = "postgresql"
+				cpeItems = append(cpeItems, &newItem)
+			}
+		}
+	}
+
 	// Python pre-release versions can have the pre-release part in the version field or in the
 	// update field (the technically correct place). We generate the "correct" CPEs (with the
 	// pre-release part in the update field), so we have to create an alias here with the
