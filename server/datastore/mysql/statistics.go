@@ -147,7 +147,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			stats.Organization = lic.GetOrganization()
 		}
 		stats.AIFeaturesDisabled = appConfig.ServerSettings.AIFeaturesDisabled
-		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && len(appConfig.Integrations.GoogleCalendar[0].ApiKey) > 0
+		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && !appConfig.Integrations.GoogleCalendar[0].ApiKey.IsEmpty()
 
 		stats.MaintenanceWindowsEnabled = false
 		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
