@@ -782,6 +782,8 @@ type Datastore interface {
 	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
 	// statistics.
 	CleanupStatistics(ctx context.Context) error
+	// GetTableRowCounts returns approximate DB row counts for all tables in a map indexed by table name
+	GetTableRowCounts(ctx context.Context) (map[string]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore

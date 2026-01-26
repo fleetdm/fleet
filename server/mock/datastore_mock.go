@@ -603,6 +603,8 @@ type RecordStatisticsSentFunc func(ctx context.Context) error
 
 type CleanupStatisticsFunc func(ctx context.Context) error
 
+type GetTableRowCountsFunc func(ctx context.Context) (map[string]uint, error)
+
 type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
 type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
@@ -2627,6 +2629,9 @@ type DataStore struct {
 
 	CleanupStatisticsFunc        CleanupStatisticsFunc
 	CleanupStatisticsFuncInvoked bool
+
+	GetTableRowCountsFunc        GetTableRowCountsFunc
+	GetTableRowCountsFuncInvoked bool
 
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
@@ -6390,6 +6395,13 @@ func (s *DataStore) CleanupStatistics(ctx context.Context) error {
 	s.CleanupStatisticsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupStatisticsFunc(ctx)
+}
+
+func (s *DataStore) GetTableRowCounts(ctx context.Context) (map[string]uint, error) {
+	s.mu.Lock()
+	s.GetTableRowCountsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetTableRowCountsFunc(ctx)
 }
 
 func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
