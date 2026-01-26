@@ -113,6 +113,9 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		errS = sqlx.GetContext(ctx, q, &titleName, `SELECT name FROM software_titles WHERE id = ?`, titleID)
 		require.NoError(t, errS)
 		require.Equal(t, "foo", titleName)
+
+		DumpTable(t, q, "software_titles")
+		DumpTable(t, q, "in_house_apps")
 		return nil
 	})
 

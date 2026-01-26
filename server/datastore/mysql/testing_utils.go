@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"crypto/rand"
@@ -552,23 +553,20 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...st
 }
 
 func printDumpTable(t *testing.T, cols []string, rows [][]string) {
-	var w io.Writer = os.Stdout
-	table := tablewriter.NewWriter(w)
-	table.SetRowLine(false)
-	table.SetAutoWrapText(false)
+	writer := bytes.NewBufferString("")
+	table := tablewriter.NewWriter(writer)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAutoFormatHeaders(false)
+	table.SetAutoWrapText(false)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetHeaderLine(true)
-	// table.SetCenterSeparator(" ")
-	// table.SetColumnSeparator("")
-	// table.SetBorder(true)
-	// table.SetTablePadding("\t")
-	// table.SetNoWhiteSpace(true)
+	table.SetRowLine(false)
 
 	table.SetHeader(cols)
 	table.AppendBulk(rows)
 	table.Render()
+
+	t.Log("\n" + writer.String())
 }
 
 func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
