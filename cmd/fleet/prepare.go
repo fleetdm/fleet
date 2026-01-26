@@ -50,20 +50,6 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "creating db connection")
 			}
 
-			if showTableStats {
-				defer func() {
-					stats, err := ds.GetTableRowCounts(cmd.Context())
-					if err != nil {
-						initFatal(err, "getting table stats")
-					}
-					statsAsJSON, err := json.Marshal(stats)
-					if err != nil {
-						initFatal(err, "encoding table row counts to JSON")
-					}
-					fmt.Printf("Table Row Counts: %s\n", statsAsJSON)
-				}()
-			}
-
 			status, err := ds.MigrationStatus(cmd.Context())
 			if err != nil {
 				initFatal(err, "retrieving migration status")
@@ -83,6 +69,20 @@ To setup Fleet infrastructure, use one of the available commands.
 				if err != nil {
 					initFatal(err, "retrieving migration status")
 				}
+			}
+
+			if showTableStats {
+				defer func() {
+					stats, err := ds.GetTableRowCounts(cmd.Context())
+					if err != nil {
+						initFatal(err, "getting table stats")
+					}
+					statsAsJSON, err := json.Marshal(stats)
+					if err != nil {
+						initFatal(err, "encoding table row counts to JSON")
+					}
+					fmt.Printf("Table Row Counts: %s\n", statsAsJSON)
+				}()
 			}
 
 			switch status.StatusCode {
@@ -119,7 +119,7 @@ To setup Fleet infrastructure, use one of the available commands.
 
 	dbCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "disable prompting before migrations (for use in scripts)")
 	dbCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
-	dbCmd.PersistentFlags().BoolVar(&showTableStats, "with-table-stats", false, "Show approximate table row counts before and after migrations")
+	dbCmd.PersistentFlags().BoolVar(&showTableStats, "with-table-stats", false, "Show approximate table row counts after migrations")
 
 	prepareCmd.AddCommand(dbCmd)
 	return prepareCmd
