@@ -2244,7 +2244,6 @@ WHERE
 	AND verification_at IS NULL
 	AND host_id = ?
 `
-	fmt.Println("----------uhhhh about to set verification failed at")
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf(installFailStmt, tableName), hostID); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "set all vpp install as failed")
 	}
@@ -2272,7 +2271,7 @@ WHERE
 		} else if softwareType == softwareTypeVPP {
 			user, actAppStore, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
 		} else {
-			user, actInHouse, err = ds.GetPastActivityDataForInHouseAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+			user, actInHouse, err = ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
 		}
 		if err != nil {
 			if fleet.IsNotFound(err) {

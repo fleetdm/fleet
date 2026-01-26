@@ -1734,15 +1734,28 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 }
 
 func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	// create an mdm enrolled host to have a pending install request
-	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
-	host.HardwareSerial = "test-serial"
-	nanoEnroll(t, ds, host, false)
+	// host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	// host.HardwareSerial = "test-serial"
+	// nanoEnroll(t, ds, host, false)
 
-	err := ds.MDMAppleUpsertHost(ctx, host, false)
+	iosHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "host1",
+		NodeKey:        ptr.String("host1key"),
+		UUID:           "host1uuid",
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: "host1serial",
+	})
+	require.NoError(t, err)
+	// err = ds.MDMAppleUpsertHost(ctx, iosHost, false)
+	// require.NoError(t, err)
+	nanoEnroll(t, ds, iosHost, false)
+
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+	require.Len(t, hosts, 1)
 	require.NoError(t, err)
 
 	// TODO: table driven test with different installers
@@ -1767,17 +1780,19 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	inHouseAppID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
 	require.NoError(t, err)
 
-	ipaReq := createInHouseAppInstallRequest(t, ds, host.ID, inHouseAppID, titleID, user)
-	ipaReq2 := createInHouseAppInstallRequest(t, ds, host.ID, inHouseAppID2, titleID2, user)
+	ipaReq := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID, titleID, user)
+	ipaReq2 := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID2, titleID2, user)
 	// TODO: add more
 
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		DumpTable(t, tx, "nano_enrollments")
-		DumpTable(t, tx, "host_mdm")
+		// DumpTable(t, tx, "hosts")
+		// DumpTable(t, tx, "nano_enrollments")
+		// DumpTable(t, tx, "host_mdm")
 		DumpTable(t, tx, "host_in_house_software_installs", "id", "host_id", "in_house_app_id", "user_id", "platform", "removed", "canceled", "verification_failed_at", "updated_at")
-		DumpTable(t, tx, "upcoming_activities", "id", "host_id", "user_id", "activity_type", "activated_at")
+		// DumpTable(t, tx, "upcoming_activities", "id", "host_id", "user_id", "activity_type", "activated_at")
 		DumpTable(t, tx, "in_house_app_upcoming_activities")
-		DumpTable(t, tx, "in_house_apps")
+		// DumpTable(t, tx, "in_house_apps")
+		DumpTable(t, tx, "activities")
 		return nil
 	})
 
@@ -1787,25 +1802,35 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 
 	fmt.Printf("%+v\n\n\n", summary)
 
-	checkUpcomingActivities(t, ds, host, ipaReq, ipaReq2)
+	checkUpcomingActivities(t, ds, iosHost, ipaReq, ipaReq2)
 
 	// turn off MDM for the host
-	_, activitiesToCreate, err := ds.MDMTurnOff(ctx, host.UUID)
+	users, activitiesToCreate, err := ds.MDMTurnOff(ctx, iosHost.UUID)
 	require.NoError(t, err)
-	fmt.Println(activitiesToCreate)
+	fmt.Printf("%+v\n\n", activitiesToCreate[0].ActivityName())
+	for i, act := range activitiesToCreate {
+		ds.NewActivity(ctx, users[i], act, nil, time.Now())
+		require.NoError(t, err)
+	}
 
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		DumpTable(t, tx, "host_in_house_software_installs", "id", "host_id", "in_house_app_id", "user_id", "platform", "removed", "canceled", "verification_failed_at", "updated_at")
 		DumpTable(t, tx, "upcoming_activities", "id", "host_id", "user_id", "activity_type", "activated_at")
+
+		DumpTable(t, tx, "nano_command_results")
+		DumpTable(t, tx, "activities")
 		return nil
 	})
 
-	// we expect host_iha_installs to have verification_fail_at not NULL
-	// and upcoming activities vpp/iha to be cleared
+	// does anything happen with nano_command_results at all??
+	// createInHouseAppInstallResult(t, ds, host3, cmdUUID3, "Error")
+
+	// we don't expect to see a failed install in the app summary, because
+	// no nano command result was actually received
 	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
 	require.NoError(t, err)
-	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 0}, *summary)
 
-	checkUpcomingActivities(t, ds, host)
+	checkUpcomingActivities(t, ds, iosHost)
 
 }
