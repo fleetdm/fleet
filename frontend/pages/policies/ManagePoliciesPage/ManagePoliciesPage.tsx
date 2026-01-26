@@ -1338,6 +1338,7 @@ const ManagePolicyPage = ({
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
+            router={router}
             automationsConfig={automationsConfig}
             availableIntegrations={
               // Although TypeScript thinks globalConfig could be undefined here, in practice it will always be present for users with canManageAutomations/canAddOrDeletePolicies permissions.

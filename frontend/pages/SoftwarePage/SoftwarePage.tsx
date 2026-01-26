@@ -466,6 +466,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         {renderBody()}
         {showManageAutomationsModal && softwareConfig && (
           <ManageAutomationsModal
+            router={router}
             onCancel={toggleManageAutomationsModal}
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}

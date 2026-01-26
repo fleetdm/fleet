@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
-import { Link } from "react-router";
+import { InjectedRouter } from "react-router";
 import { isEmpty, omit } from "lodash";
 
 import useDeepEffect from "hooks/useDeepEffect";
@@ -58,6 +58,7 @@ interface ISoftwareAutomations {
 }
 
 interface IManageSoftwareAutomationsModalProps {
+  router: InjectedRouter;
   onCancel: () => void;
   onCreateWebhookSubmit: (formData: ISoftwareAutomations) => void;
   togglePreviewPayloadModal: () => void;
@@ -84,6 +85,7 @@ const validateWebhookURL = (url: string) => {
 const baseClass = "manage-software-automations-modal";
 
 const ManageAutomationsModal = ({
+  router,
   onCancel: onReturnToApp,
   onCreateWebhookSubmit,
   togglePreviewPayloadModal,
@@ -214,6 +216,10 @@ const ManageAutomationsModal = ({
       setSelectedIntegration(currentSelectedIntegration);
     }
   }, [allIntegrationsIndexed]);
+
+  const onAddIntegration = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS);
+  };
 
   const onURLChange = (value: string) => {
     setDestinationUrl(value);
@@ -393,13 +399,14 @@ const ManageAutomationsModal = ({
         ) : (
           <div className={`form-field ${baseClass}__no-integrations`}>
             <div className="form-field__label">You have no integrations.</div>
-            <Link
-              to={PATHS.ADMIN_INTEGRATIONS}
-              className={`${baseClass}__add-integration-link`}
-              tabIndex={softwareAutomationsEnabled ? 0 : -1}
-            >
-              Add integration
-            </Link>
+            <div>
+              <Button
+                onClick={onAddIntegration}
+                disabled={gitOpsModeEnabled || !softwareAutomationsEnabled} // Not keyboard accessible if modal is disabled
+              >
+                Add integration
+              </Button>
+            </div>
           </div>
         )}
         {!!selectedIntegration && (
