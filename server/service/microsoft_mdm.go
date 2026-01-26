@@ -3,7 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -1351,7 +1351,7 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 	encodedCredentialsHash := base64.StdEncoding.EncodeToString(*enrolledDevice.CredentialsHash)
 	expectedDigest := fmt.Sprintf("%s:%s", encodedCredentialsHash, *nonce)
-	expectedDigestHash := md5.Sum([]byte(expectedDigest))
+	expectedDigestHash := md5.Sum([]byte(expectedDigest)) //nolint:gosec // Windows MDM Auth uses MD5
 
 	if !bytes.Equal(receivedDigestHash, expectedDigestHash[:]) {
 		// Credentials do not match what we expect
@@ -1387,7 +1387,7 @@ func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.Syn
 
 	username := deviceID
 	password := uuid.NewString()
-	credentialsHash := md5.Sum([]byte(fmt.Sprintf("%s:%s", username, password)))
+	credentialsHash := md5.Sum(fmt.Appendf([]byte{}, "%s:%s", username, password)) //nolint:gosec // Windows MDM Auth uses MD5
 
 	// Store the new credentials hash and mark that the device has not acknowledged them yet
 	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.HostUUID, credentialsHash[:], false)
@@ -1679,7 +1679,10 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		}
 
 		responseCmds = append(responseCmds, ackMsg)
-		saveResponse([]string{})
+		err = saveResponse([]string{})
+		if err != nil {
+			return nil, err
+		}
 		return responseCmds, nil
 	}
 

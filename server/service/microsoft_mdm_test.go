@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/xml"
@@ -1087,8 +1087,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 }
 
 func hashMDMCredentials(username, password, nonce string) []byte {
-	credsHash := md5.Sum([]byte(username + ":" + password))
+	credsHash := md5.Sum([]byte(username + ":" + password)) //nolint:gosec // Windows MDM Auth uses MD5
 	encodedCreds := base64.StdEncoding.EncodeToString(credsHash[:])
-	nonceHash := md5.Sum([]byte(encodedCreds + ":" + nonce))
+	nonceHash := md5.Sum([]byte(encodedCreds + ":" + nonce)) //nolint:gosec // Windows MDM Auth uses MD5
 	return nonceHash[:]
 }
