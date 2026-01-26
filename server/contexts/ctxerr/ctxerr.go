@@ -405,15 +405,14 @@ func isClientError(err error) bool {
 		return clientErr.IsClientError()
 	}
 
-	// Treat context cancellation as client errors. This is a pragmatic choice:
-	// in HTTP handlers, these typically indicate client disconnection or request
-	// timeout. While context errors could theoretically come from server-side
-	// operations (e.g., DB timeouts), detecting true client disconnection at the
+	// Treat context.Canceled as a client error. In HTTP handlers, this typically
+	// indicates client disconnection. While it could theoretically come from
+	// server-side cancellation, detecting true client disconnection at the
 	// transport layer is complex. Go's HTTP server doesn't provide a distinct
 	// error type for client disconnection (see https://github.com/golang/go/issues/64465).
 	// The occasional misclassification is acceptable given that most context
 	// cancellations in request handling are client-initiated.
-	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+	return errors.Is(err, context.Canceled)
 }
 
 // Retrieve retrieves an error from the registered error handler

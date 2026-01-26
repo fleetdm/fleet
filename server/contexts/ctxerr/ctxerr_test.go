@@ -415,14 +415,9 @@ func TestIsClientError(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "context.DeadlineExceeded",
+			name:     "context.DeadlineExceeded - not a client error (could be DB/upstream timeout)",
 			err:      context.DeadlineExceeded,
-			expected: true,
-		},
-		{
-			name:     "wrapped context.DeadlineExceeded",
-			err:      fmt.Errorf("wrapped: %w", context.DeadlineExceeded),
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "InvalidArgumentError (implements IsClientError)",
