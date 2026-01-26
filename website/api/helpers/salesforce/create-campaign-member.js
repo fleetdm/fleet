@@ -18,7 +18,7 @@ module.exports = {
       required: true,
       extendedDescription: 'This ID of the contact that will be added to a campaign'
     },
-    campaignName: {
+    salesforceCampaignId: {
       type: 'string',
       required: true,
     },
@@ -31,22 +31,20 @@ module.exports = {
       description: 'All done.',
     },
 
-    campaignNotFound: {
+    couldNotCreateCampaignMember: {
       description: 'The provided campaign name did not match any active campaigns records in Salesforce',
     }
 
   },
 
 
-  fn: async function ({salesforceAccountId, salesforceContactId, campaignName}) {
+  fn: async function ({salesforceAccountId, salesforceContactId, salesforceCampaignId}) {
 
-    // // Return undefined if we're not running in a production environment.
-    // if(sails.config.environment !== 'production') {
-    //   sails.log.verbose('Skipping Salesforce integration...');
-    //   return {
-    //     salesforceHistoricalEventId: undefined
-    //   };
-    // }
+    // Stop running if we're not in a production environment.
+    if(sails.config.environment !== 'production') {
+      sails.log.verbose('Skipping Salesforce integration...');
+      return;
+    }
 
     require('assert')(sails.config.custom.salesforceIntegrationPasskey);
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
@@ -55,23 +53,11 @@ module.exports = {
       loginUrl : 'https://fleetdm.my.salesforce.com'
     });
     await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
-    let campaignRecord = await sails.helpers.flow.build(async ()=>{
-      return await salesforceConnection.sobject('Campaign')
-      .findOne({
-        'Name':  campaignName
-      });
-    }).intercept((unusedErr)=>{
-      throw 'campaignNotFound';
-    });
-
-    if(!campaignRecord || campaignRecord.Id) {
-      throw 'campaignNotFound';
-    }
 
     await sails.helpers.flow.build(async ()=>{
       return await salesforceConnection.sobject('CampaignMember')
       .create({
-        Id: campaignRecord.Id,
+        CampaignId: salesforceCampaignId,
         Account: salesforceAccountId,
         Contact: salesforceContactId,
       });
