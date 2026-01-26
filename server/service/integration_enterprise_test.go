@@ -13221,7 +13221,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		{URL: rubyURL, LabelsIncludeAny: []string{"no-such-label"}},
 	}
 	res = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `some or all the labels provided don't exist`)
+	require.Contains(t, extractServerErrorText(res.Body), `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the software.`)
 
 	// valid installer scoped by label
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
@@ -19271,7 +19271,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}
 	addMAResp = addFleetMaintainedAppResponse{}
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), "some or all the labels provided don't exist")
+	require.Contains(t, extractServerErrorText(r.Body), `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the software.`)
 
 	// Can't set both labels_include_any and labels_exclude_any
 	req.LabelsIncludeAny = []string{lbl1.Name, lbl2.Name}
@@ -23383,7 +23383,6 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 		"{\"bypass_disabled\": true}",
 		0,
 	)
-
 }
 
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.
