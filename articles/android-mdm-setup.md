@@ -1,7 +1,5 @@
 # Android MDM setup
 
-> Experimental feature. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 This guide provides instructions to turn on Android MDM features by connecting Fleet to Android Enterprise.
 
 Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).

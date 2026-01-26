@@ -1325,8 +1325,6 @@ This endpoint is used to proxy SCEP requests to the configured SCEP server. It u
 
 ### Get Android Enterprise signup URL
 
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 This endpoint is used to generate a URL, which opens Google's wizard to create Android Enterprise.
 
 `GET /api/v1/fleet/android_enterprise/signup_url`
@@ -1347,7 +1345,6 @@ This endpoint is used to generate a URL, which opens Google's wizard to create A
 
 ### Connect Android Enterprise
 
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 This endpoint is used to connect (bind) Android Enterprise to Fleet and to turn on Android MDM features.
 
 `GET /api/v1/fleet/android_enterprise/connect/:token`
@@ -1376,7 +1373,6 @@ This is callback URL that will be open after user completes Google's signup flow
 
 ### Delete Android Enterprise
 
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
 
 `DELETE /api/v1/fleet/android_enterprise/`
@@ -1391,7 +1387,6 @@ This endpoint is used to delete Android Enterprise. Once deleted, hosts that bel
 
 ### Get Android enrollment token
 
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 This endpoint is used to retrieve an Android enrollment token and enrollment URL using a Fleet enroll secret which opens the Android enrollment wizard (settings app) to enroll the Android host.
 
 `GET /api/v1/fleet/android_enterprise/enrollment_token`
@@ -1419,8 +1414,6 @@ This endpoint is used to retrieve an Android enrollment token and enrollment URL
 
 ### Get Android Enterprise server-sent event
 
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 This endpoint is used to get server-sent events (SSE) messages, so that UI know if Android Enterprise is created and bound to Fleet.
 
 `GET /api/v1/fleet/android_enterprise/signup_sse`
@@ -1438,8 +1431,6 @@ Android Enterprise successfully connected
 ```
 
 ### Android Enterprise PubSub push endpoint
-
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
