@@ -49,8 +49,9 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
 fi`, appPath)
 				sb.Copy(appPath, "$APPDIR")
-				// Remove quarantine for zip-based installs to prevent Gatekeeper from marking the app as damaged
-				if app.InstallerFormat == "zip" {
+				// Remove quarantine for zip and dmg-based installs to prevent Gatekeeper from marking the app as damaged
+				// Both formats can preserve quarantine attributes when copying with cp -R
+				if app.InstallerFormat == "zip" || app.InstallerFormat == "dmg" {
 					sb.RemoveQuarantine(fmt.Sprintf("$APPDIR/%s", appPath))
 				}
 			}
@@ -390,7 +391,8 @@ func (s *scriptBuilder) Copy(file, dest string) {
 
 // RemoveQuarantine writes commands to remove the quarantine attribute from an app
 // and add it to Gatekeeper exceptions. This is necessary for apps installed from
-// zip files, as they inherit the quarantine attribute from the downloaded zip.
+// zip and dmg files, as they can inherit the quarantine attribute from the downloaded
+// archive when copying with cp -R, which preserves extended attributes.
 func (s *scriptBuilder) RemoveQuarantine(appPath string) {
 	s.Write("# remove quarantine attribute to prevent Gatekeeper from marking the app as damaged")
 	s.Writef(`sudo xattr -r -d com.apple.quarantine "%s" 2>/dev/null || true`, appPath)
