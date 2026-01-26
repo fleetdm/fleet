@@ -400,29 +400,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
 
 	// Handle Google Calendar API key preservation/replacement.
-	// Go's JSON unmarshaling merges map entries instead of replacing them, so we need
-	// to explicitly handle api_key_json replacement vs. preservation.
+	// The custom GoogleCalendarApiKey type handles unmarshaling "********" as masked.
 	if newAppConfig.Integrations.GoogleCalendar != nil {
 		for i, newGC := range newAppConfig.Integrations.GoogleCalendar {
 			if i < len(appConfig.Integrations.GoogleCalendar) {
-				// Check if api_key_json was omitted or is fully masked
-				isMasked := len(newGC.ApiKey) > 0
-				if isMasked {
-					for _, value := range newGC.ApiKey {
-						if value != fleet.MaskedPassword {
-							isMasked = false
-							break
-						}
-					}
-				}
-
-				if len(newGC.ApiKey) == 0 || isMasked {
-					// api_key_json was omitted or fully masked, preserve the existing value
+				// If api_key_json was omitted (empty) or masked ("********"), preserve the existing value
+				if newGC.ApiKey.IsEmpty() || newGC.ApiKey.IsMasked() {
 					if len(oldAppConfig.Integrations.GoogleCalendar) > i {
 						appConfig.Integrations.GoogleCalendar[i].ApiKey = oldAppConfig.Integrations.GoogleCalendar[i].ApiKey
 					}
 				} else {
-					// api_key_json was provided, replace it entirely (don't merge)
+					// api_key_json was provided with real values, use it
 					appConfig.Integrations.GoogleCalendar[i].ApiKey = newGC.ApiKey
 				}
 			}

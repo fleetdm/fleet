@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -446,4 +447,96 @@ func TestAppConfig_ConditionalAccessIdPSSOURL(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestGoogleCalendarApiKeyMarshalUnmarshal(t *testing.T) {
+	t.Run("marshal masked", func(t *testing.T) {
+		key := GoogleCalendarApiKey{
+			Values: map[string]string{
+				"client_email": "test@example.com",
+				"private_key":  "secret-key",
+			},
+		}
+		key.SetMasked()
+
+		data, err := json.Marshal(key)
+		require.NoError(t, err)
+		require.Equal(t, fmt.Sprintf(`"%s"`, MaskedPassword), string(data))
+	})
+
+	t.Run("marshal unmasked", func(t *testing.T) {
+		key := GoogleCalendarApiKey{
+			Values: map[string]string{
+				"client_email": "test@example.com",
+				"private_key":  "secret-key",
+			},
+		}
+
+		data, err := json.Marshal(key)
+		require.NoError(t, err)
+		// Unmarshal to verify it's a valid JSON object
+		var parsed map[string]string
+		err = json.Unmarshal(data, &parsed)
+		require.NoError(t, err)
+		require.Equal(t, "test@example.com", parsed["client_email"])
+		require.Equal(t, "secret-key", parsed["private_key"])
+	})
+
+	t.Run("unmarshal masked string", func(t *testing.T) {
+		data := fmt.Appendf(nil, `"%s"`, MaskedPassword)
+		var key GoogleCalendarApiKey
+		err := json.Unmarshal(data, &key)
+		require.NoError(t, err)
+		require.True(t, key.IsMasked())
+		require.True(t, key.IsEmpty())
+	})
+
+	t.Run("unmarshal json object", func(t *testing.T) {
+		data := []byte(`{"client_email": "test@example.com", "private_key": "secret-key"}`)
+		var key GoogleCalendarApiKey
+		err := json.Unmarshal(data, &key)
+		require.NoError(t, err)
+		require.False(t, key.IsMasked())
+		require.False(t, key.IsEmpty())
+		require.Equal(t, "test@example.com", key.Values["client_email"])
+		require.Equal(t, "secret-key", key.Values["private_key"])
+	})
+
+	t.Run("unmarshal invalid string", func(t *testing.T) {
+		data := []byte(`"some-invalid-string"`)
+		var key GoogleCalendarApiKey
+		err := json.Unmarshal(data, &key)
+		require.Error(t, err)
+	})
+
+	t.Run("full integration roundtrip", func(t *testing.T) {
+		// Test the full struct with the API key
+		intg := GoogleCalendarIntegration{
+			Domain: "example.com",
+			ApiKey: GoogleCalendarApiKey{
+				Values: map[string]string{
+					"client_email": "test@example.com",
+					"private_key":  "secret-key",
+				},
+			},
+		}
+
+		// Marshal with unmasked key
+		data, err := json.Marshal(intg)
+		require.NoError(t, err)
+
+		// Unmarshal and verify
+		var parsed GoogleCalendarIntegration
+		err = json.Unmarshal(data, &parsed)
+		require.NoError(t, err)
+		require.Equal(t, "example.com", parsed.Domain)
+		require.Equal(t, "test@example.com", parsed.ApiKey.Values["client_email"])
+		require.False(t, parsed.ApiKey.IsMasked())
+
+		// Now mask and marshal again
+		intg.ApiKey.SetMasked()
+		data, err = json.Marshal(intg)
+		require.NoError(t, err)
+		require.Contains(t, string(data), `"api_key_json":"********"`)
+	})
 }

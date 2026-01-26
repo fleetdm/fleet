@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -388,9 +389,71 @@ const (
 	GoogleCalendarPrivateKey = "private_key"
 )
 
+// GoogleCalendarApiKey is a custom type for the Google Calendar API key JSON.
+// It handles JSON marshaling/unmarshaling with support for masking sensitive data.
+// When marshaled in masked state, it serializes to just "********".
+// When unmarshaled, it accepts either "********" (indicating masked/preserve) or a JSON object.
+type GoogleCalendarApiKey struct {
+	// Values contains the actual API key fields when not masked
+	Values map[string]string
+	// masked indicates if this key should be serialized as masked
+	masked bool
+}
+
+// MarshalJSON implements json.Marshaler. When masked, returns "********".
+// Otherwise, returns the JSON object representation of the values.
+func (k GoogleCalendarApiKey) MarshalJSON() ([]byte, error) {
+	if k.masked {
+		return json.Marshal(MaskedPassword)
+	}
+	return json.Marshal(k.Values)
+}
+
+// UnmarshalJSON implements json.Unmarshaler. Accepts either "********" string
+// (sets masked=true) or a JSON object (populates Values).
+func (k *GoogleCalendarApiKey) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as a string first (for masked value)
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		if str == MaskedPassword {
+			k.masked = true
+			k.Values = nil
+			return nil
+		}
+		// Some other string value - invalid
+		return errors.New("api_key_json must be a JSON object or the masked value")
+	}
+
+	// Try to unmarshal as a map
+	var values map[string]string
+	if err := json.Unmarshal(data, &values); err != nil {
+		return fmt.Errorf("api_key_json must be a JSON object: %w", err)
+	}
+
+	k.Values = values
+	k.masked = false
+	return nil
+}
+
+// IsMasked returns true if this API key was unmarshaled from a masked value
+// or has been explicitly marked as masked.
+func (k GoogleCalendarApiKey) IsMasked() bool {
+	return k.masked
+}
+
+// SetMasked marks this API key as masked for serialization.
+func (k *GoogleCalendarApiKey) SetMasked() {
+	k.masked = true
+}
+
+// IsEmpty returns true if there are no values in the API key.
+func (k GoogleCalendarApiKey) IsEmpty() bool {
+	return len(k.Values) == 0
+}
+
 type GoogleCalendarIntegration struct {
-	Domain string            `json:"domain"`
-	ApiKey map[string]string `json:"api_key_json"`
+	Domain string               `json:"domain"`
+	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
 }
 
 // Integrations configures the integrations with external systems.
@@ -481,14 +544,14 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 		invalid.Append("integrations.google_calendar", "integrating with >1 Google Workspace service account is not yet supported.")
 	}
 	for _, intg := range intgs {
-		if email, ok := intg.ApiKey[GoogleCalendarEmail]; !ok {
+		if email, ok := intg.ApiKey.Values[GoogleCalendarEmail]; !ok {
 			invalid.Append(
 				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarEmail),
 				fmt.Sprintf("%s is required", GoogleCalendarEmail),
 			)
 		} else {
 			email = strings.TrimSpace(email)
-			intg.ApiKey[GoogleCalendarEmail] = email
+			intg.ApiKey.Values[GoogleCalendarEmail] = email
 			if email == "" {
 				invalid.Append(
 					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarEmail),
@@ -496,14 +559,14 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 				)
 			}
 		}
-		if privateKey, ok := intg.ApiKey["private_key"]; !ok {
+		if privateKey, ok := intg.ApiKey.Values["private_key"]; !ok {
 			invalid.Append(
 				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
 				fmt.Sprintf("%s is required", GoogleCalendarPrivateKey),
 			)
 		} else {
 			privateKey = strings.TrimSpace(privateKey)
-			intg.ApiKey[GoogleCalendarPrivateKey] = privateKey
+			intg.ApiKey.Values[GoogleCalendarPrivateKey] = privateKey
 			if privateKey == "" {
 				invalid.Append(
 					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
