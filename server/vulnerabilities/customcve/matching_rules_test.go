@@ -222,11 +222,31 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			Version: "16.0.17830.20167",
 			Source:  "programs",
 		},
+		// git-gui vulnerable version should match gitk CVEs
+		{
+			ID:      5,
+			Name:    "git-gui",
+			Version: "2.50.0",
+			Source:  "homebrew_packages",
+		},
+		// git-gui patched version should not match gitk CVEs
+		{
+			ID:      6,
+			Name:    "git-gui",
+			Version: "2.52.0",
+			Source:  "homebrew_packages",
+		},
 	}
 
 	t.Run("New Vulns return all inserted", func(t *testing.T) {
 		ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
-			return sw, nil
+			if filter.Name == "Microsoft 365" && filter.Source == "programs" {
+				return []fleet.Software{sw[0], sw[1], sw[2], sw[3]}, nil
+			}
+			if filter.Name == "git-gui" && filter.Source == "homebrew_packages" {
+				return []fleet.Software{sw[4], sw[5]}, nil
+			}
+			return nil, nil
 		}
 
 		var insertCount int
@@ -244,8 +264,8 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		ctx := context.Background()
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
-		require.Equal(t, 31, insertCount)
-		require.Len(t, vulns, 31)
+		require.Equal(t, 34, insertCount)
+		require.Len(t, vulns, 34)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 
 		expected := []fleet.SoftwareVulnerability{
@@ -404,6 +424,21 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 				CVE:               "CVE-2024-38200",
 				ResolvedInVersion: ptr.String("16.0.17830.20166"),
 			},
+			{
+				SoftwareID:        5,
+				CVE:               "CVE-2025-27613",
+				ResolvedInVersion: ptr.String("2.50.1"),
+			},
+			{
+				SoftwareID:        5,
+				CVE:               "CVE-2025-27614",
+				ResolvedInVersion: ptr.String("2.50.1"),
+			},
+			{
+				SoftwareID:        5,
+				CVE:               "CVE-2025-46835",
+				ResolvedInVersion: ptr.String("2.50.1"),
+			},
 		}
 
 		cmpSoftwareVulnerability := func(v []fleet.SoftwareVulnerability) func(i, j int) bool {
@@ -426,7 +461,13 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		ds.DeleteOutOfDateVulnerabilitiesFuncInvoked = false
 
 		ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
-			return sw, nil
+			if filter.Name == "Microsoft 365" && filter.Source == "programs" {
+				return []fleet.Software{sw[0], sw[1], sw[2], sw[3]}, nil
+			}
+			if filter.Name == "git-gui" && filter.Source == "homebrew_packages" {
+				return []fleet.Software{sw[4], sw[5]}, nil
+			}
+			return nil, nil
 		}
 
 		var insertCount int
@@ -445,7 +486,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
-		require.Equal(t, 31, insertCount)
+		require.Equal(t, 34, insertCount)
 		require.Len(t, vulns, 0)
 	})
 }
