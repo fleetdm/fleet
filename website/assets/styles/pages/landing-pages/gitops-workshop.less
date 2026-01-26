@@ -32,7 +32,7 @@
     display: flex;
     flex-direction: column;
     gap: 32px;
-    max-width: 566px;
+    max-width: 50%;
   }
   [purpose='page-hero-headings'] {
     h4 {
@@ -75,10 +75,8 @@
       flex-shrink: 1;
       display: flex;
     }
+    width: 50%;
     display: flex;
-    background: url('/images/gitops-training-hero-471x471@2x.png');
-    background-size: contain;
-    background-repeat: no-repeat;
   }
 
   [purpose='landing-page-section'] {// For landing page sections.
@@ -380,7 +378,11 @@
       padding-left: 32px;
       padding-right: 32px;
     }
-
+    [purpose='page-hero-headings'] {
+      h1 {
+        font-size: 36px;
+      }
+    }
     [purpose='landing-page-hero'] {
       padding-top: 48px;
       padding-bottom: 16px;
@@ -390,20 +392,9 @@
       align-content: center;
       gap: 48px 16px;
       align-self: stretch;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
     }
-    [purpose='page-hero-image'] {
-      img {
-        max-width: unset;
-        max-height: 718.79px;
-        width: 100%;
-        flex-shrink: 1;
-        display: flex;
-      }
-      margin-left: auto;
-      margin-right: auto;
-      display: flex;
-    }
+
 
     [purpose='landing-page-section'], [purpose='landing-page-large-section'] {// For sections with more padding (64px) between elements.
       padding-top: 48px;
@@ -446,7 +437,27 @@
       min-width: unset;
       flex: unset;
     }
+    [purpose='landing-page-hero'] {
+      flex-direction: column;
+      flex-wrap: nowrap;
+    }
+    [purpose='page-hero-content'] {
 
+      max-width: 100%;
+    }
+    [purpose='page-hero-image'] {
+      img {
+        max-width: unset;
+        max-height: 718.79px;
+        width: 100%;
+        flex-shrink: 1;
+        display: flex;
+      }
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      display: flex;
+    }
 
     [purpose='three-column-list'] {
       display: flex;
