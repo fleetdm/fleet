@@ -102,4 +102,4 @@ Implementation timelines vary based on fleet size and existing infrastructure. F
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-01-14">
-<meta name="description" value="Compare open source MDM solutions for device management. See how Fleet, NanoMDM, and Zentral differ in platform support, security features, and deployment options. ">
+<meta name="description" value="Compare open source MDM solutions for device management. See how Fleet, NanoMDM, and Zentral differ in platform support, security features, and deployment options.">
