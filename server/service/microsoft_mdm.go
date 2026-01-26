@@ -1868,10 +1868,15 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	// Process the pending operations and get the MDM response protocol commands
-	resPendingCmds, err := svc.getPendingMDMCmds(ctx, deviceID)
-	if err != nil {
-		return nil, fmt.Errorf("message processing error %w", err)
+	resPendingCmds := []*mdm_types.SyncMLCmd{}
+
+	if requestAuthState == RequestAuthStateTrusted {
+		// Process the pending operations and get the MDM response protocol commands
+		pendingCmds, err := svc.getPendingMDMCmds(ctx, deviceID)
+		if err != nil {
+			return nil, fmt.Errorf("message processing error %w", err)
+		}
+		resPendingCmds = pendingCmds
 	}
 
 	// Create the response SyncML message
