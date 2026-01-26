@@ -625,8 +625,9 @@ func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 }
 
 // SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
-// by setting status to 'pending', clearing validity fields, and generating a new UUID.
+// by setting status to 'pending', clearing validity fields and fleet_challenge, and generating a new UUID.
 // The new UUID signals to the Android agent that the certificate needs renewal.
+// The fleet_challenge is cleared so a fresh one is generated when the device fetches the renewed certificate.
 func (ds *Datastore) SetAndroidCertificateTemplatesForRenewal(
 	ctx context.Context,
 	templates []fleet.HostCertificateTemplateForRenewal,
@@ -653,6 +654,7 @@ func (ds *Datastore) SetAndroidCertificateTemplatesForRenewal(
 			not_valid_before = NULL,
 			not_valid_after = NULL,
 			serial = NULL,
+			fleet_challenge = NULL,
 			updated_at = NOW()
 		WHERE (host_uuid, certificate_template_id) IN (%s)
 	`, fleet.CertificateTemplatePending, placeholders.String())

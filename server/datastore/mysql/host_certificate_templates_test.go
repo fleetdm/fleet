@@ -1661,6 +1661,12 @@ func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 	insertHostCertTemplate(t, ds, host1.UUID, templateID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore, &notValidAfter)
 	insertHostCertTemplate(t, ds, host2.UUID, templateID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, &notValidBefore, &notValidAfter)
 
+	// Set a fleet_challenge on host1 to verify it gets cleared during renewal
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_certificate_templates SET fleet_challenge = 'old-challenge' WHERE host_uuid = ?`,
+		host1.UUID)
+	require.NoError(t, err)
+
 	// Get the original UUIDs
 	var originalUUIDs []struct {
 		HostUUID string `db:"host_uuid"`
@@ -1691,9 +1697,10 @@ func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 		NotValidBefore *string `db:"not_valid_before"`
 		NotValidAfter  *string `db:"not_valid_after"`
 		Serial         *string `db:"serial"`
+		FleetChallenge *string `db:"fleet_challenge"`
 	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &updatedRecords,
-		`SELECT host_uuid, status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial
+		`SELECT host_uuid, status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial, fleet_challenge
 		 FROM host_certificate_templates WHERE host_uuid IN (?, ?) ORDER BY host_uuid`,
 		host1.UUID, host2.UUID)
 	require.NoError(t, err)
@@ -1714,6 +1721,8 @@ func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 		require.Nil(t, r.NotValidBefore, "not_valid_before should be cleared")
 		require.Nil(t, r.NotValidAfter, "not_valid_after should be cleared")
 		require.Nil(t, r.Serial, "serial should be cleared")
+		// Fleet challenge should be cleared so a new one is generated on next delivery
+		require.Nil(t, r.FleetChallenge, "fleet_challenge should be cleared")
 	}
 
 	// Test empty slice doesn't error
