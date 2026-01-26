@@ -148,8 +148,12 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Remote lock/wipe (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Remote lock/wipe (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Remote lock/wipe (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Device unenrollment | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 |
-| Offboarding audit trail | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Remote lock/wipe (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Device unenrollment (Apple) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| Device unenrollment (Windows) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Device unenrollment (Linux) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Remote unenrollment (Android) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Offboarding audit trail | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Activation lock management | 🥚 | 🥚 | 🐥 | 🐥 | 🐥 |
 
 ---
