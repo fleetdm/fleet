@@ -74,8 +74,8 @@ func setupFakeServer(t *testing.T, handler http.HandlerFunc) Config {
 	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", server.URL, t)
 	t.Cleanup(server.Close)
 	return Config{
-		BaseURL:       server.URL,
-		Authenticator: func(bool) (string, error) { return "bearer-token", nil },
+		baseURL:       server.URL,
+		authenticator: func(bool) (string, error) { return "bearer-token", nil },
 	}
 }
 
@@ -179,7 +179,7 @@ func TestGetMetadataRetries(t *testing.T) {
 	})
 }
 
-// mockDataStore implements the DataStore interface for testing GetAuthenticator
+// mockDataStore implements the DataStore interface for testing getAuthenticator
 type mockDataStore struct {
 	appConfig                   *fleet.AppConfig
 	appConfigErr                error
@@ -245,18 +245,18 @@ func TestConfig(t *testing.T) {
 		config := Configure(context.Background(), ds, "license-key", "dev-test-token")
 
 		// Should return bearer token regardless of forceRenew
-		token, err := config.Authenticator(false)
+		token, err := config.authenticator(false)
 		require.NoError(t, err)
 		require.Equal(t, "dev-test-token", token)
 
-		token, err = config.Authenticator(true)
+		token, err = config.authenticator(true)
 		require.NoError(t, err)
 		require.Equal(t, "dev-test-token", token)
 
 		// Should not have accessed the datastore
 		require.False(t, ds.getAssetsByNameCalled)
 
-		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.BaseURL)
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.baseURL)
 	})
 }
 
@@ -271,7 +271,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "license-key", "").Authenticator
+		auth := Configure(context.Background(), ds, "license-key", "").authenticator
 		token, err := auth(false)
 		require.NoError(t, err)
 		require.Equal(t, "cached-token-from-db", token)
@@ -307,7 +307,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "test-license-key", "").Authenticator
+		auth := Configure(context.Background(), ds, "test-license-key", "").authenticator
 		token, err := auth(true) // Force renewal
 		require.NoError(t, err)
 		require.Equal(t, "new-token-from-auth", token)
@@ -345,7 +345,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "my-license-key", "").Authenticator
+		auth := Configure(context.Background(), ds, "my-license-key", "").authenticator
 		token, err := auth(false) // Not forced renewal, but no token in DB
 		require.NoError(t, err)
 		require.Equal(t, "fresh-token", token)
@@ -375,7 +375,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "bad-license-key", "").Authenticator
+		auth := Configure(context.Background(), ds, "bad-license-key", "").authenticator
 		_, err := auth(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "authenticating to VPP metadata service")
@@ -399,7 +399,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "license-key", "").Authenticator
+		auth := Configure(context.Background(), ds, "license-key", "").authenticator
 		_, err := auth(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no access token received")

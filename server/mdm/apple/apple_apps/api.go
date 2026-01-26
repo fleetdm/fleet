@@ -66,13 +66,13 @@ type metadataResp struct {
 
 const appleHostAndScheme = "https://api.ent.apple.com"
 
-// Authenticator returns a bearer token for the VPP metadata service (proxied or direct), or an error if once can't be
+// authenticator returns a bearer token for the VPP metadata service (proxied or direct), or an error if once can't be
 // retrieved. If forceRenew is true, bypasses the database bearer token cache if it would've otherwise been used.
-type Authenticator func(forceRenew bool) (string, error)
+type authenticator func(forceRenew bool) (string, error)
 
 type Config struct {
-	BaseURL       string
-	Authenticator Authenticator
+	baseURL       string
+	authenticator authenticator
 }
 
 // client is a package-level client (similar to http.DefaultClient) so it can
@@ -82,7 +82,7 @@ type Config struct {
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
 func GetMetadata(adamIDs []string, vppToken string, config Config) (map[string]Metadata, error) {
-	req, err := buildMetadataRequest(config.BaseURL, adamIDs, vppToken)
+	req, err := buildMetadataRequest(config.baseURL, adamIDs, vppToken)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func GetMetadata(adamIDs []string, vppToken string, config Config) (map[string]M
 	// client-side retries on top of this
 	var bodyResp metadataResp
 	if err = retry.Do(
-		func() error { return do(req, config.Authenticator, false, &bodyResp) },
+		func() error { return do(req, config.authenticator, false, &bodyResp) },
 		retry.WithInterval(time.Second),
 		retry.WithBackoffMultiplier(2),
 		retry.WithMaxAttempts(3),
@@ -139,7 +139,7 @@ func buildMetadataRequest(baseURL string, adamIDs []string, vppToken string) (*h
 	return req, nil
 }
 
-func do(req *http.Request, getBearerToken Authenticator, forceRenew bool, dest *metadataResp) error {
+func do(req *http.Request, getBearerToken authenticator, forceRenew bool, dest *metadataResp) error {
 	bearerToken, err := getBearerToken(forceRenew)
 	if err != nil {
 		return fmt.Errorf("authenticating to VPP app details endpoint: %w", err)
@@ -276,18 +276,18 @@ type DataStore interface {
 func Configure(ctx context.Context, ds DataStore, licenseKey string, token string) Config {
 	if token != "" {
 		return Config{
-			Authenticator: func(forceRenew bool) (string, error) { return token, nil },
-			BaseURL:       getBaseURL(true),
+			authenticator: func(forceRenew bool) (string, error) { return token, nil },
+			baseURL:       getBaseURL(true),
 		}
 	}
 
 	return Config{
-		Authenticator: GetAuthenticator(ctx, ds, licenseKey),
-		BaseURL:       getBaseURL(false),
+		authenticator: getAuthenticator(ctx, ds, licenseKey),
+		baseURL:       getBaseURL(false),
 	}
 }
 
-func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Authenticator {
+func getAuthenticator(ctx context.Context, ds DataStore, licenseKey string) authenticator {
 	return func(forceRenew bool) (string, error) {
 		const key = fleet.MDMAssetVPPProxyBearerToken
 		if !forceRenew {
