@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -1592,7 +1591,7 @@ func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTea
 func GetEndUserIdpFullName(ctx context.Context, ds Datastore, hostID uint) (string, error) {
 	endUsers, err := GetEndUsers(ctx, ds, hostID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting host end user idp name")
+		return "", fmt.Errorf("getting host end user idp name: %w", err)
 	}
 
 	// There can be multiple end users, but should only be a single idp user
