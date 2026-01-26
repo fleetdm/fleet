@@ -98,7 +98,7 @@ When your fleet includes a meaningful proportion of non-Apple devices, managing 
 
 Security-led teams particularly value platforms that provide infrastructure-as-code workflows, REST API access, and native support across macOS, Windows, Linux, iOS/iPadOS, and Android. If your security strategy depends on integrating [device management](https://fleetdm.com/device-management) with existing SIEM and security infrastructure across all operating systems, Apple-only platforms like Jamf Pro and Kandji will need additional tooling to cover the full scope.
 
-**Cross-platform solutions address gaps in Apple-only MDM**
+## Cross-platform solutions address gaps in Apple-only MDM
 
 Cross-platform solutions can provide [device reporting under 30 seconds](https://fleetdm.com/releases/fleet-4-78-0) across macOS, Windows, Linux, iOS, Android, and ChromeOS. During incident response, your security teams get immediate answers rather than waiting for scheduled device check-ins.
 
@@ -112,19 +112,19 @@ Choosing between Jamf and Kandji addresses Apple device management, but for many
 
 ## Frequently asked questions
 
-**How hard is it to migrate from Jamf to Kandji or from Kandji to Jamf?**
+### How hard is it to migrate from Jamf to Kandji or from Kandji to Jamf?
 
 MDM migrations benefit from careful planning and phased implementation. Start with a pilot test of a small group of devices first and, following common migration guidance, unassign those devices from the current MDM server in Apple Business Manager, then assign them to the new MDM server, and only then unenroll them from the legacy platform and enroll them in the new one. The biggest challenge isn't technical execution but translating configurations between platforms. Jamf's policy-based architecture fundamentally differs from Kandji's Blueprint system, meaning you'll need to reimplement policies rather than simply export and import them.
 
-**Do I still need separate security and compliance tools if I use Jamf or Kandji?**
+### Do I still need separate security and compliance tools if I use Jamf or Kandji?
 
 Kandji includes native EDR and automated compliance controls that can reduce the need for separate endpoint security tools. Jamf requires add-on modules (Jamf Protect for EDR, Jamf Trusted Access/Compliance Editor for compliance framework mapping) that together provide similar coverage. However, both platforms have important limitations: your security teams typically still need SIEM integration, threat intelligence platforms, and broader security monitoring beyond endpoint management. Additionally, organizations with multi-platform device fleets face coverage gaps with either platform alone, as both support Apple devices exclusively.
 
-**What are the best alternatives for mixed macOS, Windows, and Linux fleets?**
+### What are the best alternatives for mixed macOS, Windows, and Linux fleets?
 
 Note: Both Jamf Pro and Kandji are Apple-only MDM platforms and can't manage Windows or Linux devices. Organizations with mixed-platform fleets need different approaches. Unified endpoint management platforms that support multiple operating systems through a single interface work better than maintaining separate tools for each platform. [Fleet](https://fleetdm.com/device-management) provides open-source cross-platform device management with support for macOS, iOS, Windows, Linux, ChromeOS, and Android through API, UI, or GitOps workflows, alongside zero-touch setup across all platforms and unified device inventory and configuration management capabilities.
 
-**When does it make sense to use Apple-specific MDM alongside a cross-platform solution?**
+### When does it make sense to use Apple-specific MDM alongside a cross-platform solution?
 
 You can maintain Jamf or Kandji for core Apple device management while adding cross-platform platforms for unified querying, automated compliance evidence collection, and real-time visibility across all platforms. This layered approach works when your teams have expertise with the existing Apple MDM and need cross-platform capabilities without disrupting established workflows. Cross-platform platforms complement rather than conflict with existing MDM infrastructure. [Try Fleet](https://fleetdm.com/try-fleet) to see how it integrates with current device
 
