@@ -12,7 +12,7 @@ In the next 3 months, Fleet will ship...
 - 🤖 Manage company-owned (fully managed) Android
 - 🎡 See completed (past) and pending (upcoming) MDM commands
 - 🔧 Self-service scripts on macOS
-- 📡 Use Okta as a certificate authority (CA) with a dynamic challenge
+- 📡 Use Okta as a certificate authority (CA) with a dynamic challenge on macOS
 - 👨‍💻 More macOS and Windows Fleet-maintained apps
 - 🎯 Patch policies: Fleet auto-fills minimum version
 - 🪟 Removals for Windows configuration profiles
