@@ -351,7 +351,3 @@ linters:
       - path: tools/dbutils/schema_generator.go
         linters:
           - gosec
-      # Windows MDM Auth https://github.com/fleetdm/confidential/issues/13909
-      - path: server/datastore/mysql/migrations/tables/20260126150840_AddWindowsMDMCredentialsHash_test.go
-        linters:
-          - gosec
