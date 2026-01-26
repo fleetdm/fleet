@@ -56,7 +56,7 @@ module.exports = {
 
 
     // Build a description with information from the form submission to add to the created/found contact record.
-    let description =
+    let descriptionForCrmUpdate =
     `
     Submitted the gitops workshop request form.
     Submission information:
@@ -75,25 +75,20 @@ module.exports = {
         firstName: firstName,
         lastName: lastName,
         contactSource: 'Website - Contact forms',
-        description: description,
+        description: descriptionForCrmUpdate,
         marketingAttributionCookie: attributionCookieOrUndefined
       }).intercept((err)=>{
         return new Error(`Could not create/update a contact or account. Full error: ${require('util').inspect(err)}`);
       });
 
-      if(!recordIds.salesforceAccountId) {
-        throw new Error(`Could not create campaign member record, a salesforce contact record (${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
-      }
-
       // Add contact to campaign.
       await sails.helpers.salesforce.createCampaignMember.with({
-        salesforceAccountId: recordIds.salesforceAccountId,
         salesforceContactId: recordIds.salesforceContactId,
-        campaignName: 'placeholder-campaign-name',
+        salesforceCampaignId: '701UG00000bLCLpYAO',// 2026_01-FE-GitOps_Workshop_Interest Campaign
       });
 
     }).tolerate((err)=>{
-      `When a user (${emailAddress}) submitted the gitops workshop request form, an error occured when updateing CRM records for this user.\n Submission information: ${description}\n Full error: ${require('util').inspect(err)}`;
+      sails.log.warn(`When a user (${firstName} ${lastName}, email: ${emailAddress}) submitted the gitops workshop request form, an error occured when updating CRM records for this user.\n Submission information: ${descriptionForCrmUpdate.split('Submission information:')[1]}\n Full error: ${require('util').inspect(err)}`);
     });
 
 
