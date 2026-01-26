@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260119220029, Down_20260119220029)
+	MigrationClient.AddMigration(Up_20260126210724, Down_20260126210724)
 }
 
-func Up_20260119220029(tx *sql.Tx) error {
+func Up_20260126210724(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		CREATE TABLE host_conditional_access (
 			id int unsigned NOT NULL AUTO_INCREMENT,
@@ -27,6 +27,6 @@ func Up_20260119220029(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260119220029(tx *sql.Tx) error {
+func Down_20260126210724(tx *sql.Tx) error {
 	return nil
 }
