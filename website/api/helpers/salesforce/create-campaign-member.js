@@ -8,11 +8,6 @@ module.exports = {
 
 
   inputs: {
-    salesforceAccountId: {
-      type: 'string',
-      required: true,
-      extendedDescription: 'This ID of the account associated with the contact that will be added to a campaign'
-    },
     salesforceContactId: {
       type: 'string',
       required: true,
@@ -38,7 +33,7 @@ module.exports = {
   },
 
 
-  fn: async function ({salesforceAccountId, salesforceContactId, salesforceCampaignId}) {
+  fn: async function ({salesforceContactId, salesforceCampaignId}) {
 
     // Stop running if we're not in a production environment.
     if(sails.config.environment !== 'production') {
@@ -58,13 +53,11 @@ module.exports = {
       return await salesforceConnection.sobject('CampaignMember')
       .create({
         CampaignId: salesforceCampaignId,
-        Account: salesforceAccountId,
-        Contact: salesforceContactId,
+        ContactId: salesforceContactId,
       });
     }).intercept((err)=>{
       return new Error(`An error occured when creating a new "Campaign Member" record in Salesforce. full error ${require('util').inspect(err, {depth: null})}`);
     });
-
 
     // Note: This helper has no return value.
     return;
