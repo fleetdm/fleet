@@ -3174,7 +3174,7 @@ func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID 
 	require.NoError(t, err)
 
 	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetOSVersion": "%s"`, expected.MinimumVersion.Value))
-	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT12:00:00"`, expected.Deadline.Value))
+	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT19:00:00"`, expected.Deadline.Value))
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {

@@ -2415,7 +2415,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
 | update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
@@ -2429,7 +2429,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (noon local time). |
+| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (7PM local time). |
 
 <br/>
 
@@ -2442,7 +2442,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (noon local time). |
+| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (7PM local time). |
 
 <br/>
 
@@ -12173,7 +12173,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version.                                                                           |
-| deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
+| deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
 | update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
@@ -12185,7 +12185,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
-| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (noon local time).                                                                    |
+| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (7PM local time).                                                                    |
 
 
 <br/>
@@ -12197,7 +12197,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
-| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (noon local time).                                                                    |
+| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (7PM local time).                                                                    |
 
 
 <br/>

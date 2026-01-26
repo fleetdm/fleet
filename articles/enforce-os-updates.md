@@ -42,7 +42,7 @@ On iOS and iPadOS hosts, end users will see a notification in their Notification
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 
-If you set a past date (ex. yesterday) as the deadline, the end user will immediately be prompted to install the update. If they don't, the update will automatically install in one hour. Similarly, if you set the deadline to today, end users will experience the same behavior if it's after 12 PM (end user local time).
+If you set a past date (ex. yesterday) as the deadline, the end user will immediately be prompted to install the update. If they don't, the update will automatically install in one hour. Similarly, if you set the deadline to today, end users will experience the same behavior if it's after 7 PM (end user local time).
 
 ### Update new hosts to latest
 
