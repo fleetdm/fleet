@@ -31,7 +31,7 @@
     "isomorphic-fetch": "3.0.0",
     "js-md5": "0.7.3",
     "js-yaml": "3.14.2",
-    "lodash": "4.17.21",
+    "lodash": "4.17.23",
     "memoize-one": "5.2.1",
     "normalizr": "3.6.2",
     "prop-types": "15.8.1",

@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
+import { SETUP_EXPERIENCE_PLATFORMS } from "interfaces/platform";
 
 import {
   createMockSoftwarePackage,
@@ -173,4 +174,48 @@ describe("AddInstallSoftware", () => {
       expect(checkbox).toBeChecked();
     });
   });
+
+  it("should disable adding software for macos with manual agent install", async () => {
+    render(
+      <AddInstallSoftware
+        savedRequireAllSoftwareMacOS={false}
+        currentTeamId={1}
+        softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
+        onAddSoftware={noop}
+        hasManualAgentInstall
+        platform="macos"
+      />
+    );
+
+    const addSoftwareButton = screen.getByRole("button", {
+      name: "Select software",
+    });
+    expect(addSoftwareButton).toBeVisible();
+    expect(addSoftwareButton).toBeDisabled();
+  });
+
+  it.each(SETUP_EXPERIENCE_PLATFORMS.filter((val) => val !== "macos"))(
+    "should allow adding software for %s platform with manual agent install",
+    async (platform) => {
+      render(
+        <AddInstallSoftware
+          savedRequireAllSoftwareMacOS={false}
+          currentTeamId={1}
+          softwareTitles={[
+            createMockSoftwareTitle(),
+            createMockSoftwareTitle(),
+          ]}
+          onAddSoftware={noop}
+          hasManualAgentInstall
+          platform={platform}
+        />
+      );
+
+      const addSoftwareButton = screen.getByRole("button", {
+        name: "Select software",
+      });
+      expect(addSoftwareButton).toBeVisible();
+      expect(addSoftwareButton).not.toBeDisabled();
+    }
+  );
 });

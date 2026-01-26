@@ -30,15 +30,13 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
-## Edit or remove an app
+## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
-
-2. Search for the app you want to remove and select the app to head to it's **Software detail**s** page.
-
-3. To edit the app, on the **Software details** page, select the pencil (edit) icon.
-
-4. To remove the app, on the **Software details** page, select the trash can (delete) icon.
+2. Search for the app you want to delete and select the app to head to its **Software details** page.
+3. On the **Software details** page, select **Actions > Edit software** to edit the app's [self-service](https://fleetdm.com/guides/software-self-service) status and categories, or to change its target to different sets of hosts.
+4 On the **Software details** page, select **Actions > Edit appearance** to edit the apps's icon and display name. The icon and display name can be edited for software that is available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded, as well as on **My device > Self-service**. If the display name is not set, then the default name (ingested by osquery) will be used.
+5. To delete the app, on the **Software details** page, select the trash can (delete) icon.
 
 ## Install an app
 

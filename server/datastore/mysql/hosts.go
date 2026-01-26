@@ -569,9 +569,10 @@ var hostRefs = []string{
 	"conditional_access_scep_certificates",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
-	// needed for in-house apps as the activity contains the MDM command UUID and
-	// can access the request/response without this table's entry.
+	// needed for in-house apps or vpp apps as the activity contains the MDM
+	// command UUID and can access the request/response without this table's entry.
 	"host_in_house_software_installs",
+	"host_vpp_software_installs",
 	"host_last_known_locations",
 }
 
@@ -5947,6 +5948,8 @@ WHERE
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingSerials, stmt, args...); err != nil {
 		return nil, err
 	}
+
+	level.Info(ds.logger).Log("msg", "get hosts with previously deleted dep assignments", "serials", strings.Join(matchingSerials, ","))
 
 	for _, serial := range matchingSerials {
 		result[serial] = struct{}{}

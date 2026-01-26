@@ -526,7 +526,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	applyOptString(&appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL, newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL)
 	applyOptString(&appConfig.ConditionalAccess.OktaAudienceURI, newAppConfig.ConditionalAccess.OktaAudienceURI)
 	applyOptString(&appConfig.ConditionalAccess.OktaCertificate, newAppConfig.ConditionalAccess.OktaCertificate)
-
 	// Handle Okta conditional access fields - only update if Set=true (partial update support)
 	// Check if any Okta fields are being set with valid (non-null) non-empty values
 	isNonEmpty := func(s optjson.String) bool {
@@ -1072,12 +1071,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// Check if Okta configuration values changed (for edited case)
 	oktaConfigChanged := false
+	oktaBypassChanged := false
 	if oldOktaConfigured && newOktaConfigured {
 		// Both old and new are configured - check if any values changed
 		oktaConfigChanged = oldAppConfig.ConditionalAccess.OktaIDPID.Value != appConfig.ConditionalAccess.OktaIDPID.Value ||
 			oldAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value != appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value ||
 			oldAppConfig.ConditionalAccess.OktaAudienceURI.Value != appConfig.ConditionalAccess.OktaAudienceURI.Value ||
 			oldAppConfig.ConditionalAccess.OktaCertificate.Value != appConfig.ConditionalAccess.OktaCertificate.Value
+
+		// Only create an activity if bypass is changed after otka has already been initially configured
+		oktaBypassChanged = oldAppConfig.ConditionalAccess.BypassDisabled.Value != newAppConfig.ConditionalAccess.BypassDisabled.Value
 	}
 
 	if (!oldOktaConfigured && newOktaConfigured) || oktaConfigChanged {
@@ -1097,6 +1100,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			fleet.ActivityTypeDeletedConditionalAccessOkta{},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for deleting Okta conditional access")
+		}
+	}
+
+	if oktaBypassChanged {
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeUpdateConditionalAccessBypass{
+				BypassDisabled: appConfig.ConditionalAccess.BypassDisabled.Value,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for updating conditional access bypass")
 		}
 	}
 

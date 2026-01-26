@@ -8,6 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
+| GTM Systems Architect | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 
 
 ## Contact us
@@ -16,10 +17,14 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
+> To **make a request** of the GTM Ops team, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Agtm-ops&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in the [#g-unicorns](https://fleetdm.slack.com/archives/C08BTMFTUCR) Slack channel).
+>  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/100/views/1) for this department, including pending tasks and the status of new requests.
+>  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
+
 
 ## Responsibilities
 
-The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, and financial operations including bank accounts and cash flow management.
+The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
 
 
 ### Prepare for OCV meeting
@@ -477,22 +482,56 @@ When an agreement is routed to the [CFO](https://fleetdm.com/handbook/finance#te
 3. Click on a test, then click on "Tasks".  
 4. Click on "Create task." Then, "Create GitHub issue."
 5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-finance" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
-6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of Digital Workplace & GTM Systems. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
 ### Check GitHub terms
 
 Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@latest/github/site-policy/github-terms-of-service) and search “inbound=outbound” to find the clause, if still there as is, paste a screenshot into the table in this [document](https://docs.google.com/document/d/101rcp9v3Zdml4YolGRmqYS5ruAKzQvXLOTHLXCavPuE/edit#heading=h.xu6qsi0wrns). If the clause has changed, contact Mike M. and let him know.
 
+### Measure intent signals
 
-### Review Fleet's US company benefits
+Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily) to measure and process intent signals.
 
-Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
-1. Log in to your [Gusto admin account](https://gusto.com/).
-2. Navigate to "Benefits" and select "Renewal survey".
-3. Complete the survey questions, aiming for minimal changes.
-4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
-5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+
+### Manage duplicates in CRM
+
+1. For accounts, navigate to the ["Ω Possible duplicate accounts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001FA1h2AG/view). For Contacts, navigate to the ["Ω Possible duplicate contacts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002qAoX2AU/view).
+2. Verify that each potential duplicate record is indeed a duplicate of the record it has been paired with.
+3. Open and compare the duplicate records to select the most up-to-date record to "Use as principal" (the record all other duplicates will be merged into). Consider the following:
+  - Is there an open opportunity on any of the records? If so, this is your "principal" account/contact.
+  - Do any of the accounts not have contacts? If no contacts found on the account and no significant activity, delete the account. 
+  - Do any of these accounts/contacts have activity that the others don't have (e.g. a rep sent an email or logged a call)? Be sure to preserve the maximum amount of historical activity on the principal record.
+4. Click "View duplicates", select all relevant records that appear. Click next.
+5. Select the best and most up-to-date data to combine into the single principal account/contact.
+
+> Do *NOT* change account owners if you can help it during this process. For "non-sales-ready" accounts default to the Integrations Admin. If the account is owned by an active user, be sure they maintain ownership of the principal account. 
+
+6. YOU CAN NOT UNDO THIS NEXT PART! Click next, click merge. 
+7. Verify that the principal record details match exactly what is on LinkedIn.
+
+
+### Grant role-specific license to a team member
+
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Heap of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
+
+
+### Add a seat to Salesforce
+
+Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
+- Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
+- View contracts -> pick current contract.
+- Add the desired number of licenses.
+- Sign DocuSign sent to the email.
+- The order will be processed in ~30m.
+- Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
+  - To enable email sync for a user:
+    - Navigate to the [user’s record](https://fleetdm.lightning.force.com/lightning/setup/ManageUsers/home) and scroll to the bottom of the permission set section.
+    - Add the “Inbox with Einstein Activity Capture” permission set and save.
+    - Navigate to the ["Einstein Activity Capture Settings"](https://fleetdm.lightning.force.com/lightning/setup/ActivitySyncEngineSettingsMain/home) and click the "Configurations" tab.
+    - Select "Edit", under "User and Profile Assignments" move the new user's name from "Available" to "Selected", scroll all the way down and click save.
+
+
 
 
 ## Rituals
