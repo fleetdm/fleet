@@ -553,7 +553,7 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...st
 }
 
 func printDumpTable(t *testing.T, cols []string, rows [][]string) {
-	writer := bytes.NewBufferString("")
+	writer := bytes.NewBufferString("\n")
 	table := tablewriter.NewWriter(writer)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAutoFormatHeaders(false)
@@ -566,7 +566,7 @@ func printDumpTable(t *testing.T, cols []string, rows [][]string) {
 	table.AppendBulk(rows)
 	table.Render()
 
-	t.Log("\n" + writer.String())
+	t.Log(writer.String())
 }
 
 func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
