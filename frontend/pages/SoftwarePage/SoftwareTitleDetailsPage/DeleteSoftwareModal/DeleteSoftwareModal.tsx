@@ -13,8 +13,13 @@ const baseClass = "delete-software-modal";
 
 const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
   "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.";
-const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
-  "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again.";
+const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG = (
+  <>
+    Couldn&apos;t delete. This software is installed during new host setup.
+    Please remove software in <strong>Controls &gt; Setup experience</strong>{" "}
+    and try again.
+  </>
+);
 
 const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
   // Android apps do not have pending installs/uninstalls as they are initiated through setup experience or by user
