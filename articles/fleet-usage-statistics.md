@@ -85,7 +85,28 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
         "numEnrolled": 999
       },
       ...
-    ]
+    ],
+    "ios": [
+      {
+        "version": "iOS 26.2.0",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "ipados": [
+      {
+        "version": "iOS 26.2.0",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "android": [
+      {
+        "version": "Android 15",
+        "numEnrolled": 999
+      },
+      ...
+    ],
   },
   "hostsEnrolledByOrbitVersion": [
     {
