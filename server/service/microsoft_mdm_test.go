@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -942,6 +943,11 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	ackCalled := 0
 	ds.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string) error {
 		require.Equal(t, "device", deviceId)
+		ackCalled++
+		return nil
+	}
+
+	kv.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
 		return nil
 	}
 
