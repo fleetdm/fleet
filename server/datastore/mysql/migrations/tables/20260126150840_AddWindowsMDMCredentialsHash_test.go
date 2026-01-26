@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // we are using MD5 here to match the hash sent by Windows devices
 	"testing"
 
 	"github.com/google/uuid"
@@ -16,7 +16,7 @@ func TestUp_20260126150840(t *testing.T) {
 	// Grab an MD5 hashed random password phrase
 	deviceId := "device123"
 	password := "dummy"
-	dummy := md5.Sum([]byte(deviceId + ":" + password))
+	dummy := md5.Sum([]byte(deviceId + ":" + password)) //nolint:gosec // we are using MD5 here to match the hash sent by Windows devices
 	_, err := db.Exec(`INSERT INTO mdm_windows_enrollments (mdm_device_id, mdm_hardware_id, device_state, device_type, device_name, enroll_type, enroll_user_id, enroll_proto_version, enroll_client_version, not_in_oobe, credentials_hash, credentials_acknowledged, host_uuid) VALUES (?, "bogus", "MDMDeviceEnrolledEnrolled", "CIMClient_Windows", "name", "Full", "bogus", "7.0", "10", 0, ?, ?, ?)`, deviceId, dummy[:], true, uuid.NewString())
 	require.NoError(t, err)
 
@@ -32,7 +32,7 @@ func TestUp_20260126150840(t *testing.T) {
 	require.NotEqual(t, rows[0].Hash, "dummy")
 
 	// Rehash the same (emulate coming from the app)
-	creds := md5.Sum([]byte(deviceId + ":" + password))
+	creds := md5.Sum([]byte(deviceId + ":" + password)) //nolint:gosec // we are using MD5 here to match the hash sent by Windows devices
 
 	// We will recieve a b64 encoded MD5 hash from the app, so we do string comparison here, as that is most likely how it will be
 	require.True(t, string(rows[0].Hash) == string(creds[:]))
