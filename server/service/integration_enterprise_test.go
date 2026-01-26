@@ -10876,9 +10876,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail: "calendar-mock@example.com",
-			},
+			}},
 		},
 	}
 	err = s.ds.SaveAppConfig(ctx, appCfg)
@@ -11162,9 +11162,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail: "calendar-mock@example.com",
-			},
+			}},
 		},
 	}
 	err = s.ds.SaveAppConfig(ctx, appCfg)
@@ -15778,9 +15778,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail: calendar.MockEmail,
-			},
+			}},
 		},
 	}
 	err = s.ds.SaveAppConfig(ctx, appCfg)
@@ -16278,9 +16278,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail: calendar.MockEmail,
-			},
+			}},
 		},
 	}
 	err = s.ds.SaveAppConfig(ctx, appCfg)

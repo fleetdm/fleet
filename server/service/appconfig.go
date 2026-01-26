@@ -399,6 +399,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
 	appConfig.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
 
+	// Handle Google Calendar API key preservation/replacement.
+	// The custom GoogleCalendarApiKey type handles unmarshaling "********" as masked.
+	if newAppConfig.Integrations.GoogleCalendar != nil {
+		for i, newGC := range newAppConfig.Integrations.GoogleCalendar {
+			if i < len(appConfig.Integrations.GoogleCalendar) {
+				// If api_key_json was omitted (empty) or masked ("********"), preserve the existing value
+				if newGC.ApiKey.IsEmpty() || newGC.ApiKey.IsMasked() {
+					if len(oldAppConfig.Integrations.GoogleCalendar) > i {
+						appConfig.Integrations.GoogleCalendar[i].ApiKey = oldAppConfig.Integrations.GoogleCalendar[i].ApiKey
+					}
+				} else {
+					// api_key_json was provided with real values, use it
+					appConfig.Integrations.GoogleCalendar[i].ApiKey = newGC.ApiKey
+				}
+			}
+		}
+	}
+
 	// if turning off Windows MDM and Windows Migration is not explicitly set to
 	// on in the same update, set it to off (otherwise, if it is explicitly set
 	// to true, return an error that it can't be done when MDM is off, this is
@@ -735,7 +753,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 	}
-	// If google_calendar is null, we keep the existing setting. If it's not null, we update.
+	// If google_calendar is null, we keep the existing setting.
 	if newAppConfig.Integrations.GoogleCalendar == nil {
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
