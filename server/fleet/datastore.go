@@ -2640,7 +2640,10 @@ type Datastore interface {
 	// It makes sure to queue a new nano command and update the command_uuid in the host_vpp_software_installs table, as well as the execution ID for the activity.
 	RetryVPPInstall(ctx context.Context, vppInstall *HostVPPSoftwareInstallLite) error
 
+	// MDMWindowsUpdateEnrolledDeviceCredentials updates the credentials hash for the enrolled Windows device.
+	// If acknowledge is true, it also marks the credentials as acknowledged.
 	MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, hostUUID string, credentialsHash []byte, acknowledge bool) error
+	// MDMWindowsAcknowledgeEnrolledDeviceCredentials marks the enrolled Windows device credentials as acknowledged.
 	MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, hostUUID string) error
 }
 
