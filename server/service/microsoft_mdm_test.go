@@ -931,16 +931,16 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		}, nil
 	}
 
-	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, hostUUID string, credentialsHash []byte, acknowledge bool) error {
-		require.Equal(t, "host-uuid-123", hostUUID)
+	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string, credentialsHash []byte, acknowledge bool) error {
+		require.Equal(t, "device", deviceId)
 		require.False(t, acknowledge)
 		credsHash = &credentialsHash
 		return nil
 	}
 
 	ackCalled := 0
-	ds.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc = func(ctx context.Context, hostUUID string) error {
-		require.Equal(t, "host-uuid-123", hostUUID)
+	ds.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string) error {
+		require.Equal(t, "device", deviceId)
 		ackCalled++
 		return nil
 	}

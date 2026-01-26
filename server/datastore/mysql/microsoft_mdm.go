@@ -2526,22 +2526,30 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 	})
 }
 
-func (ds *Datastore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, hostUUID string, credentialsHash []byte, acknowledge bool) error {
+func (ds *Datastore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte, acknowledge bool) error {
+	if deviceId == "" {
+		return nil
+	}
+
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE mdm_windows_enrollments
 		SET credentials_hash = ?
-		WHERE host_uuid = ?`,
-		credentialsHash, hostUUID,
+		WHERE mdm_device_id = ?`,
+		credentialsHash, deviceId,
 	)
 	return err
 }
 
-func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error {
+	if deviceId == "" {
+		return nil
+	}
+
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE mdm_windows_enrollments
 		SET credentials_acknowledged = TRUE
-		WHERE host_uuid = ?`,
-		hostUUID,
+		WHERE mdm_device_id = ?`,
+		deviceId,
 	)
 	return err
 }

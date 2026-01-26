@@ -1360,7 +1360,7 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 	// We verified the username, password and nonce match what we expect, so we can ack the rekeyed credentials
 	if !enrolledDevice.CredentialsAcknowledged {
-		err = svc.ds.MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx, enrolledDevice.HostUUID)
+		err = svc.ds.MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID)
 		if err != nil {
 			return RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "mark device credentials as acknowledged")
 		}
@@ -1390,7 +1390,7 @@ func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.Syn
 	credentialsHash := md5.Sum(fmt.Appendf([]byte{}, "%s:%s", username, password)) //nolint:gosec // Windows MDM Auth uses MD5
 
 	// Store the new credentials hash and mark that the device has not acknowledged them yet
-	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.HostUUID, credentialsHash[:], false)
+	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID, credentialsHash[:], false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "update enrolled device credentials")
 	}
