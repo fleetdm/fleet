@@ -114,6 +114,10 @@ func (c *ConditionalAccessSettings) OktaConfigured() bool {
 		c.OktaCertificate.Valid && c.OktaCertificate.Value != ""
 }
 
+func (c *ConditionalAccessSettings) BypassEnabled() bool {
+	return !c.BypassDisabled.Valid || !c.BypassDisabled.Value
+}
+
 // SMTPSettings is part of the AppConfig which defines the wire representation
 // of the app config endpoints
 type SMTPSettings struct {

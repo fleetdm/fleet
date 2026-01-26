@@ -823,6 +823,15 @@ type Datastore interface {
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
 
+	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
+	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
+	// ConditionalAccessConsumeBypass consumes the bypass checks and consumes any conditional access
+	// bypass a device has. If a bypass is present, it will return the time the bypass was enabled.
+	// If a bypass is not present, it will return nil.
+	ConditionalAccessConsumeBypass(ctx context.Context, hostID uint) (*time.Time, error)
+	// ConditionalAccessClearBypasses clears all conditional access bypasses from the database
+	ConditionalAccessClearBypasses(ctx context.Context) error
+
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
 	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error

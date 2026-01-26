@@ -1104,6 +1104,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if oktaBypassChanged {
+		if err := svc.ds.ConditionalAccessClearBypasses(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clearing existing conditional access bypasses")
+		}
+
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),

@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -395,8 +396,31 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			return nil
 		}
 
-		http.Redirect(w, r, fmt.Sprintf("%s/device/%s/policies", config.ServerSettings.ServerURL, authToken), http.StatusSeeOther)
-		return nil
+		hostRemediationUrl := fmt.Sprintf("%s/device/%s/policies", config.ServerSettings.ServerURL, authToken)
+
+		bypassEnabled := config.ConditionalAccess == nil || config.ConditionalAccess.BypassEnabled()
+
+		var bypassedAt *time.Time
+		if bypassEnabled {
+			bypassedAt, err = p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+			if err != nil {
+				ctxerr.Handle(ctx, fmt.Errorf("failed to check conditional access host bypass for host %d: %w", p.hostID, err))
+				http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
+				return nil
+			}
+		}
+
+		if bypassedAt == nil {
+			// No bypass, fail as usual
+			http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
+			return nil
+		}
+
+		// Host has clicked "bypass" for this check, we have consumed it and will let them through
+		level.Info(p.logger).Log(
+			"msg", "device has bypassed conditional access checks",
+			"host_id", p.hostID,
+		)
 	}
 
 	// Device is compliant - return session for SAML assertion

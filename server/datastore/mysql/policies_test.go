@@ -1420,8 +1420,9 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	tp, err := ds.NewTeamPolicy(context.Background(), team1.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID:    &q2.ID,
-		Resolution: "some other gp resolution",
+		QueryID:                  &q2.ID,
+		Resolution:               "some other gp resolution",
+		ConditionalAccessEnabled: true,
 	})
 	require.NoError(t, err)
 
@@ -1453,6 +1454,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "alice@example.com", policy.AuthorEmail)
 		assert.NotNil(t, policy.Resolution)
 		assert.Equal(t, "some gp resolution", *policy.Resolution)
+		assert.False(t, policy.ConditionalAccessEnabled)
 	}
 
 	// Failing policy is listed first.
@@ -1466,6 +1468,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "alice@example.com", policies[0].AuthorEmail)
 	assert.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some other gp resolution", *policies[0].Resolution)
+	assert.True(t, policies[0].ConditionalAccessEnabled)
 
 	checkGlobaPolicy(policies[1])
 	assert.Equal(t, "", policies[1].Response)
