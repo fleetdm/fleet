@@ -795,9 +795,6 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	_, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	s.Require().NoError(err)
 
-	s.Require().NoError(s.ds.LoadHostSoftware(ctx, host, false))
-	fmt.Printf("host.Software: %v\n", host.Software)
-
 	s.Require().NoError(s.ds.SyncHostsSoftware(ctx, time.Now()))
 
 	sw, _, err := s.ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{})
