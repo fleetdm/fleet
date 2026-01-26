@@ -70,14 +70,19 @@ const appleHostAndScheme = "https://api.ent.apple.com"
 // retrieved. If forceRenew is true, bypasses the database bearer token cache if it would've otherwise been used.
 type Authenticator func(forceRenew bool) (string, error)
 
+type Config struct {
+	BaseURL       string
+	Authenticator Authenticator
+}
+
 // client is a package-level client (similar to http.DefaultClient) so it can
 // be reused instead of created as needed, as the internal Transport typically
 // has internal state (cached connections, etc) and it's safe for concurrent
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
-func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator) (map[string]Metadata, error) {
-	req, err := buildMetadataRequest(adamIDs, vppToken)
+func GetMetadata(adamIDs []string, vppToken string, config Config) (map[string]Metadata, error) {
+	req, err := buildMetadataRequest(config.BaseURL, adamIDs, vppToken)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +91,7 @@ func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator
 	// client-side retries on top of this
 	var bodyResp metadataResp
 	if err = retry.Do(
-		func() error { return do(req, getBearerToken, false, &bodyResp) },
+		func() error { return do(req, config.Authenticator, false, &bodyResp) },
 		retry.WithInterval(time.Second),
 		retry.WithBackoffMultiplier(2),
 		retry.WithMaxAttempts(3),
@@ -111,8 +116,7 @@ func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator
 	return metadata, nil
 }
 
-func buildMetadataRequest(adamIDs []string, vppToken string) (*http.Request, error) {
-	baseURL := getBaseURL()
+func buildMetadataRequest(baseURL string, adamIDs []string, vppToken string) (*http.Request, error) {
 	reqURL, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing base VPP app details URL: %w", err)
@@ -242,17 +246,21 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 	return platforms
 }
 
-func getBaseURL() string {
+func getBaseURL(bearerTokenSupplied bool) string {
 	region := "us"
 	if dev_mode.Env("FLEET_DEV_VPP_REGION") != "" {
 		region = dev_mode.Env("FLEET_DEV_VPP_REGION")
 	}
-	if dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") == "apple" {
-		return fmt.Sprintf(appleHostAndScheme+"/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
-	}
-	if dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") != "" {
+
+	urlFromEnvVar := dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
+	if urlFromEnvVar != "" && urlFromEnvVar != "apple" {
 		return dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
 	}
+	// if a bearer token is supplied and we don't have an explicit further override, use Apple's endpoint directly
+	if urlFromEnvVar == "apple" || bearerTokenSupplied {
+		return fmt.Sprintf(appleHostAndScheme+"/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
+	}
+
 	return fmt.Sprintf("https://fleetdm.com/api/vpp/v1/metadata/%s?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
 }
 
@@ -265,11 +273,21 @@ type DataStore interface {
 	fleet.AccessesMDMConfigAssets
 }
 
-func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string, token string) Authenticator {
+func Configure(ctx context.Context, ds DataStore, licenseKey string, token string) Config {
 	if token != "" {
-		return func(bool) (string, error) { return token, nil }
+		return Config{
+			Authenticator: func(forceRenew bool) (string, error) { return token, nil },
+			BaseURL:       getBaseURL(true),
+		}
 	}
 
+	return Config{
+		Authenticator: GetAuthenticator(ctx, ds, licenseKey),
+		BaseURL:       getBaseURL(false),
+	}
+}
+
+func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Authenticator {
 	return func(forceRenew bool) (string, error) {
 		const key = fleet.MDMAssetVPPProxyBearerToken
 		if !forceRenew {
