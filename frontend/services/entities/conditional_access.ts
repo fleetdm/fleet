@@ -32,6 +32,14 @@ const conditionalAccessService = {
       "text"
     );
   },
+  getIdpSigningCert: (): Promise<Blob> => {
+    return sendRequest(
+      "GET",
+      endpoints.CONDITIONAL_ACCESS_IDP_SIGNING_CERT,
+      undefined,
+      "blob"
+    );
+  },
 };
 
 export default conditionalAccessService;

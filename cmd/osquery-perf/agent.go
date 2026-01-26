@@ -5,6 +5,7 @@ import (
 	"compress/bzip2"
 	cryptorand "crypto/rand"
 	"crypto/sha1" // nolint:gosec
+	"crypto/sha256"
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
@@ -16,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
@@ -2376,7 +2378,7 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
-func (a *agent) certificates() []map[string]string {
+func (a *agent) certificatesDarwin() []map[string]string {
 	a.certificatesMutex.RLock()
 	cache := a.certificatesCache
 	a.certificatesMutex.RUnlock()
@@ -2428,6 +2430,102 @@ func (a *agent) certificates() []map[string]string {
 	a.certificatesCache = results
 	a.certificatesMutex.Unlock()
 	return results
+}
+
+func (a *agent) certificatesWindows() []map[string]string {
+	a.certificatesMutex.RLock()
+	cache := a.certificatesCache
+	a.certificatesMutex.RUnlock()
+
+	// 90% of the time certificates do not change
+	if rand.Intn(100) < 90 && len(cache) > 0 {
+		return cache
+	}
+
+	const day = 24 * time.Hour
+
+	// custom SCEP profile ID used for certs issued via custom SCEP profiles (inserted by
+	// FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID)
+	//
+	// TODO: make this configurable as a loadtest agent parameter? for now, just hardcode it and try
+	// manipulating it in loadtest DB directly if needed.
+	profileIDCustomSCEP := "w2a6fd2c4-0018-4bdc-8046-c7342962b576"
+
+	// when windows hosts enroll to Fleet MDM, we issue them a unique cert during the WSTEP/SCEP process
+	uuidFleetSCEP := uuid.NewString()
+
+	// uuids that we'll use in serials and hashes to ensure uniqueness
+	serial1 := uuid.NewString()
+	s1 := sha1.Sum([]byte(serial1)) //nolint: gosec
+
+	serial2 := uuid.NewString()
+	s2 := sha1.Sum([]byte(serial2)) //nolint: gosec
+
+	// Fleet SCEP cert example based on data from a real Windows host
+	c1 := map[string]string{
+		"ca":                "-1",
+		"common_name":       uuidFleetSCEP,
+		"subject":           "Fleet, " + uuidFleetSCEP,
+		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2160",
+		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		// generate so that it may be expired
+		"not_valid_after": fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix()),
+		// notBefore is always in the past (1-10 days in the past)
+		"not_valid_before": fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix()),
+		"serial":           serial1,
+		"sha1":             hex.EncodeToString(s1[:]),
+		"username":         "Admin",
+		"path":             "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+	// Custom SCEP cert example based on data from a real Windows host
+	c2 := map[string]string{
+		"ca":                "-1",
+		"common_name":       fmt.Sprintf("%s User\n            CN", profileIDCustomSCEP),
+		"subject":           fmt.Sprintf("fleet-%s, \"%s User\n            CN\"", profileIDCustomSCEP, profileIDCustomSCEP),
+		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
+		"key_algorithm":     "RSA",
+		"key_strength":      "1120",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		// generate so that it may be expired
+		"not_valid_after": fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix()),
+		// notBefore is always in the past (1-10 days in the past)
+		"not_valid_before": fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix()),
+		"serial":           serial2,
+		"sha1":             hex.EncodeToString(s2[:]),
+		"username":         "Admin",
+		"path":             "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+
+	// We'll use the examples above to create rows with minor variations, similar to what
+	// we would get from a real Windows host.
+	c3 := maps.Clone(c1)
+	c3["username"] = "SYSTEM"
+	c3["path"] = "Users\\S-1-5-18\\Personal"
+
+	c4 := maps.Clone(c1)
+	c4["username"] = "SYSTEM"
+	c4["path"] = "CurrentUser\\Personal"
+
+	c5 := maps.Clone(c1)
+	c5["username"] = "SYSTEM"
+	c5["path"] = "Users\\S-1-5-18\\Personal"
+
+	c6 := maps.Clone(c1)
+	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	c7 := maps.Clone(c2)
+	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
+
+	a.certificatesMutex.Lock()
+	a.certificatesCache = rows
+	a.certificatesMutex.Unlock()
+	return rows
 }
 
 func (a *agent) orbitInfo() []map[string]string {
@@ -2671,9 +2769,36 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					if len(teamIdentifier) > 10 {
 						teamIdentifier = teamIdentifier[:10]
 					}
+					cdhashSHA256 := fmt.Sprintf("%x", sha1.Sum([]byte(installedPath))) // cdhash returns 40 characters, matching the length of the sha1 here
 					results = append(results, map[string]string{
 						"path":            installedPath,
 						"team_identifier": teamIdentifier,
+						"cdhash_sha256":   cdhashSHA256,
+					})
+				}
+			}
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_executable_sha256":
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			if len(cachedResults.software) > 0 {
+				for _, s := range cachedResults.software {
+					if s["source"] != "apps" {
+						continue
+					}
+					installedPath := s["installed_path"]
+					// Generate mock executable path
+					executablePath := installedPath + "/Contents/MacOS/" + strings.TrimSuffix(s["name"], ".app")
+					// Generate a mock sha256 hash based on the executable path for consistency
+					executableSHA256 := fmt.Sprintf("%x", sha256.Sum256([]byte(executablePath)))
+					results = append(results, map[string]string{
+						"path":              installedPath,
+						"executable_path":   executablePath,
+						"executable_sha256": executableSHA256,
 					})
 				}
 			}
@@ -2824,7 +2949,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		// most other osquery queries are handled.
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
-			results = a.certificates()
+			results = a.certificatesDarwin()
+		}
+		return true, results, &ss, nil, nil
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"certificates_windows"):
+		// NOTE: feels exaggerated to fail osquery 50% of the time but this is how
+		// most other osquery queries are handled.
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.certificatesWindows()
 		}
 		return true, results, &ss, nil, nil
 	default:
@@ -3036,7 +3169,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
 				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
-					productName)
+					productName, "America/Los_Angeles")
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)

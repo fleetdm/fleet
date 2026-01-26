@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"iter"
 	"net/url"
 	"time"
 
@@ -72,8 +73,18 @@ type OsqueryService interface {
 	YaraRuleByName(ctx context.Context, name string) (*YaraRule, error)
 }
 
+// UserLookupService provides methods for looking up users.
+// This interface is extracted for use by components that only need user lookup capabilities.
+type UserLookupService interface {
+	// ListUsers returns all users.
+	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
+	// UsersByIDs returns minimal user info matching the provided IDs.
+	UsersByIDs(ctx context.Context, ids []uint) ([]*UserSummary, error)
+}
+
 type Service interface {
 	OsqueryService
+	UserLookupService
 
 	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
 	GetTransparencyURL(ctx context.Context) (string, error)
@@ -135,9 +146,6 @@ type Service interface {
 	// AuthenticatedUser returns the current user from the viewer context.
 	AuthenticatedUser(ctx context.Context) (user *User, err error)
 
-	// ListUsers returns all users.
-	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
-
 	// ChangePassword validates the existing password, and sets the new  password. User is retrieved from the viewer
 	// context.
 	ChangePassword(ctx context.Context, oldPass, newPass string) error
@@ -162,7 +170,7 @@ type Service interface {
 	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
 
 	// DeleteUser permanently deletes the user identified by the provided ID.
-	DeleteUser(ctx context.Context, id uint) error
+	DeleteUser(ctx context.Context, id uint) (*User, error)
 
 	// ChangeUserEmail is used to confirm new email address and if confirmed,
 	// write the new email address to user.
@@ -252,18 +260,20 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// LabelService
 
-	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
-	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
-	// GetLabelSpecs returns all of the stored LabelSpecs.
-	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
+	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary,
+	// plus rename existing labels *on other teams* to avoid name conflicts
+	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec, teamID *uint, namesToMove []string) error
+	// GetLabelSpecs returns either all labels a user can see (no team ID), global labels only (team ID 0),
+	// or team-specific labels
+	GetLabelSpecs(ctx context.Context, teamID *uint) ([]*LabelSpec, error)
 	// GetLabelSpec gets the spec for the label with the given name.
 	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
-	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
-	ListLabels(ctx context.Context, opt ListOptions, includeHostCounts bool) (labels []*Label, err error)
-	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
-	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
+	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*LabelWithTeamName, []uint, error)
+	ListLabels(ctx context.Context, opt ListOptions, teamID *uint, includeHostCounts bool) (labels []*Label, err error)
+	LabelsSummary(ctx context.Context, teamID *uint) (labels []*LabelSummary, err error)
+	GetLabel(ctx context.Context, id uint) (label *LabelWithTeamName, hostIDs []uint, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
 	// DeleteLabelByID is for backwards compatibility with the UI
@@ -275,10 +285,13 @@ type Service interface {
 	// ListLabelsForHost returns a slice of labels for a given host
 	ListLabelsForHost(ctx context.Context, hostID uint) ([]*Label, error)
 
-	// BatchValidateLabels validates that each of the provided label names exists. The returned map
-	// is keyed by label name. Caller must ensure that appropirate authorization checks are
-	// performed prior to calling this method.
-	BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]LabelIdent, error)
+	// BatchValidateLabels validates that each of the provided label names exists,
+	// and verifies the provided label names belong to the given teamID.
+	//
+	// The returned map is keyed by label name.
+	// Caller must ensure that appropriate authorization checks are performed prior
+	// to calling this method.
+	BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]LabelIdent, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// QueryService
@@ -358,7 +371,12 @@ type Service interface {
 	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
 	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
 	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
+	// AuthenticateIDeviceByURL loads host identified by the URL UUID.
+	// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
+	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
+	AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *Host, debug bool, err error)
 
+	StreamHosts(ctx context.Context, opt HostListOptions) (hostIterator iter.Seq2[*Host, error], err error)
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	// GetHost returns the host with the provided ID.
 	//
@@ -603,12 +621,6 @@ type Service interface {
 	// logins, running a live query, etc.
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
 
-	// ListActivities lists the activities stored in the datastore.
-	//
-	// What we call "Activities" are administrative operations,
-	// logins, running a live query, etc.
-	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
-
 	// ListHostUpcomingActivities lists the upcoming activities for the specified
 	// host. Those are activities that are queued or scheduled to run on the host
 	// but haven't run yet. It also returns the total (unpaginated) count of upcoming
@@ -632,14 +644,14 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Templates
 
-	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponseFull, error)
+	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponse, error)
 	ListCertificateTemplates(ctx context.Context, teamID uint, opts ListOptions) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
-	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseFull, error)
-	GetCertificateTemplate(ctx context.Context, id uint, hostUUID *string) (*CertificateTemplateResponseFull, error)
+	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseForHost, error)
+	GetCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponse, error)
 	DeleteCertificateTemplate(ctx context.Context, id uint) error
 	ApplyCertificateTemplateSpecs(ctx context.Context, specs []*CertificateRequestSpec) error
 	DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
-	UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status MDMDeliveryStatus, detail *string) error
+	UpdateCertificateStatus(ctx context.Context, update *CertificateStatusUpdate) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
@@ -696,6 +708,9 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+	// UpdateSoftwareTitleAutoUpdateConfig updates the auto-update configuration for a software title.
+	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config SoftwareAutoUpdateConfig) error
+
 	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
 
@@ -729,7 +744,7 @@ type Service interface {
 
 	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
-	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload AppStoreAppUpdatePayload) (*VPPAppStoreApp, error)
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload AppStoreAppUpdatePayload) (*VPPAppStoreApp, *ActivityEditedAppStoreApp, error)
 
 	// GetInHouseAppManifest returns a manifest XML file that points at the download URL for the given in-house app.
 	GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
@@ -791,6 +806,9 @@ type Service interface {
 	// Geolocation
 
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
+	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
+	// Note: It is a public method because of how the calling methods are set up. It assumes that auth has been done in the caller.
+	GetHostLocationData(ctx context.Context, hostID uint) (*GeoLocation, error)
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Software Installers
@@ -945,10 +963,6 @@ type Service interface {
 	// devices. Note that a deviceID is the same as a host's UUID.
 	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
-	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
-	// profile used for Fleet MDM enrollment from the specified device.
-	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
-
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
@@ -1100,10 +1114,10 @@ type Service interface {
 	RunMDMCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
 	// GetMDMCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+	GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*MDMCommandResult, error)
 
 	// ListMDMCommands returns MDM commands based on the provided options.
-	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, error)
+	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
@@ -1390,6 +1404,9 @@ type Service interface {
 	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
 	// GetGroupedCertificateAuthorities retrieves the grouped certificate authorities
 	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
+
+	// UnenrollMDM unenrolls the host from MDM
+	UnenrollMDM(ctx context.Context, hostID uint) error
 }
 
 type KeyValueStore interface {

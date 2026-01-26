@@ -187,8 +187,18 @@ func generatePolicyFieldMask() string {
 
 var policyFieldMask = generatePolicyFieldMask()
 
-func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(policyFieldMask).Do()
+func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+	call := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
+
+	switch {
+	case opts.ExcludeApps:
+		call = call.UpdateMask(policyFieldMask)
+	case opts.OnlyUpdateApps:
+		call = call.UpdateMask("applications")
+	}
+
+	ret, err := call.Do()
+
 	switch {
 	case googleapi.IsNotModified(err):
 		g.logger.Log("msg", "Android policy not modified", "policy_name", policyName)

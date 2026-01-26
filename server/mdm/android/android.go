@@ -56,11 +56,14 @@ type AgentManagedConfiguration struct {
 	ServerURL              string                     `json:"server_url"`
 	HostUUID               string                     `json:"host_uuid"`
 	EnrollSecret           string                     `json:"enroll_secret"`
-	CertificateTemplateIDs []AgentCertificateTemplate `json:"certificate_template_ids,omitempty"`
+	CertificateTemplateIDs []AgentCertificateTemplate `json:"certificate_templates,omitempty"`
 }
 
 type AgentCertificateTemplate struct {
-	ID uint `json:"id"`
+	ID        uint   `json:"id"`
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	UUID      string `json:"uuid"`
 }
 
 // MDMAndroidPolicyRequest represents a request made to the Android Management
@@ -76,3 +79,5 @@ type MDMAndroidPolicyRequest struct {
 	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
+
+const AppStatusAvailable = "AVAILABLE"

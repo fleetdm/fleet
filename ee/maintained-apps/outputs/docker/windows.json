@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.53.0",
+      "version": "4.55.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.';"
       },
-      "installer_url": "https://desktop.docker.com/win/main/amd64/211793/Docker%20Desktop%20Installer.exe",
+      "installer_url": "https://desktop.docker.com/win/main/amd64/213807/Docker%20Desktop%20Installer.exe",
       "install_script_ref": "f938db79",
       "uninstall_script_ref": "000be0a3",
-      "sha256": "92f624f48ca24a6b9ca188aeb9c702d25a396c40e881f3eab4b025842ca385e5",
+      "sha256": "7f424725af2297e346ea5ac8c9ff51f7a14055c4de7f3ad4877b1c2d9fa67e1b",
       "default_categories": [
         "Developer Tools"
       ]

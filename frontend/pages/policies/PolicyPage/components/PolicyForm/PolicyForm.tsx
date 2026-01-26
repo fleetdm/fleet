@@ -29,7 +29,7 @@ import {
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
 // @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -167,15 +167,20 @@ const PolicyForm = ({
     config,
   } = useContext(AppContext);
 
-  const {
-    data: { labels } = { labels: [] },
-    isFetching: isFetchingLabels,
-  } = useQuery<ILabelsSummaryResponse, Error>(
-    ["custom_labels"],
-    () => labelsAPI.summary(),
+  const { data: { labels } = { labels: [] } } = useQuery<
+    ILabelsSummaryResponse,
+    Error
+  >(
+    ["custom_labels", currentTeam],
+    () => labelsAPI.summary(currentTeam?.id, true),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
+      // Wait for the current team to load from context before pulling labels, otherwise on a page load
+      // directly on the policies new/edit page this gets called with currentTeam not set, then again
+      // with the correct team value. If we don't trigger on currentTeam changes we'll just start with a
+      // null team ID here and never populate with the correct team unless we navigate from another page
+      // where team context is already set prior to navigation.
+      enabled: isPremiumTier && !!currentTeam,
       staleTime: 10000,
       select: (res) => ({ labels: getCustomLabels(res.labels) }),
     }

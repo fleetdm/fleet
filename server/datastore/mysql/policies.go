@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -13,8 +14,8 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -27,6 +28,19 @@ const policyCols = `
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
 	p.vpp_apps_teams_id, p.conditional_access_enabled
 `
+
+const (
+	resetScriptAttemptsStmt = `
+		UPDATE host_script_results
+		SET attempt_number = 0
+		WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
+	`
+	resetInstallAttemptsStmt = `
+		UPDATE host_software_installs
+		SET attempt_number = 0
+		WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
+	`
+)
 
 var (
 	errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
@@ -536,12 +550,22 @@ func filterNotExecuted(results map[uint]*bool) map[uint]bool {
 }
 
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
+	// Identify policies that flipped failing -> passing for this host using current incoming results.
+	// We compute this before updating policy_membership so we compare against the previous state.
+	_, newPassing, err := ds.FlippingPoliciesForHost(ctx, host.ID, results)
+	if err != nil {
+		return err
+	}
+	if len(newPassing) > 0 {
+		slices.Sort(newPassing)
+	}
 	vals := []interface{}{}
 	bindvars := []string{}
+	var orderedIDs []uint
 	if len(results) > 0 {
 		// Sort the results to have generated SQL queries ordered to minimize
 		// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
-		orderedIDs := make([]uint, 0, len(results))
+		orderedIDs = make([]uint, 0, len(results))
 		for policyID := range results {
 			orderedIDs = append(orderedIDs, policyID)
 		}
@@ -562,7 +586,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	// semantically equivalent, even though here it processes a single host and
 	// in async mode it processes a batch of hosts).
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if len(results) > 0 {
 			query := fmt.Sprintf(
 				`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
@@ -572,6 +596,25 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 			_, err := tx.ExecContext(ctx, query, vals...)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert policy_membership (%v)", vals)
+			}
+
+			// Reset attempt_number to 0 only for policies that flipped failing -> passing.
+			if len(newPassing) > 0 {
+				query, args, err := sqlx.In(resetScriptAttemptsStmt, host.ID, newPassing)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building reset script attempts query")
+				}
+				if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "reset script attempt numbers")
+				}
+
+				query, args, err = sqlx.In(resetInstallAttemptsStmt, host.ID, newPassing)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building reset install attempts query")
+				}
+				if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "reset install attempt numbers")
+				}
 			}
 		}
 
@@ -1387,14 +1430,56 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 
 	vals := make([]interface{}, 0, len(batch)*3)
 	hostIDs := make([]uint, 0, len(batch))
+	// Group incoming results per host for flip detection.
+	incomingByHost := make(map[uint]map[uint]*bool, len(batch))
 	for _, tup := range batch {
 		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
 		hostIDs = append(hostIDs, tup.HostID)
+		m, ok := incomingByHost[tup.HostID]
+		if !ok {
+			m = make(map[uint]*bool)
+			incomingByHost[tup.HostID] = m
+		}
+		m[tup.PolicyID] = tup.Passes
 	}
+	// Compute newly-passing policies per host before upserting membership so we compare against previous state.
+	newPassingByHost := make(map[uint][]uint)
+	for hid, incoming := range incomingByHost {
+		_, newPassing, err := ds.FlippingPoliciesForHost(ctx, hid, incoming)
+		if err != nil {
+			return err
+		}
+		if len(newPassing) > 0 {
+			slices.Sort(newPassing)
+			newPassingByHost[hid] = newPassing
+		}
+	}
+
 	err := ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, sql, vals...)
-			return ctxerr.Wrap(ctx, err, "insert into policy_membership")
+			if _, err := tx.ExecContext(ctx, sql, vals...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert into policy_membership")
+			}
+
+			// Reset attempt_number to 0 for policies that flipped failing -> passing per host.
+			for hid, newPassing := range newPassingByHost {
+				q1, a1, err := sqlx.In(resetScriptAttemptsStmt, hid, newPassing)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building reset script attempts query (async)")
+				}
+				if _, err := tx.ExecContext(ctx, q1, a1...); err != nil {
+					return ctxerr.Wrap(ctx, err, "reset script attempt numbers (async)")
+				}
+
+				q2, a2, err := sqlx.In(resetInstallAttemptsStmt, hid, newPassing)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building reset install attempts query (async)")
+				}
+				if _, err := tx.ExecContext(ctx, q2, a2...); err != nil {
+					return ctxerr.Wrap(ctx, err, "reset install attempt numbers (async)")
+				}
+			}
+			return nil
 		})
 	if err != nil {
 		return err
@@ -1454,6 +1539,21 @@ func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext
 	// we can reduce batch size or move this method outside the transaction.
 	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
 		return err
+	}
+	return nil
+}
+
+func cleanupLabelMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	// Similar to cleanupPolicyMembershipOnTeamChange, hosts can only be in one team, so if there's a label
+	// that has a team id and a result from one of our hosts it can only be from the previous team they are
+	// being transferred from.
+	query, args, err := sqlx.In(`DELETE FROM label_membership
+					WHERE label_id IN (SELECT id FROM labels WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean old label memberships sqlx in")
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec clean old label memberships")
 	}
 	return nil
 }
@@ -1647,6 +1747,28 @@ func (ds *Datastore) IncrementPolicyViolationDays(ctx context.Context) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return incrementViolationDaysDB(ctx, tx)
 	})
+}
+
+func (ds *Datastore) IsPolicyFailing(ctx context.Context, policyID, hostID uint) (bool, error) {
+	var passes *bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &passes, `
+		SELECT passes
+		FROM policy_membership
+		WHERE policy_id = ? AND host_id = ?
+	`, policyID, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return true, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "get policy membership")
+	}
+
+	if passes == nil || !*passes {
+		return true, nil
+	}
+
+	// Policy is passing
+	return false, nil
 }
 
 func (ds *Datastore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {

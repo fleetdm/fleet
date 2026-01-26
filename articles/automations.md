@@ -1,9 +1,8 @@
 # Automations
 
-You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
-windows), trigger or send query results to webhooks, or create tickets.
+You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send query results to webhooks, create tickets, and reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
 
-To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
+Automations are triggered by policies. Policies run every 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval)) and run in ascending order by policy ID after the ID is turned into a string ("100" runs before "53", which runs before "7").
 
 ## Activity automations
 
@@ -13,11 +12,11 @@ You can automatically send activites to a webhook URL or a [log destination](htt
 
 ## Policy automations
 
-Policy automations are triggered if a policy is newly failing on at least one host.
+Policy automations are triggered if a policy is newly failing on at least one host. A policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
 
-> Note that a policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
+Automations are only fired for Fleet's scheduled policy runs. Running a live policy doesn't trigger automations.
 
-Fleet checks whether to trigger policy automations once per day by default.
+Fleet triggers policy automations once per day by default ([configurable](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings)).
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 
@@ -38,7 +37,7 @@ Then in the UI:
 1. Navigate to the **Queries** page, select the relevant team, and click **Manage automations**
 2. In the modal that opens, confirm that you see "Log destination: Webhook", and when you hover over
    "Webhook", you see "Each time a query runs, the data is sent via webhook to:
-   <target_result_url>"
+   [target_result_url]"
 3. Select the queries that you want to send data to this webhook
 4. Click **Save**
 

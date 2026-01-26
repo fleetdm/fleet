@@ -129,6 +129,7 @@ const generateTableHeaders = (
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount
             }
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );

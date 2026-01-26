@@ -170,6 +170,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 	var (
 		macOSMinVersionUpdated        bool
+		updateNewHostsChanged         bool
 		iOSMinVersionUpdated          bool
 		iPadOSMinVersionUpdated       bool
 		windowsUpdatesUpdated         bool
@@ -182,9 +183,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
 			}
-			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set {
+			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set || payload.MDM.MacOSUpdates.UpdateNewHosts.Set {
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
+				updateNewHostsChanged = team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value != payload.MDM.MacOSUpdates.UpdateNewHosts.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
 			}
 		}
@@ -192,6 +194,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.IOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("ios_updates", err.Error())
 			}
+
 			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set {
 				iOSMinVersionUpdated = team.Config.MDM.IOSUpdates.MinimumVersion.Value != payload.MDM.IOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value
@@ -376,6 +379,28 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 
+	if updateNewHostsChanged {
+		var activity fleet.ActivityDetails
+		activity = fleet.ActivityTypeEnabledMacosUpdateNewHosts{
+			TeamID:   &team.ID,
+			TeamName: &team.Name,
+		}
+		if payload.MDM != nil && payload.MDM.MacOSUpdates != nil && !payload.MDM.MacOSUpdates.UpdateNewHosts.Value {
+			activity = fleet.ActivityTypeDisabledMacosUpdateNewHosts{
+				TeamID:   &team.ID,
+				TeamName: &team.Name,
+			}
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			activity,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macOS update new hosts edited")
+		}
+	}
+
 	if windowsUpdatesUpdated {
 		var deadline, grace *int
 		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
@@ -468,7 +493,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 	}
 
 	if teamOptions != nil {
-		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, teamOptions, true); err != nil {
+		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, teamOptions, true, teamID); err != nil {
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
@@ -678,6 +703,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
+	// Handle certificate templates associated with the team
+	certTemplates, _, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, fleet.ListOptions{})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get certificate templates for team")
+	}
+	for _, ct := range certTemplates {
+		if err := svc.ds.SetHostCertificateTemplatesToPendingRemove(ctx, ct.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "set hosts to pending remove for certificate template %d", ct.ID)
+		}
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}
@@ -743,7 +779,9 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return team, nil
 	}
 
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
 	if alreadyAuthd {
 		// device-authenticated request can only get the device's team
 		host, ok := hostctx.FromContext(ctx)
@@ -1002,8 +1040,13 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
+		var tmID uint
+		if team != nil {
+			tmID = team.ID
+		}
+
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
-			if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, spec.AgentOptions, true); err != nil {
+			if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, spec.AgentOptions, true, tmID); err != nil {
 				err = fleet.SuggestAgentOptionsCorrection(err)
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
@@ -1223,6 +1266,12 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 
+	if tm.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
+		if err := svc.mdmWindowsEnableOSUpdates(ctx, &tm.ID, tm.Config.MDM.WindowsUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enable team windows OS updates")
+		}
+	}
+
 	if conditionalAccessEnabled.Set && conditionalAccessEnabled.Value {
 		if err := svc.NewActivity(
 			ctx,
@@ -1299,8 +1348,10 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 		mdmIPadOSUpdatesEdited = true
 	}
+	var mdmWindowsUpdatesEdited bool
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
+		mdmWindowsUpdatesEdited = true
 	}
 
 	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption
@@ -1585,6 +1636,17 @@ func (svc *Service) editTeamFromSpec(
 	if mdmIPadOSUpdatesEdited {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
 			return err
+		}
+	}
+	if mdmWindowsUpdatesEdited {
+		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
+			if err := svc.mdmWindowsEnableOSUpdates(ctx, &team.ID, team.Config.MDM.WindowsUpdates); err != nil {
+				return ctxerr.Wrap(ctx, err, "enable team windows OS updates")
+			}
+		} else {
+			if err := svc.mdmWindowsDisableOSUpdates(ctx, &team.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "disable team windows OS updates")
+			}
 		}
 	}
 

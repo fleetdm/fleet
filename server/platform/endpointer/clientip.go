@@ -1,0 +1,85 @@
+package endpointer
+
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/realclientip/realclientip-go"
+)
+
+// NewClientIPStrategy creates a ClientIPStrategy based on the trusted_proxies configuration.
+//
+// Config values:
+//   - "" (empty): Legacy behavior for backwards compatibility - trusts True-Client-IP,
+//     X-Real-IP, and leftmost X-Forwarded-For. This is deprecated; use "none" when
+//     exposing the server directly to the internet.
+//   - "none": Ignores all headers, uses only RemoteAddr.
+//   - A header name prefixed with `header:` (e.g., "header:True-Client-IP"):
+//     Trust this single-IP header, fall back to RemoteAddr.
+//   - A number (e.g., "2"): Trust X-Forwarded-For with this many proxy hops
+//   - Comma-separated IPs/CIDRs (e.g., "10.0.0.0/8,192.168.0.0/16"):
+//     Trust X-Forwarded-For from requests originating from these proxy ranges.
+func NewClientIPStrategy(trustedProxies string) (realclientip.Strategy, error) {
+	trustedProxies = strings.TrimSpace(trustedProxies)
+
+	var strategy realclientip.Strategy
+	var err error
+
+	if trustedProxies == "" {
+		// Empty: legacy behavior for backwards compatibility.
+		return &legacyStrategy{}, nil
+	} else if strings.EqualFold(trustedProxies, "none") {
+		// "none": Trust no one; return (non-spoofable) RemoteAddr only.
+		return realclientip.RemoteAddrStrategy{}, nil
+	} else if headerName, ok := strings.CutPrefix(trustedProxies, "header:"); ok {
+		// Check if the value is a single IP header name.
+		strategy, err = realclientip.NewSingleIPHeaderStrategy(headerName)
+		if err != nil {
+			return nil, fmt.Errorf("invalid header name %q: %w", trustedProxies, err)
+		}
+	} else if hopCount, err := strconv.Atoi(trustedProxies); err == nil {
+		// Check if it's a number (hop count).
+		if hopCount < 1 {
+			return nil, fmt.Errorf("trusted_proxies hop count must be >= 1, got %d", hopCount)
+		}
+		strategy, err = realclientip.NewRightmostTrustedCountStrategy("X-Forwarded-For", hopCount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create hop count strategy: %w", err)
+		}
+	} else {
+		// Otherwise, parse as comma-separated IP ranges.
+		rangeStrs := strings.Split(trustedProxies, ",")
+		for i := range rangeStrs {
+			rangeStrs[i] = strings.TrimSpace(rangeStrs[i])
+		}
+
+		trustedRanges, err := realclientip.AddressesAndRangesToIPNets(rangeStrs...)
+		if err != nil {
+			return nil, fmt.Errorf("invalid trusted_proxies IP ranges: %w", err)
+		}
+
+		strategy, err = realclientip.NewRightmostTrustedRangeStrategy("X-Forwarded-For", trustedRanges)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create IP range strategy: %w", err)
+		}
+	}
+
+	// Chain strategy with RemoteAddr as fallback.
+	return realclientip.NewChainStrategy(strategy, realclientip.RemoteAddrStrategy{}), nil
+}
+
+// legacyStrategy implements the original ExtractIP behavior for backwards compatibility.
+// This is deprecated; if your server is exposed directly to the internet, switch to
+// the "none" strategy.
+type legacyStrategy struct{}
+
+func (s *legacyStrategy) ClientIP(headers http.Header, remoteAddr string) string {
+	// Build a minimal http.Request to pass to extractIP
+	r := &http.Request{
+		Header:     headers,
+		RemoteAddr: remoteAddr,
+	}
+	return extractIP(r)
+}

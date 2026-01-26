@@ -196,10 +196,10 @@ type ABMTermsUpdater interface {
 // MDMIdPAccount contains account information of a third-party IdP that can be
 // later used for MDM operations like creating local accounts.
 type MDMIdPAccount struct {
-	UUID     string
-	Username string
-	Fullname string
-	Email    string
+	UUID     string `db:"uuid"`
+	Username string `db:"username"`
+	Fullname string `db:"fullname"`
+	Email    string `db:"email"`
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -350,6 +350,9 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
+	// ResultsMetadata contains command-specific metadata.
+	// VPP install commands includes a "software_installed" boolean.
+	ResultsMetadata map[string]any `json:"results_metadata,omitempty" db:"-"`
 }
 
 // MDMCommand represents an MDM command that has been enqueued for
@@ -372,6 +375,9 @@ type MDMCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// CommandStatus is the fleet computed field representing the status of the command
+	// based on the MDM protocol status
+	CommandStatus MDMCommandStatusFilter `json:"command_status" db:"command_status"`
 }
 
 // MDMCommandListOptions defines the options to control the list of MDM
@@ -384,9 +390,24 @@ type MDMCommandListOptions struct {
 	Filters MDMCommandFilters
 }
 
+type MDMCommandStatusFilter string
+
+const (
+	MDMCommandStatusFilterPending MDMCommandStatusFilter = "pending"
+	MDMCommandStatusFilterRan     MDMCommandStatusFilter = "ran"
+	MDMCommandStatusFilterFailed  MDMCommandStatusFilter = "failed"
+)
+
+var AllMDMCommandStatusFilters = []MDMCommandStatusFilter{
+	MDMCommandStatusFilterPending,
+	MDMCommandStatusFilterRan,
+	MDMCommandStatusFilterFailed,
+}
+
 type MDMCommandFilters struct {
-	HostIdentifier string
-	RequestType    string
+	HostIdentifier  string
+	RequestType     string
+	CommandStatuses []MDMCommandStatusFilter
 }
 
 type MDMPlatformsCounts struct {
@@ -424,37 +445,20 @@ type MDMProfilesSummary struct {
 	Failed uint `json:"failed" db:"failed"`
 }
 
-func (mdmPS *MDMProfilesSummary) Add(other *MDMProfilesSummary) *MDMProfilesSummary {
-	var s1, s2 MDMProfilesSummary
-	if mdmPS != nil {
-		s1 = *mdmPS
-	}
-	if other != nil {
-		s2 = *other
-	}
-	return &MDMProfilesSummary{
-		Verified:  s1.Verified + s2.Verified,
-		Verifying: s1.Verifying + s2.Verifying,
-		Pending:   s1.Pending + s2.Pending,
-		Failed:    s1.Failed + s2.Failed,
-	}
-
-}
-
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID            string             `db:"-" json:"-"`
-	CommandUUID         string             `db:"-" json:"-"`
-	ProfileUUID         string             `db:"-" json:"profile_uuid"`
-	Name                string             `db:"-" json:"name"`
-	Identifier          string             `db:"-" json:"-"`
-	Status              *MDMDeliveryStatus `db:"-" json:"status"`
-	OperationType       MDMOperationType   `db:"-" json:"operation_type"`
-	Detail              string             `db:"-" json:"detail"`
-	Platform            string             `db:"-" json:"platform"`
-	Scope               *string            `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
-	ManagedLocalAccount *string            `db:"-" json:"managed_local_account"`
+	HostUUID            string           `db:"-" json:"-"`
+	CommandUUID         string           `db:"-" json:"-"`
+	ProfileUUID         string           `db:"-" json:"profile_uuid"`
+	Name                string           `db:"-" json:"name"`
+	Identifier          string           `db:"-" json:"-"`
+	Status              *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
+	OperationType       MDMOperationType `db:"-" json:"operation_type"`
+	Detail              string           `db:"-" json:"detail"`
+	Platform            string           `db:"-" json:"platform"`
+	Scope               *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount *string          `db:"-" json:"managed_local_account"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -512,12 +516,30 @@ func (s MDMDeliveryStatus) IsValid() bool {
 	}
 }
 
+// StringPtr returns a pointer to the string representation of the status.
+func (s *MDMDeliveryStatus) StringPtr() *string {
+	if s == nil {
+		return nil
+	}
+	str := string(*s)
+	return &str
+}
+
 type MDMOperationType string
 
 const (
 	MDMOperationTypeInstall MDMOperationType = "install"
 	MDMOperationTypeRemove  MDMOperationType = "remove"
 )
+
+func (o MDMOperationType) IsValid() bool {
+	switch o {
+	case MDMOperationTypeInstall, MDMOperationTypeRemove:
+		return true
+	default:
+		return false
+	}
+}
 
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
@@ -898,6 +920,9 @@ const (
 	MDMAssetConditionalAccessIDPCert MDMAssetName = "conditional_access_idp_cert"
 	// MDMAssetConditionalAccessIDPKey is the private key Fleet uses to sign SAML assertions as an IdP for conditional access
 	MDMAssetConditionalAccessIDPKey MDMAssetName = "conditional_access_idp_key"
+
+	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
+	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
 )
 
 type MDMConfigAsset struct {
@@ -1087,15 +1112,24 @@ const (
 	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-var VPPAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
+var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
 
-func (p InstallableDevicePlatform) IsValidInstallableDevicePlatform() bool {
-	return slices.Contains(VPPAppsPlatforms, p)
+var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+
+// SupportsAppStoreApps returns whether or not the given platform supports app store apps.
+func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
+	return slices.Contains(AppStoreAppsPlatforms, p)
+}
+
+// IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, or iPadOS.
+func (p InstallableDevicePlatform) IsApplePlatform() bool {
+	return slices.Contains(ApplePlatforms, p)
 }
 
 type AppleDevicesToRefetch struct {
 	HostID              uint                   `db:"host_id"`
 	UUID                string                 `db:"uuid"`
+	InstalledFromDEP    bool                   `db:"installed_from_dep"`
 	CommandsAlreadySent MDMCommandsAlreadySent `db:"commands_already_sent"`
 }
 
@@ -1184,3 +1218,12 @@ type MDMCommandResults interface {
 }
 
 type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error
+
+type HostMDMIdentifiers struct {
+	ID             uint   `db:"id"`
+	UUID           string `db:"uuid"`
+	HardwareSerial string `db:"hardware_serial"`
+	Hostname       string `db:"hostname"`
+	Platform       string `db:"platform"`
+	TeamID         *uint  `db:"team_id"`
+}

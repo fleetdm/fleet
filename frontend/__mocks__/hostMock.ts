@@ -1,4 +1,4 @@
-import { IHost, IHostEndUser } from "interfaces/host";
+import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
 import { pick } from "lodash";
 
@@ -76,6 +76,7 @@ const DEFAULT_HOST_MOCK: IHost = {
         status: null,
         detail: "",
       },
+      certificates: [],
     },
     macos_settings: {
       disk_encryption: null,
@@ -118,6 +119,20 @@ const DEFAULT_HOST_MOCK: IHost = {
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
   return { ...DEFAULT_HOST_MOCK, ...overrides };
+};
+
+export const createMockHostGeolocation = (
+  overrides: Partial<IGeoLocation> = {}
+): IGeoLocation => {
+  return {
+    country_iso: "US",
+    city_name: "Minneapolis",
+    geometry: {
+      type: "Point",
+      coordinates: [-93.2602, 44.9844], // [lng, lat]
+    },
+    ...overrides,
+  };
 };
 
 export const createMockHostResponse = { host: createMockHost() };

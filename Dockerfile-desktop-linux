@@ -1,5 +1,7 @@
-FROM --platform=linux/amd64 golang:1.25.3-bookworm@sha256:ee420c17fa013f71eca6b35c3547b854c838d4f26056a34eb6171bba5bf8ece4
+FROM --platform=linux/amd64 golang:1.25.5-bookworm@sha256:5117d68695f57faa6c2b3a49a6f3187ec1f66c75d5b080e4360bfe4c1ada398c
 LABEL maintainer="Fleet Developers"
+
+RUN apt-get update && apt-get install -y musl-tools && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /usr/src/fleet
 RUN mkdir -p /output

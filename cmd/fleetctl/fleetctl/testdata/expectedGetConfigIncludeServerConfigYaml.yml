@@ -3,6 +3,7 @@ apiVersion: v1
 kind: config
 spec:
   fleet_desktop:
+    alternative_browser_host: ""
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
@@ -17,6 +18,7 @@ spec:
     okta_assertion_consumer_service_url: null
     okta_audience_uri: null
     okta_certificate: null
+    bypass_disabled: null
   features:
     enable_host_users: true
     enable_software_inventory: false
@@ -45,12 +47,15 @@ spec:
     macos_updates:
       minimum_version: null
       deadline: null
+      update_new_hosts: null
     ios_updates:
       minimum_version: null
       deadline: null
+      update_new_hosts: null
     ipados_updates:
       minimum_version: null
       deadline: null
+      update_new_hosts: null
     windows_updates:
       deadline_days: 7
       grace_period_days: 3

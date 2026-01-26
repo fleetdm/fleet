@@ -47,7 +47,11 @@ const countHostProfilesByStatus = (
     (acc, { status }) => {
       if (status === "failed") {
         acc.failed += 1;
-      } else if (status === "pending" || status === "action_required") {
+      } else if (
+        ["pending", "action_required", "delivering", "delivered"].includes(
+          status
+        )
+      ) {
         acc.pending += 1;
       } else if (status === "verifying") {
         acc.verifying += 1;
@@ -77,9 +81,9 @@ const countHostProfilesByStatus = (
  * https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks
  */
 const getHostProfilesStatusForDisplay = (
-  hostMacSettings: IHostMdmProfile[]
+  hostProfiles: IHostMdmProfile[]
 ): MdmProfileStatusForDisplay => {
-  const counts = countHostProfilesByStatus(hostMacSettings);
+  const counts = countHostProfilesByStatus(hostProfiles);
   switch (true) {
     case !!counts.failed:
       return "Failed";
@@ -87,7 +91,7 @@ const getHostProfilesStatusForDisplay = (
       return "Pending";
     case !!counts.verifying:
       return "Verifying";
-    case counts.verified === hostMacSettings.length:
+    case counts.verified === hostProfiles.length:
       return "Verified";
     default:
       // something is broken

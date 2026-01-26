@@ -49,7 +49,7 @@ End user experience:
 
 Configuration:
 
-- To kick off the default workflow, unenroll the hosts to be migrated in your current MDM solution. MacOS does not allow a host to be connected to multiple MDM solutions at once.
+- To kick off the default workflow, unenroll the hosts to be migrated in your current MDM solution. macOS does not allow a host to be connected to multiple MDM solutions at once.
 
 #### End user workflow
 

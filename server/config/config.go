@@ -22,6 +22,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
@@ -114,6 +116,8 @@ type ServerConfig struct {
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
+	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
+	TrustedProxies                   string        `yaml:"trusted_proxies"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -540,6 +544,22 @@ type KafkaRESTConfig struct {
 	Timeout          int    `json:"timeout" yaml:"timeout"`
 }
 
+// NatsConfig defines configs for the NATS logging plugin.
+type NatsConfig struct {
+	StatusSubject    string        `json:"status_subject" yaml:"status_subject"`
+	ResultSubject    string        `json:"result_subject" yaml:"result_subject"`
+	AuditSubject     string        `json:"audit_subject" yaml:"audit_subject"`
+	Server           string        `json:"server" yaml:"server"`
+	CredFile         string        `json:"cred_file" yaml:"cred_file"`
+	NKeyFile         string        `json:"nkey_file" yaml:"nkey_file"`
+	TLSClientCrtFile string        `json:"tls_client_crt_file" yaml:"tls_client_crt_file"`
+	TLSClientKeyFile string        `json:"tls_client_key_file" yaml:"tls_client_key_file"`
+	CACrtFile        string        `json:"ca_crt_file" yaml:"ca_crt_file"`
+	Compression      string        `json:"compression" yaml:"compression"`
+	JetStream        bool          `json:"jetstream" yaml:"jetstream"`
+	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
+}
+
 // LicenseConfig defines configs related to licensing Fleet.
 type LicenseConfig struct {
 	Key              string `yaml:"key"`
@@ -627,6 +647,7 @@ type FleetConfig struct {
 	Filesystem                 FilesystemConfig
 	Webhook                    WebhookConfig
 	KafkaREST                  KafkaRESTConfig
+	Nats                       NatsConfig
 	License                    LicenseConfig
 	Vulnerabilities            VulnerabilitiesConfig
 	Upgrades                   UpgradesConfig
@@ -637,6 +658,7 @@ type FleetConfig struct {
 	Calendar                   CalendarConfig
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
 
 	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	Packaging PackagingConfig
@@ -649,6 +671,33 @@ func (f FleetConfig) OTELEnabled() bool {
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
 	EnablePrimo       bool `yaml:"enable_primo"`
+}
+
+// Certificate serial number format constants for conditional access
+const (
+	CertSerialFormatHex     = "hex"
+	CertSerialFormatDecimal = "decimal"
+)
+
+// ConditionalAccessConfig holds the server configuration for the Okta conditional access feature.
+type ConditionalAccessConfig struct {
+	// CertSerialFormat specifies the format for parsing certificate serial numbers from
+	// the X-Client-Cert-Serial header. AWS ALB sends hex format, while Caddy sends decimal.
+	// Valid values: "hex" (default), "decimal"
+	CertSerialFormat string `yaml:"cert_serial_format"`
+}
+
+// Validate checks that the ConditionalAccessConfig has valid values.
+func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string)) {
+	switch c.CertSerialFormat {
+	case CertSerialFormatHex, CertSerialFormatDecimal:
+		return
+	default:
+		initFatal(
+			fmt.Errorf("%q is not a valid value (must be %q or %q)", c.CertSerialFormat, CertSerialFormatHex, CertSerialFormatDecimal),
+			"conditional_access.cert_serial_format",
+		)
+	}
 }
 
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
@@ -739,6 +788,30 @@ type MDMConfig struct {
 
 	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
+
+	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+}
+
+// AndroidAgentConfig holds configuration for the Fleet Android agent.
+type AndroidAgentConfig struct {
+	// Package is the package name for the Fleet Android agent.
+	// Default: com.fleetdm.agent
+	Package string `yaml:"package"`
+	// SigningSHA256 is the signing certificate SHA256 fingerprint for the Fleet Android agent.
+	SigningSHA256 string `yaml:"signing_sha256"`
+}
+
+// Validate checks that the AndroidAgentConfig is valid.
+// Both package and signing_sha256 must be set together, or both must be empty.
+func (c AndroidAgentConfig) Validate(initFatal func(err error, msg string)) {
+	if c.Package != "" && c.SigningSHA256 == "" {
+		initFatal(errors.New("mdm.android_agent.signing_sha256 must be set when mdm.android_agent.package is set"),
+			"Android agent configuration")
+	}
+	if c.SigningSHA256 != "" && c.Package == "" {
+		initFatal(errors.New("mdm.android_agent.package must be set when mdm.android_agent.signing_sha256 is set"),
+			"Android agent configuration")
+	}
 }
 
 type CalendarConfig struct {
@@ -1134,6 +1207,9 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
+	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.DefaultMaxInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
+	man.addConfigString("server.trusted_proxies", "",
+		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1383,6 +1459,20 @@ func (man Manager) addConfigs() {
 		"Kafka REST proxy content type header (defaults to \"application/vnd.kafka.json.v1+json\"")
 	man.addConfigInt("kafkarest.timeout", 5, "Kafka REST proxy json post timeout")
 
+	// NATS
+	man.addConfigString("nats.status_subject", "", "NATS subject for status logs")
+	man.addConfigString("nats.result_subject", "", "NATS subject for result logs")
+	man.addConfigString("nats.audit_subject", "", "NATS subject for audit logs")
+	man.addConfigString("nats.server", "", "NATS server URL")
+	man.addConfigString("nats.cred_file", "", "NATS credentials file")
+	man.addConfigString("nats.nkey_file", "", "NATS NKey file")
+	man.addConfigString("nats.tls_client_crt_file", "", "NATS TLS client certificate file")
+	man.addConfigString("nats.tls_client_key_file", "", "NATS TLS client key file")
+	man.addConfigString("nats.ca_crt_file", "", "NATS CA certificate file")
+	man.addConfigString("nats.compression", "", "NATS compression algorithm (gzip, snappy, zstd)")
+	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
+	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
+
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 	man.addConfigBool("license.enforce_host_limit", false, "Enforce license limit of enrolled hosts")
@@ -1475,6 +1565,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Experimental feature: allows usage of specific Apple MDM profiles for OS updates and FileVault")
+	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
+	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
+	man.hideConfig("mdm.android_agent.package")
+	man.hideConfig("mdm.android_agent.signing_sha256")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1490,6 +1584,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
+
+	// Conditional Access
+	man.addConfigString("conditional_access.cert_serial_format", "hex",
+		"Format for parsing certificate serial numbers from X-Client-Cert-Serial header: 'hex' (default, used by AWS ALB) or 'decimal' (used by Caddy)")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1579,6 +1677,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
+			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
+			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -1708,6 +1808,20 @@ func (man Manager) LoadConfig() FleetConfig {
 			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
 			Timeout:          man.getConfigInt("kafkarest.timeout"),
 		},
+		Nats: NatsConfig{
+			StatusSubject:    man.getConfigString("nats.status_subject"),
+			ResultSubject:    man.getConfigString("nats.result_subject"),
+			AuditSubject:     man.getConfigString("nats.audit_subject"),
+			Server:           man.getConfigString("nats.server"),
+			CredFile:         man.getConfigString("nats.cred_file"),
+			NKeyFile:         man.getConfigString("nats.nkey_file"),
+			TLSClientCrtFile: man.getConfigString("nats.tls_client_crt_file"),
+			TLSClientKeyFile: man.getConfigString("nats.tls_client_key_file"),
+			CACrtFile:        man.getConfigString("nats.ca_crt_file"),
+			Compression:      man.getConfigString("nats.compression"),
+			JetStream:        man.getConfigBool("nats.jetstream"),
+			Timeout:          man.getConfigDuration("nats.timeout"),
+		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),
 			EnforceHostLimit: man.getConfigBool("license.enforce_host_limit"),
@@ -1768,6 +1882,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			AndroidAgent: AndroidAgentConfig{
+				Package:       man.getConfigString("mdm.android_agent.package"),
+				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
+			},
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
@@ -1779,6 +1897,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
 			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+		},
+		ConditionalAccess: ConditionalAccessConfig{
+			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
 		},
 	}
 
@@ -2000,6 +2121,33 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	return durationVal
 }
 
+// addConfigByteSize adds a byte size config that accepts human-readable values like "10GiB", "500MB", "1G"
+func (man Manager) addConfigByteSize(key string, defVal string, usage string) {
+	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
+
+	// Add default
+	man.addDefault(key, defVal)
+}
+
+// getConfigByteSize retrieves a byte size from the loaded config, parsing human-readable strings
+// like "10GiB", "500MB", "1G" into int64 byte values
+func (man Manager) getConfigByteSize(key string) int64 {
+	interfaceVal := man.getInterfaceVal(key)
+	stringVal, err := cast.ToStringE(interfaceVal)
+	if err != nil {
+		panic("Unable to cast to string for key " + key + ": " + err.Error())
+	}
+
+	byteSize, err := units.RAMInBytes(stringVal)
+	if err != nil {
+		panic("Unable to parse byte size for key " + key + ": " + err.Error())
+	}
+
+	return byteSize
+}
+
 // panics if the config is invalid, this is handled by Viper (this is how all
 // getConfigT helpers indicate errors). The default value is only applied if
 // there is no task-specific config (i.e., no "task=true" config format for that
@@ -2137,7 +2285,11 @@ func TestConfig() FleetConfig {
 			AuditLogFile:  testLogFile,
 			MaxSize:       500,
 		},
-		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"},
+		Server: ServerConfig{
+			PrivateKey: "72414F4A688151F75D032F5CDA095FC4",
+			// smaller than normal max to allow for testing max in CI, while being above the multipart chunk size
+			MaxInstallerSizeBytes: 513 * units.MiB,
+		},
 	}
 }
 

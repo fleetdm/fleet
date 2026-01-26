@@ -46,10 +46,10 @@ The following steps show how to connect end users to Wi-Fi or VPN with DigiCert 
 ### Step 4: Add PKCS12 configuration profile to Fleet
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with a PKCS12 payload. 
-  - For `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`. 
-  - For `Data`, use `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`.
+  - For `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_{CA_NAME}`. 
+  - For `Data`, use `$FLEET_VAR_DIGICERT_DATA_{CA_NAME}`.
 
-2. Replace the `<CA_NAME>` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
+2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
 3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
@@ -71,9 +71,9 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
         <array>
             <dict>
                 <key>Password</key>
-                <string>$FLEET_VAR_DIGICERT_PASSWORD_CA_NAME</string>
+                <string>$FLEET_VAR_DIGICERT_PASSWORD_{CA_NAME}</string>
                 <key>PayloadContent</key>
-                <data>$FLEET_VAR_DIGICERT_DATA_CA_NAME</data>
+                <data>$FLEET_VAR_DIGICERT_DATA_{CA_NAME}</data>
                 <key>PayloadDisplayName</key>
                 <string>CertificatePKCS12</string>
                 <key>PayloadIdentifier</key>
@@ -224,10 +224,10 @@ We're currently working with Smallstep to develop a specific Smallstep-Fleet con
 ### Step 3: Add SCEP configuration profile to Fleet
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. 
-  - For `Challenge`, use`$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>`. 
-  - For `URL`, use `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+  - For `Challenge`, use`$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_{CA_NAME}`. 
+  - For `URL`, use `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. Replace the `<CA_NAME>` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
+2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
 3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
@@ -248,7 +248,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
           <key>PayloadContent</key>
           <dict>
              <key>Challenge</key>
-             <string>$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_CA_NAME</string>
+             <string>$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_{CA_NAME}</string>
              <key>Key Type</key>
              <string>RSA</string>
              <key>Key Usage</key>
@@ -271,7 +271,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         </array>
                     </array>
              <key>URL</key>
-             <string>$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_CA_NAME</string>
+             <string>$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_{CA_NAME}</string>
           </dict>
           <key>PayloadDisplayName</key>
           <string>WIFI SCEP</string>
@@ -405,9 +405,9 @@ The following steps show how to connect end users to Wi-Fi or VPN with a [custom
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. Replace the `<CA_NAME>` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
+2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
 3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
@@ -431,7 +431,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
           <key>PayloadContent</key>
           <dict>
              <key>Challenge</key>
-             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA_NAME</string>
+             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}</string>
              <key>Key Type</key>
              <string>RSA</string>
              <key>Key Usage</key>
@@ -454,7 +454,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         </array>
                     </array>
              <key>URL</key>
-             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA_NAME</string>
+             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}</string>
           </dict>
           <key>PayloadDisplayName</key>
           <string>WIFI SCEP</string>
@@ -486,12 +486,12 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 <details>
 <summary>Windows configuration profile</summary>
 
-To get the CAThumbprint of your SCEP server, see the [advanced section](#how-to-get-the-cathumbprint-for-windows-scep-profiles) below.
+All options in the example profile are required. To get the [CAThumbprint of your SCEP server] follow [these steps](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
 
-Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp), can be configured with the SCEP profile.
+You can add any other options listed under Device/SCEP in the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp).
 
 ```xml
-<Add>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
@@ -500,8 +500,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
             <Format xmlns="syncml:metinf">node</Format>
         </Meta>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyUsage</LocURI>
@@ -511,8 +511,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         </Meta>
         <Data>160</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyLength</LocURI>
@@ -522,8 +522,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         </Meta>
         <Data>1024</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/HashAlgorithm</LocURI>
@@ -533,8 +533,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         </Meta>
         <Data>SHA-1</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/SubjectName</LocURI>
@@ -542,10 +542,10 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>CN=$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data>
+        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL WIFI,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/EKUMapping</LocURI>
@@ -555,8 +555,8 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         </Meta>
         <Data>1.3.6.1.5.5.7.3.2</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
@@ -564,10 +564,10 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA_NAME</Data>
+        <Data>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI>
@@ -575,10 +575,10 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA_NAME</Data>
+        <Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}</Data>
     </Item>
-</Add>
-<Add>
+</Replace>
+<Replace>
     <Item>
         <Target>
             <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint</LocURI>
@@ -586,9 +586,9 @@ Any options listed under [Device/SCEP](https://learn.microsoft.com/en-us/windows
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>2133EC6A3CFB8418837BB395188D1A62CA2B96A6</Data>
+        <Data><CA_THUMBPRINT></Data>
     </Item>
-</Add>
+</Replace>
 <Exec>
     <Item>
         <Target>
@@ -738,11 +738,13 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 ## Renewal
 
-Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). Currently, Fleet does not support automatic renewal for Windows and Linux hosts.
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) and Windows hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). Currently, Fleet does not support automatic renewal for Linux hosts.
 
 Automatic renewal is only supported if the validity period is set to 2 days or longer.
 
 If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
+
+Fleet automatically retries each failed macOS, iOS, iPadOS, and Windows certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Automatic retries for Android is coming soon.
 
 > Currently, for NDES, Smallstep, and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
@@ -750,25 +752,15 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 >
 > If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile).
 
-> 
-
 ## Advanced
 
 ### User scoped certificates
 
-You can also upload a certificate to be installed in the login keychain of the managed user on a
-macOS host using a user-scoped configuration profile.
+You can deploy a user scoped certificate on macOS and Windows hosts using a user scoped configuration profile.
 
-1. **Add your CA as before**
-  Use the above steps to integrate your CA with Fleet.
-1. **Create a certificate payload**
-  Use your preferred tool (e.g., Apple Configurator or a `.mobileconfig` generator) to create a configuration profile that includes your certificate.
-2. **Ensure the payload is scoped to the user**
-  In the payload, set the `PayloadScope` to `User`. This tells macOS to install the certificate in the user’s login keychain instead of the system keychain.
-3. **Upload the configuration profile to Fleet**
-  Navigate to **Controls > OS settings > Custom settings** in the Fleet UI. Upload the `.mobileconfig` profile you created.
-4. **Assign the profile to the correct hosts**
-  Use Fleet’s targeting filters to assign the profile to the appropriate hosts. The certificate will be installed in the login keychain of the user currently logged in on each device.
+1. Follow the instructions above to connect Fleet to your certificate authority (CA).
+2. Create a certificate [configuration profile](#example-configuration-profiles). For Windows, replace `./Device` with `./User` in all `<LocURI>` elements. For macOS, set `PayloadScope` to `User`.
+3. In Fleet, navigate to **Controls > OS settings > Custom settings** and upload the configuration profile you created.
 
 ### Editing ceritificate configuration profiles on Apple (macOS, iOS, iPadOS) hosts
 
@@ -809,11 +801,13 @@ Custom SCEP proxy:
 
 ### How to get the CAThumbprint for Windows SCEP profiles
 
+An example CAThumprint looks like this: `2133EC6A3CFB8418837BB395188D1A62CA2B96A6`
+
 Steps to get CAThumbrint from your SCEP server:
 
-1. Use GetCACert operation to download certificate. For example, open in browser: https://scep-server-url/scep?operation=GetCACert
-2. Run the following command to get the SHA1 Thumbprint
-    1. **Terminal (MacOS)** -> `openssl x509 -inform DER -in /path/to/downloaded-cert.cer -noout -fingerprint -sha1 | sed 's/sha1 Fingerprint=//; s/://g`
+1. In your browser, open the following URL to download a certificate: https://<your-scep-server-url>/scep?operation=GetCACert
+2. Run the following command to get the SHA1 Thumbprint:
+    1. **Terminal (macOS)** -> `openssl x509 -inform DER -in /path/to/downloaded-cert.cer -noout -fingerprint -sha1 | sed 's/sha1 Fingerprint=//; s/://g`
     2. **PowerShell (Windows)** -> `$cert = Get-PfxCertificate -FilePath "Z:\scep (1).cer";$cert.Thumbprint`
 3. It will return the SHA1 Thumbprint without colons and text. Copy this.
 4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.

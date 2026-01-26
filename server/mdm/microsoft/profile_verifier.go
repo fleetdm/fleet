@@ -62,24 +62,40 @@ func LoopOverExpectedHostProfiles(
 		}, expanded)
 		expectedProf.RawProfile = []byte(processedContent)
 
-		var prof fleet.SyncMLCmd
-		wrappedBytes := fmt.Sprintf("<Atomic>%s</Atomic>", expectedProf.RawProfile)
-		if err := xml.Unmarshal([]byte(wrappedBytes), &prof); err != nil {
+		// We can ignore wrapping the profile with <Atomic> for SCEP profiles here, as we later fully verify any SCEP profile by looking for a certain string
+		cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(expectedProf.RawProfile)
+		if err != nil {
 			return fmt.Errorf("unmarshalling profile %s: %w", expectedProf.Name, err)
 		}
-		for _, rc := range prof.ReplaceCommands {
-			locURI := rc.GetTargetURI()
-			data := rc.GetNormalizedTargetDataForVerification()
-			ref := HashLocURI(expectedProf.Name, locURI)
-			fn(expectedProf, ref, locURI, data)
+
+		if len(cmds) == 0 {
+			return fmt.Errorf("no commands found in profile %s", expectedProf.Name)
 		}
-		for _, ac := range prof.AddCommands {
-			locURI := ac.GetTargetURI()
-			data := ac.GetNormalizedTargetDataForVerification()
-			ref := HashLocURI(expectedProf.Name, locURI)
-			fn(expectedProf, ref, locURI, data)
+
+		if len(cmds) == 1 && cmds[0].XMLName.Local == fleet.CmdAtomic {
+			cmd := cmds[0]
+			for _, rc := range cmd.ReplaceCommands {
+				locURI := rc.GetTargetURI()
+				data := rc.GetNormalizedTargetDataForVerification()
+				ref := HashLocURI(expectedProf.Name, locURI)
+				fn(expectedProf, ref, locURI, data)
+			}
+			for _, ac := range cmd.AddCommands {
+				locURI := ac.GetTargetURI()
+				data := ac.GetNormalizedTargetDataForVerification()
+				ref := HashLocURI(expectedProf.Name, locURI)
+				fn(expectedProf, ref, locURI, data)
+			}
+		} else {
+			for _, cmd := range cmds {
+				locURI := cmd.GetTargetURI()
+				data := cmd.GetNormalizedTargetDataForVerification()
+				ref := HashLocURI(expectedProf.Name, locURI)
+				fn(expectedProf, ref, locURI, data)
+			}
 		}
-		// We don't do anything to ExecCommands here, as they are not getting verified as they can only exist in SCEP profiles.
+
+		// We don't do anything to ExecCommands, as they are not getting verified as they can only exist in SCEP profiles.
 	}
 
 	return nil
@@ -190,7 +206,7 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 			}{}
 		}
 
-		isSCEPLocURI := strings.Contains(strings.TrimSpace(locURI), "/Vendor/MSFT/ClientCertificateInstall/SCEP")
+		isSCEPLocURI := strings.Contains(strings.TrimSpace(locURI), fleet.WINDOWS_SCEP_LOC_URI_PART)
 		existingProfileStatus := windowsProfilesByID[profile.ProfileUUID].Status
 		if isSCEPLocURI &&
 			existingProfileStatus != nil && *existingProfileStatus != fleet.MDMDeliveryFailed { // Don't verify SCEP if it previously failed
@@ -494,6 +510,8 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		switch {
 		case fleetVar == string(fleet.FleetVarSCEPWindowsCertificateID):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPWindowsCertificateIDRegexp, result, params.ProfileUUID)
+		case fleetVar == string(fleet.FleetVarSCEPRenewalID):
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPRenewalIDRegexp, result, "fleet-"+params.ProfileUUID)
 		case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
 			err := profiles.IsCustomSCEPConfigured(deps.Context, deps.CustomSCEPCAs, caName, fleetVar, func(errMsg string) error {

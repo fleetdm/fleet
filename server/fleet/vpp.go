@@ -13,6 +13,10 @@ type VPPAppID struct {
 	Platform InstallableDevicePlatform `db:"platform" json:"platform"`
 }
 
+func (v VPPAppID) String() string {
+	return fmt.Sprintf(`%s_%s`, v.AdamID, v.Platform)
+}
+
 // VPPAppTeam contains extra metadata injected by fleet
 type VPPAppTeam struct {
 	VPPAppID
@@ -50,7 +54,18 @@ type VPPAppTeam struct {
 	DisplayName                 *string `json:"display_name"`
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Applicable to Android apps only.
-	Configuration json.RawMessage `json:"configuration,omitempty"`
+	Configuration       json.RawMessage `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool           `json:"-"`
+	AutoUpdateStartTime *string         `json:"-"`
+	AutoUpdateEndTime   *string         `json:"-"`
+}
+
+func (v VPPAppTeam) GetPlatform() string {
+	return string(v.Platform)
+}
+
+func (v VPPAppTeam) GetAppStoreID() string {
+	return v.AdamID
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -139,6 +154,14 @@ type HostVPPSoftwareInstall struct {
 	HostID               uint       `db:"host_id"`
 	InstallCommandStatus string     `db:"install_command_status"`
 	BundleIdentifier     string     `db:"bundle_identifier"`
+	RetryCount           int        `db:"retry_count"`
+	ExpectedVersion      string     `db:"expected_version"`
+}
+
+type HostVPPSoftwareInstallLite struct {
+	InstallCommandUUID string `db:"command_uuid"`
+	HostID             uint   `db:"host_id"`
+	RetryCount         int    `db:"retry_count"`
 }
 
 // HostAndroidVPPSoftwareInstall represents the payload needed to
@@ -168,4 +191,5 @@ type AppStoreAppUpdatePayload struct {
 	Categories       []string
 	DisplayName      *string
 	Configuration    json.RawMessage
+	SoftwareAutoUpdateConfig
 }

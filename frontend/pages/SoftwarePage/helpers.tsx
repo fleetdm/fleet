@@ -175,10 +175,12 @@ export const getSelfServiceTooltip = (
   isAndroidPlayStoreApp: boolean
 ) => {
   if (isAndroidPlayStoreApp) {
-    <>
-      End users can install from the <strong>Play Store</strong> <br />
-      in their work profile.
-    </>;
+    return (
+      <>
+        End users can install from the <strong>Play Store</strong> <br />
+        in their work profile.
+      </>
+    );
   }
   if (isIosOrIpadosApp)
     return (
@@ -204,6 +206,18 @@ export const getSelfServiceTooltip = (
         variant="tooltip-link"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
       />
+    </>
+  );
+};
+
+export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
+  return (
+    <>
+      When a new version is available,
+      <br />
+      targeted hosts will begin updating between
+      <br />
+      {startTime} and {endTime} (host&rsquo;s local time).
     </>
   );
 };

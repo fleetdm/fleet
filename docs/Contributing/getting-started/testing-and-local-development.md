@@ -24,6 +24,7 @@
       - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
   - [Development database management](#development-database-management)
   - [MySQL shell](#mysql-shell)
+  - [MySQL replica delay](#mysql-replica-delay)
   - [Redis REPL](#redis-repl)
   - [Testing SSO](#testing-sso)
     - [Configuration](#configuration)
@@ -83,12 +84,12 @@ REDIS_TEST=1 MYSQL_TEST=1 make test
 
 The integration tests in the `server/service` package can generate a lot of logs mixed with the test results output. To make it easier to identify a failing test in this package, you can set the `FLEET_INTEGRATION_TESTS_DISABLE_LOG=1` environment variable so that logging is disabled.
 
-The MDM integration tests are run with a random selection of software installer storage backends (local filesystem or S3/minio), and similar for the bootstrap packages storage (DB or S3/minio). You can force usage of the S3 backend by setting `FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE=s3`. Note that `MINIO_STORAGE_TEST=1` must also be set for the S3 backend to be used.
+The MDM integration tests are run with a random selection of software installer storage backends (local filesystem or S3), and similar for the bootstrap packages storage (DB or S3). You can force usage of the S3 backend by setting `FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE=s3`. Note that `S3_STORAGE_TEST=1` must also be set for the S3 backend to be used.
 
 When the S3 backend is used, this line will be printed in the tests' output (as this could be relevant to understand and debug the test failure):
 
 ```
-    integration_mdm_test.go:196: >>> using S3/minio software installer store
+    integration_mdm_test.go:196: >>> using S3 software installer store
 ```
 
 Note that on a Linux and macOS systems, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
@@ -116,7 +117,7 @@ $ sudo brew services start chipmk/tap/docker-mac-net-connect
 To run all Go unit tests, run the following:
 
 ```bash
-REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make test-go
+REDIS_TEST=1 MYSQL_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make test-go
 ```
 
 ### Go linters
@@ -351,6 +352,11 @@ To connect via Docker:
 ```sh
 docker-compose exec mysql mysql -uroot -ptoor -Dfleet
 ```
+
+## MySQL replica delay
+
+To set up replication delay on a local dev setup, follow the instructions at [/tools/mysql-replica-testing](https://github.com/fleetdm/fleet/tree/main/tools/mysql-replica-testing). This will create a new primary/secondary database for testing delay issues and will not affect your existing database.
+
 
 ## Redis REPL
 
@@ -719,6 +725,112 @@ FLEET_FIREHOSE_STATUS_STREAM=s3-stream-status
 ```
 
 You can inspect logs by visiting `http://localhost:4566/s3-firehose` on your browser.
+
+## Testing NATS logging
+
+1. Install the `nats` CLI:
+
+```sh
+$ go install github.com/nats-io/natscli/nats@latest
+```
+
+2. Install the `nats-server` executable:
+
+```sh
+$ curl -fsSL https://binaries.nats.dev/nats-io/nats-server/v2@latest | sh
+```
+
+3. Open a terminal and run the `nats-server`:
+
+```sh
+$ ./nats-server
+```
+
+4. Run Fleet with the following flags:
+
+```sh
+$ FLEET_ACTIVITY_ENABLE_AUDIT_LOG=true \
+FLEET_ACTIVITY_AUDIT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_RESULT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_STATUS_LOG_PLUGIN=nats \
+FLEET_NATS_SERVER=nats://localhost:4222 \
+FLEET_NATS_STATUS_SUBJECT=osquery_status \
+FLEET_NATS_RESULT_SUBJECT=osquery_result \
+FLEET_NATS_AUDIT_SUBJECT=fleet_audit \
+./build/fleet serve --dev
+```
+
+5. Open another terminal and run the following command to subscribe to all subjects.
+This will print all messages received by the NATS server.
+
+```sh
+$ ./nats --server=nats://localhost:4222 subscribe ">"
+```
+
+### Using NKey authentication
+
+One authentication mechanism allowed by nats is using an [NKey](https://docs.nats.io/running-a-nats-service/configuration/securing_nats/auth_intro/nkey_auth).
+
+
+1. Install `nkey`:
+
+```sh
+$ go install github.com/nats-io/nkeys/nk@latest
+```
+
+2. Generate a `User NKey`:
+
+```sh
+$ nk -gen user -pubout
+```
+
+You should see an output with the following format:
+
+```
+SUxxx
+Uyyy
+```
+
+The first output line starts with the letter `S` for `Seed`. The second letter, `U` stands for `User`. Seeds are private keys; you should treat them as secrets and guard them with care.
+
+The second line starts with the letter U for User and is a public key which can be safely shared.
+
+3. Copy the keys to a txt file, e.g. `nkey-cred-file.txt`.
+
+Create a new NATS server config file, e.g. `nats-server-config.conf`, with this content:
+
+```
+authorization {
+  users = [
+    {
+      nkey: "Uyyy"
+    }
+  ]
+}
+```
+
+4. Run the NATS server providing the config file above:
+
+```sh
+$ ./nats-server -config nats-server-config.conf
+```
+
+You should see a log saying `Using configuration file: nats-server-config.conf`.
+
+5. Start Fleet with the following flags:
+
+```sh
+$ FLEET_ACTIVITY_ENABLE_AUDIT_LOG=true \
+FLEET_ACTIVITY_AUDIT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_RESULT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_STATUS_LOG_PLUGIN=nats \
+FLEET_NATS_SERVER=nats://localhost:4222 \
+FLEET_NATS_STATUS_SUBJECT=osquery_status \
+FLEET_NATS_RESULT_SUBJECT=osquery_result \
+FLEET_NATS_AUDIT_SUBJECT=fleet_audit \
+FLEET_NATS_NKEY_FILE="nkey-cred-file.txt" \
+./build/fleet serve --dev
+```
 
 ## Telemetry
 

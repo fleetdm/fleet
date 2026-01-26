@@ -1,8 +1,6 @@
 package service
 
 import (
-	"strconv"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -16,22 +14,6 @@ func (c *Client) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTem
 		return nil, err
 	}
 	return responseBody.Certificates, nil
-}
-
-// GetCertificateTemplate retrieves the full details of a single certificate, optionally
-// replacing vars in the subject with values from a specified host.
-func (c *Client) GetCertificateTemplate(certificateID uint, hostUUID *string) (*fleet.CertificateTemplateResponseFull, error) {
-	verb, path := "GET", "/api/latest/fleet/certificates/"+strconv.FormatUint(uint64(certificateID), 10)
-	var responseBody getCertificateTemplateResponse
-	var query string
-	if hostUUID != nil {
-		query = "host_uuid=" + *hostUUID
-	}
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Certificate, nil
 }
 
 // ApplyCertificateSpecs sends a list of certificate specs to the fleet instance to be added/updated.

@@ -12,7 +12,11 @@ import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { IConfig, IWebhookSettings } from "interfaces/config";
+import {
+  IConfig,
+  IWebhookSettings,
+  isConditionalAccessConfigured,
+} from "interfaces/config";
 import { IZendeskJiraIntegrations } from "interfaces/integration";
 import { INotification } from "interfaces/notification";
 import {
@@ -121,6 +125,11 @@ const ManagePolicyPage = ({
   } = useContext(AppContext);
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
+  const isManagedCloud =
+    globalConfigFromContext?.license?.managed_cloud || false;
+  const conditionalAccessProviderText = isManagedCloud
+    ? "Okta or Microsoft Entra"
+    : "Okta";
 
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -1115,10 +1124,6 @@ const ManagePolicyPage = ({
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
-  const isConditionalAccessConfigured =
-    globalConfig?.conditional_access?.microsoft_entra_connection_configured ??
-    false;
-
   const isConditionalAccessEnabled =
     (teamIdForApi === API_NO_TEAM_ID
       ? globalConfig?.integrations.conditional_access_enabled
@@ -1198,17 +1203,14 @@ const ManagePolicyPage = ({
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
-    ];
-
-    if (globalConfigFromContext?.license.managed_cloud) {
-      options.push({
+      {
         label: "Conditional access",
         value: "conditional_access",
         isDisabled: !!disabledConditionalAccessTooltipContent,
         helpText: "Block single sign-on for hosts failing policies.",
         tooltipContent: disabledConditionalAccessTooltipContent,
-      });
-    }
+      },
+    ];
 
     // Maintainers do not have access to other workflows
     if (!isGlobalMaintainer && !isTeamMaintainer) {
@@ -1336,6 +1338,7 @@ const ManagePolicyPage = ({
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
+            router={router}
             automationsConfig={automationsConfig}
             availableIntegrations={
               // Although TypeScript thinks globalConfig could be undefined here, in practice it will always be present for users with canManageAutomations/canAddOrDeletePolicies permissions.
@@ -1391,11 +1394,12 @@ const ManagePolicyPage = ({
           <ConditionalAccessModal
             onExit={toggleConditionalAccessModal}
             onSubmit={onUpdateConditionalAccess}
-            configured={isConditionalAccessConfigured}
+            configured={isConditionalAccessConfigured(globalConfig)}
             enabled={isConditionalAccessEnabled}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}
             teamId={currentTeamId ?? 0}
+            providerText={conditionalAccessProviderText}
           />
         )}
       </>

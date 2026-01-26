@@ -44,10 +44,8 @@ class ScepClientImpl : ScepClient {
         }
     }
 
-    override suspend fun enroll(config: GetCertificateTemplateResponse): ScepResult = withContext(Dispatchers.IO) {
+    override suspend fun enroll(config: GetCertificateTemplateResponse, scepUrl: String): ScepResult = withContext(Dispatchers.IO) {
         try {
-            // Log calls removed to avoid test failures on JVM (use logcat in Android Studio)
-
             // Step 1: Generate key pair
             val keyPair = generateKeyPair(config.keyLength)
 
@@ -67,9 +65,9 @@ class ScepClientImpl : ScepClient {
 
             // Step 4: Create SCEP client
             val server = try {
-                URL(config.url)
+                URL(scepUrl)
             } catch (e: Exception) {
-                throw ScepNetworkException("Invalid SCEP URL: ${config.url}", e)
+                throw ScepNetworkException("Invalid SCEP URL: $scepUrl", e)
             }
 
             // OptimisticCertificateVerifier is used intentionally because:
@@ -81,7 +79,7 @@ class ScepClientImpl : ScepClient {
             val client = Client(server, verifier)
 
             // Step 5: Build Certificate Signing Request (CSR)
-            val csr = buildCsr(entity, keyPair, config.scepChallenge, config.signatureAlgorithm)
+            val csr = buildCsr(entity, keyPair, config.scepChallenge ?: "", config.signatureAlgorithm)
 
             // Step 6: Send enrollment request
             val response = try {
@@ -99,9 +97,18 @@ class ScepClientImpl : ScepClient {
                         throw ScepCertificateException("No certificates returned from SCEP server")
                     }
 
+                    val leafCertificate = (certificates.first() as java.security.cert.X509Certificate)
+                    // Extract certificate metadata from the leaf certificate
+                    val notAfter = leafCertificate.notAfter
+                    val notBefore = leafCertificate.notBefore
+                    val serialNumber = leafCertificate.serialNumber
+
                     ScepResult(
                         privateKey = keyPair.private,
                         certificateChain = certificates,
+                        notAfter = notAfter,
+                        notBefore = notBefore,
+                        serialNumber = serialNumber,
                     )
                 }
                 response.isPending -> {

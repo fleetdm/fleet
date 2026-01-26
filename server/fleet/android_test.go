@@ -24,7 +24,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 	}{
 		{
 			name:        "valid - both keys",
-			config:      json.RawMessage(`{"managedConfiguration": {"key": "value"}, "workProfileWidgets": true}`),
+			config:      json.RawMessage(`{"managedConfiguration": {"key": "value"}, "workProfileWidgets": ""}`),
 			expectError: false,
 		},
 		{
@@ -34,8 +34,20 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "valid - workProfileWidgets only",
-			config:      json.RawMessage(`{"workProfileWidgets": false}`),
+			config:      json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`),
 			expectError: false,
+		},
+		{
+			name:        "invalid - workProfileWidgets bad type",
+			config:      json.RawMessage(`{"workProfileWidgets": false}`),
+			expectError: true,
+			errorMsg:    "Couldn't update configuration. Invalid JSON.",
+		},
+		{
+			name:        "invalid - workProfileWidgets bad value",
+			config:      json.RawMessage(`{"workProfileWidgets": "NO_SUCH_VALUE"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "NO_SUCH_VALUE" is not a supported value for "workProfileWidget".`,
 		},
 		{
 			name:        "valid - empty object",

@@ -4,23 +4,47 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
+import CrashPlan from "./CrashPlan";
+import Nextcloud from "./Nextcloud";
+import Notepad from "./Notepad++";
+import OktaVerify from "./OktaVerify";
+import Proxifier from "./Proxifier";
+import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
+import AdobeDngConverter from "./AdobeDngConverter";
+import Aircall from "./Aircall";
+import Airtame from "./Airtame";
+import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
 import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./AndroidStudio";
+import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
+import Apparency from "./Apparency";
+import AppCleaner from "./AppCleaner";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
+import Arc from "./Arc";
+import Archaeology from "./Archaeology";
 import Asana from "./Asana";
+import Audacity from "./Audacity";
+import AvastSecureBrowser from "./AvastSecureBrowser";
+import AwsVpnClient from "./AwsVpnClient";
+import BalenaEtcher from "./BalenaEtcher";
 import BBEdit from "./BBEdit";
 import BeyondCompare from "./BeyondCompare";
 import Bitwarden from "./Bitwarden";
+import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
+import Bruno from "./Bruno";
+import Calibre from "./Calibre";
+import CleanMyMac from "./CleanMyMac";
+import CleanShotX from "./CleanShotX";
 import CLion from "./CLion";
 import Camtasia from "./Camtasia";
 import Canva from "./Canva";
@@ -32,30 +56,55 @@ import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
 import ClickUp from "./ClickUp";
+import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
+import CompanyPortal from "./CompanyPortal";
+import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
+import Dash from "./Dash";
 import DataGrip from "./DataGrip";
+import DbBrowserForSqLite from "./DbBrowserForSqLite";
+import DBeaver from "./DBeaver";
+import DBeaverEe from "./DBeaverEe";
+import DBeaverLite from "./DBeaverLite";
+import DBeaverUltimate from "./DBeaverUltimate";
+import DeepL from "./DeepL";
+import Dialpad from "./Dialpad";
 import Discord from "./Discord";
 import DisplayLinkManager from "./DisplayLinkManager";
 import Docker from "./Docker";
 import Drawio from "./DrawIo";
 import Dropbox from "./Dropbox";
+import Eclipse from "./Eclipse";
 import Edge from "./Edge";
+import Egnyte from "./Egnyte";
 import EightXEightWork from "./8X8Work";
+import ElgatoControlCenter from "./ElgatoControlCenter";
+import ElgatoStreamDeck from "./ElgatoStreamDeck";
+import Evernote from "./Evernote";
 import Excel from "./Excel";
+import ExpressVpn from "./ExpressVpn";
 import Extension from "./Extension";
 import Falcon from "./Falcon";
 import Figma from "./Figma";
+import FileMakerPro from "./FileMakerPro";
 import Firefox from "./Firefox";
+import Fork from "./Fork";
+import Front from "./Front";
+import Ghostty from "./Ghostty";
+import Gimp from "./Gimp";
 import GitHubDesktop from "./GitHubDesktop";
 import GitKraken from "./GitKraken";
 import GoLand from "./GoLand";
 import GoogleDrive from "./GoogleDrive";
+import GpgKeychain from "./GpgKeychain";
 import GrammarlyDesktop from "./GrammarlyDesktop";
 import Granola from "./Granola";
+import Hyper from "./Hyper";
 import IMazingProfileEditor from "./IMazingProfileEditor";
+import Inkscape from "./Inkscape";
 import ITerm from "./ITerm";
 import Insomnia from "./Insomnia";
 import IntelliJIdea from "./IntelliJIdea";
@@ -63,52 +112,85 @@ import IntelliJIdeaCe from "./IntelliJIdeaCe";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import JabraDirect from "./JabraDirect";
 import JetBrainsToolbox from "./JetBrainsToolbox";
+import KeePassXc from "./KeePassXc";
+import KeeperPasswordManager from "./KeeperPasswordManager";
+import Keka from "./Keka";
+import Lens from "./Lens";
+import LibreOffice from "./LibreOffice";
 import Linear from "./Linear";
 import LinuxOS from "./LinuxOS";
 import LittleSnitch from "./LittleSnitch";
 import Logioptionsplus from "./Logioptionsplus";
 import Loom from "./Loom";
 import LuLu from "./LuLu";
+import Maccy from "./Maccy";
 import MacOS from "./MacOS";
+import Mattermost from "./Mattermost";
 import Messenger from "./Messenger";
+import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
+import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
 import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
 import Miro from "./Miro";
+import MongoDbCompass from "./MongoDbCompass";
 import MySqlWorkbench from "./MySqlWorkbench";
+import Nordpass from "./Nordpass";
 import NordVpn from "./NordVpn";
 import Notion from "./Notion";
 import NotionCalendar from "./NotionCalendar";
 import Nova from "./Nova";
 import Nudge from "./Nudge";
+import Obs from "./Obs";
+import Obsidian from "./Obsidian";
 import OmniGraffle from "./OmniGraffle";
 import OmnissaHorizonClient from "./OmnissaHorizonClient";
 import OneDrive from "./OneDrive";
 import OnePassword from "./OnePassword";
 import Opera from "./Opera";
+import OrbStack from "./OrbStack";
 import P4V from "./P4V";
 import Package from "./Package";
 import ParallelsDesktop from "./ParallelsDesktop";
+import PgAdmin4 from "./PgAdmin4";
 import PhpStorm from "./PhpStorm";
 import PodmanDesktop from "./PodmanDesktop";
 import Postman from "./Postman";
 import Pritunl from "./Pritunl";
 import Privileges from "./Privileges";
 import ProtonMail from "./ProtonMail";
+import ProtonVpn from "./ProtonVpn";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
+import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
+import RapidApi from "./RapidApi";
+import Raycast from "./Raycast";
 import Rectangle from "./Rectangle";
 import Rider from "./Rider";
+import RoyalTsx from "./RoyalTsx";
 import RubyMine from "./RubyMine";
 import RustRover from "./RustRover";
 import Safari from "./Safari";
 import Santa from "./Santa";
+import Shottr from "./Shottr";
 import Signal from "./Signal";
+import Sketch from "./Sketch";
 import Slack from "./Slack";
+import Snagit from "./Snagit";
+import Sourcetree from "./Sourcetree";
+import SplashtopBusiness from "./SplashtopBusiness";
+import SplashtopStreamer from "./SplashtopStreamer";
 import Spotify from "./Spotify";
+import Stats from "./Stats";
+import Steam from "./Steam";
+import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
+import Surfshark from "./Surfshark";
+import SuspiciousPackage from "./SuspiciousPackage";
+import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
 import TeamViewer from "./TeamViewer";
@@ -116,14 +198,20 @@ import Teams from "./Teams";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
+import TextExpander from "./TextExpander";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
+import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
+import Utm from "./Utm";
+import VirtualBox from "./VirtualBox";
+import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
+import WacomCenter from "./WacomCenter";
 import WebStorm from "./WebStorm";
 import Webex from "./Webex";
 import WhatsApp from "./WhatsApp";
@@ -131,10 +219,14 @@ import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
+import Windsurf from "./Windsurf";
+import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
+import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
+import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
 
@@ -143,6 +235,8 @@ import Zoom from "./Zoom";
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
+  "7 zip": SevenZip,
+  "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
   abstract: Abstract,
@@ -150,17 +244,34 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
+  "adobe dng converter": AdobeDngConverter,
+  aircall: Aircall,
+  airtame: Airtame,
+  "amazon chime": AmazonChime,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
+  anka: Anka,
   anydesk: AnyDesk,
+  apparency: Apparency,
+  appcleaner: AppCleaner,
   appleAppStore: AppleAppStore,
+  arc: Arc,
+  archaeology: Archaeology,
   asana: Asana,
+  audacity: Audacity,
+  avast: AvastSecureBrowser,
+  "aws vpn client": AwsVpnClient,
+  "aws client vpn": AwsVpnClient,
+  balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
+  blender: Blender,
   box: Box,
   brave: Brave,
+  bruno: Bruno,
+  calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
   "chatgpt atlas": ChatGptAtlas,
@@ -168,22 +279,69 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
+  cleanmymac_5: CleanMyMac,
+  cleanmymac: CleanMyMac,
+  "cleanshot x": CleanShotX,
   clion: CLion,
   clickup: ClickUp,
+  "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
+  crashplan: CrashPlan,
+  "microsoft.companyportal": IntuneCompanyPortal,
+  coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
+  dash: Dash,
   datagrip: DataGrip,
+  "db browser for sqlite": DbBrowserForSqLite,
+  "dbeaver community": DBeaver,
+  dbeaver: DBeaver,
+  "dbeaver enterprise edition": DBeaverEe,
+  dbeaveree: DBeaverEe,
+  "dbeaver lite edition": DBeaverLite,
+  dbeaverlite: DBeaverLite,
+  "dbeaver ultimate edition": DBeaverUltimate,
+  dbeaverultimate: DBeaverUltimate,
+  deepl: DeepL,
+  dialpad: Dialpad,
   discord: Discord,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
+  "dng converter": AdobeDngConverter,
   docker: Docker,
   "draw.io": Drawio,
   dropbox: Dropbox,
+  eclipse: Eclipse,
+  edge: MicrosoftEdge,
+  egnyte: Egnyte,
+  "elgato control center": ElgatoControlCenter,
+  "elgato stream deck": ElgatoStreamDeck,
+  evernote: Evernote,
+  expressvpn: ExpressVpn,
   falcon: Falcon,
   figma: Figma,
+  "filemaker pro": FileMakerPro,
   firefox: Firefox,
+  fork: Fork,
+  front: Front,
+  ghostty: Ghostty,
+  gimp: Gimp,
+  "gpg keychain": GpgKeychain,
+  "gpg suite": GpgKeychain,
+  hyper: Hyper,
+  inkscape: Inkscape,
+  "jabra direct": JabraDirect,
+  keepassxc: KeePassXc,
+  "keeper password manager": KeeperPasswordManager,
+  keka: Keka,
+  lens: Lens,
+  libreoffice: LibreOffice,
+  maccy: Maccy,
+  mattermost: Mattermost,
+  "microsoft autoupdate": MicrosoftAutoUpdate,
+  "microsoft auto update": MicrosoftAutoUpdate,
+  "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
@@ -214,38 +372,66 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft word": Word,
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
+  nextcloud: Nextcloud,
   "nord vpn": NordVpn,
+  nordpass: Nordpass,
   nordvpn: NordVpn,
+  "notepad++": Notepad,
   "notion calendar": NotionCalendar,
   notion: Notion,
   nova: Nova,
   nudge: Nudge,
+  obs: Obs,
+  obsidian: Obsidian,
+  "okta verify": OktaVerify,
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
   opera: Opera,
+  orbstack: OrbStack,
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
+  "pgadmin 4": PgAdmin4,
+  pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
   "podman desktop": PodmanDesktop,
   postman: Postman,
   privileges: Privileges,
   pritunl: Pritunl,
   "proton mail": ProtonMail,
+  protonvpn: ProtonVpn,
+  proxifier: Proxifier,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
+  quip: Quip,
   "rancher desktop": RancherDesktop,
+  rapidapi: RapidApi,
+  raycast: Raycast,
   rectangle: Rectangle,
   rider: Rider,
+  "royal tsx": RoyalTsx,
   rubymine: RubyMine,
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  shottr: Shottr,
   signal: Signal,
+  sketch: Sketch,
   slack: Slack,
+  snagit: Snagit,
+  sourcetree: Sourcetree,
+  "splashtop business": SplashtopBusiness,
+  "splashtop streamer": SplashtopStreamer,
   spotify: Spotify,
+  stats: Stats,
+  steam: Steam,
+  "stream deck": ElgatoStreamDeck,
+  "sublime merge": SublimeMerge,
   "sublime text": SublimeText,
+  surfshark: Surfshark,
+  "suspicious package": SuspiciousPackage,
+  tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
   telegram: Telegram,
@@ -254,24 +440,35 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teleport: TeleportConnect,
   terminal: Terminal,
   teamviewer: TeamViewer,
+  textexpander: TextExpander,
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
+  transmit: Transmit,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
+  utm: Utm,
+  virtualbox: VirtualBox,
+  viscosity: Viscosity,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
+  "wacom center": WacomCenter,
+  "wacom tablet": WacomCenter,
   webstorm: WebStorm,
   webex: Webex,
   whatsapp: WhatsApp,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
+  windsurf: Windsurf,
+  wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
+  "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zed: Zed,
+  zeplin: Zeplin,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
@@ -304,7 +501,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   apps: AppleApp,
   ios_apps: AppleApp,
   ipados_apps: AppleApp,
-  programs: WindowsApp,
+  programs: WindowsOS,
   android_apps: AndroidApp,
   chrome_extensions: Extension,
   safari_extensions: Extension,
@@ -318,7 +515,8 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
 
 /**
  * This attempts to loosely match the provided string to a key in a provided dictionary, returning the key if the
- * provided string starts with the key or undefined otherwise.
+ * provided string starts with the key or undefined otherwise. Keys are sorted by length (longest first) to ensure
+ * more specific matches are checked before shorter, more general ones (e.g., "archaeology" before "arc").
  */
 const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   dict: T,
@@ -328,9 +526,9 @@ const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   if (!s) {
     return undefined;
   }
-  const match = Object.keys(dict).find((k) =>
-    s.startsWith(k.trim().toLowerCase())
-  );
+  // Sort keys by length (longest first) to prioritize more specific matches
+  const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
+  const match = sortedKeys.find((k) => s.startsWith(k.trim().toLowerCase()));
 
   return match ? (match as keyof T) : undefined;
 };
@@ -353,6 +551,8 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;
+    case name === "microsoft.companyportal":
+      return IntuneCompanyPortal;
     default:
       return null;
   }

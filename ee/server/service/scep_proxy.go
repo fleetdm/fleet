@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
+	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -39,6 +40,85 @@ const (
 	NDESChallengeInvalidAfter      = 57 * time.Minute
 	SmallstepChallengeInvalidAfter = 4 * time.Minute
 )
+
+// decodeHTMLResponse decodes HTTP response body to a string, handling various encodings.
+// Windows NDES servers return UTF-16 LE (often without BOM), while Okta returns UTF-8.
+//
+// Detection order:
+//  1. UTF-16 LE heuristic (for Windows NDES compatibility; checked first because
+//     charset detection libraries can't parse meta tags in UTF-16 encoded content)
+//  2. Content-Type charset header and BOM detection via charset.DetermineEncoding
+//  3. Fall back to UTF-8
+func decodeHTMLResponse(body []byte, contentType string) string {
+	if len(body) == 0 {
+		return ""
+	}
+
+	// Check for UTF-16 LE first. Windows NDES servers return UTF-16 LE without BOM
+	// and without proper Content-Type charset. We must detect this before trying
+	// charset.DetermineEncoding, which would fail to parse meta tags in UTF-16 bytes.
+	if looksLikeUTF16LE(body) {
+		// Use BOMOverride to handle BOM if present (strips it from output)
+		utf16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+		decoder := unicode.BOMOverride(utf16le.NewDecoder())
+		if decoded, _, err := transform.Bytes(decoder, body); err == nil {
+			return string(decoded)
+		}
+	}
+
+	// Standard HTML5 encoding detection:
+	// - Checks Content-Type charset parameter
+	// - Detects BOM (Byte Order Mark)
+	// - Prescans for meta charset tags
+	enc, _, _ := charset.DetermineEncoding(body, contentType)
+	if enc != nil {
+		if decoded, _, err := transform.Bytes(enc.NewDecoder(), body); err == nil {
+			return string(decoded)
+		}
+	}
+
+	// Default: treat as UTF-8
+	return string(body)
+}
+
+// looksLikeUTF16LE checks if the body appears to be UTF-16 LE encoded.
+// Detection is done in order of reliability:
+// 1. BOM (Byte Order Mark) - most authoritative
+// 2. HTML pattern - UTF-16 LE HTML starts with '<' 0x00
+// 3. Null byte percentage - fallback heuristic
+func looksLikeUTF16LE(body []byte) bool {
+	if len(body) < 4 {
+		return false
+	}
+
+	// 1. Check for UTF-16 LE BOM (FF FE) - most reliable indicator
+	if body[0] == 0xFF && body[1] == 0xFE {
+		return true
+	}
+
+	// 2. Check for HTML pattern: '<' followed by 0x00
+	// HTML content starts with '<' (e.g., "<HTML>", "<!DOCTYPE>")
+	// In UTF-16 LE, this becomes 0x3C 0x00 - very unlikely in valid UTF-8
+	if body[0] == '<' && body[1] == 0x00 {
+		return true
+	}
+
+	// 3. Fallback: count null bytes at odd positions
+	// UTF-16 LE ASCII has null at every odd position (char, 0x00, char, 0x00, ...)
+	// Require 90% to reduce false positives from UTF-8 with occasional nulls
+
+	// utf16DetectionSampleSize is the number of bytes to examine when detecting UTF-16 LE encoding.
+	const utf16DetectionSampleSize = 100
+	checkLen := min(len(body), utf16DetectionSampleSize)
+	nullCount := 0
+	for i := 1; i < checkLen; i += 2 {
+		if body[i] == 0x00 {
+			nullCount++
+		}
+	}
+	checked := checkLen / 2
+	return checked > 0 && float64(nullCount)/float64(checked) >= 0.9 // 90%
+}
 
 // scepCertificateRequest abstracts the common operations needed for SCEP certificate
 // requests across different platforms (Apple, Windows, Android).
@@ -94,7 +174,7 @@ func (a *certificateTemplateForHostAdapter) GetStatus() fleet.MDMDeliveryStatus 
 	if a.template.Status == nil {
 		return ""
 	}
-	return *a.template.Status
+	return fleet.CertificateTemplateStatusToMDMDeliveryStatus(*a.template.Status)
 }
 
 func (a *certificateTemplateForHostAdapter) GetChallengeRetrievedAt() *time.Time {
@@ -447,18 +527,15 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
 			resp.StatusCode)})
 	}
-	// Make a transformer that converts MS-Win default to UTF8:
-	win16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	// Make a transformer that is like win16le, but abides by BOM:
-	utf16bom := unicode.BOMOverride(win16le.NewDecoder())
+	defer resp.Body.Close()
 
-	// Make a Reader that uses utf16bom:
-	unicodeReader := transform.NewReader(resp.Body, utf16bom)
-	bodyText, err := io.ReadAll(unicodeReader)
+	// Read raw bytes first to detect encoding
+	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "reading response body")
 	}
-	htmlString := string(bodyText)
+
+	htmlString := decodeHTMLResponse(rawBody, resp.Header.Get("Content-Type"))
 
 	matches := challengeRegex.FindStringSubmatch(htmlString)
 	challenge := ""

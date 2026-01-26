@@ -8,7 +8,7 @@ Here's what you can configure, and in what order each happen, to your Windows an
 
 1. Require [end users to authenticate](#end-user-authentication) with your identity provider (IdP).
 
-2. [Install software](#install-software) (App Store apps, custom packages, and Fleet-maintained apps). 
+2. [Install software](#install-software) including [app store apps](https://fleetdm.com/guides/install-app-store-apps), [custom packages](https://fleetdm.com/guides/deploy-software-packages) (e.g. a bootstrap package), and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps). 
 
 ## End user authentication
 

@@ -17,10 +17,10 @@
     }
   }
 
-  &__title-edit-icon {
+  &__title-actions {
     display: flex;
     align-items: center;
-    gap: $pad-medium;
+    justify-content: space-between;
   }
 
   h1 {

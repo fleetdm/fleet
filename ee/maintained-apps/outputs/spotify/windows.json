@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "1.2.82.423.ga54eef9e",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Spotify' AND publisher = 'Spotify AB';"
+      },
+      "installer_url": "https://upgrade.scdn.co/upgrade/client/win32-x86_64/spotify_installer-1.2.82.423.ga54eef9e-1135.exe",
+      "install_script_ref": "7e4727ac",
+      "uninstall_script_ref": "48d55e3d",
+      "sha256": "3dbcf721623064c04965d3c53e5f5693b3bd942e33165c9798eb5663c9f98923",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "48d55e3d": "# Attempts to locate Spotify's uninstaller from registry and execute it silently\n\n$displayName = \"Spotify\"\n$publisher = \"Spotify AB\"\n\n# Spotify is user-scope, so check HKCU first, then HKLM as fallback\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -eq $publisher)\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n# Kill any running Spotify processes before uninstalling\nStop-Process -Name \"Spotify\" -Force -ErrorAction SilentlyContinue\nStop-Process -Name \"SpotifyWebHelper\" -Force -ErrorAction SilentlyContinue\n\n$uninstallString = $uninstall.UninstallString\n$exePath = \"\"\n$arguments = \"\"\n\n# Parse the uninstall string to extract executable path and existing arguments\n# Handles both quoted and unquoted paths\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n} elseif ($uninstallString -match '^([^\\s]+)(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n} else {\n    Write-Host \"Error: Could not parse uninstall string: $uninstallString\"\n    Exit 1\n}\n\n# Build argument list array, preserving existing arguments and adding /silent for silent\n$argumentList = @()\nif ($arguments -ne '') {\n    # Split existing arguments and add them\n    $argumentList += $arguments -split '\\s+'\n}\n# Append /silent if not already present\nif ($argumentList -notcontains \"/silent\" -and $arguments -notmatch '\\b/silent\\b') {\n    $argumentList += \"/silent\"\n}\n\nWrite-Host \"Uninstall executable: $exePath\"\nWrite-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    \n    if ($argumentList.Count -gt 0) {\n        $processOptions.ArgumentList = $argumentList\n    }\n    \n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    \n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n\n",
+    "7e4727ac": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add arguments to install silently\n# Spotify uses /silent /skip-app-launch for silent installation\n# Note: elevationProhibited - do not use -Verb RunAs\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/silent\", \"/skip-app-launch\"\n  PassThru = $true\n  Wait = $true\n}\n    \n# Start process and track exit code\n# Exit code 26 indicates packageInUse, which is expected in some scenarios\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n\n"
+  }
+}

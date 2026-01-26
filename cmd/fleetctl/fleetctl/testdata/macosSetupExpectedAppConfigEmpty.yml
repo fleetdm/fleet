@@ -7,6 +7,7 @@ spec:
     enable_software_inventory: false
   fleet_desktop:
     transparency_url: https://fleetdm.com/transparency
+    alternative_browser_host: ""
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
@@ -20,6 +21,7 @@ spec:
     okta_assertion_consumer_service_url: null
     okta_audience_uri: null
     okta_certificate: null
+    bypass_disabled: null
   integrations:
     conditional_access_enabled: null
     google_calendar: null
@@ -61,12 +63,15 @@ spec:
     macos_updates:
       deadline: null
       minimum_version: null
+      update_new_hosts: null
     ios_updates:
       deadline: null
       minimum_version: null
+      update_new_hosts: null
     ipados_updates:
       deadline: null
       minimum_version: null
+      update_new_hosts: null
     windows_updates:
       deadline_days: null
       grace_period_days: null

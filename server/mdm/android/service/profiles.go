@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -18,7 +19,13 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string) error {
+func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, androidAgentConfig config.AndroidAgentConfig) error {
+	return ReconcileProfilesWithClient(ctx, ds, logger, licenseKey, nil, androidAgentConfig)
+}
+
+// ReconcileProfilesWithClient is like ReconcileProfiles but allows injecting a custom client for testing.
+// If client is nil, a new AMAPI client will be created.
+func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -35,20 +42,24 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	client := newAMAPIClient(ctx, logger, licenseKey)
-	authSecret, err := getClientAuthenticationSecret(ctx, ds)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")
-	}
-	err = client.SetAuthenticationSecret(authSecret)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "setting Android client authentication secret for profile reconciler")
+	if client == nil {
+		client = newAMAPIClient(ctx, logger, licenseKey)
+		authSecret, err := getClientAuthenticationSecret(ctx, ds)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")
+		}
+		err = client.SetAuthenticationSecret(authSecret)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "setting Android client authentication secret for profile reconciler")
+		}
 	}
 
 	reconciler := &profileReconciler{
-		DS:         ds,
-		Enterprise: enterprise,
-		Client:     client,
+		DS:                 ds,
+		Enterprise:         enterprise,
+		Client:             client,
+		AndroidAgentConfig: androidAgentConfig,
+		Logger:             logger,
 	}
 	return reconciler.ReconcileProfiles(ctx)
 }
@@ -56,9 +67,11 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 // profileReconciler is a struct to facilitate testability, it should not be
 // used outside of tests.
 type profileReconciler struct {
-	DS         fleet.Datastore
-	Enterprise *android.Enterprise
-	Client     androidmgmt.Client
+	DS                 fleet.Datastore
+	Enterprise         *android.Enterprise
+	Client             androidmgmt.Client
+	AndroidAgentConfig config.AndroidAgentConfig
+	Logger             kitlog.Logger
 }
 
 func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (string, error) {
@@ -390,7 +403,7 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
-	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
 	if skip, err = recordAndroidRequestResult(ctx, r.DS, policyRequest, applied, nil, apiErr); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "record android request")
 	}
@@ -412,75 +425,39 @@ func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceNam
 	return deviceRequest, skip, nil
 }
 
-// reconcileCertificateTemplates processes certificate templates for Android in host batches.
+// reconcileCertificateTemplates processes certificate templates for Android hosts
+// that have templates in 'pending' status.
 func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) error {
-	const batchSize = 1000 // Process 1000 hosts at a time
+	const batchSize = 1000
 	offset := 0
 
-	// Cache enroll secrets by team ID
-	enrollSecretsCache := make(map[uint][]*fleet.EnrollSecret)
-
 	for {
-		// Get a batch of host UUIDs that have certificate templates
-		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, offset, batchSize)
+		// Get hosts with PENDING certificates
+		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, offset, batchSize)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "list android host uuids with certificate templates")
+			return ctxerr.Wrap(ctx, err, "list android host uuids with pending certificate templates")
 		}
 
 		if len(hostUUIDs) == 0 {
 			break
 		}
 
-		// Get ALL certificate templates for this batch of hosts
-		allTemplates, err := r.DS.ListCertificateTemplatesForHosts(ctx, hostUUIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "list certificate templates for hosts")
+		// Process this batch - BuildAndSendFleetAgentConfig handles the state transitions
+		svc := &Service{
+			logger:             r.Logger,
+			ds:                 r.DS,
+			fleetDS:            r.DS,
+			androidAPIClient:   r.Client,
+			androidAgentConfig: r.AndroidAgentConfig,
 		}
-
-		// Process this batch of hosts with all their certificates
-		if err := r.processCertificateTemplateBatch(ctx, allTemplates, enrollSecretsCache); err != nil {
-			return err
+		if err := svc.BuildAndSendFleetAgentConfig(ctx, r.Enterprise.Name(), hostUUIDs, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "build and send fleet agent config with certificates")
 		}
 
 		if len(hostUUIDs) < batchSize {
 			break
 		}
-
-		// next batch
 		offset += batchSize
-	}
-
-	return nil
-}
-
-func (r *profileReconciler) processCertificateTemplateBatch(ctx context.Context, allTemplates []fleet.CertificateTemplateForHost, _ map[uint][]*fleet.EnrollSecret) error {
-	// Collect unique host UUIDs that need certificate template updates
-	hostsWithNewCerts := make(map[string]struct{})
-	for i := range allTemplates {
-		// Check if this is a new certificate (no existing record)
-		if allTemplates[i].FleetChallenge == nil {
-			hostsWithNewCerts[allTemplates[i].HostUUID] = struct{}{}
-		}
-	}
-
-	// no new certificates to send, we're done
-	if len(hostsWithNewCerts) == 0 {
-		return nil
-	}
-
-	// Get the list of host UUIDs that need updates
-	hostUUIDs := make([]string, 0, len(hostsWithNewCerts))
-	for hostUUID := range hostsWithNewCerts {
-		hostUUIDs = append(hostUUIDs, hostUUID)
-	}
-
-	svc := &Service{
-		ds:               r.DS,
-		fleetDS:          r.DS,
-		androidAPIClient: r.Client,
-	}
-	if err := svc.BuildAndSendFleetAgentConfig(ctx, r.Enterprise.Name(), hostUUIDs, true); err != nil {
-		return ctxerr.Wrap(ctx, err, "build and send fleet agent config with certificates")
 	}
 
 	return nil

@@ -802,7 +802,22 @@ var extraDetailQueries = map[string]DetailQuery{
 	WHERE
 		path LIKE '/Users/%/Library/Keychains/login.keychain-db';`,
 		Platforms:        []string{"darwin"},
-		DirectIngestFunc: directIngestHostCertificates,
+		DirectIngestFunc: directIngestHostCertificatesDarwin,
+	},
+	"certificates_windows": {
+		Query: `
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, username,
+		path
+	FROM
+		certificates
+	WHERE
+		store = 'Personal';`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestHostCertificatesWindows,
 	},
 }
 
@@ -940,26 +955,8 @@ var windowsUpdateHistory = DetailQuery{
 // entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
 var entraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the SSO extension).
-	//
-	// We cannot use LIMIT 1 on the outer SELECT because it breaks fleetd's app_sso_platform table.
-	// For that reason this query can return 0, 1 or 2 results and Fleet will always process the first one.
-	//
-	// This query aims to support the following scenarios:
-	// 1. Hosts enrolled to Company Portal using the legacy SSO extension (aka "Microsoft Entra registered").
-	//    The extension stores the credentials in the keychain.
-	// 2. Hosts enrolled to Company Portal using the new Platform SSO extension (aka "Microsoft Entra joined").
-	//	  The extension stores the credentials in the secure enclave.
-	// 3. Hosts that migrated from (1) to (2). The keychain items in (1) are not removed after the migration,
-	//    so for that reason we query the app_sso_platform first (priority 1).
-	//
-	Query: `SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
-	UNION ALL
-	SELECT device_id, user_principal_name, 2 AS priority FROM (
-		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
-		CROSS JOIN
-		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
-	ORDER BY priority ASC;`,
+	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
+	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestEntraIDDetails,
@@ -1403,29 +1400,30 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("codesign"),
 		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
+			if len(codesignResults) == 0 {
+				return mainSoftwareResults
+			}
+
 			type codesignResultRow struct {
 				teamIdentifier string
 				cdhashSHA256   string
 			}
 
-			codesignInformation := make(map[string]codesignResultRow) // path -> team_identifier
+			codesignInfoByPath := make(map[string]codesignResultRow)
 			for _, codesignResult := range codesignResults {
 				var cdhashSha256 string
 				if hash, ok := codesignResult["cdhash_sha256"]; ok {
 					cdhashSha256 = hash
 				}
 
-				codesignInformation[codesignResult["path"]] = codesignResultRow{
+				codesignInfoByPath[codesignResult["path"]] = codesignResultRow{
 					teamIdentifier: codesignResult["team_identifier"],
 					cdhashSHA256:   cdhashSha256,
 				}
 			}
-			if len(codesignInformation) == 0 {
-				return mainSoftwareResults
-			}
 
 			for _, result := range mainSoftwareResults {
-				codesignInfo, ok := codesignInformation[result["installed_path"]]
+				codesignInfo, ok := codesignInfoByPath[result["installed_path"]]
 				if !ok {
 					// No codesign information for this application.
 					continue
@@ -1434,6 +1432,54 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				result["cdhash_sha256"] = codesignInfo.cdhashSHA256
 			}
 
+			return mainSoftwareResults
+		},
+	},
+	// macos_executable_sha256 collects an executable's sha256 hash via the fleetd `executable_hashes` table.
+	"macos_executable_sha256": {
+		Query: `
+		SELECT eh.*
+		FROM apps a
+		JOIN executable_hashes eh ON a.path = eh.path
+		`,
+		Description: "A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`",
+		Platforms:   []string{"darwin"},
+		Discovery:   discoveryTable("executable_hashes"),
+		SoftwareProcessResults: func(mainSoftwareResults, results []map[string]string) []map[string]string {
+			if len(results) == 0 {
+				return mainSoftwareResults
+			}
+
+			type resultRow struct {
+				execSHA256 string
+				execPath   string
+			}
+
+			// assuming one executable per app bundle path for now
+			resultByBundlePath := make(map[string]resultRow)
+			for _, r := range results {
+				var execHash string
+				if hash, ok := r["executable_sha256"]; ok {
+					execHash = hash
+				}
+				var execPath string
+				if ePath, ok := r["executable_path"]; ok {
+					execPath = ePath
+				}
+				resultByBundlePath[r["path"]] = resultRow{
+					execSHA256: execHash,
+					execPath:   execPath,
+				}
+			}
+			for _, swRes := range mainSoftwareResults {
+				rBBP, ok := resultByBundlePath[swRes["installed_path"]]
+				if !ok {
+					// No fileutil information for this software
+					continue
+				}
+				swRes["executable_sha256"] = rBBP.execSHA256
+				swRes["executable_path"] = rBBP.execPath
+			}
 			return mainSoftwareResults
 		},
 	},
@@ -1824,7 +1870,6 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
-	// We are interested in the first row (see the corresponding query for details).
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -2007,12 +2052,20 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			}
 			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
 			var cdhashSHA256 string
-			if hash, ok := row["cdhash_sha256"]; ok {
-				cdhashSHA256 = hash
+			if cdHash, ok := row["cdhash_sha256"]; ok {
+				cdhashSHA256 = cdHash
+			}
+			var execSHA256 string
+			if eHash, ok := row["executable_sha256"]; ok {
+				execSHA256 = eHash
+			}
+			var execPath string
+			if epath, ok := row["executable_path"]; ok {
+				execPath = epath
 			}
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, execSHA256, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			sPaths[key] = struct{}{}
 		}
@@ -3186,7 +3239,7 @@ func directIngestWindowsProfiles(
 
 var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
 
-func directIngestHostCertificates(
+func directIngestHostCertificatesDarwin(
 	ctx context.Context,
 	logger log.Logger,
 	host *fleet.Host,
@@ -3206,12 +3259,12 @@ func directIngestHostCertificates(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
 			continue
 		}
-		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["subject"])
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
 			continue
 		}
-		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["issuer"])
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
 		if err != nil {
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
 			continue
@@ -3258,6 +3311,92 @@ func directIngestHostCertificates(
 			Source:                    source,
 			Username:                  username,
 		})
+	}
+
+	if len(certs) == 0 {
+		// don't overwrite existing certs if we were unable to parse any new ones
+		return nil
+	}
+
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+}
+
+func directIngestHostCertificatesWindows(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// if there are no results, it indicates we may have a problem so we log it
+		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
+		return nil
+	}
+
+	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
+	// on windows, the osquery certificates table returns duplicate
+	// entries for the same certificate if it is present in multiple
+	// certificate stores so we deduplicate them here based on the
+	// SHA1 sum + username
+	existsSha1User := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		csum, err := hex.DecodeString(row["sha1"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
+			continue
+		}
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
+			continue
+		}
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
+			continue
+		}
+
+		username := row["username"]
+		source := fleet.UserHostCertificate
+		if username == "SYSTEM" {
+			source = fleet.SystemHostCertificate
+		}
+
+		cert := &fleet.HostCertificateRecord{
+			HostID:                    host.ID,
+			SHA1Sum:                   csum,
+			NotValidAfter:             time.Unix(cast.ToInt64(row["not_valid_after"]), 0).UTC(),
+			NotValidBefore:            time.Unix(cast.ToInt64(row["not_valid_before"]), 0).UTC(),
+			CertificateAuthority:      cast.ToBool(row["ca"]),
+			CommonName:                row["common_name"],
+			KeyAlgorithm:              row["key_algorithm"],
+			KeyStrength:               cast.ToInt(row["key_strength"]),
+			KeyUsage:                  row["key_usage"],
+			Serial:                    row["serial"],
+			SigningAlgorithm:          row["signing_algorithm"],
+			SubjectCountry:            subject.Country,
+			SubjectOrganizationalUnit: subject.OrganizationalUnit,
+			SubjectOrganization:       subject.Organization,
+			SubjectCommonName:         subject.CommonName,
+			IssuerCountry:             issuer.Country,
+			IssuerOrganizationalUnit:  issuer.OrganizationalUnit,
+			IssuerOrganization:        issuer.Organization,
+			IssuerCommonName:          issuer.CommonName,
+			Source:                    source,
+			Username:                  username,
+		}
+
+		// deduplicate by SHA1 + Username
+		sha1UserKey := fmt.Sprintf("%x|%s", csum, username)
+		if exists := existsSha1User[sha1UserKey]; exists {
+			level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg",
+				"skipping duplicate certificate for sha1+user", "host_id", host.ID, "username", username, "sha1", fmt.Sprintf("%x", csum),
+				"issuer", cert.IssuerCommonName, "subject", cert.SubjectCommonName, "path", row["path"])
+			continue
+		}
+		existsSha1User[sha1UserKey] = true
+		certs = append(certs, cert)
 	}
 
 	if len(certs) == 0 {

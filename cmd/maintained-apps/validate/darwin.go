@@ -93,6 +93,90 @@ func forceLaunchServicesRefresh(appPath string) error {
 	return nil
 }
 
+// normalizeVersion removes common suffixes from version strings
+func normalizeVersion(v string) string {
+	suffixes := []string{"-latest", "-beta", "-alpha", "-rc", "-pre"}
+	normalized := v
+	for _, suffix := range suffixes {
+		normalized = strings.TrimSuffix(normalized, suffix)
+	}
+	return normalized
+}
+
+// checkVersionMatch checks if the expected version matches any of the found versions
+// using various matching strategies: exact match, normalization, concatenation, and prefix matching
+func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string) bool {
+	// Check exact matches first (no normalization needed)
+	if expectedVersion == foundVersion || expectedVersion == foundBundledVersion {
+		return true
+	}
+
+	// Only normalize if exact match failed (lazy normalization)
+	normalizedExpected := normalizeVersion(expectedVersion)
+	normalizedFound := normalizeVersion(foundVersion)
+	normalizedBundled := normalizeVersion(foundBundledVersion)
+
+	// Check normalized exact matches
+	if normalizedExpected == normalizedFound || normalizedExpected == normalizedBundled {
+		return true
+	}
+
+	// Check if expected version is a concatenation of short version + bundled version
+	// This handles cases like "1.4.230579" = "1.4.2" + "30579" or "1.4.2.30579" = "1.4.2" + "." + "30579"
+	// Only check concatenation if the expected version is longer than the short version alone,
+	// which indicates it might be a concatenation (avoids false positives)
+	if foundVersion != "" && foundBundledVersion != "" && len(expectedVersion) > len(foundVersion) {
+		// Try direct concatenation (no separator)
+		concatenated := foundVersion + foundBundledVersion
+		if expectedVersion == concatenated {
+			return true
+		}
+		// Check normalized concatenation
+		normalizedConcatenated := normalizedFound + normalizedBundled
+		if normalizedExpected == normalizedConcatenated {
+			return true
+		}
+		// Try concatenation with dot separator
+		concatenatedWithDot := foundVersion + "." + foundBundledVersion
+		if expectedVersion == concatenatedWithDot {
+			return true
+		}
+		normalizedConcatenatedWithDot := normalizedFound + "." + normalizedBundled
+		if normalizedExpected == normalizedConcatenatedWithDot {
+			return true
+		}
+	}
+
+	// Check if found version starts with expected version (handles suffixes like ".CE")
+	// This handles cases where the app version is "8.0.44.CE" but expected is "8.0.44"
+	if strings.HasPrefix(foundVersion, expectedVersion+".") ||
+		strings.HasPrefix(foundBundledVersion, expectedVersion+".") {
+		return true
+	}
+	if strings.HasPrefix(normalizedFound, normalizedExpected+".") ||
+		strings.HasPrefix(normalizedBundled, normalizedExpected+".") {
+		return true
+	}
+
+	// Check if expected version starts with found version (handles cases where osquery reports shorter version)
+	// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2"
+	if strings.HasPrefix(expectedVersion, foundVersion+".") {
+		return true
+	}
+	if strings.HasPrefix(normalizedExpected, normalizedFound+".") {
+		return true
+	}
+	// Also check bundled version for prefix matches
+	if strings.HasPrefix(expectedVersion, foundBundledVersion+".") {
+		return true
+	}
+	if strings.HasPrefix(normalizedExpected, normalizedBundled+".") {
+		return true
+	}
+
+	return false
+}
+
 func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -161,18 +245,26 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				return true, nil
 			}
 
-			// Check exact match first
-			if result.Version == appVersion || result.BundledVersion == appVersion {
+			// GPG Suite's installer version (e.g., "2023.3") doesn't match the app bundle version
+			// (e.g., "1.12" with bundled version "1800"). We only verify that the app exists
+			// rather than checking the version.
+			if uniqueAppIdentifier == "org.gpgtools.gpgkeychain" {
+				level.Info(logger).Log("msg", "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
 				return true, nil
 			}
-			// Check if found version starts with expected version (handles suffixes like ".CE")
-			// This handles cases where the app version is "8.0.44.CE" but expected is "8.0.44"
-			if strings.HasPrefix(result.Version, appVersion+".") || strings.HasPrefix(result.BundledVersion, appVersion+".") {
-				return true, nil
+
+			// Adobe DNG Converter's version format includes build number in parentheses
+			// (e.g., "18.0 (2389)") which doesn't match the installer version (e.g., "18.0")
+			// Check if the version starts with the expected version to handle this case
+			if uniqueAppIdentifier == "com.adobe.DNGConverter" {
+				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
+					level.Info(logger).Log("msg", "Adobe DNG Converter detected - version matches with build number")
+					return true, nil
+				}
 			}
-			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
-			// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2"
-			if strings.HasPrefix(appVersion, result.Version+".") {
+
+			// Check various version matching strategies
+			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 				return true, nil
 			}
 		}

@@ -16,8 +16,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 // therefore not longer needed anywhere else
 import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/LabelHostTargetTableConfig";
 
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
@@ -322,8 +321,13 @@ const NewLabelPage = ({
       await labelsAPI.create(formData);
       router.push(PATHS.MANAGE_LABELS);
       renderFlash("success", "Label added successfully.");
-    } catch {
-      renderFlash("error", "Couldn't add label. Please try again.");
+    } catch (error) {
+      renderFlash(
+        "error",
+        (error as { status: number }).status === 409
+          ? "A label with this name already exists."
+          : "Couldn't add label. Please try again."
+      );
     }
     setIsUpdating(false);
   };
@@ -455,8 +459,7 @@ const NewLabelPage = ({
               />
             </span>
             <span className="form-field__help-text">
-              Currently, label criteria can be IdP group or department on macOS,
-              iOS, iPadOS, and Android hosts.
+              Currently, label criteria can be IdP group or department.
             </span>
           </div>
         );

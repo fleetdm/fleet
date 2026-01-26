@@ -24,11 +24,11 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/log"
@@ -398,13 +398,14 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_encryption_windows",
 		"chromeos_profile_user_info",
 		"certificates_darwin",
+		"certificates_windows",
 	}
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 26)
+	require.Len(t, queriesWithoutWinOSVuln, 27)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
@@ -415,7 +416,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1533,7 +1534,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, fleet.SoftwareFieldSeparator, data[1]["name"]))
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -1594,9 +1595,12 @@ func TestDirectIngestSoftware(t *testing.T) {
 				"source":            "apps",
 				"bundle_identifier": "com.bundle.com",
 				"vendor":            "EvilCorp",
+
 				"installed_path":    "/Applications/Software1.app",
 				"team_identifier":   "corp1",
 				"cdhash_sha256":     "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+				"executable_sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+				"executable_path":   "/Applications/Software1.app/Contents/MacOS/Software1",
 			},
 			{
 				"name":              "Software 2",
@@ -1604,8 +1608,9 @@ func TestDirectIngestSoftware(t *testing.T) {
 				"source":            "apps",
 				"bundle_identifier": "coms.widgets.com",
 				"vendor":            "widgets",
-				"team_identifier":   "corp2",
-				"installed_path":    "/Applications/Software2.app",
+
+				"team_identifier": "corp2",
+				"installed_path":  "/Applications/Software2.app",
 			},
 		}
 		var dataAsSoftware []fleet.Software
@@ -1627,23 +1632,32 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.Len(t, sPaths, 2)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
-					"%s%s%s%s%s%s%s",
+					"%s%s%s%s%s%s%s%s%s%s%s",
 					data[0]["installed_path"],
 					fleet.SoftwareFieldSeparator,
 					data[0]["team_identifier"],
 					fleet.SoftwareFieldSeparator,
 					data[0]["cdhash_sha256"],
 					fleet.SoftwareFieldSeparator,
+					data[0]["executable_sha256"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["executable_path"],
+					fleet.SoftwareFieldSeparator,
 					dataAsSoftware[0].ToUniqueStr(),
 				),
 			)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
-					"%s%s%s%s%s%s",
+					"%s%s%s%s%s%s%s%s%s%s%s",
 					data[1]["installed_path"],
 					fleet.SoftwareFieldSeparator,
 					data[1]["team_identifier"],
 					fleet.SoftwareFieldSeparator,
+					"",
+					fleet.SoftwareFieldSeparator,
+					"",
+					fleet.SoftwareFieldSeparator,
+					"",
 					fleet.SoftwareFieldSeparator,
 					dataAsSoftware[1].ToUniqueStr(),
 				),
@@ -2374,7 +2388,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := log.NewNopLogger()
-	host := &fleet.Host{ID: 1, UUID: "host-uuid"}
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
 
 	row1 := map[string]string{
 		"ca":                "0",
@@ -2459,7 +2473,148 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		return nil
 	}
 
-	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row1, row2})
+	err := directIngestHostCertificatesDarwin(ctx, logger, host, ds, []map[string]string{row1, row2})
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+}
+
+func TestDirectIngestHostCertificatesWindows(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+
+	// Fleet SCEP cert example based on data from a real Windows host
+	c1 := map[string]string{
+		"ca":                "-1",
+		"common_name":       "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
+		"subject":           "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
+		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2160",
+		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1780784467",
+		"not_valid_before":  "1749248467",
+		"serial":            "05",
+		"sha1":              "1A395245953C61AE12657704FF45F31A1E7BC1E8",
+		"username":          "Admin",
+		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+	// Custom SCEP cert example based on data from a real Windows host
+	c2 := map[string]string{
+		"ca":                "-1",
+		"common_name":       "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN",
+		"subject":           "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"",
+		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
+		"key_algorithm":     "RSA",
+		"key_strength":      "1120",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1796430423",
+		"not_valid_before":  "1764893823",
+		"serial":            "23",
+		"sha1":              "EE5E756CC1A0782078C7C45180A4544A37D0F6D7",
+		"username":          "Admin",
+		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+
+	// We'll use the examples above to create rows with minor variations, similar to what
+	// we would get from a real Windows host.
+	c3 := maps.Clone(c1)
+	c3["username"] = "SYSTEM"
+	c3["path"] = "Users\\S-1-5-18\\Personal"
+
+	c4 := maps.Clone(c1)
+	c4["username"] = "SYSTEM"
+	c4["path"] = "CurrentUser\\Personal"
+
+	c5 := maps.Clone(c1)
+	c5["username"] = "SYSTEM"
+	c5["path"] = "Users\\S-1-5-18\\Personal"
+
+	c6 := maps.Clone(c1)
+	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	c7 := maps.Clone(c2)
+	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
+
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, host.UUID, hostUUID)
+		require.Len(t, certs, 3)
+
+		// We expect that the ingest function will deduplicate certs based on SHA1+username
+		// so we should see only 3 unique combinations from the 7 rows above.
+		expectSha1Users := map[string]bool{
+			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "Admin":  true, // c1, c6
+			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "SYSTEM": true, // c3, c4, c5
+			"EE5E756CC1A0782078C7C45180A4544A37D0F6D7" + "Admin":  true, // c2, c7
+		}
+		seenSha1Users := map[string]bool{}
+		for _, cert := range certs {
+			s := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+			_, ok := expectSha1Users[s+cert.Username]
+			require.True(t, ok, "unexpected cert SHA1+username combination: %s + %s", s, cert.Username)
+			seenSha1Users[s+cert.Username] = true
+
+			// Validate fields that differ between the cert examples
+			switch s {
+			case "1A395245953C61AE12657704FF45F31A1E7BC1E8":
+				require.Equal(t, "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.Equal(t, "05", cert.Serial)
+				require.Equal(t, int64(1780784467), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1749248467), cert.NotValidBefore.Unix())
+				require.Equal(t, 2160, cert.KeyStrength)
+				require.Equal(t, "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.CommonName)
+				require.Equal(t, "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.SubjectCommonName)
+				require.Equal(t, "\"\", scep-ca, SCEP CA, FleetDM", cert.IssuerCommonName)
+				require.Contains(t, []string{"Admin", "SYSTEM"}, cert.Username)
+
+			case "EE5E756CC1A0782078C7C45180A4544A37D0F6D7":
+				require.Equal(t, "CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.Equal(t, "23", cert.Serial)
+				require.Equal(t, int64(1796430423), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1764893823), cert.NotValidBefore.Unix())
+				require.Equal(t, 1120, cert.KeyStrength)
+				require.Equal(t, "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN", cert.CommonName)
+				require.Equal(t, "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"", cert.SubjectCommonName)
+				require.Equal(t, "US, scep-ca, SCEP CA, MICROMDM SCEP CA", cert.IssuerCommonName)
+				require.Equal(t, "Admin", cert.Username)
+
+			default:
+				t.Fatalf("unexpected cert SHA1: %s", s)
+			}
+
+			// Validate fields common across all Windows certs in this test
+			require.Equal(t, "RSA", cert.KeyAlgorithm)
+			require.Equal(t, "sha256RSA", cert.SigningAlgorithm)
+			require.False(t, cert.CertificateAuthority)
+			if cert.Username == "SYSTEM" {
+				require.Equal(t, fleet.SystemHostCertificate, cert.Source)
+			} else {
+				require.Equal(t, fleet.UserHostCertificate, cert.Source)
+			}
+
+			// For Windows certs, osquery squeezes all distinguished name fields into
+			// the comma-separated list that we store as Issuer/SubjectCommonName and
+			// we leave all other fields empty for now (see fleet.ExtractDetailsFromOsqueryDistinguishedName)
+			require.Empty(t, cert.SubjectOrganization)
+			require.Empty(t, cert.SubjectOrganizationalUnit)
+			require.Empty(t, cert.SubjectCountry)
+			require.Empty(t, cert.IssuerOrganization)
+			require.Empty(t, cert.IssuerOrganizationalUnit)
+			require.Empty(t, cert.IssuerCountry)
+
+		}
+		require.Equal(t, expectSha1Users, seenSha1Users)
+
+		return nil
+	}
+
+	err := directIngestHostCertificatesWindows(ctx, logger, host, ds, rows)
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }

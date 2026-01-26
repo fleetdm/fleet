@@ -47,7 +47,8 @@
       "okta_idp_id": null,
       "okta_assertion_consumer_service_url": null,
       "okta_audience_uri": null,
-      "okta_certificate": null
+      "okta_certificate": null,
+      "bypass_disabled": null
     },
     "features": {
       "enable_host_users": true,
@@ -67,6 +68,7 @@
       "sso_server_url": ""
     },
     "fleet_desktop": {
+      "alternative_browser_host": "",
       "transparency_url": "https://fleetdm.com/transparency"
     },
     "vulnerability_settings": {
@@ -114,15 +116,18 @@
       "enable_disk_encryption": false,
       "macos_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "windows_updates": {
         "deadline_days": 7,

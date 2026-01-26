@@ -21,7 +21,7 @@ It’s easy to think that device reassignment equals *“done.”* It doesn’t.
 
 ## Key steps for a successful migration
 
-To navigate this complexity and ensure a smooth, low-disruption transition, follow a structured **brick by brick** approach:
+To navigate this complexity and ensure a smooth, low-disruption transition, follow a structured **brick-by-brick** approach:
 
 1. **Audit and rationalize:**  
    Document every setting, policy, app, and scope within your old MDM. Use this opportunity to shed unnecessary policies and define your desired end state for the new MDM.
@@ -41,7 +41,7 @@ To navigate this complexity and ensure a smooth, low-disruption transition, foll
 
 Migration gets easier with Apple’s new tools, but it still takes real work. If you’re planning a move and want help working through the details, we’ve done this many times and are happy to share what we’ve learned.
 
-Our **brick by brick** approach focuses on auditing your current setup, carefully staging the new one, and keeping the transition clean and predictable.
+Our **brick-by-brick** approach focuses on auditing your current setup, carefully staging the new one, and keeping the transition clean and predictable.
 
 If you’re considering a migration and want to avoid surprises, let us know. We can share more about how the brick-by-brick method works.
 
