@@ -59,6 +59,10 @@ type StatisticsPayload struct {
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
+	// FleetMaintainedAppsMacOS is an array of Fleet-maintained app slugs being used on macOS
+	FleetMaintainedAppsMacOS []string `json:"fleetMaintainedAppsMacOS,omitempty"`
+	// FleetMaintainedAppsWindows is an array of Fleet-maintained app slugs being used on Windows
+	FleetMaintainedAppsWindows []string `json:"fleetMaintainedAppsWindows,omitempty"`
 }
 
 type HostsCountByOrbitVersion struct {
