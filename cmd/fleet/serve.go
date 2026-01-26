@@ -221,6 +221,8 @@ the way that the Fleet server works.
 				initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
 			}
 
+			config.ConditionalAccess.Validate(initFatal)
+
 			if len(config.Server.URLPrefix) > 0 {
 				// Massage provided prefix to match expected format
 				config.Server.URLPrefix = strings.TrimSuffix(config.Server.URLPrefix, "/")

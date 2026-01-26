@@ -15,9 +15,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -366,9 +364,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
 func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
-	_, filename, _, _ := runtime.Caller(0)
-	schemaPath := path.Join(path.Dir(filename), "schema.sql")
-	testing_utils.LoadSchema(t, testName, opts, schemaPath)
+	testing_utils.LoadDefaultSchema(t, testName, opts)
 	return connectMySQL(t, testName, opts)
 }
 

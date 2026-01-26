@@ -1703,6 +1703,8 @@ type GetCertificateTemplateByIdForHostFunc func(ctx context.Context, id uint, ho
 
 type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
+type GetCertificateTemplatesByIdsAndTeamFunc func(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error)
+
 type GetCertificateTemplateByTeamIDAndNameFunc func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error)
 
 type ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
@@ -4267,6 +4269,9 @@ type DataStore struct {
 
 	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
 	GetCertificateTemplatesByTeamIDFuncInvoked bool
+
+	GetCertificateTemplatesByIdsAndTeamFunc        GetCertificateTemplatesByIdsAndTeamFunc
+	GetCertificateTemplatesByIdsAndTeamFuncInvoked bool
 
 	GetCertificateTemplateByTeamIDAndNameFunc        GetCertificateTemplateByTeamIDAndNameFunc
 	GetCertificateTemplateByTeamIDAndNameFuncInvoked bool
@@ -10215,6 +10220,13 @@ func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID 
 	s.GetCertificateTemplatesByTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) GetCertificateTemplatesByIdsAndTeam(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplatesByIdsAndTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplatesByIdsAndTeamFunc(ctx, ids, teamID)
 }
 
 func (s *DataStore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
