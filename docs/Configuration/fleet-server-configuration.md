@@ -3257,6 +3257,7 @@ This configuration allows Fleet to correctly parse the serial number regardless 
   ```yaml
   conditional_access:
     cert_serial_format: decimal
+  ```
 
 ## Partnerships
 
