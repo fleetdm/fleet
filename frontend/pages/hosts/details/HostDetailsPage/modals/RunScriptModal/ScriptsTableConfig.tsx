@@ -134,7 +134,7 @@ export const generateTableColumnConfigs = (
               <TooltipWrapper
                 tipContent={
                   <div>
-                    Running scripts is disabled in organization settings
+                    Running scripts is disabled in organization settings.
                   </div>
                 }
               >
