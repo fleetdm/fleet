@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -1228,13 +1229,13 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 	}
 
 	// Checking if the incoming request is trusted
-	err := svc.isTrustedRequest(ctx, reqSyncML, reqCerts)
+	requestAuthState, err := svc.isTrustedRequest(ctx, reqSyncML, reqCerts)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "management request is not trusted")
 	}
 
 	// Getting the management response message
-	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML)
+	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML, requestAuthState)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "management response message")
 	}
@@ -1264,59 +1265,95 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
+type requestAuthState int
+
+const (
+	RequestAuthStateUntrusted requestAuthState = iota
+	RequestAuthStateUnauthorized
+	RequestAuthStateChallenge
+	RequestAuthStateRekey
+	RequestAuthStateTrusted
+)
+
 // isTrustedRequest checks if the incoming request was sent from MDM enrolled device
-func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) error {
+// It returns a boolean if we should challenge the device and an error if the request/device calling is not trusted
+func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (requestAuthState, error) {
 	if reqSyncML == nil {
-		return fleet.NewInvalidArgumentError("syncml req message", "message is not present")
+		return RequestAuthStateUntrusted, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
 	// Checking if calling request is coming from an already MDM enrolled device
 	deviceID, err := reqSyncML.GetSource()
 	if err != nil || deviceID == "" {
-		return fmt.Errorf("invalid SyncML message %w", err)
+		return RequestAuthStateUntrusted, fmt.Errorf("invalid SyncML message %w", err)
 	}
 
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil || enrolledDevice == nil {
-		return errors.New("device was not MDM enrolled")
+		return RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
 	}
 
 	// Check if TLS certs contains device ID on its common name
 	if len(reqCerts) > 0 {
 		for _, reqCert := range reqCerts {
 			if strings.Contains(reqCert.Subject.CommonName, deviceID) {
-				return nil
+				return RequestAuthStateTrusted, nil
 			}
 		}
 	}
 
-	// TODO: Latest version of the MDM client stack don't populate TLS.PeerCertificates array
-	// This is a temporary workaround to allow the management request to proceed
-	// Transport-level security should be replaced for Application-level security
-	// Transport-level security is defined in the MS-MDM spec in section 1.3.1
-	// On the other hand, Application-level security is defined here
-	// https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf
-	// The initial values for Application-level security configuration are defined in the
-	// WAP Profile blob that is sent to the device during the enrollment process. Example below
-	//	<characteristic type="APPAUTH">
-	//		<parm name="AAUTHLEVEL" value="CLIENT"/>
-	//		<parm name="AAUTHTYPE" value="DIGEST"/>
-	//		<parm name="AAUTHSECRET" value="2jsidqgffx"/>
-	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
-	//	</characteristic>
-	//	<characteristic type="APPAUTH">
-	//		<parm name="AAUTHLEVEL" value="APPSRV"/>
-	//		<parm name="AAUTHTYPE" value="DIGEST"/>
-	//		<parm name="AAUTHNAME" value="43f8bf591b8557346021"/>
-	//		<parm name="AAUTHSECRET" value="crbr3w2cab"/>
-	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
-	//	</characteristic>
-
-	if len(reqCerts) == 0 {
-		return nil
+	if reqSyncML.SyncHdr.Cred == nil {
+		// No certs, but no credentials present - challenge the device
+		return RequestAuthStateChallenge, nil
 	}
 
-	return errors.New("calling device is not trusted")
+	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
+		// Device has not acknowledged new credentials, rekey the device
+		return RequestAuthStateRekey, nil
+	}
+
+	// Extract the last nonce used to generate the credentials hash
+	nonce, err := svc.keyValueStore.Get(ctx, fleet.AUTH_NONCE_PREFIX+deviceID)
+	if err != nil {
+		return RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "get device nonce from kv store")
+	}
+
+	if nonce == nil || *nonce == "" {
+		// Challenge the device if nonce is missing, which will send a new nonce and store it
+		return RequestAuthStateChallenge, nil
+	}
+
+	// Credentials are present, validate it
+	credFormat := reqSyncML.SyncHdr.Cred.Meta.Format
+	credType := reqSyncML.SyncHdr.Cred.Meta.Type
+	credData := reqSyncML.SyncHdr.Cred.Data
+
+	if credFormat == nil || credType == nil || credFormat.Content == nil || credType.Content == nil {
+		return RequestAuthStateUntrusted, errors.New("SyncML credentials format or type is missing")
+	}
+
+	if *credFormat.Content != syncml.AuthB64Format || *credType.Content != syncml.AuthMD5 {
+		return RequestAuthStateUntrusted, errors.New("SyncML credentials format or type is invalid")
+	}
+
+	// MD5 auth digest, which includes (username:password):nonce
+	// Where username:password is hashed and b64 encoded, and then further hased with the nonce and finally b64 encoded for transport
+	// https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf Chaper (5.3)
+	receivedDigestHash, err := base64.StdEncoding.DecodeString(credData)
+	if err != nil {
+		return RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "decode SyncML credentials data")
+	}
+
+	encodedCredentialsHash := base64.StdEncoding.EncodeToString(*enrolledDevice.CredentialsHash)
+	expectedDigest := fmt.Sprintf("%s:%s", encodedCredentialsHash, *nonce)
+	expectedDigestHash := md5.Sum([]byte(expectedDigest))
+
+	if !bytes.Equal(receivedDigestHash, expectedDigestHash[:]) {
+		// Credentials do not match what we expect
+		return RequestAuthStateUnauthorized, nil
+	}
+
+	return RequestAuthStateTrusted, nil
 }
 
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
@@ -1523,8 +1560,18 @@ func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID
 
 // processIncomingMDMCmds process the incoming message from the device
 // It will return the list of operations that need to be sent to the device
-func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string, reqMsg *fleet.SyncML) ([]*fleet.SyncMLCmd, error) {
+func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string, reqMsg *fleet.SyncML, requestAuthState requestAuthState) ([]*fleet.SyncMLCmd, error) {
 	var responseCmds []*fleet.SyncMLCmd
+
+	saveResponse := func(topLevelExists []string) error {
+		enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
+		if enrichedSyncML.HasCommands() {
+			if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML, topLevelExists); err != nil {
+				return fmt.Errorf("store incoming msgs: %w", err)
+			}
+		}
+		return nil
+	}
 
 	// Get the incoming MessageID
 	reqMessageID, err := reqMsg.GetMessageID()
@@ -1532,9 +1579,52 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		return nil, fmt.Errorf("get incoming msg: %w", err)
 	}
 
+	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
+		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
+		err := svc.keyValueStore.Set(ctx, fleet.AUTH_NONCE_PREFIX+deviceID, nonce, 5*time.Minute)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
+		}
+
+		status := syncml.CmdStatusAuthenticationRequired
+		if requestAuthState == RequestAuthStateUnauthorized {
+			status = syncml.CmdStatusInvalidCredentials
+		}
+
+		ackMsg := NewSyncMLCmdStatus(reqMessageID, "0", syncml.SyncMLHdrName, status)
+		ackMsg.Chal = &fleet.SyncMLChallenge{
+			Meta: fleet.ChallengeMeta{
+				NextNonce: fleet.MetaAttr{
+					XMLNS:   syncml.SyncMLMetaNamespace,
+					Content: &nonce,
+				},
+				Meta: fleet.Meta{
+					Type: &fleet.MetaAttr{
+						XMLNS:   syncml.SyncMLMetaNamespace,
+						Content: ptr.String(syncml.AuthMD5),
+					},
+					Format: &fleet.MetaAttr{
+						XMLNS:   syncml.SyncMLMetaNamespace,
+						Content: ptr.String(syncml.AuthB64Format),
+					},
+				},
+			},
+		}
+
+		responseCmds = append(responseCmds, ackMsg)
+		saveResponse([]string{})
+		return responseCmds, nil
+	}
+
+	if requestAuthState != RequestAuthStateTrusted {
+		return nil, errors.New("untrusted request cannot be processed")
+	}
+
 	// Acknowledge the message header
 	// msgref is always 0 for the header
 	if err = reqMsg.IsValidHeader(); err == nil {
+		// We always return 200 here, we could also return 212 to indicate we don't need the credentials every time,
+		// but our logic is built around it being present on each request
 		ackMsg := NewSyncMLCmdStatus(reqMessageID, "0", syncml.SyncMLHdrName, syncml.CmdStatusOK)
 		responseCmds = append(responseCmds, ackMsg)
 	}
@@ -1575,11 +1665,9 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		return nil, err
 	}
 
-	enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
-	if enrichedSyncML.HasCommands() {
-		if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML, topLevelExists); err != nil {
-			return nil, fmt.Errorf("store incoming msgs: %w", err)
-		}
+	err = saveResponse(topLevelExists)
+	if err != nil {
+		return nil, err
 	}
 
 	return responseCmds, nil
@@ -1696,7 +1784,7 @@ func (svc *Service) createResponseSyncML(ctx context.Context, req *fleet.SyncML,
 }
 
 // getManagementResponse returns a valid SyncML response message
-func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.SyncML) (*mdm_types.SyncML, error) {
+func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.SyncML, requestAuthState requestAuthState) (*mdm_types.SyncML, error) {
 	if reqMsg == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
@@ -1708,7 +1796,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	// Process the incoming MDM protocol commands and get the response MDM protocol commands
-	resIncomingCmds, err := svc.processIncomingMDMCmds(ctx, deviceID, reqMsg)
+	resIncomingCmds, err := svc.processIncomingMDMCmds(ctx, deviceID, reqMsg, requestAuthState)
 	if err != nil {
 		return nil, fmt.Errorf("message processing error %w", err)
 	}

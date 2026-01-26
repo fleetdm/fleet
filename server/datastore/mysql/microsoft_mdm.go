@@ -58,6 +58,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		credentials_hash,
+		credentials_acknowledged,
 		created_at,
 		updated_at,
 		host_uuid
@@ -89,6 +91,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		credentials_hash,
+		credentials_acknowledged,
 		created_at,
 		updated_at,
 		host_uuid
