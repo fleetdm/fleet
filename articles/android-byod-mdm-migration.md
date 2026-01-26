@@ -28,7 +28,9 @@ After selecting **Delete** on the confirmation dialog, the old Work Profile will
 
 ## Enroll in Fleet
 
-Open the enrollment link in a web browser. If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is set up for the team, end users will be prompted to authenticate through SSO. We use Google for our setup, so this step may look different in your environment.
+Send the enrollment link to end users to open in a web browser. An easy alternative is to use a QR code. To generate one using Chrome, open the enrollment link on a computer, right-click the page, then select **Create QR Code for this Page**. If this isn't showing, select the three dot menu icon on the right side of the toolbar > **Cast, Save, and Share** > **Create QR Code**.
+
+If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is set up for the team, end users will be prompted to authenticate through SSO. We use Google for our setup, so this step may look different in your environment.
 
 <img width="50%" alt="Screenshot_20260120-195230" src="https://github.com/user-attachments/assets/b9a92a3c-c7d6-4ff9-8c9b-3fd478c53460" />
 
