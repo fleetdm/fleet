@@ -543,7 +543,6 @@ software:
       self_service: true
       configuration:
         path: ../lib/software/zoom-config.json
-  setup_experience: true
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
