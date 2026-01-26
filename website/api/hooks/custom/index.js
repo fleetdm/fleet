@@ -369,7 +369,7 @@ will be disabled and/or hidden in the UI.
                       sails.log.verbose('Skipping Salesforce integration...');
                       return;
                     }
-                    let attributionCookieOrUndefined = req.cookies.marketingAttribution;// Will be undefined if this is not set.
+                    let attributionDetailsOrUndefined = req.session.marketingAttribution;// Will be undefined if this is not set.
 
                     let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
                       emailAddress: sanitizedUser.emailAddress,
