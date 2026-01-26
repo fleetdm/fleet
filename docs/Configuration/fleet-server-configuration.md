@@ -791,6 +791,20 @@ Maximum size for software installer uploads. Accepts human-readable size values 
   server:
     max_installer_size: 10GiB
   ```
+  
+### server_gzip_responses
+
+If enabled, the server will return gzip-compressed responses for HTTP requests to clients that indicate support. Client support is determined by the presence of `gzip` in an `Accept-Encoding` request header.
+
+Enable this to significantly reduce the outbound bandwidth from the Fleet server at a small expense to CPU utilization on the server.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_GZIP_RESPONSES`
+- Config file format:
+  ```yaml
+  server:
+    gzip_responses: true
+  ```
 
 ## Auth
 
