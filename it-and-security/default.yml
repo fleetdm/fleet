@@ -123,3 +123,4 @@ labels:
   - path: ./lib/all/labels/department-people.yml
   - path: ./lib/all/labels/department-finance.yml
   - path: ./lib/all/labels/department-product-design.yml
+  - path: ./lib/all/labels/department-product-executive.yml
