@@ -76,5 +76,10 @@ git checkout rc-minor-fleetd-android-v1.X.X -- app/build.gradle.kts CHANGELOG.md
 git commit -m "Update version and CHANGELOG for fleetd-android-v1.X.X"
 git push origin main
 ```
+## 10. Update the info page
+
+After the release is uploaded, update orbit/ANDROID_APP.md
+
+
 
 This brings only the version bump and CHANGELOG updates to main, not other RC changes.
