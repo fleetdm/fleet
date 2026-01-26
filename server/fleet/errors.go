@@ -463,6 +463,13 @@ func (e OrbitError) StatusCode() int {
 	return e.code
 }
 
+// IsClientError implements ErrWithIsClientError.
+// Returns true for 4xx status codes, false for 5xx.
+func (e OrbitError) IsClientError() bool {
+	code := e.StatusCode()
+	return code >= 400 && code < 500
+}
+
 func NewOrbitIDPAuthRequiredError() *OrbitError {
 	return &OrbitError{
 		Message: "END_USER_AUTH_REQUIRED",
@@ -537,6 +544,11 @@ func (e ConflictError) StatusCode() int {
 
 // IsConflict implements the conflict interface for middleware compatibility
 func (e ConflictError) IsConflict() bool {
+	return true
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e ConflictError) IsClientError() bool {
 	return true
 }
 
