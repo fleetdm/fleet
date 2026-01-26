@@ -1,4 +1,4 @@
-# CHROM extension releases
+# CHROME extension releases
 
 ## `stable`
 
