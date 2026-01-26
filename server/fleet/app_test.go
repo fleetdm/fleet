@@ -509,6 +509,15 @@ func TestGoogleCalendarApiKeyMarshalUnmarshal(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("unmarshal null", func(t *testing.T) {
+		data := []byte(`null`)
+		var key GoogleCalendarApiKey
+		err := json.Unmarshal(data, &key)
+		require.NoError(t, err)
+		require.False(t, key.IsMasked())
+		require.True(t, key.IsEmpty())
+	})
+
 	t.Run("full integration roundtrip", func(t *testing.T) {
 		// Test the full struct with the API key
 		intg := GoogleCalendarIntegration{
