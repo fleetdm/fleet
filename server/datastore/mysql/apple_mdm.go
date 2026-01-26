@@ -1445,6 +1445,7 @@ type hostToCreateFromMDM struct {
 	// PlatformHint is used to determine hosts.platform, if it:
 	//
 	// - contains "iphone" the platform is "ios"
+	// - contains "ipod" the platform is "ios"
 	// - contains "ipad" the platform is "ipados"
 	// - otherwise the platform is "darwin"
 	PlatformHint string
