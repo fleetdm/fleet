@@ -265,8 +265,7 @@ type DataStore interface {
 	fleet.AccessesMDMConfigAssets
 }
 
-func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Authenticator {
-	token := dev_mode.Env("FLEET_DEV_VPP_METADATA_BEARER_TOKEN")
+func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string, token string) Authenticator {
 	if token != "" {
 		return func(bool) (string, error) { return token, nil }
 	}

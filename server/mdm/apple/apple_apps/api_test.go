@@ -235,10 +235,8 @@ func (m *mockDataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetTyp
 func TestAuthentication(t *testing.T) {
 	// Clear any dev env vars that might interfere
 	t.Run("uses bearer token env var when set", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "dev-test-token", t)
-
 		ds := &mockDataStore{}
-		auth := GetAuthenticator(context.Background(), ds, "license-key")
+		auth := GetAuthenticator(context.Background(), ds, "license-key", "dev-test-token")
 
 		// Should return bearer token regardless of forceRenew
 		token, err := auth(false)
@@ -254,8 +252,6 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("returns cached token from database when not forced renewal", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		ds := &mockDataStore{
 			assets: map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetVPPProxyBearerToken: {
@@ -265,7 +261,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "license-key")
+		auth := GetAuthenticator(context.Background(), ds, "license-key", "")
 		token, err := auth(false)
 		require.NoError(t, err)
 		require.Equal(t, "cached-token-from-db", token)
@@ -274,8 +270,6 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("requests new token when forced renewal even if cached exists", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Verify the URL and license key are set
@@ -303,7 +297,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "test-license-key")
+		auth := GetAuthenticator(context.Background(), ds, "test-license-key", "")
 		token, err := auth(true) // Force renewal
 		require.NoError(t, err)
 		require.Equal(t, "new-token-from-auth", token)
@@ -319,8 +313,6 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("requests new token when nothing in database and no forced renewal", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Verify the URL and license key are set
@@ -343,7 +335,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "my-license-key")
+		auth := GetAuthenticator(context.Background(), ds, "my-license-key", "")
 		token, err := auth(false) // Not forced renewal, but no token in DB
 		require.NoError(t, err)
 		require.Equal(t, "fresh-token", token)
@@ -356,8 +348,6 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("returns error when auth server fails", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		// Set up a mock auth server that fails
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -375,15 +365,13 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "bad-license-key")
+		auth := GetAuthenticator(context.Background(), ds, "bad-license-key", "")
 		_, err := auth(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "authenticating to VPP metadata service")
 	})
 
 	t.Run("returns error when auth response has empty token", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		// Set up a mock auth server that returns empty token
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -401,7 +389,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "license-key")
+		auth := GetAuthenticator(context.Background(), ds, "license-key", "")
 		_, err := auth(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no access token received")

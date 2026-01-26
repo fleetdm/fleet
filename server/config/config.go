@@ -765,6 +765,9 @@ type MDMConfig struct {
 	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
 	// certificates.
 	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
+	// AppleConnectJWT is the Apple Connect JWT used to access VPP app metadata.
+	// If supplied, Fleet will contact the Apple API directly rather than checking the Fleet proxy
+	AppleConnectJWT string `yaml:"apple_vpp_app_metadata_api_bearer_token"`
 
 	// WindowsWSTEPIdentityCert is the path to the certificate used to sign
 	// WSTEP responses.
@@ -1557,6 +1560,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
+	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")

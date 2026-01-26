@@ -747,7 +747,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 }
 
 func (svc *Service) getVPPAuthenticator(ctx context.Context) apple_apps.Authenticator {
-	return apple_apps.GetAuthenticator(ctx, svc.ds, svc.config.License.Key)
+	return apple_apps.GetAuthenticator(ctx, svc.ds, svc.config.License.Key, svc.config.MDM.AppleConnectJWT)
 }
 
 func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken string, vppAuthenticator apple_apps.Authenticator) ([]*fleet.VPPApp, error) {
