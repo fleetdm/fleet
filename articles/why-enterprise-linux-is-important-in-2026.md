@@ -42,15 +42,11 @@ The operational gap in Linux management
 
 Linux endpoints present the same operational challenges as other devices:
 
-Provisioning and onboarding
-
-Software deployment and updates
-
-Certificate and configuration management
-
-Enforcing and remediating security baselines
-
-Compliance and reporting
+- Provisioning and onboarding
+- Software deployment and updates
+- Certificate and configuration management
+- Enforcing and remediating security baselines
+- Compliance and reporting
 
 Most organizations handle these challenges on macOS and Windows by using platform-specific device management solutions. Though there are powerful open-source tools available like Ansible, Puppet, OpenSCAP and osquery for managing Linux, each requires significant investment to learn, integrate, and maintain. Mainstream endpoint management platforms like Intune and Workspace ONE offer limited Linux support, leaving management challenges unresolved.
 
