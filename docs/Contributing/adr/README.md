@@ -45,3 +45,4 @@ To create a new ADR:
 - [ADR-0005: Standardize on OpenTelemetry for observability](0005-opentelemetry-standardization.md)
 - [ADR-0006: Replace "No Team" with real default team](0006-replace-no-team-with-default-team.md)
 - [ADR-0007: Pilot activity bounded context](0007-pilot-activity-bounded-context.md)
+- [ADR-0008: Refactor Android](0008-refactor-android.md)
