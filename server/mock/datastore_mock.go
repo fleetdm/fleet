@@ -1749,6 +1749,10 @@ type GetHostVPPInstallByCommandUUIDFunc func(ctx context.Context, commandUUID st
 
 type RetryVPPInstallFunc func(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstallLite) error
 
+type MDMWindowsUpdateEnrolledDeviceCredentialsFunc func(ctx context.Context, hostUUID string, credentialsHash []byte, acknowledge bool) error
+
+type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context, hostUUID string) error
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -4338,6 +4342,12 @@ type DataStore struct {
 
 	RetryVPPInstallFunc        RetryVPPInstallFunc
 	RetryVPPInstallFuncInvoked bool
+
+	MDMWindowsUpdateEnrolledDeviceCredentialsFunc        MDMWindowsUpdateEnrolledDeviceCredentialsFunc
+	MDMWindowsUpdateEnrolledDeviceCredentialsFuncInvoked bool
+
+	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc        MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc
+	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -10381,4 +10391,18 @@ func (s *DataStore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.HostV
 	s.RetryVPPInstallFuncInvoked = true
 	s.mu.Unlock()
 	return s.RetryVPPInstallFunc(ctx, vppInstall)
+}
+
+func (s *DataStore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, hostUUID string, credentialsHash []byte, acknowledge bool) error {
+	s.mu.Lock()
+	s.MDMWindowsUpdateEnrolledDeviceCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsUpdateEnrolledDeviceCredentialsFunc(ctx, hostUUID, credentialsHash, acknowledge)
+}
+
+func (s *DataStore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc(ctx, hostUUID)
 }

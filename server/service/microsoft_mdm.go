@@ -1234,14 +1234,19 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 		return nil, ctxerr.Wrap(ctx, err, "management request is not trusted")
 	}
 
+	// Token is authorized
+	svc.authz.SkipAuthorization(ctx)
+
+	if requestAuthState == RequestAuthStateRekey {
+		// If we signalled to rekey the device, we short-circuit into a rekey flow.
+		return svc.rekeyWindowsDevice(ctx, reqSyncML)
+	}
+
 	// Getting the management response message
 	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML, requestAuthState)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "management response message")
 	}
-
-	// Token is authorized
-	svc.authz.SkipAuthorization(ctx)
 
 	return resSyncMLmsg, nil
 }
@@ -1302,18 +1307,18 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 		}
 	}
 
+	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
+		// Device has not gotten new credentials, rekey the device only once
+		return RequestAuthStateRekey, nil
+	}
+
 	if reqSyncML.SyncHdr.Cred == nil {
 		// No certs, but no credentials present - challenge the device
 		return RequestAuthStateChallenge, nil
 	}
 
-	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
-		// Device has not acknowledged new credentials, rekey the device
-		return RequestAuthStateRekey, nil
-	}
-
 	// Extract the last nonce used to generate the credentials hash
-	nonce, err := svc.keyValueStore.Get(ctx, fleet.AUTH_NONCE_PREFIX+deviceID)
+	nonce, err := svc.keyValueStore.Get(ctx, fleet.WINDOWS_MDM_AUTH_NONCE_PREFIX+deviceID)
 	if err != nil {
 		return RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "get device nonce from kv store")
 	}
@@ -1353,7 +1358,68 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 		return RequestAuthStateUnauthorized, nil
 	}
 
+	// We verified the username, password and nonce match what we expect, so we can ack the rekeyed credentials
+	if !enrolledDevice.CredentialsAcknowledged {
+		err = svc.ds.MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx, enrolledDevice.HostUUID)
+		if err != nil {
+			return RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "mark device credentials as acknowledged")
+		}
+	}
+
 	return RequestAuthStateTrusted, nil
+}
+
+func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
+	if reqSyncML == nil {
+		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
+	}
+
+	// Getting the device ID from the SyncML message
+	deviceID, err := reqSyncML.GetSource()
+	if err != nil || deviceID == "" {
+		return nil, fmt.Errorf("invalid SyncML message %w", err)
+	}
+
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil || enrolledDevice == nil {
+		return nil, errors.New("device was not MDM enrolled")
+	}
+
+	username := deviceID
+	password := uuid.NewString()
+	credentialsHash := md5.Sum([]byte(fmt.Sprintf("%s:%s", username, password)))
+
+	// Store the new credentials hash and mark that the device has not acknowledged them yet
+	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.HostUUID, credentialsHash[:], false)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update enrolled device credentials")
+	}
+
+	// Queue two replace commands to update the credentials on the device
+	accountUid := "0x0000800cABF8CA7D87C0FA21BB21B896AE2C8468CA07710326415228ACF2392EA1327077"
+	usernameReplace := newSyncMLCmdText("Replace", fmt.Sprintf("./SyncML/DMAcc/%s/AppAuth/CLCRED/AAuthName", accountUid), username)
+	usernameReplace.CmdID = mdm_types.CmdID{
+		IncludeFleetComment: true,
+		Value:               "rekey-credentials-username",
+	}
+	passwordReplace := newSyncMLCmdText("Replace", fmt.Sprintf("./SyncML/DMAcc/%s/AppAuth/CLCRED/AAuthSecret", accountUid), password)
+	passwordReplace.CmdID = mdm_types.CmdID{
+		IncludeFleetComment: true,
+		Value:               "rekey-credentials-password",
+	}
+
+	// Get the incoming MessageID
+	reqMessageID, err := reqSyncML.GetMessageID()
+	if err != nil {
+		return nil, fmt.Errorf("get incoming msg: %w", err)
+	}
+
+	// We only create a response here, and does not persist it to the DB to avoid saving the secrets in plain text
+	return svc.createResponseSyncML(ctx, reqSyncML, []*mdm_types.SyncMLCmd{
+		NewSyncMLCmdStatus(reqMessageID, "0", syncml.SyncMLHdrName, syncml.CmdStatusOK), // We need to ack the incoming message to send rekey commands
+		usernameReplace,
+		passwordReplace,
+	})
 }
 
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
@@ -1581,7 +1647,8 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 
 	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
 		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
-		err := svc.keyValueStore.Set(ctx, fleet.AUTH_NONCE_PREFIX+deviceID, nonce, 5*time.Minute)
+		base64Nonce := base64.StdEncoding.EncodeToString([]byte(nonce))
+		err := svc.keyValueStore.Set(ctx, fleet.WINDOWS_MDM_AUTH_NONCE_PREFIX+deviceID, nonce, 5*time.Minute)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
 		}
@@ -1596,7 +1663,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 			Meta: fleet.ChallengeMeta{
 				NextNonce: fleet.MetaAttr{
 					XMLNS:   syncml.SyncMLMetaNamespace,
-					Content: &nonce,
+					Content: &base64Nonce,
 				},
 				Meta: fleet.Meta{
 					Type: &fleet.MetaAttr{

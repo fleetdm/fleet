@@ -2639,6 +2639,9 @@ type Datastore interface {
 	// RetryVPPInstall retries a single VPP install that failed for the host.
 	// It makes sure to queue a new nano command and update the command_uuid in the host_vpp_software_installs table, as well as the execution ID for the activity.
 	RetryVPPInstall(ctx context.Context, vppInstall *HostVPPSoftwareInstallLite) error
+
+	MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, hostUUID string, credentialsHash []byte, acknowledge bool) error
+	MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, hostUUID string) error
 }
 
 type AndroidDatastore interface {
