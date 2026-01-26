@@ -599,7 +599,7 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 	}
 
 	// pgAdmin CVEs in NVD use target_sw=postgresql and product=pgadmin_4, but Fleet generates
-	// CPEs with platform-based target_sw (macos, windows, linux) and may use different product
+	// CPEs with platform-based target_sw (macos, windows) and may use different product
 	// names (pgadmin, pgadmin4). Add aliases with target_sw=postgresql and product name
 	// variations to match NVD's criteria.
 	// See https://github.com/fleetdm/fleet/issues/37957.
