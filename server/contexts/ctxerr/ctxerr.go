@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net"
 	"runtime"
 	"strings"
 	"time"
@@ -406,14 +405,15 @@ func isClientError(err error) bool {
 		return clientErr.IsClientError()
 	}
 
-	// Check for context cancellation (client disconnected)
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-
-	// Check for network errors (client connection issues)
-	var opErr *net.OpError
-	return errors.As(err, &opErr)
+	// Treat context cancellation as client errors. This is a pragmatic choice:
+	// in HTTP handlers, these typically indicate client disconnection or request
+	// timeout. While context errors could theoretically come from server-side
+	// operations (e.g., DB timeouts), detecting true client disconnection at the
+	// transport layer is complex. Go's HTTP server doesn't provide a distinct
+	// error type for client disconnection (see https://github.com/golang/go/issues/64465).
+	// The occasional misclassification is acceptable given that most context
+	// cancellations in request handling are client-initiated.
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // Retrieve retrieves an error from the registered error handler

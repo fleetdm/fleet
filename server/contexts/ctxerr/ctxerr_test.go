@@ -410,13 +410,18 @@ func TestIsClientError(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "wrapped context.Canceled",
+			err:      fmt.Errorf("wrapped: %w", context.Canceled),
+			expected: true,
+		},
+		{
 			name:     "context.DeadlineExceeded",
 			err:      context.DeadlineExceeded,
 			expected: true,
 		},
 		{
-			name:     "wrapped context.Canceled",
-			err:      fmt.Errorf("wrapped: %w", context.Canceled),
+			name:     "wrapped context.DeadlineExceeded",
+			err:      fmt.Errorf("wrapped: %w", context.DeadlineExceeded),
 			expected: true,
 		},
 		{
