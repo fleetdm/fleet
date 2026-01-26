@@ -36,6 +36,8 @@ const config = {
       "<rootDir>/frontend/__mocks__/fileMock.js",
     "\\.(sh|ps1)$": "<rootDir>/frontend/__mocks__/fileMock.js",
     "\\.(css|scss|sass)$": "identity-obj-proxy",
+    "^node-sql-parser$":
+      "<rootDir>/node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js",
   },
   testMatch: ["**/*tests.[jt]s?(x)"],
   setupFilesAfterEnv: ["<rootDir>/frontend/test/test-setup.ts"],
