@@ -1735,30 +1735,28 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 
 func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	test.CreateInsertGlobalVPPToken(t, ds)
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	// create an mdm enrolled host to have a pending install request
-	// host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
-	// host.HardwareSerial = "test-serial"
-	// nanoEnroll(t, ds, host, false)
-
+	// create an mdm enrolled host
 	iosHost, err := ds.NewHost(testCtx(), &fleet.Host{
 		Hostname:       "host1",
-		NodeKey:        ptr.String("host1key"),
 		UUID:           "host1uuid",
-		Platform:       string(fleet.IOSPlatform),
 		HardwareSerial: "host1serial",
+		NodeKey:        ptr.String("host1key"),
+		Platform:       string(fleet.IOSPlatform),
 	})
 	require.NoError(t, err)
-	// err = ds.MDMAppleUpsertHost(ctx, iosHost, false)
-	// require.NoError(t, err)
 	nanoEnroll(t, ds, iosHost, false)
 
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
-	require.Len(t, hosts, 1)
 	require.NoError(t, err)
+	require.Len(t, hosts, 1)
 
-	// TODO: table driven test with different installers
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IOSPlatform}},
+	}, nil)
 
 	payload := fleet.UploadSoftwareInstallerPayload{
 		UserID:           user.ID,
@@ -1780,57 +1778,49 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	inHouseAppID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
 	require.NoError(t, err)
 
-	ipaReq := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID, titleID, user)
-	ipaReq2 := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID2, titleID2, user)
-	// TODO: add more
+	ipaCmd := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID, titleID, user)
+	ipaCmd2 := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID2, titleID2, user)
+	vppCmd := createVPPAppInstallRequest(t, ds, iosHost, vppApp.AdamID, user)
 
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		// DumpTable(t, tx, "hosts")
-		// DumpTable(t, tx, "nano_enrollments")
-		// DumpTable(t, tx, "host_mdm")
-		DumpTable(t, tx, "host_in_house_software_installs", "id", "host_id", "in_house_app_id", "user_id", "platform", "removed", "canceled", "verification_failed_at", "updated_at")
-		// DumpTable(t, tx, "upcoming_activities", "id", "host_id", "user_id", "activity_type", "activated_at")
-		DumpTable(t, tx, "in_house_app_upcoming_activities")
-		// DumpTable(t, tx, "in_house_apps")
-		DumpTable(t, tx, "activities")
-		return nil
-	})
-
+	// there should be 3 upcoming activities and 1 pending install
+	checkUpcomingActivities(t, ds, iosHost, ipaCmd, ipaCmd2, vppCmd)
 	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 1, Failed: 0}, *summary)
 
-	fmt.Printf("%+v\n\n\n", summary)
-
-	checkUpcomingActivities(t, ds, iosHost, ipaReq, ipaReq2)
+	// no past activities yet
+	acts, _, err := ds.ListHostPastActivities(ctx, iosHost.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 0)
 
 	// turn off MDM for the host
 	users, activitiesToCreate, err := ds.MDMTurnOff(ctx, iosHost.UUID)
 	require.NoError(t, err)
-	fmt.Printf("%+v\n\n", activitiesToCreate[0].ActivityName())
 	for i, act := range activitiesToCreate {
+		// caller's responsibility to create new activities
 		ds.NewActivity(ctx, users[i], act, nil, time.Now())
 		require.NoError(t, err)
 	}
 
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		DumpTable(t, tx, "host_in_house_software_installs", "id", "host_id", "in_house_app_id", "user_id", "platform", "removed", "canceled", "verification_failed_at", "updated_at")
-		DumpTable(t, tx, "upcoming_activities", "id", "host_id", "user_id", "activity_type", "activated_at")
+	// fleet needs to receive some command result at some
+	// point for it to show up in the install summary
+	createInHouseAppInstallResult(t, ds, iosHost, ipaCmd, "Acknowledged")
 
-		DumpTable(t, tx, "nano_command_results")
-		DumpTable(t, tx, "activities")
-		return nil
-	})
+	// past activity for the failed install
+	acts, _, err = ds.ListHostPastActivities(ctx, iosHost.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 2)
+	require.NotNil(t, acts[0].ActorID)
+	require.Equal(t, *acts[0].ActorID, user.ID)
+	require.Equal(t, acts[0].Type, fleet.ActivityTypeInstalledSoftware{}.ActivityName())
+	// limitation of using createInHouseAppInstallResult which creates an activity
+	require.Nil(t, acts[1].ActorID)
+	require.Equal(t, acts[1].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
 
-	// does anything happen with nano_command_results at all??
-	// createInHouseAppInstallResult(t, ds, host3, cmdUUID3, "Error")
-
-	// we don't expect to see a failed install in the app summary, because
-	// no nano command result was actually received
+	// there should be no upcoming activities and 1 failed install
+	checkUpcomingActivities(t, ds, iosHost)
 	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
 	require.NoError(t, err)
-	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 0}, *summary)
-
-	checkUpcomingActivities(t, ds, iosHost)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
 
 }

@@ -2283,6 +2283,7 @@ WHERE
 
 		// user may be nil if fleet-initiated activity, but the activity itself indicates
 		// if a new entry must be made, since users and activities must match in length
+		// only one activity should be created per command
 		if actAppStore != nil {
 			if hostPlatform == "android" {
 				// currently, android installs are always during setup experience
