@@ -540,16 +540,16 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	// engineering/cleverness but for now, we're signing the request with
 	// our mock certs and setting this env var to skip the verification.
 
-	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	mockedCert, mockedKey, err := apple_mdm.NewSCEPCACertKey()
 	if err != nil {
 		return fmt.Errorf("creating mock certificates: %w", err)
 	}
+	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	body, err = do(mockedCert, mockedKey)
+	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}
-	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 
 	var scepInfo struct {
 		PayloadContent []struct {
