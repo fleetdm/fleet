@@ -2,11 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/md5"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -909,4 +913,182 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		}
 	}
 	require.EqualValues(t, 1, foundErrors, "Should have found one failed status update")
+}
+
+func TestRekeyWindowsDevice(t *testing.T) {
+	ds := new(mock.Store)
+	kv := new(mock.KVStore)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+		KeyValueStore: kv,
+	})
+
+	var credsHash *[]byte
+	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		return &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:     "device",
+			HostUUID:        "host-uuid-123",
+			CredentialsHash: credsHash,
+		}, nil
+	}
+
+	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, hostUUID string, credentialsHash []byte, acknowledge bool) error {
+		require.Equal(t, "host-uuid-123", hostUUID)
+		require.False(t, acknowledge)
+		credsHash = &credentialsHash
+		return nil
+	}
+
+	ackCalled := 0
+	ds.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc = func(ctx context.Context, hostUUID string) error {
+		require.Equal(t, "host-uuid-123", hostUUID)
+		ackCalled++
+		return nil
+	}
+
+	kv.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+		return nil
+	}
+
+	var nonce string
+	kv.GetFunc = func(ctx context.Context, key string) (*string, error) {
+		return &nonce, nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{
+				ServerURL: "fake-mdm-server.com",
+			},
+		}, nil
+	}
+
+	syncml := `<SyncML xmlns="SYNCML:SYNCML1.2">
+  <SyncHdr>
+    <VerDTD>1.2</VerDTD>
+    <VerProto>DM/1.2</VerProto>
+    <SessionID>1</SessionID>
+    <MsgID>1</MsgID>
+    <Target>
+      <LocURI>fake-mdm-server.com</LocURI>
+    </Target>
+    <Source>
+      <LocURI>device</LocURI>
+    </Source>
+  </SyncHdr>
+  <SyncBody>
+    <Alert>
+      <CmdID>2</CmdID>
+      <Data>1201</Data>
+    </Alert>
+    <Final />
+  </SyncBody>
+</SyncML>`
+
+	var req *fleet.SyncML
+	err := xml.Unmarshal([]byte(syncml), &req)
+	require.NoError(t, err)
+
+	res, err := svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	seenStatuses := 0
+	seenReplaces := 0
+	seenOther := 0
+	var username string
+	var password string
+	for _, cmd := range res.SyncBody.Raw {
+		switch cmd.XMLName.Local {
+		case fleet.CmdStatus:
+			require.Equal(t, "200", *cmd.Data)
+			seenStatuses++
+		case fleet.CmdReplace:
+			containsAuthReplace := strings.Contains(cmd.GetTargetURI(), "AAuthName") || strings.Contains(cmd.GetTargetURI(), "AAuthSecret")
+			require.True(t, containsAuthReplace, "Replace command should be for AAuthName or AAuthSecret")
+			seenReplaces++
+
+			if strings.Contains(cmd.GetTargetURI(), "AAuthName") {
+				username = cmd.GetTargetData()
+			} else if strings.Contains(cmd.GetTargetURI(), "AAuthSecret") {
+				password = cmd.GetTargetData()
+			}
+		default:
+			seenOther++
+		}
+	}
+
+	assert.Equal(t, 1, seenStatuses, "should have one Status command")
+	assert.Equal(t, 2, seenReplaces, "should have two Replace commands")
+	assert.Equal(t, 0, seenOther, "should not have other commands")
+
+	// Respond with no credentials again to get a nonce
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	// Require Chal in header
+	require.Len(t, res.SyncBody.Raw, 1, "should short circuit with challenge")
+	chalFound := false
+	for _, cmd := range res.SyncBody.Raw {
+		if cmd.Chal != nil {
+			chalFound = true
+			nonce = *cmd.Chal.Meta.NextNonce.Content
+			break
+		}
+	}
+	require.True(t, chalFound, "should have challenge command")
+
+	// Now respond with credentials to ack the rekey
+	// WE only need to mock this as we short-circuit when challenging or invalid creds
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
+		return []*fleet.MDMWindowsCommand{}, nil
+	}
+	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
+		return []*fleet.MDMWindowsCommand{}, nil
+	}
+
+	deviceCredsHash := hashMDMCredentials(username, password, nonce)
+	syncmlWithCreds := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
+  <SyncHdr>
+    <VerDTD>1.2</VerDTD>
+    <VerProto>DM/1.2</VerProto>
+    <SessionID>1</SessionID>
+    <MsgID>1</MsgID>
+    <Target>
+      <LocURI>fake-mdm-server.com</LocURI>
+    </Target>
+    <Source>
+      <LocURI>device</LocURI>
+    </Source>
+	<Cred>
+		<Meta>
+        <Format xmlns="syncml:metinf">b64</Format>
+        <Type xmlns="syncml:metinf">syncml:auth-md5</Type>
+      </Meta>
+      <Data>%s</Data>
+	</Cred>
+  </SyncHdr>
+  <SyncBody>
+    <Alert>
+      <CmdID>2</CmdID>
+      <Data>1201</Data>
+    </Alert>
+    <Final />
+  </SyncBody>
+</SyncML>`, base64.StdEncoding.EncodeToString(deviceCredsHash))
+	err = xml.Unmarshal([]byte(syncmlWithCreds), &req)
+	require.NoError(t, err)
+
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	require.Equal(t, 1, ackCalled, "acknowledge should have been called once")
+}
+
+func hashMDMCredentials(username, password, nonce string) []byte {
+	credsHash := md5.Sum([]byte(username + ":" + password))
+	encodedCreds := base64.StdEncoding.EncodeToString(credsHash[:])
+	nonceHash := md5.Sum([]byte(encodedCreds + ":" + nonce))
+	return nonceHash[:]
 }
