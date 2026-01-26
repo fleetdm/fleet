@@ -1896,7 +1896,8 @@ Modifies the Fleet's configuration with the supplied information.
     "databases_path": ""
   },
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better"
+    "transparency_url": "https://fleetdm.com/better",
+    "alternative_browser_host": "fleet-desktop.example.com"
   },
   "gitops": {
     "gitops_mode_enabled": false,
@@ -2146,6 +2147,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------- |
 | transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.      |
+| alternative_browser_host          | string  | The hostname used to navigate Fleet Desktop traffic through.                     |
 
 <br/>
 
@@ -2154,7 +2156,8 @@ _Available in Fleet Premium._
 ```json
 {
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better"
+    "transparency_url": "https://fleetdm.com/better",
+    "alternative_browser_host": "fleet-desktop.example.com"
   }
 }
 ```
