@@ -23391,134 +23391,9 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
-	// Create a host with a device token
-	host := createHostAndDeviceToken(t, s.ds, "test-conditional-access-bypass-token")
-
-	// Test 1: Bypass succeeds when bypass is enabled (default, not disabled)
-	var bypassResp bypassConditionalAccessResponse
-	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
-		nil, http.StatusOK, &bypassResp)
-	require.Nil(t, bypassResp.Err)
-
-	// Verify the activity was created with default idp_full_name when no SCIM user exists
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeHostBypassedConditionalAccess{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "idp_full_name": "An end user"}`, host.ID, host.DisplayName()),
-		0,
-	)
-
-	// Test 1b: Verify activity includes actual IDP name when SCIM user is present
-	hostWithScim, err := s.ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + "-host-with-scim"),
-		NodeKey:         ptr.String(t.Name() + "-host-with-scim"),
-		UUID:            uuid.New().String(),
-		Hostname:        fmt.Sprintf("%sfoo-scim.local", t.Name()),
-		HardwareSerial:  uuid.New().String(),
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
-	createDeviceTokenForHost(t, s.ds, hostWithScim.ID, "test-bypass-token-with-scim")
-
-	// Create a SCIM user and map it to the host
-	var scimUserID int64
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		res, err := db.ExecContext(ctx,
-			`INSERT INTO scim_users (user_name, given_name, family_name, active) VALUES (?, ?, ?, ?)`,
-			"john.doe@example.com", "John", "Doe", 1)
-		if err != nil {
-			return err
-		}
-		scimUserID, err = res.LastInsertId()
-		return err
-	})
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx,
-			`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
-			hostWithScim.ID, scimUserID)
-		return err
-	})
-	t.Cleanup(func() {
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, _ = db.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostWithScim.ID)
-			_, _ = db.ExecContext(ctx, `DELETE FROM scim_users WHERE id = ?`, scimUserID)
-			return nil
-		})
-	})
-
-	// Call bypass for host with SCIM user
-	s.DoRawNoAuth("POST", "/api/v1/fleet/device/test-bypass-token-with-scim/bypass_conditional_access",
-		nil, http.StatusOK)
-
-	// Verify the activity includes the actual IDP full name
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeHostBypassedConditionalAccess{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "idp_full_name": "John Doe"}`, hostWithScim.ID, hostWithScim.DisplayName()),
-		0,
-	)
-
-	// Consume the bypass for cleanup
-	_, err = s.ds.ConditionalAccessConsumeBypass(ctx, hostWithScim.ID)
-	require.NoError(t, err)
-
-	// Test 2: Verify the bypass was recorded (consume returns the bypass)
-	bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
-	require.NoError(t, err)
-	require.NotNil(t, bypassedAt, "bypass should have been recorded")
-
-	// Test 3: Calling bypass again should work (it creates a new bypass)
-	bypassResp = bypassConditionalAccessResponse{}
-	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
-		nil, http.StatusOK, &bypassResp)
-	require.Nil(t, bypassResp.Err)
-
-	// Consume the bypass for cleanup before testing disabled state
-	_, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
-	require.NoError(t, err)
-
-	// Test 4: Disable bypass via app config
-	var acResp appConfigResponse
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"conditional_access": {
-			"bypass_disabled": true
-		}
-	}`), http.StatusOK, &acResp)
-
-	// Verify bypass is now disabled
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
-	require.True(t, acResp.ConditionalAccess.BypassDisabled.Value)
-
-	// Test 5: Bypass should fail when bypass is disabled (403 Forbidden)
-	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
-		nil, http.StatusForbidden, &bypassResp)
-
-	// Test 6: Re-enable bypass
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"conditional_access": {
-			"bypass_disabled": false
-		}
-	}`), http.StatusOK, &acResp)
-
-	// Test 7: Bypass should succeed again after re-enabling
-	bypassResp = bypassConditionalAccessResponse{}
-	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
-		nil, http.StatusOK, &bypassResp)
-	require.Nil(t, bypassResp.Err)
-
-	// Verify the new bypass was recorded
-	bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
-	require.NoError(t, err)
-	require.NotNil(t, bypassedAt, "bypass should have been recorded after re-enabling")
-
-	// Test 8: Toggling bypass_disabled clears all existing bypasses
-	// First, set up Okta configuration (required for bypass toggle detection)
+	// Shared certificate for Okta configuration
 	validCert := `-----BEGIN CERTIFICATE-----
 MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
 A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
@@ -23538,64 +23413,266 @@ nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
 umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
 FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 -----END CERTIFICATE-----`
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"conditional_access": {
-			"okta_idp_id": "https://www.okta.com/saml2/service-provider/test",
-			"okta_assertion_consumer_service_url": "https://dev-test.okta.com/sso/saml2/test",
-			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/test",
-			"okta_certificate": %q,
-			"bypass_disabled": false
-		}
-	}`, validCert)), http.StatusOK, &acResp)
 
-	// Create a second host with bypass (using unique identifiers)
-	host2, err := s.ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + "-host2"),
-		NodeKey:         ptr.String(t.Name() + "-host2"),
-		UUID:            uuid.New().String(),
-		Hostname:        fmt.Sprintf("%sfoo2.local", t.Name()),
-		HardwareSerial:  uuid.New().String(),
-		Platform:        "darwin",
+	t.Run("bypass succeeds when enabled", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("bypass-enabled-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Verify the bypass was recorded
+		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt, "bypass should have been recorded")
 	})
-	require.NoError(t, err)
-	createDeviceTokenForHost(t, s.ds, host2.ID, "test-conditional-access-bypass-token-2")
 
-	// Create bypass records for both hosts
-	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token/bypass_conditional_access",
-		nil, http.StatusOK, &bypassResp)
-	s.DoJSON("POST", "/api/v1/fleet/device/test-conditional-access-bypass-token-2/bypass_conditional_access",
-		nil, http.StatusOK, &bypassResp)
+	t.Run("activity created with default idp_full_name", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("activity-default-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
 
-	// Verify both bypasses exist by checking the count directly
-	var count int
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access")
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Verify the activity was created with default idp_full_name when no SCIM user exists
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeHostBypassedConditionalAccess{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "idp_full_name": "An end user"}`, host.ID, host.DisplayName()),
+			0,
+		)
 	})
-	require.Equal(t, 2, count, "both bypass records should exist")
 
-	// Toggle bypass_disabled to true - this should clear all bypasses
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"conditional_access": {
-			"bypass_disabled": true
-		}
-	}`), http.StatusOK, &acResp)
+	t.Run("activity includes actual IDP name when SCIM user present", func(t *testing.T) {
+		// Create a host with SCIM user
+		token := fmt.Sprintf("activity-scim-%s", uuid.New().String())
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(token),
+			NodeKey:         ptr.String(token),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s-scim.local", token),
+			HardwareSerial:  uuid.New().String(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
 
-	// Verify all bypasses were cleared
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access")
+		// Create a SCIM user and map it to the host
+		var scimUserID int64
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			res, err := db.ExecContext(ctx,
+				`INSERT INTO scim_users (user_name, given_name, family_name, active) VALUES (?, ?, ?, ?)`,
+				"john.doe@example.com", "John", "Doe", 1)
+			if err != nil {
+				return err
+			}
+			scimUserID, err = res.LastInsertId()
+			return err
+		})
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx,
+				`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+				host.ID, scimUserID)
+			return err
+		})
+
+		// Call bypass for host with SCIM user
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK)
+
+		// Verify the activity includes the actual IDP full name
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeHostBypassedConditionalAccess{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "idp_full_name": "John Doe"}`, host.ID, host.DisplayName()),
+			0,
+		)
 	})
-	require.Equal(t, 0, count, "all bypass records should be cleared when bypass_disabled is toggled")
 
-	// Toggle back to false - should also clear any bypasses (though there are none)
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"conditional_access": {
-			"bypass_disabled": false
-		}
-	}`), http.StatusOK, &acResp)
+	t.Run("calling bypass again creates new bypass", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("bypass-again-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		// First bypass
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Consume the first bypass
+		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt)
+
+		// Call bypass again - should work (creates a new bypass)
+		bypassResp = bypassConditionalAccessResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Verify the new bypass was recorded
+		bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt, "new bypass should have been recorded")
+	})
+
+	t.Run("bypass fails when disabled", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("bypass-disabled-%s", uuid.New().String())
+		_ = createHostAndDeviceToken(t, s.ds, token)
+
+		// Disable bypass via app config
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": true
+			}
+		}`), http.StatusOK, &acResp)
+
+		t.Cleanup(func() {
+			// Re-enable bypass for other tests
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"conditional_access": {
+					"bypass_disabled": false
+				}
+			}`), http.StatusOK, &acResp)
+		})
+
+		// Verify bypass is now disabled
+		acResp = appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+		require.True(t, acResp.ConditionalAccess.BypassDisabled.Value)
+
+		// Bypass should fail when bypass is disabled (403 Forbidden)
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusForbidden, &bypassResp)
+	})
+
+	t.Run("bypass succeeds after re-enabling", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("bypass-reenable-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		t.Cleanup(func() {
+			_, _ = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+			// Ensure bypass is enabled for other tests
+			var acResp appConfigResponse
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"conditional_access": {
+					"bypass_disabled": false
+				}
+			}`), http.StatusOK, &acResp)
+		})
+
+		// Disable bypass
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": true
+			}
+		}`), http.StatusOK, &acResp)
+
+		// Verify it's disabled
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusForbidden, &bypassResp)
+
+		// Re-enable bypass
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": false
+			}
+		}`), http.StatusOK, &acResp)
+
+		// Bypass should succeed after re-enabling
+		bypassResp = bypassConditionalAccessResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Verify the bypass was recorded
+		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt, "bypass should have been recorded after re-enabling")
+	})
+
+	t.Run("toggling bypass_disabled clears all bypasses", func(t *testing.T) {
+		// Set up Okta configuration (required for bypass toggle detection)
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"conditional_access": {
+				"okta_idp_id": "https://www.okta.com/saml2/service-provider/test",
+				"okta_assertion_consumer_service_url": "https://dev-test.okta.com/sso/saml2/test",
+				"okta_audience_uri": "https://www.okta.com/saml2/service-provider/test",
+				"okta_certificate": %q,
+				"bypass_disabled": false
+			}
+		}`, validCert)), http.StatusOK, &acResp)
+
+		// Create two hosts with unique tokens
+		token1 := fmt.Sprintf("bypass-clear-1-%s", uuid.New().String())
+		token2 := fmt.Sprintf("bypass-clear-2-%s", uuid.New().String())
+		host1 := createHostAndDeviceToken(t, s.ds, token1)
+		host2, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(token2),
+			NodeKey:         ptr.String(token2),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.local", token2),
+			HardwareSerial:  uuid.New().String(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		createDeviceTokenForHost(t, s.ds, host2.ID, token2)
+
+		// Create bypass records for both hosts
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token1),
+			nil, http.StatusOK, &bypassResp)
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token2),
+			nil, http.StatusOK, &bypassResp)
+
+		// Verify both bypasses exist by checking the count directly
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id IN (?, ?)", host1.ID, host2.ID)
+		})
+		require.GreaterOrEqual(t, count, 2, "at least both bypass records should exist")
+
+		// Toggle bypass_disabled to true - this should clear all bypasses
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": true
+			}
+		}`), http.StatusOK, &acResp)
+
+		// Verify all bypasses were cleared
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id IN (?, ?)", host1.ID, host2.ID)
+		})
+		require.Equal(t, 0, count, "all bypass records should be cleared when bypass_disabled is toggled")
+
+		// Toggle back to false - should also clear any bypasses (though there are none)
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": false
+			}
+		}`), http.StatusOK, &acResp)
+	})
 }
 
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.
