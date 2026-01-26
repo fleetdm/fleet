@@ -70,7 +70,7 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 	return ids, nil
 }
 
-func convertUser(u *fleet.User) *activity.User {
+func convertUser(u *fleet.UserSummary) *activity.User {
 	return &activity.User{
 		ID:       u.ID,
 		Name:     u.Name,

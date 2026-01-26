@@ -147,7 +147,7 @@ type SoftwarePackageResponse struct {
 	// ID of the Fleet Maintained App this package uses, if any
 	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	// Slug of the Fleet Maintained App this package uses, if any
-	Slug string `json:"slug"`
+	Slug string `json:"fleet_maintained_app_slug"`
 
 	//// Custom icon fields (blank if not set)
 

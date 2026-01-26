@@ -2516,7 +2516,6 @@ team_settings:
 	noTeamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)},
 		fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
-	fmt.Println("noTeamTitles: ", noTeamTitles)
 	require.Len(t, noTeamTitles, 2)
 	require.NotNil(t, noTeamTitles[0].SoftwarePackage)
 	require.NotNil(t, noTeamTitles[1].SoftwarePackage)
@@ -3125,5 +3124,84 @@ team_settings:
 		default:
 			t.Fatalf("unexpected source: %s", foundTitle.Source)
 		}
+	}
+}
+
+// TestFleetDesktopSettingsBrowserAlternativeHost tests that user can mutate the fleet_desktop.alternative_browser_host
+// setting via GitOps.
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetDesktopSettingsBrowserAlternativeHost() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	type tmplParams struct {
+		AlternativeBrowserHost string
+	}
+	globalCfgTpl, err := template.New("t1").Parse(`
+agent_options:
+controls:
+queries:
+policies:
+org_settings:
+  secrets:
+    - secret: test_secret
+  fleet_desktop:
+    {{ .AlternativeBrowserHost }}
+`)
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
+	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
+
+	testCases := []struct {
+		Name                   string
+		AlternativeBrowserHost string
+		Expected               string
+		ShouldError            bool
+	}{
+		{
+			Name:                   "custom",
+			AlternativeBrowserHost: `alternative_browser_host: "example1.com"`,
+			Expected:               "example1.com",
+		},
+		{
+			Name:                   "empty value",
+			AlternativeBrowserHost: `alternative_browser_host: ""`,
+			Expected:               "",
+		},
+		{
+			Name:                   "invalid value",
+			AlternativeBrowserHost: `alternative_browser_host: "http://example2.com"`,
+			ShouldError:            true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+
+			globalCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+
+			require.NoError(t, globalCfgTpl.Execute(globalCfgFile, tmplParams{
+				AlternativeBrowserHost: testCase.AlternativeBrowserHost,
+			}))
+
+			if testCase.ShouldError {
+				fleetctl.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalCfgFile.Name()}, "applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: must be a valid hostname or IP address")
+			} else {
+				s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalCfgFile.Name(), "--dry-run"}))
+				s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalCfgFile.Name()}))
+			}
+
+			storedCfg, err := s.DS.AppConfig(ctx)
+			require.NoError(t, err)
+			require.NotNil(t, storedCfg)
+			require.Equal(t, testCase.Expected, storedCfg.FleetDesktop.AlternativeBrowserHost)
+		})
 	}
 }

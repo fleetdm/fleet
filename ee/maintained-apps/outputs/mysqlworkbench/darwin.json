@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "8.0.45",
+      "version": "8.0.46",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.oracle.workbench.MySQLWorkbench';"
       },
-      "installer_url": "https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-community-8.0.45-macos-arm64.dmg",
+      "installer_url": "https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-community-8.0.46-macos-arm64.dmg",
       "install_script_ref": "954f79e1",
       "uninstall_script_ref": "c057ab99",
-      "sha256": "8bbf8bdcce3e890c979373a0dbff3617985ec032b1cf50cb16282a0797b20799",
+      "sha256": "3e0d9fbad11f1496a8d27a80c0e64a07565fb8b8bc27cddfff9754686353d164",
       "default_categories": [
         "Developer tools"
       ]

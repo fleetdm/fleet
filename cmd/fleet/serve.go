@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -203,6 +204,8 @@ the way that the Fleet server works.
 			if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
 				initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
 			}
+
+			config.ConditionalAccess.Validate(initFatal)
 
 			if len(config.Server.URLPrefix) > 0 {
 				// Massage provided prefix to match expected format
@@ -962,6 +965,9 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("instanceID", instanceID)
 
+			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
+			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
 			// run or not (see https://github.com/fleetdm/fleet/issues/9486).
@@ -1196,7 +1202,7 @@ the way that the Fleet server works.
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)
+					return newActivitiesStreamingSchedule(ctx, instanceID, activitySvc, ds, logger, auditLogger)
 				}); err != nil {
 					initFatal(err, "failed to register activities streaming schedule")
 				}
@@ -1281,9 +1287,6 @@ the way that the Fleet server works.
 					initFatal(err, "initializing HTTP signature verifier")
 				}
 			}
-
-			// Bootstrap activity bounded context
-			activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
 
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
@@ -1685,15 +1688,14 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) endpointer.HandlerRoutesFunc {
+func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 	activityUserProvider := activityacl.NewFleetServiceAdapter(svc)
-	// Note: the first return value below (_) will be used in legacy Service layer in next PR
-	_, activityRoutesFn := activity_bootstrap.New(
+	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,
 		activityUserProvider,
@@ -1704,7 +1706,7 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		return auth.AuthenticatedUser(svc, next)
 	}
 	activityRoutes := activityRoutesFn(activityAuthMiddleware)
-	return activityRoutes
+	return activitySvc, activityRoutes
 }
 
 func printDatabaseNotInitializedError() {
