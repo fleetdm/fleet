@@ -67,6 +67,14 @@ func getCVEMatchingRules() CVEMatchingRules {
 			},
 			ResolvedInVersion: "16.0.17830.20166",
 		},
+		// Gitk and Git GUI CVEs for Homebrew git-gui package
+		// These CVEs affect gitk/git-gui which is git-gui on Homebrew not git
+		{
+			NameLikeMatch:     "git-gui",
+			SourceMatch:       "homebrew_packages",
+			CVEs:              []string{"CVE-2025-27613", "CVE-2025-27614", "CVE-2025-46835"},
+			ResolvedInVersion: "2.50.1",
+		},
 	}
 }
 

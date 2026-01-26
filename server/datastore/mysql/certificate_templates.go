@@ -13,20 +13,23 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const certificateTemplateResponseSql = `
+	SELECT
+		certificate_templates.id,
+		certificate_templates.name,
+		certificate_templates.team_id,
+		certificate_templates.subject_name,
+		certificate_templates.created_at,
+		certificate_authorities.id AS certificate_authority_id,
+		certificate_authorities.name AS certificate_authority_name,
+		certificate_authorities.type AS certificate_authority_type
+	FROM certificate_templates
+	INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+`
+
 func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
 	var template fleet.CertificateTemplateResponse
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
-		SELECT
-			certificate_templates.id,
-			certificate_templates.name,
-			certificate_templates.team_id,
-			certificate_templates.subject_name,
-			certificate_templates.created_at,
-			certificate_authorities.id AS certificate_authority_id,
-			certificate_authorities.name AS certificate_authority_name,
-			certificate_authorities.type AS certificate_authority_type
-		FROM certificate_templates
-		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, certificateTemplateResponseSql+`
 		WHERE certificate_templates.id = ?
 	`, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -38,20 +41,30 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 	return &template, nil
 }
 
+func (ds *Datastore) GetCertificateTemplatesByIdsAndTeam(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error) {
+	var certificateTemplates []*fleet.CertificateTemplateResponse
+
+	if len(ids) == 0 {
+		return certificateTemplates, nil
+	}
+	// for no team pass 0 as teamID
+	query, args, err := sqlx.In(certificateTemplateResponseSql+`
+		WHERE certificate_templates.team_id = ? AND certificate_templates.id IN (?)
+	`, teamID, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for certificate_templates by team id and ids")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &certificateTemplates, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "query certificate_template by team id and ids")
+	}
+
+	return certificateTemplates, nil
+}
+
 func (ds *Datastore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
 	var template fleet.CertificateTemplateResponse
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
-		SELECT
-			certificate_templates.id,
-			certificate_templates.name,
-			certificate_templates.team_id,
-			certificate_templates.subject_name,
-			certificate_templates.created_at,
-			certificate_authorities.id AS certificate_authority_id,
-			certificate_authorities.name AS certificate_authority_name,
-			certificate_authorities.type AS certificate_authority_type
-		FROM certificate_templates
-		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, certificateTemplateResponseSql+`
 		WHERE certificate_templates.team_id = ? AND certificate_templates.name = ?
 	`, teamID, name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by team id and name")

@@ -16,7 +16,7 @@ const AppleSoftwareJobName = "apple_software"
 
 type AppleSoftwareTask string
 
-const VerifyVPPTask AppleSoftwareTask = "verify_vpp_installs"
+const verifyVPPTask AppleSoftwareTask = "verify_vpp_installs"
 
 type AppleSoftware struct {
 	Datastore fleet.Datastore
@@ -32,6 +32,7 @@ type appleSoftwareArgs struct {
 	Task                    AppleSoftwareTask `json:"task"`
 	HostUUID                string            `json:"host_uuid"`
 	VerificationCommandUUID string            `json:"verification_command_uuid"`
+	DisableManagedOnlyApps  bool              `json:"disable_managed_only_apps,omitempty"`
 }
 
 func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -41,8 +42,8 @@ func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error
 	}
 
 	switch args.Task {
-	case VerifyVPPTask:
-		err := v.verifyVPPInstalls(ctx, args.HostUUID, args.VerificationCommandUUID)
+	case verifyVPPTask:
+		err := v.verifyVPPInstalls(ctx, args.HostUUID, args.VerificationCommandUUID, args.DisableManagedOnlyApps)
 		return ctxerr.Wrap(ctx, err, "running migrate VPP token task")
 
 	default:
@@ -50,11 +51,12 @@ func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error
 	}
 }
 
-func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verificationCommandUUID string) error {
+func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verificationCommandUUID string, disableManagedOnlyApps bool) error {
 	level.Debug(v.Log).Log("msg", "verifying VPP installs", "host_uuid", hostUUID, "verification_command_uuid", verificationCommandUUID)
 	newListCmdUUID := fleet.VerifySoftwareInstallCommandUUID()
-	// for app verification, we always request only managed apps
-	err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, true)
+	// for app verification, we always request only managed apps except
+	// if disableManagedOnlyApps is true
+	err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, !disableManagedOnlyApps)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "sending installed application list command in verify")
 	}
@@ -72,11 +74,12 @@ func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verific
 	return nil
 }
 
-func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, task AppleSoftwareTask, requestDelay time.Duration, hostUUID, verificationCommandUUID string) error {
+func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, requestDelay time.Duration, hostUUID, verificationCommandUUID string, disableManagedOnly bool) error {
 	args := &appleSoftwareArgs{
-		Task:                    task,
+		Task:                    verifyVPPTask,
 		HostUUID:                hostUUID,
 		VerificationCommandUUID: verificationCommandUUID,
+		DisableManagedOnlyApps:  disableManagedOnly,
 	}
 
 	job, err := QueueJobWithDelay(ctx, ds, AppleSoftwareJobName, args, requestDelay)
@@ -84,6 +87,6 @@ func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, log
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", appleMDMJobName, "task", task)
+	level.Debug(logger).Log("job_id", job.ID, "job_name", appleMDMJobName, "task", args.Task)
 	return nil
 }

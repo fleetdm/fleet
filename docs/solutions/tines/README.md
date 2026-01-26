@@ -36,3 +36,6 @@ Originally created for `customer-reedtimmer`.
 
 Used when migrating from Jamf Pro to Fleet. This receives the migration web hook from Fleet, looks up that serial number in Jamf Pro via Jamf's API, then sends an unenroll command from Jamf.
 
+## [Import IdP users] (import-idp-users.json)
+
+An example workflow for mapping Fleet hosts to the associated user in asset management. This workflow iterates over hosts in Fleet, uses the Oomnitza API to retrieve the assigned user, and updates Fleet's device mapping with the correct user.

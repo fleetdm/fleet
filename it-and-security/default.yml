@@ -116,3 +116,11 @@ labels:
   - path: ./lib/all/labels/conditional-access-test-group.yml
   - path: ./lib/all/labels/nudge-test-devices.yml
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
+  - path: ./lib/all/labels/department-information-technology.yml
+  - path: ./lib/all/labels/department-sales.yml
+  - path: ./lib/all/labels/department-marketing.yml
+  - path: ./lib/all/labels/department-engineering.yml
+  - path: ./lib/all/labels/department-people.yml
+  - path: ./lib/all/labels/department-finance.yml
+  - path: ./lib/all/labels/department-product-design.yml
+  - path: ./lib/all/labels/department-executive.yml

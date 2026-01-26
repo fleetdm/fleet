@@ -78,8 +78,8 @@ type OsqueryService interface {
 type UserLookupService interface {
 	// ListUsers returns all users.
 	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
-	// UsersByIDs returns users matching the provided IDs.
-	UsersByIDs(ctx context.Context, ids []uint) ([]*User, error)
+	// UsersByIDs returns minimal user info matching the provided IDs.
+	UsersByIDs(ctx context.Context, ids []uint) ([]*UserSummary, error)
 }
 
 type Service interface {

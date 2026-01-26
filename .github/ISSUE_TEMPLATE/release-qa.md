@@ -311,14 +311,15 @@ List versions changes for any component updates below:
 
 ### Goal: Ensure new `fleetd` is tested and promoted from local > edge > stable channels
 
-1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension.
+1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension (e.g. `rc-minor-fleet-v4.80.0`).
+IMPORTANT: Do not build fleetd from `main` as it is a moving target and new fleetd changes from future releases might be already merged.
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 <tr><td>`fleetd` local testing</td>
 <td>
-1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.<br>
+1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts. IMPORTANT: Reminder to use an RC branch and not `main`<br>
 </td>
 <td>
 1. Confirm the hosts install with the updated version and are working correctly.<br>
