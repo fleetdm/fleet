@@ -43,6 +43,15 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "maintenanceWindowsEnabled": true,
   "maintenanceWindowsConfigured": true,
   "numHostsFleetDesktopEnabled": 999,
+  "fleetMaintainedAppsMacOS": [
+    "1password/darwin",
+    "slack/darwin",
+    "zoom/darwin"
+  ],
+  "fleetMaintainedAppsWindows": [
+    "google-chrome/windows",
+    "microsoft-edge/windows"
+  ],
   "hostsEnrolledByOperatingSystem": {
     "darwin": [
       {
