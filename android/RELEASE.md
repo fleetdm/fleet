@@ -78,7 +78,7 @@ git push origin main
 ```
 ## 10. Update the info page
 
-After the release is uploaded, update orbit/ANDROID_APP.md
+After the release is uploaded, update orbit/ANDROID_APP.md with the new release version.
 
 
 
