@@ -2266,11 +2266,12 @@ WHERE
 			actInHouse  *fleet.ActivityTypeInstalledSoftware
 			err         error
 		)
-		if hostPlatform == "android" {
+		switch {
+		case hostPlatform == "android":
 			user, actAppStore, err = ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, tx, cmd, fleet.SoftwareInstallFailed)
-		} else if softwareType == softwareTypeVPP {
+		case softwareType == softwareTypeVPP:
 			user, actAppStore, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
-		} else {
+		case softwareType == softwareTypeInHouseApp:
 			user, actInHouse, err = ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
 		}
 		if err != nil {

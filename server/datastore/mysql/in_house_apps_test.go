@@ -1757,6 +1757,7 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IOSPlatform}},
 	}, nil)
+	require.NoError(t, err)
 
 	payload := fleet.UploadSoftwareInstallerPayload{
 		UserID:           user.ID,
@@ -1798,8 +1799,7 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	for i, act := range activitiesToCreate {
 		// caller's responsibility to create new activities
-		ds.NewActivity(ctx, users[i], act, nil, time.Now())
-		require.NoError(t, err)
+		require.NoError(t, ds.NewActivity(ctx, users[i], act, nil, time.Now()))
 	}
 
 	// fleet needs to receive some command result at some
