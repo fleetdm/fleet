@@ -412,6 +412,13 @@ func (k GoogleCalendarApiKey) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements json.Unmarshaler. Accepts either "********" string
 // (sets masked=true) or a JSON object (populates Values).
 func (k *GoogleCalendarApiKey) UnmarshalJSON(data []byte) error {
+	// Handle null - treat as empty (will fail validation if required)
+	if string(data) == "null" {
+		k.Values = nil
+		k.masked = false
+		return nil
+	}
+
 	// Try to unmarshal as a string first (for masked value)
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
