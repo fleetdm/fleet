@@ -75,6 +75,13 @@ type Config struct {
 	authenticator authenticator
 }
 
+func StubbedConfig() Config {
+	return Config{
+		baseURL:       getBaseURL(false),
+		authenticator: func(forceRenew bool) (string, error) { return "", nil },
+	}
+}
+
 // client is a package-level client (similar to http.DefaultClient) so it can
 // be reused instead of created as needed, as the internal Transport typically
 // has internal state (cached connections, etc) and it's safe for concurrent

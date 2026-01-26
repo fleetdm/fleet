@@ -43,6 +43,7 @@ import (
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/api/androidmanagement/v1"
 
@@ -17802,7 +17803,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
-	noopAuthenticator := func(bool) (string, error) { return "", nil } // authentication is tested elsewhere
+	stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
 
 	// Set up VPP token
 	orgName := "Fleet Device Management Inc."
@@ -17824,7 +17825,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// No VPP apps added yet, so this is a no-op
-	err := vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
+	err := vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
 	require.NoError(t, err)
 
 	var appResp getAppStoreAppsResponse
@@ -17876,7 +17877,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	s.appleVPPProxySrvData["1"] = `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}}, "deviceFamilies": ["mac"]}}`
 	s.appleVPPProxySrvData["2"] = `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"osx": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}, "ios": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`
 
-	err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
+	err = vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
 	require.NoError(t, err)
 
 	// 1 and 2 should be updated
@@ -17897,7 +17898,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
 
 	// Refresh again. There are no version changes this time, so this is a no-op.
-	err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
+	err = vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
 	require.NoError(t, err)
 }
 
@@ -17916,7 +17917,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
 	}
 
-	noopAuthenticator := func(bool) (string, error) { return "", nil } // authentication is tested elsewhere
+	stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
 
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
@@ -18022,7 +18023,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	s.appleVPPProxySrvData["1"] = `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}, "ios": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.8"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`
 	s.appleVPPProxySrvData["2"] = `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "b-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "10.10.10"}}}, "deviceFamilies": ["iphone", "ipad"]}}`
 
-	err := vpp.RefreshVersions(t.Context(), s.ds, noopAuthenticator)
+	err := vpp.RefreshVersions(t.Context(), s.ds, stubbedConfig)
 	require.NoError(t, err)
 
 	// Check versions after refresh
@@ -18043,7 +18044,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	// "Update" the version for Adam ID "3".
 	s.appleVPPProxySrvData["3"] = `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "11.11.11"}}}, "deviceFamilies": ["iphone"]}}`
 
-	err = vpp.RefreshVersions(t.Context(), s.ds, noopAuthenticator)
+	err = vpp.RefreshVersions(t.Context(), s.ds, stubbedConfig)
 	require.NoError(t, err)
 
 	// Check versions after refresh
@@ -18062,7 +18063,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	}
 
 	// Refresh again. There are no version changes this time, so this is a no-op.
-	err = vpp.RefreshVersions(t.Context(), s.ds, noopAuthenticator)
+	err = vpp.RefreshVersions(t.Context(), s.ds, stubbedConfig)
 	require.NoError(t, err)
 }
 
