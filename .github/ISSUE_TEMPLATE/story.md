@@ -82,9 +82,9 @@ Provide links to any research or helpful resources (ex. Apple documentation). Pu
 
 > Make sure to go through [the list](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/ui/design-qa-considerations.md) and consider all events that might be related to this story, so we catch edge cases earlier.
 
-1. TODO
-2. TODO
-3. TODO
+- TODO
+- TODO
+- TODO
 
 <!-- Consider: Do the steps above apply to all global access roles, including admin, maintainer, observer, observer+, and GitOps?  Do the steps above apply to all team-level access roles?  If not, write the steps used to test each variation.
 -->
