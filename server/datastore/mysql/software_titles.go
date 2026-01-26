@@ -131,20 +131,31 @@ GROUP BY
 func (ds *Datastore) SoftwareTitleNameForHostFilter(
 	ctx context.Context,
 	id uint,
-) (string, error) {
+) (name, displayName string, err error) {
 	const stmt = `
-    SELECT name
-    FROM software_titles
-    WHERE id = ?
+    SELECT
+	    name,
+		display_name
+	FROM software_titles
+		LEFT JOIN software_title_display_names ON software_titles.id = software_title_display_names.software_title_id
+   	WHERE software_titles.id = ?
   `
-	var name string
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, id); err != nil {
-		if err == sql.ErrNoRows {
-			return "", notFound("SoftwareTitle").WithID(id)
-		}
-		return "", ctxerr.Wrap(ctx, err, "get software title name for host filter")
+	var results struct {
+		Name        string  `db:"name"`
+		DisplayName *string `db:"display_name"`
 	}
-	return name, nil
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", notFound("SoftwareTitle").WithID(id)
+		}
+		return "", "", ctxerr.Wrap(ctx, err, "get software title name for host filter")
+	}
+
+	if displayName := ptr.ValOrZero(results.DisplayName); displayName != "" {
+		return "", displayName, nil
+	}
+
+	return results.Name, "", nil
 }
 
 func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, name string) error {

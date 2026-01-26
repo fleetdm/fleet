@@ -139,6 +139,7 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		fmt.Println("auth")
 		return nil, err
 	}
 
@@ -162,10 +163,13 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	}
 
 	// get software by id including team_id data from software_title_host_counts
+	fmt.Printf("vc.User: %+v\n", vc.User.Teams)
 	software, err := svc.ds.SoftwareTitleByID(ctx, id, teamID, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	})
+	fmt.Printf("software: %v\n", software)
+	fmt.Printf("err: %v\n", err)
 	if err != nil {
 		if fleet.IsNotFound(err) && teamID == nil {
 			// here we use a global admin as filter because we want to check if the software exists
@@ -244,18 +248,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 func (svc *Service) SoftwareTitleNameForHostFilter(
 	ctx context.Context,
 	id uint,
-) (softwareTitleName string, err error) {
+) (name, displayName string, err error) {
 	// Intentionally skip team-scoped inventory auth: only minimal title name.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	softwareTitleName, err = svc.ds.SoftwareTitleNameForHostFilter(ctx, id)
+	name, displayName, err = svc.ds.SoftwareTitleNameForHostFilter(ctx, id)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return softwareTitleName, nil
+	return name, displayName, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

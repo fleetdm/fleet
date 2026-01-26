@@ -286,21 +286,28 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		// 1. Try full title for this team.
 		// Needed in order to grab display_name if it exists
+		fmt.Printf("req.Opts.TeamFilter: %+v\n", *req.Opts.TeamFilter)
 		st, err := svc.SoftwareTitleByID(ctx, titleID, req.Opts.TeamFilter)
 		switch {
 		case err == nil:
+			fmt.Println("regular")
 			softwareTitle = st
 
 		case fleet.IsNotFound(err):
 			// Not found: only ID + Name as string from helper.
-			name, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)
+			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)
 			if errName != nil && !fleet.IsNotFound(errName) {
 				return listHostsResponse{Err: errName}, nil
 			}
 			if errName == nil {
+				fmt.Println("here")
 				softwareTitle = &fleet.SoftwareTitle{
-					ID:   titleID,
-					Name: name,
+					ID: titleID,
+				}
+				if displayName != "" {
+					softwareTitle.DisplayName = displayName
+				} else {
+					softwareTitle.Name = name
 				}
 			}
 		default:
