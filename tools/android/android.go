@@ -18,7 +18,7 @@ import (
 
 // Required env vars:
 var (
-	androidServiceCredentials = dev_mode.Env("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
+	androidServiceCredentials string
 	androidProjectID          string
 )
 
@@ -47,6 +47,8 @@ var commands = []string{
 }
 
 func main() {
+	dev_mode.IsEnabled = true
+	androidServiceCredentials = dev_mode.Env("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		log.Fatal("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS must be set")
 	}
