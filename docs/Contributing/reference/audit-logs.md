@@ -1617,8 +1617,8 @@ Generated when an App Store app is added to Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the added software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
@@ -1655,8 +1655,8 @@ Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -1694,7 +1694,7 @@ This activity contains the following fields:
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
@@ -1722,8 +1722,8 @@ Generated when an App Store app is updated in Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team on which this App Store app was updated, or `null` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.

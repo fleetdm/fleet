@@ -99,6 +99,7 @@ type ConditionalAccessSettings struct {
 	OktaAssertionConsumerServiceURL optjson.String `json:"okta_assertion_consumer_service_url"`
 	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
 	OktaCertificate                 optjson.String `json:"okta_certificate"`
+	BypassDisabled                  optjson.Bool   `json:"bypass_disabled"`
 }
 
 // OktaConfigured returns true if all Okta conditional access fields are configured.
@@ -1228,6 +1229,9 @@ func (f *Features) Copy() *Features {
 type FleetDesktopSettings struct {
 	// TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.
 	TransparencyURL string `json:"transparency_url"`
+	// AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;
+	// this is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.
+	AlternativeBrowserHost string `json:"alternative_browser_host"`
 }
 
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
@@ -1319,16 +1323,6 @@ type ListQueryOptions struct {
 	// Return queries that are scheduled to run on this platform. One of "macos",
 	// "windows", or "linux"
 	Platform *string
-}
-
-type ListActivitiesOptions struct {
-	ListOptions
-	ActivityType string `query:"activity_type,optional"`
-	// StartCreatedAt filters activities created after this ISO string.
-	StartCreatedAt string `query:"start_created_at,optional"`
-	// EndCreatedAt filters activities created before this ISO string.
-	EndCreatedAt string `query:"end_created_at,optional"`
-	Streamed     *bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.

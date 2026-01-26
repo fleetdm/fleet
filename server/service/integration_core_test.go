@@ -2153,18 +2153,23 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 
 	// Add installed paths and signature information
 	swPaths := map[string]struct{}{}
+	testCdHash := "abc123hash"
+	testExecHash := "def456hash"
+	testExecPath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 	for _, s := range software {
-		pathItems := [][3]string{
-			{"/Applications/Google Chrome.app", "EQHXZ8M8AV", "abc123hash"},
-			{"/Users/test/Applications/Google Chrome.app", "", ""},
+		pathItems := [][5]string{
+			{"/Applications/Google Chrome.app", "EQHXZ8M8AV", testCdHash, testExecHash, testExecPath},
+			{"/Users/test/Applications/Google Chrome.app", "", "", "", ""},
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
 			cdHash := pathItem[2]
+			eHash := pathItem[3]
+			ePath := pathItem[4]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, eHash, fleet.SoftwareFieldSeparator, ePath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -2223,14 +2228,20 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	sigInfo0 := sw.PathSignatureInformation[0]
 	assert.Equal(t, "/Applications/Google Chrome.app", sigInfo0.InstalledPath)
 	assert.Equal(t, "EQHXZ8M8AV", sigInfo0.TeamIdentifier)
-	assert.NotNil(t, sigInfo0.HashSha256)
-	assert.Equal(t, "abc123hash", *sigInfo0.HashSha256)
+	assert.NotNil(t, sigInfo0.CDHashSHA256)
+	assert.Equal(t, testCdHash, *sigInfo0.CDHashSHA256)
+	assert.NotNil(t, *sigInfo0.ExecutableSHA256)
+	assert.Equal(t, testExecHash, *sigInfo0.ExecutableSHA256)
+	assert.NotNil(t, *sigInfo0.ExecutablePath)
+	assert.Equal(t, testExecPath, *sigInfo0.ExecutablePath)
 
 	// Verify second signature information (user-level without team identifier)
 	sigInfo1 := sw.PathSignatureInformation[1]
 	assert.Equal(t, "/Users/test/Applications/Google Chrome.app", sigInfo1.InstalledPath)
 	assert.Equal(t, "", sigInfo1.TeamIdentifier)
-	assert.Nil(t, sigInfo1.HashSha256)
+	assert.Nil(t, sigInfo1.CDHashSHA256)
+	assert.Nil(t, sigInfo1.ExecutableSHA256)
+	assert.Nil(t, sigInfo1.ExecutablePath)
 
 	// Also verify the JSON marshaling by checking the raw JSON response
 	rawResp := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, "populate_software", "true")
@@ -3299,12 +3310,11 @@ func (s *integrationTestSuite) TestListActivities() {
 	ctx := context.Background()
 	u := s.users["admin1@example.com"]
 
-	prevActivities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	prevActivities := s.listActivities()
 
 	timestamp := time.Now()
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
+	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
@@ -8018,8 +8028,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusNotFound, &applyResp)
 
-	activitiesBeforeInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesBeforeInsert := s.listActivities()
 
 	// valid templates - test team name (not team ID)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8040,8 +8049,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &applyResp)
 
 	// Only one activity per team
-	activitiesAfterInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesAfterInsert := s.listActivities()
 	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
@@ -8173,8 +8181,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
 
-	activitiesBeforeNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesBeforeNoTeam := s.listActivities()
 
 	// certificate templates for "No team"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8201,8 +8208,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &applyResp)
 
 	// Only one activity was created for "No team"
-	activitiesAfterNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesAfterNoTeam := s.listActivities()
 	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
@@ -8293,6 +8299,69 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
 	require.NotNil(t, getCertResp.Certificate)
+
+	// Delete is authorized properly
+	observerEmail := "observer-cert-test@fleetdm.com"
+	observerPwd := test.GoodPassword
+	observerUser := &fleet.User{
+		Name:       "Observer User",
+		Email:      observerEmail,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, observerUser.SetPassword(observerPwd, 10, 10))
+	_, err = s.ds.NewUser(ctx, observerUser)
+	require.NoError(t, err)
+
+	// Switch to observer user
+	s.token = s.getCachedUserToken(observerEmail, observerPwd)
+	// just in case test fails, restore to admin
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	// Delete with observer
+	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{savedNoTeamCertTemplates[0].ID},
+		"team_id": uint(0), // "No team"
+	}, http.StatusForbidden)
+	resp.Body.Close()
+
+	// Switch back to admin
+	s.token = s.getTestAdminToken()
+
+	// Verify the certificate still exists (wasn't deleted by observer)
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	found := false
+	for _, cert := range noTeamCertificatesResp.Certificates {
+		if cert.ID == savedNoTeamCertTemplates[0].ID {
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "Certificate should not be deleted by observer user")
+
+	// Cannot delete certificates from a different team
+	// Create team 2
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team 2"})
+	require.NoError(t, err)
+	team2ID := team2.ID
+	// Create a certificate in team2
+	var team2CertResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   "Team 2 Cert",
+		TeamID:                 team2ID,
+		CertificateAuthorityId: ca.ID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+	}, http.StatusOK, &team2CertResp)
+	var forbiddenDelResp deleteCertificateTemplateSpecsResponse
+	// Delete with team 1 id and certificate from team 2
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{team2CertResp.ID},
+		"team_id": team.ID,
+	}, http.StatusForbidden, &forbiddenDelResp)
+	var listTeam2Resp listCertificateTemplatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team2ID),
+		nil, http.StatusOK, &listTeam2Resp)
+	require.Len(t, listTeam2Resp.Certificates, 1)
+	require.Equal(t, "Team 2 Cert", listTeam2Resp.Certificates[0].Name)
 
 	var delResp deleteCertificateTemplateResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
@@ -11677,7 +11746,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 		NodeKey:         ptr.String(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
-		Platform:        "darwin",
+		Platform:        "windows",
 	})
 	require.NoError(t, err)
 
@@ -13996,26 +14065,31 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	// Google Chrome.app will have two installed paths one with team identifier set
 	// the other one set to empty.
 	swPaths := map[string]struct{}{}
+	testCdHash := "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
+	testExecHash := "f5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
+	testExecPath := "/some/path/Google Chrome.app/Contents/MacOS/Google Chrome"
 	for _, s := range software {
-		pathItems := [][3]string{{fmt.Sprintf("/some/path/%s", s.Name), "", ""}}
+		pathItems := [][5]string{{fmt.Sprintf("/some/path/%s", s.Name), "", "", "", ""}}
 		if s.Name == "Safari.app" {
-			pathItems = [][3]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "", "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"},
+			pathItems = [][5]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "", testCdHash, testExecHash, testExecPath},
 			}
 		}
 		if s.Name == "Google Chrome.app" {
-			pathItems = [][3]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", ""},
-				{fmt.Sprintf("/some/other/path/%s", s.Name), "", ""},
+			pathItems = [][5]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", "", "", ""},
+				{fmt.Sprintf("/some/other/path/%s", s.Name), "", "", "", ""},
 			}
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
 			cdHash := pathItem[2]
+			execHash := pathItem[3]
+			execPath := pathItem[4]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, execHash, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -14040,7 +14114,9 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation, 1)
 	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
-	require.Equal(t, "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb", *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].HashSha256)
+	require.Equal(t, testCdHash, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
+	require.Equal(t, testExecHash, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, testExecPath, *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].ExecutablePath)
 
 	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
@@ -14056,8 +14132,12 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	})
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
-	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].HashSha256)
-	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].HashSha256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].ExecutableSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].ExecutablePath)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].CDHashSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].ExecutableSHA256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].ExecutablePath)
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 

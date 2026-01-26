@@ -26,11 +26,15 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/go-kit/log"
@@ -409,13 +413,29 @@ func CreateMySQLDS(t testing.TB) *Datastore {
 }
 
 func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
+	ds, _ := CreateNamedMySQLDSWithConns(t, name)
+	return ds
+}
+
+// CreateNamedMySQLDSWithConns creates a MySQL datastore and returns both the datastore
+// and the underlying database connections. This matches the production flow where
+// DBConnections are created first and shared across datastores.
+func CreateNamedMySQLDSWithConns(t *testing.T, name string) (*Datastore, *common_mysql.DBConnections) {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
 
 	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
-	return ds
+
+	replica, ok := ds.replica.(*sqlx.DB)
+	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
+	dbConns := &common_mysql.DBConnections{
+		Primary: ds.primary,
+		Replica: replica,
+	}
+
+	return ds, dbConns
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
@@ -539,7 +559,7 @@ func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileCon
 }
 
 func generateDummyWindowsProfile(uuid string) []byte {
-	return []byte(fmt.Sprintf(`<Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace>`, uuid))
+	return fmt.Appendf([]byte{}, `<Atomic><Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace></Atomic>`, uuid)
 }
 
 // TODO(roberto): update when we have datastore functions and API methods for this
@@ -935,4 +955,50 @@ func checkUpcomingActivities(t *testing.T, ds *Datastore, host *fleet.Host, exec
 		}
 	}
 	require.Equal(t, want, got)
+}
+
+// Test helpers for using the activity bounded context API in tests.
+// These are exported for use by other test packages.
+
+// testingAuthorizer is a mock authorizer that allows all requests.
+type testingAuthorizer struct{}
+
+func (t *testingAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzTyper, _ platform_authz.Action) error {
+	return nil
+}
+
+// NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
+// User data is fetched from the same database to support tests that verify user info in activities.
+func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
+	t.Helper()
+
+	// Extract DB connections
+	replica, ok := ds.replica.(*sqlx.DB)
+	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
+	dbConns := &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
+
+	// Create a UserProvider that reads from the datastore
+	userProvider := activityacl.NewFleetServiceAdapter(ds)
+
+	// Create service via bootstrap (the public API for creating the bounded context)
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, userProvider, log.NewNopLogger())
+	return svc
+}
+
+// ListActivitiesAPI calls the activity bounded context's ListActivities API.
+func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Service, opts activity_api.ListOptions) []*activity_api.Activity {
+	t.Helper()
+
+	// Apply defaults for test convenience and determinism.
+	if opts.OrderKey == "" {
+		opts.OrderKey = "id"
+		opts.OrderDirection = activity_api.OrderAscending
+	}
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.DefaultPerPage
+	}
+
+	activities, _, err := svc.ListActivities(ctx, opts)
+	require.NoError(t, err)
+	return activities
 }

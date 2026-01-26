@@ -284,6 +284,15 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW == "windows"
 			},
 		},
+		// CVE-2024-7006 only targets Linux operating systems (libtiff vulnerability)
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-7006": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "linux"
+			},
+		},
 		// these CVEs only target iOS, and we don't yet support iOS vuln scanning (and can't tell iOS/Mac CPEs apart yet)
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{
@@ -291,6 +300,18 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				"CVE-2024-10327": {}, // also missing a CPE as of 2025-01-01
 			},
 			IgnoreAll: true,
+		},
+		// Gitk and Git GUI CVEs should not match the base git package
+		// These CVEs affect gitk/git-gui which is git-gui on Homebrew
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2025-27613": {}, // Gitk file creation/truncation via OS command injection
+				"CVE-2025-27614": {}, // Gitk arbitrary command execution
+				"CVE-2025-46835": {}, // Git GUI arbitrary file overwrite
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "git" && cpeMeta.Product == "git"
+			},
 		},
 	}
 
