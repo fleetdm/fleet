@@ -422,13 +422,6 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "name": "Company Portal",
-      "slug": "company-portal/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft.CompanyPortal",
-      "description": "Microsoft Company Portal is the app for accessing company resources and managing devices in a secure environment."
-    },
-    {
       "name": "CotEditor",
       "slug": "coteditor/darwin",
       "platform": "darwin",
@@ -1239,6 +1232,13 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonvpn.mac",
       "description": "ProtonVPN is a VPN client focusing on security."
+    },
+    {
+      "name": "Proxifier",
+      "slug": "proxifier/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.initex.proxifier.v3.macos",
+      "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
       "name": "PyCharm Community Edition",

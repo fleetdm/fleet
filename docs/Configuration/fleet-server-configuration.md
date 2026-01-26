@@ -3169,18 +3169,6 @@ The number of days the signed SCEP client certificates will be valid.
     apple_scep_signer_validity_days: 100
   ```
 
-### mdm.apple_scep_signer_allow_renewal_days
-
-The number of days allowed to renew SCEP certificates.
-
-- Default value: 14
-- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_signer_allow_renewal_days: 30
-  ```
-
 ### mdm.apple_dep_sync_periodicity
 
 The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
@@ -3250,7 +3238,25 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   ```yaml
   mdm:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
-  ```
+
+## Conditional access
+
+### conditional_access_cert_serial_format
+
+Specifies the format for parsing certificate serial numbers from the `X-Client-Cert-Serial` header during Okta conditional access authentication.
+
+Different load balancers/reverse proxies send certificate serial numbers in different formats:
+- AWS ALB sends serial numbers in **hexadecimal** format (e.g., `A` for serial 10)
+- Caddy sends serial numbers in **decimal** format (e.g., `10` for serial 10)
+
+This configuration allows Fleet to correctly parse the serial number regardless of the proxy being used.
+
+- Default value: `hex`
+- Environment variable: `FLEET_CONDITIONAL_ACCESS_CERT_SERIAL_FORMAT`
+- Config file format:
+  ```yaml
+  conditional_access:
+    cert_serial_format: decimal
 
 ## Partnerships
 

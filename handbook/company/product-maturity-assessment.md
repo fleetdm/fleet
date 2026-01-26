@@ -92,7 +92,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Software inventory | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
 | Hardware inventory | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Device status monitoring | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Geolocation tracking | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Geolocation tracking | 🐣 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Activity feed | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Audit logs | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Custom dashboards | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |

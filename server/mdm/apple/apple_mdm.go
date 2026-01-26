@@ -57,6 +57,8 @@ const (
 	// SCEPProxyPath is the HTTP path that serves the SCEP proxy service. The path is followed by identifier.
 	SCEPProxyPath = "/mdm/scep/proxy/"
 
+	// It's important we don't sync more than 1000 at a time,
+	// as we also process DEP cooldowns and limit how many we process with this variable
 	DEPSyncLimit = 200
 
 	VPPLicenseNotFound = 9610

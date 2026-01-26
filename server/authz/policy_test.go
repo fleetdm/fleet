@@ -181,8 +181,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserAdmin, object: test.UserAdmin, action: writeRole, allow: true},
 		{user: test.UserAdmin, object: test.UserAdmin, action: changePwd, allow: true},
 
-		// Global maintainers cannot read/write users.
-		{user: test.UserMaintainer, object: user, action: read, allow: false},
+		// Global maintainers can read but not write users.
+		{user: test.UserMaintainer, object: user, action: read, allow: true},
 		{user: test.UserMaintainer, object: user, action: write, allow: false},
 		{user: test.UserMaintainer, object: user, action: writeRole, allow: false},
 		{user: test.UserMaintainer, object: user, action: changePwd, allow: false},
@@ -207,8 +207,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: writeRole, allow: false},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: changePwd, allow: true},
 
-		// Global observers cannot read/write users.
-		{user: test.UserObserver, object: user, action: read, allow: false},
+		// Global observers can read but not write users.
+		{user: test.UserObserver, object: user, action: read, allow: true},
 		{user: test.UserObserver, object: user, action: write, allow: false},
 		{user: test.UserObserver, object: user, action: writeRole, allow: false},
 		{user: test.UserObserver, object: user, action: changePwd, allow: false},
@@ -220,8 +220,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserObserver, object: test.UserObserver, action: writeRole, allow: false},
 		{user: test.UserObserver, object: test.UserObserver, action: changePwd, allow: true},
 
-		// Global observers+ cannot read/write users.
-		{user: test.UserObserverPlus, object: user, action: read, allow: false},
+		// Global observers+ can read but not write users.
+		{user: test.UserObserverPlus, object: user, action: read, allow: true},
 		{user: test.UserObserverPlus, object: user, action: write, allow: false},
 		{user: test.UserObserverPlus, object: user, action: writeRole, allow: false},
 		{user: test.UserObserverPlus, object: user, action: changePwd, allow: false},
