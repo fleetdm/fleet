@@ -286,7 +286,6 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		// 1. Try full title for this team.
 		// Needed in order to grab display_name if it exists
-		fmt.Printf("req.Opts.TeamFilter: %+v\n", *req.Opts.TeamFilter)
 		st, err := svc.SoftwareTitleByID(ctx, titleID, req.Opts.TeamFilter)
 		switch {
 		case err == nil:

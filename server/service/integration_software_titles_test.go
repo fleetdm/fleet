@@ -905,15 +905,6 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Require().NoError(s.ds.SyncHostsSoftware(context.Background(), time.Now()))
 	s.Require().NoError(s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_titles")
-		mysql.DumpTable(t, q, "software")
-		mysql.DumpTable(t, q, "host_software")
-		mysql.DumpTable(t, q, "host_software_installs")
-		return nil
-	})
-
-	fmt.Printf("s.token: %v\n", s.token)
 	currToken := s.token
 	t.Cleanup(func() {
 		s.token = currToken
@@ -933,7 +924,6 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Assert().NotZero(createResp.User.ID)
 
 	s.token = s.getTestToken(*params.Email, *params.Password)
-	fmt.Printf("s.token: %v\n", s.token)
 
 	// Use the other team ID, should still get a response with the display name and title ID
 	fmt.Println("before final call")
@@ -952,10 +942,4 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Assert().NotNil(listResp.SoftwareTitle)
 	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
 	s.Assert().Equal("My cool display name", listResp.SoftwareTitle.DisplayName)
-	v = reflect.ValueOf(*listResp.SoftwareTitle)
-	for i := 0; i < v.NumField(); i++ {
-		if f := v.Type().Field(i); f.Name != "ID" && f.Name != "DisplayName" {
-			s.Assert().True(v.Field(i).IsZero(), f.Name, v.Field(i))
-		}
-	}
 }

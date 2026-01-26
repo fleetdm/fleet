@@ -163,13 +163,10 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	}
 
 	// get software by id including team_id data from software_title_host_counts
-	fmt.Printf("vc.User: %+v\n", vc.User.Teams)
 	software, err := svc.ds.SoftwareTitleByID(ctx, id, teamID, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	})
-	fmt.Printf("software: %v\n", software)
-	fmt.Printf("err: %v\n", err)
 	if err != nil {
 		if fleet.IsNotFound(err) && teamID == nil {
 			// here we use a global admin as filter because we want to check if the software exists
