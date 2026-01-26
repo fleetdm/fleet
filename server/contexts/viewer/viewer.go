@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type key int
@@ -137,4 +138,18 @@ func maskEmail(email string) string {
 		return "***"
 	}
 	return string(parts[0][0]) + "***@" + parts[1]
+}
+
+// systemUser is a synthetic user for internal system operations.
+// The Name uses ActivityAutomationAuthor to align with system-initiated activities.
+var systemUser = &fleet.User{
+	Name:       fleet.ActivityAutomationAuthor,
+	GlobalRole: ptr.String(fleet.RoleAdmin),
+}
+
+// NewSystemContext returns a context with system-level (admin) privileges.
+// Use this for cron jobs, internal service calls, and other system operations
+// that need to bypass user-based authorization.
+func NewSystemContext(ctx context.Context) context.Context {
+	return NewContext(ctx, Viewer{User: systemUser})
 }

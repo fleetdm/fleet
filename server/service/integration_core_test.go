@@ -3310,12 +3310,11 @@ func (s *integrationTestSuite) TestListActivities() {
 	ctx := context.Background()
 	u := s.users["admin1@example.com"]
 
-	prevActivities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	prevActivities := s.listActivities()
 
 	timestamp := time.Now()
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
+	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
@@ -8029,8 +8028,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusNotFound, &applyResp)
 
-	activitiesBeforeInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesBeforeInsert := s.listActivities()
 
 	// valid templates - test team name (not team ID)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8051,8 +8049,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &applyResp)
 
 	// Only one activity per team
-	activitiesAfterInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesAfterInsert := s.listActivities()
 	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
@@ -8184,8 +8181,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
 
-	activitiesBeforeNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesBeforeNoTeam := s.listActivities()
 
 	// certificate templates for "No team"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8212,8 +8208,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &applyResp)
 
 	// Only one activity was created for "No team"
-	activitiesAfterNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesAfterNoTeam := s.listActivities()
 	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
@@ -8304,6 +8299,69 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
 	require.NotNil(t, getCertResp.Certificate)
+
+	// Delete is authorized properly
+	observerEmail := "observer-cert-test@fleetdm.com"
+	observerPwd := test.GoodPassword
+	observerUser := &fleet.User{
+		Name:       "Observer User",
+		Email:      observerEmail,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, observerUser.SetPassword(observerPwd, 10, 10))
+	_, err = s.ds.NewUser(ctx, observerUser)
+	require.NoError(t, err)
+
+	// Switch to observer user
+	s.token = s.getCachedUserToken(observerEmail, observerPwd)
+	// just in case test fails, restore to admin
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	// Delete with observer
+	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{savedNoTeamCertTemplates[0].ID},
+		"team_id": uint(0), // "No team"
+	}, http.StatusForbidden)
+	resp.Body.Close()
+
+	// Switch back to admin
+	s.token = s.getTestAdminToken()
+
+	// Verify the certificate still exists (wasn't deleted by observer)
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	found := false
+	for _, cert := range noTeamCertificatesResp.Certificates {
+		if cert.ID == savedNoTeamCertTemplates[0].ID {
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "Certificate should not be deleted by observer user")
+
+	// Cannot delete certificates from a different team
+	// Create team 2
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team 2"})
+	require.NoError(t, err)
+	team2ID := team2.ID
+	// Create a certificate in team2
+	var team2CertResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   "Team 2 Cert",
+		TeamID:                 team2ID,
+		CertificateAuthorityId: ca.ID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+	}, http.StatusOK, &team2CertResp)
+	var forbiddenDelResp deleteCertificateTemplateSpecsResponse
+	// Delete with team 1 id and certificate from team 2
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{team2CertResp.ID},
+		"team_id": team.ID,
+	}, http.StatusForbidden, &forbiddenDelResp)
+	var listTeam2Resp listCertificateTemplatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team2ID),
+		nil, http.StatusOK, &listTeam2Resp)
+	require.Len(t, listTeam2Resp.Certificates, 1)
+	require.Equal(t, "Team 2 Cert", listTeam2Resp.Certificates[0].Name)
 
 	var delResp deleteCertificateTemplateResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)

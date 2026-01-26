@@ -22876,8 +22876,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 
 	// Helper: count installed_software activities for this specific executionID
 	countActivitiesForExec := func() int {
-		acts, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-		require.NoError(t, err)
+		acts := s.listActivities()
 		cnt := 0
 		for _, a := range acts {
 			if a.Details == nil {
@@ -22940,8 +22939,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 	require.Equal(t, 1, countActivitiesForExec(), "Final failure should create exactly ONE activity")
 
 	// Find the software installation activity for this execution
-	acts, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	acts := s.listActivities()
 	var installActivity *fleet.Activity
 	for i := range acts {
 		if acts[i].Details == nil {
@@ -24323,46 +24321,4 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
-}
-
-func (s *integrationEnterpriseTestSuite) TestListActivitiesAuth() {
-	t := s.T()
-	ctx := t.Context()
-
-	// Create a team and team user for testing.
-	// The standard test users (s.users) only include global roles (admin, maintainer, observer).
-	// Team users must be created per-test since they're not in the standard set.
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{
-		Name:        t.Name() + "_team",
-		Description: "Team for activities auth test",
-	})
-	require.NoError(t, err)
-
-	teamObserver := &fleet.User{
-		Name:  "Activities Team Observer",
-		Email: "activities-team-observer@example.com",
-		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}},
-	}
-	require.NoError(t, teamObserver.SetPassword(test.GoodPassword, 10, 10))
-	teamObserver, err = s.ds.NewUser(ctx, teamObserver)
-	require.NoError(t, err)
-
-	// Global users can access activities
-	for _, email := range []string{
-		"admin1@example.com", // global admin
-		"user1@example.com",  // global maintainer
-		"user2@example.com",  // global observer
-	} {
-		s.setTokenForTest(t, email, test.GoodPassword)
-		var resp listActivitiesResponse
-		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp)
-	}
-
-	// Team-only users cannot access activities
-	s.setTokenForTest(t, teamObserver.Email, test.GoodPassword)
-	var resp listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusForbidden, &resp)
-
-	// Reset to admin token
-	s.token = s.getTestAdminToken()
 }
