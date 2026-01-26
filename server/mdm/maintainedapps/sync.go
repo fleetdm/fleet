@@ -122,7 +122,6 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedAp
 	if baseFromEnvVar := os.Getenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
 		baseURL = baseFromEnvVar
 	}
-	fmt.Println(">>>>>> Hydrate with base URL: ", baseURL)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s.json", baseURL, app.Slug), nil)
 	if err != nil {
