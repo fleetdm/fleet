@@ -722,7 +722,7 @@
       ]
     },
     "filter": {
-      "product": ["pgadmin_4"],
+      "product": ["pgadmin", "pgadmin_4"],
       "vendor": ["pgadmin"]
     }
   }
