@@ -67,7 +67,7 @@ type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
-type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
 
 type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
 
@@ -580,8 +580,6 @@ type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 type MDMTurnOffFunc func(ctx context.Context, uuid string) (users []*fleet.User, activities []fleet.ActivityDetails, err error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
-
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
@@ -1705,6 +1703,8 @@ type GetCertificateTemplateByIdForHostFunc func(ctx context.Context, id uint, ho
 
 type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
+type GetCertificateTemplatesByIdsAndTeamFunc func(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error)
+
 type GetCertificateTemplateByTeamIDAndNameFunc func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error)
 
 type ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
@@ -2586,9 +2586,6 @@ type DataStore struct {
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
-
-	ListActivitiesFunc        ListActivitiesFunc
-	ListActivitiesFuncInvoked bool
 
 	MarkActivitiesAsStreamedFunc        MarkActivitiesAsStreamedFunc
 	MarkActivitiesAsStreamedFuncInvoked bool
@@ -4273,6 +4270,9 @@ type DataStore struct {
 	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
 	GetCertificateTemplatesByTeamIDFuncInvoked bool
 
+	GetCertificateTemplatesByIdsAndTeamFunc        GetCertificateTemplatesByIdsAndTeamFunc
+	GetCertificateTemplatesByIdsAndTeamFuncInvoked bool
+
 	GetCertificateTemplateByTeamIDAndNameFunc        GetCertificateTemplateByTeamIDAndNameFunc
 	GetCertificateTemplateByTeamIDAndNameFuncInvoked bool
 
@@ -4496,7 +4496,7 @@ func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return s.ListUsersFunc(ctx, opt)
 }
 
-func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
 	s.mu.Lock()
 	s.UsersByIDsFuncInvoked = true
 	s.mu.Unlock()
@@ -6293,13 +6293,6 @@ func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity 
 	s.NewActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewActivityFunc(ctx, user, activity, details, createdAt)
-}
-
-func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	s.mu.Lock()
-	s.ListActivitiesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListActivitiesFunc(ctx, opt)
 }
 
 func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
@@ -10227,6 +10220,13 @@ func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID 
 	s.GetCertificateTemplatesByTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) GetCertificateTemplatesByIdsAndTeam(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplatesByIdsAndTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplatesByIdsAndTeamFunc(ctx, ids, teamID)
 }
 
 func (s *DataStore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {

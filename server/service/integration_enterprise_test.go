@@ -22876,8 +22876,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 
 	// Helper: count installed_software activities for this specific executionID
 	countActivitiesForExec := func() int {
-		acts, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-		require.NoError(t, err)
+		acts := s.listActivities()
 		cnt := 0
 		for _, a := range acts {
 			if a.Details == nil {
@@ -22940,8 +22939,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 	require.Equal(t, 1, countActivitiesForExec(), "Final failure should create exactly ONE activity")
 
 	// Find the software installation activity for this execution
-	acts, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	acts := s.listActivities()
 	var installActivity *fleet.Activity
 	for i := range acts {
 		if acts[i].Details == nil {

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3.1.1",
+      "version": "2025.3.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion';"
       },
-      "installer_url": "https://download.jetbrains.com/cpp/CLion-2025.3.1.1-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/cpp/CLion-2025.3.2-aarch64.dmg",
       "install_script_ref": "018e06a7",
       "uninstall_script_ref": "64694458",
-      "sha256": "23b14339cf0e3343fe14630276328a7271d46d44cf473173ee5e7aa137068971",
+      "sha256": "b0b8f94287745f0940fbfb7f668785adb6906ec3f64b7933fc5e558cb9301604",
       "default_categories": [
         "Developer tools"
       ]

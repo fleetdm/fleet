@@ -7,39 +7,75 @@ otelCollector:
   lowCardinalityExceptionGrouping: true
 
   config:
-    extensions:
-      health_check:
-        endpoint: 0.0.0.0:13133
-      bearertokenauth:
-        scheme: "Bearer"
-        token: ${env:OTEL_BEARER_TOKEN}
-
+    connectors:
+      signozmeter:
+        metrics_flush_interval: 1h
+        dimensions:
+          - name: service.name
+          - name: deployment.environment
+          - name: host.name
     receivers:
       otlp:
         protocols:
           grpc:
+            endpoint: 0.0.0.0:4317
+            max_recv_msg_size_mib: 16
             auth:
               authenticator: bearertokenauth
           http:
+            endpoint: 0.0.0.0:4318
             auth:
               authenticator: bearertokenauth
-
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+      httplogreceiver/heroku:
+        endpoint: 0.0.0.0:8081
+        source: heroku
+      httplogreceiver/json:
+        endpoint: 0.0.0.0:8082
+        source: json
+    processors:
+      batch:
+        send_batch_size: 2000
+        timeout: 5s
+      batch/meter:
+        send_batch_max_size: 25000
+        send_batch_size: 20000
+        timeout: 1s
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 11264
+        spike_limit_mib: 512
+      signozspanmetrics/delta:
+        metrics_exporter: signozclickhousemetrics
+        latency_histogram_buckets: [100us, 1ms, 2ms, 6ms, 10ms, 50ms, 100ms, 250ms, 500ms, 1000ms, 1400ms, 2000ms, 5s, 10s, 20s, 40s, 60s]
+        dimensions_cache_size: 100000
+        dimensions:
+          - name: service.namespace
+            default: default
+          - name: deployment.environment
+            default: default
+          - name: signoz.collector.id
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      zpages:
+        endpoint: localhost:55679
+      pprof:
+        endpoint: localhost:1777
+      bearertokenauth:
+        scheme: "Bearer"
+        token: ${env:OTEL_BEARER_TOKEN}
     exporters:
-      # Logs exporter with balanced queue sizes for throughput and memory
-      clickhouselogsexporter:
-        timeout: 60s
-        retry_on_failure:
-          enabled: true
-          initial_interval: 5s
-          max_interval: 30s
-          max_elapsed_time: 300s
-        sending_queue:
-          enabled: true
-          num_consumers: 10
-          queue_size: 10000
-
-      # Traces exporter must handle spans after tail_sampling
       clickhousetraces:
+        datasource: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/${env:CLICKHOUSE_TRACE_DATABASE}
+        low_cardinal_exception_grouping: ${env:LOW_CARDINAL_EXCEPTION_GROUPING}
+        use_new_schema: true
         timeout: 120s
         retry_on_failure:
           enabled: true
@@ -50,35 +86,57 @@ otelCollector:
           enabled: true
           num_consumers: 10
           queue_size: 10000
-
-      # Metadata exporter with increased timeout and retry support
-      metadataexporter:
+      signozclickhousemetrics:
+        dsn: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/${env:CLICKHOUSE_DATABASE}
+        timeout: 45s
+      clickhouselogsexporter:
+        dsn: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/${env:CLICKHOUSE_LOG_DATABASE}
         timeout: 60s
+        use_new_schema: true
         retry_on_failure:
           enabled: true
           initial_interval: 5s
           max_interval: 30s
           max_elapsed_time: 300s
-
-    processors:
-      # Optimized batch processor to send data more frequently
-      # Smaller batches reduce memory pressure
-      batch:
-        send_batch_size: 2000
-        timeout: 5s
-
-      # Memory limiter to prevent out-of-memory by applying back pressure
-      memory_limiter:
-        check_interval: 1s
-        limit_mib: 11264
-        spike_limit_mib: 512
-
+        sending_queue:
+          enabled: true
+          num_consumers: 10
+          queue_size: 10000
+      metadataexporter:
+        dsn: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/signoz_metadata
+        timeout: 60s
+        tenant_id: ${env:TENANT_ID}
+        cache:
+          provider: in_memory
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+      signozclickhousemeter:
+        dsn: tcp://${env:CLICKHOUSE_USER}:${env:CLICKHOUSE_PASSWORD}@${env:CLICKHOUSE_HOST}:${env:CLICKHOUSE_PORT}/${env:CLICKHOUSE_METER_DATABASE}
+        timeout: 45s
+        sending_queue:
+          enabled: false
     service:
-      extensions:
-        - health_check
-        - bearertokenauth
+      telemetry:
+        logs:
+          encoding: json
+      extensions: [health_check, zpages, pprof, bearertokenauth]
       pipelines:
         traces:
-          processors:
-            - memory_limiter
-            - batch
+          receivers: [otlp, jaeger]
+          processors: [memory_limiter, signozspanmetrics/delta, batch]
+          exporters: [clickhousetraces, metadataexporter, signozmeter]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [metadataexporter, signozclickhousemetrics, signozmeter]
+        logs:
+          receivers: [otlp, httplogreceiver/heroku, httplogreceiver/json]
+          processors: [batch]
+          exporters: [clickhouselogsexporter, metadataexporter, signozmeter]
+        metrics/meter:
+          receivers: [signozmeter]
+          processors: [batch/meter]
+          exporters: [signozclickhousemeter]

@@ -5824,6 +5824,29 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					hydrateHostSoftwareRecordFromDb(softwareTitleRecord, softwareTitle)
 				}
 			}
+			// Here and below: populate LastInstall for software packages, VPP apps, and in-house apps
+			// even if installer is out of scope so failed install attempts show the execution ID for viewing details.
+			if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.SoftwarePackage.LastInstall == nil {
+				if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
+					softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+						InstallUUID: *softwareTitle.LastInstallInstallUUID,
+					}
+					if softwareTitle.LastInstallInstalledAt != nil {
+						softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+					}
+				}
+			}
+			// Populate LastUninstall for software packages even if installer is out of scope.
+			if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.SoftwarePackage.LastUninstall == nil {
+				if softwareTitle != nil && softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
+					softwareTitleRecord.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
+						ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
+					}
+					if softwareTitle.LastUninstallUninstalledAt != nil {
+						softwareTitleRecord.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
+					}
+				}
+			}
 
 			// This happens when there is a software installed on the host but it is also a vpp record, so we want
 			// to grab the vpp data from the installed vpp record and merge it onto the software record
@@ -5838,6 +5861,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if softwareTitleRecord.VPPAppAdamID != nil {
 				if _, ok := filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
 					promoteSoftwareTitleVPPApp(softwareTitleRecord)
+				}
+			}
+			if softwareTitleRecord.AppStoreApp != nil && softwareTitleRecord.AppStoreApp.LastInstall == nil {
+				if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
+					softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
+						CommandUUID: *softwareTitle.LastInstallInstallUUID,
+					}
+					if softwareTitle.LastInstallInstalledAt != nil {
+						softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+					}
 				}
 			}
 
@@ -5855,6 +5888,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if softwareTitleRecord.InHouseAppID != nil {
 				if _, ok := filteredByInHouseID[*softwareTitleRecord.InHouseAppID]; ok {
 					promoteSoftwareTitleInHouseApp(softwareTitleRecord)
+				}
+			}
+			// N.b., in-house apps use SoftwarePackage struct with CommandUUID.
+			if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.InHouseAppID != nil && softwareTitleRecord.SoftwarePackage.LastInstall == nil {
+				if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
+					softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+						CommandUUID: *softwareTitle.LastInstallInstallUUID,
+					}
+					if softwareTitle.LastInstallInstalledAt != nil {
+						softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+					}
 				}
 			}
 

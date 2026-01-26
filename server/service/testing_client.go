@@ -670,6 +670,16 @@ func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id ui
 	}
 }
 
+// listActivities retrieves all activities via the HTTP API endpoint.
+func (ts *withServer) listActivities() []*fleet.Activity {
+	t := ts.s.T()
+	var resp listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
+		"order_key", "a.id", "order_direction", "asc", "per_page", "1000000")
+	require.NotNil(t, resp.Activities)
+	return resp.Activities
+}
+
 func (ts *withServer) uploadSoftwareInstaller(
 	t *testing.T,
 	payload *fleet.UploadSoftwareInstallerPayload,
