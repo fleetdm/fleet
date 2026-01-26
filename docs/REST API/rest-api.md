@@ -4656,8 +4656,6 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 ### Get host's software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 `GET /api/v1/fleet/hosts/:id/software`
 
 #### Parameters
@@ -6933,8 +6931,6 @@ The summary can optionally be filtered by team ID.
 
 ### Update setup experience
 
-> **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/setup_experience`
@@ -7674,8 +7670,6 @@ None.
 
 ### Get Android Enterprise
 
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Get info about Android Enterprise that's connected to Fleet.
 
 `GET /api/v1/fleet/android_enterprise`
@@ -8225,8 +8219,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 _Available in Fleet Premium_
 
-> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 The semantics for creating a team policy are the same as for global policies, see [Create policy](#create-policy).
 
 `POST /api/v1/fleet/teams/:id/policies`
@@ -8448,8 +8440,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 ### Update team policy
 
 _Available in Fleet Premium_
-
-> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
@@ -9917,8 +9907,6 @@ Get a list of all software.
 
 `GET /api/v1/fleet/software/titles`
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 #### Parameters
 
 | Name                    | Type    | In    | Description                                                                                                                                                                |
@@ -10265,8 +10253,6 @@ Returns a list of all operating systems.
 Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting. Other operating systems do not report vulnerabilities.
 
 ### Get software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
@@ -10692,8 +10678,6 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 ### Add package
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1) to run on Windows or Linux hosts.
@@ -10792,8 +10776,6 @@ Content-Type: application/octet-stream
 ```
 
 ### Update package
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -10895,8 +10877,6 @@ Content-Type: application/octet-stream
 
 ### Update software icon
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
@@ -10946,8 +10926,6 @@ Content-Type: image/png
 
 ### Download software icon
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Download the icon added via [Update software icon](#update-software-icon) or icon from the Apple App Store (VPP). **This endpoint requires authentication.**
@@ -10982,8 +10960,6 @@ Content-Length: 124567
 
 ### Delete software icon
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Delete a custom icon added via [Update software icon](#update-software-icon). This will revert to using the software title's built-in icon.
@@ -11006,8 +10982,6 @@ Delete a custom icon added via [Update software icon](#update-software-icon). Th
 `Status: 204`
 
 ### List Apple App Store apps
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 Returns the list of Apple App Store (VPP) apps that can be added to the specified team. If an app is already added to the team, it's excluded from the list.
 
@@ -11059,8 +11033,6 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 ```
 
 ### Add app store app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -11121,8 +11093,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 ```
 
 ### Update app store app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -11208,8 +11178,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ### List Fleet-maintained apps
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 List available Fleet-maintained apps.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps`
@@ -11268,8 +11236,6 @@ List available Fleet-maintained apps.
 
 ### Get Fleet-maintained app
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Returns information about the specified Fleet-maintained app.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps/:id`
@@ -11308,8 +11274,6 @@ Returns information about the specified Fleet-maintained app.
 ```
 
 ### Create Fleet-maintained app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -11361,8 +11325,6 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 ### Download software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/titles/:id/package?alt=media`
@@ -11393,8 +11355,6 @@ Body: <blob>
 
 ### Install software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Install software (package or app store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
@@ -11420,7 +11380,6 @@ Package installs time out after 1 hour.
 
 ### Uninstall software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
 Uninstalls software from a host.
@@ -11443,8 +11402,6 @@ Uninstalls software from a host.
 `Status: 202`
 
 ### Get software install result
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -11483,8 +11440,6 @@ To get the results of an Apple App Store app install, use the [List MDM commands
 
 ### Download package
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
@@ -11514,8 +11469,6 @@ Body: <blob>
 ```
 
 ### Delete software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
