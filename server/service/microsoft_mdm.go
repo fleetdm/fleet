@@ -676,8 +676,6 @@ func NewApplicationProvisioningData(mdmEndpoint string, username string, secret 
 
 		// The BACKCOMPATRETRYDISABLED parameter is used to specify whether to retry resending a package with an older protocol version
 		newParm("BACKCOMPATRETRYDISABLED", "", ""),
-
-		// newParm("SSLCLIENTCERTSEARCHCRITERIA", "Subject=CN%3D"+"494FE0F794940E21C717B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D"+"OU%3DFleet&Stores=My%5CUser", ""),
 	}, []mdm_types.Characteristic{
 		// CLIENT specifies that the server authenticates itself to the OMA DM Client at the DM protocol level.
 		newCharacteristic("APPAUTH", []mdm_types.Param{
