@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"crypto/rand"
@@ -38,6 +39,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/olekukonko/tablewriter"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
 )
@@ -514,35 +516,53 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...st
 
 	t.Logf(">> dumping table %s:", tableName)
 
+	data := [][]string{}
+	columns, err := rows.Columns()
+	require.NoError(t, err)
+
 	var anyDst []any
 	var strDst []sql.NullString
-	var sb strings.Builder
 	for rows.Next() {
 		if anyDst == nil {
-			cols, err := rows.Columns()
-			require.NoError(t, err)
-			anyDst = make([]any, len(cols))
-			strDst = make([]sql.NullString, len(cols))
-			for i := 0; i < len(cols); i++ {
+			anyDst = make([]any, len(columns))
+			strDst = make([]sql.NullString, len(columns))
+			for i := range columns {
 				anyDst[i] = &strDst[i]
 			}
-			t.Logf("%v", cols)
 		}
 		require.NoError(t, rows.Scan(anyDst...))
 
-		sb.Reset()
+		row := []string{}
 		for _, v := range strDst {
 			if v.Valid {
-				sb.WriteString(v.String)
+				row = append(row, v.String)
 			} else {
-				sb.WriteString("NULL")
+				row = append(row, "NULL")
 			}
-			sb.WriteString("\t")
 		}
-		t.Logf("%s", sb.String())
+		data = append(data, row)
 	}
 	require.NoError(t, rows.Err())
+
+	printDumpTable(t, columns, data)
 	t.Logf("<< dumping table %s completed", tableName)
+}
+
+func printDumpTable(t *testing.T, cols []string, rows [][]string) {
+	writer := bytes.NewBufferString("")
+	table := tablewriter.NewWriter(writer)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAutoFormatHeaders(false)
+	table.SetAutoWrapText(false)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetHeaderLine(true)
+	table.SetRowLine(false)
+
+	table.SetHeader(cols)
+	table.AppendBulk(rows)
+	table.Render()
+
+	t.Logf("\n%s", writer.String())
 }
 
 func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
