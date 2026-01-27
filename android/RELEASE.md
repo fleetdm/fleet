@@ -65,7 +65,7 @@ Output: `app/build/outputs/bundle/release/app-release.aab`
 After the release is uploaded, tag the RC branch:
 
 ```bash
-git checkout rc-minor-android-v1.X.X
+git checkout rc-minor-fleetd-android-v1.X.X
 git tag fleetd-android-v1.X.X
 git push origin rc-minor-fleetd-android-v1.X.X
 ```
@@ -74,9 +74,13 @@ git push origin rc-minor-fleetd-android-v1.X.X
 
 ```bash
 git checkout main
-git checkout rc-minor-fleetd-android-v1.X.X -- app/build.gradle.kts CHANGELOG.md
+git pull origin main
+git checkout -b bring-fleetd-android-v1.X.X-to-main
+git checkout rc-minor-fleetd-android-v1.X.X -- android/app/build.gradle.kts android/CHANGELOG.md
 git commit -m "Update version and CHANGELOG for fleetd-android-v1.X.X"
-git push origin main
+git push origin bring-fleetd-android-v1.X.X-to-main
 ```
+
+Then open a PR to merge `bring-fleetd-android-v1.X.X-to-main` into `main`.
 
 This brings only the version bump and CHANGELOG updates to main, not other RC changes.
