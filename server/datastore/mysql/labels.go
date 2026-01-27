@@ -599,10 +599,6 @@ func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec
 
 // NewLabel creates a new fleet.Label
 func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
-	now := time.Now().UTC().Truncate(time.Second)
-	label.CreatedAt = now
-	label.UpdatedAt = now
-
 	query := `
 	INSERT INTO labels (
 		name,
@@ -613,10 +609,8 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label_type,
 		label_membership_type,
 		author_id,
-		team_id,
-		created_at,
-		updated_at
-	) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+		team_id
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -630,8 +624,6 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label.LabelMembershipType,
 		label.AuthorID,
 		label.TeamID,
-		label.CreatedAt,
-		label.UpdatedAt,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting label")
@@ -639,6 +631,9 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 
 	id, _ := result.LastInsertId()
 	label.ID = uint(id) //nolint:gosec // dismiss G115
+	now := time.Now().UTC().Truncate(time.Second)
+	label.CreatedAt = now
+	label.UpdatedAt = now
 	return label, nil
 }
 

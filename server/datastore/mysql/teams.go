@@ -24,16 +24,14 @@ const teamColumns = `id, created_at, name, filename, description, config`
 func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	team.Name = norm.NFC.String(team.Name)
-	team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		query := `
     INSERT INTO teams (
       name,
-	  filename,
+      filename,
       description,
-      config,
-			created_at
-    ) VALUES (?, ?, ?, ?, ?)
+      config
+    ) VALUES (?, ?, ?, ?)
     `
 		result, err := tx.ExecContext(
 			ctx,
@@ -42,7 +40,6 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 			team.Filename,
 			team.Description,
 			team.Config,
-			team.CreatedAt,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert team")
@@ -50,6 +47,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 
 		id, _ := result.LastInsertId()
 		team.ID = uint(id) //nolint:gosec // dismiss G115
+		team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 
 		return saveTeamSecretsDB(ctx, tx, team)
 	})
