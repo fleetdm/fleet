@@ -2616,7 +2616,7 @@ type Datastore interface {
 
 	// GetOrCreateFleetChallengeForCertificateTemplate ensures a fleet challenge exists for the given
 	// host and certificate template. If a challenge already exists, it returns it. If not, it creates
-	// a new one atomically. Only works for templates in 'delivered' status.
+	// a new one atomically. Only works for templates in 'delivered' status and with operation_type 'install'.
 	GetOrCreateFleetChallengeForCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) (string, error)
 
 	// GetCurrentTime gets the current time from the database

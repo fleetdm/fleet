@@ -442,7 +442,7 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 }
 
 // TransitionCertificateTemplatesToDelivered transitions the specified templates from 'delivering' to 'delivered'.
-// Challenges are created on-demand when the device fetches the certificate template via
+// The fleet_challenge is cleared so a fresh one is generated when the device fetches the certificate template via
 // GetOrCreateFleetChallengeForCertificateTemplate.
 func (ds *Datastore) TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, templateIDs []uint) error {
 	if len(templateIDs) == 0 {
@@ -453,6 +453,7 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivered(ctx context.Conte
 		UPDATE host_certificate_templates
 		SET
 			status = '%s',
+			fleet_challenge = NULL,
 			updated_at = NOW()
 		WHERE
 			host_uuid = ? AND
