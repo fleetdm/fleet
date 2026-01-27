@@ -33,7 +33,7 @@ describe("LocationModal", () => {
     expect(link).toBeVisible();
     expect(link).toHaveAttribute(
       "href",
-      "https://www.google.com/maps?q=44.9844,-93.2602"
+      "https://www.google.com/maps?q=-93.2602,44.9844"
     );
   });
 
