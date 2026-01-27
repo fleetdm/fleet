@@ -611,10 +611,11 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemoveForHost(
 }
 
 // GetAndroidCertificateTemplatesForRenewal returns certificate templates that are approaching
-// expiration and need to be renewed. Uses the same threshold logic as Apple/Windows:
+// expiration and need to be renewed. Renewal logic:
 // - If validity period > 30 days: renew within 30 days of expiration
-// - If validity period <= 30 days: renew within half the validity period of expiration
-// Only returns certificates with status 'delivered' or 'verified' and operation_type 'install'.
+// - If validity period > 2 days and <= 30 days: renew within half the validity period of expiration
+// - If validity period <= 2 days: does NOT auto-renew
+// Only returns certificates with status 'verified' and operation_type 'install'.
 func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 	ctx context.Context,
 	limit int,
@@ -633,7 +634,7 @@ func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 			AND (
 				(DATEDIFF(not_valid_after, not_valid_before) > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY))
 				OR
-				(DATEDIFF(not_valid_after, not_valid_before) <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL DATEDIFF(not_valid_after, not_valid_before)/2 DAY))
+				(DATEDIFF(not_valid_after, not_valid_before) > 2 AND DATEDIFF(not_valid_after, not_valid_before) <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL DATEDIFF(not_valid_after, not_valid_before)/2 DAY))
 			)
 		ORDER BY not_valid_after ASC
 		LIMIT ?

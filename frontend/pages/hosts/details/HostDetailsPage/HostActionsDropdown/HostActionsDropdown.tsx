@@ -74,6 +74,7 @@ const HostActionsDropdown = ({
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
+    scriptsGloballyDisabled: globalConfig?.server_settings.scripts_disabled,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
   });
