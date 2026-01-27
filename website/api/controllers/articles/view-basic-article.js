@@ -69,7 +69,7 @@ module.exports = {
       'announcements': 'Announcements',
       'podcasts': 'Podcasts',
       'report': 'Reports',
-      'articles': 'Articles',
+      'articles': 'Blogs',
     };
     let categoryFriendlyName = categoryFriendlyNamesByCategorySlug[articleCategorySlug];
     // Set the currentSection variable for the website header to "customers" if the article is shown on the testimonials page.

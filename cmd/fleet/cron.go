@@ -14,9 +14,11 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1453,6 +1455,7 @@ func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger 
 func newActivitiesStreamingSchedule(
 	ctx context.Context,
 	instanceID string,
+	activitySvc activity_api.ListActivitiesService,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	auditLogger fleet.JSONLogger,
@@ -1468,7 +1471,7 @@ func newActivitiesStreamingSchedule(
 		schedule.WithJob(
 			"cron_activities_streaming",
 			func(ctx context.Context) error {
-				return cronActivitiesStreaming(ctx, ds, logger, auditLogger)
+				return cronActivitiesStreaming(ctx, activitySvc, ds, logger, auditLogger)
 			},
 		),
 	)
@@ -1479,21 +1482,23 @@ var ActivitiesToStreamBatchCount uint = 500
 
 func cronActivitiesStreaming(
 	ctx context.Context,
+	activitySvc activity_api.ListActivitiesService,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	auditLogger fleet.JSONLogger,
 ) error {
+	// Use system context for authorization since cron jobs don't have a user context
+	ctx = viewer.NewSystemContext(ctx)
+
 	page := uint(0)
 	for {
 		// (1) Get batch of activities that haven't been streamed.
-		activitiesToStream, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "id",
-				OrderDirection: fleet.OrderAscending,
-				PerPage:        ActivitiesToStreamBatchCount,
-				Page:           page,
-			},
-			Streamed: ptr.Bool(false),
+		activitiesToStream, _, err := activitySvc.ListActivities(ctx, activity_api.ListOptions{
+			OrderKey:       "id",
+			OrderDirection: activity_api.OrderAscending,
+			PerPage:        ActivitiesToStreamBatchCount,
+			Page:           page,
+			Streamed:       ptr.Bool(false),
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list activities")

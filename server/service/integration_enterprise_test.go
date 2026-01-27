@@ -164,6 +164,7 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 			"okta_assertion_consumer_service_url": nil,
 			"okta_audience_uri":                   nil,
 			"okta_certificate":                    nil,
+			"bypass_disabled":                     false,
 		},
 	}
 	b, err := json.Marshal(body)
@@ -10501,6 +10502,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 	}
 	require.NotNil(t, teamFooVersion)
 
+	// set the admin token again to avoid breaking other tests
+	t.Cleanup(func() {
+		s.token = s.getTestAdminToken()
+	})
+
 	for _, tc := range []struct {
 		name                 string
 		user                 fleet.User
@@ -10581,11 +10587,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
 
 				// Get a global software vesion using the deprecated endpoint
 				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
 
 				// Get a count of software vesions using the deprecated endpoint
 				var countSoftwareResp countSoftwareResponse
@@ -10645,11 +10651,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
 
 				// Get a team software vesion using the deprecated endpoint
 				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
 
 				// Get a count of team software vesions using the deprecated endpoint
 				var countSoftwareResp countSoftwareResponse
@@ -10695,9 +10701,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 			}
 		})
 	}
-
-	// set the admin token again to avoid breaking other tests
-	s.token = s.getTestAdminToken()
 }
 
 func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
@@ -10874,9 +10877,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail: "calendar-mock@example.com",
-			},
+			}},
 		},
 	}
 	err = s.ds.SaveAppConfig(ctx, appCfg)
@@ -11160,9 +11163,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail: "calendar-mock@example.com",
-			},
+			}},
 		},
 	}
 	err = s.ds.SaveAppConfig(ctx, appCfg)
@@ -13222,7 +13225,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		{URL: rubyURL, LabelsIncludeAny: []string{"no-such-label"}},
 	}
 	res = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `some or all the labels provided don't exist`)
+	require.Contains(t, extractServerErrorText(res.Body), `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the software.`)
 
 	// valid installer scoped by label
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
@@ -15776,9 +15779,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail: calendar.MockEmail,
-			},
+			}},
 		},
 	}
 	err = s.ds.SaveAppConfig(ctx, appCfg)
@@ -16276,9 +16279,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail: calendar.MockEmail,
-			},
+			}},
 		},
 	}
 	err = s.ds.SaveAppConfig(ctx, appCfg)
@@ -19272,7 +19275,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}
 	addMAResp = addFleetMaintainedAppResponse{}
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), "some or all the labels provided don't exist")
+	require.Contains(t, extractServerErrorText(r.Body), `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the software.`)
 
 	// Can't set both labels_include_any and labels_exclude_any
 	req.LabelsIncludeAny = []string{lbl1.Name, lbl2.Name}
@@ -20402,8 +20405,16 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	// create an HTTP server to host the software installer
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/dummy_installer.pkg":
+		case "/fma.pkg":
 			file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+			require.NoError(t, err)
+			defer file.Close()
+			w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
+			_, err = io.Copy(w, file)
+			require.NoError(t, err)
+
+		case "/non-fma.pkg":
+			file, err := os.Open(filepath.Join("testdata", "software-installers", "EchoApp.pkg"))
 			require.NoError(t, err)
 			defer file.Close()
 			w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
@@ -20416,8 +20427,32 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		}
 	})
 
-	srv := httptest.NewServer(handler)
-	t.Cleanup(srv.Close)
+	installerServer := httptest.NewServer(handler)
+	t.Cleanup(installerServer.Close)
+
+	// Mock server to serve fleet maintained app manifest
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "6.0",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:      installerServer.URL + "/fma.pkg",
+			SHA256:            "no_check", // See ma.noCheckHash
+			DefaultCategories: []string{"Productivity"},
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+
+	t.Cleanup(manifestServer.Close)
+	t.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
 
 	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "1Password",
@@ -20428,7 +20463,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	require.NoError(t, err)
 
 	// do a request with an invalid category
-	pkgURL := srv.URL + "/dummy_installer.pkg"
+	pkgURL := installerServer.URL + "/non-fma.pkg"
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
 		{URL: pkgURL, Categories: []string{"Not Found"}, SelfService: true},
 		{Slug: &maintained1.Slug, SelfService: true},
@@ -20472,11 +20507,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		t.Run(tc.desc, func(t *testing.T) {
 			softwareToInstall[0].Categories = tc.categories
 			softwareToInstall[1].Categories = tc.categories
+
 			// remove duplicates if any
 			tc.categories = server.RemoveDuplicatesFromSlice(tc.categories)
 			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
 			packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 			require.Len(t, packages, 2)
+
 			for _, p := range packages {
 				require.NotNil(t, p.TitleID)
 				require.NotNil(t, p.TeamID)
@@ -20493,7 +20530,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 					continue
 				}
 				require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
-
 			}
 
 			// check that the categories come back on the My device page
@@ -22877,8 +22913,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 
 	// Helper: count installed_software activities for this specific executionID
 	countActivitiesForExec := func() int {
-		acts, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-		require.NoError(t, err)
+		acts := s.listActivities()
 		cnt := 0
 		for _, a := range acts {
 			if a.Details == nil {
@@ -22941,8 +22976,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 	require.Equal(t, 1, countActivitiesForExec(), "Final failure should create exactly ONE activity")
 
 	// Find the software installation activity for this execution
-	acts, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	acts := s.listActivities()
 	var installActivity *fleet.Activity
 	for i := range acts {
 		if acts[i].Details == nil {
@@ -23386,7 +23420,292 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 		"{\"bypass_disabled\": true}",
 		0,
 	)
+}
 
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Shared certificate for Okta configuration
+	validCert := `-----BEGIN CERTIFICATE-----
+MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
+A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
+MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
+ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
+VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
+A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
+MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
+ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
+NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
+2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
+kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
+ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
+Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
+nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
+9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
+umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
+FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
+-----END CERTIFICATE-----`
+
+	t.Run("bypass succeeds when enabled", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("bypass-enabled-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Verify the bypass was recorded
+		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt, "bypass should have been recorded")
+	})
+
+	t.Run("activity created with default idp_full_name", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("activity-default-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Verify the activity was created with default idp_full_name when no SCIM user exists
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeHostBypassedConditionalAccess{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "idp_full_name": "An end user"}`, host.ID, host.DisplayName()),
+			0,
+		)
+	})
+
+	t.Run("activity includes actual IDP name when SCIM user present", func(t *testing.T) {
+		// Create a host with SCIM user
+		token := fmt.Sprintf("activity-scim-%s", uuid.New().String())
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(token),
+			NodeKey:         ptr.String(token),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s-scim.local", token),
+			HardwareSerial:  uuid.New().String(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+		// Create a SCIM user and map it to the host
+		var scimUserID int64
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			res, err := db.ExecContext(ctx,
+				`INSERT INTO scim_users (user_name, given_name, family_name, active) VALUES (?, ?, ?, ?)`,
+				"john.doe@example.com", "John", "Doe", 1)
+			if err != nil {
+				return err
+			}
+			scimUserID, err = res.LastInsertId()
+			return err
+		})
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx,
+				`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+				host.ID, scimUserID)
+			return err
+		})
+
+		// Call bypass for host with SCIM user
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK)
+
+		// Verify the activity includes the actual IDP full name
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeHostBypassedConditionalAccess{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "idp_full_name": "John Doe"}`, host.ID, host.DisplayName()),
+			0,
+		)
+	})
+
+	t.Run("calling bypass again creates new bypass", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("bypass-again-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		// First bypass
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Consume the first bypass
+		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt)
+
+		// Call bypass again - should work (creates a new bypass)
+		bypassResp = bypassConditionalAccessResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Verify the new bypass was recorded
+		bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt, "new bypass should have been recorded")
+	})
+
+	t.Run("bypass fails when disabled", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("bypass-disabled-%s", uuid.New().String())
+		_ = createHostAndDeviceToken(t, s.ds, token)
+
+		// Disable bypass via app config
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": true
+			}
+		}`), http.StatusOK, &acResp)
+
+		t.Cleanup(func() {
+			// Re-enable bypass for other tests
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"conditional_access": {
+					"bypass_disabled": false
+				}
+			}`), http.StatusOK, &acResp)
+		})
+
+		// Verify bypass is now disabled
+		acResp = appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+		require.True(t, acResp.ConditionalAccess.BypassDisabled.Value)
+
+		// Bypass should fail when bypass is disabled (403 Forbidden)
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusForbidden, &bypassResp)
+	})
+
+	t.Run("bypass succeeds after re-enabling", func(t *testing.T) {
+		// Create a unique host for this subtest
+		token := fmt.Sprintf("bypass-reenable-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		t.Cleanup(func() {
+			_, _ = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+			// Ensure bypass is enabled for other tests
+			var acResp appConfigResponse
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"conditional_access": {
+					"bypass_disabled": false
+				}
+			}`), http.StatusOK, &acResp)
+		})
+
+		// Disable bypass
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": true
+			}
+		}`), http.StatusOK, &acResp)
+
+		// Verify it's disabled
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusForbidden, &bypassResp)
+
+		// Re-enable bypass
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": false
+			}
+		}`), http.StatusOK, &acResp)
+
+		// Bypass should succeed after re-enabling
+		bypassResp = bypassConditionalAccessResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		// Verify the bypass was recorded
+		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt, "bypass should have been recorded after re-enabling")
+	})
+
+	t.Run("toggling bypass_disabled clears all bypasses", func(t *testing.T) {
+		// Set up Okta configuration (required for bypass toggle detection)
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"conditional_access": {
+				"okta_idp_id": "https://www.okta.com/saml2/service-provider/test",
+				"okta_assertion_consumer_service_url": "https://dev-test.okta.com/sso/saml2/test",
+				"okta_audience_uri": "https://www.okta.com/saml2/service-provider/test",
+				"okta_certificate": %q,
+				"bypass_disabled": false
+			}
+		}`, validCert)), http.StatusOK, &acResp)
+
+		// Create two hosts with unique tokens
+		token1 := fmt.Sprintf("bypass-clear-1-%s", uuid.New().String())
+		token2 := fmt.Sprintf("bypass-clear-2-%s", uuid.New().String())
+		host1 := createHostAndDeviceToken(t, s.ds, token1)
+		host2, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(token2),
+			NodeKey:         ptr.String(token2),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.local", token2),
+			HardwareSerial:  uuid.New().String(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		createDeviceTokenForHost(t, s.ds, host2.ID, token2)
+
+		// Create bypass records for both hosts
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token1),
+			nil, http.StatusOK, &bypassResp)
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token2),
+			nil, http.StatusOK, &bypassResp)
+
+		// Verify both bypasses exist by checking the count directly
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id IN (?, ?)", host1.ID, host2.ID)
+		})
+		require.GreaterOrEqual(t, count, 2, "at least both bypass records should exist")
+
+		// Toggle bypass_disabled to true - this should clear all bypasses
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": true
+			}
+		}`), http.StatusOK, &acResp)
+
+		// Verify all bypasses were cleared
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id IN (?, ?)", host1.ID, host2.ID)
+		})
+		require.Equal(t, 0, count, "all bypass records should be cleared when bypass_disabled is toggled")
+
+		// Toggle back to false - should also clear any bypasses (though there are none)
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"conditional_access": {
+				"bypass_disabled": false
+			}
+		}`), http.StatusOK, &acResp)
+	})
 }
 
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.
@@ -24324,46 +24643,4 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
-}
-
-func (s *integrationEnterpriseTestSuite) TestListActivitiesAuth() {
-	t := s.T()
-	ctx := t.Context()
-
-	// Create a team and team user for testing.
-	// The standard test users (s.users) only include global roles (admin, maintainer, observer).
-	// Team users must be created per-test since they're not in the standard set.
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{
-		Name:        t.Name() + "_team",
-		Description: "Team for activities auth test",
-	})
-	require.NoError(t, err)
-
-	teamObserver := &fleet.User{
-		Name:  "Activities Team Observer",
-		Email: "activities-team-observer@example.com",
-		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}},
-	}
-	require.NoError(t, teamObserver.SetPassword(test.GoodPassword, 10, 10))
-	teamObserver, err = s.ds.NewUser(ctx, teamObserver)
-	require.NoError(t, err)
-
-	// Global users can access activities
-	for _, email := range []string{
-		"admin1@example.com", // global admin
-		"user1@example.com",  // global maintainer
-		"user2@example.com",  // global observer
-	} {
-		s.setTokenForTest(t, email, test.GoodPassword)
-		var resp listActivitiesResponse
-		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp)
-	}
-
-	// Team-only users cannot access activities
-	s.setTokenForTest(t, teamObserver.Email, test.GoodPassword)
-	var resp listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusForbidden, &resp)
-
-	// Reset to admin token
-	s.token = s.getTestAdminToken()
 }

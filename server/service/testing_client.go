@@ -260,6 +260,10 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		_, err := q.ExecContext(ctx, "DELETE FROM invites; ")
 		return err
 	})
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM host_conditional_access")
+		return err
+	})
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
@@ -668,6 +672,16 @@ func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id ui
 			}
 		}
 	}
+}
+
+// listActivities retrieves all activities via the HTTP API endpoint.
+func (ts *withServer) listActivities() []*fleet.Activity {
+	t := ts.s.T()
+	var resp listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
+		"order_key", "a.id", "order_direction", "asc", "per_page", "1000000")
+	require.NotNil(t, resp.Activities)
+	return resp.Activities
 }
 
 func (ts *withServer) uploadSoftwareInstaller(

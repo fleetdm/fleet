@@ -79,6 +79,8 @@ const BootstrapAdvancedOptions = ({
                     Install Fleet&apos;s agent (fleetd) manually
                   </TooltipWrapper>
                 </Checkbox>
+                {/* The wrapper div is needed to keep the button from stretching full width
+                 * of the flex container */}
                 <div>
                   <Button
                     disabled={

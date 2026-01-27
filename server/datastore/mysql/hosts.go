@@ -567,6 +567,7 @@ var hostRefs = []string{
 	"microsoft_compliance_partner_host_statuses",
 	"host_identity_scep_certificates",
 	"conditional_access_scep_certificates",
+	"host_conditional_access",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
 	// needed for in-house apps or vpp apps as the activity contains the MDM
@@ -3497,7 +3498,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 		// We log to help troubleshooting in case this happens.
 		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
-	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at,
+	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
 		CASE
@@ -5948,6 +5949,8 @@ WHERE
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingSerials, stmt, args...); err != nil {
 		return nil, err
 	}
+
+	level.Info(ds.logger).Log("msg", "get hosts with previously deleted dep assignments", "serials", strings.Join(matchingSerials, ","))
 
 	for _, serial := range matchingSerials {
 		result[serial] = struct{}{}
