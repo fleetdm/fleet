@@ -2,7 +2,7 @@ package mdmtest
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
 	"crypto/rsa"
 	"crypto/tls"
 	"encoding/base64"
@@ -499,7 +499,52 @@ YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
 		return fmt.Errorf("enroll request returned SOAP fault: %s", string(body))
 	}
 
-	// TODO: Read the username and password from the response
+	var soapResponse fleet.SoapResponse
+	if err := xml.Unmarshal(body, &soapResponse); err != nil {
+		return fmt.Errorf("unmarshalling enroll response body: %w", err)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(soapResponse.Body.RequestSecurityTokenResponseCollection.RequestSecurityTokenResponse.RequestedSecurityToken.BinarySecurityToken.Content)
+	if err != nil {
+		return fmt.Errorf("decoding enroll response binary security token: %w", err)
+	}
+
+	// strip xml header
+	decoded = bytes.TrimPrefix(decoded, []byte(xml.Header))
+	var provDoc fleet.WapProvisioningDoc
+	if err := xml.Unmarshal(decoded, &provDoc); err != nil {
+		return fmt.Errorf("unmarshalling enroll response provisioning doc: %w", err)
+	}
+
+Outer:
+	for _, char := range provDoc.Characteristics {
+		if char.Type != "APPLICATION" {
+			continue
+		}
+
+		for _, appChar := range char.Characteristics {
+			if appChar.Type != "APPAUTH" {
+				continue
+			}
+			username := ""
+			password := ""
+			for _, appAuthParam := range appChar.Params {
+				if appAuthParam.Name == "AAUTHNAME" {
+					username = appAuthParam.Value
+				}
+				if appAuthParam.Name == "AAUTHSECRET" {
+					password = appAuthParam.Value
+				}
+			}
+
+			// We can do this since only the client credentials characteristic has both username and password, the other one only has password.
+			if username != "" && password != "" {
+				c.username = username
+				c.password = password
+				break Outer
+			}
+		}
+	}
 
 	return nil
 }
