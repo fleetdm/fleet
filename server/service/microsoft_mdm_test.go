@@ -933,9 +933,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		}, nil
 	}
 
-	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string, credentialsHash []byte, acknowledge bool) error {
+	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string, credentialsHash []byte) error {
 		require.Equal(t, "device", deviceId)
-		require.False(t, acknowledge)
 		credsHash = &credentialsHash
 		return nil
 	}

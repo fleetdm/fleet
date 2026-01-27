@@ -682,7 +682,7 @@ func NewApplicationProvisioningData(mdmEndpoint string, username string, secret 
 			newParm("AAUTHLEVEL", "CLIENT", ""),
 			// DIGEST - Specifies that the SyncML DM 'syncml:auth-md5' authentication type.
 			newParm("AAUTHTYPE", "DIGEST", ""),
-			newParm("AAUTHSECRET", "dummy", ""), // TODO: how do we want to hadnle secret here?
+			newParm("AAUTHSECRET", "dummy", ""),
 			newParm("AAUTHDATA", "nonce", ""),
 		}, nil),
 		// APPSRV specifies that the client authenticates itself to the OMA DM Server at the DM protocol level.
@@ -692,7 +692,7 @@ func NewApplicationProvisioningData(mdmEndpoint string, username string, secret 
 			newParm("AAUTHTYPE", "DIGEST", ""),
 			newParm("AAUTHNAME", username, ""),
 			newParm("AAUTHSECRET", secret, ""),
-			newParm("AAUTHDATA", "nonce", ""),
+			newParm("AAUTHDATA", "nonce", ""), // We don't care about setting the first round nonce, as when the device checks in we will prompt the credentials and pass a new nonce.
 		}, nil),
 	})
 
@@ -1390,7 +1390,7 @@ func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.Syn
 	credentialsHash := md5.Sum(fmt.Appendf([]byte{}, "%s:%s", username, password)) //nolint:gosec // Windows MDM Auth uses MD5
 
 	// Store the new credentials hash and mark that the device has not acknowledged them yet
-	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID, credentialsHash[:], false)
+	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID, credentialsHash[:])
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "update enrolled device credentials")
 	}
@@ -1918,6 +1918,11 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 // See section 2.2.9.1 for more details on the XML provision schema used here
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
 func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, []byte, error) {
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return "", nil, err
+	}
+
 	// Getting the HW DeviceID from the RequestSecurityToken msg
 	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
@@ -1975,7 +1980,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	}
 
 	// generate username and password for device management service
-	username := reqHWDeviceID // TODO: confirm we want to use the HW DeviceID as username
+	username := reqDeviceID
 	password := uuid.NewString()
 	credentialsHash := md5.Sum([]byte(fmt.Sprintf("%s:%s", username, password)))
 
