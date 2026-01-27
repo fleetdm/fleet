@@ -8780,7 +8780,8 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 	_, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	require.NoError(t, err)
 
-	mdmHost.StartManagementSession()
+	_, err = mdmHost.StartManagementSession()
+	require.NoError(t, err)
 	err = mdmHost.Unenroll()
 	require.NoError(t, err)
 
