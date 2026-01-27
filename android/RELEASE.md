@@ -51,12 +51,12 @@ Output: `app/build/outputs/bundle/release/app-release.aab`
 
 ## 7. Upload to Google Play
 
-1. Go to [Google Play Console](https://play.google.com/console)
-2. Select the Fleet app
-3. Navigate to Release > Production (or appropriate track)
-4. Upload the signed AAB
-5. Add release notes
-6. Review and roll out
+1. Go to [Google Play Console](https://play.google.com/console).
+2. Select the Fleet app (`com.fleetdm.agent`).
+3. Navigate to Release > Production.
+4. Upload the signed .aab file.
+5. Add release notes.
+6. Review and roll out.
 
 ## 8. Tag the release
 
