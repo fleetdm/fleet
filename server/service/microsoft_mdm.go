@@ -646,7 +646,7 @@ func isEligibleForWindowsMDMMigration(host *fleet.Host, mdmInfo *fleet.HostMDM) 
 // The Application Provisioning configuration is used for bootstrapping a device with an OMA DM account
 // The paramenters here maps to the W7 application CSP
 // https://learn.microsoft.com/en-us/windows/client-management/mdm/w7-application-csp
-func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic {
+func NewApplicationProvisioningData(mdmEndpoint string, username string, secret string) mdm_types.Characteristic {
 	provDoc := newCharacteristic("APPLICATION", []mdm_types.Param{
 		// The PROVIDER-ID parameter specifies the server identifier for a management server used in the current management session
 		newParm("PROVIDER-ID", syncml.DocProvisioningAppProviderID, ""),
@@ -690,9 +690,9 @@ func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic
 			newParm("AAUTHLEVEL", "APPSRV", ""),
 			// DIGEST - Specifies that the SyncML DM 'syncml:auth-md5' authentication type.
 			newParm("AAUTHTYPE", "DIGEST", ""),
-			newParm("AAUTHNAME", "dummy", ""),
-			newParm("AAUTHSECRET", "dummy", ""),
-			newParm("AAUTHDATA", "nonce", ""),
+			newParm("AAUTHNAME", username, ""),
+			newParm("AAUTHSECRET", secret, ""),
+			newParm("AAUTHDATA", "nonce", ""), // We don't care about setting the first round nonce, as when the device checks in we will prompt the credentials and pass a new nonce.
 		}, nil),
 	})
 
@@ -1191,7 +1191,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	}
 
 	// Getting the device provisioning information in the form of a WapProvisioningDoc
-	deviceProvisioning, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
+	deviceProvisioning, credentialsHash, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
 	}
@@ -1214,7 +1214,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	//
 	// This method also creates the relevant enrollment activity as it has
 	// access to the device information.
-	err = svc.storeWindowsMDMEnrolledDevice(ctx, userID, hostUUID, secTokenMsg)
+	err = svc.storeWindowsMDMEnrolledDevice(ctx, userID, hostUUID, secTokenMsg, credentialsHash)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "enrolled device information cannot be stored")
 	}
@@ -1390,7 +1390,7 @@ func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.Syn
 	credentialsHash := md5.Sum(fmt.Appendf([]byte{}, "%s:%s", username, password)) //nolint:gosec // Windows MDM Auth uses MD5
 
 	// Store the new credentials hash and mark that the device has not acknowledged them yet
-	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID, credentialsHash[:], false)
+	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID, credentialsHash[:])
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "update enrolled device credentials")
 	}
@@ -1917,41 +1917,46 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 // This information is used to configure the device management client
 // See section 2.2.9.1 for more details on the XML provision schema used here
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
-func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, error) {
+func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, []byte, error) {
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return "", nil, err
+	}
+
 	// Getting the HW DeviceID from the RequestSecurityToken msg
 	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the EnrollmentType information from the RequestSecurityToken msg
 	reqEnrollType, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemEnrollmentType)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the BinarySecurityToken from the RequestSecurityToken msg
 	binSecurityTokenData, err := secTokenMsg.GetBinarySecurityTokenData()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the BinarySecurityToken type from the RequestSecurityToken msg
 	binSecurityTokenType, err := secTokenMsg.GetBinarySecurityTokenType()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the client CSR request from the device
 	clientCSR, err := microsoft_mdm.GetClientCSR(binSecurityTokenData, binSecurityTokenType)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the signed, DER-encoded certificate bytes and its uppercased, hex-endcoded SHA1 fingerprint
 	rawSignedCertDER, rawSignedCertFingerprint, err := svc.SignMDMMicrosoftClientCSR(ctx, reqHWDeviceID, clientCSR)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Preparing client certificate and identity certificate information to be sent to the Windows MDM Enrollment Client
@@ -1965,17 +1970,22 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	// Preparing the provisioning information that includes the location of the Device Management Service (DMS)
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the MS-MDM management URL to provision the device
 	urlManagementEndpoint, err := microsoft_mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
+	// generate username and password for device management service
+	username := reqDeviceID
+	password := uuid.NewString()
+	credentialsHash := md5.Sum(fmt.Appendf(nil, "%s:%s", username, password)) //nolint:gosec // Windows MDM Auth uses MD5
+
 	// Preparing the Application Provisioning information
-	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint)
+	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint, username, password)
 
 	// Preparing the DM Client Provisioning information
 	appDMClientProvisioningData := NewDMClientProvisioningData()
@@ -1984,14 +1994,14 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	provDoc := NewProvisioningDoc(certStoreProvisioningData, appConfigProvisioningData, appDMClientProvisioningData)
 	encodedProvDoc, err := provDoc.GetEncodedB64Representation()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	return encodedProvDoc, nil
+	return encodedProvDoc, credentialsHash[:], nil
 }
 
 // storeWindowsMDMEnrolledDevice stores the device information to the list of MDM enrolled devices
-func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID string, hostUUID string, secTokenMsg *fleet.RequestSecurityToken) error {
+func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID string, hostUUID string, secTokenMsg *fleet.RequestSecurityToken, credentialsHash []byte) error {
 	const (
 		error_tag = "windows MDM enrolled storage: "
 	)
@@ -2049,17 +2059,19 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            reqDeviceID,
-		MDMHardwareID:          reqHWDevID,
-		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
-		MDMDeviceType:          reqDeviceType,
-		MDMDeviceName:          reqDeviceName,
-		MDMEnrollType:          reqEnrollType,
-		MDMEnrollUserID:        userID, // This could be Host UUID or UPN email
-		MDMEnrollProtoVersion:  reqEnrollVersion,
-		MDMEnrollClientVersion: reqAppVersion,
-		MDMNotInOOBE:           reqNotInOOBE,
-		HostUUID:               hostUUID,
+		MDMDeviceID:             reqDeviceID,
+		MDMHardwareID:           reqHWDevID,
+		MDMDeviceState:          microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:           reqDeviceType,
+		MDMDeviceName:           reqDeviceName,
+		MDMEnrollType:           reqEnrollType,
+		MDMEnrollUserID:         userID, // This could be Host UUID or UPN email
+		MDMEnrollProtoVersion:   reqEnrollVersion,
+		MDMEnrollClientVersion:  reqAppVersion,
+		MDMNotInOOBE:            reqNotInOOBE,
+		HostUUID:                hostUUID,
+		CredentialsHash:         &credentialsHash,
+		CredentialsAcknowledged: true,
 	}
 
 	if err := svc.ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice); err != nil {

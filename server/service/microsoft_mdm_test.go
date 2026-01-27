@@ -291,7 +291,7 @@ func TestProvisioningDocGeneration(t *testing.T) {
 		[]byte{0x4, 0x5, 0x6})
 
 	// Preparing the WAP Provisioning Doc response
-	appConfigData := NewApplicationProvisioningData(microsoft_mdm.MDE2EnrollPath)
+	appConfigData := NewApplicationProvisioningData(microsoft_mdm.MDE2EnrollPath, "testuser", "testpassword")
 	appDMClientData := NewDMClientProvisioningData()
 	provDoc := NewProvisioningDoc(certStoreData, appConfigData, appDMClientData)
 
@@ -301,6 +301,8 @@ func TestProvisioningDocGeneration(t *testing.T) {
 	require.Contains(t, string(outXML), deviceIdentityFingerprint)
 	require.Contains(t, string(outXML), serverIdentityFingerprint)
 	require.Contains(t, string(outXML), microsoft_mdm.MDE2EnrollPath)
+	require.Contains(t, string(outXML), "testuser")
+	require.Contains(t, string(outXML), "testpassword")
 }
 
 func TestValidSyncMLCmdStatus(t *testing.T) {
@@ -931,9 +933,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		}, nil
 	}
 
-	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string, credentialsHash []byte, acknowledge bool) error {
+	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string, credentialsHash []byte) error {
 		require.Equal(t, "device", deviceId)
-		require.False(t, acknowledge)
 		credsHash = &credentialsHash
 		return nil
 	}
