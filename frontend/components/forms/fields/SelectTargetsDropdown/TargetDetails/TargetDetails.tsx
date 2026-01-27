@@ -146,19 +146,21 @@ const TargetDetails = ({
         <p className={`${labelBaseClass}__description`}>
           {description || "No Description"}
         </p>
-        <div className={`${labelBaseClass}__editor`}>
-          <SQLEditor
-            mode="fleet"
-            name="label-query"
-            value={query}
-            readOnly
-            maxLines={20}
-            showGutter={false}
-            wrapEnabled
-            fontSize={14}
-            style={{ width: "100%" }}
-          />
-        </div>
+        {query && (
+          <div className={`${labelBaseClass}__editor`}>
+            <SQLEditor
+              name="label-query"
+              value={query}
+              readOnly
+              disabled
+              maxLines={20}
+              showGutter={false}
+              wrapEnabled
+              fontSize={14}
+              style={{ width: "100%" }}
+            />
+          </div>
+        )}
       </div>
     );
   };

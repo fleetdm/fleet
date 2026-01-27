@@ -117,13 +117,12 @@
   .Select-menu-outer {
     max-height: 500px;
     height: 500px;
-    overflow: hidden;
+    overflow: auto;
     box-shadow: 0 8px 12px 0 rgba(0, 0, 0, 0.15);
 
     .Select-menu {
-      height: 498px;
-      max-height: 498px;
-      overflow: scroll;
+      max-height: none;
+      overflow: hidden;
       position: relative;
 
       &::after {
