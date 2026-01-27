@@ -1318,7 +1318,7 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	}
 
 	// Extract the last nonce used to generate the credentials hash
-	nonce, err := svc.keyValueStore.Get(ctx, fleet.WINDOWS_MDM_AUTH_NONCE_PREFIX+deviceID)
+	nonce, err := svc.keyValueStore.Get(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID)
 	if err != nil {
 		return RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "get device nonce from kv store")
 	}
@@ -1648,7 +1648,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
 		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
 		base64Nonce := base64.StdEncoding.EncodeToString([]byte(nonce))
-		err := svc.keyValueStore.Set(ctx, fleet.WINDOWS_MDM_AUTH_NONCE_PREFIX+deviceID, nonce, 5*time.Minute)
+		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, 5*time.Minute)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
 		}

@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	WINDOWS_SCEP_LOC_URI_PART     = "/Vendor/MSFT/ClientCertificateInstall/SCEP"
-	WINDOWS_MDM_AUTH_NONCE_PREFIX = "mwenonce:"
+	WINDOWS_SCEP_LOC_URI_PART = "/Vendor/MSFT/ClientCertificateInstall/SCEP"
+	WindowsMDMAuthNoncePrefix = "mwenonce:"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
