@@ -116,7 +116,11 @@ controls:
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
       - path: ../lib/macos/configuration-profiles/fleet-okta-conditional-access.mobileconfig
+        labels_include_any:
+          - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/okta-verify-settings.mobileconfig
+        labels_include_any:
+          - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
