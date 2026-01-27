@@ -79,6 +79,11 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts.
 
+In the **Hosts** page, select a host and select the **OS settings** item to see the status for a specific setting.
+
+Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
+Profile's status to update to "Pending."
+
 ### Verified
 
 Hosts that applied all OS settings. 
@@ -105,10 +110,7 @@ Hosts that are running MDM commands or will run MDM commands to apply OS setting
 
 Hosts that failed to apply OS settings. For Windows profiles, status codes are listed in [Microsoft's OMA DM docs](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
-In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
-
-Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
-profile's status to update to "Pending."
+The macOS, iOS, or iPadOS host may display **Failed** status for OS settings even though MDM isn't turned on. This happens when a host previously had MDM enabled, the user deleted the enrollment profile, but the host was offline at the time. Since Fleet didn't receive [confirmation](https://developer.apple.com/documentation/devicemanagement/check-out) that MDM was removed, it still tries to send MDM commands that can't be executed. To fix this, wait for the host to come online and check in with Fleet, or remove it from Fleet and [enroll](https://fleetdm.com/guides/enroll-hosts) it again.
 
 ### Special Windows behavior
 
