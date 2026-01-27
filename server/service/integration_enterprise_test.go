@@ -45,6 +45,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -18838,8 +18839,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(manifestServer.Close)
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 
 	// Create a team
 	var newTeamResp teamResponse
@@ -19032,9 +19033,9 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
 
 	// Should timeout
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusGatewayTimeout)
-	os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
+	dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
 	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.")
 
 	// Add a maintained app to no team

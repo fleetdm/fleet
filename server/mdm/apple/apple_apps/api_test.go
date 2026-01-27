@@ -6,18 +6,19 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
+	defer dev_mode.ClearAllOverrides()
 	t.Run("Default URL", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "")
+		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "", t)
 		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
 
 		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
@@ -28,7 +29,7 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
-		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL)
+		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL, t)
 		require.Equal(t, customURL, getBaseURL())
 
 		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
@@ -38,14 +39,14 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	})
 
 	t.Run("Custom Region", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "")
-		os.Setenv("FLEET_DEV_VPP_REGION", "fr")
+		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "", t)
+		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
 		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
 	})
 
 	t.Run("Direct to Apple", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple")
-		os.Setenv("FLEET_DEV_VPP_REGION", "")
+		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple", t)
+		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "", t)
 		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
 
 		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
@@ -57,7 +58,7 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 
 func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 	server := httptest.NewServer(handler)
-	os.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", server.URL)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", server.URL, t)
 	t.Cleanup(server.Close)
 }
 
@@ -233,16 +234,8 @@ func (m *mockDataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetTyp
 
 func TestAuthentication(t *testing.T) {
 	// Clear any dev env vars that might interfere
-	originalDevToken := os.Getenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN")
-	originalAuthURL := os.Getenv("FLEET_DEV_VPP_PROXY_AUTH_URL")
-	t.Cleanup(func() {
-		os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", originalDevToken)
-		os.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", originalAuthURL)
-	})
-
 	t.Run("uses bearer token env var when set", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "dev-test-token")
-		defer os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "")
+		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "dev-test-token", t)
 
 		ds := &mockDataStore{}
 		auth := GetAuthenticator(context.Background(), ds, "license-key")
@@ -261,7 +254,7 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("returns cached token from database when not forced renewal", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "")
+		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
 
 		ds := &mockDataStore{
 			assets: map[fleet.MDMAssetName]fleet.MDMConfigAsset{
@@ -281,7 +274,7 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("requests new token when forced renewal even if cached exists", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "")
+		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
 
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -294,7 +287,7 @@ func TestAuthentication(t *testing.T) {
 			_, _ = w.Write([]byte(`{"fleetServerSecret": "new-token-from-auth"}`))
 		}))
 		defer authServer.Close()
-		os.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", authServer.URL)
+		dev_mode.SetOverride("FLEET_DEV_VPP_PROXY_AUTH_URL", authServer.URL, t)
 
 		ds := &mockDataStore{
 			assets: map[fleet.MDMAssetName]fleet.MDMConfigAsset{
@@ -326,7 +319,7 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("requests new token when nothing in database and no forced renewal", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "")
+		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
 
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -339,7 +332,7 @@ func TestAuthentication(t *testing.T) {
 			_, _ = w.Write([]byte(`{"fleetServerSecret": "fresh-token"}`))
 		}))
 		defer authServer.Close()
-		os.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", authServer.URL)
+		dev_mode.SetOverride("FLEET_DEV_VPP_PROXY_AUTH_URL", authServer.URL, t)
 
 		ds := &mockDataStore{
 			assets: map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, // Empty - no cached token
@@ -363,7 +356,7 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("returns error when auth server fails", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "")
+		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
 
 		// Set up a mock auth server that fails
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -371,7 +364,7 @@ func TestAuthentication(t *testing.T) {
 			_, _ = w.Write([]byte(`{"error": "invalid license"}`))
 		}))
 		defer authServer.Close()
-		os.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", authServer.URL)
+		dev_mode.SetOverride("FLEET_DEV_VPP_PROXY_AUTH_URL", authServer.URL, t)
 
 		ds := &mockDataStore{
 			assets: map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, // Empty
@@ -389,7 +382,7 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("returns error when auth response has empty token", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "")
+		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
 
 		// Set up a mock auth server that returns empty token
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -397,7 +390,7 @@ func TestAuthentication(t *testing.T) {
 			_, _ = w.Write([]byte(`{"fleetServerSecret": ""}`))
 		}))
 		defer authServer.Close()
-		os.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", authServer.URL)
+		dev_mode.SetOverride("FLEET_DEV_VPP_PROXY_AUTH_URL", authServer.URL, t)
 
 		ds := &mockDataStore{
 			assets: map[fleet.MDMAssetName]fleet.MDMConfigAsset{},
@@ -492,7 +485,7 @@ func TestDoRetries(t *testing.T) {
 			})
 
 			start := time.Now()
-			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL"), nil)
+			req, err := http.NewRequest(http.MethodGet, dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL"), nil)
 			require.NoError(t, err)
 			err = do(req, func(forceRenew bool) (string, error) {
 				if forceRenew {
