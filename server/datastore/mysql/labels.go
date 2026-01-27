@@ -609,8 +609,10 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label_type,
 		label_membership_type,
 		author_id,
-		team_id
-	) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )
+		team_id,
+		created_at,
+		updated_at
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -624,6 +626,8 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label.LabelMembershipType,
 		label.AuthorID,
 		label.TeamID,
+		label.CreatedAt,
+		label.UpdatedAt,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting label")

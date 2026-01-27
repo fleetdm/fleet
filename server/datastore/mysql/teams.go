@@ -27,10 +27,11 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		query := `
     INSERT INTO teams (
       name,
-	  filename,
+	  	filename,
       description,
-      config
-    ) VALUES (?, ?, ?, ?)
+      config,
+			created_at
+    ) VALUES (?, ?, ?, ?, ?)
     `
 		result, err := tx.ExecContext(
 			ctx,
@@ -39,6 +40,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 			team.Filename,
 			team.Description,
 			team.Config,
+			team.CreatedAt,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert team")

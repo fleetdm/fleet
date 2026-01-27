@@ -1,0 +1,1 @@
+- Fix created_at and updated_at timestamps on API responses for Label and Team creation.
