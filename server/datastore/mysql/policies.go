@@ -363,9 +363,38 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 		return ctxerr.Wrap(ctx, err, "updating policy labels")
 	}
 
+	// Reset attempt numbers for script/software policy automations
+	if err := resetPolicyAutomationAttempts(ctx, db, p.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting policy automation attempts")
+	}
+
 	return cleanupPolicy(
 		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
 	)
+}
+
+// resetPolicyAutomationAttempts resets all attempt numbers for script and software install executions
+// associated with the given policy.
+func resetPolicyAutomationAttempts(ctx context.Context, db sqlx.ExecerContext, policyID uint) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE host_script_results
+		SET attempt_number = 0
+		WHERE policy_id = ? AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, policyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset script execution attempts for policy")
+	}
+
+	_, err = db.ExecContext(ctx, `
+		UPDATE host_software_installs
+		SET attempt_number = 0
+		WHERE policy_id = ? AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, policyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset software install attempts for policy")
+	}
+
+	return nil
 }
 
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
