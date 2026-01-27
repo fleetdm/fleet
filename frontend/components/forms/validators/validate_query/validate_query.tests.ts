@@ -73,11 +73,11 @@ WITH path_suffixes(path) AS (
   VALUES 
     ('/.cursor/mcp.json'), -- Cursor, macOS/Linux/Windows
     ('/Library/Application Support/Claude/claude_desktop_config.json'), -- Claude Desktop, macOS
-    ('\AppData\Roaming\Claude\claude_desktop_config.json'), -- Claude Desktop, Windows
+    ('\\AppData\\Roaming\\Claude\\claude_desktop_config.json'), -- Claude Desktop, Windows
     ('/.claude.json'), -- Claude Code, macOS/Linux
     ('/Library/Application Support/Code/User/mcp.json'), -- VSCode, macOS
     ('/.config/Code/User/mcp.json'), -- VSCode, Linux
-    ('\AppData\Roaming\Code\User\mcp.json'), -- VSCode, Windows
+    ('\\AppData\\Roaming\\Code\\User\\mcp.json'), -- VSCode, Windows
     ('/.codeium/windsurf/mcp_config.json'), -- Windsurf, macOS
     ('/.gemini/settings.json'), -- Gemini CLI, macOS/Linux/Windows
     ('/.lmstudio/mcp.json') -- LMStudio, macOS/Linux/Windows
