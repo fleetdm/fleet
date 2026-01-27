@@ -17,6 +17,7 @@ import com.example.hello2.core.parseSelectSql
 import com.example.hello2.tables.DemoABTable
 import com.example.hello2.tables.InstalledAppsTable
 import com.example.hello2.tables.PhoneTimeTable
+import com.example.hello2.tables.AppPermissionsTable
 import com.example.hello2.ui.theme.Hello2Theme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -61,6 +62,8 @@ class MainActivity : ComponentActivity() {
         TableRegistry.register(PhoneTimeTable)
         TableRegistry.register(DemoABTable)
         TableRegistry.register(InstalledAppsTable(this))
+        TableRegistry.register(AppPermissionsTable(this))
+
 
         setContent {
             Hello2Theme {
