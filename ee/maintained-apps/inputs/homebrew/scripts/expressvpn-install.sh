@@ -60,10 +60,16 @@ if [ -z "$INSTALLER_APP" ] || [ ! -d "$INSTALLER_APP" ]; then
   exit 1
 fi
 
-# Find the executable in Contents/MacOS/ - prefer any executable with executable permissions
+# Find the executable in Contents/MacOS/ - prefer ExpressVPN, fall back to any executable
 INSTALLER_EXECUTABLE=""
 if [ -d "$INSTALLER_APP/Contents/MacOS" ]; then
-  INSTALLER_EXECUTABLE=$(/usr/bin/find "$INSTALLER_APP/Contents/MacOS" -type f -perm +111 -print -quit 2>/dev/null)
+  # Prefer the main ExpressVPN executable if it exists
+  if [ -x "$INSTALLER_APP/Contents/MacOS/ExpressVPN" ]; then
+    INSTALLER_EXECUTABLE="$INSTALLER_APP/Contents/MacOS/ExpressVPN"
+  else
+    # Fall back to finding any executable with executable permissions
+    INSTALLER_EXECUTABLE=$(/usr/bin/find "$INSTALLER_APP/Contents/MacOS" -type f -perm +111 -print -quit 2>/dev/null)
+  fi
 fi
 
 if [ -z "$INSTALLER_EXECUTABLE" ] || [ ! -x "$INSTALLER_EXECUTABLE" ]; then
@@ -73,7 +79,7 @@ fi
 
 # run the installer
 quit_application 'com.expressvpn.ExpressVPN'
-"$INSTALLER_EXECUTABLE" --quiet
+"$INSTALLER_EXECUTABLE"
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
   echo "Error: Installer exited with code $EXIT_CODE"
