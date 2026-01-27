@@ -58,6 +58,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		credentials_hash,
+		credentials_acknowledged,
 		created_at,
 		updated_at,
 		host_uuid
@@ -89,6 +91,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		credentials_hash,
+		credentials_acknowledged,
 		created_at,
 		updated_at,
 		host_uuid
@@ -2520,4 +2524,32 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 
 		return nil
 	})
+}
+
+func (ds *Datastore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte, acknowledge bool) error {
+	if deviceId == "" {
+		return nil
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_enrollments
+		SET credentials_hash = ?
+		WHERE mdm_device_id = ?`,
+		credentialsHash, deviceId,
+	)
+	return err
+}
+
+func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error {
+	if deviceId == "" {
+		return nil
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_enrollments
+		SET credentials_acknowledged = TRUE
+		WHERE mdm_device_id = ?`,
+		deviceId,
+	)
+	return err
 }
