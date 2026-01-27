@@ -41,7 +41,7 @@ func TestGenerateWithExactPath(t *testing.T) {
 	// Create the actual executable binary in Contents/MacOS/
 	execPath := filepath.Join(macosDir, execName)
 	content := []byte("test file content for hashing")
-	require.NoError(t, os.WriteFile(execPath, content, 0o755))
+	require.NoError(t, os.WriteFile(execPath, content, 0o644))
 
 	h := sha256.New()
 	h.Write(content)
@@ -102,7 +102,7 @@ func TestGenerateWithWildcard(t *testing.T) {
 
 		// Create the actual executable in Contents/MacOS/
 		execPath := filepath.Join(macosDir, bundleInfo.executableName)
-		require.NoError(t, os.WriteFile(execPath, bundleInfo.content, 0o755))
+		require.NoError(t, os.WriteFile(execPath, bundleInfo.content, 0o644))
 
 		h := sha256.New()
 		h.Write(bundleInfo.content)
@@ -110,7 +110,7 @@ func TestGenerateWithWildcard(t *testing.T) {
 		expectedExecPathByBundlePath[bundlePath] = execPath
 	}
 
-	appRows, err := Generate(context.Background(), table.QueryContext{
+	rows, err := Generate(context.Background(), table.QueryContext{
 		Constraints: map[string]table.ConstraintList{
 			colPath: {
 				Constraints: []table.Constraint{{
@@ -120,6 +120,9 @@ func TestGenerateWithWildcard(t *testing.T) {
 			},
 		},
 	})
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+
 	serviceRows, err := Generate(context.Background(), table.QueryContext{
 		Constraints: map[string]table.ConstraintList{
 			colPath: {
@@ -132,7 +135,7 @@ func TestGenerateWithWildcard(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, serviceRows, 2)
-	rows := append(appRows, serviceRows...)
+	rows = append(rows, serviceRows...)
 
 	got := make(map[string]fileInfo, 4)
 	for _, row := range rows {
