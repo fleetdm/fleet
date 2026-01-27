@@ -1,6 +1,10 @@
 ## fleetd-chrome 1.3.5 (Jan 27, 2026)
 
-* Updated inquirer dependency version to resolve vulnerabilities
+* Updated Lodash dependency version to resolve vulnerabilities.
+
+## fleetd-chrome 1.3.4 (Jan 23, 2026)
+
+* Updated inquirer dependency version to resolve vulnerabilities.
 
 ## fleetd-chrome 1.3.3 (August 8, 2025)
 
