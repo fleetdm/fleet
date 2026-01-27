@@ -1588,6 +1588,22 @@ func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTea
 	return params
 }
 
+func GetEndUserIdpFullName(ctx context.Context, ds Datastore, hostID uint) (string, error) {
+	endUsers, err := GetEndUsers(ctx, ds, hostID)
+	if err != nil {
+		return "", fmt.Errorf("getting host end user idp name: %w", err)
+	}
+
+	// There can be multiple end users, but should only be a single idp user
+	for _, eu := range endUsers {
+		if eu.IdpFullName != "" {
+			return eu.IdpFullName, nil
+		}
+	}
+
+	return "", nil
+}
+
 func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser, error) {
 	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
 	if err != nil && !IsNotFound(err) {

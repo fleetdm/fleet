@@ -139,6 +139,7 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		fmt.Println("auth")
 		return nil, err
 	}
 
@@ -239,6 +240,23 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	}
 
 	return software, nil
+}
+
+func (svc *Service) SoftwareTitleNameForHostFilter(
+	ctx context.Context,
+	id uint,
+) (name, displayName string, err error) {
+	// Intentionally skip team-scoped inventory auth: only minimal title name.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return "", "", err
+	}
+
+	name, displayName, err = svc.ds.SoftwareTitleNameForHostFilter(ctx, id)
+	if err != nil {
+		return "", "", err
+	}
+
+	return name, displayName, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

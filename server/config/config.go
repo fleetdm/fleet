@@ -658,6 +658,7 @@ type FleetConfig struct {
 	Calendar                   CalendarConfig
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
 
 	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	Packaging PackagingConfig
@@ -670,6 +671,33 @@ func (f FleetConfig) OTELEnabled() bool {
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
 	EnablePrimo       bool `yaml:"enable_primo"`
+}
+
+// Certificate serial number format constants for conditional access
+const (
+	CertSerialFormatHex     = "hex"
+	CertSerialFormatDecimal = "decimal"
+)
+
+// ConditionalAccessConfig holds the server configuration for the Okta conditional access feature.
+type ConditionalAccessConfig struct {
+	// CertSerialFormat specifies the format for parsing certificate serial numbers from
+	// the X-Client-Cert-Serial header. AWS ALB sends hex format, while Caddy sends decimal.
+	// Valid values: "hex" (default), "decimal"
+	CertSerialFormat string `yaml:"cert_serial_format"`
+}
+
+// Validate checks that the ConditionalAccessConfig has valid values.
+func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string)) {
+	switch c.CertSerialFormat {
+	case CertSerialFormatHex, CertSerialFormatDecimal:
+		return
+	default:
+		initFatal(
+			fmt.Errorf("%q is not a valid value (must be %q or %q)", c.CertSerialFormat, CertSerialFormatHex, CertSerialFormatDecimal),
+			"conditional_access.cert_serial_format",
+		)
+	}
 }
 
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
@@ -1556,6 +1584,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
+
+	// Conditional Access
+	man.addConfigString("conditional_access.cert_serial_format", "hex",
+		"Format for parsing certificate serial numbers from X-Client-Cert-Serial header: 'hex' (default, used by AWS ALB) or 'decimal' (used by Caddy)")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1865,6 +1897,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
 			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+		},
+		ConditionalAccess: ConditionalAccessConfig{
+			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
 		},
 	}
 

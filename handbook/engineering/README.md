@@ -165,20 +165,6 @@ Mitigating the outage may require writing and merging code. The current infrastr
 
 ### Create a release candidate
 
-Fleet responds to all P0 incidents by initiating our incident response process: 
-
-1. Create a new incident response issue in our confidential repo. 
-2. Edit the issue template to reflect the details of the incident. 
-3. Assign to the on-call engineer that received the incident for initial triage, as well as the current infrastrucure on-call engineer. 
-4. Complete the steps listed based on the type of incident.
-
-Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
-
-> If outside of business hours, the responding engineer should notify their manager using incident.io to bypass Do Not Disturb mode.
-
-
-### Create a release candidate
-
 All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
 1. [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.

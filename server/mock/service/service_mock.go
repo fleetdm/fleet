@@ -255,6 +255,8 @@ type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error
 
 type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
+type BypassConditionalAccessFunc func(ctx context.Context, host *fleet.Host) error
+
 type GetDeviceSoftwareIconsTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
 type DisableAuthForPingFunc func(ctx context.Context)
@@ -454,6 +456,8 @@ type SaveHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.H
 type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error)
+
+type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint) (name string, displayName string, err error)
 
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
@@ -1230,6 +1234,9 @@ type Service struct {
 	ListDevicePoliciesFunc        ListDevicePoliciesFunc
 	ListDevicePoliciesFuncInvoked bool
 
+	BypassConditionalAccessFunc        BypassConditionalAccessFunc
+	BypassConditionalAccessFuncInvoked bool
+
 	GetDeviceSoftwareIconsTitleIconFunc        GetDeviceSoftwareIconsTitleIconFunc
 	GetDeviceSoftwareIconsTitleIconFuncInvoked bool
 
@@ -1529,6 +1536,9 @@ type Service struct {
 
 	SoftwareTitleByIDFunc        SoftwareTitleByIDFunc
 	SoftwareTitleByIDFuncInvoked bool
+
+	SoftwareTitleNameForHostFilterFunc        SoftwareTitleNameForHostFilterFunc
+	SoftwareTitleNameForHostFilterFuncInvoked bool
 
 	InstallSoftwareTitleFunc        InstallSoftwareTitleFunc
 	InstallSoftwareTitleFuncInvoked bool
@@ -2989,6 +2999,13 @@ func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*
 	return s.ListDevicePoliciesFunc(ctx, host)
 }
 
+func (s *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.BypassConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.BypassConditionalAccessFunc(ctx, host)
+}
+
 func (s *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
 	s.mu.Lock()
 	s.GetDeviceSoftwareIconsTitleIconFuncInvoked = true
@@ -3687,6 +3704,13 @@ func (s *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) 
 	s.SoftwareTitleByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID)
+}
+
+func (s *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name string, displayName string, err error) {
+	s.mu.Lock()
+	s.SoftwareTitleNameForHostFilterFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftwareTitleNameForHostFilterFunc(ctx, id)
 }
 
 func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {

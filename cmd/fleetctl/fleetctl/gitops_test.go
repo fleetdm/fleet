@@ -1116,7 +1116,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedMacProfiles, 1)
 	assert.Len(t, appliedWinProfiles, 1)
 	require.Len(t, savedAppConfig.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].ApiKey["client_email"])
+	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["client_email"])
 	assert.True(t, savedAppConfig.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Equal(t, 60, savedAppConfig.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
