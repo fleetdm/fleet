@@ -96,4 +96,4 @@ The device will update its hostname the next time it checks in with Fleet.
 <meta name="authorFullName" value="Kitzy">
 <meta name="publishedOn" value="2026-01-26">
 <meta name="articleTitle" value="Set a device hostname via the Fleet API">
-<meta name="description" value="Learn how to rename macOS, iOS, and iPadOS devices using Fleet's API. Send MDM commands to enforce naming conventions across your managed Apple devices.">
+<meta name="description" value="Use Fleet's API to set device hostnames on macOS, iOS, and iPadOS. This guide walks through building and sending the MDM command to rename devices.">
