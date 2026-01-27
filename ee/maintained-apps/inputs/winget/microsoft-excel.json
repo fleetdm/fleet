@@ -7,7 +7,9 @@
   "installer_type": "exe",
   "installer_scope": "machine",
   "ignore_hash": true,
-  "default_categories": ["Productivity"],
+  "default_categories": [
+    "Productivity"
+  ],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_excel_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_excel_uninstall.ps1"
 }
