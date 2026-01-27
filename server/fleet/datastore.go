@@ -602,6 +602,7 @@ type Datastore interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
 	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
 	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
@@ -781,6 +782,8 @@ type Datastore interface {
 	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
 	// statistics.
 	CleanupStatistics(ctx context.Context) error
+	// GetTableRowCounts returns approximate DB row counts for all tables in a map indexed by table name
+	GetTableRowCounts(ctx context.Context) (map[string]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
@@ -822,6 +825,15 @@ type Datastore interface {
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
+
+	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
+	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
+	// ConditionalAccessConsumeBypass consumes the bypass checks and consumes any conditional access
+	// bypass a device has. If a bypass is present, it will return the time the bypass was enabled.
+	// If a bypass is not present, it will return nil.
+	ConditionalAccessConsumeBypass(ctx context.Context, hostID uint) (*time.Time, error)
+	// ConditionalAccessClearBypasses clears all conditional access bypasses from the database
+	ConditionalAccessClearBypasses(ctx context.Context) error
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error

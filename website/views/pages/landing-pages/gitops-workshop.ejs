@@ -1,0 +1,148 @@
+<div id="gitops-workshop" v-cloak>
+  <div purpose="landing-page-container">
+    <div purpose="landing-page-content">
+      <div purpose="landing-page-hero">
+        <div purpose="page-hero-content">
+          <div purpose="page-hero-headings">
+            <h4>GitOps Workshop</h4>
+            <h1>See every change, undo any error, repeat every success</h1>
+          </div>
+          <div purpose="page-hero-text">
+            <p>Device management is evolving. Master the principles of configuration-as-code for managing devices at scale.</p>
+          </div>
+          <div purpose="workshop-details">
+            <div purpose="details-box">
+              <img alt="A stopwatch" src="/images/icon-timer-21x24@2x.png">
+              <p>Session</p>
+              <h4>4hrs</h4>
+            </div>
+
+            <div purpose="details-box">
+              <img alt="An icon representing a person" src="/images/icon-person-19x24@2x.png">
+              <p>Persons</p>
+              <h4>~20</h4>
+            </div>
+          </div>
+        </div>
+        <div purpose="page-hero-image">
+          <img alt="GitOps workshop" src="/images/gitops-training-hero-471x471@2x.png">
+        </div>
+      </div>
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Upcoming workshops</h2>
+          <p>Join our hands-on workshop and earn your Fleet GitOps Level 1 Certificate.</p>
+        </div>
+        <div purpose="event-cards">
+          <%if(futureGitopsWorkshops.length > 0){%>
+            <% for(let event of futureGitopsWorkshops) { %>
+              <div purpose="event-card">
+                  <p purpose="event-city">
+                    <%= event.workshopCity %>
+                  </p>
+                <div purpose="event-details">
+                  <div purpose="event-location">
+                  <img alt="Location icon" src="/images/icon-location-16x16@2x.png">
+                  <p>
+                    <%= event.workshopAddress %>
+                  </p>
+                  </div>
+                  <div purpose="event-time">
+                  <img alt="Calendar icon" src="/images/icon-calendar-16x16@2x.png">
+                  <p>
+                    <%= event.eventTime %>
+                  </p>
+                  </div>
+                </div>
+                <div purpose="event-link">
+                  <a href="<%= event.eventbriteLink %>" target="_blank">
+                    Join workshop
+                  </a>
+                </div>
+              </div>
+            <% } %>
+          <% } %>
+          <div purpose="event-cta">
+            <!-- <div purpose="event-cta-body"> -->
+            <div>
+              <h3>Nothing nearby?</h3>
+              <p>Request a workshop in your area.</p>
+            </div>
+            <a class="btn btn-primary" href="/contact#gitops">Request a workshop</a>
+            <!-- </div> -->
+          </div>
+        </div>
+
+      </div>
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Why use GitOps</h2>
+        </div>
+        <div purpose="three-column-list">
+          <div purpose="feature">
+            <p purpose="feature-headline">Deliver configurations fast</p>
+            <p purpose="feature-text">Organizations must have efficient change management processes to comply with laws and regulations, limit liability, and protect assets.</p>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">Control compliance and security</p>
+            <p purpose="feature-text">Experienced CPE teams are tightening security and data collection, making it increasingly difficult to manage devices with a GUI alone.</p>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">Optimize end user experience</p>
+            <p purpose="feature-text">Controlling a device management console with configuration-as-code improves compliance, handles complexity, and allows you to automate and version control your work.</p>
+          </div>
+        </div>
+      </div>
+      <div purpose="landing-page-large-section">
+        <div purpose="section-heading">
+          <h2>What to expect</h2>
+          <p>The Fleet GitOps Level 1 course is a 4-hour session open to technology practitioners who are new to configuration-as-code concepts. It is primarily intended for experienced client platform engineers & systems administrators currently in device management roles.</p>
+        </div>
+        <div purpose="details-cards">
+          <div purpose="details-card">
+            <p purpose="card-heading">What you'll need</p>
+            <ul>
+              <li>Familiarity with code editing and command line tools</li>
+              <li>A basic understanding of git repository management</li>
+              <li>A <a href="https://github.com" target="_blank" no-icon>GitHub.com</a> account</li>
+              <li>A laptop with a modern code editor and web browser</li>
+              <li>The GitHub Desktop app</li>
+            </ul>
+          </div>
+          <div purpose="details-card">
+            <p purpose="card-heading">Course overview</p>
+            <ul>
+              <li>Connect your Fleet instance to a git repo</li>
+              <li>Set workflow environment variables</li>
+              <li>Use automations to modify the Fleet console</li>
+              <li>Build configurations to gain your certification</li>
+            </ul>
+          </div>
+
+
+
+        </div>
+      </div>
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>What you’ll gain</h2>
+        </div>
+        <div purpose="three-column-list">
+          <div purpose="feature">
+            <p purpose="feature-headline">Marketable skills</p>
+            <p purpose="feature-text">Top tech companies use GitOps for managing infrastructure, CI/CD pipelines and more. Understand how to use these techniques for device management.</p>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">A solid foundation</p>
+            <p purpose="feature-text">Device management is often difficult to audit and undo. Learn how to make your work observable and reversible. Use automations to repeat success and reduce maintenance.</p>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">A better way</p>
+            <p purpose="feature-text">Fleet is purpose-built for GitOps. Learn how to manage Fleet through configuration-as-code and the principles of GitOps.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
