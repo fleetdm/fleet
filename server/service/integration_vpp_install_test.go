@@ -2190,7 +2190,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 			"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"ios": {"bundleId": "app-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
 		}
 
-		stubbedConfig := apple_apps.StubbedConfig(s.appleVPPProxySrv.URL) // authentication is tested elsewhere
+		stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
 		err = vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
 		require.NoError(t, err)
 

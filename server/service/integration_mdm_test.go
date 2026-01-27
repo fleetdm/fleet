@@ -180,6 +180,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 
 	fleetCfg := config.TestConfig()
+	fleetCfg.MDM.AppleConnectJWT = "fake-token" // skip as we test VPP auth elsewhere
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(s.T(), err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -706,8 +707,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Setenv("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL)
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", s.appleVPPProxySrv.URL)
-	// Set a static bearer token so the authenticator doesn't try to call an auth endpoint (tested elsewhere)
-	s.T().Setenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "test-bearer-token")
 
 	s.mockedDownloadFleetdmMeta = fleetdbase.Metadata{
 		MSIURL:           fmt.Sprintf("https://download-testing.fleetdm.com/archive/stable/%s/fleetd-base.msi", uuid.NewString()),
@@ -17803,7 +17802,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
-	stubbedConfig := apple_apps.StubbedConfig(s.appleVPPProxySrv.URL) // authentication is tested elsewhere
+	stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
 
 	// Set up VPP token
 	orgName := "Fleet Device Management Inc."
@@ -17917,7 +17916,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		"3": `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "b-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`,
 	}
 
-	stubbedConfig := apple_apps.StubbedConfig(s.appleVPPProxySrv.URL) // authentication is tested elsewhere
+	stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
 
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
