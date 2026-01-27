@@ -282,8 +282,8 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 			UniqueIdentifier: "Internet Exploder",
 		}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	// Mock server to serve the "installer"
@@ -368,8 +368,8 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 			UniqueIdentifier: "com.example.dummy",
 		}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	// Mock server to serve the dummy package
