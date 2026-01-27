@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -346,7 +347,8 @@ func TestGzipResponses(t *testing.T) {
 			for i := range data {
 				data[i] = 'a'
 			}
-			w.Write(data)
+			_, err := w.Write(data)
+			require.NoError(t, err)
 		}))
 	}
 
@@ -365,8 +367,7 @@ func TestGzipResponses(t *testing.T) {
 			req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
 			require.NoError(t, err)
 			req.Header.Set("Accept-Encoding", "gzip")
-			client := http.Client{}
-			resp, err := client.Do(req)
+			resp, err := fleethttp.NewClient().Do(req)
 			require.NoError(t, err)
 			defer resp.Body.Close()
 
@@ -377,11 +378,10 @@ func TestGzipResponses(t *testing.T) {
 			req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
 			require.NoError(t, err)
 			// Do NOT set Accept-Encoding header
-			client := http.Client{
-				Transport: &http.Transport{
-					DisableCompression: true, // Prevents automatic addition of Accept-Encoding: gzip
-				},
-			}
+			transport := fleethttp.NewTransport()
+			transport.DisableCompression = true // Prevents automatic addition of Accept-Encoding: gzip
+			client := fleethttp.NewClient()
+			client.Transport = transport
 			resp, err := client.Do(req)
 			require.NoError(t, err)
 			defer resp.Body.Close()
@@ -404,8 +404,7 @@ func TestGzipResponses(t *testing.T) {
 		req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
 		require.NoError(t, err)
 		req.Header.Set("Accept-Encoding", "gzip")
-		client := http.Client{}
-		resp, err := client.Do(req)
+		resp, err := fleethttp.NewClient().Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
