@@ -1982,7 +1982,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	// generate username and password for device management service
 	username := reqDeviceID
 	password := uuid.NewString()
-	credentialsHash := md5.Sum([]byte(fmt.Sprintf("%s:%s", username, password)))
+	credentialsHash := md5.Sum(fmt.Appendf(nil, "%s:%s", username, password)) //nolint:gosec // Windows MDM Auth uses MD5
 
 	// Preparing the Application Provisioning information
 	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint, username, password)
