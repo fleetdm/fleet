@@ -32,6 +32,7 @@ import { IInputFieldParseTarget } from "interfaces/form_field";
 import SectionCard from "../MdmSettings/components/SectionCard";
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "conditional-access";
 
@@ -475,35 +476,37 @@ const ConditionalAccess = () => {
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Conditional access" />
-      <p className={`${baseClass}__page-description`}>
-        Block hosts failing policies from logging in with single sign-on. Once
-        connected, enable or disable on the{" "}
-        <CustomLink url={paths.MANAGE_POLICIES} text="Policies" /> page.
-      </p>
-      {renderContent()}
-      {showEntraModal && (
-        <EntraConditionalAccessModal
-          onCancel={toggleEntraModal}
-          onSuccess={handleEntraModalSuccess}
-        />
-      )}
-      {showOktaModal && (
-        <OktaConditionalAccessModal
-          onCancel={toggleOktaModal}
-          onSuccess={handleOktaModalSuccess}
-        />
-      )}
-      {providerToDelete && (
-        <DeleteConditionalAccessModal
-          onDelete={onDeleteConditionalAccess}
-          toggleDeleteConditionalAccessModal={toggleDeleteModal}
-          provider={providerToDelete}
-          config={config}
-        />
-      )}
+      <div className={`${baseClass}__connections`}>
+        <SectionHeader title="Conditional access" />
+        <p className={`${baseClass}__page-description`}>
+          Block hosts failing policies from logging in with single sign-on. Once
+          connected, enable or disable on the{" "}
+          <CustomLink url={paths.MANAGE_POLICIES} text="Policies" /> page.
+        </p>
+        {renderContent()}
+        {showEntraModal && (
+          <EntraConditionalAccessModal
+            onCancel={toggleEntraModal}
+            onSuccess={handleEntraModalSuccess}
+          />
+        )}
+        {showOktaModal && (
+          <OktaConditionalAccessModal
+            onCancel={toggleOktaModal}
+            onSuccess={handleOktaModalSuccess}
+          />
+        )}
+        {providerToDelete && (
+          <DeleteConditionalAccessModal
+            onDelete={onDeleteConditionalAccess}
+            toggleDeleteConditionalAccessModal={toggleDeleteModal}
+            provider={providerToDelete}
+            config={config}
+          />
+        )}
+      </div>
       {(oktaConfigured || entraPhase === EntraPhase.Configured) && (
-        <>
+        <div className={`${baseClass}__end-user-experience`}>
           <SectionHeader title="End user experience" />
           <form onSubmit={handleSaveBypassSettings}>
             <Checkbox
@@ -512,7 +515,25 @@ const ConditionalAccess = () => {
               value={bypassDisabled}
               parseTarget
             >
-              Disable bypass
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    When enabled, end users will have the option to bypass Okta
+                    conditional access if they are unable to resolve failing
+                    policies.{" "}
+                    <em>
+                      (Default: <strong>Off</strong>)
+                    </em>
+                    <br />
+                    <br />
+                    Bypassing is valid for a single login attempt and is tracked
+                    in audit logs.
+                  </>
+                }
+                showArrow={false}
+              >
+                Disable bypass
+              </TooltipWrapper>
             </Checkbox>
             <p className={`${baseClass}__checkbox-description`}>
               When enabled, end users cannot bypass conditional access.
@@ -528,7 +549,7 @@ const ConditionalAccess = () => {
               Save
             </Button>
           </form>
-        </>
+        </div>
       )}
     </div>
   );
