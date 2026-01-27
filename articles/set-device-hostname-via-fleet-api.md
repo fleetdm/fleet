@@ -97,7 +97,13 @@ Submit the encoded command to Fleet. For complete endpoint details, see the [Run
 }
 ```
 
-You can include multiple UUIDs in the `host_uuids` array to rename several devices at once.
+To rename multiple devices at once, include multiple UUIDs separated by commas in the `host_uuids` array:
+```json
+{
+  "command": "{base64_encoded_command}",
+  "host_uuids": ["{host_uuid_1}", "{host_uuid_2}", "{host_uuid_3}"]
+}
+```
 
 The device will update its hostname the next time it checks in with Fleet.
 
