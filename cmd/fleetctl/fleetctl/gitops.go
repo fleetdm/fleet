@@ -35,7 +35,7 @@ func gitopsCommand() *cli.Command {
 	)
 	return &cli.Command{
 		Name:      "gitops",
-		Usage:     "Synchronize Fleet configuration with provided file. This command is intended to be used in a GitOps workflow.",
+		Usage:     "This command is used by Fleet's best practice GitOps workflow.",
 		UsageText: `fleetctl gitops [options]`,
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
@@ -43,7 +43,7 @@ func gitopsCommand() *cli.Command {
 				Required:    true,
 				EnvVars:     []string{"FILENAME"},
 				Destination: &flFilenames,
-				Usage:       "The file(s) with the GitOps configuration.",
+				Usage:       "The file(s) with the GitOps configuration. Files are expected to use the .yml extension. Files ending in .yaml will not be evaluated unless passed in individually as arguments to fleetctl gitops -f.",
 			},
 			&cli.BoolFlag{
 				Name:        "delete-other-teams",
