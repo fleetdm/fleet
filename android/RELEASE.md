@@ -55,8 +55,10 @@ Output: `app/build/outputs/bundle/release/app-release.aab`
 2. Select the Fleet app (`com.fleetdm.agent`).
 3. Navigate to Release > Production.
 4. Upload the signed .aab file.
-5. Add release notes.
-6. Review and roll out.
+5. Add release notes at the bottom of the page.
+6. Select save, then select **Go to overview** in the modal that pops up.
+7. You'll be redirected to **Publishing overview** page, where you need to select **Sent to review**.
+6. After Google approves the app, they will send an email tothe  main Google Play console account.
 
 ## 8. Tag the release
 
