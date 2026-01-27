@@ -248,7 +248,6 @@ func TestInstallSoftwareTitle(t *testing.T) {
 }
 
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
-	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
