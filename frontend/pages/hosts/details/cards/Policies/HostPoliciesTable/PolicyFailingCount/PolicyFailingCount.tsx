@@ -17,25 +17,46 @@ const PolicyFailingCount = ({
   const failCount = policyList.reduce((sum, policy) => {
     return policy.response === "fail" ? sum + 1 : sum;
   }, 0);
+  const blockingCount = policyList.reduce((sum, policy) => {
+    return policy.response === "fail" && policy.conditional_access_enabled
+      ? sum + 1
+      : sum;
+  }, 0);
+
+  const message =
+    blockingCount === 0 ? (
+      <span>
+        <strong>
+          This device is failing
+          {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
+        </strong>
+        <br />
+        Click a policy below to see if there are steps you can take to resolve
+        the issue
+        {failCount > 1 ? "s" : ""}.
+        {deviceUser && " Once resolved, click “Refetch” above to confirm."}
+      </span>
+    ) : (
+      <span>
+        <strong>
+          {blockingCount === 1
+            ? "1 policy is "
+            : `${blockingCount} policies are `}
+          blocking login
+        </strong>
+        <br />
+        To restore access, click on the policies makes &quot;Action
+        required&quot; and follow the resolution steps.
+        {deviceUser && 'Once resolved, click "Refetch" to check status.'}
+      </span>
+    );
 
   return failCount ? (
     <InfoBanner className={baseClass} color="grey" borderRadius="xlarge">
       <IconStatusMessage
         iconName="error-outline"
         iconColor="ui-fleet-black-50"
-        message={
-          <span>
-            <strong>
-              This device is failing
-              {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
-            </strong>
-            <br />
-            Click a policy below to see if there are steps you can take to
-            resolve the issue
-            {failCount > 1 ? "s" : ""}.
-            {deviceUser && " Once resolved, click “Refetch” above to confirm."}
-          </span>
-        }
+        message={message}
       />
     </InfoBanner>
   ) : null;

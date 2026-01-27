@@ -97,6 +97,11 @@ import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDe
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
+import Modal from "components/Modal";
+import Button from "components/buttons/Button";
+import BypassModal from "./BypassModal";
+import { AppContext } from "context/app";
+import endpoints from "utilities/endpoints";
 
 const baseClass = "device-user";
 
@@ -148,6 +153,9 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
+  const { config } = useContext(AppContext);
+
+  const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
@@ -433,6 +441,14 @@ const DeviceUserPage = ({
       select: (data) => data.enroll_url,
     }
   );
+
+  const { bypassConditionalAccess } = deviceUserAPI;
+
+  const [isLoadingBypass, setIsLoadingBypass] = useState(false);
+
+  const toggleShowBypassModal = useCallback(() => {
+    setShowBypassModal(!showBypassModal);
+  }, [showBypassModal, setShowBypassModal]);
 
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
@@ -833,6 +849,10 @@ const DeviceUserPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
+            onResolveLater={() => {
+              onCancelPolicyDetailsModal();
+              setShowBypassModal(true);
+            }}
           />
         )}
         {!!host && showOSSettingsModal && (
@@ -936,6 +956,30 @@ const DeviceUserPage = ({
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
       {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+      {showBypassModal && (
+        <BypassModal
+          onCancel={toggleShowBypassModal}
+          onResolveLater={async () => {
+            setIsLoadingBypass(true);
+            try {
+              await bypassConditionalAccess(deviceAuthToken);
+              renderFlash(
+                "success",
+                "Access has been temporarily restored. You may now attempt to sign in again."
+              );
+            } catch {
+              renderFlash(
+                "error",
+                `Couldn't restore access. Please click "Refetch" and try again.`
+              );
+            } finally {
+              setIsLoadingBypass(false);
+              setShowBypassModal(false);
+            }
+          }}
+          isLoading={isLoadingBypass}
+        />
+      )}
     </div>
   );
 };

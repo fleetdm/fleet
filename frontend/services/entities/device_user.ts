@@ -195,4 +195,9 @@ export default {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
   },
+
+  bypassConditionalAccess: (token: string) => {
+    const { DEVICE_BYPASS_CONDITIONAL_ACCESS } = endpoints;
+    return sendRequest("POST", DEVICE_BYPASS_CONDITIONAL_ACCESS(token));
+  },
 };

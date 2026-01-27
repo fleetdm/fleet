@@ -8,6 +8,7 @@ import ClickableUrls from "components/ClickableUrls/ClickableUrls";
 interface IPolicyDetailsProps {
   onCancel: () => void;
   policy: IHostPolicy | null;
+  onResolveLater?: () => void;
 }
 
 const baseClass = "policy-details-modal";
@@ -15,6 +16,7 @@ const baseClass = "policy-details-modal";
 const PolicyDetailsModal = ({
   onCancel,
   policy,
+  onResolveLater,
 }: IPolicyDetailsProps): JSX.Element => {
   return (
     <Modal
@@ -35,6 +37,11 @@ const PolicyDetailsModal = ({
         )}
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
+          {policy?.conditional_access_enabled && onResolveLater && (
+            <Button onClick={onResolveLater} variant="inverse">
+              Resolve later
+            </Button>
+          )}
         </div>
       </div>
     </Modal>
