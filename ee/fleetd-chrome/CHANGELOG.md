@@ -1,3 +1,7 @@
+## fleetd-chrome 1.3.5 (Jan 27, 2026)
+
+* Updated inquirer dependency version to resolve vulnerabilities
+
 ## fleetd-chrome 1.3.3 (August 8, 2025)
 
 * Fixed a bug which caused fleetd-chrome to fail enrollment.
