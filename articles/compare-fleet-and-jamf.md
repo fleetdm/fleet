@@ -44,7 +44,7 @@ Jamf provides an App Catalog and integrated Apps and Books distribution for volu
 
 Fleet provides software management through Fleet-maintained apps and also includes Apps and Books distribution for volume purchasing from App Stores.
 
-Both solutions provide the ability to upload custom software packages for installation and scripting capabilities for automation. This ensures that complex software (e.g., security applications like CrowdStrike) can be customized during installation.
+Both solutions provide the ability to upload custom software packages for installation and scripting capabilities for automation. This ensures that complex software (e.g., security applications like [CrowdStrike](/guides/deploying-crowdstrike-with-fleet)) can be customized during installation.
 
 ### Security and compliance
 
@@ -54,7 +54,7 @@ Jamf's security products make use of Apple's native Endpoint Security Framework 
 
 Fleet approaches security and compliance through built-in software vulnerability detection and the power of osquery reporting combined with automation capabilities for enforcing and remediating controls on top of complete support for Apple's MDM specification (which includes control over basic security features like FileVault and Gatekeeper.)
 
-These combined Fleet capabilities make it straight-forward to enforce compliance baselines using frameworks like CIS or STIG. Threat detection in Fleet works through the creation of queries to find attributes, device processes, file systems, network configurations, malware detection via YARA-based signature matching, and vulnerability intelligence. Security monitoring, data collection, SIEM integration and all other Fleet capabilities are included under a single license at no additional cost. Fleet provides visibility into software inventories, file system events, connected hardware, firewall status and virtually any imaginable attribute of any device via the Fleet osquery data table schema.
+These combined Fleet capabilities make it straight-forward to enforce compliance baselines using frameworks like [CIS](/guides/cis-benchmarks) or STIG. Threat detection in Fleet works through the creation of queries to find attributes, device processes, file systems, network configurations, malware detection via [YARA-based signature matching](/guides/remote-yara-rules), and vulnerability intelligence. Security monitoring, data collection, SIEM integration and all other Fleet capabilities are included under a single license at no additional cost. Fleet provides visibility into software inventories, file system events, connected hardware, firewall status and virtually any imaginable attribute of any device via the [Fleet osquery data table schema](/tables).
 
 ## Single-platform vs. cross-platform support
 
@@ -68,7 +68,7 @@ Fleet offers comprehensive cross-platform coverage for Linux, macOS, iOS, iPadOS
 
 #### What's the main difference between a single-platform device management solution and a cross-platform device management solution?
 
-Specialized MDM solutions focus on one device ecosystem. Cross-platform MDM solutions provide unified management across different operating systems from a single console. [Try Fleet](/register) to see how cross-platform management can work in your environment.
+Specialized MDM solutions focus on one device ecosystem. Cross-platform MDM solutions provide unified management across different operating systems from a single console. [Try Fleet](/try-fleet) to see how cross-platform management can work in your environment.
 
 #### Can cross-platform device management solutions manage Apple devices as effectively as Apple-specialized platforms?
 
@@ -88,8 +88,8 @@ Implementation and migration timelines vary based on fleet size and organization
 
 <meta name="articleTitle" value="Fleet vs. Jamf"> 
 <meta name="articleSubtitle" value="How to choose the right MDM">
-<meta name="authorFullName" value="FleetDM">
-<meta name="authorGitHubUsername" value="fleet-release">
+<meta name="authorFullName" value="Brock Walters">
+<meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="articleSlugInCategory" value="jamf"> 
 <meta name="introductionTextBlockOne" value="Organizations managing Apple devices face a choice: pick one of a number of available Apple device management solutions, or, a solution with cross-platform capabilities."> 
 <meta name="introductionTextBlockTwo" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria."> 
