@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "15.73.5",
+      "version": "15.74.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer';"
       },
-      "installer_url": "https://dl.teamviewer.com/download/version_15x/update/15.73.5/TeamViewer.pkg",
+      "installer_url": "https://dl.teamviewer.com/download/version_15x/update/15.74.3/TeamViewer.pkg",
       "install_script_ref": "a885afbc",
       "uninstall_script_ref": "39d666d5",
-      "sha256": "a1d03ecf7abe1d96bbcc3876c376da7517823687e6d595acc321fdbdc3907759",
+      "sha256": "f2b2c844b5b205091cf22e966338538f29f1ef9ef6910325119fdadf1b1a5f1a",
       "default_categories": [
         "Communication"
       ]
