@@ -48,33 +48,38 @@ unzip "$INSTALLER_PATH" -d "$TMPDIR"
 
 # discover the installer app by finding any .app that contains an installer executable
 INSTALLER_APP=""
-INSTALLER_EXECUTABLE=""
 for app in "$TMPDIR"/*.app; do
-  if [ -d "$app" ]; then
-    # Look for executable in Contents/MacOS/
-    for executable in "$app/Contents/MacOS"/*; do
-      if [ -f "$executable" ] && [ -x "$executable" ]; then
-        INSTALLER_APP="$app"
-        INSTALLER_EXECUTABLE="$executable"
-        break 2
-      fi
-    done
+  if [ -d "$app" ] && [ -d "$app/Contents/MacOS" ]; then
+    INSTALLER_APP="$app"
+    break
   fi
 done
 
-# run the installer if found
-if [ -n "$INSTALLER_APP" ] && [ -n "$INSTALLER_EXECUTABLE" ] && [ -f "$INSTALLER_EXECUTABLE" ]; then
-  quit_application 'com.expressvpn.ExpressVPN'
-  "$INSTALLER_EXECUTABLE" --quiet
-  EXIT_CODE=$?
-  if [ $EXIT_CODE -ne 0 ]; then
-    echo "Error: Installer exited with code $EXIT_CODE"
-    exit $EXIT_CODE
-  fi
-  # cleanup: remove the installer app after successful installation
-  rm -rf "$INSTALLER_APP"
-else
+if [ -z "$INSTALLER_APP" ] || [ ! -d "$INSTALLER_APP" ]; then
   echo "Error: Installer app not found in $TMPDIR"
   exit 1
 fi
+
+# Find the executable in Contents/MacOS/ - prefer any executable with executable permissions
+INSTALLER_EXECUTABLE=""
+if [ -d "$INSTALLER_APP/Contents/MacOS" ]; then
+  INSTALLER_EXECUTABLE=$(/usr/bin/find "$INSTALLER_APP/Contents/MacOS" -type f -perm +111 -print -quit 2>/dev/null)
+fi
+
+if [ -z "$INSTALLER_EXECUTABLE" ] || [ ! -x "$INSTALLER_EXECUTABLE" ]; then
+  echo "Error: Installer executable not found in $INSTALLER_APP/Contents/MacOS"
+  exit 1
+fi
+
+# run the installer
+quit_application 'com.expressvpn.ExpressVPN'
+"$INSTALLER_EXECUTABLE" --quiet
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "Error: Installer exited with code $EXIT_CODE"
+  exit $EXIT_CODE
+fi
+
+# cleanup: remove the installer app after successful installation
+rm -rf "$INSTALLER_APP"
 
