@@ -47,8 +47,6 @@ Build an XML payload using Apple's Settings MDM command. Replace `NEW-HOSTNAME` 
             </dict>
         </array>
     </dict>
-    <key>CommandUUID</key>
-    <string>0001_Settings</string>
 </dict>
 </plist>
 ```
