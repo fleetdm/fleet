@@ -261,6 +261,11 @@ const ConditionalAccess = () => {
       return;
     }
 
+    // Don't override the error state if configuration is not done yet
+    if (entraPhase === EntraPhase.ConfirmationError && !entraConfigured) {
+      return;
+    }
+
     // Don't override if we just successfully confirmed (phase is Configured but config not yet updated)
     // However, if the tenant ID is removed (deleted), we should still update to NotConfigured
     if (
