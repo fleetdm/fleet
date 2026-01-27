@@ -123,7 +123,6 @@ func (c *TestWindowsMDMClient) StartManagementSession() (map[string]fleet.ProtoC
 			return nil, fmt.Errorf("converting session ID to int: %w", err)
 		}
 	}
-	// TODO: Do we want to always send the cred? Or mimic the protocol as much as possible
 	managementReq := []byte(`
 <SyncML xmlns="SYNCML:SYNCML1.2">
 <SyncHdr>
