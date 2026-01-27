@@ -35,6 +35,9 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSession
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+import com.example.hello2.core.WhereCond
+import com.example.hello2.core.WhereOp
+
 
 class MainActivity : ComponentActivity() {
 
@@ -132,12 +135,21 @@ class MainActivity : ComponentActivity() {
     // ---------------------------
 
     private suspend fun executeSqlViaTables(sql: String): List<Map<String, String>> {
-        val parsed = parseSelectSql(sql) // supports: SELECT <cols|*> FROM <table>
+        val parsed = parseSelectSql(sql)
+
+        // 1) Run full table (full schema rows)
         val fullRows = TableRegistry.runTable(parsed.tableName, TableQueryContext())
 
-        if (parsed.selectAll) return fullRows
+        // 2) Apply WHERE filters (on full rows, before projection)
+        val filteredRows = if (parsed.where.isEmpty()) {
+            fullRows
+        } else {
+            fullRows.filter { row -> matchesWhere(row, parsed.where) }
+        }
 
-        // Validate requested columns exist and project
+        // 3) Project columns
+        if (parsed.selectAll) return filteredRows
+
         val schemaCols = TableRegistry.getColumns(parsed.tableName).map { it.name }
         val schemaLowerToReal = schemaCols.associateBy { it.lowercase() }
 
@@ -150,8 +162,36 @@ class MainActivity : ComponentActivity() {
             throw IllegalArgumentException("Unknown columns for table '${parsed.tableName}': ${missing.joinToString(", ")}")
         }
 
-        return TableRegistry.projectRows(fullRows, selectedRealCols)
+        return TableRegistry.projectRows(filteredRows, selectedRealCols)
     }
+
+    private fun matchesWhere(row: Map<String, String>, where: List<WhereCond>): Boolean {
+        for (cond in where) {
+            val actual = row[cond.column] ?: row.entries.firstOrNull { it.key.equals(cond.column, ignoreCase = true) }?.value
+            ?: return false
+
+            when (cond.op) {
+                WhereOp.EQ -> {
+                    if (!actual.equals(cond.value, ignoreCase = true)) return false
+                }
+                WhereOp.LIKE -> {
+                    if (!likeMatch(actual, cond.value)) return false
+                }
+            }
+        }
+        return true
+    }
+
+    private fun likeMatch(actual: String, pattern: String): Boolean {
+        // SQL LIKE: % = any substring, _ = any single char
+        // Make it case-insensitive
+        val escaped = Regex.escape(pattern)
+            .replace("%", ".*")
+            .replace("_", ".")
+        val re = Regex("^$escaped$", RegexOption.IGNORE_CASE)
+        return re.matches(actual)
+    }
+
 
     // ---------------------------
     // UI / Main loop
