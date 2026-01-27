@@ -6,6 +6,9 @@ import { isEqual, noop } from "lodash";
 import targetsAPI from "services/entities/targets";
 import targetInterface from "interfaces/target";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
+
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import Input from "./SelectTargetsInput";
 import Menu from "./SelectTargetsMenu";
 
@@ -45,7 +48,6 @@ class SelectTargetsDropdown extends Component {
     this.mounted = true;
     this.wrapperHeight = 0;
     this.fetchTargets();
-
     return false;
   }
 
@@ -206,6 +208,7 @@ class SelectTargetsDropdown extends Component {
       renderLabel,
     } = this;
     const { disabled, onSelect, selectedTargets, isPremiumTier } = this.props;
+
     const menuRenderer = Menu(
       onTargetSelectMoreInfo,
       moreInfoTarget,
@@ -217,6 +220,27 @@ class SelectTargetsDropdown extends Component {
       "show-preview": moreInfoTarget,
       "is-empty": isEmpty,
     });
+
+    const ArrowRenderer = ({ isOpen }) => (
+      <div
+        className={classnames("target-select__arrow", {
+          "target-select__arrow--open": isOpen,
+        })}
+      >
+        <Icon name="chevron-down" />
+      </div>
+    );
+
+    const ClearRenderer = () => (
+      <Button
+        type="button"
+        className="target-select__clear"
+        onMouseDown={(e) => e.preventDefault()}
+        variant="inverse"
+      >
+        <Icon name="close" />
+      </Button>
+    );
 
     return (
       <div className={`${baseClass} form-field`}>
@@ -234,6 +258,8 @@ class SelectTargetsDropdown extends Component {
           selectedTargets={selectedTargets}
           targets={targets}
           isPremiumTier={isPremiumTier}
+          arrowRenderer={ArrowRenderer}
+          clearRenderer={ClearRenderer}
         />
       </div>
     );

@@ -9,21 +9,30 @@
   }
 
   @include breakpoint(ltdesktop) {
-    padding-top: $pad-xxlarge;
+    padding-top: $pad-medium;
+  }
+
+  &__spotlight {
+    @include vertical-page-tab-panel-layout;
   }
 }
 
 .host-target {
+  &__host-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
   &__display-text {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: 0.6px;
     color: $core-fleet-black;
     margin: 0;
   }
 
   &__icon {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     margin-right: $pad-small;
     width: 21px;
 
@@ -39,17 +48,6 @@
   &__status {
     margin: $pad-xsmall 0;
     font-size: $x-small;
-    font-weight: $bold;
-    letter-spacing: 1.3px;
-    text-transform: uppercase;
-
-    &--is-online {
-      color: $ui-success;
-    }
-
-    &--is-offline {
-      color: $ui-error;
-    }
   }
 
   &__labels-wrapper {
@@ -103,9 +101,8 @@
 
 .label-target {
   &__display-text {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: 0.6px;
     color: $core-fleet-black;
     margin: 0;
   }
@@ -141,31 +138,13 @@
   }
 
   &__description {
-    font-size: $pad-medium;
     font-weight: $regular;
     color: $core-fleet-black;
-    margin: 0 0 $pad-small;
   }
 }
 
 .target-details {
-  &__table {
-    border-collapse: collapse;
-    border-spacing: 0;
-    text-align: left;
-    font-size: $x-small;
-    width: 100%;
-    margin-bottom: $pad-medium;
-
-    th {
-      font-weight: $bold;
-      color: $core-fleet-black;
-      padding-right: $pad-small;
-    }
-
-    td {
-      display: flex;
-      align-items: center;
-    }
+  &__details {
+    @include vertical-data-set-layout;
   }
 }

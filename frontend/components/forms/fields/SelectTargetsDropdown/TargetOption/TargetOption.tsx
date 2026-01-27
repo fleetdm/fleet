@@ -4,6 +4,10 @@ import classnames from "classnames";
 import { ISelectTargetsEntity } from "interfaces/target";
 // @ts-ignore
 import TargetIcon from "./TargetIcon";
+// @ts-ignore
+import Button from "components/buttons/Button/Button";
+// @ts-ignore
+import Icon from "components/Icon";
 import { isTargetHost, isTargetLabel, isTargetTeam } from "../helpers";
 
 const baseClass = "target-option";
@@ -58,9 +62,10 @@ const TargetOption = ({
 
   return (
     <div className={wrapperClassName}>
-      <button
+      <Button
         className={`button button--unstyled ${baseClass}__target-content`}
         onClick={onMoreInfoClick(target)}
+        variant="unstyled"
       >
         <div>
           <TargetIcon target={target} />
@@ -69,11 +74,15 @@ const TargetOption = ({
           </span>
         </div>
         {renderTargetDetail()}
-      </button>
-      <button
-        className={`button button--unstyled ${baseClass}__add-btn`}
+      </Button>
+      <Button
+        className={`${baseClass}__add-btn`}
         onClick={handleSelect}
-      />
+        variant="icon"
+        size="small"
+      >
+        <Icon name="plus" color="core-fleet-green" />
+      </Button>
     </div>
   );
 };

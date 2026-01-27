@@ -1,12 +1,14 @@
 import React from "react";
 import { noop } from "lodash";
-import AceEditor from "react-ace";
+import SQLEditor from "components/SQLEditor";
 import classnames from "classnames";
 
 import { humanHostMemory } from "utilities/helpers";
 import FleetIcon from "components/icons/FleetIcon";
 import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
 import { ISelectHost, ISelectLabel, ISelectTeam } from "interfaces/target";
+import DataSet from "components/DataSet";
+import StatusIndicator from "components/StatusIndicator";
 
 import { isTargetHost, isTargetTeam, isTargetLabel } from "../helpers";
 
@@ -53,63 +55,61 @@ const TargetDetails = ({
           Back
         </button>
 
-        <p className={`${hostBaseClass}__display-text`}>
-          <FleetIcon name="single-host" className={`${hostBaseClass}__icon`} />
-          <span>{displayText}</span>
-        </p>
-        <p className={statusClassName}>
-          {isOnline && (
+        <div className={`${hostBaseClass}__host-info`}>
+          <div className={`${hostBaseClass}__display-text`}>
             <FleetIcon
-              name="success-check"
-              className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online`}
+              name="single-host"
+              className={`${hostBaseClass}__icon`}
             />
-          )}
-          {isOffline && (
-            <FleetIcon
-              name="offline"
-              className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline`}
-            />
-          )}
-          <span>{status}</span>
-        </p>
-        <table className={`${baseClass}__table`}>
-          <tbody>
-            <tr>
-              <th>Private IP address</th>
-              <td>{hostIpAddress}</td>
-            </tr>
-            <tr>
-              <th>MAC address</th>
-              <td>
-                <span className={`${hostBaseClass}__mac-address`}>
-                  {hostMac}
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <th>Platform</th>
-              <td>
+            <span>{displayText}</span>
+          </div>
+          <div className={statusClassName}>
+            {isOnline && <StatusIndicator value="online" />}
+            {isOffline && <StatusIndicator value="offline" />}
+          </div>
+        </div>
+        <div className={`${baseClass}__details`}>
+          <DataSet
+            title="Private IP address"
+            value={hostIpAddress}
+            orientation="horizontal"
+          />
+          <DataSet
+            title="MAC address"
+            value={
+              <span className={`${hostBaseClass}__mac-address`}>{hostMac}</span>
+            }
+            orientation="horizontal"
+          />
+          <DataSet
+            title="Platform"
+            value={
+              <>
                 <OSIcon name={platform} />
                 <span className={`${hostBaseClass}__platform-text`}>
                   {" "}
                   {platform}
                 </span>
-              </td>
-            </tr>
-            <tr>
-              <th>Operating system</th>
-              <td>{osVersion}</td>
-            </tr>
-            <tr>
-              <th>Osquery version</th>
-              <td>{osqueryVersion}</td>
-            </tr>
-            <tr>
-              <th>Memory</th>
-              <td>{humanHostMemory(memory)}</td>
-            </tr>
-          </tbody>
-        </table>
+              </>
+            }
+            orientation="horizontal"
+          />
+          <DataSet
+            title="Operating system"
+            value={osVersion}
+            orientation="horizontal"
+          />
+          <DataSet
+            title="Osquery version"
+            value={osqueryVersion}
+            orientation="horizontal"
+          />
+          <DataSet
+            title="Memory"
+            value={humanHostMemory(memory)}
+            orientation="horizontal"
+          />
+        </div>
       </div>
     );
   };
@@ -147,20 +147,16 @@ const TargetDetails = ({
           {description || "No Description"}
         </p>
         <div className={`${labelBaseClass}__editor`}>
-          <AceEditor
-            editorProps={{ $blockScrolling: Infinity }}
+          <SQLEditor
             mode="fleet"
-            minLines={1}
-            maxLines={20}
             name="label-query"
-            readOnly
-            setOptions={{ wrap: true }}
-            showGutter={false}
-            showPrintMargin={false}
-            theme="fleet"
             value={query}
-            width="100%"
+            readOnly
+            maxLines={20}
+            showGutter={false}
+            wrapEnabled
             fontSize={14}
+            style={{ width: "100%" }}
           />
         </div>
       </div>

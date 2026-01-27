@@ -30,7 +30,7 @@
 
     &.is-focused,
     &:hover {
-      border: 1px solid $core-vibrant-blue;
+      border: 1px solid $ui-fleet-black-75;
     }
 
     .Select-control {
@@ -39,7 +39,6 @@
     }
 
     .Select-arrow {
-      content: url("../assets/images/icon-chevron-black-16x16@2x.png");
       height: 16px;
       width: 16px;
       margin-left: 6px;
@@ -57,7 +56,6 @@
     &:hover,
     &.is-open {
       .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
         margin-left: 6px;
       }
     }
@@ -74,9 +72,27 @@
       }
     }
 
+    .target-select__arrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+
+      svg {
+        transition: transform 0.25s ease;
+      }
+    }
+
+    .target-select__arrow--open svg {
+      transform: rotate(180deg);
+    }
+
     .Select-placeholder {
       line-height: 53px;
-      color: $ui-fleet-black-50;
+      color: $ui-fleet-black-75;
     }
 
     &.Select--multi {
@@ -85,7 +101,7 @@
 
         &.is-disabled {
           &.is-focused {
-            background-color: $ui-fleet-black-10;
+            background-color: $ui-off-white; // Mimics table row hover, where action hover button is darker on hover $ui-fleet-black-5
             border-radius: 8px;
           }
         }
@@ -135,20 +151,6 @@
 
     .Select-value-icon {
       height: 100%;
-
-      &::after {
-        content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
-        transform: scale(0.5);
-        border-radius: 0px;
-        margin-top: 4px;
-      }
-
-      &:hover {
-        &::after {
-          content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
-          transform: scale(0.5);
-        }
-      }
     }
 
     .Select-value-label {
@@ -161,23 +163,16 @@
   }
 
   .Select-clear {
-    content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
     width: 16px;
     height: 16px;
     border-radius: 0px;
     margin-left: -4px;
     margin-top: 6px;
-
-    &:hover {
-      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
-      width: 16px;
-      height: 16px;
-      border-radius: 0px;
-    }
   }
 
   .Select-clear-zone {
     width: 30px;
+    margin-right: $pad-small;
   }
 
   .Select-arrow-zone {
