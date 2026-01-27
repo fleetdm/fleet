@@ -6120,6 +6120,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
 
+	s.lq.SetQueryResultsCountOverride = func(queryID uint, count int) error {
+		return nil
+	}
 	//
 	// Setup test data.
 	// All setup actions are authored by a global admin.

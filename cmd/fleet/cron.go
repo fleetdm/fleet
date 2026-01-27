@@ -1132,6 +1132,43 @@ func newFrequentCleanupsSchedule(
 	return s, nil
 }
 
+func newQueryResultsCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	liveQueryStore fleet.LiveQueryStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronQueryResultsCleanup)
+		defaultInterval = 1 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			maxRows := appConfig.ServerSettings.GetQueryReportCap()
+			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			if err != nil {
+				return err
+			}
+			// Sync Redis counters to actual database row counts
+			for queryID, count := range queryCounts {
+				if err := liveQueryStore.SetQueryResultsCount(queryID, count); err != nil {
+					level.Warn(logger).Log("msg", "failed to set query results count in redis", "query_id", queryID, "err", err)
+				}
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
 func verifyDiskEncryptionKeys(
 	ctx context.Context,
 	logger kitlog.Logger,
