@@ -403,8 +403,8 @@ const (
 type shebangKind = ShebangKind
 
 const (
-	shebangNone  = ShebangNone
-	shebangShell = ShebangShell
+	shebangNone   = ShebangNone
+	shebangShell  = ShebangShell
 	shebangPython = ShebangPython
 )
 
