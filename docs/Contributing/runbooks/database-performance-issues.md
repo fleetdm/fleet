@@ -2,8 +2,8 @@
 
 ### Use this runbook if
 
-1. A customer environment is experiencing elevated error rate, outages, or slow load times
-2. Database load has not been eliminated as a cause of the issues
+1. A customer environment is experiencing elevated error rate, outages, slow load times, or timeouts/502s.
+2. Database load has not been eliminated as a cause of the issues.
 
 This runbook is written for an engineering audience; if you're on the infrastructure team, you'll have access to these tools directly rather than needing to ask for them.
 
