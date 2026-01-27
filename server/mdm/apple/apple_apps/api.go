@@ -75,9 +75,9 @@ type Config struct {
 	authenticator authenticator
 }
 
-func StubbedConfig() Config {
+func StubbedConfig(baseURL string) Config {
 	return Config{
-		baseURL:       getBaseURL(false),
+		baseURL:       baseURL,
 		authenticator: func(forceRenew bool) (string, error) { return "", nil },
 	}
 }
@@ -285,6 +285,14 @@ func Configure(ctx context.Context, ds DataStore, licenseKey string, token strin
 		return Config{
 			authenticator: func(forceRenew bool) (string, error) { return token, nil },
 			baseURL:       getBaseURL(true),
+		}
+	}
+
+	// Check for dev mode override token (used in tests)
+	if devToken := dev_mode.Env("FLEET_DEV_VPP_METADATA_BEARER_TOKEN"); devToken != "" {
+		return Config{
+			authenticator: func(forceRenew bool) (string, error) { return devToken, nil },
+			baseURL:       getBaseURL(false),
 		}
 	}
 
