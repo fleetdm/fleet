@@ -84,4 +84,6 @@ module.exports.policies = {
   'view-fast-track': true,
   'vpp-proxy/*': true,
   'deliver-application-submission': true,
+  'landing-pages/*': true,
+  'deliver-gitops-workshop-request': true,
 };
