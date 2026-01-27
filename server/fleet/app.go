@@ -114,6 +114,10 @@ func (c *ConditionalAccessSettings) OktaConfigured() bool {
 		c.OktaCertificate.Valid && c.OktaCertificate.Value != ""
 }
 
+func (c *ConditionalAccessSettings) BypassEnabled() bool {
+	return !c.BypassDisabled.Valid || !c.BypassDisabled.Value
+}
+
 // SMTPSettings is part of the AppConfig which defines the wire representation
 // of the app config endpoints
 type SMTPSettings struct {
@@ -686,6 +690,9 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
+	for _, gcIntegration := range c.Integrations.GoogleCalendar {
+		gcIntegration.ApiKey.SetMasked()
+	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
 	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
@@ -772,8 +779,10 @@ func (c *AppConfig) Copy() *AppConfig {
 		for i, g := range c.Integrations.GoogleCalendar {
 			gCal := *g
 			clone.Integrations.GoogleCalendar[i] = &gCal
-			clone.Integrations.GoogleCalendar[i].ApiKey = make(map[string]string, len(g.ApiKey))
-			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
+			if len(g.ApiKey.Values) > 0 {
+				clone.Integrations.GoogleCalendar[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
+				maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey.Values, g.ApiKey.Values)
+			}
 		}
 	}
 	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
@@ -1323,16 +1332,6 @@ type ListQueryOptions struct {
 	// Return queries that are scheduled to run on this platform. One of "macos",
 	// "windows", or "linux"
 	Platform *string
-}
-
-type ListActivitiesOptions struct {
-	ListOptions
-	ActivityType string `query:"activity_type,optional"`
-	// StartCreatedAt filters activities created after this ISO string.
-	StartCreatedAt string `query:"start_created_at,optional"`
-	// EndCreatedAt filters activities created before this ISO string.
-	EndCreatedAt string `query:"end_created_at,optional"`
-	Streamed     *bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.

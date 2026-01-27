@@ -8369,6 +8369,8 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 }
 
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
 	// Updates hosts and host_seen_times.
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -8382,6 +8384,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
+
+	// Create a team and assign host
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "deletehosts team"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team.ID
 
 	// enroll in Fleet MDM
 	nanoEnroll(t, ds, host, false)
@@ -8587,7 +8596,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	detailsBytes, err := json.Marshal(activity)
 	require.NoError(t, err)
 
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity( // automatically creates the host_activities entry
 		ctx,
 		user1,
@@ -8679,6 +8688,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script.sh",
 		ScriptContents: "echo hi",
+		TeamID:         &team.ID,
 	})
 	require.NoError(t, err)
 
@@ -8715,6 +8725,56 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		host.ID, inHouseID, uuid.NewString(), fleet.MacOSPlatform)
 	require.NoError(t, err)
 
+	// Seed one VPP app install row directly to verify it gets cleaned up
+	vppData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, vppData)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{team.ID})
+	require.NoError(t, err)
+
+	vppApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			SelfService: false,
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_deletehosts_" + t.Name(),
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "deletehosts_vpp_app",
+		BundleIdentifier: "com.app.deletehosts",
+		LatestVersion:    "1.0.0",
+	}
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &team.ID)
+	require.NoError(t, err)
+
+	cmdUUID := uuid.NewString()
+
+	// Raw INSERT into host_vpp_software_installs, so we can isolate testing deletion
+	_, err = ds.writer(ctx).Exec(`
+    INSERT INTO host_vpp_software_installs (
+      host_id,
+      adam_id,
+      platform,
+      command_uuid
+    ) VALUES (?, ?, ?, ?)
+  `,
+		host.ID,
+		va.AdamID,
+		va.Platform,
+		cmdUUID,
+	)
+	require.NoError(t, err)
+
+	// Assert the host_vpp_software_installs row exists to delete along with DeleteHost
+	var count int
+	err = ds.writer(ctx).Get(&count,
+		`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND command_uuid = ?`,
+		host.ID, cmdUUID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
 	// Insert into conditional_access_scep_certificates table
 	result, err = ds.writer(context.Background()).Exec(`INSERT INTO conditional_access_scep_serials () VALUES ()`)
 	require.NoError(t, err)
@@ -8728,6 +8788,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	locData := fleet.HostLocationData{HostID: host.ID, Latitude: 42.42, Longitude: -42.42}
 	err = ds.InsertHostLocationData(ctx, locData)
+	require.NoError(t, err)
+
+	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

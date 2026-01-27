@@ -26,7 +26,7 @@ func (o *ListOptions) GetPerPage() uint { return o.PerPage }
 func (o *ListOptions) GetOrderKey() string { return o.OrderKey }
 
 // IsDescending returns true if the order direction is descending.
-func (o *ListOptions) IsDescending() bool { return o.OrderDirection == api.OrderDesc }
+func (o *ListOptions) IsDescending() bool { return o.OrderDirection == api.OrderDescending }
 
 // GetCursorValue returns the cursor value for cursor-based pagination.
 func (o *ListOptions) GetCursorValue() string { return o.After }

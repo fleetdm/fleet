@@ -2317,6 +2317,79 @@ func TestMutateSoftware(t *testing.T) {
 			},
 		},
 		{
+			name: "MacVim with known Vim version (9.0.1897 -> 178)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.0.1897",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "178",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with known Vim version (9.1.0 -> 179)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.1.0",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "179",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with prerelease Vim version (9.1.1577 -> 181.2)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.1.1577",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "181.2",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with unknown Vim version (leaves as-is)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.2.9999",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.2.9999",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim from wrong source (not transformed)",
+			s: &fleet.Software{
+				Name:    "MacVim",
+				Version: "9.0.1897",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "MacVim",
+				Version: "9.0.1897",
+				Source:  "programs",
+			},
+		},
+		{
 			name: "Homebrew imp (Integrative Modeling Platform)",
 			s: &fleet.Software{
 				Name:    "imp",

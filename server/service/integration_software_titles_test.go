@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -84,6 +86,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		TeamID:            &team.ID,
 		DisplayName:       ptr.String(strings.Repeat(" ", 5)),
 	}, http.StatusUnprocessableEntity, "Cannot have a display name that is all whitespace.")
+
 	// Should update the display name even if no other fields are passed
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     titleID,
@@ -123,6 +126,18 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	s.Assert().Len(resp.SoftwareTitles, 1)
 	s.Assert().Equal("RubyUpdate1", resp.SoftwareTitles[0].DisplayName)
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:           titleID,
+		TeamID:            &team.ID,
+		PostInstallScript: ptr.String("updated post install script"),
+	}, http.StatusOK, "")
+
+	// Entity has display name
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
+	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
 
 	// set self service to true
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -759,4 +774,184 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		"team_id", fmt.Sprint(team1.ID),
 		"available_for_install", "true")
 	require.GreaterOrEqual(t, len(respAll.SoftwareTitles), 2) // At least the two packages we uploaded
+}
+
+func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_2_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	team2 := newTeamResp.Team
+
+	// Enroll a host
+	token := "good_token"
+	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	var addResp addHostsToTeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &team.ID,
+		HostIDs: []uint{host.ID},
+	}, http.StatusOK, &addResp)
+
+	// create some software for that host
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.1", Source: "deb_packages"},
+	}
+	_, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	s.Require().NoError(err)
+
+	s.Require().NoError(s.ds.SyncHostsSoftware(ctx, time.Now()))
+
+	sw, _, err := s.ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{})
+	s.Require().NoError(err)
+
+	var titleID uint
+	for _, s := range sw {
+		if s.Name == "bar" {
+			titleID = s.ID
+		}
+	}
+
+	s.Require().NotZero(titleID)
+
+	var listResp listHostsResponse
+	s.DoJSON(
+		"GET",
+		"/api/latest/fleet/hosts",
+		nil,
+		http.StatusOK,
+		&listResp,
+		"team_id",
+		fmt.Sprint(team.ID),
+		"software_title_id",
+		fmt.Sprint(titleID),
+	)
+	s.Require().Len(listResp.Hosts, 1)
+	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
+	s.Assert().Equal("bar", listResp.SoftwareTitle.Name)
+
+	// Use the other team ID, should still get a response with the name and title ID
+	s.DoJSON(
+		"GET",
+		"/api/latest/fleet/hosts",
+		nil,
+		http.StatusOK,
+		&listResp,
+		"team_id",
+		fmt.Sprint(team2.ID),
+		"software_title_id",
+		fmt.Sprint(titleID),
+	)
+	s.Require().Len(listResp.Hosts, 1)
+	s.Assert().NotNil(listResp.SoftwareTitle)
+	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
+	s.Assert().Equal("bar", listResp.SoftwareTitle.Name)
+	v := reflect.ValueOf(*listResp.SoftwareTitle)
+	for i := 0; i < v.NumField(); i++ {
+		if v.Type().Field(i).Name != "ID" && v.Type().Field(i).Name != "Name" {
+			s.Assert().True(v.Field(i).IsZero())
+		}
+	}
+
+	// Add a custom package and set a display name for the software title
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+		SelfService:   false,
+		TeamID:        &team.ID,
+		Platform:      "linux",
+		// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+		Title:     "ruby",
+		Version:   "1:2.5.1",
+		Source:    "deb_packages",
+		StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	_, titleID = checkSoftwareInstaller(t, s.ds, payload)
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     titleID,
+		TeamID:      &team.ID,
+		DisplayName: ptr.String("My cool display name"),
+	}, http.StatusOK, "")
+
+	latestInstallUUID := func() string {
+		var id string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM upcoming_activities ORDER BY id DESC LIMIT 1`)
+		})
+		return id
+	}
+
+	resp := installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted, &resp)
+	installUUID := latestInstallUUID()
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 0,
+			"install_script_output": "success",
+			"post_install_script_exit_code": 0,
+			"post_install_script_output": "ok"
+		}`, *host.OrbitNodeKey, installUUID)),
+		http.StatusNoContent)
+
+	software = append(software, fleet.Software{
+		Name:    "ruby",
+		Version: "1:2.5.1",
+		Source:  "deb_packages",
+	})
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	s.Require().NoError(err)
+	s.Require().NoError(s.ds.SyncHostsSoftware(context.Background(), time.Now()))
+	s.Require().NoError(s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	currToken := s.token
+	t.Cleanup(func() {
+		s.token = currToken
+	})
+
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := test.GoodPassword
+	params := fleet.UserPayload{
+		Name:                     ptr.String("Observer 1"),
+		Email:                    ptr.String("observer@nurv.com"),
+		Password:                 ptr.String(userRawPwd),
+		Teams:                    ptr.T([]fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}}),
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	s.Assert().NotZero(createResp.User.ID)
+
+	s.token = s.getTestToken(*params.Email, *params.Password)
+
+	// Use the other team ID, should still get a response with the display name and title ID
+	fmt.Println("before final call")
+	s.DoJSON(
+		"GET",
+		"/api/latest/fleet/hosts",
+		nil,
+		http.StatusOK,
+		&listResp,
+		"team_id",
+		fmt.Sprint(team2.ID),
+		"software_title_id",
+		fmt.Sprint(titleID),
+	)
+	s.Require().Len(listResp.Hosts, 1)
+	s.Assert().NotNil(listResp.SoftwareTitle)
+	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
+	s.Assert().Equal("My cool display name", listResp.SoftwareTitle.DisplayName)
 }

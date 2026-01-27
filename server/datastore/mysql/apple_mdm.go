@@ -15,6 +15,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -164,17 +165,14 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 			var errorMessage string
 			// If you change this URL you may need to change the frontend code as well which adds a
 			// nicely formatted link to the error message.
-			const learnMoreUserChannel = "https://fleetdm.com/learn-more-about/configuration-profiles-user-channel"
+			const learnMoreSameScope = "https://fleetdm.com/learn-more-about/macos-configuration-profiles-same-scope"
 			if isEdit {
 				if scopeImplicitlyChanged {
-					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because it was previously delivered to some hosts on the device channel. Change "PayloadScope" to "System" to keep existing behavior. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUserChannel)
+					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because it was previously delivered to some hosts on the device channel. Change "PayloadScope" to "System" to keep existing behavior. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreSameScope)
 				} else {
-					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because the profile's "PayloadScope" has changed. To change the “PayloadScope” of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreUserChannel)
+					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because the profile's "PayloadScope" has changed. To change the “PayloadScope” of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreSameScope)
 				}
 			} else {
-				// If you change this URL you may need to change the frontend code as well which adds a
-				// nicely formatted link to the error message.
-				const learnMoreSameScope = "https://fleetdm.com/learn-more-about/macos-configuration-profiles-same-scope"
 				errorMessage = fmt.Sprintf(`Couldn't add configuration profile. This profile has the same "PayloadIdentifier" but a different "PayloadScope" as another profile in a separate team. Learn more: %s`, learnMoreSameScope)
 			}
 			return &fleet.BadRequestError{Message: errorMessage}
@@ -1971,10 +1969,16 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
 		// app installs, so we return those to the MDM lifecycle to handle.
-		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform)
+		usersVPP, activitiesVPP, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeVPP)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking pending vpp installs as failed for host")
 		}
+		usersInHouse, activitiesInHouse, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeInHouseApp)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marking pending in house app installs as failed for host")
+		}
+		users = slices.Concat(users, usersVPP, usersInHouse)
+		activities = slices.Concat(activities, activitiesVPP, activitiesInHouse)
 
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
@@ -2057,6 +2061,7 @@ func (ds *Datastore) DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context,
 		return ctxerr.Wrap(ctx, err, "building IN statement for selecting host serials")
 	}
 	var others []depAssignment
+	// FIXME: Should we use the writer here? Should we use a transaction?
 	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &others, selectStmt, selectArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting host serials")
 	}
@@ -2078,7 +2083,7 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 	}
 
 	selectStmt, selectArgs, err := sqlx.In(`
-		SELECT h.id, hmdm.enrollment_status
+		SELECT h.id, h.hardware_serial, hmdm.enrollment_status
 		FROM hosts h
 		JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 		LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
@@ -2090,6 +2095,7 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		type hostWithEnrollmentStatus struct {
 			ID               uint    `db:"id"`
+			HardwareSerial   string  `db:"hardware_serial"`
 			EnrollmentStatus *string `db:"enrollment_status"`
 		}
 		var hosts []hostWithEnrollmentStatus
@@ -2100,14 +2106,28 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 			// Nothing to delete. Hosts may have already been transferred to another ABM.
 			return nil
 		}
-		var hostIDs []uint
-		var hostIDsPending []uint
+
+		hostIDs := make([]uint, 0, len(hosts))
+		pendingHostIDs := make([]uint, 0)
+		byStatus := make(map[string][]string)
 		for _, host := range hosts {
 			hostIDs = append(hostIDs, host.ID)
-			if host.EnrollmentStatus != nil && *host.EnrollmentStatus == "Pending" {
-				hostIDsPending = append(hostIDsPending, host.ID)
+			if host.EnrollmentStatus == nil {
+				byStatus["unexpected_nil_status"] = append(byStatus["unexpected_nil_status"], host.HardwareSerial)
+			} else {
+				byStatus[*host.EnrollmentStatus] = append(byStatus[*host.EnrollmentStatus], host.HardwareSerial)
+				if *host.EnrollmentStatus == "Pending" {
+					pendingHostIDs = append(pendingHostIDs, host.ID)
+				}
 			}
 		}
+		logs := []any{"msg", "preparing to delete host DEP assignments: select hosts with enrollment status"}
+		for status, serials := range byStatus {
+			logs = append(logs, status, fmt.Sprintf("%+v", serials))
+		}
+		level.Info(ds.logger).Log(logs...)
+
+		level.Info(ds.logger).Log("msg", "deleting host DEP assignments", "host_ids", fmt.Sprintf("%+v", hostIDs))
 
 		stmt, args, err := sqlx.In(`
           UPDATE host_dep_assignments
@@ -2124,11 +2144,12 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 
 		// If pending host is no longer in ABM, we should delete it because it will never enroll in Fleet.
 		// If the host is later re-added to ABM, it will be re-created.
-		if len(hostIDsPending) == 0 {
+		if len(byStatus["Pending"]) == 0 {
 			return nil
 		}
+		level.Info(ds.logger).Log("msg", "deleting pending hosts that are no longer in ABM", "host_ids", fmt.Sprintf("%+v", pendingHostIDs), "serials", fmt.Sprintf("%+v", byStatus["Pending"]))
 
-		return deleteHosts(ctx, tx, hostIDsPending)
+		return deleteHosts(ctx, tx, pendingHostIDs)
 	})
 }
 
@@ -4745,6 +4766,17 @@ WHERE
 		}
 	}
 
+	var totalProcessed int
+	for _, serials := range skipSerialsByOrgName {
+		totalProcessed += len(serials)
+	}
+	for _, serials := range serialsByOrgName {
+		totalProcessed += len(serials)
+	}
+	if totalProcessed != len(serials) {
+		level.Error(ds.logger).Log("msg", fmt.Sprintf("screen dep serials: expected to process %d serials but processed %d", len(serials), totalProcessed))
+	}
+
 	return skipSerialsByOrgName, serialsByOrgName, nil
 }
 
@@ -4761,13 +4793,15 @@ WHERE
 	assign_profile_response = ?
 	AND(retry_job_id = 0 OR j.state = ?)
 	AND(response_updated_at IS NULL
-		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))`
+		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))
+ORDER BY response_updated_at ASC
+LIMIT ?`
 
 	var rows []struct {
 		TeamID         uint   `db:"team_id"`
 		HardwareSerial string `db:"hardware_serial"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), depCooldownPeriod.Seconds()); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), depCooldownPeriod.Seconds(), apple_mdm.DEPSyncLimit); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host dep assign profile expired cooldowns")
 	}
 
@@ -6808,7 +6842,7 @@ DELETE FROM upcoming_activities
 		JOIN hosts h ON upcoming_activities.host_id = h.id
 WHERE
 	h.uuid = ? AND
-	upcoming_activities.activity_type IN ('vpp_app_install')
+	upcoming_activities.activity_type IN ('vpp_app_install', 'in_house_app_install')
 `
 	_, err := tx.ExecContext(ctx, deleteUpcomingMDMActivities, hostUUID)
 	if err != nil {

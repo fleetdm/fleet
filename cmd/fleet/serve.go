@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -92,11 +93,13 @@ import (
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -159,8 +162,9 @@ the way that the Fleet server works.
 				createTestBuckets(&config, logger)
 			}
 
-			// Init tracing
+			// Init tracing and metrics
 			var tracerProvider *sdktrace.TracerProvider
+			var meterProvider *sdkmetric.MeterProvider
 			if config.Logging.TracingEnabled {
 				ctx := context.Background()
 				client := otlptracegrpc.NewClient(
@@ -192,6 +196,19 @@ the way that the Fleet server works.
 					sdktrace.WithSpanProcessor(batchSpanProcessor),
 				)
 				otel.SetTracerProvider(tracerProvider)
+
+				// Initialize OTEL metrics exporter
+				metricExporter, err := otlpmetricgrpc.New(ctx,
+					otlpmetricgrpc.WithCompressor("gzip"),
+				)
+				if err != nil {
+					initFatal(err, "Failed to initialize OTEL metrics exporter")
+				}
+				meterProvider = sdkmetric.NewMeterProvider(
+					sdkmetric.WithResource(res),
+					sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
+				)
+				otel.SetMeterProvider(meterProvider)
 			}
 
 			allowedHostIdentifiers := map[string]bool{
@@ -203,6 +220,8 @@ the way that the Fleet server works.
 			if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
 				initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
 			}
+
+			config.ConditionalAccess.Validate(initFatal)
 
 			if len(config.Server.URLPrefix) > 0 {
 				// Massage provided prefix to match expected format
@@ -962,6 +981,9 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("instanceID", instanceID)
 
+			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
+			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
 			// run or not (see https://github.com/fleetdm/fleet/issues/9486).
@@ -1196,7 +1218,7 @@ the way that the Fleet server works.
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)
+					return newActivitiesStreamingSchedule(ctx, instanceID, activitySvc, ds, logger, auditLogger)
 				}); err != nil {
 					initFatal(err, "failed to register activities streaming schedule")
 				}
@@ -1281,9 +1303,6 @@ the way that the Fleet server works.
 					initFatal(err, "initializing HTTP signature verifier")
 				}
 			}
-
-			// Bootstrap activity bounded context
-			activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
 
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
@@ -1662,10 +1681,15 @@ the way that the Fleet server works.
 					cancelFunc()
 					cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
 					launcher.GracefulStop()
-					// Flush any pending OTEL spans before shutting down
+					// Flush any pending OTEL data before shutting down
 					if tracerProvider != nil {
 						if err := tracerProvider.Shutdown(ctx); err != nil {
 							level.Error(logger).Log("msg", "failed to shutdown OTEL tracer provider", "err", err)
+						}
+					}
+					if meterProvider != nil {
+						if err := meterProvider.Shutdown(ctx); err != nil {
+							level.Error(logger).Log("msg", "failed to shutdown OTEL meter provider", "err", err)
 						}
 					}
 					return srv.Shutdown(ctx)
@@ -1685,15 +1709,14 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) endpointer.HandlerRoutesFunc {
+func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 	activityUserProvider := activityacl.NewFleetServiceAdapter(svc)
-	// Note: the first return value below (_) will be used in legacy Service layer in next PR
-	_, activityRoutesFn := activity_bootstrap.New(
+	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,
 		activityUserProvider,
@@ -1704,7 +1727,7 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		return auth.AuthenticatedUser(svc, next)
 	}
 	activityRoutes := activityRoutesFn(activityAuthMiddleware)
-	return activityRoutes
+	return activitySvc, activityRoutes
 }
 
 func printDatabaseNotInitializedError() {

@@ -6,6 +6,7 @@ import {
   ICertificatesCustomSCEP,
 } from "interfaces/certificates";
 import deepDifference from "utilities/deep_difference";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
@@ -15,8 +16,6 @@ import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
-
-const UNCHANGED_PASSWORD_API_RESPONSE = "********";
 
 export const generateDefaultFormData = (
   certAuthority: ICertificateAuthority

@@ -9134,8 +9134,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.True(t, *hdek.Decryptable)
 
 	// check a new activity entry is created ...
-	activities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := s.listActivities()
 	escrowKeyActivity := fleet.ActivityTypeEscrowedDiskEncryptionKey{}
 	var seenEscrowKeyActivityID uint
 	for _, activity := range activities {
@@ -9201,8 +9200,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.True(t, *hdek.Decryptable)
 
 	// escrowing a new encryption key should create a new acitivy entry
-	activities, _, err = s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = s.listActivities()
 	escrowKeyActivity = fleet.ActivityTypeEscrowedDiskEncryptionKey{}
 	for _, activity := range activities {
 		if activity.Type == escrowKeyActivity.ActivityName() && activity.ID != seenEscrowKeyActivityID {
@@ -12722,7 +12720,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		updateAppReq.LabelsExcludeAny = []string{}
 		updateAppReq.LabelsIncludeAny = []string{"404_notfound"}
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "some or all the labels provided don't exist")
+		require.Contains(t, extractServerErrorText(res.Body), `Couldn't update. Label "404_notfound" doesn't exist. Please remove the label from the software.`)
 
 		// Update App2. Unset self service and update the labels
 		updateAppReq.LabelsIncludeAny = []string{l2.Name}

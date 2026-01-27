@@ -67,7 +67,7 @@ type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
-type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.User, error)
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
 
 type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
 
@@ -475,6 +475,8 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
+type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint) (name string, displayName string, err error)
+
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
 type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error
@@ -581,8 +583,6 @@ type MDMTurnOffFunc func(ctx context.Context, uuid string) (users []*fleet.User,
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
 
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
-
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
@@ -602,6 +602,8 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration,
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
 type CleanupStatisticsFunc func(ctx context.Context) error
+
+type GetTableRowCountsFunc func(ctx context.Context) (map[string]uint, error)
 
 type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
@@ -638,6 +640,12 @@ type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
 type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint) ([]uint, error)
+
+type ConditionalAccessBypassDeviceFunc func(ctx context.Context, hostID uint) error
+
+type ConditionalAccessConsumeBypassFunc func(ctx context.Context, hostID uint) (*time.Time, error)
+
+type ConditionalAccessClearBypassesFunc func(ctx context.Context) error
 
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
@@ -1705,6 +1713,8 @@ type GetCertificateTemplateByIdForHostFunc func(ctx context.Context, id uint, ho
 
 type GetCertificateTemplatesByTeamIDFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
+type GetCertificateTemplatesByIdsAndTeamFunc func(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error)
+
 type GetCertificateTemplateByTeamIDAndNameFunc func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error)
 
 type ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
@@ -2428,6 +2438,9 @@ type DataStore struct {
 	SoftwareTitleByIDFunc        SoftwareTitleByIDFunc
 	SoftwareTitleByIDFuncInvoked bool
 
+	SoftwareTitleNameForHostFilterFunc        SoftwareTitleNameForHostFilterFunc
+	SoftwareTitleNameForHostFilterFuncInvoked bool
+
 	UpdateSoftwareTitleNameFunc        UpdateSoftwareTitleNameFunc
 	UpdateSoftwareTitleNameFuncInvoked bool
 
@@ -2587,9 +2600,6 @@ type DataStore struct {
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
-	ListActivitiesFunc        ListActivitiesFunc
-	ListActivitiesFuncInvoked bool
-
 	MarkActivitiesAsStreamedFunc        MarkActivitiesAsStreamedFunc
 	MarkActivitiesAsStreamedFuncInvoked bool
 
@@ -2619,6 +2629,9 @@ type DataStore struct {
 
 	CleanupStatisticsFunc        CleanupStatisticsFunc
 	CleanupStatisticsFuncInvoked bool
+
+	GetTableRowCountsFunc        GetTableRowCountsFunc
+	GetTableRowCountsFuncInvoked bool
 
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
@@ -2673,6 +2686,15 @@ type DataStore struct {
 
 	GetPoliciesForConditionalAccessFunc        GetPoliciesForConditionalAccessFunc
 	GetPoliciesForConditionalAccessFuncInvoked bool
+
+	ConditionalAccessBypassDeviceFunc        ConditionalAccessBypassDeviceFunc
+	ConditionalAccessBypassDeviceFuncInvoked bool
+
+	ConditionalAccessConsumeBypassFunc        ConditionalAccessConsumeBypassFunc
+	ConditionalAccessConsumeBypassFuncInvoked bool
+
+	ConditionalAccessClearBypassesFunc        ConditionalAccessClearBypassesFunc
+	ConditionalAccessClearBypassesFuncInvoked bool
 
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
@@ -4273,6 +4295,9 @@ type DataStore struct {
 	GetCertificateTemplatesByTeamIDFunc        GetCertificateTemplatesByTeamIDFunc
 	GetCertificateTemplatesByTeamIDFuncInvoked bool
 
+	GetCertificateTemplatesByIdsAndTeamFunc        GetCertificateTemplatesByIdsAndTeamFunc
+	GetCertificateTemplatesByIdsAndTeamFuncInvoked bool
+
 	GetCertificateTemplateByTeamIDAndNameFunc        GetCertificateTemplateByTeamIDAndNameFunc
 	GetCertificateTemplateByTeamIDAndNameFuncInvoked bool
 
@@ -4496,7 +4521,7 @@ func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return s.ListUsersFunc(ctx, opt)
 }
 
-func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+func (s *DataStore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
 	s.mu.Lock()
 	s.UsersByIDsFuncInvoked = true
 	s.mu.Unlock()
@@ -5924,6 +5949,13 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
+func (s *DataStore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name string, displayName string, err error) {
+	s.mu.Lock()
+	s.SoftwareTitleNameForHostFilterFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftwareTitleNameForHostFilterFunc(ctx, id)
+}
+
 func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error {
 	s.mu.Lock()
 	s.UpdateSoftwareTitleNameFuncInvoked = true
@@ -6295,13 +6327,6 @@ func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return s.NewActivityFunc(ctx, user, activity, details, createdAt)
 }
 
-func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	s.mu.Lock()
-	s.ListActivitiesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListActivitiesFunc(ctx, opt)
-}
-
 func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
 	s.mu.Lock()
 	s.MarkActivitiesAsStreamedFuncInvoked = true
@@ -6370,6 +6395,13 @@ func (s *DataStore) CleanupStatistics(ctx context.Context) error {
 	s.CleanupStatisticsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupStatisticsFunc(ctx)
+}
+
+func (s *DataStore) GetTableRowCounts(ctx context.Context) (map[string]uint, error) {
+	s.mu.Lock()
+	s.GetTableRowCountsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetTableRowCountsFunc(ctx)
 }
 
 func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
@@ -6496,6 +6528,27 @@ func (s *DataStore) GetPoliciesForConditionalAccess(ctx context.Context, teamID 
 	s.GetPoliciesForConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPoliciesForConditionalAccessFunc(ctx, teamID)
+}
+
+func (s *DataStore) ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ConditionalAccessBypassDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessBypassDeviceFunc(ctx, hostID)
+}
+
+func (s *DataStore) ConditionalAccessConsumeBypass(ctx context.Context, hostID uint) (*time.Time, error) {
+	s.mu.Lock()
+	s.ConditionalAccessConsumeBypassFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessConsumeBypassFunc(ctx, hostID)
+}
+
+func (s *DataStore) ConditionalAccessClearBypasses(ctx context.Context) error {
+	s.mu.Lock()
+	s.ConditionalAccessClearBypassesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessClearBypassesFunc(ctx)
 }
 
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
@@ -10227,6 +10280,13 @@ func (s *DataStore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID 
 	s.GetCertificateTemplatesByTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplatesByTeamIDFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) GetCertificateTemplatesByIdsAndTeam(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplatesByIdsAndTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplatesByIdsAndTeamFunc(ctx, ids, teamID)
 }
 
 func (s *DataStore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
