@@ -391,13 +391,32 @@ var (
 	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
 )
 
-type shebangKind int
+type ShebangKind int
 
 const (
-	shebangNone shebangKind = iota
-	shebangShell
-	shebangPython
+	ShebangNone ShebangKind = iota
+	ShebangShell
+	ShebangPython
 )
+
+// shebangKind is kept for internal use to maintain backwards compatibility
+type shebangKind = ShebangKind
+
+const (
+	shebangNone  = ShebangNone
+	shebangShell = ShebangShell
+	shebangPython = ShebangPython
+)
+
+// ShebangInfo inspects the script contents and returns whether it should be
+// executed directly (via the kernel's shebang support), and what kind of
+// interpreter it declares.
+//
+// Note: for backwards compatibility, scripts without a shebang are allowed and
+// will be executed using /bin/sh.
+func ShebangInfo(contents string) (kind ShebangKind, directExecute bool, err error) {
+	return shebangInfo(contents)
+}
 
 // shebangInfo inspects the script contents and returns whether it should be
 // executed directly (via the kernel's shebang support), and what kind of

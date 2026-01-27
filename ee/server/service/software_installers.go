@@ -1817,6 +1817,41 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		}
 	}
 
+	// Validate that the shebang matches the file extension
+	kind, directExecute, err := fleet.ShebangInfo(scriptContents)
+	if err != nil {
+		return &fleet.BadRequestError{
+			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
+			InternalErr: ctxerr.Wrap(ctx, err, "validating script shebang"),
+		}
+	}
+	switch extension {
+	case "sh":
+		// allow no shebang (defaults to /bin/sh), or a supported shell shebang.
+		if directExecute && kind != fleet.ShebangShell {
+			return &fleet.BadRequestError{
+				Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", fleet.ErrUnsupportedInterpreter.Error()),
+				InternalErr: ctxerr.New(ctx, "shell script with non-shell shebang"),
+			}
+		}
+	case "py":
+		// python scripts must be directly executable (via a python shebang).
+		if !directExecute || kind != fleet.ShebangPython {
+			return &fleet.BadRequestError{
+				Message:     "Couldn't add. Script validation failed: Python scripts must start with a python shebang (for example, \"#!/usr/bin/env python3\").",
+				InternalErr: ctxerr.New(ctx, "python script without python shebang"),
+			}
+		}
+	case "ps1":
+		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
+		if directExecute {
+			return &fleet.BadRequestError{
+				Message:     "Couldn't add. Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
+				InternalErr: ctxerr.New(ctx, "powershell script with shebang"),
+			}
+		}
+	}
+
 	shaSum, err := file.SHA256FromTempFileReader(payload.InstallerFile)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "calculating script SHA256")
