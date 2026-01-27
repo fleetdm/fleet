@@ -596,7 +596,13 @@ module.exports.routes = {
     }
   },
 
-  'GET /gitops/workshop': { action: 'landing-pages/view-gitops-workshop' },
+  'GET /gitops-workshop': {
+    action: 'landing-pages/view-gitops-workshop',
+    locals: {
+      pageTitleForMeta: 'GitOps workshops',
+      pageDescriptionForMeta: 'Join Fleet’s GitOps workshop to learn configuration-as-code for managing devices at scale. See every change, undo any error, and repeat every success.',
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
