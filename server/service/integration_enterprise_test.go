@@ -14998,8 +14998,16 @@ func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *sc
 		previousRunID = stats[0].ID
 	}
 
-	_, err = s.Trigger()
-	require.NoError(t, err)
+	var didTrigger bool
+	for range 10 {
+		_, didTrigger, err = s.Trigger()
+		require.NoError(t, err)
+		if didTrigger {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	require.True(t, didTrigger, "profile schedule did not trigger after 1 second of retries")
 
 	timeoutCh := time.After(timeout)
 	for {
