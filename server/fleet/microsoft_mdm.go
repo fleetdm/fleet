@@ -31,12 +31,12 @@ const (
 // SoapResponse is the Soap Envelope Response type for MS-MDE2 responses from the server
 // This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
 type SoapResponse struct {
-	XMLName xml.Name       `xml:"s:Envelope"`
+	XMLName xml.Name       `xml:"http://schemas.xmlsoap.org/soap/envelope/ Envelope"`
 	XMLNSS  string         `xml:"xmlns:s,attr"`
 	XMLNSA  string         `xml:"xmlns:a,attr"`
 	XMLNSU  *string        `xml:"xmlns:u,attr,omitempty"`
-	Header  ResponseHeader `xml:"s:Header"`
-	Body    BodyResponse   `xml:"s:Body"`
+	Header  ResponseHeader `xml:"http://schemas.xmlsoap.org/soap/envelope/ Header"`
+	Body    BodyResponse   `xml:"http://schemas.xmlsoap.org/soap/envelope/ Body"`
 }
 
 // SoapRequest is the Soap Envelope Request type for MS-MDE2 responses to the server
