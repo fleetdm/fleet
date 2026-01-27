@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/klauspost/compress/gzhttp"
+
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -137,6 +139,12 @@ func MakeHandler(
 		} else {
 			apmgorilla.Instrument(r)
 		}
+	}
+
+	if config.Server.GzipResponses {
+		r.Use(func(h http.Handler) http.Handler {
+			return gzhttp.GzipHandler(h)
+		})
 	}
 
 	// Add middleware to extract the client IP and set it in the request context.

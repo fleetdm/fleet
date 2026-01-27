@@ -83,7 +83,6 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
-	"github.com/klauspost/compress/gzhttp"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -1316,15 +1315,6 @@ the way that the Fleet server works.
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 				} else {
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
-				}
-
-				if config.Server.GzipResponses {
-					// Wrap API handler with gzip compression
-					gzipWrapper, err := gzhttp.NewWrapper()
-					if err != nil {
-						initFatal(err, "initializing gzip compression wrapper")
-					}
-					apiHandler = gzipWrapper(apiHandler)
 				}
 
 				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
