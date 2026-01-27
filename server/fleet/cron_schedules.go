@@ -57,7 +57,7 @@ func NewCronSchedules() *CronSchedules {
 }
 
 type CronSchedule interface {
-	Trigger() (*CronStats, error)
+	Trigger() (*CronStats, bool, error)
 	Name() string
 	Start()
 }
@@ -90,7 +90,7 @@ func (cs *CronSchedules) TriggerCronSchedule(name string) error {
 	if !ok {
 		return triggerNotFoundError{name: name, msg: cs.formatSupportedTriggerNames()}
 	}
-	stats, err := sched.Trigger()
+	stats, _, err := sched.Trigger()
 	switch {
 	case err != nil:
 		return err
