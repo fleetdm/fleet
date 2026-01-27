@@ -3,7 +3,7 @@
   h1 {
     color: #192147;
 
-    /* Heading/H1 */
+
     font-family: Inter;
     font-size: 48px;
     font-style: normal;
@@ -15,7 +15,7 @@
   h2 {
     color: #192147;
 
-    /* Heading/H2 */
+
     font-family: Inter;
     font-size: 32px;
     font-style: normal;
@@ -31,7 +31,7 @@
   h3 {
     color: #192147;
 
-    /* Heading/H3 */
+
     font-family: Inter;
     font-size: 24px;
     font-style: normal;
@@ -44,7 +44,7 @@
   h4 {
     color: #192147;
 
-    /* Heading/H4 */
+
     font-family: Inter;
     font-size: 20px;
     font-style: normal;
@@ -72,7 +72,7 @@
         border-top: none;
         color: #192147;
         padding: 12px 24px;
-        /* Body SM (bold) */
+
         font-family: Inter;
         font-size: 14px;
         font-style: normal;
@@ -89,17 +89,17 @@
           align-self: stretch;
           color: #515774;
 
-          /* Body SM */
+
           font-family: Inter;
           font-size: 14px;
           font-style: normal;
           font-weight: 400;
-          line-height: 20px; /* 142.857% */
+          line-height: 20px;
         }
         td:first-of-type {
           color: #192147;
 
-          /* Body SM (bold) */
+
           font-family: Inter;
           font-size: 14px;
           font-style: normal;
@@ -215,7 +215,7 @@
       margin-bottom: 24px;
       color: #192147;
 
-      /* Body/Emphasis/MD */
+
       font-family: Inter;
       font-size: 16px;
       font-style: normal;
@@ -230,16 +230,13 @@
       }
     }
   }
-  // At <991px width,
-  // container padding reduced to 64px 48px
-  // margin between hero and article reduced to 48px
-  // gap between sidebar and article reduced to 80px;
+
   @media (max-width: 1199px) {
     [purpose='article-and-sidebar'] {
       gap: 80px;
     }
-
   }
+
   @media (max-width: 991px) {
     [purpose='page-container'] {
       max-width: 1200px;
@@ -272,11 +269,7 @@
       max-width: unset;
     }
   }
-  // At < 768px:
-  // container padding reduced to 48px 32px
-  // sidebar moves above article content
-  // margin between sections reduced to 40px
-  //
+
   @media (max-width: 767px) {
     [purpose='page-container'] {
       padding: 48px 32px;
@@ -294,6 +287,7 @@
       max-width: 100%;
     }
   }
+
   @media (max-width: 575px) {
 
     [purpose='page-container'] {
@@ -337,13 +331,11 @@
             align-items: flex-start;
             align-self: stretch;
             color: #515774;
-
-            /* Body SM */
             font-family: Inter;
             font-size: 14px;
             font-style: normal;
             font-weight: 400;
-            line-height: 20px; /* 142.857% */
+            line-height: 20px;
           }
           td[data-label] {
             display: grid;
@@ -362,25 +354,20 @@
             height: unset;
             border: none;
             color: #192147;
-            /* Body SM (bold) */
             font-family: Inter;
             font-size: 14px;
             font-style: normal;
             font-weight: 700;
             line-height: 150%;
-            // border-bottom: 1px solid #E2E4EA;
             background: #F9FAFC;
           }
           td:nth-of-type(2) {
             border-left: unset;
             border-right: unset;
-            // border-top: 1px solid #E2E4EA;
-            // border-bottom: 1px solid #E2E4EA;
           }
           border-bottom: 1px solid #E2E4EA;
           &:last-of-type {
             border-bottom: none;
-            // border-bottom: 1px solid #E2E4EA;
           }
         }
       }
