@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -100,17 +99,12 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
 		}
-		team.Secrets = []*fleet.EnrollSecret{{
-			Secret: secret,
-			CreatedAt: time.Now().UTC().Truncate(time.Second),
-		}}
+		team.Secrets = []*fleet.EnrollSecret{{Secret: secret}}
 	}
 
 	if p.HostExpirySettings != nil && p.HostExpirySettings.HostExpiryEnabled && p.HostExpirySettings.HostExpiryWindow <= 0 {
 		return nil, fleet.NewInvalidArgumentError("host_expiry_window", "must be greater than 0")
 	}
-
-	team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 
 	team, err = svc.ds.NewTeam(ctx, team)
 	if err != nil {

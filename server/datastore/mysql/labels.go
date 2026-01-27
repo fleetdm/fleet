@@ -599,6 +599,10 @@ func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec
 
 // NewLabel creates a new fleet.Label
 func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+	now := time.Now().UTC().Truncate(time.Second)
+	label.CreatedAt = now
+	label.UpdatedAt = now
+
 	query := `
 	INSERT INTO labels (
 		name,

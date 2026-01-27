@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -23,11 +24,12 @@ const teamColumns = `id, created_at, name, filename, description, config`
 func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	team.Name = norm.NFC.String(team.Name)
+	team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		query := `
     INSERT INTO teams (
       name,
-	  	filename,
+	  filename,
       description,
       config,
 			created_at
