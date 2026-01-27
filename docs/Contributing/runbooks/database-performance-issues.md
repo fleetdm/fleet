@@ -9,11 +9,15 @@ This runbook is written for an engineering audience; if you're on the infrastruc
 
 ### Process
 
-#### 1. RDS insights
+#### 1. Check RDS insights
 
 If available (e.g. on managed cloud customers, or self-hosted customers running on RDS), check active queries in AWS RDS insights. For managed cloud environments, ask infrastructure for this information. For self-hosted environments, ask the customer.
 
-#### 2. Table row counts
+#### 2. If locks are the problem, check them
+
+If transaction locks are the source of issues, run [troubleshoot_locks.sql](https://github.com/fleetdm/confidential/blob/main/infrastructure/cloud/scripts/sql/troubleshoot_locks.sql) on the database to find which locks are causing the issue.
+
+#### 3. Check table row counts
 
 As of Fleet 4.81, managed cloud environments include table row counts as part of logs generated post-database-migration, with DB migrations happening on each deploy. Compare these row counts with load test info below to see if we're dealing with an environment that is shaped differently than we've load tested.
 
@@ -51,4 +55,4 @@ Here's an example of a load test envvironment's row counts by table, updated 202
 TODO
 ```
 
-##### 3. TODO
+##### 4. TODO
