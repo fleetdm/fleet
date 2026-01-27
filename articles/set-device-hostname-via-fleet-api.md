@@ -28,6 +28,14 @@ The response includes the host object. Extract the `uuid` field from `host.uuid`
 ## Create the rename command
 
 Build an XML payload using Apple's Settings MDM command. Replace `NEW-HOSTNAME` with your desired device name.
+
+**Important:** The `CommandUUID` must be unique for each command you send. You can use a timestamp, UUID generator, or any unique identifier. For example: `Settings_20260127_143052` or a proper UUID like `A1B2C3D4-E5F6-7890-ABCD-EF1234567890`.
+
+To generate a UUID on macOS:
+```sh
+uuidgen
+```
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -47,6 +55,8 @@ Build an XML payload using Apple's Settings MDM command. Replace `NEW-HOSTNAME` 
             </dict>
         </array>
     </dict>
+    <key>CommandUUID</key>
+    <string>UUID-GOES-HERE</string>
 </dict>
 </plist>
 ```
