@@ -241,7 +241,6 @@ queries:
   platform: darwin,linux
   interval: 300
   observer_can_run: true
-  automations_enabled: false
 ```
 
 `default.yml` or `teams/team-name.yml`
