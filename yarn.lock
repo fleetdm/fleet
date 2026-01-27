@@ -2917,10 +2917,10 @@
     "@parcel/watcher-win32-ia32" "2.5.0"
     "@parcel/watcher-win32-x64" "2.5.0"
 
-"@sgress454/node-sql-parser@5.4.0-fork.0":
-  version "5.4.0-fork.0"
-  resolved "https://registry.yarnpkg.com/@sgress454/node-sql-parser/-/node-sql-parser-5.4.0-fork.0.tgz#f66dceaeb1aee12b8b5550237b0785c1022046fe"
-  integrity sha512-W5CygdudhNp/pZmV7e6CbsPPdKdpJbsaTnuN/bkOvMTHQnPiqyD/h/1ffRLA+DlS8jc8D6ljWJlMlYP0+TaKUQ==
+"@sgress454/node-sql-parser@5.4.0-fork.1":
+  version "5.4.0-fork.1"
+  resolved "https://registry.yarnpkg.com/@sgress454/node-sql-parser/-/node-sql-parser-5.4.0-fork.1.tgz#b8d33d7d5e571d4e278bfaeb9d0689c3a6760c1f"
+  integrity sha512-c8lAK4EYKYpEWkYeFbEpZP2LC0j4QmC8LX86tCV+ogPo8dsbYWW56VNQRZp7d0XvVbvtfo21rooy+wCI/YoGmg==
   dependencies:
     "@types/pegjs" "^0.10.0"
     big-integer "^1.6.48"
