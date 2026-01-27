@@ -227,6 +227,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 				switch installerType {
 				case installerTypeMSI:
 					scope = machineScope
+				case installerTypeExe:
+					// EXE installers are typically machine-scoped for managed deployments
+					scope = machineScope
 				case installerTypeMSIX, "zip":
 					// AppX/MSIX packages and zip files containing AppX are typically user-scoped
 					scope = userScope

@@ -975,6 +975,13 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
+      "name": "Microsoft Excel",
+      "slug": "microsoft-excel/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Excel",
+      "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
+    },
+    {
       "name": "Microsoft OneNote",
       "slug": "microsoft-onenote/darwin",
       "platform": "darwin",
