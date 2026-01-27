@@ -46,20 +46,35 @@ quit_application() {
 # extract contents
 unzip "$INSTALLER_PATH" -d "$TMPDIR"
 
-# find the pkg file in the extracted directory (search recursively)
-PKG_FILE=$(find "$TMPDIR" -name "*.pkg" -type f | head -n 1)
+# discover the installer app by finding any .app that contains an installer executable
+INSTALLER_APP=""
+INSTALLER_EXECUTABLE=""
+for app in "$TMPDIR"/*.app; do
+  if [ -d "$app" ]; then
+    # Look for executable in Contents/MacOS/
+    for executable in "$app/Contents/MacOS"/*; do
+      if [ -f "$executable" ] && [ -x "$executable" ]; then
+        INSTALLER_APP="$app"
+        INSTALLER_EXECUTABLE="$executable"
+        break 2
+      fi
+    done
+  fi
+done
 
-# install the pkg if found
-if [ -n "$PKG_FILE" ] && [ -f "$PKG_FILE" ]; then
+# run the installer if found
+if [ -n "$INSTALLER_APP" ] && [ -n "$INSTALLER_EXECUTABLE" ] && [ -f "$INSTALLER_EXECUTABLE" ]; then
   quit_application 'com.expressvpn.ExpressVPN'
-  sudo installer -pkg "$PKG_FILE" -target /
+  "$INSTALLER_EXECUTABLE" --quiet
   EXIT_CODE=$?
   if [ $EXIT_CODE -ne 0 ]; then
     echo "Error: Installer exited with code $EXIT_CODE"
     exit $EXIT_CODE
   fi
+  # cleanup: remove the installer app after successful installation
+  rm -rf "$INSTALLER_APP"
 else
-  echo "Error: No pkg file found in $TMPDIR"
+  echo "Error: Installer app not found in $TMPDIR"
   exit 1
 fi
 
