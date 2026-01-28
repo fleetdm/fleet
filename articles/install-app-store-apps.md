@@ -42,16 +42,6 @@ You can also manage which Google Play Store apps are available for self-service 
 
 5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
 
-## Configure automatic updates for an app (iOS / iPadOS only)
-
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
-
-2. Search for the app you want to configure and select the app to head to its **Software details** page.
-
-3. Click the **Actions** button and select **Schedule auto updates**.
-
-4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the Target configuration (this configuration will also affect which hosts can install the app themselves via the self-service feature).
-
 ## Install an app
 
 ### Apple (VPP)
@@ -65,6 +55,18 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
+
+## Schedule app updates
+
+Currently, Fleet only supportes schedule app updates for iOS/iPadOS Apple App Store (VPP) apps.
+
+1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+
+2. Search for the app you want to configure and select the app to head to its **Software details** page.
+
+3. Click the **Actions** button and select **Schedule auto updates**.
+
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the Target configuration (this configuration will also affect which hosts can install the app themselves via the self-service feature).
 
 ## API and GitOps
 
