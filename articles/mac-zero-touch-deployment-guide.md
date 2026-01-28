@@ -145,3 +145,10 @@ Zero-touch deployment strengthens security by ensuring devices receive consisten
 ### Does zero-touch deployment work for device refresh cycles?
 
 Yes. Replacement devices enroll automatically through the same workflow as new devices. Apple's Return to Service workflow automates device erasure and re-enrollment for device redeployment. Starting with iOS 26, iPadOS 26, and visionOS 26, Return to Service can also preserve managed apps during device preparation for reuse. [Try Fleet](https://fleetdm.com/device-management) to see how declarative configuration automates enrollment workflows for both new devices and refresh scenarios.
+
+<meta name="articleTitle" value="Mac Zero-Touch Deployment: Complete Enterprise Guide 2026">
+<meta name="authorFullName" value="Brock Walters">
+<meta name="authorGitHubUsername" value="nonpunctual">
+<meta name="category" value="articles">
+<meta name="publishedOn" value="2026-01-29">
+<meta name="description" value="Complete guide to Mac zero-touch deployment using Apple Business Manager and MDM. Learn setup and best practices for remote Mac fleet management.">
