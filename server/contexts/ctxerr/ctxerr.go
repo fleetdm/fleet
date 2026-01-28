@@ -309,60 +309,75 @@ func Handle(ctx context.Context, err error) {
 	// Collect telemetry context from registered providers
 	telemetryAttrs := collectTelemetryContext(ctx)
 
-	// send to OpenTelemetry if there's an active span
-	if span := trace.SpanFromContext(ctx); span != nil && span.IsRecording() {
-		// Mark the current span as failed by setting the error status.
-		// This status can be overridden if we recovered from the error.
-		exceptionType := fmt.Sprintf("%T", Cause(cause)) // type of root error
-		span.SetStatus(codes.Error, exceptionType)       // low-cardinality identifier
+	// Check if this is a client error. Per OTEL semantic conventions,
+	// 4xx errors on server spans MUST NOT set span status to Error.
+	// See: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+	clientErr := isClientError(err)
+	exceptionType := fmt.Sprintf("%T", Cause(cause)) // type of root error
 
-		// Build attributes for the exception event
-		attrs := []attribute.KeyValue{
-			attribute.String("exception.type", exceptionType),
-			attribute.String("exception.message", cause.Error()),
-			attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
-		}
-
-		// Add contextual information from telemetry providers.
-		// OpenTelemetry requires typed attributes, so we convert the values to the appropriate type.
-		for k, v := range telemetryAttrs {
-			switch val := v.(type) {
-			case string:
-				attrs = append(attrs, attribute.String(k, val))
-			case int:
-				attrs = append(attrs, attribute.Int64(k, int64(val)))
-			case int64:
-				attrs = append(attrs, attribute.Int64(k, val))
-			case uint:
-				attrs = append(attrs, attribute.Int64(k, int64(val))) //nolint:gosec
-			case uint64:
-				attrs = append(attrs, attribute.Int64(k, int64(val))) //nolint:gosec
-			case bool:
-				attrs = append(attrs, attribute.Bool(k, val))
-			default:
-				attrs = append(attrs, attribute.String(k, fmt.Sprint(val)))
-			}
-		}
-
-		span.AddEvent("exception", trace.WithAttributes(attrs...))
+	// Record metrics for both client and server errors
+	if clientErr {
+		clientErrorsCounter.Add(ctx, 1, clientErrorCounterAttrs(exceptionType))
+	} else {
+		serverErrorsCounter.Add(ctx, 1, serverErrorCounterAttrs(exceptionType))
 	}
 
-	// send to elastic APM
-	apm.CaptureError(ctx, cause).Send()
+	// Only record exception events for server errors (5xx).
+	// Per OTEL spec, handled errors (like 4xx responses) should not be recorded as exceptions.
+	// See: https://opentelemetry.io/docs/specs/semconv/general/recording-errors/
+	if !clientErr {
+		if span := trace.SpanFromContext(ctx); span != nil && span.IsRecording() {
+			span.SetStatus(codes.Error, exceptionType)
 
-	// if Sentry is configured, capture the error there
-	if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {
-		if len(telemetryAttrs) > 0 {
-			// we have contextual information, use it to enrich the error
-			ctxHub := sentry.CurrentHub().Clone()
-			ctxHub.ConfigureScope(func(scope *sentry.Scope) {
-				for k, v := range telemetryAttrs {
-					scope.SetTag(k, fmt.Sprint(v))
+			// Build attributes for the event using OTEL semantic conventions.
+			// See: https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/
+			attrs := []attribute.KeyValue{
+				attribute.String("exception.type", exceptionType),
+				attribute.String("exception.message", cause.Error()),
+				attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
+			}
+
+			// Add contextual information from telemetry providers.
+			// OpenTelemetry requires typed attributes, so we convert the values to the appropriate type.
+			for k, v := range telemetryAttrs {
+				switch val := v.(type) {
+				case string:
+					attrs = append(attrs, attribute.String(k, val))
+				case int:
+					attrs = append(attrs, attribute.Int64(k, int64(val)))
+				case int64:
+					attrs = append(attrs, attribute.Int64(k, val))
+				case uint:
+					attrs = append(attrs, attribute.Int64(k, int64(val))) //nolint:gosec
+				case uint64:
+					attrs = append(attrs, attribute.Int64(k, int64(val))) //nolint:gosec
+				case bool:
+					attrs = append(attrs, attribute.Bool(k, val))
+				default:
+					attrs = append(attrs, attribute.String(k, fmt.Sprint(val)))
 				}
-			})
-			ctxHub.CaptureException(cause)
-		} else {
-			sentry.CaptureException(cause)
+			}
+
+			span.AddEvent("exception", trace.WithAttributes(attrs...))
+		}
+
+		// send to elastic APM
+		apm.CaptureError(ctx, cause).Send()
+
+		// if Sentry is configured, capture the error there
+		if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {
+			if len(telemetryAttrs) > 0 {
+				// we have contextual information, use it to enrich the error
+				ctxHub := sentry.CurrentHub().Clone()
+				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
+					for k, v := range telemetryAttrs {
+						scope.SetTag(k, fmt.Sprint(v))
+					}
+				})
+				ctxHub.CaptureException(cause)
+			} else {
+				sentry.CaptureException(cause)
+			}
 		}
 	}
 
@@ -380,6 +395,24 @@ func collectTelemetryContext(ctx context.Context) map[string]any {
 		}
 	}
 	return attrs
+}
+
+// isClientError checks if the error is a client error (4xx).
+func isClientError(err error) bool {
+	// Check for explicit client error interface
+	var clientErr platform_http.ErrWithIsClientError
+	if errors.As(err, &clientErr) {
+		return clientErr.IsClientError()
+	}
+
+	// Treat context.Canceled as a client error. In HTTP handlers, this typically
+	// indicates client disconnection. While it could theoretically come from
+	// server-side cancellation, detecting true client disconnection at the
+	// transport layer is complex. Go's HTTP server doesn't provide a distinct
+	// error type for client disconnection (see https://github.com/golang/go/issues/64465).
+	// The occasional misclassification is acceptable given that most context
+	// cancellations in request handling are client-initiated.
+	return errors.Is(err, context.Canceled)
 }
 
 // Retrieve retrieves an error from the registered error handler

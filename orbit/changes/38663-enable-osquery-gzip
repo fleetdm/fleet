@@ -1,0 +1,1 @@
+- Set `--tls_accept_gzip=true` when connecting osquery to Fleet. This should have no effect until gzip is also enabled on the Fleet server (a new Fleet server configuration to enable this is coming).

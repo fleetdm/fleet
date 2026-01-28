@@ -1,0 +1,1 @@
+* Allowed specifying an Apple Connect JWT for interacting directly with Apple APIs when retrieving VPP app metadata.

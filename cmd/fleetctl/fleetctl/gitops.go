@@ -328,8 +328,8 @@ func gitopsCommand() *cli.Command {
 						builtInLabelsUsed = true
 						continue
 					}
-					for _, labelUsed := range labelsUsed[labelUsed] {
-						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUsed.Type, labelUsed.Name)
+					for _, labelUsage := range labelsUsed[labelUsed] {
+						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUsage.Type, labelUsage.Name)
 					}
 					unknownLabelsUsed = true
 				}
