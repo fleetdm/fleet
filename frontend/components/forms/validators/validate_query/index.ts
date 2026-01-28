@@ -1,4 +1,3 @@
-// @ts-ignore
 import { Parser } from "node-sql-parser";
 
 export const EMPTY_QUERY_ERR = "Query text must be present";

@@ -1,4 +1,3 @@
-// @ts-ignore
 import { Parser } from "node-sql-parser";
 import { intersection, isPlainObject, uniq } from "lodash";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
