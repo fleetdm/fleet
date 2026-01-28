@@ -829,6 +829,9 @@ const DeviceUserPage = ({
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
                     router={router}
+                    conditionalAccessEnbled={
+                      globalConfig?.features.enable_conditional_access
+                    }
                   />
                 </TabPanel>
               )}
@@ -847,10 +850,15 @@ const DeviceUserPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
-            onResolveLater={() => {
-              onCancelPolicyDetailsModal();
-              setShowBypassModal(true);
-            }}
+            onResolveLater={
+              globalConfig?.features.enable_conditional_access &&
+              globalConfig.features.enable_conditional_access_bypass
+                ? () => {
+                    onCancelPolicyDetailsModal();
+                    setShowBypassModal(true);
+                  }
+                : undefined
+            }
           />
         )}
         {!!host && showOSSettingsModal && (

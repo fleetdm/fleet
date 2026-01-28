@@ -9,10 +9,12 @@ const baseClass = "policy-failing-count";
 interface IPolicyFailingCountProps {
   policyList: IHostPolicy[];
   deviceUser?: boolean;
+  conditionalAccessEnabled?: boolean;
 }
 const PolicyFailingCount = ({
   policyList,
   deviceUser,
+  conditionalAccessEnabled,
 }: IPolicyFailingCountProps): JSX.Element | null => {
   const failCount = policyList.reduce((sum, policy) => {
     return policy.response === "fail" ? sum + 1 : sum;
@@ -24,7 +26,7 @@ const PolicyFailingCount = ({
   }, 0);
 
   const message =
-    blockingCount === 0 ? (
+    !conditionalAccessEnabled || blockingCount === 0 ? (
       <span>
         <strong>
           This device is failing
