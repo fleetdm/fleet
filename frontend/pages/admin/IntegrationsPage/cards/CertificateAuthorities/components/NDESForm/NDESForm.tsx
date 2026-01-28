@@ -73,7 +73,13 @@ const NDESForm = ({
         onChange={onInputChange}
         parseTarget
         placeholder="https://example.com/certsrv/mscep_admin/"
-        helpText="The admin interface for managing the SCEP service and viewing configuration details."
+        helpText={
+          <>
+            The URL for the <b>Network Device Enrollment Service</b> page to
+            view configuration details. Okta calls this the <b>Challenge URL</b>
+            .
+          </>
+        }
       />
       <InputField
         label="Username"
