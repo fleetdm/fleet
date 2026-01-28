@@ -444,6 +444,17 @@ var (
 				s.Name = "integrative-modeling-platform"
 			},
 		},
+		{
+			// ninxsoft/Mist (macOS installer download tool) is incorrectly matched against
+			// mist.io/Mist CPEs. Rename the app to prevent incorrect CPE matching with mist:mist.
+			// See https://github.com/fleetdm/fleet/issues/37111
+			matches: func(s *fleet.Software) bool {
+				return s.BundleIdentifier == "com.ninxsoft.mist" && s.Source == "apps"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "ninxsoft-mist"
+			},
+		},
 	}
 )
 
