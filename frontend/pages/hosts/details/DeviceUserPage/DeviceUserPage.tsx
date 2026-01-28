@@ -826,7 +826,7 @@ const DeviceUserPage = ({
                     hostPlatform={host?.platform || ""}
                     router={router}
                     conditionalAccessEnbled={
-                      globalConfig?.features.enable_conditional_access
+                      globalConfig?.features?.enable_conditional_access
                     }
                   />
                 </TabPanel>
@@ -847,8 +847,8 @@ const DeviceUserPage = ({
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
             onResolveLater={
-              globalConfig?.features.enable_conditional_access &&
-              globalConfig.features.enable_conditional_access_bypass
+              globalConfig?.features?.enable_conditional_access &&
+              globalConfig.features?.enable_conditional_access_bypass
                 ? () => {
                     onCancelPolicyDetailsModal();
                     setShowBypassModal(true);
