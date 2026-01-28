@@ -2625,4 +2625,65 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 
 func testListHostMDMAndroidProfilesFailedDueToNonCompliance(t *testing.T, ds *Datastore) {
 	// TODO(JK): use a table driven test please
+	ctx := t.Context()
+
+	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
+	for i := range profiles {
+		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		require.NoError(t, err)
+		profiles[i] = p
+	}
+	hostUUID := uuid.NewString()
+
+	clearOutHostMDMAndroidProfilesTable := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM host_mdm_android_profiles WHERE host_uuid = ?", hostUUID)
+			return err
+		})
+	}
+	policyVersion := ptr.Int(1)
+
+	cases := []struct {
+		Desc           string
+		AllProfiles    []*fleet.MDMAndroidProfilePayload
+		WantedProfiles []*fleet.MDMAndroidProfilePayload
+	}{
+		{
+			Desc: "Failed due to various reasons",
+			AllProfiles: []*fleet.MDMAndroidProfilePayload{
+				{
+					HostUUID:      hostUUID,
+					ProfileUUID:   profiles[0].ProfileUUID,
+					ProfileName:   profiles[0].Name,
+					OperationType: fleet.MDMOperationTypeInstall,
+					Status:        &fleet.MDMDeliveryFailed,
+					Detail: `passwordPolicies" setting couldn't apply to a host.
+Reason: USER_ACTION. Other settings are applied.`,
+					IncludedInPolicyVersion: policyVersion,
+				},
+			},
+			WantedProfiles: []*fleet.MDMAndroidProfilePayload{
+				{
+					HostUUID:      hostUUID,
+					ProfileUUID:   profiles[0].ProfileUUID,
+					ProfileName:   profiles[0].Name,
+					OperationType: fleet.MDMOperationTypeInstall,
+					Status:        &fleet.MDMDeliveryFailed,
+					Detail: `passwordPolicies" setting couldn't apply to a host.
+Reason: USER_ACTION. Other settings are applied.`,
+					IncludedInPolicyVersion: policyVersion,
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, c.AllProfiles)
+		require.NoError(t, err)
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+		require.Len(t, hostProfiles, len(c.WantedProfiles))
+		clearOutHostMDMAndroidProfilesTable()
+	}
 }
