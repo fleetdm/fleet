@@ -108,7 +108,7 @@ In your Intune settings, select **Devices**, and under **Device onbarding**, ope
     + Group > Group.Read.All
     + User > User.Read.All
 14. Select **Add permissions**.
-15. Select **Grant admin consent for &lt;your tenant name&gt;**, and confirm.
+15. Select **Grant admin consent for [your tenant name]**, and confirm.
 
 Now you're ready to automatically enroll Windows hosts to Fleet.
 
