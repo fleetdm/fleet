@@ -4,8 +4,10 @@ package viewer
 
 import (
 	"context"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type key int
@@ -101,4 +103,53 @@ func (v Viewer) CanPerformPasswordReset() bool {
 		return v.IsLoggedIn() && v.User.IsAdminForcedPasswordReset()
 	}
 	return false
+}
+
+// GetDiagnosticContext implements ctxerr.ErrorContextProvider
+func (v *Viewer) GetDiagnosticContext() map[string]any {
+	vdata := map[string]any{
+		"is_logged_in": v.IsLoggedIn(),
+	}
+	if v.User != nil {
+		vdata["sso_enabled"] = v.User.SSOEnabled
+	}
+	return map[string]any{
+		"viewer": vdata,
+	}
+}
+
+// GetTelemetryContext implements ctxerr.ErrorContextProvider
+func (v *Viewer) GetTelemetryContext() map[string]any {
+	if v.User == nil {
+		return nil
+	}
+	return map[string]any{
+		"user.id":    v.User.ID,
+		"user.email": maskEmail(v.User.Email),
+	}
+}
+
+// maskEmail anonymizes an email address for telemetry by showing only
+// the first character of the local part and the full domain.
+// Example: "john.doe@example.com" -> "j***@example.com"
+func maskEmail(email string) string {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 || len(parts[0]) == 0 {
+		return "***"
+	}
+	return string(parts[0][0]) + "***@" + parts[1]
+}
+
+// systemUser is a synthetic user for internal system operations.
+// The Name uses ActivityAutomationAuthor to align with system-initiated activities.
+var systemUser = &fleet.User{
+	Name:       fleet.ActivityAutomationAuthor,
+	GlobalRole: ptr.String(fleet.RoleAdmin),
+}
+
+// NewSystemContext returns a context with system-level (admin) privileges.
+// Use this for cron jobs, internal service calls, and other system operations
+// that need to bypass user-based authorization.
+func NewSystemContext(ctx context.Context) context.Context {
+	return NewContext(ctx, Viewer{User: systemUser})
 }

@@ -101,6 +101,7 @@ export interface IDeviceGlobalConfig {
 
 export interface IFleetDesktopSettings {
   transparency_url: string;
+  alternative_browser_host: string;
 }
 
 export interface IConfigFeatures {
@@ -229,7 +230,8 @@ export type LogDestination =
   | "kinesis"
   | "lambda"
   | "pubsub"
-  | "kafta"
+  | "kafka"
+  | "nats"
   | "stdout"
   | "webhook"
   | "";

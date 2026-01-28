@@ -9,12 +9,12 @@ Fleet's Go codebase has grown to over 600,000 lines of code across 2,300+ Go fil
 ### What is a modular monolith?
 
 A modular monolith is an architectural pattern where:
-- Code is organized into cohesive, loosely-coupled modules (bounded contexts)
-- Each module owns its complete vertical slice: handlers → service logic → data access
-- Modules communicate through well-defined public interfaces, not internal implementation details
+- Code is organized into cohesive, loosely-coupled bounded contexts
+- Each bounded context owns its complete vertical slice: handlers → service logic → data access
+- Bounded contexts communicate through well-defined public interfaces, not internal implementation details
 - The application still deploys as a single binary
 
-This approach provides the benefits of modular architecture (clear ownership, better testability, reduced coupling) without the operational complexity of distributed systems.
+This approach provides the benefits of strong boundaries (clear ownership, better testability, reduced coupling) without the operational complexity of distributed systems.
 
 ### Industry precedents
 
@@ -75,13 +75,100 @@ We enforce boundaries using architecture tests that validate import restrictions
 
 These tests run as part of the regular CI test suite.
 
+## Reference patterns
+
+The following patterns emerged from the Activity bounded context pilot. Bounded context owners are free to adopt these if they find them useful. They are not requirements.
+
+### Directory structure
+
+Use Go's `internal` directory to enforce public vs private boundaries:
+
+```text
+/server/{context}/
+├── bootstrap/                 # Public: dependency injection entry point
+│   └── bootstrap.go
+├── api/                       # Public: service interface and request/response types
+│   └── service.go
+└── internal/                  # Private: implementation details (cannot be imported externally)
+    ├── types/                 # Internal interfaces (e.g., Datastore)
+    ├── service/               # Service implementation and HTTP handlers
+    ├── mysql/                 # Database implementation
+    └── tests/                 # Integration tests
+```
+
+The `internal` directory is enforced by the Go compiler. Code outside the bounded context cannot import it.
+
+The `bootstrap` package implements the **composition root** pattern. It is the single place where all dependencies are wired together. Code outside the bounded context calls `bootstrap.New()` to instantiate the fully-configured service.
+
+### Anti-corruption layer (ACL)
+
+When a bounded context needs data from another context (or legacy Fleet code), you may use an ACL to translate between domains. This isolates the bounded context from external types and provides a single integration point.
+
+ACLs are temporary by design. Once the dependency exposes a clean public API that does not bring in large coupling or transitive dependencies, the ACL can be removed and replaced with a direct import.
+
+Location: `/server/acl/{context}acl/`
+
+```go
+// FleetServiceAdapter is an anti-corruption layer that translates between
+// the legacy Fleet user types and the activity bounded context's domain types.
+type FleetServiceAdapter struct {
+    svc fleet.UserLookupService  // External dependency
+}
+
+func (a *FleetServiceAdapter) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
+    users, err := a.svc.UsersByIDs(ctx, ids)  // Call external service
+    // ... translate fleet.User to activity.User ...
+    return result, nil
+}
+```
+
+Benefits:
+- Single point of integration with external code
+- Bounded context remains decoupled from external types
+- Easy to replace when a clean API becomes available
+
+### Dependency injection for authentication and authorization
+
+Bounded contexts should not own authentication or authorization. These are injected from outside.
+
+**Authentication** (verifying who the user is) is injected as HTTP middleware. The bootstrap function returns a routes function that accepts the auth middleware:
+
+```go
+// bootstrap/bootstrap.go returns a function that accepts auth middleware
+func New(...) (api.Service, func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc) {
+    // ...
+    routesFn := func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
+        return service.GetRoutes(svc, authMiddleware)
+    }
+    return svc, routesFn
+}
+```
+
+**Authorization** (checking permissions) is injected as a service dependency. The bounded context calls the authorizer but does not implement it:
+
+```go
+// bootstrap/bootstrap.go receives authorizer as a parameter
+func New(
+    dbConns *platform_mysql.DBConnections,
+    authorizer platform_authz.Authorizer,  // Injected from outside
+    // ...
+) {
+    svc := service.NewService(authorizer, ds, userProvider, logger)
+}
+```
+
+### Test organization
+
+**Unit tests**: Colocated with implementation files, use mocks for all dependencies.
+
+**Integration tests**: In `internal/tests/` directory, use real database and HTTP server with mock auth.
+
 ## Glossary
 
 | Term | Definition |
 |------|------------|
 | **Bounded context** | A DDD concept representing a cohesive domain with clear boundaries. In Fleet, a group of Go packages under a common directory. |
 | **Cross-cutting concern** | Functionality that affects multiple parts of the system (e.g., activity logging, authentication). |
-| **Modularization** | Organizing code into cohesive, loosely-coupled groups. Not related to Go modules. |
 | **Ubiquitous language** | Using the same terminology consistently across code and business domains. |
 | **Vertical slice** | The complete implementation stack for a feature: handlers → service → datastore → database. |
 
@@ -99,3 +186,7 @@ This is a sign that either:
 3. A public interface should be added to the other context
 
 Discuss with the tech leads before bypassing boundaries.
+
+### What's the difference between a module and a bounded context?
+
+A module is a generic term for organizing cohesive code. A bounded context has hard boundaries enforced through public APIs, clear ownership, and restricted imports. We use "bounded context" to emphasize that these are not just convenient code groupings, but intentional boundaries designed to allow teams to work independently as the codebase scales.

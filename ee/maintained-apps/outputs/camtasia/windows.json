@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "26.0.0.13551",
+      "version": "26.0.1.14418",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Camtasia' AND publisher = 'TechSmith Corporation';"
       },
-      "installer_url": "https://download.techsmith.com/camtasiastudio/releases/2600/camtasia.msi",
+      "installer_url": "https://download.techsmith.com/camtasiastudio/releases/2601/camtasia.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "c46900c3",
-      "sha256": "749fa288b055154c4a7aeab8189b9b710d79b2ef936b0fa02f35e00da44d01be",
+      "sha256": "eca9daaadaae951835a46d76f781a58e8df43031e03d85823d2c11b356553371",
       "default_categories": [
         "Productivity"
       ],

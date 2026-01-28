@@ -285,6 +285,30 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/wix` docker image
 
+### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-19 18:03:45
+
+### [CVE-2025-65018](https://nvd.nist.gov/vuln/detail/CVE-2025-65018)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-19 18:03:33
+
+### [CVE-2025-64720](https://nvd.nist.gov/vuln/detail/CVE-2025-64720)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-19 18:02:56
+
 ### [CVE-2023-31484](https://nvd.nist.gov/vuln/detail/CVE-2023-31484)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`

@@ -22,12 +22,14 @@ func TestCertificates(t *testing.T) {
 	}{
 		{"CreateCertificateTemplate", testCreateCertificateTemplate},
 		{"GetCertificateTemplateById", testGetCertificateTemplateByID},
+		{"GetCertificateTemplatesByIdsAndTeam", testGetCertificateTemplatesByIdsAndTeam},
 		{"GetCertificateTemplatesByTeamID", testGetCertificateTemplatesByTeamID},
 		{"DeleteCertificateTemplate", testDeleteCertificateTemplate},
 		{"BatchUpsertCertificates", testBatchUpsertCertificates},
 		{"BatchDeleteCertificateTemplates", testBatchDeleteCertificateTemplates},
 		{"GetHostCertificateTemplates", testGetHostCertificateTemplates},
 		{"GetCertificateTemplateForHost", testGetCertificateTemplateForHost},
+		{"GetHostCertificateTemplateRecord", testGetHostCertificateTemplateRecord},
 	}
 
 	for _, c := range cases {
@@ -273,6 +275,11 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				require.Equal(t, fleet.CertificateTemplateDelivered, templateForHost.Status)
 				require.Equal(t, "fleet-challenge", *templateForHost.FleetChallenge)
 				require.Equal(t, "test-challenge", *templateForHost.SCEPChallenge)
+
+				// GetCertificateTemplateByIdForHost should return notFound for a host without a host_certificate_template record
+				_, err = ds.GetCertificateTemplateByIdForHost(ctx, certificateTemplateID, "non-existent-host-uuid")
+				require.Error(t, err)
+				require.True(t, fleet.IsNotFound(err), "expected notFound error, got: %v", err)
 			},
 		},
 		{
@@ -345,6 +352,110 @@ func testGetCertificateTemplateByID(t *testing.T, ds *Datastore) {
 				require.Equal(t, fleet.CertificateTemplateVerified, templateForHost.Status)
 				require.Nil(t, templateForHost.FleetChallenge)
 				require.Nil(t, templateForHost.SCEPChallenge)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			tc.before(ds)
+
+			tc.testFunc(t, ds)
+		})
+	}
+}
+
+func testGetCertificateTemplatesByIdsAndTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var teamID, erroneousId uint
+	var IDs []uint
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore)
+		testFunc func(*testing.T, *Datastore)
+	}{
+		{
+			"No existing certificate template",
+			func(ds *Datastore) {
+				IDs = make([]uint, 0)
+			},
+			func(t *testing.T, ds *Datastore) {
+				templates, err := ds.GetCertificateTemplatesByIdsAndTeam(ctx, IDs, 0)
+				require.NoError(t, err)
+				require.Len(t, templates, 0)
+			},
+		},
+		{
+			"Get existing certificate template",
+			func(ds *Datastore) {
+				// Create test team 1
+				team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team 1"})
+				require.NoError(t, err)
+				teamID = team1.ID
+
+				// Create test team 2
+				team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team 2"})
+				require.NoError(t, err)
+
+				// Create a test certificate authority
+				ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+					Type:      string(fleet.CATypeCustomSCEPProxy),
+					Name:      ptr.String("Test SCEP CA"),
+					URL:       ptr.String("http://localhost:8080/scep"),
+					Challenge: ptr.String("test-challenge"),
+				})
+				require.NoError(t, err)
+				caID := ca.ID
+
+				// team 1 certificate
+				certificateTemplate := fleet.CertificateTemplate{
+					Name:                   "Cert1",
+					TeamID:                 teamID,
+					CertificateAuthorityID: caID,
+					SubjectName:            "CN=Test Subject 1",
+				}
+				res, err := ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+					certificateTemplate.Name,
+					certificateTemplate.TeamID,
+					certificateTemplate.CertificateAuthorityID,
+					certificateTemplate.SubjectName,
+				)
+				require.NoError(t, err)
+				lastID, err := res.LastInsertId()
+				require.NoError(t, err)
+				certificateTemplateID := uint(lastID) //nolint:gosec
+				IDs = append(IDs, certificateTemplateID)
+
+				// team 2 certificates
+				certificateTemplate = fleet.CertificateTemplate{
+					Name:                   "Cert2",
+					TeamID:                 team2.ID,
+					CertificateAuthorityID: caID,
+					SubjectName:            "CN=Test Subject 2",
+				}
+				res, err = ds.writer(ctx).ExecContext(ctx,
+					"INSERT INTO certificate_templates (name, team_id, certificate_authority_id, subject_name) VALUES (?, ?, ?, ?)",
+					certificateTemplate.Name,
+					certificateTemplate.TeamID,
+					certificateTemplate.CertificateAuthorityID,
+					certificateTemplate.SubjectName,
+				)
+				require.NoError(t, err)
+				lastID, err = res.LastInsertId()
+				require.NoError(t, err)
+				erroneousId = uint(lastID) //nolint:gosec
+				IDs = append(IDs, erroneousId)
+			},
+			func(t *testing.T, ds *Datastore) {
+				templates, err := ds.GetCertificateTemplatesByIdsAndTeam(ctx, IDs, teamID)
+				require.NoError(t, err)
+				require.Len(t, templates, 1)
+				require.Equal(t, teamID, templates[0].TeamID)
+				require.NotEqual(t, erroneousId, templates[0].ID)
 			},
 		},
 	}
@@ -1100,4 +1211,117 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 			tc.do(t, ds)
 		})
 	}
+}
+
+func testGetHostCertificateTemplateRecord(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
+
+	ctx := context.Background()
+
+	// Create team
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+
+	// Create host
+	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	h1.TeamID = &team1.ID
+	err = ds.UpdateHost(ctx, h1)
+	require.NoError(t, err)
+
+	// Create certificate authority
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// Create certificate template
+	ct1, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "Template1",
+		TeamID:                 team1.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Subject 1",
+	})
+	require.NoError(t, err)
+
+	// Create host_certificate_template record
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              h1.UUID,
+			CertificateTemplateID: ct1.ID,
+			FleetChallenge:        ptr.String("challenge-123"),
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+			Name:                  "Template1",
+		},
+	})
+	require.NoError(t, err)
+
+	t.Run("Returns record when it exists", func(t *testing.T) {
+		result, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct1.ID)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		require.Equal(t, h1.UUID, result.HostUUID)
+		require.Equal(t, ct1.ID, result.CertificateTemplateID)
+		require.NotNil(t, result.FleetChallenge)
+		require.Equal(t, "challenge-123", *result.FleetChallenge)
+		require.Equal(t, fleet.CertificateTemplateDelivered, result.Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, result.OperationType)
+	})
+
+	t.Run("Returns NotFound for non-existent host", func(t *testing.T) {
+		_, err := ds.GetHostCertificateTemplateRecord(ctx, "non-existent-uuid", ct1.ID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("Returns NotFound for non-existent template", func(t *testing.T) {
+		_, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, 99999)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("Returns record even after parent certificate_template is deleted", func(t *testing.T) {
+		// Create a new template and record
+		ct2, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   "Template2",
+			TeamID:                 team1.ID,
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=Test Subject 2",
+		})
+		require.NoError(t, err)
+
+		err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+			{
+				HostUUID:              h1.UUID,
+				CertificateTemplateID: ct2.ID,
+				FleetChallenge:        ptr.String("challenge-456"),
+				Status:                fleet.CertificateTemplateDelivered,
+				OperationType:         fleet.MDMOperationTypeInstall,
+				Name:                  "Template2",
+			},
+		})
+		require.NoError(t, err)
+
+		// Verify record exists
+		result, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct2.ID)
+		require.NoError(t, err)
+		require.Equal(t, "challenge-456", *result.FleetChallenge)
+
+		// Delete the parent certificate_template
+		err = ds.DeleteCertificateTemplate(ctx, ct2.ID)
+		require.NoError(t, err)
+
+		// Record should still be accessible
+		result, err = ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct2.ID)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, h1.UUID, result.HostUUID)
+		require.Equal(t, ct2.ID, result.CertificateTemplateID)
+		require.Equal(t, "challenge-456", *result.FleetChallenge)
+		require.Equal(t, fleet.CertificateTemplateDelivered, result.Status)
+	})
 }

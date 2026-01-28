@@ -131,7 +131,7 @@ const Secrets = () => {
       />
       {canEdit && (
         <Button
-          variant="text-icon"
+          variant="icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onClickDeleteSecret(secret);

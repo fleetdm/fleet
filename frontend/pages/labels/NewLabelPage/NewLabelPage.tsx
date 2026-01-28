@@ -31,6 +31,7 @@ import {
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { getErrorReason } from "interfaces/errors";
 
 import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
@@ -321,8 +322,18 @@ const NewLabelPage = ({
       await labelsAPI.create(formData);
       router.push(PATHS.MANAGE_LABELS);
       renderFlash("success", "Label added successfully.");
-    } catch {
-      renderFlash("error", "Couldn't add label. Please try again.");
+    } catch (error) {
+      const status = (error as { status: number }).status;
+      let errorMessage = "Couldn't add label. Please try again.";
+      if (status === 409) {
+        errorMessage = "A label with this name already exists.";
+      } else if (status === 422) {
+        const reason = getErrorReason(error);
+        if (reason) {
+          errorMessage = `Couldn't add label: ${reason}. Please try again.`;
+        }
+      }
+      renderFlash("error", errorMessage);
     }
     setIsUpdating(false);
   };

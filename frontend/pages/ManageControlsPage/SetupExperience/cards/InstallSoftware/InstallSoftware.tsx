@@ -143,12 +143,10 @@ const InstallSoftware = ({
 
   const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
 
+  const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
+
   const renderTabContent = (platform: SetupExperiencePlatform) => {
-    if (
-      isLoadingSoftwareTitles ||
-      isLoadingGlobalConfig ||
-      isLoadingTeamConfig
-    ) {
+    if (isLoadingSoftwareTitles) {
       return <Spinner />;
     }
 
@@ -214,40 +212,44 @@ const InstallSoftware = ({
           />
         }
       />
-      <TabNav secondary>
-        <Tabs
-          selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
-          onSelect={handleTabChange}
-        >
-          <TabList>
-            <Tab>
-              <TabText>macOS</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Windows</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Linux</TabText>
-            </Tab>
-            <Tab>
-              <TabText>iOS</TabText>
-            </Tab>
-            <Tab>
-              <TabText>iPadOS</TabText>
-            </Tab>
-            {isAndroidMdmEnabled && (
+      {isLoadingConfig ? (
+        <Spinner />
+      ) : (
+        <TabNav secondary>
+          <Tabs
+            selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
+            onSelect={handleTabChange}
+          >
+            <TabList>
               <Tab>
-                <TabText>Android</TabText>
+                <TabText>macOS</TabText>
               </Tab>
-            )}
-          </TabList>
-          {PLATFORM_BY_INDEX.map((platform) => {
-            return (
-              <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
-            );
-          })}
-        </Tabs>
-      </TabNav>
+              <Tab>
+                <TabText>Windows</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Linux</TabText>
+              </Tab>
+              <Tab>
+                <TabText>iOS</TabText>
+              </Tab>
+              <Tab>
+                <TabText>iPadOS</TabText>
+              </Tab>
+              {isAndroidMdmEnabled && (
+                <Tab>
+                  <TabText>Android</TabText>
+                </Tab>
+              )}
+            </TabList>
+            {PLATFORM_BY_INDEX.map((platform) => {
+              return (
+                <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
+              );
+            })}
+          </Tabs>
+        </TabNav>
+      )}
       {showSelectSoftwareModal && softwareTitles && (
         <SelectSoftwareModal
           currentTeamId={currentTeamId}

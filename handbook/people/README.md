@@ -13,14 +13,14 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#help-people](https://fleetdm.slack.com/archives/C02QG7P5571) Slack channel).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-people](https://fleetdm.slack.com/archives/C02QG7P5571) Slack channel.)
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/91) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
 ## Responsibilities
 
-The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page. 
+The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, offboarding, remote work, the handbook, issue templates, Docusign templates, key spreadsheets, and project management tools. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page. 
 
 > Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance).
 
@@ -299,6 +299,17 @@ Once notified, People takes the following steps:
 6. Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
 
 
+### Retire a KPI
+
+The ["🗓️ KPIs" (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) sheet feeds data into the ["🪴🌧️🦉 Investor updates" (confidential)](https://docs.google.com/spreadsheets/d/10T7Q9iuHA4vpfV7qZCm6oMd5U1bLftBSobYD0RR8RkM/edit?gid=0#gid=0) sheet. Because of this linkage, retiring a KPI requires updating both sheets to avoid broken references or incorrect reporting. To retire a KPI, the Head of People will:
+1. Move the KPI to the retired section of the "🗓️ KPIs" sheet.
+2. Validate that each column in "🪴🌧️🦉 Investor updates" still reflects the correct data.
+3. If retiring the KPI caused column positions to change:
+   - Locate the new column position in the "🗓️ KPIs". 
+   - Update the relevant cell in row 2 of the "🪴🌧️🦉 Investor updates" with the new column location.
+4. Scan "🪴🌧️🦉 Investor updates" to confirm all metrics are populating as expected and no data is missing or misaligned.
+
+
 ### Review Fleet's US company benefits
 
 Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
@@ -307,6 +318,54 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 3. Complete the survey questions, aiming for minimal changes.
 4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+
+
+### Purchase a SaaS tool
+
+When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
+- Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
+- Avoid extra features you don't need, and if they're there anyway, avoid using them.
+- Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
+- Programmability: Does it have a publicly documented legible REST API that requires at most a single API token?
+- Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
+
+
+### Downgrade an unused license seat
+
+- On the first Wednesday of every quarter, the Head of People will audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
+- During this time, as many seats will be downgraded as possible. When doubt exists, downgrade.
+- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a GitHub issue to the People department to have their access restored.
+- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
+
+
+### Process a tool upgrade request from a team member
+
+- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through GitHub.
+- The Head of People will upgrade or add the license seat as needed and let the requesting team member know they did it.
+
+
+### Send the weekly update
+
+Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23). To send the weekly update follow these steps:  
+  
+1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and the Head of People.
+3. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
+4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
+5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
+
+
+### Cancel a vendor or subscription
+
+Once the decision has been made not to renew a tool or subscription on Fleet's behalf, use the following steps to churn/cancel a vendor or subscription:
+
+1. Cancel the subscription, including recurring billing. If invoiced, then send churn notice.
+2. Update ["¶ 🧮 The numbers" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit?gid=2112277278#gid=2112277278).
+  - Prepend the recurring expense title with "CANCELLED - ".
+  - Zero-out "Projected monthly burn" and "Projected invoice amount".
+3. Remove references from integrated systems and references (i.e. unplug the tool from any other integrations)
+4. Remove any shared access from 1Password vaults.
+5. Update any reference to the tool or subscription and afterwards communicate the change (e.g. by linking to your merged PR in Slack).
 
 
 ## Rituals

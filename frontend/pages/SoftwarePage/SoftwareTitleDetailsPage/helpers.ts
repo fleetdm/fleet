@@ -24,6 +24,9 @@ export interface InstallerCardInfo {
   isScriptPackage: boolean;
   iconUrl?: string | null;
   displayName?: string;
+  autoUpdateEnabled?: boolean;
+  autoUpdateStartTime?: string;
+  autoUpdateEndTime?: string;
 }
 
 // eslint-disable-next-line import/prefer-default-export
@@ -56,5 +59,8 @@ export const getInstallerCardInfo = (
     isSelfService: installerData.self_service,
     isScriptPackage:
       SCRIPT_PACKAGE_SOURCES.includes(softwareTitle.source) || false,
+    autoUpdateEnabled: softwareTitle.auto_update_enabled,
+    autoUpdateStartTime: softwareTitle.auto_update_window_start,
+    autoUpdateEndTime: softwareTitle.auto_update_window_end,
   };
 };

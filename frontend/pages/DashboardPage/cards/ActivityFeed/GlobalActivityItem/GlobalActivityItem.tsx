@@ -449,7 +449,7 @@ const TAGGED_TEMPLATES = {
 
     return (
       <>
-        enabled OS updates for all new {applePlatform} hosts on {teamSection}.
+        enabled OS updates for all new {applePlatform} hosts on {teamSection}.{" "}
         {applePlatform} hosts will upgrade to the lastest version when they
         enroll.
       </>
@@ -2072,7 +2072,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedHostIdpData: {
       return TAGGED_TEMPLATES.editedHostIdpData(activity);
     }
-    case ActivityType.CreatedCertificate: {
+    case ActivityType.AddedCertificate: {
       return TAGGED_TEMPLATES.createdCert(activity);
     }
     case ActivityType.DeletedCertificate: {

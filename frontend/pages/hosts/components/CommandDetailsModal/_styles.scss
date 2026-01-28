@@ -9,4 +9,10 @@
       gap: $pad-small;
     }
   }
+
+  // shortening the hight of the textarea
+  // so the modal height stays within the viewport
+  .textarea--code {
+    max-height: 200px;
+  }
 }

@@ -1,0 +1,1 @@
+Added `conditional_access.cert_serial_format` server option to allow specifying the Okta conditional access certificate serial format.

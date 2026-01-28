@@ -52,10 +52,11 @@ import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
-  HOST_ABOUT_DATA,
+  HOST_VITALS_DATA,
   HOST_OSQUERY_DATA,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import {
   isAppleDevice,
@@ -64,6 +65,7 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
   isWindows,
+  isChrome,
 } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
@@ -96,7 +98,7 @@ import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
-import AboutCard from "../cards/About";
+import VitalsCard from "../cards/Vitals";
 import UserCard from "../cards/User";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
@@ -107,7 +109,6 @@ import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
 import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
-import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 
@@ -136,6 +137,7 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
+import LocationModal from "../modals/LocationModal";
 
 const baseClass = "host-details";
 
@@ -148,6 +150,8 @@ const BYOD_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
+
+const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -195,12 +199,13 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
-    isGlobalObserver,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
+    isAnyMaintainerAdminObserverPlus,
+    isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -221,6 +226,10 @@ const HostDetailsPage = ({
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+  // Undefined used to return to true after closing the lock modal
+  const [showLocationModal, setShowLocationModal] = useState<
+    boolean | undefined
+  >(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -257,7 +266,6 @@ const HostDetailsPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
-  const [packsState, setPackState] = useState<IPackStats[]>();
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [
@@ -524,7 +532,7 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -563,9 +571,12 @@ const HostDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      staleTime: 2000,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
+
+  const canGetMDMCommands =
+    !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
 
   const {
     data: pastMDMCommands,
@@ -593,11 +604,12 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
-  // request to get the host mdm commands
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
@@ -624,7 +636,9 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
+      keepPreviousData: true,
+      staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
@@ -673,7 +687,7 @@ const HostDetailsPage = ({
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
+  const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
@@ -692,6 +706,10 @@ const HostDetailsPage = ({
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
   }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
+
+  const toggleLocationModal = useCallback(() => {
+    setShowLocationModal(!showLocationModal);
+  }, [showLocationModal, setShowLocationModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -818,6 +836,7 @@ const HostDetailsPage = ({
             // the host object if it's available.
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
+            platform: details?.host_platform || host?.platform,
           });
           break;
         default: // do nothing
@@ -942,6 +961,15 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
+  const onClickAddQuery = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.NEW_QUERY, {
+        team_id: currentTeam?.id,
+        host_id: hostIdFromURL,
+      })
+    );
+  };
+
   const renderActionsDropdown = () => {
     if (!host) {
       return null;
@@ -1002,7 +1030,9 @@ const HostDetailsPage = ({
     !host ||
     isLoadingHost ||
     pastActivitiesIsLoading ||
-    upcomingActivitiesIsLoading
+    upcomingActivitiesIsLoading ||
+    pastMDMCommandsIsLoading ||
+    upcomingMDMCommandsIsLoading
   ) {
     return <Spinner />;
   }
@@ -1018,11 +1048,6 @@ const HostDetailsPage = ({
       name: "Software",
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
-    },
-    {
-      name: "Queries",
-      title: "queries",
-      pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
       name: "Policies",
@@ -1077,23 +1102,6 @@ const HostDetailsPage = ({
     host?.team_id
   );
 
-  /*  Context team id might be different that host's team id
-Observer plus must be checked against host's team id  */
-  const isGlobalOrHostsTeamObserverPlus =
-    currentUser && host?.team_id
-      ? permissions.isObserverPlus(currentUser, host.team_id)
-      : false;
-
-  const isHostsTeamObserver =
-    currentUser && host?.team_id
-      ? permissions.isTeamObserver(currentUser, host.team_id)
-      : false;
-
-  const canViewPacks =
-    !isGlobalObserver &&
-    !isGlobalOrHostsTeamObserverPlus &&
-    !isHostsTeamObserver;
-
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup?.bootstrap_package_status,
     details: host?.mdm.macos_setup?.details,
@@ -1104,6 +1112,10 @@ Observer plus must be checked against host's team id  */
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
+  const isChromeHost = isChrome(host.platform);
+
+  const isSupportedHostQueriesPlatform =
+    !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
     (isMacOSHost || isWindowsHost) &&
@@ -1267,7 +1279,14 @@ Observer plus must be checked against host's team id  */
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
-              hostMdmDeviceStatus={hostMdmDeviceStatus}
+              // Setting this to "locking" because if a host is "locating", it is also
+              // "locking"; an iOS/iPadOS host isn't "locked" until the location is found.
+              hostMdmDeviceStatus={
+                hostMdmDeviceStatus === "locating"
+                  ? "locking"
+                  : hostMdmDeviceStatus
+              }
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1297,16 +1316,31 @@ Observer plus must be checked against host's team id  */
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
                   hostSettings={host?.mdm.profiles ?? []}
                   osSettings={host?.mdm.os_settings}
+                  className={fullWidthCardClass}
+                />
+                <VitalsCard
+                  className={fullWidthCardClass}
+                  vitalsData={vitalsData}
+                  munki={macadmins?.munki}
+                  mdm={mdm}
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
-                  className={fullWidthCardClass}
+                  toggleLocationModal={toggleLocationModal}
                 />
-                <AboutCard
-                  className={defaultCardClass}
-                  aboutData={aboutData}
-                  munki={macadmins?.munki}
-                  mdm={mdm}
+                <QueriesCard
+                  hostId={host.id}
+                  router={router}
+                  hostPlatform={host.platform}
+                  schedule={schedule}
+                  queryReportsDisabled={
+                    config?.server_settings?.query_reports_disabled
+                  }
+                  canAddQuery={
+                    isAnyMaintainerAdminObserverPlus &&
+                    isSupportedHostQueriesPlatform
+                  }
+                  onClickAddQuery={onClickAddQuery}
                 />
                 <UserCard
                   className={defaultCardClass}
@@ -1361,12 +1395,14 @@ Observer plus must be checked against host's team id  */
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
-                    showMDMCommandsToggle={isAppleDevice(host.platform)}
+                    showMDMCommandsToggle={canGetMDMCommands}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
+                      setActivityPage(0);
                       setShowMDMCommands(true);
                     }}
                     onHideMDMCommands={() => {
+                      setActivityPage(0);
                       setShowMDMCommands(false);
                     }}
                     upcomingCount={
@@ -1436,23 +1472,6 @@ Observer plus must be checked against host's team id  */
                     {renderSoftwareCard()}
                   </Tabs>
                 </TabNav>
-              </TabPanel>
-              <TabPanel>
-                <QueriesCard
-                  hostId={host.id}
-                  router={router}
-                  hostPlatform={host.platform}
-                  schedule={schedule}
-                  queryReportsDisabled={
-                    config?.server_settings?.query_reports_disabled
-                  }
-                />
-                {canViewPacks && (
-                  <PacksCard
-                    packsState={packsState}
-                    isLoading={isLoadingHost}
-                  />
-                )}
               </TabPanel>
               <TabPanel>
                 <PoliciesCard
@@ -1597,8 +1616,15 @@ Observer plus must be checked against host's team id  */
               id={host.id}
               platform={host.platform}
               hostName={host.display_name}
-              onSuccess={() => setHostMdmDeviceState("locking")}
-              onClose={() => setShowLockHostModal(false)}
+              onSuccess={() => {
+                setHostMdmDeviceState("locking");
+                setShowLocationModal(false);
+                setShowLockHostModal(false);
+              }}
+              onClose={() => {
+                setShowLockHostModal(false);
+                showLocationModal === undefined && setShowLocationModal(true);
+              }}
             />
           )}
           {showUnlockHostModal && (
@@ -1650,6 +1676,21 @@ Observer plus must be checked against host's team id  */
             onUpdate={onUpdateEndUser}
             isUpdating={isUpdating}
             onExit={() => setShowUpdateEndUserModal(false)}
+          />
+        )}
+        {showLocationModal && (
+          <LocationModal
+            hostGeolocation={host.geolocation}
+            onExit={toggleLocationModal}
+            iosOrIpadosDetails={{
+              isIosOrIpadosHost,
+              hostMdmDeviceStatus,
+            }}
+            onClickLock={() => {
+              setShowLockHostModal(true);
+              setShowLocationModal(undefined);
+            }}
+            detailsUpdatedAt={host.detail_updated_at}
           />
         )}
       </>

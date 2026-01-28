@@ -33,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/log"
@@ -642,9 +641,9 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		return 0, nil
 	}
 	teamQueryResultsStored := false
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		if len(rows) == 0 {
-			return nil
+			return 0, nil
 		}
 		if rows[0].QueryID == 777 {
 			require.Len(t, rows, 3)
@@ -685,7 +684,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			require.NotZero(t, rows[1].LastFetched)
 			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(*rows[1].Data))
 		}
-		return nil
+		return 0, nil
 	}
 
 	// Hack to get at the service internals and modify the writer
@@ -791,7 +790,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 
 func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	liveQueryStore := makeLiveQueryStore(t, 10)
+	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
 
 	// Hack to get at the private methods
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -811,32 +811,70 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	}
 
 	// Results not saved if DiscardData is true in Query
-	discardDataFalse := map[string]*fleet.Query{
+	discardDataTrue := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
 			ID:          1,
 			DiscardData: true,
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, fleet.DefaultMaxQueryReportRows)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
-	discardDataTrue := map[string]*fleet.Query{
+	discardDataFalse := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
 			ID:          1,
 			DiscardData: false,
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
-		return nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return 0, nil
+	}
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
+	ds := new(mock.Store)
+	// We allow 10% overage on the limit so that the cleanup job helps to rotate the rows.
+	// So we want to do 1000 + 10% + 1 here.
+	liveQueryStore := makeLiveQueryStore(t, 1101)
+	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
+
+	// Hack to get at the private methods
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+
+	host := fleet.Host{}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	results := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Uptime",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot: []*json.RawMessage{
+				ptr.RawMessage(json.RawMessage(`{"hour":"20","minutes":"8"}`)),
+			},
+			UnixTime: 1484078931,
+		},
+	}
+
+	discardDataFalse := map[string]*fleet.Query{
+		"pack/Global/Uptime": {
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		},
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return 0, nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, fleet.DefaultMaxQueryReportRows)
-	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
+	require.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
 func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
@@ -877,12 +915,12 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return nil
+		return 0, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -928,12 +966,12 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return nil
+		return 0, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -985,14 +1023,14 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
-		return nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return 0, nil
 	}
 
 	// Expect an error when unable to write to logging destination.
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
-	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*endpoint_utils.OsqueryError).Status())
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*OsqueryError).Status())
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -1120,6 +1158,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
 		hostDetailQueryPrefix + "battery":                                 {},
 		hostDetailQueryPrefix + "software_macos_codesign":                 {},
+		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
 		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
 	}
@@ -2908,7 +2947,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
-	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.True(t, err.(*OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1, HasHostIdentityCert: ptr.Bool(false)}, nil
@@ -2929,7 +2968,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
-	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.True(t, err.(*OsqueryError).NodeInvalid())
 
 	// return other error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2938,7 +2977,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
-	require.False(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
+	require.False(t, err.(*OsqueryError).NodeInvalid())
 }
 
 func TestGetHostIdentifier(t *testing.T) {
@@ -4003,7 +4042,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		messagesIn map[string]string
 		overrides  map[string]osquery_utils.DetailQuery
 
-		resultsOut fleet.OsqueryDistributedQueryResults
+		resultsExpected fleet.OsqueryDistributedQueryResults
 	}{
 		{
 			name: "python packages using original query in extras adds results",
@@ -4020,7 +4059,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					pythonPackageOne,
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					pythonPackageOne,
@@ -4042,7 +4081,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					pythonPackageTwo,
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					pythonPackageTwo,
@@ -4071,7 +4110,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4102,7 +4141,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4129,7 +4168,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4152,7 +4191,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{},
 		},
 		{
 			name: "software query works, but vscode_extensions table doesn't exist",
@@ -4169,7 +4208,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					zoobarApp,
@@ -4191,7 +4230,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{},
 			},
 		},
@@ -4207,7 +4246,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{},
 			},
 		},
@@ -4223,7 +4262,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
 					someRow,
 				},
@@ -4246,7 +4285,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					appThatOverrides,
@@ -4300,7 +4339,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4356,7 +4395,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4406,7 +4445,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_linux": []map[string]string{
 					{
 						"name":    "python3-twisted",
@@ -4441,7 +4480,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
 					{
 						"path":            "/Applications/Slack.app",
@@ -4465,7 +4504,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					},
 				},
 			},
-			resultsOut: fleet.OsqueryDistributedQueryResults{
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
 					{
 						"path":            "/Applications/Slack.app",
@@ -4474,15 +4513,38 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "macos executable_hashes query with sha256 column",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": []map[string]string{
+					{
+						"path":   "/Applications/Slack.app",
+						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_executable_sha256": []map[string]string{
+					{
+						"path":   "/Applications/Slack.app",
+						"sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}
 			if tc.host != nil {
 				host = tc.host
 			}
+			// mutates tc.resultsIn
 			preProcessSoftwareResults(host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, log.NewNopLogger())
-			require.Equal(t, tc.resultsOut, tc.resultsIn)
+			require.Equal(t, tc.resultsExpected, tc.resultsIn)
 		})
 	}
 }
@@ -4616,4 +4678,21 @@ func TestUpdateFleetdVersion(t *testing.T) {
 		updateFleetdVersion("windows", results)
 		require.Equal(t, originalResults, results)
 	})
+}
+
+// makeLiveQueryStore creates a mock live query store that returns `countToReturn` from the
+// GetQueryResultsCounts method.
+func makeLiveQueryStore(t *testing.T, countToReturn int) *live_query_mock.MockLiveQuery {
+	lq := live_query_mock.New(t)
+	lq.GetQueryResultsCountsOverride = func(queryIDs []uint) (map[uint]int, error) {
+		result := make(map[uint]int, len(queryIDs))
+		for _, id := range queryIDs {
+			result[id] = countToReturn
+		}
+		return result, nil
+	}
+	lq.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
+		return nil
+	}
+	return lq
 }
