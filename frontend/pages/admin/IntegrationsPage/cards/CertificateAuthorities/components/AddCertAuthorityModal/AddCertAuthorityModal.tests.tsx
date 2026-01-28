@@ -12,9 +12,7 @@ describe("AddCertAuthorityModal", () => {
   it("renders the Custom EST form by default", () => {
     render(<AddCertAuthorityModal certAuthorities={[]} onExit={noop} />);
 
-    expect(
-      screen.getByText("Custom EST (Enrollment Over Secure Transport)")
-    ).toBeVisible();
+    expect(screen.getByText(CA_LABEL_BY_TYPE.custom_est_proxy)).toBeVisible();
     expect(screen.getByLabelText("Name")).toBeVisible();
     expect(screen.getByLabelText("URL")).toBeVisible();
     expect(screen.getByLabelText("Username")).toBeVisible();
@@ -30,7 +28,7 @@ describe("AddCertAuthorityModal", () => {
     await user.click(screen.getByRole("combobox"));
     await user.click(
       screen.getByRole("option", {
-        name: "Custom SCEP (Simple Certificate Enrollment Protocol)",
+        name: CA_LABEL_BY_TYPE.custom_scep_proxy,
       })
     );
 
