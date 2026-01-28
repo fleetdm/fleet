@@ -1316,21 +1316,8 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			continue
 		}
 
-		// Step 3: AMAPI succeeded - generate challenges for each newly delivering template
-		// Note: Android app may try to fetch the certificate, but status is still delivering and no challenge is generated yet.
-		// The app will retry until status turns to delivered.
-		challenges := make(map[uint]string)
-		for _, templateID := range certTemplates.DeliveringTemplateIDs {
-			challenge, err := svc.fleetDS.NewChallenge(ctx)
-			if err != nil {
-				level.Error(svc.logger).Log("msg", "failed to generate challenge", "host_uuid", hostUUID, "template_id", templateID, "err", err)
-				return ctxerr.Wrapf(ctx, err, "generate challenge for %s", hostUUID)
-			}
-			challenges[templateID] = challenge
-		}
-
-		// Step 4: Transition delivering → delivered with challenges
-		if err := svc.fleetDS.TransitionCertificateTemplatesToDelivered(ctx, hostUUID, challenges); err != nil {
+		// Step 3: Transition delivering → delivered
+		if err := svc.fleetDS.TransitionCertificateTemplatesToDelivered(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); err != nil {
 			level.Error(svc.logger).Log("msg", "failed to transition to delivered", "host_uuid", hostUUID, "err", err)
 			return ctxerr.Wrap(ctx, err, "transition certificate templates to delivered")
 		}
