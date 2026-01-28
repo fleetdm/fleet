@@ -1052,7 +1052,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
 						// For Windows programs with upgrade_code, match by upgrade_code (names may differ between versions)
 						// For others, match by name (case-insensitive to match MySQL collation)
-						nameMatches := strings.EqualFold(titleSummary.Name, title.Name)
+						// We also trim whitespace to handle data quality issues (e.g., trailing spaces).
+						nameMatches := strings.EqualFold(strings.TrimSpace(titleSummary.Name), strings.TrimSpace(title.Name))
 						if bundleID != "" && titleBundleID != "" {
 							// Both have bundle_identifier - match by bundle_identifier instead of name
 							nameMatches = true
@@ -1063,7 +1064,10 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							// different names (e.g., "7-Zip 24.08 (x64)" vs "7-Zip 24.09 (x64 edition)") but share the same upgrade_code
 							nameMatches = true
 						}
-						if nameMatches && titleSummary.Source == title.Source && titleSummary.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
+						// Use case-insensitive comparison for bundle_identifier to match MySQL's collation and Apple's specification
+						// that bundle IDs are case-insensitive (https://developer.apple.com/help/glossary/bundle-id/)
+						if nameMatches && titleSummary.Source == title.Source && titleSummary.ExtensionFor == title.ExtensionFor && strings.EqualFold(bundleID,
+							titleBundleID) {
 							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
