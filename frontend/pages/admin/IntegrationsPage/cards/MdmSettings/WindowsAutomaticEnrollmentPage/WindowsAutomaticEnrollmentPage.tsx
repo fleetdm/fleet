@@ -50,7 +50,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             </>
           }
         />
-        <Card>
+        <Card className={`${baseClass}__card`}>
           <p>
             You will need to copy and paste these values to create the
             application in Microsoft Entra.

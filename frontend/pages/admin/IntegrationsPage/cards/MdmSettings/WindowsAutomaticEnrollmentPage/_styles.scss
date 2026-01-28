@@ -1,9 +1,8 @@
 .windows-automatic-enrollment-page {
   @include vertical-page-layout;
 
-  .card {
+  &__card {
     max-width: $settings-form-max-width;
-
     p {
       margin-top: 0;
     }
