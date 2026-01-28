@@ -8797,52 +8797,19 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 	t := s.T()
-
-	// Target Endpoint URL for the management endpoint
-	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
+	ctx := t.Context()
 
 	// Target DeviceID to use
-	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
-
-	// Inserting new device
-	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            deviceID,
-		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
-		MDMDeviceType:          "CIMClient_Windows",
-		MDMDeviceName:          "DESKTOP-1C3ARC1",
-		MDMEnrollType:          "ProgrammaticEnrollment",
-		MDMEnrollUserID:        "upn@domain.com",
-		MDMEnrollProtoVersion:  "5.0",
-		MDMEnrollClientVersion: "10.0.19045.2965",
-		MDMNotInOOBE:           false,
-	}
-
-	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
-	require.NoError(t, err)
+	_, mdmHost := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	deviceID := mdmHost.DeviceID
 
 	// Checking if device was enrolled
-	_, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(context.Background(), deviceID)
+	_, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	require.NoError(t, err)
 
-	// Preparing the SyncML unenroll request
-	requestBytes, err := s.newSyncMLUnenrollMsg(deviceID, targetEndpointURL)
+	_, err = mdmHost.StartManagementSession()
 	require.NoError(t, err)
-
-	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
-
-	// Checking that Command error code was updated
-
-	// Checking response headers
-	require.Contains(t, resp.Header["Content-Type"], syncml.SyncMLContentType)
-
-	// Read response data
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	// Checking if response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
+	err = mdmHost.Unenroll()
 	require.NoError(t, err)
 
 	// Checking if device was unenrolled
@@ -10268,56 +10235,6 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 		`)
 
 	return requestBytes, nil
-}
-
-func (s *integrationMDMTestSuite) newSyncMLUnenrollMsg(deviceID string, managementUrl string) ([]byte, error) {
-	if len(managementUrl) == 0 {
-		return nil, errors.New("managementUrl is empty")
-	}
-
-	return []byte(`
-			 <SyncML xmlns="SYNCML:SYNCML1.2">
-			<SyncHdr>
-				<VerDTD>1.2</VerDTD>
-				<VerProto>DM/1.2</VerProto>
-				<SessionID>2</SessionID>
-				<MsgID>1</MsgID>
-				<Target>
-				<LocURI>` + managementUrl + `</LocURI>
-				</Target>
-				<Source>
-				<LocURI>` + deviceID + `</LocURI>
-				</Source>
-			</SyncHdr>
-			<SyncBody>
-				<Alert>
-				<CmdID>2</CmdID>
-				<Data>1201</Data>
-				</Alert>
-				<Alert>
-				<CmdID>3</CmdID>
-				<Data>1224</Data>
-				<Item>
-					<Meta>
-					<Type xmlns="syncml:metinf">com.microsoft/MDM/LoginStatus</Type>
-					</Meta>
-					<Data>user</Data>
-				</Item>
-				</Alert>
-				<Alert>
-				<CmdID>4</CmdID>
-				<Data>1226</Data>
-				<Item>
-					<Meta>
-					<Type xmlns="syncml:metinf">com.microsoft:mdm.unenrollment.userrequest</Type>
-					<Format xmlns="syncml:metinf">int</Format>
-					</Meta>
-					<Data>1</Data>
-				</Item>
-				</Alert>
-				<Final/>
-			</SyncBody>
-			</SyncML>`), nil
 }
 
 func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
@@ -20428,4 +20345,32 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 
 	checkExpectedCommands(mdmClientBYOD, true, 1)
 	checkExpectedCommands(mdmClientDEP, false, 1)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsRekeyFlow() {
+	t := s.T()
+	ctx := t.Context()
+
+	_, mdmHost := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// Now we remove the credentials_hash and ack to simulate an existing enrollment to force rekeying
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE mdm_windows_enrollments SET credentials_hash = NULL, credentials_acknowledged = FALSE WHERE mdm_device_id = ?", mdmHost.DeviceID)
+		return err
+	})
+
+	_, err := mdmHost.StartManagementSession()
+	require.NoError(t, err)
+
+	var updatedValues struct {
+		CredentialsHash         *[]byte `db:"credentials_hash"`
+		CredentialsAcknowledged bool    `db:"credentials_acknowledged"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, q, &updatedValues, "SELECT credentials_hash, credentials_acknowledged FROM mdm_windows_enrollments WHERE mdm_device_id = ?", mdmHost.DeviceID)
+		return err
+	})
+
+	require.NotNil(t, updatedValues.CredentialsHash)
+	require.True(t, updatedValues.CredentialsAcknowledged)
 }
