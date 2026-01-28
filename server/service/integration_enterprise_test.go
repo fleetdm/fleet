@@ -151,6 +151,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	// reset the mock
 	s.lq.Mock = mock.Mock{}
+	s.clearOktaConditionalAccess()
 	s.withServer.commonTearDownTest(s.T())
 }
 
@@ -163,7 +164,7 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 			"okta_assertion_consumer_service_url": nil,
 			"okta_audience_uri":                   nil,
 			"okta_certificate":                    nil,
-			"bypass_disabled":                     false,
+			"bypass_disabled":                     nil,
 		},
 	}
 	b, err := json.Marshal(body)
@@ -3914,11 +3915,6 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 func (s *integrationEnterpriseTestSuite) TestDeviceHostConditionalAccessFeatures() {
 	t := s.T()
 	ctx := t.Context()
-
-	// Clean up Okta conditional access config at the end
-	t.Cleanup(func() {
-		s.clearOktaConditionalAccess()
-	})
 
 	// Create a test team
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{
