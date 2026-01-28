@@ -1115,6 +1115,36 @@ func TestExpandCPEAliases(t *testing.T) {
 	python3130RC1Alias.Version = "3.13.0rc1"
 	python3130RC1Alias.Update = ""
 
+	pgadminMacOS := &wfn.Attributes{
+		Vendor:   "pgadmin",
+		Product:  "pgadmin",
+		Version:  "9.10",
+		TargetSW: "macos",
+	}
+	pgadminMacOSAliasPgadmin := *pgadminMacOS
+	pgadminMacOSAliasPgadmin.TargetSW = "postgresql"
+	pgadminMacOSAliasPgadmin_4 := *pgadminMacOS
+	pgadminMacOSAliasPgadmin_4.Product = "pgadmin_4"
+	pgadminMacOSAliasPgadmin_4.TargetSW = "postgresql"
+	pgadminMacOSAliasPgadmin4 := *pgadminMacOS
+	pgadminMacOSAliasPgadmin4.Product = "pgadmin4"
+	pgadminMacOSAliasPgadmin4.TargetSW = "postgresql"
+
+	pgadminWindows := &wfn.Attributes{
+		Vendor:   "pgadmin",
+		Product:  "pgadmin_4",
+		Version:  "9.10",
+		TargetSW: "windows",
+	}
+	pgadminWindowsAliasPgadmin := *pgadminWindows
+	pgadminWindowsAliasPgadmin.Product = "pgadmin"
+	pgadminWindowsAliasPgadmin.TargetSW = "postgresql"
+	pgadminWindowsAliasPgadmin_4 := *pgadminWindows
+	pgadminWindowsAliasPgadmin_4.TargetSW = "postgresql"
+	pgadminWindowsAliasPgadmin4 := *pgadminWindows
+	pgadminWindowsAliasPgadmin4.Product = "pgadmin4"
+	pgadminWindowsAliasPgadmin4.TargetSW = "postgresql"
+
 	for _, tc := range []struct {
 		name            string
 		cpeItem         *wfn.Attributes
@@ -1154,6 +1184,26 @@ func TestExpandCPEAliases(t *testing.T) {
 			name:            "pre-release python: 3.13.0 rc1",
 			cpeItem:         python3130RC1,
 			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
+		},
+		{
+			name:    "pgadmin on macos",
+			cpeItem: pgadminMacOS,
+			expectedAliases: []*wfn.Attributes{
+				pgadminMacOS,
+				&pgadminMacOSAliasPgadmin,
+				&pgadminMacOSAliasPgadmin_4,
+				&pgadminMacOSAliasPgadmin4,
+			},
+		},
+		{
+			name:    "pgadmin on windows",
+			cpeItem: pgadminWindows,
+			expectedAliases: []*wfn.Attributes{
+				pgadminWindows,
+				&pgadminWindowsAliasPgadmin,
+				&pgadminWindowsAliasPgadmin_4,
+				&pgadminWindowsAliasPgadmin4,
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
