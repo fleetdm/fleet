@@ -99,6 +99,15 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 				return true, nil
 			}
 
+			// Microsoft Excel installed via Office Deployment Tool (ODT) has a different version
+			// than the ODT installer version. The ODT version (e.g., 16.0.19426.20170) doesn't match
+			// the installed Excel version (e.g., the Office/Microsoft 365 version).
+			// We only verify that Excel exists rather than checking the version.
+			if appName == "Microsoft Excel" {
+				level.Info(logger).Log("msg", "Microsoft Excel detected - skipping version check (ODT version doesn't match installed Excel version)")
+				return true, nil
+			}
+
 			// Check exact match first
 			if result.Version == appVersion {
 				return true, nil
