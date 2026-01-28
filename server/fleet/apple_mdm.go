@@ -554,6 +554,7 @@ const (
 	DEPAssignProfileResponseSuccess       DEPAssignProfileResponseStatus = "SUCCESS"
 	DEPAssignProfileResponseNotAccessible DEPAssignProfileResponseStatus = "NOT_ACCESSIBLE"
 	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
+	DEPAssignProfileResponseThrottled     DEPAssignProfileResponseStatus = "THROTTLED"
 )
 
 // NanoEnrollment represents a row in the nano_enrollments table managed by
@@ -1118,9 +1119,11 @@ type AppleMDMVPPInstaller interface {
 	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
 
-const DeviceLocationCmdName = "DeviceLocation"
-const EnableLostModeCmdName = "EnableLostMode"
-const DisableLostModeCmdName = "DisableLostMode"
+const (
+	DeviceLocationCmdName  = "DeviceLocation"
+	EnableLostModeCmdName  = "EnableLostMode"
+	DisableLostModeCmdName = "DisableLostMode"
+)
 
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`
