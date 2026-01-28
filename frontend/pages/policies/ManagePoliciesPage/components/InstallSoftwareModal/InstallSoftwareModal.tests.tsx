@@ -1,10 +1,15 @@
-// InstallSoftwareModal.test.ts (or a separate helper test file)
+// Note: We intentionally test getOriginalSoftwareState, getCurrentSoftwareState,
+// and getTrulyDirtyInstallSoftwareItems in isolation instead of writing a
+// full integration test for InstallSoftwareModal’s onSubmit. A realistic
+// integration test would need standing up PoliciesPaginatedList, pagination,
+// and react-query data loading, which adds a lot of brittle setup for minor
+// extra confidence over these focused unit tests.
 
 import {
   getOriginalSoftwareState,
   getCurrentSoftwareState,
   getTrulyDirtyInstallSoftwareItems,
-} from "./InstallSoftwareModal"; // adjust path
+} from "./InstallSoftwareModal";
 import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const MOCK_POLICY_SOFTWARE = {
