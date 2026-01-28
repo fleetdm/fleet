@@ -43,7 +43,7 @@ func gitopsCommand() *cli.Command {
 				Required:    true,
 				EnvVars:     []string{"FILENAME"},
 				Destination: &flFilenames,
-				Usage:       "The file(s) with the GitOps configuration. Files are expected to use the .yml extension. Files ending in .yaml will not be evaluated unless passed in individually as arguments to fleetctl gitops -f.",
+				Usage:       "The file(s) with the GitOps configuration.",
 			},
 			&cli.BoolFlag{
 				Name:        "delete-other-teams",
