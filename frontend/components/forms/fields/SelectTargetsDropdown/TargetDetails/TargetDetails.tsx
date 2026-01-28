@@ -9,9 +9,9 @@ import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
 import { ISelectHost, ISelectLabel, ISelectTeam } from "interfaces/target";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
+import TableCount from "components/TableContainer/TableCount";
 
 import { isTargetHost, isTargetTeam, isTargetLabel } from "../helpers";
-import TableCount from "components/TableContainer/TableCount";
 
 const baseClass = "target-details";
 
