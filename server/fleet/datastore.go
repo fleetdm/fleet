@@ -46,6 +46,12 @@ type InstallerStore interface {
 	Exists(ctx context.Context, installer Installer) (bool, error)
 }
 
+// CleanupExcessQueryResultRowsOptions configures the behavior of CleanupExcessQueryResultRows.
+type CleanupExcessQueryResultRowsOptions struct {
+	// BatchSize is the number of rows to delete per batch. Defaults to 500 if not set.
+	BatchSize int
+}
+
 // Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
 	GetsAppConfig
@@ -556,11 +562,16 @@ type Datastore interface {
 	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
 	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
-	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows int) error
+	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows int) (int, error)
 	// CleanupDiscardedQueryResults deletes all query results for queries with DiscardData enabled.
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.
 	CleanupDiscardedQueryResults(ctx context.Context) error
+	// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum allowed per query.
+	// It keeps the most recent rows (by id, which correlates with insert order) up to the limit.
+	// Deletes are batched to avoid large binlogs and long lock times. This runs as a cron job.
+	// Returns a map of query IDs to their current row count after cleanup (for syncing Redis counters).
+	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

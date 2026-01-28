@@ -2428,6 +2428,21 @@ func TestMutateSoftware(t *testing.T) {
 				Source:  "homebrew_packages",
 			},
 		},
+		{
+			name: "ninxsoft Mist (macOS installer download tool)",
+			s: &fleet.Software{
+				Name:             "Mist",
+				Version:          "0.30",
+				Source:           "apps",
+				BundleIdentifier: "com.ninxsoft.mist",
+			},
+			sanitized: &fleet.Software{
+				Name:             "ninxsoft-mist",
+				Version:          "0.30",
+				Source:           "apps",
+				BundleIdentifier: "com.ninxsoft.mist",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NotPanics(t, func() { mutateSoftware(tc.s, log.NewNopLogger()) })

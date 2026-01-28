@@ -437,26 +437,26 @@ func (s *Schedule) Start() {
 // case where the signal is published to the trigger channel and the case where the trigger channel
 // is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
 // cases are deemed to be equivalent.
-func (s *Schedule) Trigger() (*fleet.CronStats, error) {
+func (s *Schedule) Trigger() (stats *fleet.CronStats, didTrigger bool, err error) {
 	sched, trig, err := s.GetLatestStats(s.ctx)
 	switch {
 	case err != nil:
-		return nil, err
+		return nil, false, err
 	case sched.Status == fleet.CronStatsStatusPending:
-		return &sched, nil
+		return &sched, false, nil
 	case trig.Status == fleet.CronStatsStatusPending:
-		return &trig, nil
+		return &trig, false, nil
 	default:
 		// ok
 	}
 
 	select {
 	case s.trigger <- struct{}{}:
-		// ok
+		didTrigger = true
 	default:
 		level.Debug(s.logger).Log("msg", "trigger channel not available")
 	}
-	return nil, nil
+	return nil, didTrigger, nil
 }
 
 // Name returns the name of the schedule.

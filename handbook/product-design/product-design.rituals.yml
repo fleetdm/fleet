@@ -110,7 +110,7 @@
 -
   task: "📝 Understanding our competitor(s)"
   startedOn: "2026-01-26" 
-  frequency: "Triweekly" 
+  frequency: "Weekly" 
   description: "For each user story in the current design sprint, find a solution using our competitor(s) tools. Discuss how this solution affects how we're thinking about the Fleet solution. For each story, do we just want to be as good as our competitor(s)? Better?"
   moreInfoUrl:
   dri: "noahtalerman"

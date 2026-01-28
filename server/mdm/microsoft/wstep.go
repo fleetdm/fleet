@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +20,7 @@ import (
 	"github.com/MicahParks/jwkset"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
@@ -258,7 +258,7 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 	// Parse JWT token
 	jwksURI := "https://login.microsoftonline.com/common/discovery/v2.0/keys"
 	var token *jwt.Token
-	FLEET_DEV_AZURE_JWT_JWKS_URI := os.Getenv("FLEET_DEV_AZURE_JWT_JWKS_URI")
+	FLEET_DEV_AZURE_JWT_JWKS_URI := dev_mode.Env("FLEET_DEV_AZURE_JWT_JWKS_URI")
 	if FLEET_DEV_AZURE_JWT_JWKS_URI != "" {
 		jwksURI = FLEET_DEV_AZURE_JWT_JWKS_URI
 	}
