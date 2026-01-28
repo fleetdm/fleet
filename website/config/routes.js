@@ -1008,6 +1008,7 @@ module.exports.routes = {
   'GET /software-catalog/yubico-yubikey-manager': '/software-catalog/yubico-yubikey-manager-darwin',
   'GET /software-catalog/zoom': '/software-catalog/zoom-darwin',
   'GET /software-catalog/vnc-viewer': '/software-catalog/vnc-viewer-darwin',
+  'GET /apps': '/software-catalog',// This is mostly for mikermcneil who keeps trying to type the old url.
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
