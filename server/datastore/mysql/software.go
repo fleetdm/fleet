@@ -991,9 +991,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 				// Retrieve the IDs for the titles we just inserted (or that already existed)
 				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
-				// TODO - include UpgradeCode in the below WHERE (these args) for additional specificity?
 				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
+				var upgradeCodes []string
 				for tk := range uniqueTitlesToInsert {
 					title := uniqueTitlesToInsert[tk]
 					bundleID := ""
@@ -1006,11 +1006,25 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						firstArg = bundleID
 					}
 					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
+
+					// Collect non-empty upgrade_codes for Windows programs
+					if title.UpgradeCode != nil && *title.UpgradeCode != "" && title.Source == "programs" {
+						upgradeCodes = append(upgradeCodes, *title.UpgradeCode)
+					}
 				}
 
+				// Build query that matches by (name/bundle_identifier, source, extension_for) OR by upgrade_code.
 				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
 					FROM software_titles
 					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
+
+				if len(upgradeCodes) > 0 {
+					ucPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(upgradeCodes)), ",")
+					stmt += fmt.Sprintf(` OR (upgrade_code IN (%s) AND source = 'programs')`, ucPlaceholders)
+					for _, uc := range upgradeCodes {
+						queryArgs = append(queryArgs, uc)
+					}
+				}
 
 				if err := sqlx.SelectContext(ctx, tx, &retrievedTitleSummaries, stmt, queryArgs...); err != nil {
 					return ctxerr.Wrap(ctx, err, "select software titles")
@@ -1022,17 +1036,31 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if titleSummary.BundleIdentifier != nil {
 						bundleID = *titleSummary.BundleIdentifier
 					}
+					var titleSummaryUpgradeCode string
+					if titleSummary.UpgradeCode != nil {
+						titleSummaryUpgradeCode = *titleSummary.UpgradeCode
+					}
 					for checksum, title := range newTitlesNeeded {
 						var titleBundleID string
 						if title.BundleIdentifier != nil {
 							titleBundleID = *title.BundleIdentifier
 						}
+						var titleUpgradeCode string
+						if title.UpgradeCode != nil {
+							titleUpgradeCode = *title.UpgradeCode
+						}
 						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
+						// For Windows programs with upgrade_code, match by upgrade_code (names may differ between versions)
 						// For others, match by name (case-insensitive to match MySQL collation)
 						nameMatches := strings.EqualFold(titleSummary.Name, title.Name)
-						// TODO - similarly match if UpgradeCodes match?
 						if bundleID != "" && titleBundleID != "" {
 							// Both have bundle_identifier - match by bundle_identifier instead of name
+							nameMatches = true
+						}
+						if titleUpgradeCode != "" && titleSummaryUpgradeCode != "" && titleUpgradeCode == titleSummaryUpgradeCode {
+							// Both have non-empty upgrade_code and they match: consider it a match
+							// This handles the case where different versions of Windows software have
+							// different names (e.g., "7-Zip 24.08 (x64)" vs "7-Zip 24.09 (x64 edition)") but share the same upgrade_code
 							nameMatches = true
 						}
 						if nameMatches && titleSummary.Source == title.Source && titleSummary.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
