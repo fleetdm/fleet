@@ -3032,7 +3032,14 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	}
 
 	if key == nil || key.DecryptedValue == "" {
-		// If we couldn't decrypt any key, return an error.
+		if len(decryptErrs) > 0 {
+			// Decryption failed, likely due to rotated MDM certificates
+			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(
+				errors.New("Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."),
+				http.StatusUnprocessableEntity,
+			), "host encryption key decryption failed")
+		}
+		// No key found at all
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key")
 	}
 
