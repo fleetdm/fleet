@@ -30,7 +30,6 @@ export const generateListData = (
       case "digicert":
         description = CA_LABEL_BY_TYPE.digicert;
         break;
-      // TODO - align with modal dropdown labels? waiting for design confirmation
       case "custom_scep_proxy":
         description = "Custom Simple Certificate Enrollment Protocol (SCEP)";
         break;
