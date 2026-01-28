@@ -332,8 +332,15 @@ The client certificates can also be pushed to existing installations by placing 
   - `C:\Program Files\Orbit\update_client.crt`
   - `C:\Program Files\Orbit\update_client.key`
 
-If using Fleet Desktop, you may need to specify an alternative host for the "My device" URL (in the Fleet tray icon).
-Such alternative host should not require client certificates on the TLS connection.
+#### Alternative browser host
+
+If using Fleet Desktop, you may want to specify an alternative host for Fleet Desktop traffic (such as the "My device" URL in the Fleet tray icon). This is useful when you want to ensure that Fleet Desktop traffic goes through a custom proxy for an extra layer of security.
+
+**Note**: This "alternative host" should not require client certificates on the TLS connection.
+
+There are two ways to do this:
+
+1. Via the `--fleet-desktop-alternative-browser-host` flag when generating fleetd:
 ```sh
 fleetctl package
   [...]
@@ -341,7 +348,16 @@ fleetctl package
   --fleet-desktop-alternative-browser-host=fleet-desktop.example.com \
   [...]
 ```
-If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
+
+2. Via GitOps or the UI: You can configure the alternative host in the UI by navigating to **Settings > Organization settings > Fleet Desktop**, or via GitOps by adding the following to your `default.yml`:
+```yaml
+...
+fleet_desktop:
+  alternative_browser_host: fleet-desktop.example.com
+...
+```
+
+If the setting is specified via both the flag and UI/GitOps, the value in the UI/GitOps will take precedence. If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
 
 #### fleetd Chrome browser extension
 
