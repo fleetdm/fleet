@@ -132,13 +132,6 @@ export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
   scope: "script_batch_summary";
 }
 
-export interface IScriptBatchHostStatuses {
-  ran: number;
-  pending: number;
-  errored: number;
-  canceled: number;
-}
-
 export interface IScriptBatchHostCounts {
   targeted_host_count: number;
   ran_host_count: number;
