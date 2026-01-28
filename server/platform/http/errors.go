@@ -86,6 +86,20 @@ func (e BadRequestError) IsClientError() bool {
 	return true
 }
 
+type PayloadTooLargeError struct{}
+
+func (e PayloadTooLargeError) Error() string {
+	return "payload too large"
+}
+
+func (e PayloadTooLargeError) StatusCode() int {
+	return http.StatusRequestEntityTooLarge
+}
+
+func (e PayloadTooLargeError) IsClientError() bool {
+	return true
+}
+
 // UserMessageError is an error that wraps another error with a user-friendly message.
 type UserMessageError struct {
 	error
