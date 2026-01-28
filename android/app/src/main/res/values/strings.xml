@@ -6,7 +6,7 @@
     <string name="fleet_logo">Fleet logo</string>
     <string name="certificate_list_title">Installed certificates</string>
     <string name="certificate_list_no_certificates">No certificates installed</string>
-    <string name="app_version_title">App Version</string>
+    <string name="app_version_title">App version</string>
 
     <!-- Managed Configuration -->
     <string name="enroll_secret_title">Enroll secret</string>
