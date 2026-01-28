@@ -191,6 +191,88 @@ func SetCurrentSprint(issueNumber int, projectID int) error {
 	return nil
 }
 
+// GetIssuesByRepo fetches all issues (open and closed) from a specific repository
+// created on or after the given start date. It handles pagination to overcome
+// the GitHub API limit of 1000 results per query.
+func GetIssuesByRepo(repo string, startDate string) ([]Issue, error) {
+	var allIssues []Issue
+	seen := make(map[int]bool)
+	currentStartDate := startDate
+
+	for {
+		// Use gh issue list with -R for repo, --state all to include closed issues,
+		// and -S for the date filter with sort:created-asc to get oldest first.
+		command := fmt.Sprintf("gh issue list -R %s --state all --limit 1000 -S 'created:>=%s sort:created-asc' --json number,title,author,createdAt,updatedAt,state,labels,body", repo, currentStartDate)
+		results, err := RunCommandAndReturnOutput(command)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch issues: %w", err)
+		}
+
+		issues, err := ParseJSONtoIssues(results)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse issues: %w", err)
+		}
+
+		if len(issues) == 0 {
+			break
+		}
+
+		// Track how many new issues we added in this batch
+		newIssuesInBatch := 0
+
+		// Add issues, avoiding duplicates from overlapping date queries
+		for _, issue := range issues {
+			if !seen[issue.Number] {
+				seen[issue.Number] = true
+				allIssues = append(allIssues, issue)
+				newIssuesInBatch++
+			}
+		}
+
+		// If we got fewer than 1000 results, we have all issues
+		if len(issues) < 1000 {
+			break
+		}
+
+		// If no new issues were added, we're stuck (e.g., 1000+ issues on same day)
+		if newIssuesInBatch == 0 {
+			break
+		}
+
+		// Use the last issue's creation date as the new start date for the next batch
+		lastIssue := issues[len(issues)-1]
+		if lastIssue.CreatedAt == "" {
+			break
+		}
+		// Extract just the date part (YYYY-MM-DD) from the timestamp
+		if len(lastIssue.CreatedAt) >= 10 {
+			currentStartDate = lastIssue.CreatedAt[:10]
+		} else {
+			break
+		}
+	}
+
+	return allIssues, nil
+}
+
+// GetIssueTimelineEvents fetches timeline events for an issue using the GitHub CLI.
+// This uses the gh api command to access the timeline events endpoint.
+func GetIssueTimelineEvents(repo string, issueNumber string) ([]TimelineEvent, error) {
+	command := fmt.Sprintf("gh api repos/%s/issues/%s/timeline --paginate", repo, issueNumber)
+	results, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch timeline events: %w", err)
+	}
+
+	var events []TimelineEvent
+	err = json.Unmarshal(results, &events)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse timeline events: %w", err)
+	}
+
+	return events, nil
+}
+
 // SetIssueStatus sets the status of an issue in a project using the Status field.
 func SetIssueStatus(issueNumber int, projectID int, status string) error {
 	// Get the project item ID

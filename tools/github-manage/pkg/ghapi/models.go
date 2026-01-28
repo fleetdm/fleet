@@ -124,6 +124,14 @@ type User struct {
 	SiteAdmin    bool   `json:"site_admin"`
 }
 
+// TimelineEvent represents an event in an issue's timeline history
+type TimelineEvent struct {
+	Event     string `json:"event"`
+	CreatedAt string `json:"created_at"`
+	Label     Label  `json:"label"`
+	Actor     Author `json:"actor"`
+}
+
 func ConvertItemsToIssues(items []ProjectItem) []Issue {
 	var issues []Issue
 	for _, item := range items {
