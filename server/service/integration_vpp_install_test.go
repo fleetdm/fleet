@@ -15,7 +15,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -34,7 +36,7 @@ func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) {
 	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
@@ -2188,8 +2190,8 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 			"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"ios": {"bundleId": "app-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
 		}
 
-		noopAuthenticator := func(bool) (string, error) { return "", nil } // authentication is tested elsewhere
-		err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
+		stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
+		err = vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
 		require.NoError(t, err)
 
 		// Spoof the previous installation time to skip the installed-1-hour-ago filtering.
@@ -2332,7 +2334,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		s.appleVPPProxySrvData = map[string]string{
 			"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"ios": {"bundleId": "app-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
 		}
-		err = vpp.RefreshVersions(ctx, s.ds, noopAuthenticator)
+		err = vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
 		require.NoError(t, err)
 
 		// Refetch, should not trigger auto-update because the app was recently updated (in the last hour).

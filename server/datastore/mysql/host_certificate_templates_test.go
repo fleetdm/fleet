@@ -1542,60 +1542,240 @@ func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Create hosts
 	now := time.Now().UTC()
-	host1 := test.NewHost(t, ds, "host1", "192.168.1.1", "host1_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
-	host2 := test.NewHost(t, ds, "host2", "192.168.1.2", "host2_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
-	host3 := test.NewHost(t, ds, "host3", "192.168.1.3", "host3_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
-	host4 := test.NewHost(t, ds, "host4", "192.168.1.4", "host4_key", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
 
-	// Insert certificate records with different validity scenarios
-	// Host 1: Certificate expiring in 7 days (validity period = 1 year) - SHOULD be renewed
-	notValidBefore1 := now.AddDate(-1, 0, 7) // Started almost a year ago
-	notValidAfter1 := now.Add(7 * 24 * time.Hour)
-	insertHostCertTemplate(t, ds, host1.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore1, &notValidAfter1)
+	// Table-driven test cases for renewal logic:
+	// - Validity > 30 days: renew 30 days before expiration
+	// - Validity > 2 days and <= 30 days: renew at half validity period before expiration
+	// - Validity <= 2 days: does NOT auto-renew
+	testCases := []struct {
+		name          string
+		validityDays  int // total validity period in days
+		daysToExpiry  int // days until expiration
+		status        fleet.CertificateTemplateStatus
+		operationType fleet.MDMOperationType
+		shouldRenew   bool
+		description   string
+	}{
+		// Validity > 30 days cases
+		{
+			name:          "validity_365d_expires_7d",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "1 year cert expiring in 7 days should renew (< 30 day threshold)",
+		},
+		{
+			name:          "validity_365d_expires_29d",
+			validityDays:  365,
+			daysToExpiry:  29,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "1 year cert expiring in 29 days should renew (< 30 day threshold)",
+		},
+		{
+			name:          "validity_365d_expires_30d",
+			validityDays:  365,
+			daysToExpiry:  30,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "1 year cert expiring in exactly 30 days should NOT renew (threshold is < 30)",
+		},
+		{
+			name:          "validity_365d_expires_60d",
+			validityDays:  365,
+			daysToExpiry:  60,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "1 year cert expiring in 60 days should NOT renew",
+		},
+		{
+			name:          "validity_31d_expires_29d",
+			validityDays:  31,
+			daysToExpiry:  29,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "31 day cert expiring in 29 days should renew (validity > 30, uses 30 day threshold)",
+		},
 
-	// Host 2: Certificate expiring in 60 days (validity period = 1 year) - should NOT be renewed yet
-	notValidBefore2 := now.AddDate(-1, 0, 60)
-	notValidAfter2 := now.Add(60 * 24 * time.Hour)
-	insertHostCertTemplate(t, ds, host2.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore2, &notValidAfter2)
+		// Validity > 2 days and <= 30 days cases (uses half validity threshold)
+		{
+			name:          "validity_30d_expires_14d",
+			validityDays:  30,
+			daysToExpiry:  14,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "30 day cert expiring in 14 days should renew (< 15 day threshold = half of 30)",
+		},
+		{
+			name:          "validity_30d_expires_16d",
+			validityDays:  30,
+			daysToExpiry:  16,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "30 day cert expiring in 16 days should NOT renew (> 15 day threshold)",
+		},
+		{
+			name:          "validity_20d_expires_9d",
+			validityDays:  20,
+			daysToExpiry:  9,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "20 day cert expiring in 9 days should renew (< 10 day threshold = half of 20)",
+		},
+		{
+			name:          "validity_20d_expires_11d",
+			validityDays:  20,
+			daysToExpiry:  11,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "20 day cert expiring in 11 days should NOT renew (> 10 day threshold)",
+		},
+		{
+			name:          "validity_14d_expires_5d",
+			validityDays:  14,
+			daysToExpiry:  5,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "14 day cert expiring in 5 days should renew (< 7 day threshold = half of 14)",
+		},
+		{
+			name:          "validity_3d_expires_1d",
+			validityDays:  3,
+			daysToExpiry:  1,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "3 day cert expiring in 1 day should renew (validity > 2, < 1.5 day threshold)",
+		},
 
-	// Host 3: Short-lived cert (14 days total), expiring in 5 days - SHOULD be renewed (< 7 days = half of 14)
-	notValidBefore3 := now.Add(-9 * 24 * time.Hour) // Started 9 days ago
-	notValidAfter3 := now.Add(5 * 24 * time.Hour)   // Expires in 5 days
-	insertHostCertTemplate(t, ds, host3.UUID, template.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore3, &notValidAfter3)
+		// Validity <= 2 days cases (should NOT auto-renew)
+		{
+			name:          "validity_2d_expires_1d",
+			validityDays:  2,
+			daysToExpiry:  1,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "2 day cert should NOT auto-renew (validity <= 2 days)",
+		},
+		{
+			name:          "validity_1d_expires_0d",
+			validityDays:  1,
+			daysToExpiry:  0,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "1 day cert should NOT auto-renew (validity <= 2 days)",
+		},
 
-	// Host 4: Certificate with pending status - should NOT be renewed (not verified)
-	notValidBefore4 := now.AddDate(-1, 0, 7)
-	notValidAfter4 := now.Add(7 * 24 * time.Hour)
-	insertHostCertTemplate(t, ds, host4.UUID, template.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall, &notValidBefore4, &notValidAfter4)
+		// Wrong status cases
+		{
+			name:          "pending_status",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplatePending,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "pending status should NOT renew",
+		},
+		{
+			name:          "delivered_status",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplateDelivered,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "delivered status should NOT renew (only verified)",
+		},
+		{
+			name:          "failed_status",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplateFailed,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "failed status should NOT renew",
+		},
 
-	// Test the renewal query
+		// Wrong operation type
+		{
+			name:          "remove_operation",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeRemove,
+			shouldRenew:   false,
+			description:   "remove operation should NOT renew",
+		},
+	}
+
+	// Create hosts and insert certificate records for each test case
+	expectedRenewals := make(map[string]bool)
+	for i, tc := range testCases {
+		hostUUID := fmt.Sprintf("host-%s-%d", tc.name, i)
+		_ = test.NewHost(t, ds, fmt.Sprintf("host%d", i), fmt.Sprintf("192.168.1.%d", i+1),
+			fmt.Sprintf("host%d_key", i), hostUUID, now,
+			test.WithPlatform("android"), test.WithTeamID(team.ID))
+
+		notValidBefore := now.Add(-time.Duration(tc.validityDays-tc.daysToExpiry) * 24 * time.Hour)
+		notValidAfter := now.Add(time.Duration(tc.daysToExpiry) * 24 * time.Hour)
+		insertHostCertTemplate(t, ds, hostUUID, template.ID, tc.status, tc.operationType, &notValidBefore, &notValidAfter)
+
+		if tc.shouldRenew {
+			expectedRenewals[hostUUID] = true
+		}
+	}
+
+	// Execute the renewal query
 	results, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
 	require.NoError(t, err)
 
-	// Should return host1 and host3
-	require.Len(t, results, 2, "Should find 2 certificates for renewal")
-
-	hostUUIDs := make(map[string]bool)
+	// Build map of actual renewals
+	actualRenewals := make(map[string]bool)
 	for _, r := range results {
-		hostUUIDs[r.HostUUID] = true
+		actualRenewals[r.HostUUID] = true
 		require.Equal(t, template.ID, r.CertificateTemplateID)
 	}
 
-	require.True(t, hostUUIDs[host1.UUID], "Host1 should be included (expires in 7 days, validity > 30)")
-	require.False(t, hostUUIDs[host2.UUID], "Host2 should NOT be included (expires in 60 days)")
-	require.True(t, hostUUIDs[host3.UUID], "Host3 should be included (short-lived cert expiring in 5 days)")
-	require.False(t, hostUUIDs[host4.UUID], "Host4 should NOT be included (pending status)")
+	// Verify each test case
+	for i, tc := range testCases {
+		hostUUID := fmt.Sprintf("host-%s-%d", tc.name, i)
+		if tc.shouldRenew {
+			require.True(t, actualRenewals[hostUUID], "Test case %q: %s", tc.name, tc.description)
+		} else {
+			require.False(t, actualRenewals[hostUUID], "Test case %q: %s", tc.name, tc.description)
+		}
+	}
 
-	// Test with limit
-	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 1)
+	// Verify total count matches expected
+	require.Len(t, results, len(expectedRenewals), "Total renewal count should match expected")
+
+	// Test limit functionality
+	if len(expectedRenewals) > 1 {
+		results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 1)
+		require.NoError(t, err)
+		require.Len(t, results, 1, "Limit should be respected")
+	}
+
+	// Verify results are ordered by not_valid_after ASC (most urgent first)
+	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
 	require.NoError(t, err)
-	require.Len(t, results, 1, "Limit should be respected")
-
-	// Results should be ordered by not_valid_after ASC (most urgent first)
-	// Host3 expires in 5 days, Host1 expires in 7 days
-	require.Equal(t, host3.UUID, results[0].HostUUID, "Most urgent (earliest expiration) should be first")
+	for i := 1; i < len(results); i++ {
+		require.True(t, !results[i].NotValidAfter.Before(results[i-1].NotValidAfter),
+			"Results should be ordered by expiration date ascending")
+	}
 }
 
 // insertHostCertTemplate is a helper to insert a host_certificate_templates record with validity data

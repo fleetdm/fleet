@@ -48,9 +48,9 @@ If you set a past date (ex. yesterday) as the deadline, the end user will immedi
 
 You can require hosts that automatically enroll via ADE to update to the latest version before they enroll to Fleet (during Setup Assistant).
 
-For iOS/iPadOS hosts, set a minimum version and deadline.
-
 For macOS hosts, in Fleet, head to **Controls > OS updates** and check the **Update new hosts to latest** checkbox.
+
+For iOS/iPadOS hosts, set a minimum version and deadline. New iOS/iPadOS hosts will always update to the latest version (not the minimum version specified). On already enrolled hosts, updates are only enforced if the host is [below the minimum version](#apple-macos-ios-and-ipados-end-user-experience).
 
 ## Windows end user experience
 

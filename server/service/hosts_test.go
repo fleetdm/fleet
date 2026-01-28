@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -1347,6 +1348,7 @@ func TestDeleteHost(t *testing.T) {
 func TestDeleteHostCreatesActivity(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
+	activitySvc := mysql.NewTestActivityService(t, ds)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -1369,22 +1371,18 @@ func TestDeleteHostCreatesActivity(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get activities before deletion
-	prevActivities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 
 	// Delete the host
 	err = svc.DeleteHost(test.UserContext(ctx, user), host.ID)
 	require.NoError(t, err)
 
 	// Verify the activity was created
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			OrderKey:       "id",
-			OrderDirection: fleet.OrderDescending,
-			PerPage:        1,
-		},
+	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+		OrderKey:       "id",
+		OrderDirection: activity_api.OrderDescending,
+		PerPage:        1,
 	})
-	require.NoError(t, err)
 	require.Len(t, activities, 1)
 	require.Greater(t, len(activities), len(prevActivities)-1)
 
@@ -1405,6 +1403,7 @@ func TestDeleteHostCreatesActivity(t *testing.T) {
 func TestDeleteHostsCreatesActivities(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
+	activitySvc := mysql.NewTestActivityService(t, ds)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -1435,22 +1434,18 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get activities before deletion
-	prevActivities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 
 	// Delete the hosts
 	err = svc.DeleteHosts(test.UserContext(ctx, user), []uint{host1.ID, host2.ID}, nil)
 	require.NoError(t, err)
 
 	// Verify activities were created
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			OrderKey:       "id",
-			OrderDirection: fleet.OrderDescending,
-			PerPage:        10,
-		},
+	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+		OrderKey:       "id",
+		OrderDirection: activity_api.OrderDescending,
+		PerPage:        10,
 	})
-	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(activities), 2)
 
 	// Verify we have at least 2 more activities than before
@@ -1476,6 +1471,7 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 func TestCleanupExpiredHostsActivities(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
+	activitySvc := mysql.NewTestActivityService(t, ds)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -1557,8 +1553,7 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get activities before cleanup
-	prevActivities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 
 	// Run the cleanup service method
 	deletedHosts, err := svc.CleanupExpiredHosts(ctx)
@@ -1566,14 +1561,11 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	require.Len(t, deletedHosts, 5, "Should have deleted 5 hosts")
 
 	// Verify activities were created
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			OrderKey:       "id",
-			OrderDirection: fleet.OrderDescending,
-			PerPage:        20,
-		},
+	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+		OrderKey:       "id",
+		OrderDirection: activity_api.OrderDescending,
+		PerPage:        20,
 	})
-	require.NoError(t, err)
 	require.Greater(t, len(activities), len(prevActivities), "Should have new activities")
 
 	// Collect all deleted host activities

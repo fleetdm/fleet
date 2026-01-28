@@ -526,6 +526,9 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 
 		var result IndexedCPEItem
 		err = db.Get(&result, stm, args...)
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
 		if err != nil {
 			return "", fmt.Errorf("getting CPE for: %s: %w", software.Name, err)
 		}
