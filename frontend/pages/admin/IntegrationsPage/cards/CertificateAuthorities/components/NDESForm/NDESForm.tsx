@@ -98,7 +98,12 @@ const NDESForm = ({
         onChange={onInputChange}
         parseTarget
         blockAutoComplete
-        helpText="The password required to log in to the SCEP admin page."
+        helpText={
+          <>
+            The password required to log in to the{" "}
+            <b>Network Device Enrollment Service</b> page.
+          </>
+        }
       />
       <div className="modal-cta-wrap">
         <TooltipWrapper
