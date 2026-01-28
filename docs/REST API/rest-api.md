@@ -5472,6 +5472,36 @@ The live query will stop if the targeted host is offline, or if the query times 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 
+## Get host's conditional access information
+
+Get conditional access information about a host.
+
+`GET /api/v1/fleet/device/:token/conditional_access`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
+| ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| token        | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+
+
+#### Example 
+
+`GET /api/v1/fleet/device/abcdef012456789/conditional_access`
+
+#### Default response 
+
+`Status: 200` 
+
+```json
+{
+  "okta_conditional_access_configured": true,
+  "bypass_disabled": false,
+  "conditional_access_bypassed": false
+}
+```
+
+
 ## Bypass host's conditional access
 
 Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
