@@ -100,7 +100,7 @@ In your Intune settings, select **Devices**, and under **Device onbarding**, ope
 9. Click on the **Application ID URI** which will bring you to the **Expose an API** submenu with an edit button next to the text box.
 10. Replace with your Fleet URL (e.g. fleet.acme.com) and select **Save**.
 11. Select **API permissions** from the sidebar, then select **+ Add a permission**.
-12.  Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group &gt; Group.Read.All** and **Group &gt; Group.ReadWrite.All** and **Add permissions**.
+12.  Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group > Group.Read.All** and **Group > Group.ReadWrite.All** and **Add permissions**.
 13. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
     + Device > Device.Read.All
     + Device > Device.ReadWrite.All
