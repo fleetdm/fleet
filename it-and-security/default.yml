@@ -25,8 +25,8 @@ org_settings:
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
       macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Company-owned mobile devices"
-      ipados_team: "📱🏢 Company-owned mobile devices"
+      ios_team: "📱🏢 Employee-issued mobile devices"
+      ipados_team: "📱🏢 Employee-issued mobile devices"
     - organization_name: Mactivate LLC
       macos_team: "🧪 Testing & QA" 
       ios_team: "🧪 Testing & QA"
@@ -35,10 +35,24 @@ org_settings:
     - location: Fleet Device Management Inc.
       teams:
       - "💻 Workstations"
-      - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned mobile devices"
+      - "📱🏢 Employee-issued mobile devices"
       - "📱🔐 Personal mobile devices"
       - "🧪 Testing & QA"
+      - organization_name: Fleet Device Management Inc.
+        macos_team: "💻 Workstations"
+        ios_team: "📱🏢 Employee-issued mobile devices"
+        ipados_team: "📱🏢 Employee-issued mobile devices"
+      - organization_name: Mactivate LLC
+        macos_team: "🧪 Testing & QA"
+        ios_team: "🧪 Testing & QA"
+        ipados_team: "🧪 Testing & QA"
+    volume_purchasing_program:
+      - location: Fleet Device Management Inc.
+        teams:
+          - "💻 Workstations"
+          - "📱🏢 Employee-issued mobile devices"
+          - "📱🔐 Personal mobile devices"
+          - "🧪 Testing & QA"
   org_info:
     contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
