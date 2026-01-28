@@ -41,7 +41,7 @@ const WindowsAutomaticEnrollmentPage = () => {
           content={
             <>
               To connect Fleet to Microsoft Entra, follow the instructions in
-              the {" "}
+              the{" "}
               <CustomLink
                 newTab
                 text="guide"
@@ -51,7 +51,10 @@ const WindowsAutomaticEnrollmentPage = () => {
           }
         />
         <Card>
-          <p>You will need to copy and paste these values to create the application in Microsoft Entra.</p>
+          <p>
+            You will need to copy and paste these values to create the
+            application in Microsoft Entra.
+          </p>
           <div className={`${baseClass}__url-inputs-wrapper`}>
             <InputField
               inputWrapperClass={`${baseClass}__url-input`}
