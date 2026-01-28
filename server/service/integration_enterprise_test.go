@@ -3972,14 +3972,14 @@ A3smrFnIVFrVeLPn47FnPVP8HzT8dcMBwGKOGANW1VAMEwlZXHdVlRaGVqd9FbxS
 KSCy+VfKBn4=
 -----END CERTIFICATE-----`
 
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(fmt.Sprintf(`{
+	s.DoRaw("PATCH", "/api/latest/fleet/config", fmt.Appendf(nil, `{
 		"conditional_access": {
 			"okta_idp_id": "https://www.okta.com/saml2/service-provider/test",
 			"okta_assertion_consumer_service_url": "https://dev-test.okta.com/sso/saml2/test",
 			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/test",
 			"okta_certificate": %q
 		}
-	}`, validCert)), http.StatusOK)
+	}`, validCert), http.StatusOK)
 
 	// Test case 2: Global Okta configured, team conditional access NOT enabled
 	// Expected: EnableConditionalAccess=false (team not enabled), EnableConditionalAccessBypass=true (default)
