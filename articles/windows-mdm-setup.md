@@ -91,7 +91,7 @@ In your Intune settings, select **Devices**, and under **Device onbarding**, ope
 
 1. [Sign in to Azure portal](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
 2. At the top of the page, search "Domain names" and select **Domain names**. Select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
-3. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**.<br/><blockquote purpose="tip">If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.</blockquote>
+3. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
 4. At the top of the page, search for "Mobility" and select **Mobility (MDM and WIP)**.
 5. Select **+ Add application**, then select **+ Create your own application**.
 6. Enter "Fleet" as the name of your application and select **Create**.
