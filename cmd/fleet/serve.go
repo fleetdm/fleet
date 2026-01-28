@@ -285,6 +285,9 @@ the way that the Fleet server works.
 				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
 
+			// Configure default max request body size based on config
+			endpointer.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
+
 			// Create database connections that can be shared across datastores
 			dbConns, err := mysql.NewDBConnections(config.Mysql, opts...)
 			if err != nil {

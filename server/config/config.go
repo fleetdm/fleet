@@ -119,6 +119,7 @@ type ServerConfig struct {
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
+	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1215,6 +1216,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
+	man.addConfigInt64("server.default_max_request_body_size", 1024*1024, "Default maximum size in bytes for request bodies, certain endpoints will have higher limits")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1686,6 +1688,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
+			DefaultMaxRequestBodySize:        man.getConfigInt64("server.default_max_request_body_size"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2082,6 +2085,27 @@ func (man Manager) getConfigInt(key string) int {
 	intVal, err := cast.ToIntE(interfaceVal)
 	if err != nil {
 		panic("Unable to cast to int for key " + key + ": " + err.Error())
+	}
+
+	return intVal
+}
+
+// addConfigInt adds a int config to the config options
+func (man Manager) addConfigInt64(key string, defVal int64, usage string) {
+	man.command.PersistentFlags().Int64(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
+
+	// Add default
+	man.addDefault(key, defVal)
+}
+
+// addConfigInt64 adds a int64 config to the config options
+func (man Manager) getConfigInt64(key string) int64 {
+	interfaceVal := man.getInterfaceVal(key)
+	intVal, err := cast.ToInt64E(interfaceVal)
+	if err != nil {
+		panic("Unable to cast to int64 for key " + key + ": " + err.Error())
 	}
 
 	return intVal
