@@ -10,10 +10,10 @@ org_settings:
     host_expiry_enabled: false
   integrations:
     google_calendar:
-    - api_key_json: $DOGFOOD_CALENDAR_API_KEY
-      domain: fleetdm.com
-    jira: [ ]
-    zendesk: [ ]
+      - api_key_json: $DOGFOOD_CALENDAR_API_KEY
+        domain: fleetdm.com
+    jira: []
+    zendesk: []
   mdm:
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
@@ -23,22 +23,21 @@ org_settings:
       metadata_url: ""
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
-    - organization_name: Fleet Device Management Inc.
-      macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Company-owned mobile devices"
-      ipados_team: "📱🏢 Company-owned mobile devices"
-    - organization_name: Mactivate LLC
-      macos_team: "🧪 Testing & QA" 
-      ios_team: "🧪 Testing & QA"
-      ipados_team: "🧪 Testing & QA"
+      - organization_name: Fleet Device Management Inc.
+        macos_team: "💻 Workstations"
+        ios_team: "📱🏢 Company-owned mobile devices"
+        ipados_team: "📱🏢 Company-owned mobile devices"
+      - organization_name: Mactivate LLC
+        macos_team: "🧪 Testing & QA"
+        ios_team: "🧪 Testing & QA"
+        ipados_team: "🧪 Testing & QA"
     volume_purchasing_program:
-    - location: Fleet Device Management Inc.
-      teams:
-      - "💻 Workstations"
-      - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned mobile devices"
-      - "📱🔐 Personal mobile devices"
-      - "🧪 Testing & QA"
+      - location: Fleet Device Management Inc.
+        teams:
+          - "💻 Workstations"
+          - "📱🏢 Company-owned mobile devices"
+          - "📱🔐 Personal mobile devices"
+          - "🧪 Testing & QA"
   org_info:
     contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
@@ -71,7 +70,7 @@ org_settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids: [ ]
+      policy_ids: []
     host_status_webhook:
       days_count: 5
       destination_url: $DOGFOOD_HOST_STATUS_WEBHOOK_URL
@@ -92,7 +91,7 @@ queries:
   - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/queries/detect-apns-certificate.yml
   - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
-controls: 
+controls:
   enable_disk_encryption: true
   macos_migration:
     enable: true
