@@ -153,12 +153,16 @@ var shellCommand = &cli.Command{
 			// leaving the extension runner waiting for the socket.
 			// NOTE(lucas): `--extensions_require` doesn't seem to work with
 			// thrift extensions?
+			pipeName := filepath.Join(c.String("root-dir"), "orbit-osquery.em")
+			if runtime.GOOS == "windows" {
+				pipeName = `\\\\.\\pipe\\orbit-osquery-extension`
+			}
 			registerExtensionRunner(
 				&g,
 				r.ExtensionSocketPath()+extensionPathPostfix,
 				table.NewEmptyExtension(
 					"orbit_info",
-					"Please connect to orbit-osquery extension socket to query this table",
+					fmt.Sprintf(`Please connect to orbit-osquery extension socket to query this table: ".connect %s"`, pipeName),
 				),
 			)
 		}
