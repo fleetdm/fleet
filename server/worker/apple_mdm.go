@@ -195,11 +195,13 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 
 		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		lockPrimaryAccountInfo := appCfg.MDM.MacOSSetup.LockPrimaryAccountInfo
 		if args.TeamID != nil {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
 			ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+			lockPrimaryAccountInfo = team.Config.MDM.MacOSSetup.LockPrimaryAccountInfo
 		}
 
 		if ssoEnabled {
@@ -215,6 +217,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				cmdUUID,
 				fullName,
 				acct.Username,
+				lockPrimaryAccountInfo,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 			}
