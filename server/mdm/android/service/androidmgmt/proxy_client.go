@@ -267,6 +267,9 @@ func (p *ProxyClient) EnterprisesList(ctx context.Context, serverURL string) ([]
 	call := p.mgmt.Enterprises.List().Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	call.Header().Set("Origin", serverURL)
+	// NOTE: we don't call .Pages(...) here because the Fleet proxy takes care of
+	// listing enterprises on all pages and filtering those that belong to this Fleet instance:
+	// https://github.com/fleetdm/fleet/blob/ac960d64fce49175b4f3ee396ed30c27824450ea/website/api/controllers/android-proxy/get-android-enterprises.js#L74-L91
 	resp, err := call.Do()
 	if err != nil {
 		// Convert proxy errors to proper googleapi.Error for service layer
