@@ -89,8 +89,28 @@ Some Intune/Entra deployments enable automatic enrollment into Intune. Check to 
 
 In your Intune settings, select **Devices**, and under **Device onbarding**, open the **Enrollment** submenu. Select **Automatic Enrollment** and ensure both **MDM user scope** and **Windows Information Protection (WIP) user scope** are set to **None**.
 
-1. [Sign in to Azure portal](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool)
-2. At the top of the page, search "Domain names" and select **Domain names**. Then select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**
+1. [Sign in to Azure portal](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
+2. At the top of the page, search "Domain names" and select **Domain names**. Then select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
+3. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**.<br/><blockquote>If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.</blockquote>
+4. At the top of the page, search for "Mobility" and select **Mobility (MDM and WIP)**.
+5. Select **+ Add application**, then select **+ Create your own application**.
+6. Enter "Fleet" as the name of your application and select **Create**.
+7. Set MDM user scope to **All**, then in the Fleet UI head to **Settings** > **Integrations** > **MDM** > **Windows Enrollment** and copy the URLs on the **Microsoft Entra** page (`/settings/integrations/automatic-enrollment/windows`). Paste them in Azure AD, and select **Save**.
+8. While on this same page, select the **Custom MDM application settings** link.
+9. Click on the **Application ID URI** which will bring you to the **Expose an API** submenu with an edit button next to the text box.
+10. Replace with your Fleet URL (e.g. fleet.acme.com) and select **Save**.
+11. Select **API permissions** from the sidebar, then select **+ Add a permission**.
+12.  Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group &gt; Group.Read.All** and **Group &gt; Group.ReadWrite.All** and **Add permissions**.
+13. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
+    + Device > Device.Read.All
+    + Device > Device.ReadWrite.All
+    + Directory > Directory.Read.All
+    + Group > Group.Read.All
+    + User > User.Read.All
+14. Select **Add permissions**.
+15. Select **Grant admin consent for &lt;your tenant name&gt;**, and confirm.
+
+Now you're ready to automatically enroll Windows hosts to Fleet.
 
 ### Step 3: Test automatic enrollment
 

@@ -11,6 +11,7 @@ import CustomLink from "components/CustomLink/CustomLink";
 import InfoBanner from "components/InfoBanner";
 import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
+import Card from "components/Card";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;
@@ -49,157 +50,33 @@ const WindowsAutomaticEnrollmentPage = () => {
             </>
           }
         />
-        {/* Ideally we'd use the native browser list styles and css to display
-        the list numbers but this does not allow us to style the list items as we'd
-        like so we write the numbers in the JSX instead. */}
-        <ol className={`${baseClass}__setup-list`}>
-          <li>
-            <span>3.</span>
-            <div>
-              <p>
-                Use the information presented in Azure AD to create a new TXT/MX
-                record with your domain registrar, then select <b>Verify</b>.
-              </p>
-              <InfoBanner
-                className={`${baseClass}__cloud-customer-banner`}
-                color="purple"
-                icon="warning"
-              >
-                <div className={`${baseClass}__banner-content`}>
-                  <Icon name="error-outline" color="ui-fleet-black-75" />
-                  <p>
-                    If you&apos;re a managed-cloud customer, please reach out to
-                    Fleet to create a TXT/MX record for you.
-                  </p>
-                </div>
-              </InfoBanner>
-            </div>
-          </li>
-          <li>
-            <span>4.</span>
-            <p>
-              At the top of the page, search for “Mobility“ and select{" "}
-              <b>Mobility (MDM and WIP)</b>.
-            </p>
-          </li>
-          <li>
-            <span>5.</span>
-            <p>
-              Select <b>+ Add application</b>, then select{" "}
-              <b>+ Create your own application</b>.
-            </p>
-          </li>
-          <li>
-            <span>6.</span>
-            Enter “Fleet” as the name of your application and select{" "}
-            <b>Create</b>.
-          </li>
-          <li>
-            <span>7.</span>
-            <div>
-              <p>
-                Set MDM user scope to <b>All</b>, then copy the URLs below,
-                paste them in Azure AD, and select <b>Save</b>.
-              </p>
-              <div className={`${baseClass}__url-inputs-wrapper`}>
-                <InputField
-                  inputWrapperClass={`${baseClass}__url-input`}
-                  label="MDM terms of use URL"
-                  name="mdmTermsOfUseUrl"
-                  tooltip="The terms of use URL is used to display the terms of service to end users
-                  before turning on MDM their host. The terms of use text informs users about
-                  policies that will be enforced on the host."
-                  value={generateMdmTermsOfUseUrl(
-                    config?.server_settings.server_url || ""
-                  )}
-                  enableCopy
-                />
-                <InputField
-                  inputWrapperClass={`${baseClass}__url-input`}
-                  label="MDM discovery URL"
-                  name="mdmDiscoveryUrl"
-                  tooltip="The enrollment URL is used to connect hosts with the MDM service."
-                  value={generateMdmDiscoveryUrl(
-                    config?.server_settings.server_url || ""
-                  )}
-                  enableCopy
-                />
-              </div>
-            </div>
-          </li>
-          <li>
-            <span>8.</span>
-            <p>
-              While on this same page, select{" "}
-              <b>Custom MDM application settings</b> link.
-            </p>
-          </li>
-          <li>
-            <span>9.</span>
-            <p>
-              Click on the <b>Application ID URI</b> which will bring you to the{" "}
-              <b>Expose an API</b> submenu with an edit button next to the text
-              box.
-            </p>
-          </li>
-          <li>
-            <span>10.</span>
-            <p>
-              Replace with your Fleet URL (e.g. fleet.acme.com) and select{" "}
-              <b>Save</b>.
-            </p>
-          </li>
-          <li>
-            <span>11.</span>
-            <p>
-              Select <b>API permissions</b> from the sidebar, then select{" "}
-              <b>+ Add a permission</b>.
-            </p>
-          </li>
-          <li>
-            <span>12.</span>
-            <p>
-              Select <b>Microsoft Graph</b>, then select{" "}
-              <b>Delegated permissions</b>, and select{" "}
-              <b>Group &gt; Group.Read.All</b> and{" "}
-              <b>Group &gt; Group.ReadWrite.All</b> and <b>Add permissions</b>.
-            </p>
-          </li>
-          <li>
-            <span>13.</span>
-            <div>
-              Again select <b>+ Add a permission</b> and then{" "}
-              <b>Microsoft Graph</b> and <b>Application permissions</b>, select
-              the following:
-              <ul className={`${baseClass}__permissions-list`}>
-                <li>Device &gt; Device.Read.All</li>
-                <li>Device &gt; Device.ReadWrite.All</li>
-                <li>Directory &gt; Directory.Read.All</li>
-                <li>Group &gt; Group.Read.All</li>
-                <li>User &gt; User.Read.All</li>
-              </ul>
-            </div>
-          </li>
-          <li>
-            <span>14.</span>
-            <p>
-              Select <b>Add permissions</b>.
-            </p>
-          </li>
-          <li>
-            <span>15.</span>
-            <p>
-              Select <b>Grant admin consent for &lt;your tenant name&gt;</b>,
-              and confirm.
-            </p>
-          </li>
-          <li>
-            <span>16.</span>
-            <p>
-              You&apos;re ready to automatically enroll Windows hosts to Fleet.
-            </p>
-          </li>
-        </ol>
+        <Card>
+          <p>You will need to copy and paste these values to create the application in Microsoft Entra.</p>
+          <div className={`${baseClass}__url-inputs-wrapper`}>
+            <InputField
+              inputWrapperClass={`${baseClass}__url-input`}
+              label="MDM terms of use URL"
+              name="mdmTermsOfUseUrl"
+              tooltip="The terms of use URL is used to display the terms of service to end users
+              before turning on MDM their host. The terms of use text informs users about
+              policies that will be enforced on the host."
+              value={generateMdmTermsOfUseUrl(
+                config?.server_settings.server_url || ""
+              )}
+              enableCopy
+            />
+            <InputField
+              inputWrapperClass={`${baseClass}__url-input`}
+              label="MDM discovery URL"
+              name="mdmDiscoveryUrl"
+              tooltip="The enrollment URL is used to connect hosts with the MDM service."
+              value={generateMdmDiscoveryUrl(
+                config?.server_settings.server_url || ""
+              )}
+              enableCopy
+            />
+          </div>
+        </Card>
       </>
     </MainContent>
   );
