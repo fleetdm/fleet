@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
@@ -36,7 +37,7 @@ type ProxyClient struct {
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &ProxyClient{}
 
-func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string, getenv func(string) string) Client {
+func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string, getenv dev_mode.GetEnv) Client {
 	proxyEndpoint := getenv("FLEET_DEV_ANDROID_PROXY_ENDPOINT")
 	if proxyEndpoint == "" {
 		proxyEndpoint = defaultProxyEndpoint

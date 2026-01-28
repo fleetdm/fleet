@@ -17,9 +17,10 @@ To manage teams:
 
 Fleet's best practice teams:
 - `💻 Workstations`: End users' production work computers (macOS, Windows, and Linux)
-- `💻🐣 Workstations (canary)`: IT team's test work computers. Sometimes, for demos or testing, includes end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
-- `📱 Corporate mobile devices`: iPhones, iPads, and Android devices owned by, or issued to, employees that can access company data.
-- `🏢 Mobile infrastructure`: iPads, Android tablets, or other mobile devices for dedicated or shared use (e.g. kiosks or point of sale).
+- `☁️ IT servers`: Production servers used to host internal tools like certificate authorities (CAs).
+- `📱🔐 Personal mobile devices`: iPhones, iPads, and Android devices owned by employees that can access company data.
+- `📱🏢 Employee-issued mobile devices`: iPhones, iPads, and Android devices issued to employees that can access company data.
+- `🖥️ Dedicated devices`: iPads or iPhones for dedicated or shared use. If some of your devices have different use cases, break this team into separate teams (ex. `🖥️ Kiosk devices` and `🎥 Zoom room devices`).
 
 ## Add hosts to a team
 

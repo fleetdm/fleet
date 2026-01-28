@@ -45,6 +45,9 @@ const (
 	// CronMigrateToPerHostPolicy moves all Android hosts that are on the default MDM policy to a dedicated
 	// policy per host. This job only runs once after upgrading to v4.77.0.
 	CronMigrateToPerHostPolicy CronScheduleName = "migrate_to_per_host_policy"
+	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
+	// Runs every 1 minute.
+	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
 )
 
 type CronSchedulesService interface {

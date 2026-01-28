@@ -48,6 +48,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
@@ -119,8 +120,6 @@ type initializer interface {
 func createServeCmd(configManager configpkg.Manager) *cobra.Command {
 	// Whether to enable the debug endpoints
 	debug := false
-	// Whether to enable developer options
-	dev := false
 	// Whether to enable development Fleet Premium license
 	devLicense := false
 	// Whether to enable development Fleet Premium license with an expired license
@@ -140,7 +139,7 @@ the way that the Fleet server works.
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
 
-			if dev {
+			if dev_mode.IsEnabled {
 				applyDevFlags(&config)
 			}
 
@@ -158,7 +157,7 @@ the way that the Fleet server works.
 
 			logger := initLogger(config)
 
-			if dev {
+			if dev_mode.IsEnabled {
 				createTestBuckets(&config, logger)
 			}
 
@@ -276,7 +275,7 @@ the way that the Fleet server works.
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
 			// NOTE this will disable OTEL/APM interceptor
-			if dev && os.Getenv("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
+			if dev_mode.Env("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
 				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
 					logger: kitlog.With(logger, "component", "sql-interceptor"),
 				}))
@@ -317,7 +316,7 @@ the way that the Fleet server works.
 				// OK
 			case fleet.UnknownMigrations:
 				printUnknownMigrationsMessage(migrationStatus.UnknownTable, migrationStatus.UnknownData)
-				if dev {
+				if dev_mode.IsEnabled {
 					os.Exit(1)
 				}
 			case fleet.NeedsFleetv4732Fix:
@@ -563,7 +562,7 @@ the way that the Fleet server works.
 					Certificates: []tls.Certificate{*cert},
 				})), nil
 			}))
-			if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
+			if dev_mode.Env("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
 				mdmPushService = nopPusher{}
 			} else {
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
@@ -1052,6 +1051,14 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(
 				func() (fleet.CronSchedule, error) {
+					return newQueryResultsCleanupSchedule(ctx, instanceID, ds, liveQueryStore, logger)
+				},
+			); err != nil {
+				initFatal(err, "failed to register query_results_cleanup schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(
+				func() (fleet.CronSchedule, error) {
 					return newUpcomingActivitiesSchedule(ctx, instanceID, ds, logger)
 				},
 			); err != nil {
@@ -1210,7 +1217,7 @@ the way that the Fleet server works.
 				}
 
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger, apple_apps.GetAuthenticator(ctx, ds, config.License.Key))
+					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger, apple_apps.Configure(ctx, ds, config.License.Key, config.MDM.AppleConnectJWT))
 				}); err != nil {
 					initFatal(err, "failed to register refresh vpp app versions schedule")
 				}
@@ -1702,7 +1709,7 @@ the way that the Fleet server works.
 	}
 
 	serveCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug endpoints")
-	serveCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	serveCmd.PersistentFlags().BoolVar(&dev_mode.IsEnabled, "dev", false, "Enable developer options")
 	serveCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
