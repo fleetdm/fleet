@@ -1614,8 +1614,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	var tmResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &tmResp)
 	assert.Equal(t, team.Name, tmResp.Team.Name)
+	assert.False(t, tmResp.Team.CreatedAt.IsZero())
+	assert.WithinDuration(t, time.Now(), tmResp.Team.CreatedAt, time.Minute)
 	require.Len(t, tmResp.Team.Secrets, 1)
 	assert.Equal(t, "DEF", tmResp.Team.Secrets[0].Secret)
+	assert.False(t, tmResp.Team.Secrets[0].CreatedAt.IsZero())
+	assert.WithinDuration(t, time.Now(), tmResp.Team.Secrets[0].CreatedAt, time.Minute)
 
 	// create a duplicate team (same name)
 	team2 := &fleet.Team{

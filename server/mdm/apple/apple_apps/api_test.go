@@ -18,10 +18,10 @@ import (
 func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	defer dev_mode.ClearAllOverrides()
 	t.Run("Default URL", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "", t)
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+		baseURL := getBaseURL(false)
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
 
-		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
 		require.NoError(t, err)
 		require.Equal(t, "this-is-a-token", req.Header.Get("vpp-token"))
 		require.Empty(t, req.Header.Get("Cookie"))
@@ -30,9 +30,10 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL, t)
-		require.Equal(t, customURL, getBaseURL())
+		require.Equal(t, customURL, getBaseURL(false))
+		require.Equal(t, customURL, getBaseURL(true)) // dev env var should override config param default behavior
 
-		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		req, err := buildMetadataRequest(customURL, []string{"1"}, "this-is-a-token")
 		require.NoError(t, err)
 		require.Equal(t, "this-is-a-token", req.Header.Get("vpp-token"))
 		require.Empty(t, req.Header.Get("Cookie"))
@@ -41,31 +42,47 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	t.Run("Custom Region", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "", t)
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false))
 	})
 
-	t.Run("Direct to Apple", func(t *testing.T) {
+	t.Run("Direct to Apple via FLEET_DEV env var", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple", t)
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "", t)
-		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL())
+		baseURL := getBaseURL(false)
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
 
-		req, err := buildMetadataRequest([]string{"1"}, "this-is-a-token")
+		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
+		require.NoError(t, err)
+		require.Equal(t, "itvt=this-is-a-token", req.Header.Get("Cookie"))
+		require.Empty(t, req.Header.Get("vpp-token"))
+	})
+
+	t.Run("Direct to Apple due to bearer token override", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
+		baseURL := getBaseURL(true)
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/fr/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
+
+		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
 		require.NoError(t, err)
 		require.Equal(t, "itvt=this-is-a-token", req.Header.Get("Cookie"))
 		require.Empty(t, req.Header.Get("vpp-token"))
 	})
 }
 
-func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
+func setupFakeServer(t *testing.T, handler http.HandlerFunc) Config {
 	server := httptest.NewServer(handler)
 	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", server.URL, t)
 	t.Cleanup(server.Close)
+	return Config{
+		baseURL:       server.URL,
+		authenticator: func(bool) (string, error) { return "bearer-token", nil },
+	}
 }
 
 func TestGetMetadataRetries(t *testing.T) {
 	t.Run("successful on first attempt", func(t *testing.T) {
 		var callCount int
-		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		config := setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			require.Equal(t, "vppToken", r.Header.Get("vpp-token"))
 
 			callCount++
@@ -78,9 +95,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"123"}, "vppToken", func(bool) (string, error) {
-			return "bearer-token", nil
-		})
+		result, err := GetMetadata([]string{"123"}, "vppToken", config)
 		require.NoError(t, err)
 		require.Equal(t, 1, callCount)
 		require.Len(t, result, 1)
@@ -89,7 +104,7 @@ func TestGetMetadataRetries(t *testing.T) {
 
 	t.Run("retries on 500 error and succeeds", func(t *testing.T) {
 		var callCount int
-		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		config := setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			callCount++
 			if callCount < 2 {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -105,9 +120,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"456"}, "vppToken", func(bool) (string, error) {
-			return "bearer-token", nil
-		})
+		result, err := GetMetadata([]string{"456"}, "vppToken", config)
 		require.NoError(t, err)
 		require.Equal(t, 2, callCount)
 		require.Len(t, result, 1)
@@ -116,15 +129,13 @@ func TestGetMetadataRetries(t *testing.T) {
 
 	t.Run("exhausts retries on persistent 500 error", func(t *testing.T) {
 		var callCount int
-		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		config := setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			callCount++
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte("persistent server error"))
 		})
 
-		_, err := GetMetadata([]string{"789"}, "vppToken", func(bool) (string, error) {
-			return "bearer-token", nil
-		})
+		_, err := GetMetadata([]string{"789"}, "vppToken", config)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "retrieving asset metadata")
 		// Should have retried 3 times (max attempts)
@@ -133,16 +144,13 @@ func TestGetMetadataRetries(t *testing.T) {
 
 	t.Run("does not retry on auth error", func(t *testing.T) {
 		var callCount int
-		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		config := setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			callCount++
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte("unauthorized"))
 		})
 
-		_, err := GetMetadata([]string{"999"}, "vppToken", func(forceRenew bool) (string, error) {
-			// Always return the same token to simulate auth failure
-			return "invalid-token", nil
-		})
+		_, err := GetMetadata([]string{"999"}, "vppToken", config)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "auth")
 		// Should have called twice: initial + one retry with forceRenew, then bail
@@ -150,7 +158,7 @@ func TestGetMetadataRetries(t *testing.T) {
 	})
 
 	t.Run("returns multiple apps", func(t *testing.T) {
-		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		config := setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			resp := metadataResp{
 				Data: []Metadata{
@@ -162,9 +170,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"111", "222", "333"}, "vppToken", func(bool) (string, error) {
-			return "bearer-token", nil
-		})
+		result, err := GetMetadata([]string{"111", "222", "333"}, "vppToken", config)
 		require.NoError(t, err)
 		require.Len(t, result, 3)
 		require.Equal(t, "App One", result["111"].Attributes.Name)
@@ -173,7 +179,7 @@ func TestGetMetadataRetries(t *testing.T) {
 	})
 }
 
-// mockDataStore implements the DataStore interface for testing GetAuthenticator
+// mockDataStore implements the DataStore interface for testing getAuthenticator
 type mockDataStore struct {
 	appConfig                   *fleet.AppConfig
 	appConfigErr                error
@@ -232,30 +238,30 @@ func (m *mockDataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetTyp
 	return nil, nil
 }
 
-func TestAuthentication(t *testing.T) {
+func TestConfig(t *testing.T) {
 	// Clear any dev env vars that might interfere
-	t.Run("uses bearer token env var when set", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "dev-test-token", t)
-
+	t.Run("uses bearer token when set, and forward to Apple", func(t *testing.T) {
 		ds := &mockDataStore{}
-		auth := GetAuthenticator(context.Background(), ds, "license-key")
+		config := Configure(context.Background(), ds, "license-key", "dev-test-token")
 
 		// Should return bearer token regardless of forceRenew
-		token, err := auth(false)
+		token, err := config.authenticator(false)
 		require.NoError(t, err)
 		require.Equal(t, "dev-test-token", token)
 
-		token, err = auth(true)
+		token, err = config.authenticator(true)
 		require.NoError(t, err)
 		require.Equal(t, "dev-test-token", token)
 
 		// Should not have accessed the datastore
 		require.False(t, ds.getAssetsByNameCalled)
+
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.baseURL)
 	})
+}
 
+func TestAuthentication(t *testing.T) {
 	t.Run("returns cached token from database when not forced renewal", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		ds := &mockDataStore{
 			assets: map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetVPPProxyBearerToken: {
@@ -265,7 +271,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "license-key")
+		auth := Configure(context.Background(), ds, "license-key", "").authenticator
 		token, err := auth(false)
 		require.NoError(t, err)
 		require.Equal(t, "cached-token-from-db", token)
@@ -274,8 +280,6 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("requests new token when forced renewal even if cached exists", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Verify the URL and license key are set
@@ -303,7 +307,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "test-license-key")
+		auth := Configure(context.Background(), ds, "test-license-key", "").authenticator
 		token, err := auth(true) // Force renewal
 		require.NoError(t, err)
 		require.Equal(t, "new-token-from-auth", token)
@@ -319,8 +323,6 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("requests new token when nothing in database and no forced renewal", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		// Set up a mock auth server
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Verify the URL and license key are set
@@ -343,7 +345,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "my-license-key")
+		auth := Configure(context.Background(), ds, "my-license-key", "").authenticator
 		token, err := auth(false) // Not forced renewal, but no token in DB
 		require.NoError(t, err)
 		require.Equal(t, "fresh-token", token)
@@ -356,8 +358,6 @@ func TestAuthentication(t *testing.T) {
 	})
 
 	t.Run("returns error when auth server fails", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		// Set up a mock auth server that fails
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -375,15 +375,13 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "bad-license-key")
+		auth := Configure(context.Background(), ds, "bad-license-key", "").authenticator
 		_, err := auth(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "authenticating to VPP metadata service")
 	})
 
 	t.Run("returns error when auth response has empty token", func(t *testing.T) {
-		dev_mode.SetOverride("FLEET_DEV_VPP_METADATA_BEARER_TOKEN", "", t)
-
 		// Set up a mock auth server that returns empty token
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -401,7 +399,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := GetAuthenticator(context.Background(), ds, "license-key")
+		auth := Configure(context.Background(), ds, "license-key", "").authenticator
 		_, err := auth(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no access token received")
