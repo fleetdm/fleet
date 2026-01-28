@@ -324,7 +324,17 @@ module.exports.custom = {
     // Config as code for infrastructure, internal security and IT use cases, and more.
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
-    '.github/workflows': ['sampfluger88', 'lukeheath'],//« CI/CD workflows
+    '.github/workflows': ['lukeheath'],//« CI/CD workflows
+
+    // Issue templates
+    '.github/ISSUE_TEMPLATE/3-sale.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/2-expansion.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/9-renewal.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/prepare-event.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/technical-evaluation.md': ['allenhouchins', 'sampfluger88'],
+    '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
+    '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
+
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'], // (« for changing who reviews is automatically requested from for given paths)
@@ -505,5 +515,10 @@ module.exports.custom = {
   // vppProxyTokenTeamId: '',
   // vppProxyTokenKeyId: '',
   // vppProxyTokenPrivateKey: '',
+
+
+  // Eventbrite API
+  // eventbriteOrgId: '',
+  // eventbriteApiToken: '',
 
 };

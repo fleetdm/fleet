@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -34,8 +35,6 @@ func (r listActivitiesResponse) Error() error { return r.Err }
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
-
-var automationActivityAuthor = "Fleet"
 
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
@@ -66,7 +65,7 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			userName = &user.Name
 			userEmail = &user.Email
 		} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-			userName = &automationActivityAuthor
+			userName = ptr.String(fleet.ActivityAutomationAuthor)
 		}
 
 		go func() {

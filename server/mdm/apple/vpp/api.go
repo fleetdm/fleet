@@ -10,12 +10,12 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 )
 
 // Asset is a product in the store.
@@ -362,7 +362,7 @@ func do[T any](req *http.Request, token string, dest *T) error {
 }
 
 func getBaseURL() string {
-	devURL := os.Getenv("FLEET_DEV_VPP_URL")
+	devURL := dev_mode.Env("FLEET_DEV_VPP_URL")
 	if devURL != "" {
 		return devURL
 	}

@@ -2204,17 +2204,27 @@ WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform = 
 }
 
 func (ds *Datastore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
-	return ds.markAllPendingVPPInstallsAsFailedForHost(ctx, ds.writer(ctx), hostID, "android")
+	return ds.markAllPendingVPPInstallsAsFailedForHost(ctx, ds.writer(ctx), hostID, "android", softwareTypeVPP)
 }
 
 func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext,
-	hostID uint, hostPlatform string,
+	hostID uint, hostPlatform string, softwareType softwareType,
 ) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	var tableName string
+	switch softwareType {
+	case softwareTypeInHouseApp:
+		tableName = "host_in_house_software_installs"
+	case softwareTypeVPP:
+		tableName = "host_vpp_software_installs"
+	default:
+		return nil, nil, ctxerr.New(ctx, fmt.Sprintf("softwareType %s not supported", softwareType))
+	}
+
 	const loadFailedCmdsStmt = `
 SELECT
 	command_uuid
 FROM
-	host_vpp_software_installs
+	%s
 WHERE
 	verification_failed_at IS NULL
 	AND verification_at IS NULL
@@ -2222,19 +2232,19 @@ WHERE
 	AND canceled = 0
 `
 	var failedCmds []string
-	if err := sqlx.SelectContext(ctx, tx, &failedCmds, loadFailedCmdsStmt, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &failedCmds, fmt.Sprintf(loadFailedCmdsStmt, tableName), hostID); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "load pending vpp install commands for host")
 	}
 
 	const installFailStmt = `
-UPDATE host_vpp_software_installs
+UPDATE %s
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
 WHERE
 	verification_failed_at IS NULL
 	AND verification_at IS NULL
 	AND host_id = ?
 `
-	if _, err := tx.ExecContext(ctx, installFailStmt, hostID); err != nil {
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(installFailStmt, tableName), hostID); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "set all vpp install as failed")
 	}
 
@@ -2251,14 +2261,18 @@ WHERE
 		// field for Apple, as it should not be possible to turn MDM off during setup
 		// experience (host is not released).
 		var (
-			user *fleet.User
-			act  *fleet.ActivityInstalledAppStoreApp
-			err  error
+			user        *fleet.User
+			actAppStore *fleet.ActivityInstalledAppStoreApp
+			actInHouse  *fleet.ActivityTypeInstalledSoftware
+			err         error
 		)
-		if hostPlatform == "android" {
-			user, act, err = ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, tx, cmd, fleet.SoftwareInstallFailed)
-		} else {
-			user, act, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+		switch {
+		case hostPlatform == "android":
+			user, actAppStore, err = ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, tx, cmd, fleet.SoftwareInstallFailed)
+		case softwareType == softwareTypeVPP:
+			user, actAppStore, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+		case softwareType == softwareTypeInHouseApp:
+			user, actInHouse, err = ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
 		}
 		if err != nil {
 			if fleet.IsNotFound(err) {
@@ -2270,13 +2284,17 @@ WHERE
 
 		// user may be nil if fleet-initiated activity, but the activity itself indicates
 		// if a new entry must be made, since users and activities must match in length
-		if act != nil {
+		// only one activity should be created per command
+		if actAppStore != nil {
 			if hostPlatform == "android" {
 				// currently, android installs are always during setup experience
-				act.FromSetupExperience = true
+				actAppStore.FromSetupExperience = true
 			}
 			users = append(users, user)
-			activities = append(activities, act)
+			activities = append(activities, actAppStore)
+		} else if actInHouse != nil {
+			users = append(users, user)
+			activities = append(activities, actInHouse)
 		}
 	}
 
