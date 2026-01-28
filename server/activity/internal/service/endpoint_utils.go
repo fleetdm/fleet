@@ -39,10 +39,19 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 }
 
 // makeDecoder creates a decoder for the given request type.
-func makeDecoder(iface any) kithttp.DecodeRequestFunc {
-	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
-		return json.NewDecoder(body).Decode(req)
-	}, parseCustomTags, nil, nil, nil)
+func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+	return func(ctx context.Context, r *http.Request) (request interface{}, err error) {
+		limitedReader := io.LimitReader(r.Body, requestBodySizeLimit).(*io.LimitedReader)
+
+		r.Body = &eu.LimitedReadCloser{
+			LimitedReader: limitedReader,
+			Closer:        r.Body,
+		}
+
+		return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
+			return json.NewDecoder(body).Decode(req)
+		}, parseCustomTags, nil, nil, nil)(ctx, r)
+	}
 }
 
 // parseCustomTags handles custom URL tag values for activity requests.
@@ -126,7 +135,8 @@ type endpointer struct {
 }
 
 func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any,
-	svc any) (platform_http.Errorer, error) {
+	svc any,
+) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(api.Service)), nil
 }
 
@@ -135,7 +145,8 @@ func (e *endpointer) Service() any {
 }
 
 func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[handlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,
