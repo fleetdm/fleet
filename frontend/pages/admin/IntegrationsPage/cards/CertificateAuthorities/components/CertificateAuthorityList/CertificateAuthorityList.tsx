@@ -21,34 +21,9 @@ export const generateListData = (
   certAuthorities: ICertificateAuthorityPartial[]
 ) => {
   return certAuthorities.map<ICertAuthorityListData>((cert) => {
-    let description = "";
-    switch (cert.type) {
-      case "ndes_scep_proxy":
-        description = "Microsoft Network Device Enrollment Service (NDES)";
-        description = CA_LABEL_BY_TYPE.ndes_scep_proxy;
-        break;
-      case "digicert":
-        description = CA_LABEL_BY_TYPE.digicert;
-        break;
-      case "custom_scep_proxy":
-        description = "Custom Simple Certificate Enrollment Protocol (SCEP)";
-        break;
-      case "hydrant":
-        description = "Hydrant (EST - Enrollment Over Secure Transport) ";
-        break;
-      case "smallstep":
-        description = CA_LABEL_BY_TYPE.smallstep;
-        break;
-      case "custom_est_proxy":
-        description = "Custom Enrollment Over Secure Transport (EST)";
-        break;
-      default:
-        description = "Unknown Certificate Authority Type";
-    }
-
     return {
       ...cert,
-      description,
+      description: CA_LABEL_BY_TYPE[cert.type],
     };
   });
 };
@@ -69,7 +44,6 @@ const CertificateAuthorityList = ({
   const listData = useMemo(() => generateListData(certAuthorities), [
     certAuthorities,
   ]);
-
   return (
     <UploadList<ICertAuthorityListData>
       className={baseClass}
