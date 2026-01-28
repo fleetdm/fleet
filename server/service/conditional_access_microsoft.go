@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/go-kit/log/level"
 )
 
@@ -14,6 +17,11 @@ type conditionalAccessMicrosoftCreateRequest struct {
 	// MicrosoftTenantID holds the Entra tenant ID.
 	MicrosoftTenantID string `json:"microsoft_tenant_id"`
 }
+
+const (
+	microsoftProxyGetMaxAttempts = 3
+	microsoftProxyGetRetryDelay  = 200 * time.Millisecond
+)
 
 type conditionalAccessMicrosoftCreateResponse struct {
 	// MicrosoftAuthenticationURL holds the URL to redirect the admin to consent access
@@ -54,7 +62,7 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 	case existingIntegration != nil && existingIntegration.TenantID == tenantID:
 		// Nothing to do, integration with same tenant ID has already been created.
 		// Retrieve settings of the integration to get the admin consent URL.
-		getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, existingIntegration.TenantID, existingIntegration.ProxyServerSecret)
+		getResponse, err := svc.conditionalAccessMicrosoftProxyGetWithRetry(ctx, existingIntegration.TenantID, existingIntegration.ProxyServerSecret)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "failed to get the integration settings")
 		}
@@ -81,7 +89,7 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 	}
 
 	// Retrieve settings of the integration to get the admin consent URL.
-	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, proxyCreateResponse.TenantID, proxyCreateResponse.Secret)
+	getResponse, err := svc.conditionalAccessMicrosoftProxyGetWithRetry(ctx, proxyCreateResponse.TenantID, proxyCreateResponse.Secret)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "failed to get the integration settings")
 	}
@@ -130,10 +138,10 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 		return true, "", nil
 	}
 
-	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, integration.TenantID, integration.ProxyServerSecret)
+	getResponse, err := svc.conditionalAccessMicrosoftProxyGetWithRetry(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "failed to get integration settings from proxy", "err", err)
-		return false, "", nil
+		return false, "", &fleet.BadRequestError{Message: "failed to get integration settings from proxy"}
 	}
 
 	if !getResponse.SetupDone {
@@ -245,4 +253,33 @@ func (svc *Service) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.C
 	}
 
 	return integration, nil
+}
+
+func (svc *Service) conditionalAccessMicrosoftProxyGetWithRetry(
+	ctx context.Context,
+	tenantID string,
+	secret string,
+) (*conditional_access_microsoft_proxy.GetResponse, error) {
+	var response *conditional_access_microsoft_proxy.GetResponse
+	err := retry.Do(func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		var err error
+		response, err = svc.conditionalAccessMicrosoftProxy.Get(ctx, tenantID, secret)
+		return err
+	},
+		retry.WithMaxAttempts(microsoftProxyGetMaxAttempts),
+		retry.WithInterval(microsoftProxyGetRetryDelay),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return retry.ErrorOutcomeDoNotRetry
+			}
+			return retry.ErrorOutcomeNormalRetry
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
