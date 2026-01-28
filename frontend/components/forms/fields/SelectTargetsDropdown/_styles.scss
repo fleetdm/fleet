@@ -124,7 +124,7 @@
     height: 500px;
     overflow: hidden; // outer still clips the menu so padding works
     box-shadow: 0 8px 12px 0 rgba(0, 0, 0, 0.15);
-    position: relative; // ensure it participates in stacking
+    position: absolute;
     z-index: 10; // Ensure dropdown appears above other elements
 
     .Select-menu {
