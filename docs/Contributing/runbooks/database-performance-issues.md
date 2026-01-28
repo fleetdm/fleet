@@ -35,11 +35,13 @@ which can be run directly on a MySQL reader, in case a self-hosted customer want
 
 ##### Cloud environments
 
-For cloud environments on >= 4.81, you can scan CloudWatch Logs for the appropriate row counts line:
+For cloud environments on >= 4.81, you can scan CloudWatch Logs for the appropriate row counts line.  Run [cw-table-row-counts.sh](https://github.com/fleetdm/confidential/blob/main/infrastructure/cloud/scripts/cw-table-row-counts.sh) to pull the table stats log entry from the most recent migration.
 
 ```shell
-TODO
+scripts/cw-table-row-counts.sh --days <days to search back in logs> --log-group <customer group name>
 ```
+
+The script will pull from the most recent database migration within the --days.  If you don't know when the last migration was run, 30 is safe number to use given our release cadence.  Otherwise you can check the most recent runs of the [cloud deploy](https://github.com/fleetdm/confidential/actions/workflows/cloud-deploy.yml) Github action for a timeframe.
 
 ##### Self-hosted
 
