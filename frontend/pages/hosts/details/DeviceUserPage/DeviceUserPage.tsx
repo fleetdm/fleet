@@ -153,8 +153,6 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
-  const { config } = useContext(AppContext);
-
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);

@@ -37,11 +37,13 @@ const PolicyDetailsModal = ({
         )}
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
-          {policy?.conditional_access_enabled && onResolveLater && (
-            <Button onClick={onResolveLater} variant="inverse">
-              Resolve later
-            </Button>
-          )}
+          {policy?.conditional_access_enabled &&
+            policy.response === "fail" &&
+            onResolveLater && (
+              <Button onClick={onResolveLater} variant="inverse">
+                Resolve later
+              </Button>
+            )}
         </div>
       </div>
     </Modal>
