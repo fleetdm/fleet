@@ -1,0 +1,8 @@
+{
+  "name": "Microsoft Outlook",
+  "unique_identifier": "com.microsoft.Outlook",
+  "token": "microsoft-outlook",
+  "installer_format": "pkg",
+  "slug": "microsoft-outlook/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -27,7 +27,7 @@ parasails.registerPage('login', {
     showCustomerLogin: true,
     // For redirecting users coming from the "Get your license" link to the license dispenser.
     registerSlug: '/register',
-    pageToRedirectToAfterLogin: '/start#login',
+    pageToRedirectToAfterLogin: '/try',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -42,7 +42,7 @@ parasails.registerPage('login', {
       // If we're redirecting this user to the license dispenser after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
       if(window.location.hash === '#purchaseLicense'){
         this.registerSlug = '/register#purchaseLicense';
-        this.pageToRedirectToAfterLogin = '/new-license#login';
+        this.pageToRedirectToAfterLogin = '/new-license';
         window.location.hash = '';
       // If we're redirecting this user to the contact form after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
       } else if(window.location.hash === '#contact'){

@@ -20,7 +20,7 @@ interface INDESFormProps {
   formData: INDESFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  isEditing?: boolean;
+  isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -30,7 +30,7 @@ const NDESForm = ({
   formData,
   submitBtnText,
   isSubmitting,
-  isEditing = false,
+  isDirty = true,
   onChange,
   onSubmit,
   onCancel,
@@ -55,48 +55,57 @@ const NDESForm = ({
 
   return (
     <form onSubmit={onSubmitForm}>
-      <div className={`${baseClass}__fields`}>
-        <InputField
-          label="SCEP URL"
-          name="scepURL"
-          value={scepURL}
-          error={formValidation.scepURL?.message}
-          onChange={onInputChange}
-          parseTarget
-          placeholder="https://example.com/certsrv/mscep/mscep.dll"
-          helpText="The URL used by client devices to request and retrieve certificates."
-        />
-        <InputField
-          label="Admin URL"
-          name="adminURL"
-          value={adminURL}
-          error={formValidation.adminURL?.message}
-          onChange={onInputChange}
-          parseTarget
-          placeholder="https://example.com/certsrv/mscep_admin/"
-          helpText="The admin interface for managing the SCEP service and viewing configuration details."
-        />
-        <InputField
-          label="Username"
-          name="username"
-          value={username}
-          onChange={onInputChange}
-          parseTarget
-          placeholder="username@example.microsoft.com"
-          helpText="The username in the down-level logon name format required to log in to the SCEP admin page."
-        />
-        <InputField
-          label="Password"
-          name="password"
-          value={password}
-          type="password"
-          onChange={onInputChange}
-          parseTarget
-          blockAutoComplete
-          helpText="The password required to log in to the SCEP admin page."
-        />
-      </div>
-      <div className={`${baseClass}__cta`}>
+      <InputField
+        label="SCEP URL"
+        name="scepURL"
+        value={scepURL}
+        error={formValidation.scepURL?.message}
+        onChange={onInputChange}
+        parseTarget
+        placeholder="https://example.com/certsrv/mscep/mscep.dll"
+        helpText="The URL used by client devices to request and retrieve certificates."
+      />
+      <InputField
+        label="Admin URL"
+        name="adminURL"
+        value={adminURL}
+        error={formValidation.adminURL?.message}
+        onChange={onInputChange}
+        parseTarget
+        placeholder="https://example.com/certsrv/mscep_admin/"
+        helpText={
+          <>
+            The URL for the <b>Network Device Enrollment Service</b> page to
+            view configuration details. Okta calls this the <b>Challenge URL</b>
+            .
+          </>
+        }
+      />
+      <InputField
+        label="Username"
+        name="username"
+        value={username}
+        onChange={onInputChange}
+        parseTarget
+        placeholder="username@example.microsoft.com"
+        helpText="For Microsoft, this is the username in the down-level logon name format required to log in to the SCEP admin page."
+      />
+      <InputField
+        label="Password"
+        name="password"
+        value={password}
+        type="password"
+        onChange={onInputChange}
+        parseTarget
+        blockAutoComplete
+        helpText={
+          <>
+            The password required to log in to the{" "}
+            <b>Network Device Enrollment Service</b> page.
+          </>
+        }
+      />
+      <div className="modal-cta-wrap">
         <TooltipWrapper
           tipContent="Complete all required fields to save."
           underline={false}
@@ -107,7 +116,7 @@ const NDESForm = ({
           <Button
             type="submit"
             isLoading={isSubmitting}
-            disabled={!formValidation.isValid || isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting || !isDirty}
           >
             {submitBtnText}
           </Button>

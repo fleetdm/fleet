@@ -1,0 +1,8 @@
+{
+  "name": "Telegram",
+  "unique_identifier": "ru.keepcoder.Telegram",
+  "token": "telegram",
+  "installer_format": "zip",
+  "slug": "telegram/darwin",
+  "default_categories": ["Communication"]
+}

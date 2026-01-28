@@ -56,7 +56,7 @@ const MdmSettingsSection = ({
     }
 
     return (
-      <div className={`${baseClass}__content`}>
+      <>
         <AppleMdmCard
           appleAPNSInfo={appleAPNSInfo}
           errorData={appleAPNSError}
@@ -71,7 +71,7 @@ const MdmSettingsSection = ({
           turnOffAndroidMdm={navigateToAndroidMdm}
           editAndroidMdm={navigateToAndroidMdm}
         />
-      </div>
+      </>
     );
   };
 

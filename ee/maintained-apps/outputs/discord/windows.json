@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "1.0.9222",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Discord' AND publisher = 'Discord Inc.';"
+      },
+      "installer_url": "https://stable.dl2.discordapp.net/distro/app/stable/win/x64/1.0.9222/DiscordSetup.exe",
+      "install_script_ref": "fd04e860",
+      "uninstall_script_ref": "73fc6eff",
+      "sha256": "9ab8ef10e60662a90d5ba4bc43337bbe050012b80f9dbb7ece39aa8b51ae474b",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "73fc6eff": "# Attempts to locate Discord's uninstaller from registry and execute it silently\n\n$displayName = \"Discord\"\n$publisher = \"Discord Inc.\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -eq $publisher)\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n# Kill any running Discord processes before uninstalling\nStop-Process -Name \"Discord\" -Force -ErrorAction SilentlyContinue\n\n$uninstallString = $uninstall.UninstallString\n$exePath = \"\"\n$arguments = \"\"\n\n# Parse the uninstall string to extract executable path and existing arguments\n# Handles both quoted and unquoted paths\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n} elseif ($uninstallString -match '^([^\\s]+)(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n} else {\n    Write-Host \"Error: Could not parse uninstall string: $uninstallString\"\n    Exit 1\n}\n\n# Build argument list array, preserving existing arguments and adding -s for silent\n$argumentList = @()\nif ($arguments -ne '') {\n    # Split existing arguments and add them\n    $argumentList += $arguments -split '\\s+'\n}\n$argumentList += \"-s\"\n\nWrite-Host \"Uninstall executable: $exePath\"\nWrite-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $argumentList\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    \n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    \n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n\n",
+    "fd04e860": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add argument to install silently\n# Discord uses Squirrel installer (common for Electron apps)\n# Discord uses -s (lowercase) for silent installation\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"-s\"\n  PassThru = $true\n  Wait = $true\n}\n    \n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n\n"
+  }
+}

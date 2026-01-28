@@ -27,9 +27,11 @@ type LabelUsage struct {
 
 func gitopsCommand() *cli.Command {
 	var (
-		flFilenames        cli.StringSlice
-		flDryRun           bool
-		flDeleteOtherTeams bool
+		flFilenames             cli.StringSlice
+		flDryRun                bool
+		flDeleteOtherTeams      bool
+		flConcurrentIconUploads int
+		flConcurrentIconUpdates int
 	)
 	return &cli.Command{
 		Name:      "gitops",
@@ -55,11 +57,35 @@ func gitopsCommand() *cli.Command {
 				Destination: &flDryRun,
 				Usage:       "Do not apply the file(s), just validate",
 			},
+			&cli.IntFlag{
+				Name:        "icons-concurrent-uploads",
+				EnvVars:     []string{"ICONS_CONCURRENT_UPLOADS"},
+				Destination: &flConcurrentIconUploads,
+				Usage:       "Number of custom software icons to upload simultaneously",
+				Value:       4,
+				Hidden:      true,
+			},
+			&cli.IntFlag{
+				Name:        "icons-concurrent-updates",
+				EnvVars:     []string{"ICONS_CONCURRENT_UPDATES"},
+				Destination: &flConcurrentIconUpdates,
+				Usage:       "Number of simultaneous requests to make for updating custom software icons when the icon files themselves have already been uploaded",
+				Value:       10,
+				Hidden:      true,
+			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			logf := func(format string, a ...interface{}) {
+				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
+			}
+
+			if len(c.Args().Slice()) != 0 {
+				return errors.New("No positional arguments are allowed. To load multiple config files, use one -f flag per file.")
+			}
+
 			totalFilenames := len(flFilenames.Value())
 			if totalFilenames == 0 {
 				return errors.New("-f must be specified")
@@ -84,9 +110,6 @@ func gitopsCommand() *cli.Command {
 			}
 			if appConfig.License == nil {
 				return errors.New("no license struct found in app config")
-			}
-			logf := func(format string, a ...interface{}) {
-				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
 			// We need the controls from no-team.yml to apply them when applying the global app config.
@@ -113,14 +136,45 @@ func gitopsCommand() *cli.Command {
 			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
 
+			// we keep track of uploaded icon hashes so we don't upload icons unnecessarily
+			iconSettings := fleet.IconGitOpsSettings{ConcurrentUpdates: flConcurrentIconUpdates, ConcurrentUploads: flConcurrentIconUploads}
+
 			// We keep track of the secrets to check if duplicates exist during dry run
 			secrets := make(map[string]struct{})
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
-			// Keep track of which labels we'd have after this gitops run.
-			var proposedLabelNames []string
 
-			// Parsed config and filename pair
+			// We need the list of built-in labels for showing contextual errors in case the user
+			// decides to reference a built-in label.
+			builtInLabelNames := make(map[string]any)
+			globalLabels, err := fleetClient.GetLabels(0)
+			if err != nil {
+				return fmt.Errorf("getting global labels: %w", err)
+			}
+			for _, l := range globalLabels {
+				if l.LabelType == fleet.LabelTypeBuiltIn {
+					builtInLabelNames[l.Name] = nil
+				}
+			}
+
+			// We don't have access to the TeamID at this point in the time, and we need it down the pipeline to get
+			// the labels from existing teams
+			teamIDLookup := make(map[string]*uint)
+			teamIDLookup[spec.LabelAPIGlobalTeamName] = ptr.Uint(0)
+			if appConfig.License.IsPremium() {
+				teams, err := fleetClient.ListTeams("")
+				if err != nil {
+					return fmt.Errorf("getting teams: %w", err)
+				}
+				for _, tm := range teams {
+					teamIDLookup[tm.Name] = &tm.ID
+				}
+			}
+
+			// Used for keeping track of all label changes in this run.
+			labelChanges := make(map[string][]spec.LabelChange) // team name -> label changes
+
+			// Parsed a config and filename pair
 			type ConfigFile struct {
 				Config         *spec.GitOps
 				Filename       string
@@ -150,6 +204,11 @@ func gitopsCommand() *cli.Command {
 					globalConfigLoaded = true
 				}
 				configFile := ConfigFile{Config: config, Filename: flFilename, IsGlobalConfig: isGlobalConfig}
+
+				if !isGlobalConfig && !appConfig.License.IsPremium() {
+					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
+					continue
+				}
 				if isGlobalConfig {
 					// If it's a global file, put it at the beginning
 					// of the array so it gets processed first
@@ -157,11 +216,43 @@ func gitopsCommand() *cli.Command {
 				} else {
 					configs = append(configs, configFile)
 				}
+
+				// We want to compute label changes early ... this will allow us to detect any monkey business around
+				// labels like trying to add the same label on different teams; labels can also move from one
+				// team to another, so we need the complete list of changes to plan the label movements.
+				teamName := config.CoercedTeamName()
+				teamID := teamIDLookup[teamName]
+
+				if _, ok := labelChanges[teamName]; ok {
+					continue
+				}
+
+				var existingLabels []*fleet.LabelSpec
+				if teamID != nil {
+					if *teamID == 0 {
+						existingLabels = globalLabels
+					} else {
+						if existingLabels, err = fleetClient.GetLabels(*teamID); err != nil {
+							return fmt.Errorf("getting team '%s' labels: %w", teamName, err)
+						}
+					}
+				}
+				labelChanges[teamName] = computeLabelChanges(
+					flFilename,
+					teamName,
+					existingLabels,
+					config.Labels,
+				)
 			}
 
 			// fail if scripts are supplied on no-team and global config is missing
 			if noTeamPresent && !globalConfigLoaded {
 				return errors.New("global config must be provided alongside no-team.yml")
+			}
+
+			labelMoves, err := computeLabelMoves(labelChanges)
+			if err != nil {
+				return err
 			}
 
 			for _, configFile := range configs {
@@ -182,41 +273,10 @@ func gitopsCommand() *cli.Command {
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
 					}
-
-					// If config.Labels is nil, it means we plan on deleting all existing labels.
-					if config.Labels == nil {
-						proposedLabelNames = make([]string, 0)
-					} else if len(config.Labels) > 0 {
-						// If config.Labels is populated, get the names it contains.
-						proposedLabelNames = make([]string, len(config.Labels))
-						for i, l := range config.Labels {
-							proposedLabelNames[i] = l.Name
-						}
-					}
-				} else if !appConfig.License.IsPremium() {
-					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
-					continue
 				}
 
-				// If we haven't populated this list yet, it means we're either doing team-level GitOps only,
-				// or a global YAML was provided with no `labels:` key in it (meaning "keep existing labels").
-				// In either case we'll get the list of label names from the db so we can ensure that we're
-				// not attempting to apply non-existent labels to other entities.
-				if proposedLabelNames == nil {
-					proposedLabelNames = make([]string, 0)
-					persistedLabels, err := fleetClient.GetLabels()
-					if err != nil {
-						return err
-					}
-					for _, persistedLabel := range persistedLabels {
-						if persistedLabel.LabelType == fleet.LabelTypeRegular {
-							proposedLabelNames = append(proposedLabelNames, persistedLabel.Name)
-						}
-					}
-				}
-
-				// Gather stats on where labels are used in the this gitops config,
-				// so we can bail if any of the referenced labels wouldn't exist
+				// Gather stats on where labels are used in this gitops config,
+				// so we can bail if any of the referenced labels don't exist
 				// after this run (either because they'd be deleted, never existed
 				// in the first place).
 				labelsUsed, err := getLabelUsage(config)
@@ -224,26 +284,83 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 
+				// The validity of a label is based on their existence (either the label is going to be added or
+				// the label stayed the same). We look at both global label changes and team-specific label changes
+				// because of scoping rules (a team resource can reference a global label).
+				validLabelNames := make(map[string]struct{})
+				if globalLabelChanges, ok := labelChanges[spec.LabelAPIGlobalTeamName]; ok {
+					for _, label := range globalLabelChanges {
+						if label.Op == "+" || label.Op == "=" {
+							validLabelNames[label.Name] = struct{}{}
+						}
+					}
+				} else {
+					// We are applying a stand-alone team config file, so no changes for the global labels were
+					// computed.
+					for _, l := range globalLabels {
+						if l.LabelType != fleet.LabelTypeBuiltIn {
+							validLabelNames[l.Name] = struct{}{}
+						}
+					}
+				}
+				if config.CoercedTeamName() != spec.LabelAPIGlobalTeamName {
+					for _, label := range labelChanges[config.CoercedTeamName()] {
+						if label.Op == "+" || label.Op == "=" {
+							validLabelNames[label.Name] = struct{}{}
+						}
+					}
+				}
+
 				// Check if any used labels are not in the proposed labels list.
 				// If there are, we'll bail out with helpful error messages.
 				unknownLabelsUsed := false
+				builtInLabelsUsed := false
+
 				for labelUsed := range labelsUsed {
-					if slices.Index(proposedLabelNames, labelUsed) == -1 {
-						for _, labelUser := range labelsUsed[labelUsed] {
-							logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
-						}
-						unknownLabelsUsed = true
+					if _, ok := validLabelNames[labelUsed]; ok {
+						continue
 					}
+					if _, ok := builtInLabelNames[labelUsed]; ok {
+						logf(
+							"[!] '%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again. \n",
+							labelUsed,
+						)
+						builtInLabelsUsed = true
+						continue
+					}
+					for _, labelUsage := range labelsUsed[labelUsed] {
+						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUsage.Type, labelUsage.Name)
+					}
+					unknownLabelsUsed = true
 				}
 				if unknownLabelsUsed {
 					return errors.New("Please create the missing labels, or update your settings to not refer to these labels.")
+				}
+				if builtInLabelsUsed {
+					return errors.New("Please update your settings to not refer to built-in labels.")
+				}
+
+				teamName := config.CoercedTeamName()
+				labelChangesSummary := spec.NewLabelChangesSummary(labelChanges[teamName], labelMoves[teamName])
+				config.LabelChangesSummary = labelChangesSummary
+
+				// Delete labels at the end of the run to avoid issues with resource contention.
+				if !flDryRun {
+					for _, name := range labelChangesSummary.LabelsToRemove {
+						l := name // rebind for closure
+						allPostOps = append(allPostOps, func() error {
+							if err := fleetClient.DeleteLabel(l); err != nil {
+								return err
+							}
+							return nil
+						})
+					}
 				}
 
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
 				// when to perform the associations.
-
 				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) && appConfig.License.IsPremium() {
 					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
@@ -284,8 +401,8 @@ func gitopsCommand() *cli.Command {
 									}
 								}
 
-								// If team is not found, we need to remove the VPP config from
-								// the global config, and then apply it after teams are processed
+								// If a team is not found, we need to remove the VPP config from
+								// the global config and then apply it after teams are processed
 								mdmMap["volume_purchasing_program"] = nil
 							}
 						}
@@ -321,8 +438,19 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				assumptions, postOps, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig,
-					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+				assumptions, err := fleetClient.DoGitOps(
+					c.Context,
+					config,
+					flFilename,
+					logf,
+					flDryRun,
+					teamDryRunAssumptions,
+					appConfig,
+					teamsSoftwareInstallers,
+					teamsVPPApps,
+					teamsScripts,
+					&iconSettings,
+				)
 				if err != nil {
 					return err
 				}
@@ -331,7 +459,6 @@ func gitopsCommand() *cli.Command {
 				} else {
 					teamDryRunAssumptions = assumptions
 				}
-				allPostOps = append(allPostOps, postOps...)
 			}
 
 			// if there were assignments to tokens, and some of the teams were missing at that time, submit a separate patch request to set them now.
@@ -351,12 +478,22 @@ func gitopsCommand() *cli.Command {
 			for _, teamWithApps := range missingVPPTeamsWithApps {
 				_, _ = fmt.Fprintf(c.App.Writer, ReapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
 				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
-				_, postOps, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig,
-					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+				_, err := fleetClient.DoGitOps(
+					c.Context,
+					teamWithApps.config,
+					teamWithApps.filename,
+					logf,
+					flDryRun,
+					teamDryRunAssumptions,
+					appConfig,
+					teamsSoftwareInstallers,
+					teamsVPPApps,
+					teamsScripts,
+					&iconSettings,
+				)
 				if err != nil {
 					return err
 				}
-				allPostOps = append(allPostOps, postOps...)
 			}
 
 			if flDeleteOtherTeams && appConfig.License.IsPremium() { // skip team deletion for non-premium users
@@ -376,7 +513,7 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
-							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)
+							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
 						} else {
 							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting team %s\n", team.Name)
 							if err := fleetClient.DeleteTeam(team.ID); err != nil {
@@ -388,23 +525,34 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// we only want to reset the no-team config if the global config was loaded.
-			// NOTE: noTeamPresent is refering to the "No Team" team. It does not
+			// NOTE: noTeamPresent is referring to the "No Team" team. It does not
 			// mean that other teams are not present.
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
-				_, postOps, err := fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
-					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{})
+				_, err := fleetClient.DoGitOps(
+					c.Context,
+					defaultNoTeamConfig,
+					"no-team.yml",
+					logf,
+					flDryRun,
+					nil,
+					appConfig,
+					map[string][]fleet.SoftwarePackageResponse{},
+					map[string][]fleet.VPPAppResponse{},
+					map[string][]fleet.ScriptResponse{},
+					&iconSettings,
+				)
 				if err != nil {
 					return err
 				}
-
-				allPostOps = append(allPostOps, postOps...)
 			}
 
-			for _, postOp := range allPostOps {
-				if err := postOp(); err != nil {
-					return err
+			if !flDryRun {
+				for _, postOp := range allPostOps {
+					if err := postOp(); err != nil {
+						return err
+					}
 				}
 			}
 
@@ -417,6 +565,108 @@ func gitopsCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// Computes label moves and validates that there is no funny business around label changes,
+// like trying to add the same label on multiple teams or deleting the same label multiple times.
+// A label is moved when it is deleted from one team and added to another, the moves are stored in
+// a team name -> label names map.
+func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]spec.LabelMovement, error) {
+	deleteOps := make(map[string]spec.LabelChange) // label name -> file name
+	addOps := make(map[string]spec.LabelChange)    // label name -> file name
+
+	for _, teamChanges := range allChanges {
+		for _, change := range teamChanges {
+			switch change.Op {
+			case "-":
+				if prevCh, ok := deleteOps[change.Name]; ok {
+					errMsg := "can't delete label %q from %q, as it is already being deleted in %q"
+					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
+				}
+				deleteOps[change.Name] = change
+			case "+":
+				if prevCh, ok := addOps[change.Name]; ok {
+					errMsg := "can't add label %q to %q, as it is already being added in %q"
+					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
+				}
+				addOps[change.Name] = change
+			}
+		}
+	}
+
+	// A label is moved if it is added ('+') to a team AND deleted ('-') from any other team
+	moves := make(map[string][]spec.LabelMovement)
+	for teamName, teamChanges := range allChanges {
+		for _, ch := range teamChanges {
+			if ch.Op == "+" {
+				if prevCh, isDeletedElsewhere := deleteOps[ch.Name]; isDeletedElsewhere {
+					moves[teamName] = append(moves[teamName], spec.LabelMovement{
+						Name:         ch.Name,
+						FromTeamName: prevCh.TeamName,
+						ToTeamName:   ch.TeamName,
+					})
+				}
+			}
+		}
+	}
+
+	return moves, nil
+}
+
+// Returns a list of label changes to be applied for either a global config file or a team config file.
+func computeLabelChanges(
+	filename string,
+	teamName string,
+	existingLabels []*fleet.LabelSpec,
+	specifiedLabels []*fleet.LabelSpec,
+) []spec.LabelChange {
+	var regularLabels []*fleet.LabelSpec
+	var labelOperations []spec.LabelChange
+
+	for _, l := range existingLabels {
+		if l.LabelType == fleet.LabelTypeRegular {
+			regularLabels = append(regularLabels, l)
+		}
+	}
+
+	// Handle the cases where the 'labels:' section is either nil (an empty 'labels:' section was specified,
+	// meaning remove-all) or an empty list (the 'labels:' section was not specified, so we do a no-op).
+	if len(specifiedLabels) == 0 {
+		op := "="
+		if specifiedLabels == nil {
+			op = "-"
+		}
+		for _, l := range regularLabels {
+			change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
+			labelOperations = append(labelOperations, change)
+		}
+		return labelOperations
+	}
+
+	specifiedMap := make(map[string]struct{}, len(specifiedLabels))
+	for _, l := range specifiedLabels {
+		specifiedMap[l.Name] = struct{}{}
+	}
+
+	// Determine which existing labels to remove.
+	for _, l := range regularLabels {
+		op := "-"
+		if _, ok := specifiedMap[l.Name]; ok {
+			op = "="
+		}
+		// Remove from the map to track which specified labels are to be added.
+		delete(specifiedMap, l.Name)
+		change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
+		labelOperations = append(labelOperations, change)
+	}
+
+	// Any names remaining in the map are new labels.
+	for lblName := range specifiedMap {
+		change := spec.LabelChange{Name: lblName, Op: "+", TeamName: teamName, FileName: filename}
+		labelOperations = append(labelOperations, change)
+	}
+
+	return labelOperations
 }
 
 // Given a set of referenced labels and info about who is using them, update a provided usage map.
@@ -713,7 +963,8 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
 										vppTeams = append(vppTeams, normalizedTeam)
-										if _, ok := teamNames[normalizedTeam]; !ok {
+										// ListTeams doesn't return "No team", so account for it here
+										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam {
 											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}

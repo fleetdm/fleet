@@ -1,7 +1,7 @@
 <div id="fleetctl-preview" v-cloak>
-  <div purpose="announcement-banner">
-    <animated-arrow-button arrow-color="white" text-color="white" href="/funding-announcement" target="_blank">🎉 Fleet raises $27M for<br> open device management </animated-arrow-button>
-  </div>
+<!--   <div purpose="announcement-banner">
+    <animated-arrow-button arrow-color="white" text-color="white" href="/articles/free-migration-from-jamf-to-fleet">Free Jamf to Fleet MDM migration service</animated-arrow-button>
+  </div> -->
   <div purpose="page-container" class="d-flex flex-column container">
     <div purpose="page-title">
       <h1>Try Fleet</h1>
@@ -36,6 +36,9 @@
                 </div>
                 <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
               </div>
+          </div>
+          <div purpose="step">
+            <p>Start Docker Desktop.</p>
           </div>
           <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
@@ -85,6 +88,9 @@
             </div>
           </div>
           <div purpose="step">
+            <p>Start Docker Desktop.</p>
+          </div>
+          <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
             <div purpose="terminal-commands">
               <div purpose="command-container">
@@ -130,6 +136,9 @@
                 </div>
                 <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
               </div>
+          </div>
+          <div purpose="step">
+            <p>Start Docker Desktop.</p>
           </div>
           <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
@@ -186,6 +195,9 @@
             </div>
           </div>
           <div purpose="step">
+            <p>Start Docker Desktop.</p>
+          </div>
+          <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
             <div purpose="terminal-commands">
               <div purpose="command-container">
@@ -223,5 +235,6 @@
     </div>
   </div>
   <parallax-city></parallax-city>
+  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

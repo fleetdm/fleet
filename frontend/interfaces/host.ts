@@ -65,6 +65,10 @@ export default PropTypes.shape({
   additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   percent_disk_space_available: PropTypes.number,
   gigs_disk_space_available: PropTypes.number,
+  // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition
+  gigs_total_disk_space: PropTypes.number,
+  // `gigs_all_disk_space` includes disk space from all partitions
+  gigs_all_disk_space: PropTypes.number,
   labels: PropTypes.arrayOf(labelInterface),
   packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
@@ -93,11 +97,27 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
+export type HostAndroidCertStatus =
+  | "verified"
+  | "failed"
+  //  all below display "pending" in UI
+  | "pending"
+  | "delivering"
+  | "delivered";
+
+export interface IHostAndroidCert {
+  name: string;
+  status: HostAndroidCertStatus;
+  operation_type: "install" | "remove";
+  detail: string;
+}
+
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
   };
+  certificates: IHostAndroidCert[];
 }
 
 interface IMdmMacOsSettings {
@@ -112,7 +132,7 @@ interface IMdmMacOsSetup {
 }
 
 export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
-export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "";
+export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "location" | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
@@ -177,7 +197,7 @@ export interface IPolicyHostResponse {
   status?: string;
 }
 
-interface IGeoLocation {
+export interface IGeoLocation {
   country_iso: string;
   city_name: string;
   geometry?: {
@@ -199,6 +219,7 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_logo_url_light_background: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;
@@ -279,6 +300,10 @@ export interface IHost {
   additional?: object; // eslint-disable-line @typescript-eslint/ban-types
   percent_disk_space_available: number;
   gigs_disk_space_available: number;
+  // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition
+  gigs_total_disk_space?: number;
+  // `gigs_all_disk_space` includes disk space from all partitions
+  gigs_all_disk_space?: number;
   labels: ILabel[];
   packs: IPack[];
   software?: ISoftware[];
@@ -299,6 +324,7 @@ export interface IHost {
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
   device_mapping: IDeviceUser[] | null;
+  /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
 }
 

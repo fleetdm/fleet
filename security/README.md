@@ -11,8 +11,10 @@
 The following Github CI actions perform daily vulnerability scanning on Fleet software components.
 
 - [trivy-scan.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/trivy-scan.yml): Scan source code for vulnerabilities.
-- [build-and-check-fleetctl-docker-and-deps.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/build-and-check-fleetctl-docker-and-deps.yml): Scans for `HIGH` and `CRITICAL` vulnerabilities in `fleetctl` docker image dependencies (`fleetdm/fleetctl`, `fleetdm/wix`, and `fleetdm/bomutils`).
-- [goreleaser-snapshot-fleet.yaml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/goreleaser-snapshot-fleet.yaml): Scans for HIGH and CRITICAL vulnerabilities in `fleetdm/fleet` docker image before pushing to the Docker registry (runs daily and is triggered for every change in Fleet's source code).
+- [build-fleetdm-fleetctl-check-vulnerabilities.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/build-fleetdm-fleetctl-check-vulnerabilities.yml): Scans for `HIGH` and `CRITICAL` vulnerabilities in [fleetdm/fleetctl](https://hub.docker.com/r/fleetdm/fleetctl) docker image.
+- [check-wix-vulnerabilities.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-wix-vulnerabilities.yml): Scans for `HIGH` and `CRITICAL` vulnerabilities in [fleetdm/wix](https://hub.docker.com/r/fleetdm/wix) docker image. This docker image is used by the `fleetctl` executable to generate MSI fleetd installers.
+- [check-bomutils-vulnerabilities.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-bomutils-vulnerabilities.yml): Scans for `HIGH` and `CRITICAL` vulnerabilities in [fleetdm/bomutils](https://hub.docker.com/r/fleetdm/bomutils) docker image. This docker image is used by the `fleetctl` executable to generate PKG fleetd installers.
+- [goreleaser-snapshot-fleet.yaml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/goreleaser-snapshot-fleet.yaml): Scans for `HIGH` and `CRITICAL` vulnerabilities in `fleetdm/fleet` docker image before pushing a new release to the Docker registry.
 - [check-vulnerabilities-in-released-docker-images.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-vulnerabilities-in-released-docker-images.yml): Scans for `CRITICAL` vulnerabilities in the last 5 minor released versions of the `fleetdm/fleet` and on the latest release of `fleetdm/fleetctl`.
 
 ## Process to run when a CVE is reported
@@ -85,7 +87,7 @@ vexctl create --product="fleet,pkg:golang/github.com/open-policy-agent/opa" \
   --status="not_affected" \
   --author="@lucasmrod" \
   --justification="vulnerable_code_cannot_be_controlled_by_adversary" \
-  --status-note="Fleet doesn't run on Windows, so it's not affected by this vulnerability." > security/vex/fleetctl/CVE-2024-8260.vex.json
+  --status-note="Fleet doesn't run on Windows, so it's not affected by this vulnerability." > security/vex/fleet/CVE-2024-8260.vex.json
 ```
 
 Examples of `--product` flag values (which accept "PURLs"):

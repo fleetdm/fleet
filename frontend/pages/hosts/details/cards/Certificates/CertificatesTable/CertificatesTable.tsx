@@ -88,9 +88,7 @@ const CertificatesTable = ({
       disableMultiRowSelect
       onSelectSingleRow={onClickTableRow}
       renderTableHelpText={() => helpText}
-      renderCount={() => (
-        <TableCount name="certificates" count={data.certificates.length} />
-      )}
+      renderCount={() => <TableCount name="certificates" count={data.count} />}
       pageSize={pageSize}
       pageIndex={page}
       defaultSortHeader={sortHeader}

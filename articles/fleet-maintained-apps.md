@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can install Fleet-maintained apps on macOS and Windows hosts without the need for manual uploads or extra configuration. This simplifies the process and adds another source of applications for your fleet.
+In Fleet, you can install Fleet-maintained apps on macOS and Windows hosts without the need for manual uploads or extra configuration. This simplifies the process and adds another source of applications for your fleet. View a list of the currently supported apps in the [software catalog](https://fleetdm.com/software-catalog).
 
 Fleet maintains installation metadata for [a number of apps](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json), letting you add them to your own Fleet instance and install them on your hosts without any additional configuration.
 
@@ -55,7 +55,7 @@ Fleet will run the uninstall script configured for the software title. For macOS
 
 The uninstallation process is also visible in the  **Activities** section on the **Details** tab of this **Host Details** page.
 
-## Update the app
+## Update app
 
 To get the latest version of a Fleet-maintained app,
 
@@ -63,7 +63,7 @@ To get the latest version of a Fleet-maintained app,
 2. Re-add it from the Fleet-maintained list on the **Software** page.
 3. Install the new version of the app via one of the three methods above.
 
-A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/25636).
+A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/32993).
 
 ## Manage apps with GitOps
 

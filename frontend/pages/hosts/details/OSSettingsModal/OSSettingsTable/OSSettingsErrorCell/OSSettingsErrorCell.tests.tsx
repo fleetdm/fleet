@@ -10,13 +10,13 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({
           platform: "windows",
           status: "failed",
           detail:
             "starting encryption: encrypt(C:): error code returned during encryption: -2147024809, error 2: This is another error",
         })}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 
@@ -51,8 +51,8 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({})}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 
@@ -63,8 +63,8 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({ status: "failed" })}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 
@@ -75,8 +75,8 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({ status: "verified" })}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 
@@ -87,11 +87,11 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: "There is no IdP email for this host.",
         })}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 
@@ -105,11 +105,11 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: `Fleet couldn't populate $FLEET_VAR_CUSTOM_SCEP_URL_SCEP_WIFI because SCEP_WIFI certificate authority doesn't exist.`,
         })}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 
@@ -125,11 +125,11 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: `Couldn't get certificate from DigiCert for WIFI_CERTIFICATE. unexpected DigiCert status code for POST request: 410, errors: Profile with id {test-id} was deleted`,
         })}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 
@@ -145,12 +145,12 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: `Couldn't get certificate from DigiCert for WIFI_CERTIFICATE. unexpected DigiCert status code for POST request: 400, errors: Enrollment creation and Certificate issuance/renewal for deleted or suspended Profile are not supported.
           Please contact system Administrator.`,
         })}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 
@@ -166,11 +166,11 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
-        hostId={1}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: `Couldn’t get certificate from DigiCert. The API token configured in DIGICERT_TEST certificate authority is invalid.`,
         })}
+        resendRequest={() => new Promise(() => undefined)}
       />
     );
 

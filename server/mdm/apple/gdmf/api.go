@@ -9,13 +9,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/rootcert"
 )
@@ -205,7 +205,7 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 }
 
 func getBaseURL() string {
-	devURL := os.Getenv("FLEET_DEV_GDMF_URL")
+	devURL := dev_mode.Env("FLEET_DEV_GDMF_URL")
 	if devURL != "" {
 		return devURL
 	}

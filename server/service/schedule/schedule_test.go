@@ -301,11 +301,11 @@ func TestClearScheduleErrors(t *testing.T) {
 	)
 
 	// First run should return 1 error.
-	s.runAllJobs()
+	s.runAllJobs(t.Context())
 	require.Equal(t, 1, len(s.errors))
 
 	// Second run should return no errors.
-	s.runAllJobs()
+	s.runAllJobs(t.Context())
 	require.Equal(t, 0, len(s.errors))
 }
 
@@ -539,7 +539,7 @@ func TestTriggerReleaseLock(t *testing.T) {
 	s.Start()
 
 	<-time.After(1 * time.Second)
-	_, err = s.Trigger()
+	_, _, err = s.Trigger()
 	require.NoError(t, err)
 
 	select {
@@ -680,31 +680,36 @@ func TestTriggerSingleInstance(t *testing.T) {
 
 	ticker := time.NewTicker(schedInterval) // 4s interval
 	time.Sleep(200 * time.Millisecond)
-	_, err := s.Trigger() // triggered run starts at 0.2s and runs until 1s
+	_, didTrigger, err := s.Trigger() // triggered run starts at 0.2s and runs until 1s
 	require.NoError(t, err)
-	_, err = s.Trigger() // ignored because triggered run is pending
+	require.True(t, didTrigger)
+	_, didTrigger, err = s.Trigger() // ignored because triggered run is pending
 	require.NoError(t, err)
-	_, err = s.Trigger() // ignored because triggered run is pending
+	require.False(t, didTrigger)
+	_, didTrigger, err = s.Trigger() // ignored because triggered run is pending
 	require.NoError(t, err)
-	_, err = s.Trigger() // ignored because triggered run is pending
+	require.False(t, didTrigger)
+	_, didTrigger, err = s.Trigger() // ignored because triggered run is pending
 	require.NoError(t, err)
-	_, err = s.Trigger() // ignored because triggered run is pending
+	require.False(t, didTrigger)
+	_, didTrigger, err = s.Trigger() // ignored because triggered run is pending
 	require.NoError(t, err)
+	require.False(t, didTrigger)
 
 	// scheduled run starts on schedule tick at 4s and runs until 4.8s
 	<-ticker.C
 	require.Equal(t, uint32(1), atomic.LoadUint32(&jobsRun)) // only 1 job completed so far
 
 	time.Sleep(100 * time.Millisecond)
-	_, err = s.Trigger() // ignored because scheduled run is pending
+	_, _, err = s.Trigger() // ignored because scheduled run is pending
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)
-	_, err = s.Trigger() // ignored because scheduled run is pending
+	_, _, err = s.Trigger() // ignored because scheduled run is pending
 	require.NoError(t, err)
 
 	time.Sleep(2000 * time.Millisecond)
-	_, err = s.Trigger() // triggered run starts at 5.2s and runs until 6s
+	_, _, err = s.Trigger() // triggered run starts at 5.2s and runs until 6s
 	require.NoError(t, err)
 
 	// scheduled run starts on schedule tick at 8s and runs until 8.8s
@@ -713,7 +718,7 @@ func TestTriggerSingleInstance(t *testing.T) {
 
 	time.Sleep(3600 * time.Millisecond)
 
-	_, err = s.Trigger() // triggered run starts at 11.6 and runs until at 12.4s
+	_, _, err = s.Trigger() // triggered run starts at 11.6 and runs until at 12.4s
 	require.NoError(t, err)
 
 	// nothing runs on this schedule tick because the triggered run is still pending
@@ -809,7 +814,7 @@ func TestTriggerMultipleInstances(t *testing.T) {
 
 		go func() {
 			time.Sleep(c.triggerDelay)
-			_, err := scheduleInstances[1].Trigger()
+			_, _, err := scheduleInstances[1].Trigger()
 			require.NoError(t, err)
 		}()
 

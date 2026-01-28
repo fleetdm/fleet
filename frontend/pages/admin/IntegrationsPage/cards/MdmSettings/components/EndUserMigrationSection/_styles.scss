@@ -5,11 +5,9 @@
     margin-top: 0;
   }
 
-  &__migration-preview {
+  &__preview-video {
     width: 100%;
     max-width: 800px;
-    margin-top: $pad-large;
-    margin-bottom: $pad-xxlarge;
   }
 
   &__end-user-migration-form.disabled {

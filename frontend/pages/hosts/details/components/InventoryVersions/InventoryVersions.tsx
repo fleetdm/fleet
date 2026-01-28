@@ -3,7 +3,9 @@ import React from "react";
 import { dateAgo } from "utilities/date_format";
 
 import {
+  SoftwareExtensionFor,
   formatSoftwareType,
+  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   IHostSoftware,
   ISoftwareInstallVersion,
   SoftwareSource,
@@ -11,13 +13,7 @@ import {
 
 import Card from "components/Card";
 import DataSet from "components/DataSet";
-
-export const sourcesWithLastOpenedTime = new Set([
-  "programs",
-  "apps",
-  "deb_packages",
-  "rpm_packages",
-]);
+import TooltipWrapper from "components/TooltipWrapper";
 
 const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
   const first3 = vulnerabilities.slice(0, 3);
@@ -38,6 +34,7 @@ const baseClass = "inventory-versions";
 interface IInventoryVersionProps {
   version: ISoftwareInstallVersion;
   source: SoftwareSource;
+  extension_for?: SoftwareExtensionFor;
   bundleIdentifier?: string;
 }
 
@@ -45,12 +42,29 @@ const InventoryVersion = ({
   version,
   source,
   bundleIdentifier,
+  extension_for,
 }: IInventoryVersionProps) => {
   const {
     vulnerabilities,
     installed_paths: installedPaths,
     signature_information: signatureInformation,
   } = version;
+
+  const lastOpenedTitle =
+    INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] === "linux" ? (
+      <TooltipWrapper
+        tipContent={
+          <>
+            The last time the package was opened by the end user <br />
+            or accessed by any process on the host.
+          </>
+        }
+      >
+        Last opened
+      </TooltipWrapper>
+    ) : (
+      "Last opened"
+    );
 
   return (
     <Card
@@ -60,18 +74,23 @@ const InventoryVersion = ({
     >
       <div className={`${baseClass}__row`}>
         <DataSet title="Version" value={version.version} />
-        <DataSet title="Type" value={formatSoftwareType({ source })} />
+        <DataSet
+          title="Type"
+          value={formatSoftwareType({ source, extension_for })}
+        />
         {bundleIdentifier && (
           <DataSet title="Bundle identifier" value={bundleIdentifier} />
         )}
-        {version.last_opened_at || sourcesWithLastOpenedTime.has(source) ? (
+        {version.last_opened_at !== undefined && (
           <DataSet
-            title="Last opened"
+            title={lastOpenedTitle}
             value={
-              version.last_opened_at ? dateAgo(version.last_opened_at) : "Never"
+              version.last_opened_at !== ""
+                ? dateAgo(version.last_opened_at)
+                : "Never"
             }
           />
-        ) : null}
+        )}
       </div>
       {vulnerabilities && vulnerabilities.length !== 0 && (
         <div className={`${baseClass}__row`}>
@@ -126,7 +145,10 @@ const InventoryVersions = ({
           <div className={`${baseClass}__row`}>
             <DataSet
               title="Type"
-              value={formatSoftwareType({ source: hostSoftware.source })}
+              value={formatSoftwareType({
+                source: hostSoftware.source,
+                extension_for: hostSoftware.extension_for,
+              })}
             />
           </div>
         </Card>
@@ -149,6 +171,7 @@ const InventoryVersions = ({
               version={installedVersion}
               source={hostSoftware.source}
               bundleIdentifier={hostSoftware.bundle_identifier}
+              extension_for={hostSoftware.extension_for}
             />
           );
         })}

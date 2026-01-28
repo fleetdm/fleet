@@ -29,8 +29,34 @@ parasails.registerPage('contact', {
       emailAddress: {isEmail: true, required: true},
       firstName: {required: true},
       lastName: {required: true},
-      message: {required: false},
+      message: {required: true},
     },
+    // Application form rules
+    applicationFormRules: {
+      emailAddress: {isEmail: true, required: true},
+      firstName: {required: true},
+      lastName: {required: true},
+      linkedinProfileUrl: {required: true},
+      position: {required: true},
+      location: {required: true},
+      message: {required: true},
+    },
+
+    workshopRequestFormRules: {
+      emailAddress: {isEmail: true, required: true},
+      firstName: {required: true},
+      lastName: {required: true},
+      location: {required: true},
+      numberOfHosts: {required: true},
+      managedPlatforms: {
+        required: true,
+        custom: (selectedPlatforms)=>{
+          return _.keysIn(selectedPlatforms).length > 0 && _.contains(_.values(selectedPlatforms), true);
+        }
+      },
+
+    },
+
     formDataToPrefillForLoggedInUsers: {},
 
     // Server error state for the form
@@ -74,6 +100,13 @@ parasails.registerPage('contact', {
     if (window.location.hash === '#message') {// prefill from URL bar
       this.formToDisplay = 'contact';
     }
+    if (window.location.hash === '#apply') {// prefill from URL bar
+      this.formToDisplay = 'apply';
+    }
+    if (window.location.hash === '#gitops') {// prefill from URL bar
+      this.formToDisplay = 'gitops-workshop-request';
+      this.formData.managedPlatforms = {};
+    }
   },
   mounted: async function() {
     //…
@@ -91,29 +124,41 @@ parasails.registerPage('contact', {
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
-      if(typeof analytics !== 'undefined'){
-        analytics.track('fleet_website__contact_forms');
-      }
       // Show the success message.
       this.cloudSuccess = true;
 
     },
-    submittedTalkToUsForm: async function() {
+    handleSubmittingTalkToUsForm: async function(argins) {
       this.syncing = true;
-      if(typeof gtag !== 'undefined'){
-        gtag('event','fleet_website__contact_forms');
-      }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
-      if(typeof analytics !== 'undefined'){
-        analytics.track('fleet_website__contact_forms');
+      let report = await Cloud.deliverTalkToUsFormSubmission.with(argins);
+
+      if(typeof gtag !== 'undefined'){
+        // Look at result from talking to api and decide what event to track.
+        if(report.icp){
+          gtag('event','fleet_website__contact_forms__demo');
+        } else {
+          gtag('event','fleet_website__contact_forms__demo__icp');
+        }
       }
-      if(this.formData.numberOfHosts >= 700){
-        this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
-      } else {
-        this.goto(`https://calendly.com/fleetdm/chat?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
-      }
+
+      this.goto(report.eventUrl);
+    },
+
+    submittedApplicationForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
+    },
+
+    submittedWorkshopRequestForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
+    },
+
+    clickSelectCustomCheckbox: async function() {
+      await this.forceRender();
     },
 
     clickSwitchForms: function(form) {

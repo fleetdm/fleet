@@ -7,18 +7,20 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import paths from "router/paths";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
+import PageDescription from "components/PageDescription";
 import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -44,6 +46,17 @@ const API_KEY_JSON_PLACEHOLDER = `{
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fleet-calendar-events%40fleet-in-your-calendar.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
 }`;
+
+// Check if the API key JSON object contains obfuscated values
+const isObfuscatedApiKey = (apiKeyJson: Record<string, string>): boolean => {
+  if (!apiKeyJson || Object.keys(apiKeyJson).length === 0) {
+    return false;
+  }
+  // If all values are "********", the API key is obfuscated
+  return Object.values(apiKeyJson).every(
+    (value) => value === UNCHANGED_PASSWORD_API_RESPONSE
+  );
+};
 
 interface ICalendarsFormErrors {
   domain?: string | null;
@@ -86,16 +99,27 @@ const Calendars = (): JSX.Element => {
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
-      if (data.integrations.google_calendar) {
-        setFormData({
-          domain: data.integrations.google_calendar[0].domain,
-          // Formats string for better UI readability
-          apiKeyJson: JSON.stringify(
-            data.integrations.google_calendar[0].api_key_json,
-            null,
-            "\t"
-          ),
-        });
+      if (
+        Array.isArray(data.integrations.google_calendar) &&
+        data.integrations.google_calendar.length > 0
+      ) {
+        const apiKeyJsonObj = data.integrations.google_calendar[0].api_key_json;
+
+        // Check if the API key is obfuscated
+        if (isObfuscatedApiKey(apiKeyJsonObj)) {
+          // Show masked value in UI
+          setFormData({
+            domain: data.integrations.google_calendar[0].domain,
+            apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
+          });
+        } else {
+          // Show the actual API key JSON
+          setFormData({
+            domain: data.integrations.google_calendar[0].domain,
+            // Formats string for better UI readability
+            apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
+          });
+        }
       }
     },
   });
@@ -114,7 +138,11 @@ const Calendars = (): JSX.Element => {
     if (!curFormData.domain && !!curFormData.apiKeyJson) {
       errors.domain = "Domain must be completed";
     }
-    if (curFormData.apiKeyJson) {
+    // Skip JSON validation if the value is the masked placeholder
+    if (
+      curFormData.apiKeyJson &&
+      curFormData.apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE
+    ) {
       try {
         JSON.parse(curFormData.apiKeyJson);
       } catch (e: unknown) {
@@ -137,23 +165,45 @@ const Calendars = (): JSX.Element => {
     [formData]
   );
 
-  if (!isPremiumTier) return <PremiumFeatureMessage />;
+  if (!isPremiumTier)
+    return (
+      <SettingsSection title="Calendars">
+        <PremiumFeatureMessage />
+      </SettingsSection>
+    );
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     setIsUpdatingSettings(true);
 
     evt.preventDefault();
 
+    // Determine the API key to submit
+    let apiKeyToSubmit;
+    if (formData.apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE) {
+      // User didn't change the masked value, don't send it (backend will preserve existing)
+      apiKeyToSubmit = undefined;
+    } else if (
+      formData.apiKeyJson &&
+      formData.apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE
+    ) {
+      // User provided a new API key
+      apiKeyToSubmit = JSON.parse(formData.apiKeyJson);
+    } else {
+      // No API key
+      apiKeyToSubmit = null;
+    }
+
     // Format for API
     const formDataToSubmit =
-      formData.apiKeyJson === "" && formData.domain === ""
+      apiKeyToSubmit === null && formData.domain === ""
         ? [] // Send empty array if no keys are set
         : [
             {
               domain: formData.domain,
-              api_key_json:
-                (formData.apiKeyJson && JSON.parse(formData.apiKeyJson)) ||
-                null,
+              // Only include api_key_json if it's not undefined (masked value not changed)
+              ...(apiKeyToSubmit !== undefined && {
+                api_key_json: apiKeyToSubmit,
+              }),
             },
           ];
 
@@ -179,12 +229,6 @@ const Calendars = (): JSX.Element => {
   const renderForm = () => {
     return (
       <>
-        <SectionHeader title="Calendars" />
-        <p className={`${baseClass}__page-description`}>
-          To create calendar events for end users with failing policies,
-          you&apos;ll need to configure a dedicated Google Workspace service
-          account.
-        </p>
         <div className={`${baseClass}__section-instructions`}>
           <p>
             1. Go to the <b>Service Accounts</b> page in Google Cloud Platform.{" "}
@@ -282,6 +326,11 @@ const Calendars = (): JSX.Element => {
                       inputClassName={`${baseClass}__api-key-json`}
                       error={formErrors.apiKeyJson}
                       disabled={gomEnabled}
+                      helpText={
+                        apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE
+                          ? "API key is configured. Replace with a new key to update."
+                          : undefined
+                      }
                     />
                     <InputField
                       label="Primary domain"
@@ -303,19 +352,21 @@ const Calendars = (): JSX.Element => {
                       error={formErrors.domain}
                       disabled={gomEnabled}
                     />
-                    <GitOpsModeTooltipWrapper
-                      tipOffset={8}
-                      renderChildren={(dC) => (
-                        <Button
-                          type="submit"
-                          disabled={Object.keys(formErrors).length > 0 || dC}
-                          className="save-loading"
-                          isLoading={isUpdatingSettings}
-                        >
-                          Save
-                        </Button>
-                      )}
-                    />
+                    <div className="button-wrap">
+                      <GitOpsModeTooltipWrapper
+                        tipOffset={8}
+                        renderChildren={(dC) => (
+                          <Button
+                            type="submit"
+                            disabled={Object.keys(formErrors).length > 0 || dC}
+                            className="save-loading"
+                            isLoading={isUpdatingSettings}
+                          >
+                            Save
+                          </Button>
+                        )}
+                      />
+                    </div>
                   </form>
                 </Card>
               </li>
@@ -409,7 +460,21 @@ const Calendars = (): JSX.Element => {
     return <DataError />;
   }
 
-  return <div className={baseClass}>{renderForm()}</div>;
+  return (
+    <SettingsSection title="Calendars">
+      <PageDescription
+        content={
+          <>
+            To create calendar events for end users with failing policies,
+            you&apos;ll need to configure a dedicated Google Workspace service
+            account.
+          </>
+        }
+        variant="right-panel"
+      />
+      {renderForm()}
+    </SettingsSection>
+  );
 };
 
 export default Calendars;

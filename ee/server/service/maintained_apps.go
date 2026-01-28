@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/go-kit/kit/log/level"
@@ -40,7 +40,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// validate labels before we do anything else
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, labelsIncludeAny, labelsExcludeAny)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels")
 	}
@@ -71,10 +71,9 @@ func (svc *Service) AddFleetMaintainedApp(
 
 	// Download installer from the URL
 	timeout := maintained_apps.InstallerTimeout
-	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
+	if v := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
-
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
 	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
@@ -82,7 +81,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 	defer installerTFR.Close()
 
-	gotHash, err := maintained_apps.SHA256FromInstallerFile(installerTFR)
+	gotHash, err := file.SHA256FromTempFileReader(installerTFR)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "calculating SHA256 hash")
 	}
@@ -149,6 +148,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		Source:                app.Source(),
 		Extension:             extension,
 		BundleIdentifier:      app.BundleIdentifier(),
+		UpgradeCode:           app.UpgradeCode,
 		StorageID:             app.SHA256,
 		FleetMaintainedAppID:  maintainedAppID,
 		PreInstallQuery:       preInstallQuery,
@@ -192,7 +192,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	// Create activity
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
-		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		t, err := svc.ds.TeamLite(ctx, *payload.TeamID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "getting team")
 		}

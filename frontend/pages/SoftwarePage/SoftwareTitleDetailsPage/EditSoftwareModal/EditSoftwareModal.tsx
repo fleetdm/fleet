@@ -8,14 +8,11 @@ import {
   IAppStoreApp,
   ISoftwarePackage,
   isSoftwarePackage,
+  InstallerType,
 } from "interfaces/software";
-import mdmAppleAPI from "services/entities/mdm_apple";
-
 import { NotificationContext } from "context/notification";
-import softwareAPI, {
-  MAX_FILE_SIZE_BYTES,
-  MAX_FILE_SIZE_MB,
-} from "services/entities/software";
+import { AppContext } from "context/app";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -48,27 +45,38 @@ export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  software: ISoftwarePackage | IAppStoreApp;
+  softwareInstaller: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
-  installerType: "package" | "vpp";
+  installerType: InstallerType;
   router: InjectedRouter;
-  gitOpsModeEnabled?: boolean;
   openViewYamlModal: () => void;
+  isIosOrIpadosApp?: boolean;
+  name: string;
+  displayName: string;
+  source?: string;
+  iconUrl?: string | null;
 }
 
 const EditSoftwareModal = ({
   softwareId,
   teamId,
-  software,
+  softwareInstaller,
   onExit,
   refetchSoftwareTitle,
   installerType,
   router,
-  gitOpsModeEnabled = false,
   openViewYamlModal,
+  isIosOrIpadosApp = false,
+  name,
+  displayName,
+  source,
+  iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
+
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
 
   const [editSoftwareModalClasses, setEditSoftwareModalClasses] = useState(
     baseClass
@@ -108,10 +116,11 @@ const EditSoftwareModal = ({
     categories: [],
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showFileProgressModal, setShowFileProgressModal] = useState(false);
 
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
@@ -135,7 +144,14 @@ const EditSoftwareModal = ({
     isUpdatingSoftware,
   ]);
 
+  /* 1. Delays showing the file progress modal until isUpdatingSoftware
+   * has been true for 3 seconds to prevent flashing modal on quick uploads
+   * 2. Prevents page unload during the upload
+   * 3. Cleans both up when uploading stops or the component unmounts */
   useEffect(() => {
+    // Timer for delayed modal
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
     const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       // Next line with e.returnValue is included for legacy support
@@ -143,18 +159,34 @@ const EditSoftwareModal = ({
       e.returnValue = true;
     };
 
-    // set up event listener to prevent user from leaving page while uploading
     if (isUpdatingSoftware) {
+      // only show modal if still uploading after 3 seconds
+      timeoutId = setTimeout(() => {
+        setShowFileProgressModal(true);
+      }, 3000);
+
+      // Prevents user from leaving page while uploading
       addEventListener("beforeunload", beforeUnloadHandler);
     } else {
-      removeEventListener("beforeunload", beforeUnloadHandler);
+      // upload finished: hide modal and reset
+      setShowFileProgressModal(false);
     }
 
-    // clean up event listener and timeout on component unmount
+    // Cleanup that runs when isUpdatingSoftware changes or component unmounts
     return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       removeEventListener("beforeunload", beforeUnloadHandler);
     };
   }, [isUpdatingSoftware]);
+
+  // Close confirm modal when file progress modal opens
+  useEffect(() => {
+    if (showFileProgressModal) {
+      setShowConfirmSaveChangesModal(false);
+    }
+  }, [showFileProgressModal]);
 
   const toggleConfirmSaveChangesModal = () => {
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
@@ -168,19 +200,10 @@ const EditSoftwareModal = ({
   const onEditPackage = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
 
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      setIsUpdatingSoftware(false);
-      return;
-    }
-
     try {
       await softwareAPI.editSoftwarePackage({
         data: formData,
-        orignalPackage: software as ISoftwarePackage,
+        orignalPackage: softwareInstaller as ISoftwarePackage,
         softwareId,
         teamId,
         onUploadProgress: (progressEvent) => {
@@ -192,8 +215,8 @@ const EditSoftwareModal = ({
       });
 
       if (
-        isSoftwarePackage(software) &&
-        software.title_id &&
+        isSoftwarePackage(softwareInstaller) &&
+        softwareInstaller.title_id &&
         gitOpsModeEnabled
       ) {
         // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
@@ -212,7 +235,10 @@ const EditSoftwareModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
+      renderFlash(
+        "error",
+        getErrorMessage(e, softwareInstaller as IAppStoreApp)
+      );
     }
     setIsUpdatingSoftware(false);
   };
@@ -222,7 +248,7 @@ const EditSoftwareModal = ({
   };
 
   const onClickSavePackage = (formData: IPackageFormData) => {
-    const softwarePackage = software as ISoftwarePackage;
+    const softwarePackage = softwareInstaller as ISoftwarePackage;
 
     const currentData = {
       software: null,
@@ -241,6 +267,13 @@ const EditSoftwareModal = ({
 
     const updates = deepDifference(formData, currentData);
 
+    // Send an array with an empty string when all categories are unchecked
+    // so that the "categories" key is included in the multipart form data and
+    // will be deleted rather than ignored (an empty array would skip the field)
+    if (!formData.categories?.length) {
+      formData.categories = [""];
+    }
+
     if (isOnlySelfServiceUpdated(updates)) {
       onEditPackage(formData);
     } else {
@@ -248,17 +281,17 @@ const EditSoftwareModal = ({
     }
   };
 
-  // Edit VPP API call
+  // Edit App Store API call -- currently only for VPP apps and not Google Play apps
   const onEditVpp = async (formData: ISoftwareVppFormData) => {
     setIsUpdatingSoftware(true);
 
     try {
-      await mdmAppleAPI.editVppApp(softwareId, teamId, formData);
+      await softwareAPI.editAppStoreApp(softwareId, teamId, formData);
 
       renderFlash(
         "success",
         <>
-          Successfully edited <b>{software.name}</b>.
+          Successfully edited <b>{softwareInstaller.name}</b>.
           {formData.selfService
             ? " The end user can install from Fleet Desktop."
             : ""}
@@ -267,18 +300,21 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
+      renderFlash(
+        "error",
+        getErrorMessage(e, softwareInstaller as IAppStoreApp)
+      );
     }
     setIsUpdatingSoftware(false);
   };
 
   const onClickSaveVpp = async (formData: ISoftwareVppFormData) => {
     const currentData = {
-      selfService: software.self_service || false,
-      automaticInstall: software.automatic_install || false,
-      targetType: getTargetType(software),
-      customTarget: getCustomTarget(software),
-      labelTargets: generateSelectedLabels(software),
+      selfService: softwareInstaller.self_service || false,
+      automaticInstall: softwareInstaller.automatic_install || false,
+      targetType: getTargetType(softwareInstaller),
+      customTarget: getCustomTarget(softwareInstaller),
+      labelTargets: generateSelectedLabels(softwareInstaller),
     };
 
     setPendingVppUpdates(formData);
@@ -302,7 +338,7 @@ const EditSoftwareModal = ({
 
   const renderForm = () => {
     if (installerType === "package") {
-      const softwarePackage = software as ISoftwarePackage;
+      const softwarePackage = softwareInstaller as ISoftwarePackage;
       return (
         <PackageForm
           labels={labels || []}
@@ -311,7 +347,7 @@ const EditSoftwareModal = ({
           onCancel={onExit}
           onSubmit={onClickSavePackage}
           onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
-          defaultSoftware={software}
+          defaultSoftware={softwareInstaller}
           defaultInstallScript={softwarePackage.install_script}
           defaultPreInstallQuery={softwarePackage.pre_install_query}
           defaultPostInstallScript={softwarePackage.post_install_script}
@@ -325,7 +361,7 @@ const EditSoftwareModal = ({
     return (
       <SoftwareVppForm
         labels={labels || []}
-        softwareVppForEdit={software as IAppStoreApp}
+        softwareVppForEdit={softwareInstaller as IAppStoreApp}
         onSubmit={onClickSaveVpp}
         onCancel={onExit}
         isLoading={isUpdatingSoftware}
@@ -347,19 +383,30 @@ const EditSoftwareModal = ({
       {showConfirmSaveChangesModal && (
         <ConfirmSaveChangesModal
           onClose={toggleConfirmSaveChangesModal}
-          softwareInstallerName={software?.name}
+          softwareInstallerName={softwareInstaller?.name}
           installerType={installerType}
           onSaveChanges={onClickConfirmChanges}
+          isLoading={isUpdatingSoftware}
         />
       )}
       {showPreviewEndUserExperienceModal && (
         <CategoriesEndUserExperienceModal
+          name={name}
+          displayName={displayName}
+          source={source}
+          iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          mobileVersion={
+            ("latest_version" in softwareInstaller &&
+              softwareInstaller.latest_version) ||
+            softwareInstaller.version
+          }
         />
       )}
-      {!!pendingPackageUpdates.software && isUpdatingSoftware && (
+      {!!pendingPackageUpdates.software && showFileProgressModal && (
         <FileProgressModal
-          fileDetails={getFileDetails(pendingPackageUpdates.software)}
+          fileDetails={getFileDetails(pendingPackageUpdates.software, true)}
           fileProgress={uploadProgress}
         />
       )}

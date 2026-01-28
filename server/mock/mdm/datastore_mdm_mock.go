@@ -65,7 +65,11 @@ type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []flee
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
+type GetPendingLockCommandFunc func(ctx context.Context, hostUUID string) (*mdm.Command, string, error)
+
 type EnqueueDeviceLockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error
+
+type EnqueueDeviceUnlockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
 
 type EnqueueDeviceWipeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
 
@@ -145,8 +149,14 @@ type MDMAppleStore struct {
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
 
+	GetPendingLockCommandFunc        GetPendingLockCommandFunc
+	GetPendingLockCommandFuncInvoked bool
+
 	EnqueueDeviceLockCommandFunc        EnqueueDeviceLockCommandFunc
 	EnqueueDeviceLockCommandFuncInvoked bool
+
+	EnqueueDeviceUnlockCommandFunc        EnqueueDeviceUnlockCommandFunc
+	EnqueueDeviceUnlockCommandFuncInvoked bool
 
 	EnqueueDeviceWipeCommandFunc        EnqueueDeviceWipeCommandFunc
 	EnqueueDeviceWipeCommandFuncInvoked bool
@@ -329,11 +339,25 @@ func (fs *MDMAppleStore) GetABMTokenByOrgName(ctx context.Context, orgName strin
 	return fs.GetABMTokenByOrgNameFunc(ctx, orgName)
 }
 
+func (fs *MDMAppleStore) GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+	fs.mu.Lock()
+	fs.GetPendingLockCommandFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.GetPendingLockCommandFunc(ctx, hostUUID)
+}
+
 func (fs *MDMAppleStore) EnqueueDeviceLockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {
 	fs.mu.Lock()
 	fs.EnqueueDeviceLockCommandFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.EnqueueDeviceLockCommandFunc(ctx, host, cmd, pin)
+}
+
+func (fs *MDMAppleStore) EnqueueDeviceUnlockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
+	fs.mu.Lock()
+	fs.EnqueueDeviceUnlockCommandFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnqueueDeviceUnlockCommandFunc(ctx, host, cmd)
 }
 
 func (fs *MDMAppleStore) EnqueueDeviceWipeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {

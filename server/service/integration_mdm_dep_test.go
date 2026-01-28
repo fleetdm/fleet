@@ -19,7 +19,9 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -28,8 +30,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -74,7 +78,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	signedPkg := b
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "", false)
 
 	// add a custom setup assistant and ensure enable_release_device_manually is
 	// false (the default)
@@ -144,6 +148,20 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 			})
 		})
 	}
+	// test manual and automatic release with a migrating host
+	migratingDevice := globalDevice
+	migratingDevice.MDMMigrationDeadline = ptr.Time(time.Now().Add(24 * time.Hour))
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow_with_DEP_migration", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, migratingDevice, DEPEnrollTestOpts{
+				EnableReleaseManually:             enableReleaseManually,
+				TeamID:                            nil,
+				CustomProfileIdent:                "I1",
+				UseOldFleetdFlow:                  false,
+				EnrollmentProfileFromDEPUsingPost: true,
+			})
+		})
+	}
 	// test manual and automatic release with the old worker flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;old_flow", enableReleaseManually), func(t *testing.T) {
@@ -178,6 +196,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 			TeamID:                nil,
 			CustomProfileIdent:    "I1",
 			ManualAgentInstall:    true,
+			BootstrapPackage:      true,
 		})
 	})
 }
@@ -216,7 +235,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	signedPkg := b
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: tm.ID}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: tm.ID}, http.StatusOK, "", false)
 
 	// add a custom setup assistant and ensure enable_release_device_manually is
 	// false (the default)
@@ -327,6 +346,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			TeamID:                &tm.ID,
 			CustomProfileIdent:    "I2",
 			ManualAgentInstall:    true,
+			BootstrapPackage:      true,
 		})
 	})
 }
@@ -410,10 +430,13 @@ type DEPEnrollTestOpts struct {
 	UseOldFleetdFlow                  bool
 	ManualAgentInstall                bool
 	EnrollmentProfileFromDEPUsingPost bool
+	BootstrapPackage                  bool
 }
 
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, opts DEPEnrollTestOpts) {
 	ctx := context.Background()
+
+	isMigrating := device.MDMMigrationDeadline != nil
 
 	var isIphone bool
 	if device.DeviceFamily == "iPhone" {
@@ -427,10 +450,44 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 	if opts.TeamID != nil {
 		payload["team_id"] = *opts.TeamID
+		if opts.BootstrapPackage {
+			team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
+			require.NoError(t, err)
+
+			team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
+			_, err = s.ds.SaveTeam(ctx, team)
+			require.NoError(t, err)
+		}
+	} else if opts.BootstrapPackage {
+		ac, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+
+		ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
+		err = s.ds.SaveAppConfig(ctx, ac)
+		require.NoError(t, err)
 	}
+
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 	t.Cleanup(func() {
 		// Get back to the default state.
+		if opts.BootstrapPackage {
+			if opts.TeamID != nil {
+				team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
+				require.NoError(t, err)
+
+				team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.String{}
+				_, err = s.ds.SaveTeam(ctx, team)
+				require.NoError(t, err)
+			} else {
+				ac, err := s.ds.AppConfig(ctx)
+				require.NoError(t, err)
+
+				ac.MDM.MacOSSetup.BootstrapPackage = optjson.String{}
+				err = s.ds.SaveAppConfig(ctx, ac)
+				require.NoError(t, err)
+			}
+		}
+
 		payload["enable_release_device_manually"] = false
 		payload["manual_agent_install"] = false
 		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
@@ -514,7 +571,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	// check if it has setup experience items or not
 	hasSetupExpItems := true
 	_, err = s.ds.GetHostAwaitingConfiguration(ctx, mdmDevice.UUID)
-	if fleet.IsNotFound(err) {
+	if fleet.IsNotFound(err) || device.MDMMigrationDeadline != nil {
 		hasSetupExpItems = false
 	} else if err != nil {
 		require.NoError(t, err)
@@ -557,12 +614,15 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// not expected: account configuration, since enrollment_reference not set
 		require.Len(t, cmds, 2)
 	} else {
-		// expected commands: install fleetd, install bootstrap, install CA, install profiles
-		// (custom one, fleetd configuration, FileVault) (not expected: account
-		// configuration, since enrollment_reference not set)
+		// expected commands: install fleetd, install bootstrap(if not migrating),
+		// install CA, install profiles (custom one, fleetd configuration, FileVault)
+		// (not expected: account configuration, since enrollment_reference not set)
 		expectedCommands := 6
 		if opts.ManualAgentInstall {
 			expectedCommands--
+		}
+		if isMigrating {
+			expectedCommands-- // no bootstrap package during migration
 		}
 		assert.Len(t, cmds, expectedCommands)
 	}
@@ -661,13 +721,18 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 	require.Equal(t, 4, installProfileCount)
 	expectedInstallEnterpriseCount := 2
+	if isMigrating {
+		expectedInstallEnterpriseCount-- // no bootstrap package during migration
+	}
 	if opts.ManualAgentInstall {
 		expectedInstallEnterpriseCount--
-		require.NotNil(t, lastInstallEnterpriseApplication)
-		require.NotNil(t, lastInstallEnterpriseApplication.Manifest)
-		require.GreaterOrEqual(t, len(lastInstallEnterpriseApplication.Manifest.ManifestItems), 1)
-		require.Len(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets, 1)
-		assert.Contains(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+		if expectedInstallEnterpriseCount > 0 {
+			require.NotNil(t, lastInstallEnterpriseApplication)
+			require.NotNil(t, lastInstallEnterpriseApplication.Manifest)
+			require.GreaterOrEqual(t, len(lastInstallEnterpriseApplication.Manifest.ManifestItems), 1)
+			require.Len(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets, 1)
+			assert.Contains(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+		}
 	}
 	require.Equal(t, expectedInstallEnterpriseCount, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
@@ -1082,7 +1147,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			require.JSONEq(
 				t,
 				fmt.Sprintf(
-					`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple"}`,
+					`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
 					devices[0].SerialNumber, devices[0].Model, devices[0].SerialNumber,
 				),
 				string(*activity.Details),
@@ -1314,7 +1379,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.lastActivityMatches(
 		"mdm_enrolled",
 		fmt.Sprintf(
-			`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple"}`,
+			`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
 			mdmDevice.SerialNumber, mdmDevice.Model, mdmDevice.SerialNumber,
 		),
 		0,
@@ -2403,7 +2468,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 	// this helper function sets the minimum OS version for the team or no team
 	setMinOSVersion := func(minVersion string, deadline string, teamID *uint) {
-		raw := json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_updates": { "minimum_version": "%s", "deadline": "%s" } } }`, minVersion, deadline))
+		raw := json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_updates": { "minimum_version": "%s", "deadline": "%s", "update_new_hosts": true } } }`, minVersion, deadline))
 		if teamID == nil {
 			acResp := appConfigResponse{}
 			s.DoJSON("PATCH", "/api/latest/fleet/config", raw, http.StatusOK, &acResp)
@@ -2740,4 +2805,326 @@ func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
 		}
 
 	}
+}
+
+// This test case covers the bug https://github.com/fleetdm/fleet/issues/26879
+func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
+	t := s.T()
+	ctx := t.Context()
+
+	teamEnrollSecret := "sticky-mdm-team-enroll-secret" //nolint:gosec // G101: false positive, test value only
+	// Create a single team with MDM enabled
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "mdm team", Secrets: []*fleet.EnrollSecret{{Secret: teamEnrollSecret}}})
+	require.NoError(t, err)
+
+	// Enable MDM for appconfig
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name          string
+		enrollURL     string
+		enrollRequest func(*fleet.Host, *mdmtest.TestAppleMDMClient) any
+	}{
+		{
+			name:      "Orbit Enrollment",
+			enrollURL: "/api/fleet/orbit/enroll",
+			enrollRequest: func(host *fleet.Host, mdmDevice *mdmtest.TestAppleMDMClient) any {
+				return contract.EnrollOrbitRequest{
+					EnrollSecret:   teamEnrollSecret,
+					HardwareUUID:   host.UUID,
+					HardwareSerial: mdmDevice.SerialNumber,
+					Hostname:       host.Hostname,
+					Platform:       host.Platform,
+					PlatformLike:   host.PlatformLike,
+					HardwareModel:  host.HardwareModel,
+				}
+			},
+		},
+		{
+			name:      "Osquery Enrollment",
+			enrollURL: "/api/osquery/enroll",
+			enrollRequest: func(host *fleet.Host, mdmDevice *mdmtest.TestAppleMDMClient) any {
+				return contract.EnrollOsqueryAgentRequest{
+					EnrollSecret:   teamEnrollSecret,
+					HostIdentifier: host.UUID,
+					HostDetails: map[string]map[string]string{
+						"osquery_info": {
+							"instance_id": host.UUID,
+						},
+						"system_info": {
+							"hardware_serial": mdmDevice.SerialNumber,
+							"uuid":            host.UUID,
+						},
+					},
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a MDM apple device
+			host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+			// Check that redis key was set
+			keyValueStore := redis_key_value.New(s.redisPool)
+			val, err := keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+host.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, val)
+
+			// Get the team to check that it enrolled into no-team
+			hostLite, err := s.ds.HostLiteByIdentifier(ctx, host.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, hostLite)
+			require.Nil(t, hostLite.TeamID)
+
+			request := tc.enrollRequest(host, mdmDevice)
+			response := struct{}{}
+			s.DoJSON("POST", tc.enrollURL, request, http.StatusOK, &response)
+
+			// Check that the host is still in no-team
+			hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, hostLite)
+			require.Nil(t, hostLite.TeamID)
+
+			// Delete the key to re-enroll
+			conn := redis.ConfigureDoer(s.redisPool, s.redisPool.Get())
+			defer conn.Close()
+
+			_, err = redigo.Int64(conn.Do("DEL", "key_value_"+fleet.StickyMDMEnrollmentKeyPrefix+host.UUID))
+			require.NoError(t, err)
+
+			// RE-enroll and see team transfer
+			s.DoJSON("POST", tc.enrollURL, request, http.StatusOK, &response)
+
+			// Check that the host is now in the team
+			hostLite, err = s.ds.HostLiteByIdentifier(ctx, host.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, hostLite)
+			require.NotNil(t, hostLite.TeamID)
+			require.Equal(t, team.ID, *hostLite.TeamID)
+		})
+	}
+}
+
+// This test verifies the fix for https://github.com/fleetdm/fleet/issues/33815
+func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndReenroll() {
+	t := s.T()
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
+	require.NoError(t, err)
+
+	devices := []godep.Device{
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+	}
+	profileAssignmentReqs := []profileAssignmentReq{}
+
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		case "/server/devices":
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices[:1]})
+			require.NoError(t, err)
+		case "/devices/sync":
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			profileAssignmentReqs = append(profileAssignmentReqs, prof)
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{}, nil
+	}
+
+	performHostEnroll := func() *mdmtest.TestAppleMDMClient {
+		// Enroll the host via ADE
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.SerialNumber = devices[0].SerialNumber
+		err = mdmDevice.Enroll()
+		require.NoError(t, err)
+
+		// Simulate an osquery enrollment too
+		// set an enroll secret
+		var applyResp applyEnrollSecretSpecResponse
+		s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+			Spec: &fleet.EnrollSecretSpec{
+				Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+			},
+		}, http.StatusOK, &applyResp)
+
+		// simulate a matching host enrolling via osquery
+		j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   t.Name(),
+			HostIdentifier: mdmDevice.UUID,
+		})
+		require.NoError(t, err)
+
+		var enrollResp contract.EnrollOsqueryAgentResponse
+		hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+		require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
+		require.NotEmpty(t, enrollResp.NodeKey)
+
+		return mdmDevice
+	}
+
+	mdmDevice := performHostEnroll()
+
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	h := listHostsRes.Hosts[0]
+
+	// ensure the host has an orbit key (so it doesn't fail with "does not have fleetd")
+	h.OrbitNodeKey = ptr.String("some-orbit-key")
+	err = s.ds.UpdateHost(ctx, h.Host)
+	require.NoError(t, err)
+
+	s.runDEPSchedule()
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+	// run the cron to assign configuration profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// add a couple software installers to "no team"
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("installer1"), t.TempDir)
+	require.NoError(t, err)
+	installerPayload1 := fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "installer1",
+		PreInstallQuery: "SELECT 1",
+		InstallerFile:   tfr1,
+		StorageID:       "installer1",
+		Filename:        "installer1.pkg",
+		Title:           "installer1",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          nil,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	_, titleID1, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &installerPayload1)
+	require.NoError(t, err)
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("installer2"), t.TempDir)
+	require.NoError(t, err)
+	installerPayload2 := fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "installer2",
+		PreInstallQuery: "SELECT 1",
+		InstallerFile:   tfr2,
+		StorageID:       "installer2",
+		Title:           "installer2",
+		Version:         "2.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          nil,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	_, titleID2, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &installerPayload2)
+	require.NoError(t, err)
+
+	// list host software inventory, both installers are listed
+	getHostSw := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 2)
+	require.Equal(t, titleID1, getHostSw.Software[0].ID)
+	require.Equal(t, installerPayload1.Title, getHostSw.Software[0].Name)
+	require.Equal(t, titleID2, getHostSw.Software[1].ID)
+	require.Equal(t, installerPayload2.Title, getHostSw.Software[1].Name)
+
+	// install the first installer on the host
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID1), installSoftwareRequest{}, http.StatusAccepted)
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, h.ID)
+
+	// process installation successfully
+	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+		OrbitNodeKey: *h.OrbitNodeKey,
+		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+			HostID:                h.ID,
+			InstallUUID:           installUUID,
+			InstallScriptExitCode: ptr.Int(0),
+			InstallScriptOutput:   ptr.String("done"),
+		},
+	}, http.StatusNoContent)
+
+	// wipe the host
+	var wipeResp wipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+
+	// simulate a successful MDM result for the wipe command
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+	_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// refresh the host's status, it is wiped
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "wiped", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+	// delete the host record (will not really delete it as it is in ABM)
+	var delResp deleteHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &delResp)
+
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	require.Equal(t, h.ID, listHostsRes.Hosts[0].ID)
+
+	// re-enroll the host
+	performHostEnroll()
+
+	// Sofware inventory should list both installers
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 2)
+	require.Equal(t, titleID1, getHostSw.Software[0].ID)
+	require.Equal(t, installerPayload1.Title, getHostSw.Software[0].Name)
+	require.Equal(t, titleID2, getHostSw.Software[1].ID)
+	require.Equal(t, installerPayload2.Title, getHostSw.Software[1].Name)
 }

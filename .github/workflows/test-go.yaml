@@ -15,6 +15,8 @@ on:
       - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
+      - 'frontend/templates/enroll-ota.html'
+      - 'frontend/templates/windowsTOS.html'
   pull_request:
     paths:
       - '**.go'
@@ -25,6 +27,8 @@ on:
       - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
+      - 'frontend/templates/enroll-ota.html'
+      - 'frontend/templates/windowsTOS.html'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
@@ -48,27 +52,27 @@ jobs:
       matrix:
         suite: ["integration-core", "integration-enterprise", "integration-mdm", "fast", "fleetctl", "main", "mysql", "scripts", "service", "vuln"]
         os: [ubuntu-latest]
-        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.6", "mysql:9.4.0"] # make sure to update supported versions docs when this changes
+        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.7", "mysql:9.5.0"] # make sure to update supported versions docs when this changes
         isCron:
           - ${{ github.event_name == 'schedule' }}
         exclude:
           - isCron: false
-            mysql: "mysql:8.4.6" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
+            mysql: "mysql:8.4.7" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
           - isCron: false
             mysql: "mysql:8.0.32" # Run MySQL 8.0.32 tests on cron schedule and not every time.
           # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
           - suite: "fast"
             mysql: "mysql:8.0.32" # We must make sure that at least 1 instance of this suite will run, which is 8.0.36 in this case
           - suite: "fast"
-            mysql: "mysql:8.4.6"
+            mysql: "mysql:8.4.7"
           - suite: "fast"
-            mysql: "mysql:9.4.0"
+            mysql: "mysql:9.5.0"
           - suite: "scripts"
             mysql: "mysql:8.0.32"
           - suite: "scripts"
-            mysql: "mysql:8.4.6"
+            mysql: "mysql:8.4.7"
           - suite: "scripts"
-            mysql: "mysql:9.4.0"
+            mysql: "mysql:9.5.0"
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true
@@ -77,11 +81,11 @@ jobs:
     env:
       RACE_ENABLED: false
       GO_TEST_TIMEOUT: 20m
-      DOCKER_COMMAND: docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test
+      DOCKER_COMMAND: docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup s3 saml_idp mailhog mailpit smtp4dev_test
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
       with:
         egress-policy: audit
 
@@ -91,6 +95,7 @@ jobs:
         if [[ "${{ matrix.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
+          echo "DOCKER_COMMAND=${{ env.DOCKER_COMMAND }} localstack" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "fast" ]]; then
           # DO NOT add any dependencies in this test suite.
           echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
@@ -255,9 +260,11 @@ jobs:
           REDIS_TEST=1 \
           MYSQL_TEST=1 \
           MYSQL_REPLICA_TEST=1 \
-          MINIO_STORAGE_TEST=1 \
+          S3_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
+          AWS_ENDPOINT_URL="http://localhost:4566" \
+          AWS_REGION=us-east-1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
@@ -355,7 +362,7 @@ jobs:
       GO_TEST_TIMEOUT: 20m
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -443,7 +450,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -466,7 +473,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 

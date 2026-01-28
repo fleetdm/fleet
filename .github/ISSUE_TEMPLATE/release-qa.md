@@ -2,8 +2,8 @@
 name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
-labels: '#g-mdm,#g-orchestration,#g-software,:release'
-assignees: 'xpkoala,pezhub,jmwatts'
+labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,Ravenstencil'
 
 ---
 
@@ -15,6 +15,11 @@ assignees: 'xpkoala,pezhub,jmwatts'
 2. [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) 
 3. premium tests require license key (needs renewal) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
 4. premium tests require license key (active - Expires Sunday, January 1, 2023 12:00:00 AM) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjcyNTMxMjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6InByZW1pdW0iLCJpYXQiOjE2NDI1MjIxODF9.EGHQjIzM73YyMbnCruswzg360DEYCsDi9uz48YcDwQHq90BabGT5PIXRiculw79emGj5sk2aKgccTd2hU5J7Jw`
+
+# Database migration tests
+
+1. Create a [custom issue](https://github.com/fleetdm/confidential/issues/new?template=1-custom-request.md) tagged `:help-customers` in the confidential repo to run [cloud migration tests](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml) targeted off of the RC branch. Tests will be run off of [these environments](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud-tests).
+2. Once tests are complete, if migration duration for any environment takes more than 5 seconds, check logs to determine whether any single migration took more than 5 seconds, or if the entire process took more than 15 seconds. If either is the case and there is not already a progress indicator for the migration that updates at least every ten seconds, file an unreleased bug triaged to the team that created the migration to audit the migration and evaluate if progress updates or performance improvements are needed.
 
 # Smoke Tests
 Smoke tests are limited to core functionality and serve as a pre-release final review. If smoke tests are failing, a release cannot proceed.
@@ -69,11 +74,14 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
  
 </td><td>pass/fail</td></tr>
-<tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
 
-1. Verify able to configure Disk encryption (macOS, Windows, & Linux).
-2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+<tr><td>GitOps and generate-gitops</td><td>
+
+1. `fleetctl generate-gitops` from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated teams etc.).
+2. Running GitOps succeeds on the files created in the previous step, either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient).
+ 
 </td><td>pass/fail</td></tr>
+
 </table>
 
 ### MDM
@@ -84,7 +92,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
   
 1. Erase an ADE-eligible macOS host and verify able to complete automated enrollment flow.
 2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-3. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+3. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
+4. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
 </td><td>pass/fail</td></tr>
 
 <tr><td>MDM migration flow</td><td>Verify MDM migration for ADE and non-ADE hosts</td><td>
@@ -114,35 +123,45 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 9. Verify software installs and script runs.
 </td><td>pass/fail</td></tr>
 
-<tr><td>OS updates</td><td>Verify OS updates flow</td><td>
-
-1. Configure OS updates (macOS & Windows).
-2. Verify on-device that Nudge prompt appears (macOS 13).
-3. Verify enforce minimumOS occurs during enrollment (macOS 14+).
-</td><td>pass/fail</td></tr>
-
 <tr><td>iOS/iPadOS</td><td>Verify enrollment, profiles, & software installs</td><td>
 
 1. Verify ADE enrollment.
-2. Verify OTA enrollment.
-3. Verify Profiles are delivered to host and applied.
-4. Verify VPP apps install & display correctly in Activity feed.
-5. Verify `Turn Off MDM` for BYOD & ADE hosts.
+2. Verify BYOD OTA enrollment.
+3. Verify BYOD Account-driven user enrollment (AppleID).
+4. Verify Profiles are delivered to host and applied.
+5. Verify VPP apps install & display correctly in Activity feed.
+6. Verify `Turn Off MDM` for BYOD & ADE hosts.
  
 </td><td>pass/fail</td></tr>
 
+<tr><td>Android</td><td>Verify enrollment, profiles, & software installs</td><td>
 
-<tr><td>Lock & Wipe</td><td>Verify hosts can be locked & wiped</td><td>
-
-1. Verify locking a host from the Fleet UI (macOS, Windows, & Linux)
-2. Verify unlocking a host from the Fleet UI (macOS, Windows, & Linux)
-3. Verify wiping a host from the Fleet UI (macOS, Windows, & Linux)
-4. Verify wiping and locking hosts using `fleetctl` (macOS, Windows, & Linux)
+1. Verify BYOD enrollment.
+2. Verify Profiles are delivered to host and applied.
+3. Verify apps install.
+4. Verify `Unenroll`.
  
 </td><td>pass/fail</td></tr>
 
+<tr><td>Certificate Authorities</td><td>Verify setup and certificate delivery</td><td>
 
-<tr><td>Certificates Upload</td><td>APNs cert and ABM token renewal workflow</td><td>
+1. Configure and verify that certificates deploy to hosts with the following CAs:
+    1. DigiCert
+    3. NDES
+    4. SmallStep
+ 
+</td><td>pass/fail</td></tr>
+
+<tr><td>IdP Provisioning (SCIM)</td><td>Verify host vitals sync</td><td>
+
+1. Configure and verify provisioning with the following IdPs:
+    1. Okta
+    3. Entra
+    4. Hydrant/Google
+ 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Token & Certificate Renewals</td><td>APNs cert and ABM token renewal workflow</td><td>
 
 1. Renew APNs Certificate.
 2. Renew ABM Token.
@@ -207,6 +226,42 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 </td><td>pass/fail</td></tr>
 </table>
 
+### Security & Compliance
+
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+
+<tr><td>Disk encryption</td><td>Verify disk encryption functionality</td><td>
+
+1. Verify able to configure Disk encryption (macOS, Windows, & Linux).
+2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+</td><td>pass/fail</td></tr>
+
+<tr><td>Vulnerabilities</td><td>Verify that software vulnerabilities are correctly populated</td><td>
+
+1. Verify that known vulnerable software items display expected CVEs and severity information in the Software tab
+2. Verify that individual vulnerabilities can be previewed and open the correct NVD page when selected
+3. Verify that vulnerable software appears under "My device > Software" for affected hosts with expected CVEs
+</td><td>pass/fail</td></tr>
+
+<tr><td>OS updates</td><td>Verify OS updates flow</td><td>
+
+1. Configure OS updates (macOS & Windows).
+2. Verify enforce minimumOS occurs during enrollment (macOS 14+).
+</td><td>pass/fail</td></tr>
+
+<tr><td>Lock & Wipe</td><td>Verify hosts can be locked & wiped</td><td>
+
+1. Verify locking a host from the Fleet UI (macOS, Windows, & Linux)
+2. Verify unlocking a host from the Fleet UI (macOS, Windows, & Linux)
+3. Verify wiping a host from the Fleet UI (macOS, Windows, & Linux)
+4. Verify wiping and locking hosts using `fleetctl` (macOS, Windows, & Linux)
+ 
+</td><td>pass/fail</td></tr>
+</table>
+
+
 ### All Product Groups
 <table>
  <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
@@ -256,14 +311,15 @@ List versions changes for any component updates below:
 
 ### Goal: Ensure new `fleetd` is tested and promoted from local > edge > stable channels
 
-1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension.
+1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension (e.g. `rc-minor-fleet-v4.80.0`).
+IMPORTANT: Do not build fleetd from `main` as it is a moving target and new fleetd changes from future releases might be already merged.
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 <tr><td>`fleetd` local testing</td>
 <td>
-1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.<br>
+1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts. IMPORTANT: Reminder to use an RC branch and not `main`<br>
 </td>
 <td>
 1. Confirm the hosts install with the updated version and are working correctly.<br>
@@ -345,6 +401,14 @@ List versions changes for any component updates below:
 2. New Packs can be created. <br>
 3. Packs can be edited and deleted <br>
 4. Packs results information is logged
+</td><td>pass/fail</td></tr>
+
+<tr><td>Fleet Free</td><td>Verify that Fleet Desktop works on Fleet Free.</td><td>
+After repointing a Fleet Desktop install at a server running Fleet Free:
+
+1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.<br>
+2. The "My device" page is populated correctly and as expected. <br>
+3. Styling and padding appears correct. 
 </td><td>pass/fail</td></tr>
 
 </table>

@@ -1,0 +1,64 @@
+/** Be extremely careful when editing this CSS
+This is calculated to:
+ - Have the left margin always follow regular page left margins
+ - Always have a side panel flushed right
+ - If a side panel runs into the content, it doesn't affect the left margin, only changes the right margin
+ - If the side panel is closed, it follows regular page margins
+Only variables should be updated unless there is a redesign of these pages
+*/
+
+$side-panel-width: 340px;
+$main-max-width: 1280px; // 1280px plus 64px left/right padding
+$main-padding: 32px; // Container for layout $pad-page
+$main-max-width-including-padding: 1280px + 32px + 32px; // Cannot use variables in addition
+
+.side-panel-page {
+  min-height: 100vh;
+  position: relative;
+  width: 100%;
+
+  // Fixed side panel: always flush right, always 340px wide
+  .side-panel-content {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: $side-panel-width;
+    height: auto;
+    z-index: 2;
+  }
+
+  /* Main Content logic per breakpoint */
+  /* Main Content logic per breakpoint */
+  .main-content {
+    position: relative;
+    box-sizing: border-box;
+    padding: $main-padding;
+
+    /* Default: for < ($main-max-width-including-padding + $side-panel-width) */
+    margin-right: $side-panel-width;
+    margin-left: 0;
+    width: auto;
+    max-width: unset;
+
+    /* For 1684px to 2024px */
+    @media (min-width: ($main-max-width-including-padding)) {
+      max-width: auto;
+      margin-left: calc((100vw - #{$main-max-width + 2 * $main-padding}) / 2);
+      margin-right: $side-panel-width;
+    }
+
+    /* For ≥ 2364px (perfectly centered) */
+    @media (min-width: ($main-max-width-including-padding + $side-panel-width + $side-panel-width)) {
+      max-width: $main-max-width-including-padding;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Undo centering logic with side panel if main content is the only child */
+    &:only-child {
+      margin-right: auto;
+      margin-left: auto;
+      max-width: $main-max-width-including-padding;
+    }
+  }
+}

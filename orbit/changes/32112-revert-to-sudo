@@ -1,1 +1,0 @@
-- Fixed desktop app launch on some Linux systems by reverting to using sudo.

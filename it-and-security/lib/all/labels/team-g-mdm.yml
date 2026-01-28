@@ -2,10 +2,10 @@
   description: Workstations used by team g-mdm
   label_membership_type: manual
   hosts:
-    - "xerithas-mac-16.local"
-    - "GabrielsWorkMBP"
-    - "gabelopezs-macbook-pro.local"
-    - "Jordans-MacBook-Pro.local"
-    - "markombp.local"
-    - "magnuss-macbook-pro.local"
-    - "Sarahs-MacBook-Pro.local"
+    - "653" # George
+    - "903" # Gabe H
+    - "1441" # Gabe L
+    - "1407" # Jordan
+    - "1308" # Marko
+    - "1376" # Magnus
+    - "1392" # Sarah

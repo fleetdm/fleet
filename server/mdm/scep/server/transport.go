@@ -59,6 +59,20 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger kitlog.
 		encodeSCEPResponse,
 		opts...,
 	))
+	// For Windows SCEP client which appends pkiclient.exe to the URL and seemingly cannot be configured
+	// to not do that
+	r.Path(rootPath + "{identifier}/pkiclient.exe").Methods("GET").Handler(kithttp.NewServer(
+		e.GetEndpoint,
+		decodeSCEPRequestWithIdentifier,
+		encodeSCEPResponse,
+		opts...,
+	))
+	r.Path(rootPath + "{identifier}/pkiclient.exe").Methods("POST").Handler(kithttp.NewServer(
+		e.PostEndpoint,
+		decodeSCEPRequestWithIdentifier,
+		encodeSCEPResponse,
+		opts...,
+	))
 
 	return r
 }
@@ -73,7 +87,9 @@ func EncodeSCEPRequest(ctx context.Context, r *http.Request, request interface{}
 		if len(req.Message) > 0 {
 			var msg string
 			if req.Operation == "PKIOperation" {
-				msg = base64.URLEncoding.EncodeToString(req.Message)
+				// Use standard base64 encoding (with + and /) as expected by SCEP servers.
+				// The subsequent params.Encode() call will URL-encode the + and / characters.
+				msg = base64.StdEncoding.EncodeToString(req.Message)
 			} else {
 				msg = string(req.Message)
 			}

@@ -3,11 +3,13 @@ package microsoft_mdm
 import (
 	"context"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
@@ -15,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,7 +68,7 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 		uniqueHash  string
 	}
 	got := []wantStruct{}
-	err := LoopOverExpectedHostProfiles(ctx, ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := LoopOverExpectedHostProfiles(ctx, log.NewNopLogger(), ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		got = append(got, wantStruct{
 			locURI:      locURI,
 			data:        data,
@@ -592,6 +595,199 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toFail:   []string{},
 			toRetry:  []string{},
 		},
+		{
+			name: "scep profile instantly verifies",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./User/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+				{
+					ProfileUUID: "uuid-N2",
+					Name:        "N2",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			toVerify: []string{"N1", "N2"},
+		},
+		{
+			name: "full user-scope profile verifies without validation",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./User/some-other-loc-uri-key`,
+						Data: "non related data",
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			toVerify: []string{"N1"},
+		},
+		{
+			name: "mix of user-scoped profile and device-scoped profile verifies only device paths",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./User/some-other-loc-uri-key",
+						Data:   "non related data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/some-other-loc-uri-key",
+						Data:   "L1",
+					},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./User/loc-uri",
+						Data:   "non related data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/loc-uri",
+						Data:   "L1",
+					},
+				}), 0},
+			},
+			report: []osqueryReport{
+				{
+					"N1", "404", "./Device/some-other-loc-uri-key", "",
+				},
+				{
+					"N2", "200", "./Device/loc-uri", "L1",
+				},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+				{
+					ProfileUUID: "uuid-N2",
+					Name:        "N2",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			toVerify: []string{"N2"},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: "failed scep profile stays failed",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb: "Replace",
+						LocURI: `
+						./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-key-value`,
+						Data: "non related data",
+					},
+				}), 2},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryFailed,
+				},
+				{
+					ProfileUUID: "uuid-N2",
+					Name:        "N2",
+					Status:      &fleet.MDMDeliveryFailed,
+				},
+			},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{}, // It should not do anything on SCEP profiles.
+		},
+		{
+			name: "non atomic profile with multiple locURIs verifies only if all locURIs match",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 3},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "DifferentData"},
+			},
+			toVerify: []string{},
+			toFail:   []string{"N1"},
+			toRetry:  []string{},
+		},
+		{
+			name: "non atomic profile with multiple locURIs verifies if all locURIs match",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "D1.1"},
+			},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: "non atomic and atomic profiles does not interfere",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L2", Data: "D2"},
+				}), 3},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "D1.1"},
+			},
+			toVerify: []string{"N1"},
+			toFail:   []string{"N2"},
+			toRetry:  []string{},
+		},
 	}
 
 	for _, tt := range cases {
@@ -650,9 +846,9 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			}
 
 			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error {
-				require.ElementsMatch(t, tt.toVerify, toVerify, "profiles to verify don't match")
-				require.ElementsMatch(t, tt.toFail, toFail, "profiles to fail don't match")
-				require.ElementsMatch(t, tt.toRetry, toRetry, "profiles to retry don't match")
+				assert.ElementsMatch(t, tt.toVerify, toVerify, "profiles to verify don't match")
+				assert.ElementsMatch(t, tt.toFail, toFail, "profiles to fail don't match")
+				assert.ElementsMatch(t, tt.toRetry, toRetry, "profiles to retry don't match")
 				return nil
 			}
 
@@ -821,7 +1017,9 @@ type hostProfile struct {
 	RetryCount  uint
 }
 
-func TestPreprocessWindowsProfileContents(t *testing.T) {
+func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
+	ds := new(mock.Store)
+
 	tests := []struct {
 		name             string
 		hostUUID         string
@@ -882,12 +1080,371 @@ func TestPreprocessWindowsProfileContents(t *testing.T) {
 			profileContents:  `<Replace><Data>ID1: $FLEET_VAR_HOST_UUID, ID2: ${FLEET_VAR_HOST_UUID}</Data></Replace>`,
 			expectedContents: `<Replace><Data>ID1: test-host-1234-uuid, ID2: test-host-1234-uuid</Data></Replace>`,
 		},
+		{
+			name:             "skips scep windows id var",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, SCEP: $FLEET_VAR_HOST_SCEP_WINDOWS_ID</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID: test-host-1234-uuid, SCEP: $FLEET_VAR_HOST_SCEP_WINDOWS_ID</Data></Replace>`,
+		},
+	}
+
+	deps := ProfilePreprocessDependenciesForVerify{
+		Context:            t.Context(),
+		Logger:             log.NewNopLogger(),
+		DataStore:          ds,
+		HostIDForUUIDCache: make(map[string]uint),
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := PreprocessWindowsProfileContents(tt.hostUUID, tt.profileContents)
+			result := PreprocessWindowsProfileContentsForVerification(deps, ProfilePreprocessParams{
+				HostUUID:    tt.hostUUID,
+				ProfileUUID: uuid.NewString(),
+			}, tt.profileContents)
 			require.Equal(t, tt.expectedContents, result)
 		})
 	}
+}
+
+func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
+	ds := new(mock.Store)
+
+	scimUser := &fleet.ScimUser{
+		UserName:   "test@idp.com",
+		GivenName:  ptr.String("First"),
+		FamilyName: ptr.String("Last"),
+		Department: ptr.String("Department"),
+		Groups: []fleet.ScimUserGroup{
+			{
+				ID:          1,
+				DisplayName: "Group One",
+			},
+			{
+				ID:          2,
+				DisplayName: "Group Two",
+			},
+		},
+	}
+
+	baseSetup := func() {
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			if ds.GetAllCertificateAuthoritiesFunc == nil {
+				return &fleet.GroupedCertificateAuthorities{
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{},
+				}, nil
+			}
+
+			cas, err := ds.GetAllCertificateAuthoritiesFunc(ctx, includeSecrets)
+			if err != nil {
+				return nil, err
+			}
+
+			return fleet.GroupCertificateAuthoritiesByType(cas)
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://test-fleet.com",
+				},
+			}, nil
+		}
+		ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+			return []uint{42}, nil
+		}
+
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			if hostID == 42 {
+				return scimUser, nil
+			}
+
+			return nil, fmt.Errorf("no scim user for host id %d", hostID)
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{}, nil
+		}
+	}
+
+	// use the same uuid for all profile UUID actions
+	profileUUID := uuid.NewString()
+
+	tests := []struct {
+		name             string
+		hostUUID         string
+		profileContents  string
+		expectedContents string
+		expectError      bool
+		processingError  string                                                          // if set then we expect the error to be of type MicrosoftProfileProcessingError with this message
+		setup            func()                                                          // Used for setting up datastore mocks.
+		expect           func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) // Add more params as they need validation.
+		freeTier         bool
+	}{
+		{
+			name:             "no fleet variables",
+			hostUUID:         "test-uuid-123",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Simple Value</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Simple Value</Data></Item></Replace>`,
+		},
+		{
+			name:             "host uuid fleet variable",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-456</Data></Item></Replace>`,
+		},
+		{
+			name:             "host serial fleet variable",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: test-serial-456</Data></Item></Replace>`,
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-456"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID:           "test-uuid-456",
+							HardwareSerial: "test-serial-456",
+						},
+					}, nil
+				}
+			},
+		},
+		{
+			name:             "host serial fleet variable with blank serial",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectError:      true,
+			processingError:  "There is no serial number for this host. Fleet couldn't populate $FLEET_VAR_HOST_HARDWARE_SERIAL.",
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-456"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID: "test-uuid-456",
+							ID:   1234,
+						},
+					}, nil
+				}
+			},
+		},
+		{
+			name:             "host serial with multiple hosts matching the same UUID",
+			hostUUID:         "test-uuid-789",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
+			expectError:      true,
+			processingError:  "Found 2 hosts with UUID test-uuid-789. Profile variable substitution for $FLEET_VAR_HOST_HARDWARE_SERIAL requires exactly one host",
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.True(t, ds.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked)
+			},
+			setup: func() {
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					require.Equal(t, []string{"test-uuid-789"}, uuids)
+					return []*fleet.Host{
+						{
+							UUID:           "test-uuid-789",
+							HardwareSerial: "test-serial-456",
+						},
+						{
+							UUID:           "test-uuid-789",
+							HardwareSerial: "test-serial-789",
+						},
+					}, nil
+				}
+				ds.UpdateOrDeleteHostMDMWindowsProfileFunc = func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error {
+					return nil
+				}
+			},
+		},
+		{
+			name:             "host platform fleet variable",
+			hostUUID:         "test-uuid-67",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Platform: $FLEET_VAR_HOST_PLATFORM</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Platform: windows</Data></Item></Replace>`,
+		},
+		{
+			name:             "scep windows certificate id",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>SCEP: $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</Data></Replace>`,
+			expectedContents: fmt.Sprintf(`<Replace><Data>SCEP: %s</Data></Replace>`, profileUUID),
+		},
+		{
+			name:            "custom scep proxy url not usable in free tier",
+			hostUUID:        "test-host-1234-uuid",
+			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: "Custom SCEP integration requires a Fleet Premium license.",
+			freeTier:        true,
+		},
+		{
+			name:            "custom scep proxy url ca not found",
+			hostUUID:        "test-host-1234-uuid",
+			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: "Fleet couldn't populate $CUSTOM_SCEP_PROXY_URL_CERTIFICATE because CERTIFICATE certificate authority doesn't exist.",
+		},
+		{
+			name:             "custom scep proxy url ca found and replaced",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>     $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CERTIFICATE</Data></Replace>`,
+			expectedContents: `<Replace><Data>https://test-fleet.com/mdm/scep/proxy/test-host-1234-uuid%2C` + profileUUID + `%2CCERTIFICATE%2Csupersecret</Data></Replace>`,
+			setup: func() {
+				ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+					return []*fleet.CertificateAuthority{
+						{
+							ID:        1,
+							Name:      ptr.String("CERTIFICATE"),
+							Type:      string(fleet.CATypeCustomSCEPProxy),
+							URL:       ptr.String("https://scep.proxy.url/scep"),
+							Challenge: ptr.String("supersecret"),
+						},
+					}, nil
+				}
+				ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+					return "supersecret", nil
+				}
+			},
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Len(t, managedCerts, 1)
+				require.Equal(t, "CERTIFICATE", managedCerts[0].CAName)
+				require.Equal(t, fleet.CAConfigCustomSCEPProxy, managedCerts[0].Type)
+			},
+		},
+		{
+			name:            "custom scep challenge not usable in free tier",
+			hostUUID:        "test-host-1234-uuid",
+			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: "Custom SCEP integration requires a Fleet Premium license.",
+			freeTier:        true,
+		},
+		{
+			name:            "custom scep proxy challenge ca not found",
+			hostUUID:        "test-host-1234-uuid",
+			profileContents: `<Replace><Data>CA: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: "Fleet couldn't populate $CUSTOM_SCEP_CHALLENGE_CERTIFICATE because CERTIFICATE certificate authority doesn't exist.",
+		},
+		{
+			name:             "custom scep proxy challenge ca found and replaced",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>     $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
+			expectedContents: `<Replace><Data>supersecret</Data></Replace>`,
+			setup: func() {
+				ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+					return []*fleet.CertificateAuthority{
+						{
+							ID:        1,
+							Name:      ptr.String("CERTIFICATE"),
+							Type:      string(fleet.CATypeCustomSCEPProxy),
+							URL:       ptr.String("https://scep.proxy.url/scep"),
+							Challenge: ptr.String("supersecret"),
+						},
+					}, nil
+				}
+				ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+					return "supersecret", nil
+				}
+			},
+		},
+		{
+			name:             "all idp variables",
+			hostUUID:         "idp-host-uuid",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: test@idp.com - test - Group One,Group Two - Department - First Last</Data></Item></Replace>`,
+		},
+		{
+			name:            "missing groups on idp user",
+			hostUUID:        "no-groups-idp",
+			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_GROUPS</Data></Item></Replace>`,
+			expectError:     true,
+			processingError: "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.",
+			setup: func() {
+				scimUser.Groups = []fleet.ScimUserGroup{}
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return scimUser, nil
+				}
+			},
+		},
+		{
+			name:            "missing department on idp user",
+			hostUUID:        "no-department-idp",
+			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT</Data></Item></Replace>`,
+			expectError:     true,
+			processingError: "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.",
+			setup: func() {
+				scimUser.Department = nil
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return scimUser, nil
+				}
+			},
+		},
+	}
+
+	hostIDForUUIDCache := make(map[string]uint)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			baseSetup()
+			if tt.setup != nil {
+				tt.setup()
+			}
+			t.Cleanup(func() {
+				ds = new(mock.Store) // Reset the mock datastore after each test, to avoid overlapping setups.
+			})
+
+			licenseInfo := &fleet.LicenseInfo{
+				Tier: fleet.TierPremium,
+			}
+			if tt.freeTier {
+				licenseInfo.Tier = fleet.TierFree
+			}
+			ctx := license.NewContext(t.Context(), licenseInfo)
+
+			appConfig, err := ds.AppConfig(ctx)
+			require.NoError(t, err)
+
+			// Populate this one, in setup by mocking ds.GetAllCertificateAuthoritiesFunc if needed.
+			groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+			require.NoError(t, err)
+
+			customSCEPCAs := groupedCAs.ToCustomSCEPProxyCAMap()
+
+			managedCertificates := &[]*fleet.MDMManagedCertificate{}
+
+			deps := ProfilePreprocessDependenciesForDeploy{
+				ProfilePreprocessDependenciesForVerify: ProfilePreprocessDependenciesForVerify{
+					Context:            ctx,
+					Logger:             log.NewNopLogger(),
+					DataStore:          ds,
+					HostIDForUUIDCache: hostIDForUUIDCache,
+				},
+				AppConfig:                  appConfig,
+				CustomSCEPCAs:              customSCEPCAs,
+				ManagedCertificatePayloads: managedCertificates,
+			}
+
+			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{
+				HostUUID:    tt.hostUUID,
+				ProfileUUID: profileUUID,
+			}, tt.profileContents)
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.processingError != "" {
+					var processingErr *MicrosoftProfileProcessingError
+					require.ErrorAs(t, err, &processingErr, "expected ProfileProcessingError")
+					require.Equal(t, tt.processingError, processingErr.Error())
+				}
+				return // do not verify profile contents if an error is expected
+			}
+
+			require.Equal(t, tt.expectedContents, result)
+			require.NoError(t, err)
+
+			if tt.expect != nil {
+				tt.expect(t, *managedCertificates)
+			}
+		})
+	}
+
+	require.Len(t, hostIDForUUIDCache, 3) // make sure cache is populated by IdP var host UUID lookups
 }

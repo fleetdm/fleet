@@ -16,23 +16,13 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 // therefore not longer needed anywhere else
 import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/LabelHostTargetTableConfig";
 
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
-
-import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
 
 import { RouteComponentProps } from "react-router";
 import {
@@ -41,11 +31,21 @@ import {
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { getErrorReason } from "interfaces/errors";
+
+import SidePanelPage from "components/SidePanelPage";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import Button from "components/buttons/Button";
 import SQLEditor from "components/SQLEditor";
 import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
-
 import PlatformField from "../components/PlatformField";
 
 const availableCriteria: {
@@ -319,11 +319,21 @@ const NewLabelPage = ({
     }
     setIsUpdating(true);
     try {
-      const res = await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+      await labelsAPI.create(formData);
+      router.push(PATHS.MANAGE_LABELS);
       renderFlash("success", "Label added successfully.");
-    } catch {
-      renderFlash("error", "Couldn't add label. Please try again.");
+    } catch (error) {
+      const status = (error as { status: number }).status;
+      let errorMessage = "Couldn't add label. Please try again.";
+      if (status === 409) {
+        errorMessage = "A label with this name already exists.";
+      } else if (status === 422) {
+        const reason = getErrorReason(error);
+        if (reason) {
+          errorMessage = `Couldn't add label: ${reason}. Please try again.`;
+        }
+      }
+      renderFlash("error", errorMessage);
     }
     setIsUpdating(false);
   };
@@ -395,7 +405,7 @@ const NewLabelPage = ({
               label="Query"
               labelActionComponent={
                 showOpenSidebarButton ? (
-                  <Button variant="text-icon" onClick={onOpenSidebar}>
+                  <Button variant="inverse" onClick={onOpenSidebar}>
                     Schema
                     <Icon name="info" size="small" />
                   </Button>
@@ -426,31 +436,37 @@ const NewLabelPage = ({
       case "host_vitals":
         return (
           <div className={`${baseClass}__host_vitals-fields`}>
-            <Dropdown
-              label="Label criteria"
-              name="vital"
-              onChange={onInputChange}
-              parseTarget
-              value={vital}
-              error={formErrors.criteria}
-              options={availableCriteria}
-              classname={`${baseClass}__criteria-dropdown`}
-              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
-              helpText="Currently, label criteria can be IdP group or department on macOS hosts."
-            />
-            <p>is equal to</p>
-            <InputField
-              error={formErrors.criteria}
-              name="vitalValue"
-              onChange={onInputChange}
-              onBlur={onInputBlur}
-              value={vitalValue}
-              inputClassName={`${baseClass}__vital-value`}
-              placeholder={
-                vital === "end_user_idp_group" ? "IT admins" : "Engineering"
-              }
-              parseTarget
-            />
+            <label className="form-field__label" htmlFor="criterion-and-value">
+              Label criteria
+            </label>
+            <span id="criterion-and-value">
+              <Dropdown
+                name="vital"
+                onChange={onInputChange}
+                parseTarget
+                value={vital}
+                error={formErrors.criteria}
+                options={availableCriteria}
+                classname={`${baseClass}__criteria-dropdown`}
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
+              />
+              <p>is equal to</p>
+              <InputField
+                error={formErrors.criteria}
+                name="vitalValue"
+                onChange={onInputChange}
+                onBlur={onInputBlur}
+                value={vitalValue}
+                inputClassName={`${baseClass}__vital-value`}
+                placeholder={
+                  vital === "end_user_idp_group" ? "IT admins" : "Engineering"
+                }
+                parseTarget
+              />
+            </span>
+            <span className="form-field__help-text">
+              Currently, label criteria can be IdP group or department.
+            </span>
           </div>
         );
 
@@ -556,27 +572,29 @@ const NewLabelPage = ({
   );
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <div className={`${baseClass}__header`}>
-          <h1>New label</h1>
-          <p className={`${baseClass}__page-description`}>
-            Create a new label for targeting and filtering hosts.
-          </p>
-        </div>
-        {renderLabelForm()}
-      </MainContent>
-      {type === "dynamic" && isSidePanelOpen && (
-        <SidePanelContent>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSidebar}
-          />
-        </SidePanelContent>
-      )}
-    </>
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <div className={`${baseClass}__header`}>
+            <h1 className="page-header">New label</h1>
+            <p className={`${baseClass}__page-description`}>
+              Create a new label for targeting and filtering hosts.
+            </p>
+          </div>
+          {renderLabelForm()}
+        </MainContent>
+        {type === "dynamic" && isSidePanelOpen && (
+          <SidePanelContent>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={onCloseSidebar}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

@@ -31,7 +31,7 @@ Via the API (which is used by the UI), the following endpoints support DDM profi
 
 Note that the following endpoints do _not_ support DDM profiles:
 * `GET /api/latest/fleet/hosts/{id}/configuration_profiles` lists only the Apple `.mobileconfig` profiles of the host, not the DDM profiles nor the Windows profiles. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#get-configuration-profiles-assigned-to-a-host).
-* `POST /api/_version_/fleet/configuration_profiles/resend/batch` batch-resends a specific configuration profile to all hosts where it is in a specific satus (e.g. "failed"). Does not support re-sending a DDM profile. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#batch-resend-custom-os-setting-configuration-profile).
+* `POST /api/_version_/fleet/configuration_profiles/resend/batch` batch-resends a specific configuration profile to all hosts where it is in a specific status (e.g. "failed"). Does not support re-sending a DDM profile. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#batch-resend-custom-os-setting-configuration-profile).
 
 
 Via `fleetctl gitops`, the following YAML section can be used to manage profiles:
@@ -79,7 +79,7 @@ The [various endpoint operations are handled in the Fleet implementation](https:
 * `strings.HasPrefix(Endpoint, "declaration/activation")`: sends the full JSON of the corresponding activation (identified by the "Endpoint"). Activations can be used to conditionally apply configurations based on predicates, but we currently don't use that feature and send an unconditional activation.
 * `Endpoint == "status"`: receives the status report of the DDM profiles on the host. If the declaration is active and valid, it is marked as "verified", and if it is invalid it is marked as "failed". Other rare cases are handled in this code, but those are the main ones. Note that [according the Roberto's research at the time](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L6084-L6093), the host will not send "remove" statuses, instead we detect removal by the fact that the declaration is not in the status report.
 
-Note that the "status" endpoint [can carry other information](https://developer.apple.com/documentation/devicemanagement/status-reports), like changes in dynamic device state (e.g. if a declaration had a subscription requesting that information, such as battery healty, certificates, etc.). We currently only use it to update the declaration's status.
+Note that the "status" endpoint [can carry other information](https://developer.apple.com/documentation/devicemanagement/status-reports), like changes in dynamic device state (e.g. if a declaration had a subscription requesting that information, such as battery health, certificates, etc.). We currently only use it to update the declaration's status.
 
 In addition to verifying the DDM profiles from the status response of the DDM protocol, we also [update the statuses from the response of the traditional `DeclarativeManagement` command](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L3486) to do the initial transition from "pending" to "verifying" or "failed" depending on the result of the command. This batch-affects all declarations for the host.
 

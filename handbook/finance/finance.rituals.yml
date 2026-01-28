@@ -150,4 +150,61 @@
   autoIssue:  
     labels: [ ":help-finance" ] 
     repo: "confidential"
-
+-
+  task: "Trademark review"
+  startedOn: "2025-10-24"
+  frequency: "Quarterly"
+  description: "Review status of current Fleet trademark registrations internationally and discuss necessity of current and future registrations."
+  moreInfoUrl: 
+  dri: "hollidayn"
+-
+  task: "Monthly operating review" # TODO tie this to a responsibility
+  startedOn: "2025-09-01"
+  frequency: "Monthly"
+  description: "CEO + CFO + Head of People review operating model."
+  moreInfoUrl: 
+  dri: "rfoo2015"
+-
+  task: "Prepare for OCV meeting"
+  startedOn: "2025-11-14"
+  frequency: "Weekly"
+  description: "The CFO follows the steps to prepare for the OCV meeting."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#prepare-for-ocv-meeting"
+  dri: "rfoo2015"
+  autoIssue:  
+    labels: [ ":help-finance" ] 
+    repo: "confidential"
+- 
+  task: "Complete GTM KPIs"
+  startedOn: "2024-08-30" 
+  frequency: "Weekly"
+  description: "Complete GTM KPIs for this week"
+  moreInfoUrl: 
+  dri: "sampfluger88"
+  autoIssue:   
+    labels: [ ":gtm-ops" ]
+    repo: "fleet"
+-
+  task: "Confirm closed lost is happening within 30 days"
+  startedOn: "2025-01-25"
+  frequency: "Weekly"
+  description: "Check Salesforce for opportunities 30 days or older and escalate to sales manager who will follow up with prospect and return the deal to marketing via resting and changing the owner"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
+  dri: "Sampfluger88"
+  autoIssue:   
+    labels: [ ":gtm-ops","#g-unicorns" ]
+    repo: "confidential"
+- 
+  task: "Measure intent signals"
+  startedOn: "2024-08-09"
+  frequency: "Daily"
+  description: "Using the instructions in the [🦄⚡️🌐 Go-To-Market strategy doc](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily), measure intent signals."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#measure-intent-signals"
+  dri: "Sampfluger88"
+-
+  task: "Manage duplicates in CRM"
+  startedOn: "2025-08-08"
+  frequency: "Daily"
+  description: "Daily, clean up any duplicate accounts."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
+  dri: "Sampfluger88"

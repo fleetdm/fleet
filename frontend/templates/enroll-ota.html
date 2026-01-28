@@ -22,7 +22,9 @@
       html {
         box-sizing: border-box;
         font-family: "Inter", sans-serif;
-        color: #192147;
+        color: #515774;
+        line-height: 1.5;
+        font-size: 1.25rem;
       }
 
       *,
@@ -41,7 +43,7 @@
       .enroll-link {
         display: inline-block;
         color: #fff;
-        background-color: #6a67fe;
+        background-color: #009a7d;
         padding: 8px 16px;
         border-radius: 4px;
         text-decoration: none;
@@ -52,8 +54,8 @@
       }
 
       header {
-        background-color: #192147;
         padding: 13px 20px;
+        border-bottom: 1px solid #e2e4ea;
       }
 
       h1 {
@@ -147,41 +149,36 @@
   <body>
     <!-- unsupported platform content -->
     <template id="unsupported-template">
-      <h1>Enroll your device in Fleet</h1>
+      <h1>How to enroll your device to Fleet</h1>
       <p class="page-description">
-        To enroll your iPhone, iPad, or Android device, please open this page on
-        your mobile device.
+        To enroll your Mac, iPhone, iPad, or Android device, please open this
+        page on your device.
       </p>
     </template>
 
     <!-- android content -->
     <template id="android-template">
-      <h1>Enroll your Android device in Fleet</h1>
+      <h1>How to enroll your Android device to Fleet</h1>
       <div class="android-content">
         <p>Select <b>Enroll</b> and follow the steps.</p>
         <a class="enroll-link" href="" target="_blank">Enroll</a>
+        <p>Already finished? You can close this tab.</p>
       </div>
     </template>
 
     <!-- ios, ipados content -->
     <template id="ios-ipad-template">
       <h1>
-        Enroll your
-        <span data-attribute="dynamic-device-type">iPhone or iPad</span> in
+        How to enroll your
+        <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
         Fleet
       </h1>
-      <p class="page-description">
-        On your
-        <span data-attribute="dynamic-device-type">iPhone or iPad</span>, follow
-        the instructions below to download and install the Fleet profile.
-      </p>
       <ol>
         <li>
           <p>
             <span>1.</span>
             <span>
-              <b>Download</b> the Fleet profile and select <b>Allow</b> in the
-              pop-up.
+              Tap the button below to download the Fleet profile. When prompted, tap <b>Allow</b>.
             </span>
           </p>
           <a class="download-link" href="{{.EnrollURL}}">Download</a>
@@ -190,7 +187,7 @@
           <p>
             <span>2.</span>
             <span>
-              Navigate to <b>Settings</b> and select <b>Profile Downloaded</b>.
+              Go to <b>Settings > Profile Downloaded</b>.
             </span>
           </p>
           <div class="profile-downloaded-container">
@@ -204,23 +201,69 @@
         <li>
           <p>
             <span>3.</span>
-            <span>Select <b>Install</b>.</span>
+            <span>Tap <b>Install</b>. You'll see a few warnings, which is expected.
+            Tap <b>Install</b> again when prompted.</span>
           </p>
           <div class="install-profile-container">
             <img class="install-profile-img" src="" alt="select install" />
           </div>
+        </li>
+        <li>
           <p>
-            You will see an UNVERIFIED PROFILE warning and a MOBILE DEVICE
-            MANAGEMENT warning. Click <b>Install</b> again for each warning.
-            When you see a <b>Remote Management</b> prompt, click
-            <b>Trust</b> to complete enrollment.
+            When you see the <b>Remote Management</b> screen, tap
+            <b>Trust</b> to finish.
           </p>
         </li>
       </ol>
-      <p class="device-enroll-message">
-        <img src="{{.URLPrefix}}/assets/images/check.svg" />
-        Your device will now be enrolled in Fleet.
-      </p>
+    </template>
+
+    <!-- ios, ipados content -->
+    <template id="macos-template">
+      <h1>Turn on MDM</h1>
+      <ol>
+        <li>
+          <p>
+            <span>1.</span>
+            <span> 
+              Tap the button below to download the Fleet profile. Double click on it.
+              You'll see a warning, which is expected.
+            </span>
+          </p>
+          <a class="download-link" href="{{.EnrollURL}}">Download</a>
+        </li>
+        <li>
+          <p>
+            <span>2.</span>
+            <span>
+              Go to the Apple menu in the top left corner of your screen. Select
+              <b>System Settings</b>.
+            </span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>3.</span>
+            <span>
+              Go to <b>Profile Downloaded</b>. Double-click the
+              <b>[Organization name] enrollment</b> profile.
+            </span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>4.</span>
+            <span>Select <b>Install</b>. Enter your password.</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>5.</span>
+            <span>Go back to your <b>My device</b> page. Select
+              <b>Refetch</b> to tell your organization that MDM is on.
+            </span>
+          </p>
+        </li>
+      </ol>
     </template>
 
     <!-- Error content -->
@@ -269,29 +312,35 @@
             navigator.maxTouchPoints !== undefined &&
             navigator.maxTouchPoints > 1);
         const isAndroid = /Android/i.test(userAgent);
+        const isMac =
+          (/Macintosh/i.test(userAgent) && !isIPad) ||
+          /Mac OS X/i.test(userAgent);
 
-        if (isAndroid) {
-          return "android";
-        } else if (isIPhone) {
-          return "ios";
-        } else if (isIPad) {
-          return "ipad";
+        switch (true) {
+          case isAndroid:
+            return "android";
+          case isIPhone:
+            return "ios";
+          case isIPad:
+            return "ipad";
+          case isMac:
+            return "macos";
+          default:
+            return "unsupported";
         }
-
-        return "unsupported";
       };
 
       const getTemplateIdFromPlatform = (platform) => {
-        let templateId = "";
-        if (platform === "android") {
-          templateId = "android-template";
-        } else if (platform === "ios" || platform === "ipad") {
-          templateId = "ios-ipad-template";
-        } else {
-          templateId = "unsupported-template";
+        switch (true) {
+          case platform === "android":
+            return "android-template";
+          case platform === "ios" || platform === "ipad":
+            return "ios-ipad-template";
+          case platform === "macos":
+            return "macos-template";
+          default:
+            return "unsupported-template";
         }
-
-        return templateId;
       };
 
       // renders the content based on the template id
@@ -416,11 +465,23 @@
             setEnrollTokenUrl(data.android_enrollment_url);
           } catch (error) {
             renderError(
-              "This URL is invalid.",
-              "Enroll secret is invalid. Please contact your IT admin."
+              "Couldn't get Android enrollment token.",
+              "Please refresh the page. If the issue continues, contact your IT admin."
             );
             return;
           }
+        }
+
+        // handle rendering for macos
+        if (platform === "macos") {
+          if (!MAC_MDM_ENABLED) {
+            renderError(
+              "Apple MDM is turned off.",
+              "To enroll your Mac device please contact your IT admin."
+            );
+            return;
+          }
+          renderContent(templateId);
         }
 
         // handle rendering for ios and ipad

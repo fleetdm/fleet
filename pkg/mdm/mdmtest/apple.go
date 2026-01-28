@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -191,6 +192,27 @@ func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...Test
 	return &c
 }
 
+// NewTestMDMClientAppleDEPFromDevice will create a simulated device that will fetch
+// enrollment profile from Fleet as if it were a device running the DEP flow.
+// The deviceSerialNumber is used as the serial number of the device
+// The model is used as the model of the device
+func NewTestMDMClientAppleDEPFromDevice(serverURL string, depURLToken string, deviceSerialNumber string, model string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+	c := TestAppleMDMClient{
+		UUID:         strings.ToUpper(uuid.New().String()),
+		SerialNumber: deviceSerialNumber,
+		Model:        model,
+
+		fetchEnrollmentProfileFromDEPUsingPost: true,
+		depURLToken:                            depURLToken,
+
+		fleetServerURL: serverURL,
+	}
+	for _, fn := range opts {
+		fn(&c)
+	}
+	return &c
+}
+
 // NewTestMDMClientAppleDirect will create a simulated device that will not fetch the enrollment
 // profile from Fleet. The enrollment information is to be provided in the enrollInfo.
 func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, model string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
@@ -309,9 +331,53 @@ func (c *TestAppleMDMClient) UserEnroll() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
-	return c.fetchOTAProfile(
-		"/api/latest/fleet/device/" + c.desktopURLToken + "/mdm/apple/manual_enrollment_profile",
-	)
+	request, err := http.NewRequest("GET", c.fleetServerURL+"/api/latest/fleet/device/"+c.desktopURLToken+"/mdm/apple/manual_enrollment_profile", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	// #nosec (this client is used for testing only)
+	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: true,
+	}))
+
+	response, err := cc.Do(request)
+	if err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
+	}
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+
+	var dest struct {
+		EnrollURL string `json:"enroll_url,omitempty"`
+	}
+	err = json.Unmarshal(body, &dest)
+	if err != nil {
+		return fmt.Errorf("unmarshal response: %w", err)
+	}
+
+	if dest.EnrollURL == "" {
+		return errors.New("empty enroll URL in response")
+	}
+
+	urlParsed, err := url.Parse(dest.EnrollURL)
+	if err != nil {
+		return fmt.Errorf("parse enroll URL: %w", err)
+	}
+	q := urlParsed.Query()
+	es := q.Get("enroll_secret")
+	if es == "" {
+		return errors.New("missing enroll_secret in enroll URL")
+	}
+	c.otaEnrollSecret = es
+
+	return c.fetchEnrollmentProfileFromOTAURL()
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
@@ -473,16 +539,17 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	// believe this could be done with a little bit of reverse
 	// engineering/cleverness but for now, we're signing the request with
 	// our mock certs and setting this env var to skip the verification.
-	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+
 	mockedCert, mockedKey, err := apple_mdm.NewSCEPCACertKey()
 	if err != nil {
 		return fmt.Errorf("creating mock certificates: %w", err)
 	}
+	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	body, err = do(mockedCert, mockedKey)
+	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}
-	os.Unsetenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 
 	var scepInfo struct {
 		PayloadContent []struct {
@@ -803,6 +870,25 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 	return err
 }
 
+// UserAuthenticate sends the UserAuthenticate message to the MDM server (Check In protocol).
+// Note that this is separate from the UserTokenUpdate and Authenticate used in device+user enrollment above.
+// Fleet does not currently support UserAuthenticate so this is stubbed out just to test the HTTP error
+//
+// For more details see https://developer.apple.com/documentation/devicemanagement/userauthenticaterequest
+func (c *TestAppleMDMClient) UserAuthenticate() error {
+	if c.UUID == "" {
+		return errors.New("UUID must be set for UserAuthenticate")
+	}
+	payload := map[string]any{
+		"MessageType": "UserAuthenticate",
+		"UDID":        c.UUID,
+		"UserID":      uuid.New().String(),
+	}
+
+	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return err
+}
+
 // DeclarativeManagement sends a DeclarativeManagement checkin request to the server.
 //
 // The endpoint argument is used as the value for the `Endpoint` key in the request payload.
@@ -899,7 +985,7 @@ func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
-func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName string) (*mdm.Command, error) {
+func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName, timeZone string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":      "Acknowledged",
 		"UDID":        udid,
@@ -911,8 +997,22 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 			"OSVersion":               "17.5.1",
 			"ProductName":             productName,
 			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
+			"IsMDMLostModeEnabled":    false,
+			"TimeZone":                timeZone,
 		},
 	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeDeviceLocation(udid, cmdUUID string, lat, long float64) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        udid,
+		"CommandUUID": cmdUUID,
+		"Latitude":    lat,
+		"Longitude":   long,
+	}
+
 	return c.sendAndDecodeCommandResponse(payload)
 }
 

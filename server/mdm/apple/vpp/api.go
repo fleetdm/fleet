@@ -2,17 +2,20 @@ package vpp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 )
 
 // Asset is a product in the store.
@@ -153,7 +156,33 @@ type AssetFilter struct {
 }
 
 // GetAssets fetches the assets from Apple's VPP API with optional filters.
-func GetAssets(token string, filter *AssetFilter) ([]Asset, error) {
+func GetAssets(ctx context.Context, token string, filter *AssetFilter) ([]Asset, error) {
+	var assets []Asset
+	var returnErr error
+
+	_ = retry.Do(func() error {
+		var err error
+		assets, err = getAssetsOnce(ctx, token, filter)
+		returnErr = err
+
+		var ne net.Error
+		// if we still have some time left on the current request's context
+		// deadline and the error is a timeout, we may retry
+		if dl, _ := ctx.Deadline(); (dl.IsZero() || time.Until(dl) >= time.Second) && errors.As(err, &ne) && ne.Timeout() {
+			// will retry
+			return err
+		}
+		// returnErr may be != nil, but it's not an error that we should retry
+		return nil
+	},
+		retry.WithBackoffMultiplier(3),
+		retry.WithInterval(100*time.Millisecond),
+		retry.WithMaxAttempts(3),
+	)
+	return assets, returnErr
+}
+
+func getAssetsOnce(ctx context.Context, token string, filter *AssetFilter) ([]Asset, error) {
 	baseURL := getBaseURL() + "/assets"
 	reqURL, err := url.Parse(baseURL)
 	if err != nil {
@@ -175,7 +204,7 @@ func GetAssets(token string, filter *AssetFilter) ([]Asset, error) {
 		reqURL.RawQuery = query.Encode()
 	}
 
-	req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
 	}
@@ -333,7 +362,7 @@ func do[T any](req *http.Request, token string, dest *T) error {
 }
 
 func getBaseURL() string {
-	devURL := os.Getenv("FLEET_DEV_VPP_URL")
+	devURL := dev_mode.Env("FLEET_DEV_VPP_URL")
 	if devURL != "" {
 		return devURL
 	}

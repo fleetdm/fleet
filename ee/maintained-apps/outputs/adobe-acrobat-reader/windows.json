@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "25.001.21111",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe';"
+      },
+      "installer_url": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2500121111/AcroRdrDCx642500121111_MUI.exe",
+      "install_script_ref": "7dc0b065",
+      "uninstall_script_ref": "3bb10c80",
+      "sha256": "ccb067c006606fee5d75b5bc0ea6274e7991e6a1911280cc63ff1463cb13f7cd",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "3bb10c80": "# Attempts to locate Adobe Acrobat Reader uninstaller from registry and execute it silently\n\n$displayName = \"Adobe Acrobat (64-bit)\"\n$publisher = \"Adobe\"\n\n$paths = @(\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n    'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n    'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n    $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n        $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -eq $publisher)\n    }\n    if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n# Kill any running Acrobat Reader processes before uninstalling\n$acrobatProcesses = @(\"AcroRd32\", \"Acrobat\", \"RdrCEF\")\nforeach ($proc in $acrobatProcesses) {\n    Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue\n}\n\n$uninstallCommand = $uninstall.UninstallString\n\n# Adobe typically uses MsiExec for uninstall\n# Parse the command to extract the product code\nif ($uninstallCommand -match \"MsiExec\\.exe\\s+/[IX]\\s*(\\{[A-F0-9-]+\\})\") {\n    $productCode = $Matches[1]\n    $uninstallArgs = \"/X $productCode /qn /norestart\"\n    $uninstallCommand = \"MsiExec.exe\"\n} else {\n    Write-Host \"Error: Unable to parse uninstall command: $uninstallCommand\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    # Wait for any remaining MsiExec processes to complete\n    # MsiExec can return before the uninstall is fully complete\n    $timeout = 60\n    $elapsed = 0\n    while ((Get-Process -Name \"msiexec\" -ErrorAction SilentlyContinue) -and ($elapsed -lt $timeout)) {\n        Start-Sleep -Seconds 2\n        $elapsed += 2\n        Write-Host \"Waiting for MsiExec to complete... ($elapsed seconds)\"\n    }\n\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "7dc0b065": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    # Adobe Acrobat Reader uses specific silent install arguments\n    # -sfx_nu: No user interface for extraction\n    # /sAll: Silent installation for all components\n    # /rs: Suppress reboot\n    # /msi: Use MSI installer contained within the EXE\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"-sfx_nu /sAll /rs /msi\"\n        PassThru = $true\n        Wait = $true\n    }\n\n    # Start process and track exit code\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    # Prints the exit code\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

@@ -16,15 +16,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"runtime"
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/host"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/getsentry/sentry-go"
 	"go.elastic.co/apm/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type key int
@@ -118,21 +120,9 @@ func setMetadata(ctx context.Context, data map[string]interface{}) map[string]in
 
 	data["timestamp"] = nowFn().Format(time.RFC3339)
 
-	if h, ok := host.FromContext(ctx); ok {
-		data["host"] = map[string]interface{}{
-			"platform":        h.Platform,
-			"osquery_version": h.OsqueryVersion,
-		}
-	}
-
-	if v, ok := viewer.FromContext(ctx); ok {
-		vdata := map[string]interface{}{}
-		data["viewer"] = vdata
-		vdata["is_logged_in"] = v.IsLoggedIn()
-
-		if v.User != nil {
-			vdata["sso_enabled"] = v.User.SSOEnabled
-		}
+	// Get diagnostic context from all registered providers
+	for _, provider := range getErrorContextProviders(ctx) {
+		maps.Copy(data, provider.GetDiagnosticContext())
 	}
 
 	return data
@@ -212,7 +202,7 @@ func Wrapf(ctx context.Context, cause error, format string, args ...interface{})
 
 // Cause returns the root error in err's chain.
 func Cause(err error) error {
-	return fleet.Cause(err)
+	return platform_http.Cause(err)
 }
 
 // FleetCause is similar to Cause, but returns the root-most
@@ -291,55 +281,138 @@ func FromContext(ctx context.Context) Handler {
 
 // Handle handles err by passing it to the registered error handler,
 // deduplicating it and storing it for a configured duration. It also takes
-// care of sending it to the configured APM, if any.
+// care of sending it to the configured OpenTelemetry/APM/Sentry, if any.
 func Handle(ctx context.Context, err error) {
+	if err == nil {
+		return
+	}
+
 	// as a last resource, wrap the error if there isn't
 	// a FleetError in the chain
 	var ferr *FleetError
 	if !errors.As(err, &ferr) {
-		err = Wrap(ctx, err, "missing FleetError in chain")
+		wrapped := wrapError(ctx, "missing FleetError in chain", err, nil)
+		if wrapped == nil {
+			return // shouldn't happen since err is not nil, but be safe
+		}
+		// wrapError returns an error interface, but we know it's a *FleetError
+		ferr = wrapped.(*FleetError)
 	}
 
-	cause := err
-	if ferr := FleetCause(err); ferr != nil {
+	cause := ferr
+	if rootCause := FleetCause(ferr); rootCause != nil {
 		// use the FleetCause error so we send the most relevant stacktrace to APM
 		// (the one from the initial New/Wrap call).
-		cause = ferr
+		cause = rootCause
 	}
 
-	// send to elastic APM
-	apm.CaptureError(ctx, cause).Send()
+	// Collect telemetry context from registered providers
+	telemetryAttrs := collectTelemetryContext(ctx)
 
-	// if Sentry is configured, capture the error there
-	if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {
-		// sentry is configured, add contextual information if available
-		v, _ := viewer.FromContext(ctx)
-		h, _ := host.FromContext(ctx)
+	// Check if this is a client error. Per OTEL semantic conventions,
+	// 4xx errors on server spans MUST NOT set span status to Error.
+	// See: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+	clientErr := isClientError(err)
+	exceptionType := fmt.Sprintf("%T", Cause(cause)) // type of root error
 
-		if v.User != nil || h != nil {
-			// we have a viewer (user) or a host in the context, use this to
-			// enrich the error with more context
-			ctxHub := sentry.CurrentHub().Clone()
-			if v.User != nil {
-				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
-					scope.SetTag("email", v.User.Email)
-					scope.SetTag("user_id", fmt.Sprint(v.User.ID))
-				})
-			} else if h != nil {
-				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
-					scope.SetTag("hostname", h.Hostname)
-					scope.SetTag("host_id", fmt.Sprint(h.ID))
-				})
+	// Record metrics for both client and server errors
+	if clientErr {
+		clientErrorsCounter.Add(ctx, 1, clientErrorCounterAttrs(exceptionType))
+	} else {
+		serverErrorsCounter.Add(ctx, 1, serverErrorCounterAttrs(exceptionType))
+	}
+
+	// Only record exception events for server errors (5xx).
+	// Per OTEL spec, handled errors (like 4xx responses) should not be recorded as exceptions.
+	// See: https://opentelemetry.io/docs/specs/semconv/general/recording-errors/
+	if !clientErr {
+		if span := trace.SpanFromContext(ctx); span != nil && span.IsRecording() {
+			span.SetStatus(codes.Error, exceptionType)
+
+			// Build attributes for the event using OTEL semantic conventions.
+			// See: https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/
+			attrs := []attribute.KeyValue{
+				attribute.String("exception.type", exceptionType),
+				attribute.String("exception.message", cause.Error()),
+				attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
 			}
-			ctxHub.CaptureException(cause)
-		} else {
-			sentry.CaptureException(cause)
+
+			// Add contextual information from telemetry providers.
+			// OpenTelemetry requires typed attributes, so we convert the values to the appropriate type.
+			for k, v := range telemetryAttrs {
+				switch val := v.(type) {
+				case string:
+					attrs = append(attrs, attribute.String(k, val))
+				case int:
+					attrs = append(attrs, attribute.Int64(k, int64(val)))
+				case int64:
+					attrs = append(attrs, attribute.Int64(k, val))
+				case uint:
+					attrs = append(attrs, attribute.Int64(k, int64(val))) //nolint:gosec
+				case uint64:
+					attrs = append(attrs, attribute.Int64(k, int64(val))) //nolint:gosec
+				case bool:
+					attrs = append(attrs, attribute.Bool(k, val))
+				default:
+					attrs = append(attrs, attribute.String(k, fmt.Sprint(val)))
+				}
+			}
+
+			span.AddEvent("exception", trace.WithAttributes(attrs...))
+		}
+
+		// send to elastic APM
+		apm.CaptureError(ctx, cause).Send()
+
+		// if Sentry is configured, capture the error there
+		if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {
+			if len(telemetryAttrs) > 0 {
+				// we have contextual information, use it to enrich the error
+				ctxHub := sentry.CurrentHub().Clone()
+				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
+					for k, v := range telemetryAttrs {
+						scope.SetTag(k, fmt.Sprint(v))
+					}
+				})
+				ctxHub.CaptureException(cause)
+			} else {
+				sentry.CaptureException(cause)
+			}
 		}
 	}
 
 	if eh := FromContext(ctx); eh != nil {
-		eh.Store(err)
+		eh.Store(ferr)
 	}
+}
+
+// collectTelemetryContext gathers telemetry context from all registered providers.
+func collectTelemetryContext(ctx context.Context) map[string]any {
+	attrs := make(map[string]any)
+	for _, provider := range getErrorContextProviders(ctx) {
+		if telemetry := provider.GetTelemetryContext(); telemetry != nil {
+			maps.Copy(attrs, telemetry)
+		}
+	}
+	return attrs
+}
+
+// isClientError checks if the error is a client error (4xx).
+func isClientError(err error) bool {
+	// Check for explicit client error interface
+	var clientErr platform_http.ErrWithIsClientError
+	if errors.As(err, &clientErr) {
+		return clientErr.IsClientError()
+	}
+
+	// Treat context.Canceled as a client error. In HTTP handlers, this typically
+	// indicates client disconnection. While it could theoretically come from
+	// server-side cancellation, detecting true client disconnection at the
+	// transport layer is complex. Go's HTTP server doesn't provide a distinct
+	// error type for client disconnection (see https://github.com/golang/go/issues/64465).
+	// The occasional misclassification is acceptable given that most context
+	// cancellations in request handling are client-initiated.
+	return errors.Is(err, context.Canceled)
 }
 
 // Retrieve retrieves an error from the registered error handler

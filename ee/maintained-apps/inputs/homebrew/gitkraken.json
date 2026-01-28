@@ -1,0 +1,8 @@
+{
+  "name": "GitKraken",
+  "unique_identifier": "com.axosoft.gitkraken",
+  "token": "gitkraken",
+  "installer_format": "zip",
+  "slug": "gitkraken/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -7,15 +7,10 @@
     gap: $pad-medium;
   }
 
-  &__status-message {
-    display: flex;
-    align-items: center;
-    gap: $pad-small;
-    margin: 0;
-    .icon {
-      align-self: flex-start;
-    }
+  &__update-tip {
+    margin-top: $pad-medium;
   }
+
   .data-set__horizontal {
     flex-direction: row;
   }

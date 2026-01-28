@@ -269,6 +269,9 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 				return false, nil
 			}
+			ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+				return &fleet.HostDEPAssignment{}, nil
+			}
 
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				return map[string]error{}, nil
@@ -560,6 +563,11 @@ func TestMDMLockCommand(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
+
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -836,6 +844,11 @@ func TestMDMUnlockCommand(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
+
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -1209,6 +1222,10 @@ func TestMDMWipeCommand(t *testing.T) {
 		return host.MDM.ConnectedToFleet != nil && *host.MDM.ConnectedToFleet, nil
 	}
 
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
 
@@ -1316,6 +1333,11 @@ func setupTestServer(t *testing.T) *mock.Store {
 
 	enqueuer.EnqueueDeviceWipeCommandFunc = func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
 		return nil
+	}
+
+	enqueuer.GetPendingLockCommandFunc = func(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+		// Return nil to indicate no pending lock command
+		return nil, "", nil
 	}
 
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{

@@ -1,0 +1,19 @@
+.icon-status-message {
+  display: flex;
+  align-items: flex-start;
+  gap: $pad-small;
+  font-size: $x-small;
+}
+
+.icon-status-message__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px; // Icon width
+  height: 1.5em; // Aligns with first line height
+}
+
+.icon-status-message__content {
+  flex: 1;
+  line-height: 1.5;
+}

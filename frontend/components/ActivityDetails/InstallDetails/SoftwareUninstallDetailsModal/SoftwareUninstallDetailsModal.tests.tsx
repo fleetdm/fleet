@@ -15,7 +15,7 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
         status="pending_uninstall"
         softwareName="CoolApp"
         softwarePackageName="com.cool.app"
-        isDUP={false}
+        isMyDevicePage={false}
       />
     );
 
@@ -36,7 +36,7 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
         hostDisplayName="Test Host"
         status="failed_uninstall"
         softwareName="CoolApp"
-        isDUP
+        isMyDevicePage
         contactUrl="http://support"
       />
     );
@@ -54,7 +54,7 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
         hostDisplayName="Test Host"
         status="failed_uninstall"
         softwareName="CoolApp"
-        isDUP={false}
+        isMyDevicePage={false}
         contactUrl="http://support"
       />
     );
@@ -74,7 +74,7 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
         softwareName="CoolApp"
         softwarePackageName="com.cool.app"
         timestamp="2025-08-10T12:00:00Z"
-        isDUP={false}
+        isMyDevicePage={false}
       />
     );
 

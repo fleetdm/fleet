@@ -41,6 +41,8 @@ export const generateWinDiskEncryptionSetting = (
     status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
     detail: generateWindowsDiskEncryptionMessage(diskEncryptionStatus, detail),
     operation_type: null,
+    scope: null,
+    managed_local_account: null,
   };
 };
 
@@ -61,6 +63,8 @@ export const generateLinuxDiskEncryptionSetting = (
     status: diskEncryptionStatus,
     detail,
     operation_type: null,
+    scope: null,
+    managed_local_account: null,
   };
 };
 
@@ -70,7 +74,8 @@ export type HostMdmDeviceStatusUIState =
   | "unlocking"
   | "locking"
   | "wiped"
-  | "wiping";
+  | "wiping"
+  | "locating";
 
 // Exclude the empty string from HostPendingAction as that doesn't represent a
 // valid device status.
@@ -84,6 +89,7 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
   wiped: "wiped",
   wipe: "wiping",
+  location: "locating",
 };
 
 const deviceUpdatingStates = ["unlocking", "locking", "wiping"] as const;

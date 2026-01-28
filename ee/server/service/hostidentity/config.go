@@ -25,7 +25,13 @@ func initAssets(ds fleet.Datastore) error {
 
 	if len(savedAssets) != len(expectedAssets) {
 		// Then we should create them
-		scepCert, scepKey, err := depot.NewSCEPCACertKey()
+		caCert := depot.NewCACert(
+			depot.WithYears(10),
+			depot.WithCommonName("Fleet Host Identity CA"),
+			// Signal that the CA is local to the deployment and not necessarily managed by Fleet or another external vendor
+			depot.WithOrganization("Local Certificate Authority"),
+		)
+		scepCert, scepKey, err := depot.NewCACertKey(caCert)
 		if err != nil {
 			return fmt.Errorf("generating host identity SCEP cert and key: %w", err)
 		}

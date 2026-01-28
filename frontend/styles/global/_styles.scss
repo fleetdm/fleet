@@ -31,7 +31,7 @@
 
   &.left {
     &::after {
-      border-color: transparent $core-white transparent transparent;
+      border-color: transparent $core-fleet-white transparent transparent;
       border-width: 15px;
       right: 99%;
       top: 23px;
@@ -48,7 +48,7 @@
 
   &.right {
     &::after {
-      border-color: transparent transparent transparent $core-white;
+      border-color: transparent transparent transparent $core-fleet-white;
       border-width: 15px;
       left: 99%;
       top: 23px;

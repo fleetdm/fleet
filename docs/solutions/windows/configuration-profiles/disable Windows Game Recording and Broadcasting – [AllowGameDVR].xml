@@ -1,0 +1,12 @@
+<Replace>
+  <!-- Disable Windows Game Recording and Broadcasting -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowGameDVR</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>

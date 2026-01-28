@@ -31,7 +31,7 @@ type launcherWrapper struct {
 }
 
 func (svc *launcherWrapper) RequestEnrollment(ctx context.Context, enrollSecret, hostIdentifier string, _ service.EnrollmentDetails) (string, bool, error) {
-	nodeKey, err := svc.tls.EnrollAgent(ctx, enrollSecret, hostIdentifier, map[string](map[string]string){})
+	nodeKey, err := svc.tls.EnrollOsquery(ctx, enrollSecret, hostIdentifier, map[string](map[string]string){})
 	if err != nil {
 		var authErr nodeInvalidErr
 		if errors.As(err, &authErr) {

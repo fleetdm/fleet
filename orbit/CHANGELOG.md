@@ -1,13 +1,94 @@
-## Orbit 1.47.0 (Sep 02, 2025)
+## Orbit 1.51.0 (Jan 20, 2026)
+
+* Improved "Fleet Desktop" description in Windows' system tray.
+
+* Updated Orbit CA certs.
+
+* Switched Fleet logo in macOS Desktop from a PNG to an SVG.
+
+* Fixed bugs in auto-update of `.tar.gz` components ("Fleet Desktop" and osqueryd) in orbit.
+
+* Updated go to 1.25.5.
+
+* Fixed macOS `fleet-desktop` that was being displayed as dirty by `go version -m`.
+
+* Updated github.com/shoenig/go-m1cpu to v0.1.7 to fix a build warning on Apple silicon.
+
+* Implemented the `executable_hashes` `fleetd` table, providing easy access to the sha256 hashes of a binary, either passed directly via a PATH clause, or discovered within a .app bundle when the path to the bundle is provided in the WHERE clause.
+
+## Orbit 1.50.2 (Dec 12, 2025)
+
+* Fixed an issue where macOS devices would fail to enroll when end-user authentication was configured.
+
+## Orbit 1.50.1 (Nov 27, 2025)
+
+* Upgraded macadmins osquery-extension to v1.2.7.
+
+* Exposed `crowdstrike_falcon` osquery table from macadmins extension.
+
+* Added support for requiring end-user authentication before enrolling Windows and Linux devices.
+
+* Added `yaml_to_json` table for converting YAML in input to JSON in output.  
+
+* Added `file_contents` table for retrieving contents of a file. This table is like `file_lines` but returns the full file contents in a single row rather than a separate row for each line.
+
+* Fixed handling of various parsing bugs that caused the falconctl_options table to fail to load in some circumsatances.
+
+## Orbit 1.49.1 (Oct 27, 2025)
+
+* Added `mcp_listening_servers` table to find MCP servers listening over HTTP.
+
+* Added `santa_status`, `santa_allowed`, and `santa_denied` tables for Santa support.
+
+* Added windows support for web setup experience.
+
+* Setup experience for macOS hosts may now be configured to halt if any software install fails (requires Fleet server 4.76.0)
+
+* Added Contact IT button when MDM migration fails and Organization support URL is set up on Fleet server.
+
+* Improved orbit debug logs when HTTP response contains a large HTML page.
+
+## Orbit 1.48.1 (Sep 24, 2025)
+
+* During setup experience, try software installs up to 3 times by default in case of intermittent failures.
+
+* Added agent support for setup experience on Linux
+
+* Add `fleetd_pacman_packages` table for `pacman` package manager
+
+* Fixed desktop app launch on some Linux systems by reverting to using sudo.
+
+* Fixed Fleet Desktop failing to launch the browser, or launching the wrong browser, in Wayland sessions and/or when the browser is installed as a Flatpak or Snap.
+
+* Added logic to detect OpenSUSE to address emoji rendering issues in Fleet Desktop system tray menu
+
+* Fixed duplicate enrolled macOS UUIDs/SNs: for macOS, orbit saves hardware UUID to a file and forces a re-enrollment if the hardware UUID has changed. Existing duplicate hosts on the server are unaffected by this agent change.
+
+* Fixed issue with `orbit shell` ignoring disable updates flag.
+
+* Since new macOS/Linux packages built with `fleetctl 4.75.0` or higher do not have embedded osqueryd.app.tar.gz and desktop.tar.gz, orbit can now use osqueryd.app.tar.gz.sha512 and desktop.tar.gz.sha512/desktop.app.tar.gz.sha512 hash caches to check if an update is needed.
+
+* Updated go to 1.25.1
+
+* Updated httpsig-go library to 1.2.0 (for host identity certificates and HTTP message signatures).
+
+## Orbit 1.47.4 (Sep 11, 2025)
+
+* Updated Swift Dialog in Fleet's TUF repo to 2.5.6 and modified Migration dialog layout to display properly with 2.5.6.
+
+## Orbit 1.47.3 (Sep 10, 2025)
+
+* Fixed a crash loop on Fleet Free when Fleet Desktop is enabled.
+
+## Orbit 1.47.2 (Sep 04, 2025)
 
 * Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.
-
-* Orbit now sets `DEBIAN_FRONTEND=noninteractive` by default when installing Debian packages. This prevents package installation from hanging for debconf questions. Administrators may override this in install scripts if desired.
-  * Note that installs can still hang when a configuration file differs from the version originally installed by the package. You'll need to include `--force-confdef` (or `confnew` or `confold`) in the `dpkg` command (wrap with `-o Dpkg::Options='...'` if installing using `apt`) to prevent dpkg from hanging in these cases.
 
 * Added automatic host identity certificate renewal for TPM-backed certificates. When a certificate is within 180 days of expiration, orbit will automatically renew it using proof-of-possession with the existing certificate's private key.
 
 * Updated go to 1.24.6
+
+* Fixed issues with attestations: https://github.com/fleetdm/fleet/attestations
 
 ## Orbit 1.46.0 (Aug 15, 2025)
 

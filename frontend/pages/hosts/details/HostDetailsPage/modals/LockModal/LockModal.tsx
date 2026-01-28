@@ -1,14 +1,50 @@
 import React, { useContext } from "react";
+import { Link } from "react-router";
 
+import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import hostAPI from "services/entities/hosts";
+import { isIPadOrIPhone } from "interfaces/platform";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import CustomLink from "components/CustomLink";
+import Card from "components/Card";
+
+import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
+import IpadLockPreview from "../../../../../../../assets/images/ipad-lock-preview.png";
 
 const baseClass = "lock-modal";
+
+const IosOrIpadLockPreview = ({ platform }: { platform: string }) => {
+  const isIPad = platform === "ipados";
+  const previewImage = isIPad ? IpadLockPreview : IphoneLockPreview;
+  const altText = isIPad
+    ? "iPad with a lock screen message"
+    : "iPhone with a lock screen message";
+
+  return (
+    <Card
+      color="grey"
+      paddingSize="xlarge"
+      className={`${baseClass}__ios-ipad-lock-preview`}
+    >
+      <h3>End user experience</h3>
+      <p>
+        Instead of &quot;Fleet&quot;, the message will show the{" "}
+        <b>Organization name</b> that you configured in{" "}
+        <CustomLink
+          url={PATHS.ADMIN_ORGANIZATION_INFO}
+          text="Organization settings"
+        />
+        .
+      </p>
+      <img src={previewImage} alt={altText} />
+    </Card>
+  );
+};
 
 interface ILockModalProps {
   id: number;
@@ -38,21 +74,47 @@ const LockModal = ({
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
-    onClose();
     setIsLocking(false);
   };
 
+  const renderDescription = () => {
+    if (isIPadOrIPhone(platform)) {
+      return (
+        <>
+          <p>
+            This enables what Apple calls{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/managed-lost-mode"
+              newTab
+              text="Lost Mode"
+            />
+            .
+          </p>
+          <p> It can only be unlocked through Fleet.</p>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <p>Lock a host when it needs to be returned to your organization.</p>
+        {platform === "darwin" && (
+          <p>Fleet will generate a six-digit unlock PIN.</p>
+        )}
+      </>
+    );
+  };
+
   return (
-    <Modal className={baseClass} title="Lock host" onExit={onClose}>
+    <Modal className={baseClass} title="Lock" onExit={onClose}>
       <>
         <div className={`${baseClass}__modal-content`}>
-          <p>Lock a host when it needs to be returned to your organization.</p>
-          {platform === "darwin" && (
-            <p>Fleet will generate a six-digit unlock PIN.</p>
-          )}
+          <div className={`${baseClass}__description`}>
+            {renderDescription()}
+          </div>
           <div className={`${baseClass}__confirm-message`}>
             <span>
-              <b>Please check to confirm:</b>
+              <b>Confirm:</b>
             </span>
             <Checkbox
               wrapperClassName={`${baseClass}__lock-checkbox`}
@@ -63,7 +125,9 @@ const LockModal = ({
             </Checkbox>
           </div>
         </div>
-
+        {isIPadOrIPhone(platform) && (
+          <IosOrIpadLockPreview platform={platform} />
+        )}
         <div className="modal-cta-wrap">
           <Button
             type="button"
@@ -72,7 +136,7 @@ const LockModal = ({
             disabled={!lockChecked}
             isLoading={isLocking}
           >
-            Done
+            Lock
           </Button>
           <Button onClick={onClose} variant="inverse">
             Cancel

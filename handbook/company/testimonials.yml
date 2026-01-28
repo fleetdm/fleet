@@ -21,9 +21,9 @@
   quote: Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
   quoteAuthorName: Luis Madrigal
   quoteAuthorProfileImageFilename: testimonial-author-luis-madrigal-100x100@2x.png
-  quoteImageFilename: logo-mr-beast-130x73@2x.png
+  quoteImageFilename: social-proof-logo-uber-71x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/luismadrigal/
-  quoteAuthorJobTitle: CIO @ MrBeast
+  quoteAuthorJobTitle: Former Engineering Leader, Uber
   productCategories: [Device management, Observability, Software management]
 -
   quote: Yes Sir. Great tools for the everyday open-source geeks 💯
@@ -283,10 +283,17 @@
   quoteAuthorProfileImageFilename: testimonial-author-roger-cantrell-100x100@2x.png 
   productCategories: [Device management]
 -
-  quote: The POC actually went really well for us. Within the first couple of days I was already on-board and ready to go. I knew it was the solution for us and didn't need to look at anything else [for Linux MDM].
-  quoteImageFilename: logo-northwestern-162x20@2x.png
-  quoteLinkUrl: https://www.linkedin.com/in/chotipradit/
-  quoteAuthorName: Philip Chotipradit
-  quoteAuthorJobTitle: System Administrator - Endpoint Engineering
-  quoteAuthorProfileImageFilename: testimonial-author-philip-chotipradit-100x100@2x.png
+  quote: "The customer support and care has been 'world class'. Even on the other side of the world."
+  quoteImageFilename: logo-jumo-96x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/davidbodmer/
+  quoteAuthorName: David Bodmer
+  quoteAuthorJobTitle: IT Systems Engineer
+  quoteAuthorProfileImageFilename: testimonial-author-david-bodmer-48x48@2x.png
+  productCategories: [Device management]
+-
+  quote: Fleet is the best multi-OS MDM on the market currently and is improving daily. Fleet makes sense for me because of their amazing support, transparent and detailed reporting, app updating functionality, self-service, and macOS DDM support.
+  quoteLinkUrl: https://www.linkedin.com/in/fiona-s-84a20a36/
+  quoteAuthorName: Fiona Skelton
+  quoteAuthorJobTitle: Senior Technology Specialist
+  quoteAuthorProfileImageFilename: testimonial-author-fiona-skelton-100x100@2x.jpeg
   productCategories: [Device management]

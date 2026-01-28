@@ -4,13 +4,13 @@ import { render, screen } from "@testing-library/react";
 import RegistrationForm from "components/forms/RegistrationForm";
 
 describe("RegistrationForm - component", () => {
-  it("renders AdminDetails and header on the first page", () => {
+  it("renders AdminDetails on the first page", () => {
     const { container } = render(<RegistrationForm page={1} />);
 
     expect(
       container.querySelectorAll(".user-registration__container--admin").length
     ).toEqual(1);
-    expect(screen.getByText("Set up user")).toBeInTheDocument();
+    // headers moved up to parent RegistrationPage.tsx
   });
 
   it("renders OrgDetails on the second page", () => {
@@ -19,7 +19,6 @@ describe("RegistrationForm - component", () => {
     expect(
       container.querySelectorAll(".user-registration__container--org").length
     ).toEqual(1);
-    expect(screen.getByText("Organization details")).toBeInTheDocument();
   });
 
   it("renders FleetDetails on the third page", () => {
@@ -28,7 +27,6 @@ describe("RegistrationForm - component", () => {
     expect(
       container.querySelectorAll(".user-registration__container--fleet").length
     ).toEqual(1);
-    expect(screen.getByText("Set Fleet URL")).toBeInTheDocument();
   });
 
   it("renders ConfirmationPage on the fourth page", () => {
@@ -38,6 +36,5 @@ describe("RegistrationForm - component", () => {
       container.querySelectorAll(".user-registration__container--confirmation")
         .length
     ).toEqual(1);
-    expect(screen.getByText("Confirm configuration")).toBeInTheDocument();
   });
 });

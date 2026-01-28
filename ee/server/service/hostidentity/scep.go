@@ -13,17 +13,19 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -52,7 +54,7 @@ func (e *RateLimitError) StatusCode() int { return http.StatusTooManyRequests }
 // It checks for FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS environment variable
 // and falls back to scepValidityDays if not set or invalid.
 func getCertValidityDays() int {
-	if envValue := os.Getenv("FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS"); envValue != "" {
+	if envValue := dev_mode.Env("FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS"); envValue != "" {
 		if days, err := strconv.Atoi(envValue); err == nil && days > 0 {
 			return days
 		}
@@ -66,7 +68,11 @@ func RegisterSCEP(
 	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	fleetConfig *config.FleetConfig,
 ) error {
+	if fleetConfig == nil {
+		return errors.New("fleet config is nil")
+	}
 	err := initAssets(ds)
 	if err != nil {
 		return fmt.Errorf("initializing host identity assets: %w", err)
@@ -89,12 +95,12 @@ func RegisterSCEP(
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 
-	// Note: Monitoring (APM/OpenTel) is missing for this SCEP server.
-	// In addition, the scepserver error handler does not send errors to APM/Sentry/Redis.
+	// The scepserver error handler does not send errors to APM/Sentry/Redis.
 	// It should be enhanced to do so if/when we start monitoring error traces.
 	// This note also applies to the other SCEP servers we use.
 	// That is why we're not using ctxerr wrappers here.
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
+	scepHandler = otel.WrapHandler(scepHandler, scepPath, *fleetConfig)
 	mux.Handle(scepPath, scepHandler)
 	return nil
 }

@@ -10,6 +10,7 @@ import FilePy from "./FilePy";
 import FileScript from "./FileScript";
 import FilePdf from "./FilePdf";
 import FilePkg from "./FilePkg";
+import FilePng from "./FilePng";
 import FileP7m from "./FileP7m";
 import FilePem from "./FilePem";
 import FileVpp from "./FileVpp";
@@ -47,6 +48,7 @@ export const GRAPHIC_MAP = {
   "file-script": FileScript,
   "file-pdf": FilePdf,
   "file-pkg": FilePkg,
+  "file-png": FilePng,
   "file-p7m": FileP7m,
   "file-pem": FilePem,
   "file-vpp": FileVpp,

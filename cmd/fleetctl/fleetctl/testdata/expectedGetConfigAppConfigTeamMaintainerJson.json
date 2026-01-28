@@ -26,11 +26,21 @@
       "activity_expiry_enabled": false,
       "activity_expiry_window": 0
     },
+    "conditional_access": {
+      "microsoft_entra_tenant_id": "",
+      "microsoft_entra_connection_configured": false,
+      "okta_idp_id": null,
+      "okta_assertion_consumer_service_url": null,
+      "okta_audience_uri": null,
+      "okta_certificate": null,
+      "bypass_disabled": null
+    },
     "features": {
       "enable_host_users": true,
       "enable_software_inventory": false
     },
     "fleet_desktop": {
+      "alternative_browser_host": "",
       "transparency_url": "https://fleetdm.com/transparency"
     },
     "vulnerability_settings": {
@@ -64,9 +74,6 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
-      "ndes_scep_proxy": null,
-      "custom_scep_proxy": null,
-      "digicert": null,
       "conditional_access_enabled": null
     },
     "mdm": {
@@ -82,21 +89,25 @@
       "windows_require_bitlocker_pin": null,
       "macos_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "windows_updates": {
         "deadline_days": 7,
         "grace_period_days": 3
       },
       "windows_migration_enabled": false,
+      "enable_turn_on_windows_mdm_manually": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -112,9 +123,14 @@
         "enable_release_device_manually": false,
         "script": null,
         "software": null,
-        "manual_agent_install": null
+        "manual_agent_install": null,
+        "require_all_software_macos": false
       },
       "windows_settings": {
+        "custom_settings": null
+      },
+      "android_settings": {
+        "certificates": null,
         "custom_settings": null
       },
       "end_user_authentication": {

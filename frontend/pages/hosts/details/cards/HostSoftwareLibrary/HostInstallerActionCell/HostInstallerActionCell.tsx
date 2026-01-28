@@ -15,8 +15,9 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   IHostSoftwarePackage,
   IHostAppStoreApp,
-  SoftwareInstallStatus,
+  EnhancedSoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
+  SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
@@ -35,7 +36,7 @@ interface IActionButtonState {
 export interface IGetActionButtonStateProps {
   hostScriptsEnabled: boolean;
   softwareId: number;
-  status: SoftwareInstallStatus | null;
+  status: EnhancedSoftwareInstallUninstallStatus | null;
   softwarePackage: IHostSoftwarePackage | null;
   appStoreApp: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;
@@ -55,7 +56,10 @@ interface IHostInstallerActionButtonProps {
 
 interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
-  onClickInstallAction: (softwareId: number) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isSoftwarePackage?: boolean
+  ) => void;
   onClickUninstallAction: () => void;
   onClickOpenInstructionsAction?: () => void;
   baseClass: string;
@@ -69,10 +73,16 @@ export const getActionButtonState = ({
   hostScriptsEnabled,
   status,
   appStoreApp,
+  softwarePackage,
   hostMDMEnrolled,
   isMyDevicePage,
   installedVersionsDetected,
 }: IGetActionButtonStateProps): IActionButtonState => {
+  // Determine platform and management method
+  const platform = softwarePackage?.platform || "";
+  const isIpaOrAppStore = ["ipados", "ios"].includes(platform) || !!appStoreApp;
+
+  // Pending states take priority
   const isPending = ["pending_install", "pending_uninstall"].includes(
     status || ""
   );
@@ -101,7 +111,8 @@ export const getActionButtonState = ({
 
   /** If scripts are not enabled, software actions disabled with tooltip on
    * Host details > Software > Library but doesn't show to Fleet Desktop > Self-service. */
-  if (!hostScriptsEnabled && !appStoreApp) {
+  const requiresScripts = !isIpaOrAppStore;
+  if (requiresScripts && !hostScriptsEnabled) {
     return {
       installDisabled: true,
       uninstallDisabled: true,
@@ -112,8 +123,8 @@ export const getActionButtonState = ({
   }
 
   /** If MDM is not enrolled, software actions disabled with tooltip on
-    Host details > Software > Library but doesn't show Fleet Desktop > Self-service */
-  if (appStoreApp) {
+   * Host details > Software > Library but doesn't show Fleet Desktop > Self-service */
+  if (isIpaOrAppStore) {
     return {
       installDisabled: !hostMDMEnrolled,
       uninstallDisabled: true,
@@ -123,7 +134,12 @@ export const getActionButtonState = ({
     };
   }
 
-  return { installDisabled: false, uninstallDisabled: false };
+  // Default: actions enabled, no tooltips
+  return {
+    installDisabled: false,
+    uninstallDisabled: false,
+    moreDisabled: false,
+  };
 };
 
 const getMoreActionsDropdownOptions = (
@@ -172,13 +188,14 @@ export const HostInstallerActionButton = ({
       position="top"
     >
       <Button
-        variant="text-icon"
+        variant="inverse"
         type="button"
         className={`${baseClass}__item-action-button`}
         onClick={onClick}
         disabled={disabled}
+        size="small"
       >
-        <Icon name={icon} color="core-fleet-blue" size="small" />
+        <Icon name={icon} color="ui-fleet-black-75" size="small" />
         <span data-testid={testId}>{text}</span>
       </Button>
     </TooltipWrapper>
@@ -216,7 +233,18 @@ export const HostInstallerActionCell = ({
     uninstall: getInstallerActionButtonConfig("uninstall", ui_status),
   });
 
+  // Local “clicked” state so the button disables immediately
+  const [
+    isInstallUninstallPendingLocal,
+    setIsInstallUninstallPendingLocal,
+  ] = useState(false);
+
   useEffect(() => {
+    // reset local pending state when status leaves pending (API round‑trip finished)
+    if (status !== "pending_install" && status !== "pending_uninstall") {
+      setIsInstallUninstallPendingLocal(false);
+    }
+
     // We update the text/icon only when we see a change to a non-pending status
     // Pending statuses keep the original text shown (e.g. "Retry" text on failed
     // install shouldn't change to "Install" text because it was clicked and went
@@ -242,8 +270,13 @@ export const HostInstallerActionCell = ({
       "failed_uninstall",
     ].includes(ui_status);
 
+  const isIpaPackage =
+    (software.source === "ios_apps" || software.source === "ipados_apps") &&
+    !!software_package;
+
   const canUninstallSoftware =
     !app_store_app &&
+    !isIpaPackage &&
     !!software_package &&
     (installedVersionsDetected || installedTgzPackageDetected);
 
@@ -269,10 +302,23 @@ export const HostInstallerActionCell = ({
     installedVersionsDetected,
   });
 
+  // Wrap handlers to disable action button(s) immediately, important for slow connections/APIs
+  const handleInstallClick = () => {
+    if (installDisabled || isInstallUninstallPendingLocal) return;
+    setIsInstallUninstallPendingLocal(true);
+    onClickInstallAction(id, SCRIPT_PACKAGE_SOURCES.includes(software.source));
+  };
+
+  const handleUninstallClick = () => {
+    if (uninstallDisabled || isInstallUninstallPendingLocal) return;
+    setIsInstallUninstallPendingLocal(true);
+    onClickUninstallAction();
+  };
+
   const onSelectOption = (option: string) => {
     switch (option) {
       case "uninstall":
-        onClickUninstallAction();
+        handleUninstallClick();
         break;
       case "instructions":
         onClickOpenInstructionsAction && onClickOpenInstructionsAction();
@@ -285,8 +331,8 @@ export const HostInstallerActionCell = ({
     <HostInstallerActionButton
       baseClass={baseClass}
       tooltip={installTooltip}
-      disabled={installDisabled}
-      onClick={() => onClickInstallAction(id)}
+      disabled={installDisabled || isInstallUninstallPendingLocal}
+      onClick={handleInstallClick}
       icon={buttonDisplayConfig.install.icon}
       text={buttonDisplayConfig.install.text}
       testId={`${baseClass}__install-button--test`}
@@ -302,8 +348,8 @@ export const HostInstallerActionCell = ({
       <HostInstallerActionButton
         baseClass={baseClass}
         tooltip={uninstallTooltip}
-        disabled={uninstallDisabled}
-        onClick={onClickUninstallAction}
+        disabled={uninstallDisabled || isInstallUninstallPendingLocal}
+        onClick={handleUninstallClick}
         icon={buttonDisplayConfig.uninstall.icon}
         text={buttonDisplayConfig.uninstall.text}
         testId={`${baseClass}__uninstall-button--test`}
@@ -323,11 +369,11 @@ export const HostInstallerActionCell = ({
             options={getMoreActionsDropdownOptions(
               canViewOpenInstructions,
               canUninstallSoftware,
-              uninstallDisabled,
+              uninstallDisabled || isInstallUninstallPendingLocal,
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
             )}
-            variant="button"
+            variant="small-button"
             disabled={moreDisabled}
           />
         </div>

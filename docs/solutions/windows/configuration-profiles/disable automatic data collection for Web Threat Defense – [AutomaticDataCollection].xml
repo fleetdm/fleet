@@ -1,0 +1,12 @@
+<Replace>
+  <!-- Disables automatic data collection for defender smartscreen -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/WebThreatDefense/AutomaticDataCollection</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>

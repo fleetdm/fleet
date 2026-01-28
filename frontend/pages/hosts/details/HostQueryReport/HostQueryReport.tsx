@@ -14,7 +14,8 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 
-import BackLink from "components/BackLink";
+import Button from "components/buttons/Button";
+import BackButton from "components/BackButton";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -91,6 +92,7 @@ const HostQueryReport = ({
     description: queryDescription,
     query: querySQL,
     discard_data: queryDiscardData,
+    stats,
   } = queryResponse || {};
 
   // previous reroute can be done before API call, not this one, hence 2
@@ -115,26 +117,25 @@ const HostQueryReport = ({
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header__row1`}>
-          <BackLink
+          <BackButton
             text="Back to host details"
-            path={PATHS.HOST_QUERIES(hostId)}
+            path={PATHS.HOST_DETAILS_PAGE(hostId)}
           />
         </div>
         <div className={`${baseClass}__header__row2`}>
           {!hqrError && <h1 className="host-name">{hostName}</h1>}
-          <Link
-            // to and onClick seem redundant
-            to={fullReportPath}
+          <Button
+            variant="brand-inverse-icon"
             onClick={() => {
               browserHistory.push(fullReportPath);
             }}
-            className={`${baseClass}__direction-link`}
+            iconStroke
           >
             <>
-              <span>View full query report</span>
-              <Icon name="chevron-right" color="core-fleet-blue" />
+              View data for all hosts
+              <Icon name="chevron-right" color="core-fleet-green" />
             </>
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -148,8 +149,10 @@ const HostQueryReport = ({
         <>
           <HQRHeader />
           <HQRTable
+            queryId={queryId}
             queryName={queryName}
             queryDescription={queryDescription}
+            queryStats={stats}
             hostName={hostName}
             rows={rows}
             reportClipped={reportClipped}

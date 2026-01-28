@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -19,7 +20,6 @@ import (
 )
 
 var (
-	dev               bool
 	devLicense        bool
 	devExpiredLicense bool
 	lockDuration      time.Duration
@@ -36,14 +36,14 @@ will disable it on the server allowing the user configure their own 'cron' mecha
 by an exit code of zero.`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			cfg := configManager.LoadConfig()
-			if dev {
+			if dev_mode.IsEnabled {
 				applyDevFlags(&cfg)
 			}
 
 			logger := initLogger(cfg)
 			logger = kitlog.With(logger, fleet.CronVulnerabilities)
 
-			licenseInfo, err := initLicense(cfg, devLicense, devExpiredLicense)
+			licenseInfo, err := initLicense(&cfg, devLicense, devExpiredLicense)
 			if err != nil {
 				return err
 			}
@@ -67,6 +67,8 @@ by an exit code of zero.`,
 			switch status.StatusCode {
 			case fleet.AllMigrationsCompleted:
 				// only continue if db is considered up-to-date
+			case fleet.NeedsFleetv4732Fix, fleet.UnknownFleetv4732State:
+				migrationError = errors.New("database has misnumbered migrations from v4.73.2")
 			case fleet.NoMigrationsCompleted:
 				migrationError = errors.New("no migrations completed")
 			case fleet.SomeMigrationsCompleted:
@@ -110,7 +112,7 @@ by an exit code of zero.`,
 			}
 			level.Info(logger).Log("msg", "scanning vulnerabilities")
 			start := time.Now()
-			vulnFuncs := getVulnFuncs(ctx, ds, logger, &vulnConfig)
+			vulnFuncs := getVulnFuncs(ds, logger, &vulnConfig)
 			for _, vulnFunc := range vulnFuncs {
 				if err := vulnFunc.VulnFunc(ctx); err != nil {
 					return err
@@ -121,7 +123,7 @@ by an exit code of zero.`,
 			return
 		},
 	}
-	vulnProcessingCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	vulnProcessingCmd.PersistentFlags().BoolVar(&dev_mode.IsEnabled, "dev", false, "Enable developer options")
 	vulnProcessingCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 	vulnProcessingCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 	vulnProcessingCmd.PersistentFlags().DurationVar(
@@ -157,7 +159,7 @@ type NamedVulnFunc struct {
 	VulnFunc func(ctx context.Context) error
 }
 
-func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
+func getVulnFuncs(ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
 	vulnFuncs := []NamedVulnFunc{
 		{
 			Name: "cron_vulnerabilities",
@@ -172,9 +174,9 @@ func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			},
 		},
 		{
-			Name: "cron_reconcile_software_titles",
+			Name: "cron_cleanup_software_titles",
 			VulnFunc: func(ctx context.Context) error {
-				return ds.ReconcileSoftwareTitles(ctx)
+				return ds.CleanupSoftwareTitles(ctx)
 			},
 		},
 		{

@@ -95,7 +95,7 @@ dmg contents on the server, from Wikipedia:
 > Hierarchical File System (HFS), HFS Plus (HFS+), File Allocation Table (FAT),
 > ISO9660, and Universal Disk Format (UDF).
 
-Becuse we can't mount a `dmg` image in the server, and unless we find a
+Because we can't mount a `dmg` image in the server, and unless we find a
 creative way to hack around this, we'll need to implement the logic to in Go.
 
 The only [library I could find](https://github.com/blacktop/go-apfs) is a WIP,

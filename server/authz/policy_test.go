@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"testing"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
@@ -14,6 +16,9 @@ import (
 )
 
 const (
+	readAction = platform_authz.ActionRead
+
+	// Existing legacy code continues to use fleet package constants
 	read               = fleet.ActionRead
 	list               = fleet.ActionList
 	write              = fleet.ActionWrite
@@ -24,6 +29,7 @@ const (
 	selectiveRead      = fleet.ActionSelectiveRead
 	selectiveList      = fleet.ActionSelectiveList
 	cancelHostActivity = fleet.ActionCancelHostActivity
+	create             = fleet.ActionCreate
 )
 
 var auth *Authorizer
@@ -38,8 +44,8 @@ func init() {
 
 type authTestCase struct {
 	user   *fleet.User
-	object interface{}
-	action string
+	object any
+	action any
 	allow  bool
 }
 
@@ -125,6 +131,7 @@ func TestAuthorizeActivity(t *testing.T) {
 	t.Parallel()
 
 	activity := &fleet.Activity{}
+	bcActivity := &activity_api.Activity{}
 
 	runTestCases(t, []authTestCase{
 		// All global roles except GitOps can read activities.
@@ -135,12 +142,26 @@ func TestAuthorizeActivity(t *testing.T) {
 		{user: test.UserObserverPlus, object: activity, action: read, allow: true},
 		{user: test.UserGitOps, object: activity, action: read, allow: false},
 
-		// Team roles cannot read activites.
+		// Team roles cannot read activities.
 		{user: test.UserTeamAdminTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: activity, action: read, allow: false},
+
+		// Bounded context (bc) Activity - same authorization rules apply
+		{user: nil, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserAdmin, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserMaintainer, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserObserver, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserObserverPlus, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserGitOps, object: bcActivity, action: readAction, allow: false},
+		// Team roles cannot read activities.
+		{user: test.UserTeamAdminTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamObserverTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: bcActivity, action: readAction, allow: false},
 	})
 }
 
@@ -179,8 +200,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserAdmin, object: test.UserAdmin, action: writeRole, allow: true},
 		{user: test.UserAdmin, object: test.UserAdmin, action: changePwd, allow: true},
 
-		// Global maintainers cannot read/write users.
-		{user: test.UserMaintainer, object: user, action: read, allow: false},
+		// Global maintainers can read but not write users.
+		{user: test.UserMaintainer, object: user, action: read, allow: true},
 		{user: test.UserMaintainer, object: user, action: write, allow: false},
 		{user: test.UserMaintainer, object: user, action: writeRole, allow: false},
 		{user: test.UserMaintainer, object: user, action: changePwd, allow: false},
@@ -205,8 +226,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: writeRole, allow: false},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: changePwd, allow: true},
 
-		// Global observers cannot read/write users.
-		{user: test.UserObserver, object: user, action: read, allow: false},
+		// Global observers can read but not write users.
+		{user: test.UserObserver, object: user, action: read, allow: true},
 		{user: test.UserObserver, object: user, action: write, allow: false},
 		{user: test.UserObserver, object: user, action: writeRole, allow: false},
 		{user: test.UserObserver, object: user, action: changePwd, allow: false},
@@ -218,8 +239,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserObserver, object: test.UserObserver, action: writeRole, allow: false},
 		{user: test.UserObserver, object: test.UserObserver, action: changePwd, allow: true},
 
-		// Global observers+ cannot read/write users.
-		{user: test.UserObserverPlus, object: user, action: read, allow: false},
+		// Global observers+ can read but not write users.
+		{user: test.UserObserverPlus, object: user, action: read, allow: true},
 		{user: test.UserObserverPlus, object: user, action: write, allow: false},
 		{user: test.UserObserverPlus, object: user, action: writeRole, allow: false},
 		{user: test.UserObserverPlus, object: user, action: changePwd, allow: false},
@@ -456,36 +477,88 @@ func TestAuthorizeLabel(t *testing.T) {
 	t.Parallel()
 
 	label := &fleet.Label{}
+	authoredLabel := func(user *fleet.User) fleet.Label {
+		return fleet.Label{AuthorID: &user.ID}
+	}
+	sameTeamLabel := func(user *fleet.User) fleet.Label {
+		return fleet.Label{TeamID: &user.Teams[0].ID}
+	}
+	differentTeamLabel := func(user *fleet.User) fleet.Label {
+		return fleet.Label{TeamID: ptr.Uint(999)}
+	}
+
 	runTestCases(t, []authTestCase{
 		{user: nil, object: label, action: read, allow: false},
 		{user: nil, object: label, action: write, allow: false},
+		{user: nil, object: label, action: create, allow: false},
 
 		{user: test.UserNoRoles, object: label, action: read, allow: false},
 		{user: test.UserNoRoles, object: label, action: write, allow: false},
+		{user: test.UserNoRoles, object: label, action: create, allow: false},
 
 		{user: test.UserAdmin, object: label, action: read, allow: true},
 		{user: test.UserAdmin, object: label, action: write, allow: true},
+		{user: test.UserAdmin, object: label, action: create, allow: true},
 
 		{user: test.UserMaintainer, object: label, action: read, allow: true},
 		{user: test.UserMaintainer, object: label, action: write, allow: true},
+		{user: test.UserMaintainer, object: label, action: create, allow: true},
 
 		{user: test.UserObserver, object: label, action: read, allow: true},
 		{user: test.UserObserver, object: label, action: write, allow: false},
+		{user: test.UserObserver, object: label, action: create, allow: false},
 
 		{user: test.UserObserverPlus, object: label, action: read, allow: true},
 		{user: test.UserObserverPlus, object: label, action: write, allow: false},
+		{user: test.UserObserverPlus, object: label, action: create, allow: false},
 
 		{user: test.UserGitOps, object: label, action: read, allow: true},
 		{user: test.UserGitOps, object: label, action: write, allow: true},
+		{user: test.UserGitOps, object: label, action: create, allow: true},
+
+		{user: test.UserTeamObserverTeam1, object: label, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: label, action: create, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: label, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: label, action: create, allow: false},
 
 		{user: test.UserTeamGitOpsTeam1, object: label, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: label, action: create, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: label, action: read, allow: true},
-		{user: test.UserTeamAdminTeam1, object: label, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: label, action: create, allow: true},
 
 		{user: test.UserTeamMaintainerTeam1, object: label, action: read, allow: true},
-		{user: test.UserTeamMaintainerTeam1, object: label, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: label, action: create, allow: true},
+
+		{user: test.UserTeamObserverTeam1, object: authoredLabel(test.UserTeamObserverTeam1), action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: authoredLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: authoredLabel(test.UserTeamObserverTeam1), action: create, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: authoredLabel(test.UserTeamGitOpsTeam1), action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: authoredLabel(test.UserTeamGitOpsTeam1), action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: authoredLabel(test.UserTeamGitOpsTeam1), action: create, allow: true},
+
+		{user: test.UserTeamObserverTeam1, object: sameTeamLabel(test.UserTeamObserverTeam1), action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: sameTeamLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: sameTeamLabel(test.UserTeamObserverTeam1), action: create, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: sameTeamLabel(test.UserTeamGitOpsTeam1), action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: sameTeamLabel(test.UserTeamGitOpsTeam1), action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: sameTeamLabel(test.UserTeamGitOpsTeam1), action: create, allow: true},
+
+		{user: test.UserTeamObserverTeam1, object: differentTeamLabel(test.UserTeamObserverTeam1), action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: differentTeamLabel(test.UserTeamObserverTeam1), action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: differentTeamLabel(test.UserTeamObserverTeam1), action: create, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: create, allow: false},
 	})
 }
 
@@ -1992,7 +2065,7 @@ func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 				}
 
 				obj := fmt.Sprintf("%T", tt.object)
-				if at, ok := tt.object.(AuthzTyper); ok {
+				if at, ok := tt.object.(platform_authz.AuthzTyper); ok {
 					obj = at.AuthzType()
 				}
 
@@ -2001,7 +2074,7 @@ func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 					result = "deny"
 				}
 
-				t.Run(action+"_"+obj+"_"+role+"_"+result, func(t *testing.T) {
+				t.Run(fmt.Sprintf("%v", action)+"_"+obj+"_"+role+"_"+result, func(t *testing.T) {
 					t.Parallel()
 					if tt.allow {
 						assertAuthorized(t, tt.user, tt.object, tt.action)
@@ -2436,6 +2509,46 @@ func TestMDMAppleEULA(t *testing.T) {
 		{user: test.UserTeamMaintainerTeam1, object: eula, action: write, allow: false},
 		{user: test.UserTeamMaintainerTeam2, object: eula, action: read, allow: false},
 		{user: test.UserTeamMaintainerTeam2, object: eula, action: write, allow: false},
+	})
+}
+
+func TestCertificateAuthorities(t *testing.T) {
+	t.Parallel()
+	certificateAuthority := &fleet.CertificateAuthority{}
+
+	runTestCases(t, []authTestCase{
+		{user: nil, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserGitOps, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: write, allow: true},
+
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserAdmin, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserAdmin, object: certificateAuthority, action: write, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserObserver, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserObserver, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserMaintainer, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserMaintainer, object: certificateAuthority, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: write, allow: false},
 	})
 }
 

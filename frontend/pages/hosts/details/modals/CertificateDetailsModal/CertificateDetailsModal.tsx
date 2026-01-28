@@ -5,6 +5,7 @@ import { IHostCertificate } from "interfaces/certificates";
 import Modal from "components/Modal";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { monthDayYearFormat } from "utilities/date_format";
 
 const baseClass = "certificate-details-modal";
@@ -83,33 +84,35 @@ const CertificateDetailsModal = ({
         <div className={`${baseClass}__content`}>
           {showSubjectSection && (
             <div className={`${baseClass}__section`}>
-              <h3>Subject Name</h3>
+              <h3>Subject name</h3>
               <dl>
                 {subjectCountry && (
                   <DataSet
                     title="Country or region"
-                    value={subjectCountry}
+                    value={<TooltipTruncatedText value={subjectCountry} />}
                     orientation="horizontal"
                   />
                 )}
                 {subjectOrganization && (
                   <DataSet
                     title="Organization"
-                    value={subjectOrganization}
+                    value={<TooltipTruncatedText value={subjectOrganization} />}
                     orientation="horizontal"
                   />
                 )}
                 {subjectOrganizationalUnit && (
                   <DataSet
                     title="Organizational unit"
-                    value={subjectOrganizationalUnit}
+                    value={
+                      <TooltipTruncatedText value={subjectOrganizationalUnit} />
+                    }
                     orientation="horizontal"
                   />
                 )}
                 {subjectCommonName && (
                   <DataSet
                     title="Common name"
-                    value={subjectCommonName}
+                    value={<TooltipTruncatedText value={subjectCommonName} />}
                     orientation="horizontal"
                   />
                 )}
@@ -123,28 +126,30 @@ const CertificateDetailsModal = ({
                 {issuerCountry && (
                   <DataSet
                     title="Country or region"
-                    value={issuerCountry}
+                    value={<TooltipTruncatedText value={issuerCountry} />}
                     orientation="horizontal"
                   />
                 )}
                 {issuerOrganization && (
                   <DataSet
                     title="Organization"
-                    value={issuerOrganization}
+                    value={<TooltipTruncatedText value={issuerOrganization} />}
                     orientation="horizontal"
                   />
                 )}
                 {issuerOrganizationalUnit && (
                   <DataSet
                     title="Organizational unit"
-                    value={issuerOrganizationalUnit}
+                    value={
+                      <TooltipTruncatedText value={issuerOrganizationalUnit} />
+                    }
                     orientation="horizontal"
                   />
                 )}
                 {issuerCommonName && (
                   <DataSet
                     title="Common name"
-                    value={issuerCommonName}
+                    value={<TooltipTruncatedText value={issuerCommonName} />}
                     orientation="horizontal"
                   />
                 )}
@@ -158,14 +163,22 @@ const CertificateDetailsModal = ({
                 {not_valid_before && (
                   <DataSet
                     title="Not valid before"
-                    value={monthDayYearFormat(not_valid_before)}
+                    value={
+                      <TooltipTruncatedText
+                        value={monthDayYearFormat(not_valid_before)}
+                      />
+                    }
                     orientation="horizontal"
                   />
                 )}
                 {not_valid_after && (
                   <DataSet
                     title="Not valid after"
-                    value={monthDayYearFormat(not_valid_after)}
+                    value={
+                      <TooltipTruncatedText
+                        value={monthDayYearFormat(not_valid_after)}
+                      />
+                    }
                     orientation="horizontal"
                   />
                 )}
@@ -179,35 +192,35 @@ const CertificateDetailsModal = ({
                 {key_algorithm && (
                   <DataSet
                     title="Algorithm"
-                    value={key_algorithm}
+                    value={<TooltipTruncatedText value={key_algorithm} />}
                     orientation="horizontal"
                   />
                 )}
                 {!!key_strength && (
                   <DataSet
                     title="Key size"
-                    value={key_strength}
+                    value={<TooltipTruncatedText value={key_strength} />}
                     orientation="horizontal"
                   />
                 )}
                 {key_usage && (
                   <DataSet
                     title="Key usage"
-                    value={key_usage}
+                    value={<TooltipTruncatedText value={key_usage} />}
                     orientation="horizontal"
                   />
                 )}
                 {serial && (
                   <DataSet
                     title="Serial number (hex)"
-                    value={serial}
+                    value={<TooltipTruncatedText value={serial} />}
                     orientation="horizontal"
                   />
                 )}
                 {serialDecimal && (
                   <DataSet
                     title="Serial number (decimal)"
-                    value={serialDecimal}
+                    value={<TooltipTruncatedText value={serialDecimal} />}
                     orientation="horizontal"
                   />
                 )}
@@ -220,7 +233,11 @@ const CertificateDetailsModal = ({
             <dl>
               <DataSet
                 title="Certificate authority"
-                value={certificate_authority ? "Yes" : "No"}
+                value={
+                  <TooltipTruncatedText
+                    value={certificate_authority ? "Yes" : "No"}
+                  />
+                }
                 orientation="horizontal"
               />
             </dl>
@@ -231,7 +248,7 @@ const CertificateDetailsModal = ({
               <dl>
                 <DataSet
                   title="Algorithm"
-                  value={signing_algorithm}
+                  value={<TooltipTruncatedText value={signing_algorithm} />}
                   orientation="horizontal"
                 />
               </dl>

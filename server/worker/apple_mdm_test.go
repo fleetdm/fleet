@@ -17,6 +17,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	mock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -39,6 +40,51 @@ func (m mockPusher) Push(context.Context, []string) (map[string]*nanomdm_push.Re
 	return res, m.err
 }
 
+type installAppResponse struct {
+	CommandUUID string
+	Error       error
+}
+
+type mockVPPInstaller struct {
+	t                   *testing.T
+	ds                  *mysql.Datastore
+	installedApps       []*fleet.VPPApp
+	appInstallResponses map[string]installAppResponse
+	getTokenErr         error
+}
+
+func (m *mockVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+	require.True(m.t, appleDevice)
+	if m.getTokenErr != nil {
+		return "", m.getTokenErr
+	}
+	return "valid-token", nil
+}
+
+func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	require.True(m.t, opts.ForSetupExperience)
+	resp, ok := m.appInstallResponses[vppApp.AdamID]
+	require.True(m.t, ok)
+	m.installedApps = append(m.installedApps, vppApp)
+	if resp.Error == nil {
+		mysql.ExecAdhocSQL(m.t, m.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+          INSERT INTO nano_commands (command_uuid, request_type, command)
+          VALUES (?, 'InstallApplication', '<?xml')
+		`, resp.CommandUUID)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `
+          INSERT INTO nano_enrollment_queue (id, command_uuid, active)
+          VALUES (?, ?, 1)
+		`, host.UUID, resp.CommandUUID)
+			return err
+		})
+	}
+	return resp.CommandUUID, resp.Error
+}
+
 func TestAppleMDM(t *testing.T) {
 	ctx := context.Background()
 
@@ -58,14 +104,14 @@ func TestAppleMDM(t *testing.T) {
 
 	testOrgName := "fleet-test"
 
-	createEnrolledHost := func(t *testing.T, i int, teamID *uint, depAssignedToFleet bool) *fleet.Host {
+	createEnrolledHost := func(t *testing.T, i int, teamID *uint, depAssignedToFleet bool, platform string) *fleet.Host {
 		// create the host
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:       fmt.Sprintf("test-host%d-name", i),
 			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
 			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
 			UUID:           uuid.New().String(),
-			Platform:       "darwin",
+			Platform:       platform,
 			HardwareSerial: fmt.Sprintf("serial-%d", i),
 			TeamID:         teamID,
 		})
@@ -95,7 +141,7 @@ func TestAppleMDM(t *testing.T) {
 			return err
 		})
 		if depAssignedToFleet {
-			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmTokenID)
+			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmTokenID, make(map[uint]time.Time))
 			require.NoError(t, err)
 		}
 		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "", false)
@@ -125,7 +171,7 @@ func TestAppleMDM(t *testing.T) {
 			t.Cleanup(func() { enableAppCfg(false) })
 		} else {
 			enableTm := func(enable bool) {
-				tm, err := ds.Team(ctx, *teamID)
+				tm, err := ds.TeamWithExtras(ctx, *teamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 				require.NoError(t, err)
 				tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(enable)
 				_, err = ds.SaveTeam(ctx, tm)
@@ -149,8 +195,8 @@ func TestAppleMDM(t *testing.T) {
 		w.Register(mdmWorker)
 
 		// create a host and enqueue the job
-		h := createEnrolledHost(t, 1, nil, true)
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should mark the job as done
@@ -179,8 +225,8 @@ func TestAppleMDM(t *testing.T) {
 		w.Register(mdmWorker)
 
 		// create a host and enqueue the job
-		h := createEnrolledHost(t, 1, nil, true)
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMTask("no-such-task"), h.UUID, "darwin", nil, "", false)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMTask("no-such-task"), h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should mark the job as failed
@@ -202,7 +248,7 @@ func TestAppleMDM(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -213,7 +259,7 @@ func TestAppleMDM(t *testing.T) {
 		w.Register(mdmWorker)
 
 		// use "" instead of "darwin" as platform to test a queued job after the upgrade to iOS/iPadOS support.
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "", false)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -237,7 +283,7 @@ func TestAppleMDM(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
 		enableManualRelease(t, nil)
 
 		mdmWorker := &AppleMDM{
@@ -248,7 +294,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -272,7 +318,7 @@ func TestAppleMDM(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
 		err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
 			Name:   "custom-bootstrap",
 			TeamID: 0, // no-team
@@ -290,7 +336,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -321,7 +367,7 @@ func TestAppleMDM(t *testing.T) {
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
 		require.NoError(t, err)
 
-		h := createEnrolledHost(t, 1, &tm.ID, true)
+		h := createEnrolledHost(t, 1, &tm.ID, true, "darwin")
 		err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
 			Name:   "custom-team-bootstrap",
 			TeamID: tm.ID,
@@ -339,7 +385,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -371,7 +417,7 @@ func TestAppleMDM(t *testing.T) {
 		require.NoError(t, err)
 		enableManualRelease(t, &tm.ID)
 
-		h := createEnrolledHost(t, 1, &tm.ID, true)
+		h := createEnrolledHost(t, 1, &tm.ID, true, "darwin")
 		err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
 			Name:   "custom-team-bootstrap",
 			TeamID: tm.ID,
@@ -389,7 +435,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -413,11 +459,19 @@ func TestAppleMDM(t *testing.T) {
 		require.Equal(t, "custom-team-bootstrap", ms.BootstrapPackageName)
 	})
 
-	t.Run("unknown enroll reference", func(t *testing.T) {
+	t.Run("skips install of custom bootstrap manifest during migration", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+		err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+			Name:   "custom-bootstrap",
+			TeamID: 0, // no-team
+			Bytes:  []byte("test"),
+			Sha256: []byte("test"),
+			Token:  "token",
+		}, nil)
+		require.NoError(t, err)
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -427,7 +481,96 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "abcd", false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, true)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
+		require.NoError(t, err)
+
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
+
+		// Only the fleetd install is enqueued
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		var nfe fleet.NotFoundError
+		_, err = ds.GetHostMDMMacOSSetup(ctx, h.ID)
+		require.ErrorAs(t, err, &nfe)
+	})
+
+	t.Run("skips install of custom bootstrap manifest of a team during migration", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "darwin")
+		err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+			Name:   "custom-team-bootstrap",
+			TeamID: tm.ID,
+			Bytes:  []byte("test"),
+			Sha256: []byte("test"),
+			Token:  "token",
+		}, nil)
+		require.NoError(t, err)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, true)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
+		require.NoError(t, err)
+
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
+
+		// Only the fleetd install is enqueued
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		var nfe fleet.NotFoundError
+		_, err = ds.GetHostMDMMacOSSetup(ctx, h.ID)
+		require.ErrorAs(t, err, &nfe)
+	})
+
+	t.Run("unknown enroll reference", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "abcd", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -460,7 +603,7 @@ func TestAppleMDM(t *testing.T) {
 		idpAcc, err := ds.GetMDMIdPAccountByEmail(ctx, "test@example.com")
 		require.NoError(t, err)
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -470,7 +613,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, idpAcc.UUID, false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, idpAcc.UUID, false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -507,13 +650,13 @@ func TestAppleMDM(t *testing.T) {
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
 		require.NoError(t, err)
-		tm, err = ds.Team(ctx, tm.ID)
+		tm, err = ds.TeamWithExtras(ctx, tm.ID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 		require.NoError(t, err)
 		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
 		_, err = ds.SaveTeam(ctx, tm)
 		require.NoError(t, err)
 
-		h := createEnrolledHost(t, 1, &tm.ID, true)
+		h := createEnrolledHost(t, 1, &tm.ID, true, "darwin")
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -523,7 +666,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, idpAcc.UUID, false)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, idpAcc.UUID, false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -547,7 +690,7 @@ func TestAppleMDM(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -557,7 +700,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -578,7 +721,7 @@ func TestAppleMDM(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -588,7 +731,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -614,7 +757,7 @@ func TestAppleMDM(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -624,7 +767,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -709,7 +852,7 @@ func TestAppleMDM(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
-		h := createEnrolledHost(t, 1, nil, true)
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
@@ -719,7 +862,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -744,7 +887,7 @@ func TestAppleMDM(t *testing.T) {
 			if i == 4 {
 				// after 4 attempts, record a result for the command so it gets released
 				mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) 
+					_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result)
 						SELECT ?, command_uuid, ?, ? FROM nano_commands`,
 						h.UUID, "Acknowledged", `<?xml`)
 					return err
@@ -766,6 +909,402 @@ func TestAppleMDM(t *testing.T) {
 
 		// job queue is now empty
 		jobs, err := ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, jobs, 0)
+	})
+
+	t.Run("installs enqueued VPP apps", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		test.CreateInsertGlobalVPPToken(t, ds)
+		defer mysql.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		expectedAppInstalls := []*fleet.VPPApp{}
+
+		for i := 0; i < 3; i++ {
+			idx := fmt.Sprint(i)
+			vppApp := &fleet.VPPApp{
+				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
+				BundleIdentifier: "b" + idx,
+			}
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			require.NoError(t, err)
+			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
+		}
+
+		appInstallResponses := make(map[string]installAppResponse, len(expectedAppInstalls))
+
+		for _, appWithTeam := range expectedAppInstalls {
+			mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				stmt := `
+INSERT INTO setup_experience_status_results (
+	host_uuid,
+	name,
+	status,
+	vpp_app_team_id
+) VALUES (?, ?, ?, ?)
+ `
+				_, err = q.ExecContext(ctx, stmt, h.UUID, appWithTeam.Name, fleet.SetupExperienceStatusPending, appWithTeam.VPPAppTeam.AppTeamID)
+				return err
+			})
+			appInstallResponses[appWithTeam.AdamID] = installAppResponse{CommandUUID: uuid.NewString(), Error: nil}
+		}
+
+		vppInstaller := &mockVPPInstaller{t: t, ds: ds, appInstallResponses: appInstallResponses}
+
+		mdmWorker := &AppleMDM{
+			VPPInstaller: vppInstaller,
+			Datastore:    ds,
+			Log:          nopLog,
+			Commander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
+		require.NoError(t, err)
+		require.NotEmpty(t, jobs)
+		var releaseJob *fleet.Job
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				// THere should only be one release job
+				require.Nil(t, releaseJob)
+				releaseJob = job
+			}
+		}
+		// We should have found a release job
+		require.NotNil(t, releaseJob)
+		// It should be the release task
+		require.Contains(t, string(*releaseJob.Args), AppleMDMPostDEPReleaseDeviceTask)
+		// And it should contain the command IDs for the installs
+		expectedAdamIDs := make([]string, 0, len(expectedAppInstalls))
+		installedAdamIDs := make([]string, 0, len(vppInstaller.installedApps))
+		for _, app := range expectedAppInstalls {
+			require.Contains(t, string(*releaseJob.Args), appInstallResponses[app.AdamID].CommandUUID)
+			expectedAdamIDs = append(expectedAdamIDs, app.AdamID)
+		}
+		for _, installed := range vppInstaller.installedApps {
+			installedAdamIDs = append(installedAdamIDs, installed.AdamID)
+		}
+		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
+
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, results, len(expectedAppInstalls))
+		for _, result := range results {
+			require.Equal(t, fleet.SetupExperienceStatusRunning, result.Status)
+		}
+
+		// Acknowledge the commands - the release job should still re-enqueue itself and await the installs
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result)
+						SELECT ?, command_uuid, ?, ? FROM nano_commands`,
+				h.UUID, "Acknowledged", `<?xml`)
+			return err
+		})
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before=? WHERE id=?`, time.Now().Add(-time.Minute), releaseJob.ID)
+			return err
+		})
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		releaseJob = nil
+
+		jobs, err = ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute+time.Second)) // look in the future to catch any delayed job
+
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				// THere should only be one release job
+				require.Nil(t, releaseJob)
+				releaseJob = job
+			}
+		}
+		// We should have found a release job
+		require.NotNil(t, releaseJob)
+		// It should be the release task
+		require.Contains(t, string(*releaseJob.Args), AppleMDMPostDEPReleaseDeviceTask)
+
+		// Now update setup_experience_status as if the installs succeeded
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE setup_experience_status_results SET status=? WHERE host_uuid=?`, fleet.SetupExperienceStatusSuccess, h.UUID)
+			return err
+		})
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before=? WHERE id=?`, time.Now().Add(-time.Minute), releaseJob.ID)
+			return err
+		})
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		jobs, err = ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute+time.Second)) // look in the future to catch any delayed job
+
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				require.Fail(t, "there should be no more release jobs queued")
+			}
+		}
+
+		require.Contains(t, getEnqueuedCommandTypes(t), "DeviceConfigured")
+	})
+
+	t.Run("marks failed VPP installs as failed, runs all others", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		test.CreateInsertGlobalVPPToken(t, ds)
+		defer mysql.TruncateTables(t, ds)
+		badCommandUUID := "bad-command-uuid"
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		expectedAppInstalls := []*fleet.VPPApp{}
+
+		for i := 0; i < 3; i++ {
+			idx := fmt.Sprint(i)
+			vppApp := &fleet.VPPApp{
+				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
+				BundleIdentifier: "b" + idx,
+			}
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			require.NoError(t, err)
+			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
+		}
+
+		appInstallResponses := make(map[string]installAppResponse, len(expectedAppInstalls))
+
+		for _, appWithTeam := range expectedAppInstalls {
+			mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				stmt := `
+INSERT INTO setup_experience_status_results (
+	host_uuid,
+	name,
+	status,
+	vpp_app_team_id
+) VALUES (?, ?, ?, ?)
+ `
+				_, err = q.ExecContext(ctx, stmt, h.UUID, appWithTeam.Name, fleet.SetupExperienceStatusPending, appWithTeam.VPPAppTeam.AppTeamID)
+				return err
+			})
+			if len(appInstallResponses) == 0 {
+				// first one, simulate a failure. It shouldn't actually
+				// return a command UUID here but even if it does we
+				// should not wait on it
+				appInstallResponses[appWithTeam.AdamID] = installAppResponse{CommandUUID: badCommandUUID, Error: errors.New("test error")}
+				continue
+			}
+			// rest succeed
+			appInstallResponses[appWithTeam.AdamID] = installAppResponse{CommandUUID: uuid.NewString(), Error: nil}
+		}
+
+		vppInstaller := &mockVPPInstaller{t: t, ds: ds, appInstallResponses: appInstallResponses}
+
+		mdmWorker := &AppleMDM{
+			VPPInstaller: vppInstaller,
+			Datastore:    ds,
+			Log:          nopLog,
+			Commander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
+		require.NoError(t, err)
+		require.NotEmpty(t, jobs)
+		var releaseJob *fleet.Job
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				// THere should only be one release job
+				require.Nil(t, releaseJob)
+				releaseJob = job
+			}
+		}
+		// We should have found a release job
+		require.NotNil(t, releaseJob)
+		// It should be the release task
+		require.Contains(t, string(*releaseJob.Args), AppleMDMPostDEPReleaseDeviceTask)
+
+		// And it should contain the command IDs for the installs that didn't error
+		expectedAdamIDs := make([]string, 0, len(expectedAppInstalls))
+		installedAdamIDs := make([]string, 0, len(vppInstaller.installedApps))
+		for _, app := range expectedAppInstalls {
+			expectedAdamIDs = append(expectedAdamIDs, app.AdamID)
+			if appInstallResponses[app.AdamID].Error != nil {
+				// this one failed, so it should not be in the release command
+				continue
+			}
+			require.Contains(t, string(*releaseJob.Args), appInstallResponses[app.AdamID].CommandUUID)
+		}
+		require.NotContains(t, string(*releaseJob.Args), badCommandUUID)
+		for _, installed := range vppInstaller.installedApps {
+			installedAdamIDs = append(installedAdamIDs, installed.AdamID)
+		}
+		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
+
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, results, len(expectedAppInstalls))
+		for _, result := range results {
+			require.NotNil(t, result.VPPAppAdamID)
+			if *result.VPPAppAdamID == expectedAppInstalls[0].AdamID {
+				// this is the one we simulated a failure for
+				require.Equal(t, fleet.SetupExperienceStatusFailure, result.Status)
+				continue
+			}
+			require.Equal(t, fleet.SetupExperienceStatusRunning, result.Status)
+		}
+
+		// Acknowledge the commands - the release job should still re-enqueue itself and await the remaining installs
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result)
+						SELECT ?, command_uuid, ?, ? FROM nano_commands`,
+				h.UUID, "Acknowledged", `<?xml`)
+			return err
+		})
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before=? WHERE id=?`, time.Now().Add(-time.Minute), releaseJob.ID)
+			return err
+		})
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		releaseJob = nil
+
+		jobs, err = ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute+time.Second)) // look in the future to catch any delayed job
+
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				// THere should only be one release job
+				require.Nil(t, releaseJob)
+				releaseJob = job
+			}
+		}
+		// We should have found a release job
+		require.NotNil(t, releaseJob)
+		// It should be the release task
+		require.Contains(t, string(*releaseJob.Args), AppleMDMPostDEPReleaseDeviceTask)
+
+		// Now update setup_experience_status as if the installs succeeded
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE setup_experience_status_results SET status=? WHERE host_uuid=? AND status <> ?`, fleet.SetupExperienceStatusSuccess, h.UUID, fleet.SetupExperienceStatusFailure)
+			return err
+		})
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before=? WHERE id=?`, time.Now().Add(-time.Minute), releaseJob.ID)
+			return err
+		})
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		jobs, err = ds.GetQueuedJobs(ctx, 10, time.Now().UTC().Add(time.Minute+time.Second)) // look in the future to catch any delayed job
+
+		for _, job := range jobs {
+			if job.Name == appleMDMJobName {
+				assert.Fail(t, "there should be no more release jobs queued")
+			}
+		}
+
+		require.Contains(t, getEnqueuedCommandTypes(t), "DeviceConfigured")
+	})
+
+	t.Run("treats NotNow status as a finished command status that does not block device release", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
+		require.NoError(t, err)
+
+		// run the worker, should succeed and enqueue the release job
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run again
+		time.Sleep(time.Second)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		// get the release job
+		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+
+		releaseJob := jobs[0]
+		require.Equal(t, fleet.JobStateQueued, releaseJob.State)
+		require.Equal(t, appleMDMJobName, releaseJob.Name)
+		require.Contains(t, string(*releaseJob.Args), AppleMDMPostDEPReleaseDeviceTask)
+
+		// record a "NotNow" result for the command - this should be treated as completed
+		// and should not block device release
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result)
+				SELECT ?, command_uuid, ?, ? FROM nano_commands`,
+				h.UUID, "NotNow", `<?xml`)
+			return err
+		})
+
+		// update the job to make it available to run immediately
+		releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
+		_, err = ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
+		require.NoError(t, err)
+
+		// run the worker - should release the device immediately since NotNow is treated as completed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// the device should be released (DeviceConfigured command enqueued)
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "DeviceConfigured"}, getEnqueuedCommandTypes(t))
+
+		// job queue should be empty - no re-enqueue because NotNow is a final state
+		jobs, err = ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
 		require.NoError(t, err)
 		require.Len(t, jobs, 0)
 	})
@@ -791,14 +1330,14 @@ func TestGetSignedURL(t *testing.T) {
 	// Signer not configured
 	mockStore := &mock.MDMBootstrapPackageStore{}
 	a.BootstrapPackageStore = mockStore
-	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	mockStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "bozo", fleet.ErrNotConfigured
 	}
 	assert.Empty(t, a.getSignedURL(ctx, meta))
 	assert.Empty(t, buf.String())
 
 	// Test happy path
-	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	mockStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "signed", nil
 	}
 	mockStore.ExistsFunc = func(ctx context.Context, packageID string) (bool, error) {
@@ -813,7 +1352,7 @@ func TestGetSignedURL(t *testing.T) {
 	mockStore.ExistsFuncInvoked = false
 
 	// Test error -- sign failed
-	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	mockStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "", errors.New("test error")
 	}
 	assert.Empty(t, a.getSignedURL(ctx, meta))

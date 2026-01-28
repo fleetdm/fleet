@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -68,18 +68,9 @@ jobs:
             });
             return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'fleet-release').map(pr => pr.number);
 
-      - name: Get Assignee IDs
-        id: get_assignee_ids
-        run: |
-          # DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@' | tr '\n' ',' | sed 's/,$//')
-          # :-(
-          DEVS="iansltx,jahzielv,mostlikelee,ksykulev"
-          echo "github_ids=$DEVS" >> ${GITHUB_OUTPUT}
-
       - name: Log Info
         run: |
-          echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"          
-          echo "Will assign new PR to: ${{ steps.get_assignee_ids.outputs.github_ids }}"
+          echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"
 
       - name: Create Pull Request
         id: create-pr
@@ -96,7 +87,7 @@ jobs:
 
             Generated automatically with cmd/maintained-apps.
           body: Automated ingestion of latest Fleet-maintained app data.
-          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
+          reviewers: allenhouchins
 
       - name: Close Existing PRs
         if: steps.search_pr.outputs.result != '[]'

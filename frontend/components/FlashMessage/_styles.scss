@@ -17,7 +17,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $core-white;
+  color: $core-fleet-white;
   padding: $pad-small $pad-medium;
   z-index: 999;
   background-color: $core-vibrant-blue;
@@ -72,7 +72,7 @@
   }
 
   &__undo {
-    color: $core-white;
+    color: $core-fleet-white;
     cursor: pointer;
     font-size: $small;
     text-decoration: underline;
@@ -86,11 +86,11 @@
 
     .fleeticon {
       transition: color 150ms ease-in-out;
-      color: $core-white;
+      color: $core-fleet-white;
       font-size: $small;
 
       &:hover {
-        color: $core-white;
+        color: $core-fleet-white;
       }
     }
   }

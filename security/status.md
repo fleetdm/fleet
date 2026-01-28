@@ -5,6 +5,29 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2025-9230](https://nvd.nist.gov/vuln/detail/CVE-2025-9230)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet uses Go cryptography packages.
+- **Products:**: `fleet`,`pkg:apk/alpine/openssl@3.3.3-r0?os_name=alpine&os_version=3.21`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-10-01 10:09:03
+
+### [CVE-2025-61729](https://nvd.nist.gov/vuln/detail/CVE-2025-61729)
+#### Statement:
+- **Author:** @lucasmrod
+- **Status:** `fixed`
+- **Products:**: `fleet@v4.78.*`
+- **Timestamp:** 2025-12-10 19:26:25
+
+#### Statement:
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Status notes:** This is not a CRITICAL CVE, but we still recommend upgrading to 4.78.* when it's available.
+- **Products:**: `fleet@v4.77.0`,`fleet@v4.76.0`,`fleet@v4.76.1`,`fleet@v4.75.0`,`fleet@v4.75.1`,`pkg:golang/stdlib@1.25.3`
+- **Action statement:** `No action statement provided`
+- **Timestamp:** 2025-12-10 19:26:10
+
 ### [CVE-2025-46569](https://nvd.nist.gov/vuln/detail/CVE-2025-46569)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -25,7 +48,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 #### Statement:
 - **Author:** @lucasmrod
 - **Status:** `fixed`
-- **Products:**: `cpe:2.3:a:fleetdm:fleet:v4.64.2:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.63.2:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.62.4:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.58.1:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.53.2:*:*:*:*:*:*:*`
+- **Products:**: `pkg:golang/github.com/fleetdm/fleet/v4`,`cpe:2.3:a:fleetdm:fleet:v4.64.2:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.63.2:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.62.4:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.58.1:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.53.2:*:*:*:*:*:*:*`
 - **Timestamp:** 2025-05-12 16:30:30
 
 #### Statement:
@@ -93,6 +116,53 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
+### [CVE-2025-66516](https://nvd.nist.gov/vuln/detail/CVE-2025-66516)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not process end-user provided PDF files with Java when generating fleetd installers. The only PDF processing code is in Go for EULA documents.
+- **Products:**: `fleetctl`,`pkg:maven/org.apache.tika/tika-core`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-10 18:12:45
+
+### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use libpng. Fleet components use the 'image/png' Go package for png processing.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-10 19:04:58
+
+### [CVE-2025-65018](https://nvd.nist.gov/vuln/detail/CVE-2025-65018)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use libpng. Fleet components use the 'image/png' Go package for png processing.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-10 19:04:42
+
+### [CVE-2025-64720](https://nvd.nist.gov/vuln/detail/CVE-2025-64720)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use libpng. Fleet components use the 'image/png' Go package for png processing.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-10 19:04:07
+
+### [CVE-2025-61729](https://nvd.nist.gov/vuln/detail/CVE-2025-61729)
+#### Statement:
+- **Author:** @lucasmrod
+- **Status:** `fixed`
+- **Products:**: `fleetctl@v4.78.*`
+- **Timestamp:** 2025-12-10 19:26:44
+
+#### Statement:
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Status notes:** This is not a CRITICAL CVE, but we still recommend upgrading to 4.78.* when it's available.
+- **Products:**: `fleetctl@v4.77.0`,`fleetctl@v4.76.0`,`fleetctl@v4.76.1`,`fleetctl@v4.75.0`,`fleetctl@v4.75.1`,`pkg:golang/stdlib@1.25.3`
+- **Action statement:** `No action statement provided`
+- **Timestamp:** 2025-12-10 19:26:35
+
 ### [CVE-2025-49796](https://nvd.nist.gov/vuln/detail/CVE-2025-49796)
 - **Author:** @sgress454
 - **Status:** `not_affected`
@@ -133,6 +203,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-05-06 07:47:31
 
+### [CVE-2025-41249](https://nvd.nist.gov/vuln/detail/CVE-2025-41249)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Vulnerability affects web servers, not fleetctl.
+- **Products:**: `fleetctl`,`pkg:maven/org.springframework/spring-core`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-09-22 10:27:40
+
 ### [CVE-2025-31115](https://nvd.nist.gov/vuln/detail/CVE-2025-31115)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -140,6 +218,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:deb/debian/liblzma5`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-09 13:24:20
+
+### [CVE-2025-27509](https://nvd.nist.gov/vuln/detail/CVE-2025-27509)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This vulnerability affected fleet, not fleetctl, adding it here to avoid false positives.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `component_not_present`
+- **Timestamp:** 2025-09-12 09:25:41
 
 ### [CVE-2024-7254](https://nvd.nist.gov/vuln/detail/CVE-2024-7254)
 - **Author:** @lucasmrod
@@ -196,4 +282,42 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:maven/xerces/xercesImpl`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10 14:46:52
+
+## `fleetdm/wix` docker image
+
+### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-19 18:03:45
+
+### [CVE-2025-65018](https://nvd.nist.gov/vuln/detail/CVE-2025-65018)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-19 18:03:33
+
+### [CVE-2025-64720](https://nvd.nist.gov/vuln/detail/CVE-2025-64720)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libpng16-16`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-12-19 18:02:56
+
+### [CVE-2023-31484](https://nvd.nist.gov/vuln/detail/CVE-2023-31484)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The WiX toolset is unaffected by the perl vulnerability.
+- **Products:**: `wix`,`pkg:deb/debian/perl-base`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-10-01 08:36:42
+
+## `fleetdm/bomutils` docker image
+
+No vulnerabilities tracked at the moment.
 

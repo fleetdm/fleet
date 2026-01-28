@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 
+import { SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
 import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
@@ -27,6 +28,7 @@ const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
 interface ISelectSoftwareModalProps {
   currentTeamId: number;
   softwareTitles: ISoftwareTitle[];
+  platform: SetupExperiencePlatform;
   onExit: () => void;
   onSave: () => void;
 }
@@ -34,6 +36,7 @@ interface ISelectSoftwareModalProps {
 const SelectSoftwareModal = ({
   currentTeamId,
   softwareTitles,
+  platform,
   onExit,
   onSave,
 }: ISelectSoftwareModalProps) => {
@@ -52,9 +55,11 @@ const SelectSoftwareModal = ({
     setIsSaving(true);
     try {
       await mdmAPI.updateSetupExperienceSoftware(
+        platform,
         currentTeamId,
         selectedSoftwareIds
       );
+      renderFlash("success", "Updated software for install on setup.");
     } catch (e) {
       renderFlash("error", "Couldn't save software. Please try again.");
     }
@@ -71,13 +76,6 @@ const SelectSoftwareModal = ({
     });
   }, []);
 
-  const onChangeSelectAll = useCallback(
-    (selectAll: boolean) => {
-      setSelectedSoftwareIds(selectAll ? softwareTitles.map((s) => s.id) : []);
-    },
-    [softwareTitles]
-  );
-
   return (
     <Modal
       className={baseClass}
@@ -89,7 +87,7 @@ const SelectSoftwareModal = ({
         <SelectSoftwareTable
           softwareTitles={softwareTitles}
           onChangeSoftwareSelect={onChangeSoftwareSelect}
-          onChangeSelectAll={onChangeSelectAll}
+          platform={platform}
         />
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper

@@ -31,7 +31,7 @@ func SetHostScriptResult(t *testing.T, ds fleet.Datastore, host *fleet.Host, exe
 	ctx := context.Background()
 	_, _, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: host.ID, ExecutionID: execID, Output: "a", ExitCode: exitCode,
-	})
+	}, nil) // nil = manual script run, not policy automation
 	require.NoError(t, err)
 }
 
@@ -69,7 +69,7 @@ func SetHostSoftwareInstallResult(t *testing.T, ds fleet.Datastore, host *fleet.
 		HostID:                host.ID,
 		InstallUUID:           execID,
 		InstallScriptExitCode: &exitCode,
-	})
+	}, nil)
 	require.NoError(t, err)
 }
 
@@ -108,7 +108,7 @@ func SetHostSoftwareUninstallResult(t *testing.T, ds fleet.Datastore, host *flee
 		HostID:      host.ID,
 		ExecutionID: execID,
 		ExitCode:    exitCode,
-	})
+	}, nil) // nil = manual/uninstall script, not policy automation
 	require.NoError(t, err)
 }
 
@@ -153,6 +153,49 @@ func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage
 		HostID:      host.ID,
 		AppStoreID:  adamID,
 		CommandUUID: execID,
+		Status:      "Error",
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+}
+
+// CreateHostInHouseAppInstallUpcomingActivity creates an in-house app install
+// request for the provided host. It returns the upcoming activity's execution
+// ID.
+func CreateHostInHouseAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastore, host *fleet.Host, user *fleet.User) (execID string) {
+	ctx := context.Background()
+	rnd := uuid.NewString()
+	ihaID, ihaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Filename:         rnd + ".ipa",
+		Source:           "ios_apps",
+		Extension:        "ipa",
+		BundleIdentifier: "com.example." + rnd,
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	execID = uuid.NewString()
+	err = ds.InsertHostInHouseAppInstall(ctx, host.ID, ihaID, ihaTitleID, execID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	return execID
+}
+
+func SetHostInHouseAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, status string) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
+
+	cmdRes := &mdm.CommandResults{
+		CommandUUID: execID,
+		Status:      status,
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err := nanods.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+	err = ds.NewActivity(ctx, nil, fleet.ActivityTypeInstalledSoftware{
+		HostID:      host.ID,
+		CommandUUID: execID,
+		Status:      "Error",
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 }

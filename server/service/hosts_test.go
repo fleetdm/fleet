@@ -3,18 +3,25 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/WatchBeam/clock"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -383,7 +390,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 			if c.wantStatus != nil {
 				require.NotNil(t, hostDetail.MDM.Profiles)
 				profs := *hostDetail.MDM.Profiles
-				require.Equal(t, c.wantStatus, profs[0].Status)
+				require.EqualValues(t, *c.wantStatus, *profs[0].Status)
 				require.Equal(t, c.fvProf.Detail, profs[0].Detail)
 			} else {
 				require.Nil(t, *hostDetail.MDM.Profiles)
@@ -726,6 +733,9 @@ func TestHostAuth(t *testing.T) {
 	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
 		return nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
@@ -786,8 +796,11 @@ func TestHostAuth(t *testing.T) {
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
@@ -834,6 +847,9 @@ func TestHostAuth(t *testing.T) {
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	testCases := []struct {
@@ -971,10 +987,10 @@ func TestHostAuth(t *testing.T) {
 			err = svc.RefetchHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.SetCustomHostDeviceMapping(ctx, 1, "a@b.c")
+			_, err = svc.SetHostDeviceMapping(ctx, 1, "a@b.c", "custom")
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			_, err = svc.SetCustomHostDeviceMapping(ctx, 2, "a@b.c")
+			_, err = svc.SetHostDeviceMapping(ctx, 2, "a@b.c", "custom")
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			_, _, err = svc.ListHostSoftware(ctx, 1, fleet.HostSoftwareTitleListOptions{})
@@ -1001,6 +1017,9 @@ func TestListHosts(t *testing.T) {
 		return []*fleet.Host{
 			{ID: 1},
 		}, nil
+	}
+	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
 	}
 
 	userContext := test.UserContext(ctx, test.UserAdmin)
@@ -1042,6 +1061,222 @@ func TestListHosts(t *testing.T) {
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
 }
 
+func TestStreamHosts(t *testing.T) {
+	t.Run("Happy path", func(t *testing.T) {
+		// Create a mock iterator for the hosts.
+		hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+			return func(yield func(*fleet.HostResponse, error) bool) {
+				for i := 1; i <= 3; i++ {
+					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(i)}} // nolint:gosec
+					if !yield(host, nil) {
+						return
+					}
+				}
+			}
+		}
+		resp := streamHostsResponse{
+			HostResponseIterator: hostIterator(),
+			listHostsResponse: listHostsResponse{
+				Software: &fleet.Software{
+					ID: uint(1),
+				},
+				SoftwareTitle: &fleet.SoftwareTitle{ID: uint(2)},
+				MDMSolution: &fleet.MDMSolution{
+					ID: uint(3),
+				},
+				MunkiIssue: &fleet.MunkiIssue{
+					ID: uint(4),
+				},
+			},
+		}
+		rr := httptest.NewRecorder()
+		resp.HijackRender(context.Background(), rr)
+		require.Equal(t, rr.Code, 200)
+		// Get the body into a string.
+		body := rr.Body.String()
+		// Unmarshal the string into a map.
+		var results map[string]any
+		err := json.Unmarshal([]byte(body), &results)
+		if err != nil {
+			t.Fatalf("failed to unmarshal response body: %v", err)
+		}
+		// Assert that software.id == 1
+		require.Equal(t, float64(1), results["software"].(map[string]any)["id"])
+		// Assert that software_title.id == 2
+		require.Equal(t, float64(2), results["software_title"].(map[string]any)["id"])
+		// Assert that mdm_solution.id == 3
+		require.Equal(t, float64(3), results["mobile_device_management_solution"].(map[string]any)["id"])
+		// Assert that munki_issue.id == 4
+		require.Equal(t, float64(4), results["munki_issue"].(map[string]any)["id"])
+		// Assert that hosts array has length 3
+		hosts := results["hosts"].([]any)
+		require.Len(t, hosts, 3)
+		// Assert that host IDs are 1, 2, 3
+		for i, host := range hosts {
+			hostMap := host.(map[string]any)
+			require.Equal(t, float64(i+1), hostMap["id"])
+		}
+		// Assert that the output contains no error message
+		_, exists := results["error"]
+		require.False(t, exists)
+	})
+
+	t.Run("Minimal data", func(t *testing.T) {
+		// Create a mock iterator for the hosts.
+		hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+			return func(yield func(*fleet.HostResponse, error) bool) {
+				// Yield no hosts.
+			}
+		}
+		resp := streamHostsResponse{
+			HostResponseIterator: hostIterator(),
+			listHostsResponse:    listHostsResponse{},
+		}
+		rr := httptest.NewRecorder()
+		resp.HijackRender(context.Background(), rr)
+		require.Equal(t, rr.Code, 200)
+		// Get the body into a string.
+		body := rr.Body.String()
+		// Unmarshal the string into a map.
+		var results map[string]any
+		err := json.Unmarshal([]byte(body), &results)
+		if err != nil {
+			t.Fatalf("failed to unmarshal response body: %v", err)
+		}
+		_, ok := results["software"]
+		require.False(t, ok)
+		_, ok = results["software_title"]
+		require.False(t, ok)
+		_, ok = results["mobile_device_management_solution"]
+		require.False(t, ok)
+		_, ok = results["munki_issue"]
+		require.False(t, ok)
+		hosts := results["hosts"].([]any)
+		require.Len(t, hosts, 0)
+		// Assert that the output contains no error message
+		_, exists := results["error"]
+		require.False(t, exists)
+	})
+
+	errorTestCases := []struct {
+		Name          string
+		ExpectedError string
+	}{
+		{
+			"Error marshalling Software",
+			"marshaling software",
+		},
+		{
+			"Error marshalling SoftwareTitle",
+			"marshaling software_title",
+		},
+		{
+			"Error marshalling MDMSolution",
+			"marshaling mobile_device_management_solution",
+		},
+		{
+			"Error marshalling MunkiIssue",
+			"marshaling munki_issue",
+		},
+		{
+			"Error iterating over Hosts",
+			"getting host",
+		},
+		{
+			"Error marshalling Hosts",
+			"marshaling host response",
+		},
+	}
+	for _, tc := range errorTestCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			hostIterator := func() iter.Seq2[*fleet.HostResponse, error] {
+				return func(yield func(*fleet.HostResponse, error) bool) {
+					// Yield one good host.
+					host := &fleet.HostResponse{Host: &fleet.Host{ID: uint(1)}}
+					if !yield(host, nil) {
+						return
+					}
+					if tc.Name == "Error iterating over Hosts" {
+						// Yield an error immediately.
+						yield(nil, errors.New("getting host"))
+						return
+					}
+					host = &fleet.HostResponse{Host: &fleet.Host{ID: uint(2)}}
+					if !yield(host, nil) {
+						return
+					}
+				}
+			}
+			resp := streamHostsResponse{
+				HostResponseIterator: hostIterator(),
+				listHostsResponse: listHostsResponse{
+					Software: &fleet.Software{
+						ID: uint(1),
+					},
+					SoftwareTitle: &fleet.SoftwareTitle{ID: uint(2)},
+					MDMSolution: &fleet.MDMSolution{
+						ID: uint(3),
+					},
+					MunkiIssue: &fleet.MunkiIssue{
+						ID: uint(4),
+					},
+				},
+				MarshalJSON: func(v any) ([]byte, error) {
+					switch v.(type) {
+					case *fleet.Software:
+						if tc.Name == "Error marshalling Software" {
+							return nil, errors.New(`got some "error" marshaling {software}`)
+						}
+					case *fleet.SoftwareTitle:
+						if tc.Name == "Error marshalling SoftwareTitle" {
+							return nil, errors.New(`got some "error" marshaling {software title}`)
+						}
+					case *fleet.MDMSolution:
+						if tc.Name == "Error marshalling MDMSolution" {
+							return nil, errors.New(`got some "error" marshaling {mdm solution}`)
+						}
+					case *fleet.MunkiIssue:
+						if tc.Name == "Error marshalling MunkiIssue" {
+							return nil, errors.New(`got some "error" marshaling {munki issue}`)
+						}
+					case *fleet.HostResponse:
+						if tc.Name == "Error marshalling Hosts" {
+							return nil, errors.New(`got some "error" marshaling {host response}`)
+						}
+					}
+					// Default to normal marshalling.
+					return json.Marshal(v)
+				},
+			}
+			rr := httptest.NewRecorder()
+			resp.HijackRender(context.Background(), rr)
+			// Assert that the output contains the error message
+			require.Equal(t, rr.Code, 200)
+			body := rr.Body.String()
+			// Unmarshal the string into a map.
+			var results map[string]any
+			err := json.Unmarshal([]byte(body), &results)
+			if err != nil {
+				t.Fatalf("failed to unmarshal response body: %v", err)
+			}
+			// Assert that error message is present
+			require.Contains(t, results["error"], tc.ExpectedError)
+			// If the error isn't in the hosts array, ensure that no hosts were returned.
+			hosts, ok := results["hosts"].([]any)
+			if tc.Name != "Error marshalling Hosts" && tc.Name != "Error iterating over Hosts" {
+				require.False(t, ok)
+			} else {
+				require.True(t, ok)
+				if tc.Name == "Error iterating over Hosts" {
+					require.Len(t, hosts, 1)
+				} else {
+					require.Len(t, hosts, 0)
+				}
+			}
+		})
+	}
+}
+
 func TestGetHostSummary(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1056,7 +1291,7 @@ func TestGetHostSummary(t *testing.T) {
 			Platforms:        []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
 		}, nil
 	}
-	ds.LabelsSummaryFunc = func(ctx context.Context) ([]*fleet.LabelSummary, error) {
+	ds.LabelsSummaryFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
 		return []*fleet.LabelSummary{{ID: 1, Name: "All hosts", Description: "All hosts enrolled in Fleet", LabelType: fleet.LabelTypeBuiltIn}, {ID: 10, Name: "Other label", Description: "Not a builtin label", LabelType: fleet.LabelTypeRegular}}, nil
 	}
 
@@ -1086,17 +1321,314 @@ func TestDeleteHost(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	// Create a user for the deletion (needed for activity creation)
+	user := &fleet.User{
+		Name:       "Test User",
+		Email:      "testuser@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		Password:   []byte("password"),
+		Salt:       "salt",
+	}
+	user, err := ds.NewUser(ctx, user)
+	require.NoError(t, err)
+
 	mockClock := clock.NewMockClock()
 	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
 	assert.NotZero(t, host.ID)
 
-	err := svc.DeleteHost(test.UserContext(ctx, test.UserAdmin), host.ID)
+	err = svc.DeleteHost(test.UserContext(ctx, user), host.ID)
 	assert.Nil(t, err)
 
-	filter := fleet.TeamFilter{User: test.UserAdmin}
+	filter := fleet.TeamFilter{User: user}
 	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
+}
+
+func TestDeleteHostCreatesActivity(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+	activitySvc := mysql.NewTestActivityService(t, ds)
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Create a user for the deletion
+	user := &fleet.User{
+		Name:       "Test User",
+		Email:      "testuser@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		Password:   []byte("password"),
+		Salt:       "salt",
+	}
+	user, err := ds.NewUser(ctx, user)
+	require.NoError(t, err)
+
+	mockClock := clock.NewMockClock()
+	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
+	host.HardwareSerial = "ABC123"
+	host.ComputerName = "Test Computer"
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// Get activities before deletion
+	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
+
+	// Delete the host
+	err = svc.DeleteHost(test.UserContext(ctx, user), host.ID)
+	require.NoError(t, err)
+
+	// Verify the activity was created
+	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+		OrderKey:       "id",
+		OrderDirection: activity_api.OrderDescending,
+		PerPage:        1,
+	})
+	require.Len(t, activities, 1)
+	require.Greater(t, len(activities), len(prevActivities)-1)
+
+	activity := activities[0]
+	expectedActivityType := fleet.ActivityTypeDeletedHost{}.ActivityName()
+	require.Equal(t, expectedActivityType, activity.Type)
+	require.NotNil(t, activity.Details)
+
+	var details fleet.ActivityTypeDeletedHost
+	err = json.Unmarshal(*activity.Details, &details)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, details.HostID)
+	require.Equal(t, "Test Computer", details.HostDisplayName)
+	require.Equal(t, "ABC123", details.HostSerial)
+	require.Equal(t, fleet.DeletedHostTriggeredByManual, details.TriggeredBy)
+}
+
+func TestDeleteHostsCreatesActivities(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+	activitySvc := mysql.NewTestActivityService(t, ds)
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Create a user for the deletion
+	user := &fleet.User{
+		Name:       "Test User",
+		Email:      "testuser@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		Password:   []byte("password"),
+		Salt:       "salt",
+	}
+	user, err := ds.NewUser(ctx, user)
+	require.NoError(t, err)
+
+	mockClock := clock.NewMockClock()
+
+	// Create multiple hosts
+	host1 := test.NewHost(t, ds, "host1", "192.168.1.10", "1", "1", mockClock.Now())
+	host1.HardwareSerial = "SERIAL1"
+	host1.ComputerName = "Computer 1"
+	err = ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+
+	host2 := test.NewHost(t, ds, "host2", "192.168.1.11", "2", "2", mockClock.Now())
+	host2.HardwareSerial = "SERIAL2"
+	host2.ComputerName = "Computer 2"
+	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+
+	// Get activities before deletion
+	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
+
+	// Delete the hosts
+	err = svc.DeleteHosts(test.UserContext(ctx, user), []uint{host1.ID, host2.ID}, nil)
+	require.NoError(t, err)
+
+	// Verify activities were created
+	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+		OrderKey:       "id",
+		OrderDirection: activity_api.OrderDescending,
+		PerPage:        10,
+	})
+	require.GreaterOrEqual(t, len(activities), 2)
+
+	// Verify we have at least 2 more activities than before
+	require.Greater(t, len(activities), len(prevActivities)-1)
+
+	// Check the first two activities are for deleted hosts
+	expectedActivityType := fleet.ActivityTypeDeletedHost{}.ActivityName()
+	for i := 0; i < 2; i++ {
+		activity := activities[i]
+		require.Equal(t, expectedActivityType, activity.Type)
+		require.NotNil(t, activity.Details)
+
+		var details fleet.ActivityTypeDeletedHost
+		err = json.Unmarshal(*activity.Details, &details)
+		require.NoError(t, err)
+		require.Contains(t, []uint{host1.ID, host2.ID}, details.HostID)
+		require.Contains(t, []string{"Computer 1", "Computer 2"}, details.HostDisplayName)
+		require.Contains(t, []string{"SERIAL1", "SERIAL2"}, details.HostSerial)
+		require.Equal(t, fleet.DeletedHostTriggeredByManual, details.TriggeredBy)
+	}
+}
+
+func TestCleanupExpiredHostsActivities(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+	activitySvc := mysql.NewTestActivityService(t, ds)
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Set global host expiry
+	const globalExpiryWindow = 10
+	const team1ExpiryWindow = 5
+	const team2ExpiryWindow = 15
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	ac.HostExpirySettings.HostExpiryWindow = globalExpiryWindow
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	// Create Team 1 with custom expiry window
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team1.Config.HostExpirySettings.HostExpiryEnabled = true
+	team1.Config.HostExpirySettings.HostExpiryWindow = team1ExpiryWindow
+	_, err = ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	// Create Team 2 with different custom expiry window
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	team2.Config.HostExpirySettings.HostExpiryEnabled = true
+	team2.Config.HostExpirySettings.HostExpiryWindow = team2ExpiryWindow
+	_, err = ds.SaveTeam(ctx, team2)
+	require.NoError(t, err)
+
+	// Create Team 3 that uses global expiry (no custom setting)
+	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+	// team3 does not have custom host expiry settings, so it uses global
+
+	mockClock := clock.NewMockClock()
+
+	// Create expired hosts for Team 1 (use team1ExpiryWindow)
+	team1ExpiredTime := mockClock.Now().Add(-time.Duration(team1ExpiryWindow+1) * 24 * time.Hour)
+	host1 := test.NewHost(t, ds, "team1-host1", "192.168.1.10", "1", "1", team1ExpiredTime)
+	host1.HardwareSerial = "TEAM1_SERIAL1"
+	host1.ComputerName = "Team 1 Computer 1"
+	host1.TeamID = &team1.ID
+	err = ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+
+	host2 := test.NewHost(t, ds, "team1-host2", "192.168.1.11", "2", "2", team1ExpiredTime)
+	host2.HardwareSerial = "TEAM1_SERIAL2"
+	host2.ComputerName = "Team 1 Computer 2"
+	host2.TeamID = &team1.ID
+	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+
+	// Create expired host for Team 2 (use team2ExpiryWindow)
+	team2ExpiredTime := mockClock.Now().Add(-time.Duration(team2ExpiryWindow+1) * 24 * time.Hour)
+	host3 := test.NewHost(t, ds, "team2-host1", "192.168.1.12", "3", "3", team2ExpiredTime)
+	host3.HardwareSerial = "TEAM2_SERIAL1"
+	host3.ComputerName = "Team 2 Computer 1"
+	host3.TeamID = &team2.ID
+	err = ds.UpdateHost(ctx, host3)
+	require.NoError(t, err)
+
+	// Create expired host for Team 3 (uses global expiry)
+	globalExpiredTime := mockClock.Now().Add(-time.Duration(globalExpiryWindow+1) * 24 * time.Hour)
+	host4 := test.NewHost(t, ds, "team3-host1", "192.168.1.13", "4", "4", globalExpiredTime)
+	host4.HardwareSerial = "TEAM3_SERIAL1"
+	host4.ComputerName = "Team 3 Computer 1"
+	host4.TeamID = &team3.ID
+	err = ds.UpdateHost(ctx, host4)
+	require.NoError(t, err)
+
+	// Create expired host with no team (uses global expiry)
+	host5 := test.NewHost(t, ds, "no-team-host", "192.168.1.14", "5", "5", globalExpiredTime)
+	host5.HardwareSerial = "NOTEAM_SERIAL1"
+	host5.ComputerName = "No Team Computer 1"
+	host5.TeamID = nil
+	err = ds.UpdateHost(ctx, host5)
+	require.NoError(t, err)
+
+	// Get activities before cleanup
+	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
+
+	// Run the cleanup service method
+	deletedHosts, err := svc.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.Len(t, deletedHosts, 5, "Should have deleted 5 hosts")
+
+	// Verify activities were created
+	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+		OrderKey:       "id",
+		OrderDirection: activity_api.OrderDescending,
+		PerPage:        20,
+	})
+	require.Greater(t, len(activities), len(prevActivities), "Should have new activities")
+
+	// Collect all deleted host activities
+	type hostActivity struct {
+		hostID       uint
+		displayName  string
+		serial       string
+		expiryWindow int
+	}
+
+	deletedHostActivities := []hostActivity{}
+	expectedActivityType := fleet.ActivityTypeDeletedHost{}.ActivityName()
+
+	for _, activity := range activities {
+		if activity.Type != expectedActivityType {
+			continue
+		}
+		require.NotNil(t, activity.Details)
+
+		var details fleet.ActivityTypeDeletedHost
+		err = json.Unmarshal(*activity.Details, &details)
+		require.NoError(t, err)
+
+		if details.TriggeredBy == fleet.DeletedHostTriggeredByExpiration {
+			require.NotNil(t, details.HostExpiryWindow, "HostExpiryWindow should be set for expired hosts")
+			deletedHostActivities = append(deletedHostActivities, hostActivity{
+				hostID:       details.HostID,
+				displayName:  details.HostDisplayName,
+				serial:       details.HostSerial,
+				expiryWindow: *details.HostExpiryWindow,
+			})
+		}
+	}
+
+	require.Len(t, deletedHostActivities, 5, "Should have 5 deleted host activities")
+
+	// Verify each host has the correct expiry window
+	for _, ha := range deletedHostActivities {
+		switch ha.hostID {
+		case host1.ID:
+			require.Equal(t, "Team 1 Computer 1", ha.displayName)
+			require.Equal(t, "TEAM1_SERIAL1", ha.serial)
+			require.Equal(t, team1ExpiryWindow, ha.expiryWindow, "Team 1 host should have team1 expiry window")
+		case host2.ID:
+			require.Equal(t, "Team 1 Computer 2", ha.displayName)
+			require.Equal(t, "TEAM1_SERIAL2", ha.serial)
+			require.Equal(t, team1ExpiryWindow, ha.expiryWindow, "Team 1 host should have team1 expiry window")
+		case host3.ID:
+			require.Equal(t, "Team 2 Computer 1", ha.displayName)
+			require.Equal(t, "TEAM2_SERIAL1", ha.serial)
+			require.Equal(t, team2ExpiryWindow, ha.expiryWindow, "Team 2 host should have team2 expiry window")
+		case host4.ID:
+			require.Equal(t, "Team 3 Computer 1", ha.displayName)
+			require.Equal(t, "TEAM3_SERIAL1", ha.serial)
+			require.Equal(t, globalExpiryWindow, ha.expiryWindow, "Team 3 host should use global expiry window")
+		case host5.ID:
+			require.Equal(t, "No Team Computer 1", ha.displayName)
+			require.Equal(t, "NOTEAM_SERIAL1", ha.serial)
+			require.Equal(t, globalExpiryWindow, ha.expiryWindow, "No team host should use global expiry window")
+		default:
+			t.Fatalf("Unexpected host ID in activities: %d", ha.hostID)
+		}
+	}
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {
@@ -1171,8 +1703,8 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: id}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -1298,27 +1830,29 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
-	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
-		return fleet.Vulnerabilities{}, nil
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+		return nil, nil
 	}
 
 	// team exists with stats
-	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 1)
 
 	// team exists but no stats
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.NoError(t, err)
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.Error(t, err)
 	require.Contains(t, fmt.Sprint(err), "does not exist")
 
 	// some unknown error
-	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }
@@ -1336,19 +1870,23 @@ func TestOSVersionsListOptions(t *testing.T) {
 		{HostsCount: 6, NameOnly: "Ubuntu 21.04", Platform: "ubuntu"},
 	}
 
+	now := time.Now()
+
 	ds.OSVersionsFunc = func(
 		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
 	) (*fleet.OSVersions, error) {
-		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
+		return &fleet.OSVersions{CountsUpdatedAt: now, OSVersions: testVersions}, nil
 	}
 
-	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
-		return fleet.Vulnerabilities{}, nil
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+		return nil, nil
 	}
 
 	// test default descending count sort
 	opts := fleet.ListOptions{}
-	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
@@ -1357,10 +1895,11 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[3].NameOnly)
 	assert.Equal(t, "macOS 12.2", vers.OSVersions[4].NameOnly)
 	assert.Equal(t, "macOS 12.1", vers.OSVersions[5].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	// test ascending count sort
 	opts = fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
 	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
@@ -1369,41 +1908,77 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[3].NameOnly)
 	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[4].NameOnly)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[5].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	// pagination
 	opts = fleet.ListOptions{Page: 0, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
 	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	opts = fleet.ListOptions{Page: 1, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[0].NameOnly)
 	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	// pagination + ascending hosts_count sort
 	opts = fleet.ListOptions{Page: 0, PerPage: 2, OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
 	assert.Equal(t, "macOS 12.2", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	// per page too high
 	opts = fleet.ListOptions{Page: 0, PerPage: 1000}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
 
 	// Page number too high
 	opts = fleet.ListOptions{Page: 1000, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 0)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
+}
+
+func TestOSVersionsDefaultPagination(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testVersions := []fleet.OSVersion{}
+	for i := range 50 {
+		testVersions = append(testVersions, fleet.OSVersion{NameOnly: fmt.Sprintf("Version %02d", i), HostsCount: i, Platform: "windows"})
+	}
+
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
+	}
+
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+		return nil, nil
+	}
+
+	// test default descending count sort + default pagination (page 0, per_page 20)
+	opts := fleet.ListOptions{}
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 20)
+	assert.Equal(t, "Version 49", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "Version 30", vers.OSVersions[19].NameOnly)
 }
 
 func TestHostEncryptionKey(t *testing.T) {
@@ -1957,22 +2532,22 @@ func TestHostMDMProfileScopes(t *testing.T) {
 		{
 			name:             "system scoped profile",
 			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeSystem}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: ptr.String(string(fleet.MDMDeliveryVerified)), Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}},
 		},
 		{
 			name:             "User scoped profile with username",
 			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser, ManagedLocalAccount: "fleetie"}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: ptr.String(string(fleet.MDMDeliveryVerified)), Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
 		},
 		{
 			name:             "User scoped profile without username for some reason",
 			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("")}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: ptr.String(string(fleet.MDMDeliveryVerified)), Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("")}},
 		},
 		{
 			name:             "system + user scoped profiles",
 			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeSystem}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser, ManagedLocalAccount: "fleetie"}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: ptr.String(string(fleet.MDMDeliveryVerified)), Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: ptr.String(string(fleet.MDMDeliveryVerified)), Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
 		},
 	}
 
@@ -1991,7 +2566,7 @@ func TestHostMDMProfileScopes(t *testing.T) {
 		{
 			name:             "example profile",
 			storedProfiles:   []fleet.HostMDMWindowsProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: windowsHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: windowsHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: windowsHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: ptr.String(string(fleet.MDMDeliveryVerified))}},
 		},
 	}
 
@@ -2745,5 +3320,754 @@ func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
 		require.NotNil(t, hostDetail.Software)
 		assert.Equal(t, expectedSoftware, hostDetail.Software)
 		assert.True(t, ds.LoadHostSoftwareFuncInvoked, "LoadHostSoftwareFunc should have been called")
+	})
+}
+
+func TestSetHostDeviceMapping(t *testing.T) {
+	t.Run("custom source success", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: email, Source: source}}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", "custom")
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateCustomHostDeviceMappingFuncInvoked)
+		require.NotNil(t, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, uint(1), result[0].HostID)
+		assert.Equal(t, "user@example.com", result[0].Email)
+	})
+
+	t.Run("empty source defaults to custom", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+			require.Equal(t, fleet.DeviceMappingCustomOverride, source)                                                          // Should store as custom_override for user-authenticated calls
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: email, Source: fleet.DeviceMappingCustomReplacement}}, nil // But return as "custom" for display
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", "")
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateCustomHostDeviceMappingFuncInvoked)
+		require.NotNil(t, result)
+	})
+
+	t.Run("IDP source success with valid SCIM user", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{ID: 1, UserName: "user@example.com"}, nil
+		}
+		ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) error {
+			return nil
+		}
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
+			return nil
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts}}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
+		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked) // Should be called since SCIM user exists
+		require.NotNil(t, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, uint(1), result[0].HostID)
+		assert.Equal(t, "user@example.com", result[0].Email)
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, result[0].Source)
+	})
+
+	t.Run("IDP source success with any username when SCIM user not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return nil, sql.ErrNoRows // SCIM user not found
+		}
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
+			return nil
+		}
+		ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "any@username.com", Source: fleet.DeviceMappingMDMIdpAccounts}}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		result, err := svc.SetHostDeviceMapping(userCtx, 1, "any@username.com", fleet.DeviceMappingIDP)
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
+		require.False(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked) // Should NOT be called since SCIM user doesn't exist
+		require.True(t, ds.DeleteHostSCIMUserMappingFuncInvoked)       // Should be called to remove any existing SCIM mapping
+		require.NotNil(t, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, uint(1), result[0].HostID)
+		assert.Equal(t, "any@username.com", result[0].Email)
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, result[0].Source)
+	})
+
+	t.Run("IDP source fails without premium license", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
+		require.Error(t, err)
+		assert.Equal(t, fleet.ErrMissingLicense, err)
+	})
+
+	t.Run("invalid source returns validation error", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", "invalid")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must be 'custom' or 'idp'")
+		require.True(t, ds.HostLiteFuncInvoked) // Authorization was checked
+	})
+
+	t.Run("authorization failure for observer user", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+
+		// Use observer user who shouldn't have write permission
+		user := &fleet.User{
+			ID:         42,
+			Email:      "observer@example.com",
+			GlobalRole: ptr.String(fleet.RoleObserver),
+		}
+		userCtx := viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+		_, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", "custom")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "forbidden")
+	})
+
+	t.Run("host not found returns error", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, sql.ErrNoRows
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.SetHostDeviceMapping(userCtx, 999, "user@example.com", "custom")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "get host")
+	})
+
+	t.Run("orbit installer source override", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		// Create orbit context that simulates installer authentication
+		authzCtx := &authzctx.AuthorizationContext{}
+		orbitCtx := authzctx.NewContext(ctx, authzCtx)
+		orbitCtx = hostctx.NewContext(orbitCtx, &fleet.Host{ID: 1})
+		if ac, ok := authzctx.FromContext(orbitCtx); ok {
+			ac.SetAuthnMethod(authzctx.AuthnOrbitToken)
+		}
+
+		ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+			// Should use installer source for orbit token
+			require.Equal(t, fleet.DeviceMappingCustomInstaller, source)
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: email, Source: source}}, nil
+		}
+
+		result, err := svc.SetHostDeviceMapping(orbitCtx, 1, "user@example.com", "custom")
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateCustomHostDeviceMappingFuncInvoked)
+		require.NotNil(t, result)
+	})
+}
+
+func TestDeleteHostDeviceIDPMapping(t *testing.T) {
+	t.Run("success by admin on premium", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		err := svc.DeleteHostIDP(userCtx, 1)
+		require.True(t, ds.DeleteHostIDPFuncInvoked)
+		require.True(t, ds.NewActivityFuncInvoked)
+		require.NoError(t, err)
+	})
+	t.Run("failure by admin on free", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1}, nil
+		}
+		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		err := svc.DeleteHostIDP(userCtx, 1)
+		// err is license err
+		assert.Equal(t, fleet.ErrMissingLicense, err)
+
+		require.False(t, ds.DeleteHostIDPFuncInvoked)
+		require.False(t, ds.NewActivityFuncInvoked)
+	})
+
+	t.Run("authorization tests", func(t *testing.T) {
+		teamHost := &fleet.Host{ID: 1, TeamID: ptr.Uint(1)}
+		globalHost := &fleet.Host{ID: 2}
+
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		testCases := []struct {
+			name       string
+			user       *fleet.User
+			host       *fleet.Host
+			shouldFail bool
+		}{
+			// Global roles
+			{
+				name:       "global admin can delete global host IDP",
+				user:       test.UserAdmin,
+				host:       globalHost,
+				shouldFail: false,
+			},
+			{
+				name:       "global admin can delete team host IDP",
+				user:       test.UserAdmin,
+				host:       teamHost,
+				shouldFail: false,
+			},
+			{
+				name:       "global maintainer can delete global host IDP",
+				user:       test.UserMaintainer,
+				host:       globalHost,
+				shouldFail: false,
+			},
+			{
+				name:       "global maintainer can delete team host IDP",
+				user:       test.UserMaintainer,
+				host:       teamHost,
+				shouldFail: false,
+			},
+			{
+				name:       "global observer cannot delete global host IDP",
+				user:       test.UserObserver,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global observer cannot delete team host IDP",
+				user:       test.UserObserver,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global observer plus cannot delete global host IDP",
+				user:       test.UserObserverPlus,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global observer plus cannot delete team host IDP",
+				user:       test.UserObserverPlus,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global gitops cannot delete global host IDP",
+				user:       test.UserGitOps,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "global gitops cannot delete team host IDP",
+				user:       test.UserGitOps,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			// Team roles - correct team
+			{
+				name:       "team admin can delete team host IDP",
+				user:       test.UserTeamAdminTeam1,
+				host:       teamHost,
+				shouldFail: false,
+			},
+			{
+				name:       "team admin cannot delete global host IDP",
+				user:       test.UserTeamAdminTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team maintainer can delete team host IDP",
+				user:       test.UserTeamMaintainerTeam1,
+				host:       teamHost,
+				shouldFail: false,
+			},
+			{
+				name:       "team maintainer cannot delete global host IDP",
+				user:       test.UserTeamMaintainerTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team observer cannot delete team host IDP",
+				user:       test.UserTeamObserverTeam1,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team observer cannot delete global host IDP",
+				user:       test.UserTeamObserverTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team observer plus cannot delete team host IDP",
+				user:       test.UserTeamObserverPlusTeam1,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team observer plus cannot delete global host IDP",
+				user:       test.UserTeamObserverPlusTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team gitops cannot delete team host IDP",
+				user:       test.UserTeamGitOpsTeam1,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team gitops cannot delete global host IDP",
+				user:       test.UserTeamGitOpsTeam1,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			// Team roles - wrong team
+			{
+				name:       "team admin from different team cannot delete team host IDP",
+				user:       test.UserTeamAdminTeam2,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			{
+				name:       "team maintainer from different team cannot delete team host IDP",
+				user:       test.UserTeamMaintainerTeam2,
+				host:       teamHost,
+				shouldFail: true,
+			},
+			// No roles
+			{
+				name:       "user with no roles cannot delete global host IDP",
+				user:       test.UserNoRoles,
+				host:       globalHost,
+				shouldFail: true,
+			},
+			{
+				name:       "user with no roles cannot delete team host IDP",
+				user:       test.UserNoRoles,
+				host:       teamHost,
+				shouldFail: true,
+			},
+		}
+
+		for _, tc := range testCases {
+			// reset ds mock flags
+			ds.DeleteHostIDPFuncInvoked = false
+			ds.NewActivityFuncInvoked = false
+
+			// redefine this datastore mock for each test case since its return value is specific per case
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				// this will always be true, since the method is called with tc.host.ID in the first place
+				if id == tc.host.ID {
+					return tc.host, nil
+				}
+				return nil, sql.ErrNoRows
+			}
+
+			t.Run(tc.name, func(t *testing.T) {
+				userCtx := test.UserContext(ctx, tc.user)
+				err := svc.DeleteHostIDP(userCtx, tc.host.ID)
+
+				if tc.shouldFail {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+					require.False(t, ds.DeleteHostIDPFuncInvoked)
+					require.False(t, ds.NewActivityFuncInvoked)
+				} else {
+					require.NoError(t, err)
+					require.True(t, ds.DeleteHostIDPFuncInvoked)
+					require.True(t, ds.NewActivityFuncInvoked)
+				}
+			})
+		}
+	})
+}
+
+func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Create test hosts
+	host1 := &fleet.Host{
+		ID:       1,
+		UUID:     "uuid1",
+		Hostname: "host1",
+		Platform: "darwin",
+		MDM:      fleet.MDMHostData{},
+	}
+	host2 := &fleet.Host{
+		ID:       2,
+		UUID:     "uuid2",
+		Hostname: "host2",
+		Platform: "windows",
+		MDM:      fleet.MDMHostData{},
+	}
+	host3 := &fleet.Host{
+		ID:       3,
+		UUID:     "uuid3",
+		Hostname: "host3",
+		Platform: "darwin",
+		MDM:      fleet.MDMHostData{},
+	}
+	host4 := &fleet.Host{
+		ID:       4,
+		UUID:     "uuid4",
+		Hostname: "host4-no-mdm",
+		Platform: "darwin",
+		// No MDM info
+	}
+
+	mockHosts := []*fleet.Host{host1, host2, host3, host4}
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return mockHosts, nil
+	}
+
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+
+	// Test scenarios
+	t.Run("no including device status", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			// Return empty map - no MDM actions for any host
+			return make(map[uint]*fleet.HostLockWipeStatus), nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: false})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+		require.False(t, ds.GetHostsLockWipeStatusBatchFuncInvoked)
+
+		// All hosts have no MDM actions (empty statusMap), so device_status and pending_action should be nil
+		for _, h := range hosts {
+			require.NotNil(t, h.MDM) // MDM is a struct, not a pointer
+			require.Nil(t, h.MDM.DeviceStatus)
+			require.Nil(t, h.MDM.PendingAction)
+		}
+	})
+
+	t.Run("no MDM actions", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			// Return empty map - no MDM actions for any host
+			return make(map[uint]*fleet.HostLockWipeStatus), nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+		require.True(t, ds.GetHostsLockWipeStatusBatchFuncInvoked)
+
+		// All hosts have no MDM actions (empty statusMap), so device_status and pending_action should be mapped to default
+		for _, h := range hosts {
+			require.NotNil(t, h.MDM) // MDM is a struct, not a pointer
+			require.Equal(t, string(fleet.DeviceStatusUnlocked), *h.MDM.DeviceStatus)
+			require.Equal(t, string(fleet.PendingActionNone), *h.MDM.PendingAction)
+		}
+	})
+
+	t.Run("lock pending", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+			// Host 1 has pending lock command
+			statusMap[1] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "darwin",
+				LockMDMCommand:    &fleet.MDMCommand{CommandUUID: "lock-cmd-1"},
+				// No result yet, so it's pending
+			}
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 1 should show pending lock
+		require.NotNil(t, hosts[0].MDM)
+		require.NotNil(t, hosts[0].MDM.DeviceStatus)
+		require.NotNil(t, hosts[0].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionLock), *hosts[0].MDM.PendingAction)
+	})
+
+	t.Run("lock acknowledged", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+			// Host 1 has acknowledged lock command
+			statusMap[1] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "darwin",
+				LockMDMCommand:    &fleet.MDMCommand{CommandUUID: "lock-cmd-1"},
+				LockMDMCommandResult: &fleet.MDMCommandResult{
+					Status: fleet.MDMAppleStatusAcknowledged,
+				},
+			}
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 1 should show locked with NO pending action
+		require.NotNil(t, hosts[0].MDM)
+		require.NotNil(t, hosts[0].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[0].MDM.DeviceStatus)
+		require.NotNil(t, hosts[0].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[0].MDM.PendingAction)
+	})
+
+	t.Run("wipe pending", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+			// Host 2 (Windows) has pending wipe command
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				WipeMDMCommand:    &fleet.MDMCommand{CommandUUID: "wipe-cmd-2"},
+				// No result yet, so it's pending
+			}
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 2 should show pending wipe
+		require.NotNil(t, hosts[1].MDM)
+		require.NotNil(t, hosts[1].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionWipe), *hosts[1].MDM.PendingAction)
+	})
+
+	t.Run("wipe acknowledged", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+			// Host 2 (Windows) has acknowledged wipe command
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				WipeMDMCommand:    &fleet.MDMCommand{CommandUUID: "wipe-cmd-2"},
+				WipeMDMCommandResult: &fleet.MDMCommandResult{
+					Status: "200", // Windows success status
+				},
+			}
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 2 should show wiped
+		require.NotNil(t, hosts[1].MDM)
+		require.NotNil(t, hosts[1].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.DeviceStatusWiped), *hosts[1].MDM.DeviceStatus)
+		require.NotNil(t, hosts[1].MDM.PendingAction)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[1].MDM.PendingAction)
+	})
+
+	t.Run("multiple hosts with different states", func(t *testing.T) {
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+
+			// Host 1: locked
+			statusMap[1] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "darwin",
+				LockMDMCommand:    &fleet.MDMCommand{CommandUUID: "lock-cmd-1"},
+				LockMDMCommandResult: &fleet.MDMCommandResult{
+					Status: fleet.MDMAppleStatusAcknowledged,
+				},
+			}
+
+			// Host 2: pending wipe
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				WipeMDMCommand:    &fleet.MDMCommand{CommandUUID: "wipe-cmd-2"},
+			}
+
+			// Host 3: no actions (unlocked)
+			statusMap[3] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "darwin",
+			}
+
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 1: locked
+		require.NotNil(t, hosts[0].MDM)
+		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[0].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[0].MDM.PendingAction)
+
+		// Host 2: pending wipe
+		require.NotNil(t, hosts[1].MDM)
+		require.Equal(t, string(fleet.PendingActionWipe), *hosts[1].MDM.PendingAction)
+
+		// Host 3: unlocked
+		require.NotNil(t, hosts[2].MDM)
+		require.Equal(t, string(fleet.DeviceStatusUnlocked), *hosts[2].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[2].MDM.PendingAction)
+	})
+
+	t.Run("script-based lock (Windows & Linux)", func(t *testing.T) {
+		var exitCode0 int64
+		var exitCode1 int64 = 1
+
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+
+			// Host 2: Windows with successful lock script
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				LockScript: &fleet.HostScriptResult{
+					ExecutionID: "script-exec-1",
+					ExitCode:    &exitCode0,
+				},
+			}
+
+			return statusMap, nil
+		}
+
+		userContext := test.UserContext(ctx, test.UserAdmin)
+		hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
+		require.NoError(t, err)
+		require.Len(t, hosts, 4)
+
+		// Host 2 should show locked (via script)
+		require.NotNil(t, hosts[1].MDM)
+		require.Equal(t, string(fleet.DeviceStatusLocked), *hosts[1].MDM.DeviceStatus)
+		require.Equal(t, string(fleet.PendingActionNone), *hosts[1].MDM.PendingAction)
+
+		// Test with failed script
+		ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+			statusMap := make(map[uint]*fleet.HostLockWipeStatus)
+
+			statusMap[2] = &fleet.HostLockWipeStatus{
+				HostFleetPlatform: "windows",
+				LockScript: &fleet.HostScriptResult{
+					ExecutionID: "script-exec-2",
+					ExitCode:    &exitCode1, // Failed
+				},
+			}
+
+			return statusMap, nil
+		}
+
+		hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{IncludeDeviceStatus: true})
+		require.NoError(t, err)
+
+		// Failed script should show unlocked
+		require.NotNil(t, hosts[1].MDM)
+		require.Equal(t, string(fleet.DeviceStatusUnlocked), *hosts[1].MDM.DeviceStatus)
 	})
 }

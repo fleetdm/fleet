@@ -10,7 +10,7 @@ import { IMdmApple, getMdmServerUrl } from "interfaces/mdm";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -93,11 +93,13 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
-          text="Back to MDM"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          className={`${baseClass}__back-to-mdm`}
-        />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton
+            text="Back to MDM"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            className={`${baseClass}__back-to-mdm`}
+          />
+        </div>
         <h1>Apple Push Certificate Portal</h1>
         {showSpinner && <Spinner />}
         {showError && <DataError verticalPaddingSize="pad-xxxlarge" />}

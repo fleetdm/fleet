@@ -1,1 +1,0 @@
-- Fixed an issue where string concatenations in a LIKE expression caused a syntax error in the query editor.

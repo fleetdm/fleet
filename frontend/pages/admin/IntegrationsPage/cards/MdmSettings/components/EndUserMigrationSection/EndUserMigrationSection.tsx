@@ -27,7 +27,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
-import MdmMigrationPreview from "../../../../../../../../assets/images/mdm-migration-preview.gif";
+import MdmMigrationVideo from "../../../../../../../../assets/videos/mdm-migration-video.mp4";
 
 const baseClass = "end-user-migration-section";
 
@@ -164,10 +164,14 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     <SettingsSection className={baseClass} title="End user migration workflow">
       <form>
         <p>Control the end user migration workflow for macOS hosts.</p>
-        <img
-          src={MdmMigrationPreview}
-          alt="end user migration preview"
-          className={`${baseClass}__migration-preview`}
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          src={MdmMigrationVideo}
+          className={`${baseClass}__preview-video`}
+          controls
+          autoPlay
+          loop
+          muted
         />
         <Slider
           value={formData.isEnabled}
@@ -229,7 +233,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         </div>
         <Button
           className={`${baseClass}__preview-button`}
-          variant="text-link"
+          variant="inverse"
           onClick={toggleExamplePayloadModal}
         >
           Preview payload

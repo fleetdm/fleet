@@ -1,35 +1,13 @@
 # Log destinations
 
 Log destinations can be used in Fleet to log:
-- Osquery [status logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs).
+- Schedule query result logs
+- Fleet [audit logs](https://fleetdm.com/docs/using-fleet/audit-logs)
+- Status logs from [osquery](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs)
 
-- Osquery [schedule query result logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#results-logs).
+By default, logs are stored in the local filesystem on each host.
 
-- Fleet [audit logs](https://fleetdm.com/docs/using-fleet/audit-logs).
-
-
-To configure each log destination, you must set the correct logging configuration options in Fleet.
-
-Check out the reference documentation for:
-  - [Osquery status logging configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin).
-  - [Osquery result logging configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin).
-  - [Activity audit logging configuration options](https://fleetdm.com/docs/deploying/configuration#activity_audit_log_plugin).
-
-This guide provides a list of the supported log destinations in Fleet.
-
-### In this guide:
-
-  - [Amazon Kinesis Data Firehose](#amazon-kinesis-data-firehose)
-  - [Webhook](#webhook)
-  - [Snowflake](#snowflake)
-  - [Splunk](#splunk)
-  - [Amazon Kinesis Data Streams](#amazon-kinesis-data-streams)
-  - [AWS Lambda](#aws-lambda)
-  - [Google Cloud Pub/Sub](#google-cloud-pubsub)
-  - [Apache Kafka](#apache-kafka)
-  - [Stdout](#stdout)
-  - [Filesystem](#filesystem)
-  - [Sending logs outside of Fleet](#sending-logs-outside-of-fleet)
+To configure an external log destination, you must set the correct logging configuration options in Fleet. Currently, only self-hosted users can modify this configuration. If you're a managed-cloud customer, please reach out to Fleet about modifying the configuration.
 
 ## Amazon Kinesis Data Firehose
 

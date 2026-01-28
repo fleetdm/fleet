@@ -2,11 +2,10 @@
 
 ## Adding a new app (macOS)
 
-1. Create a new issue using the [New Fleet-maintained app](https://github.com/fleetdm/fleet/issues/new?template=fma-request.md) issue template
-2. Find the app's metadata in its [Homebrew formulae](https://formulae.brew.sh/)
-3. Create a new mainfiest file called `$YOUR_APP_NAME.json` in the `inputs/homebrew/` directory. For
-   example, if you wanted to add Box Drive, create the file `inputs/homebrew/box-drive.json`.
-4. Fill out the file according to the [input schema below](#input-file-schema). For our example Box Drive app, it would look like this:
+1. Find the app's metadata in its [Homebrew formulae](https://formulae.brew.sh/)
+2. Create a new manifest file called `$YOUR_APP_NAME.json` in the `inputs/homebrew/` directory. For
+   example, if you wanted to add Box Drive, create the file `inputs/homebrew/box-drive.json`. 
+3. Fill out the file according to the [input schema below](#input-file-schema). For our example Box Drive app, it would look like this:
 
    ```json
    {
@@ -19,134 +18,106 @@
    }
    ```
 
-5. Run the following command from the root of the Fleet repo to generate the app's output data:
+4. Run the following command from the root of the Fleet repo to generate the app's output data:
 
     ```bash
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/).
+5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script. **The script automatically adds the import statement and map entry to `frontend/pages/SoftwarePage/components/icons/index.ts`**, so you don't need to manually update the index file.
 
-7. Open a PR to the `fleet` repository with the above changes.  Connect it to the issue by adding `Fixes #ISSUE_NUMBER` in the description.
+6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/). For consistency and presentation on the website, the description should follow sentence casing and the following format: `<App Name>` is a(n) (copy description from Homebrew)., making sure to end with a `.`.
 
-8. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will:
-   1. Review the PR and test the app.  Contributors should be aware of the validation requirements below.
-   2. If validation requirements cannot be met in this PR, the PR will be closed and the associated issue will be prioritized in the g-software group backlog.
+7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the #g-software Product Designer (PD) in a comment that points them to the new icon. This way, the icon change gets a second pair of eyes.
 
-9. If the app passes testing, it is approved and merged. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release. App icon progress is tracked in the issue. An addition to Fleet-maintained apps is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
+8. If the app passes automated tests, it is approved and merged. The EM reviews the PR within 3 business days. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release.
 
-### Input file schema
+### macOS input file schema
 
-#### `name` (required)
+| Name                    | Type | Description                                                                                                                                                                                                                                   |
+|--------------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`                   | string       | **Required.** User-facing name of the application.                                                                                                                                                                                                          |
+| `unique_identifier`      | string       | **Required.** Platform-specific unique identifier (e.g., bundle identifier on macOS).                                                                                                                                                                       |
+| `token`                  | string       | **Required.** Homebrew's unique identifier. It's the `token` field of the Homebrew API response.                                                                                                                                                                   |
+| `installer_format`       | string       | **Required.** File format of the installer (`zip`, `dmg`, `pkg`). Determine via the file extension in the Homebrew API `url` field or by downloading the installer if the extension isn’t present.                                                         |
+| `slug`                   | string       | **Required.** Identifies the app/platform combination (e.g., `box-drive/darwin`). Used to name manifest files and reference the app in [Fleet's best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps). Format: `<app-name>/<platform>`, where app name is filesystem-friendly and platform is `darwin`.             |
+| `default_categories`     | string       | **Required.** Default categories for self-service if none are specified. Valid values: `Browsers`, `Communication`, `Developer Tools`, `Productivity`.                                                                                                      |
+| `pre_uninstall_scripts`  | string        | Command lines run **before** the generated uninstall script (e.g., for [Box](inputs/homebrew/box-drive.json)).                                                                                                                                                                  |
+| `post_uninstall_scripts` | string        | Command lines run **after** the generated uninstall script (e.g., for [Box](inputs/homebrew/box-drive.json)).                                                                                                                                                                   |
+| `install_script_path`    | string        | Filepath to a custom install script (`.sh`). Overrides the generated install script. Script must be placed in `inputs/homebrew/scripts/`.                                                                                                      |
+| `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.sh`). Overrides the generated uninstall script. Cannot be used together with `pre_uninstall_scripts` or `post_uninstall_scripts`. Script must be placed in `inputs/homebrew/scripts/`.                 |
 
-This is the user-facing name of the application.
+## Adding a new app (Windows)
 
-#### `unique_identifier` (required)
+1. Find the Winget `PackageIdentifier` in the relevant [winget-pkgs repo manifest](https://github.com/microsoft/winget-pkgs/tree/master/manifests).
 
-This is the platform-specific unique identifier for the app. On macOS, this is the app's bundle identifier.
+2. Get the unique identifier that Fleet will use for matching the software with software inventory:
+  - On a test Windows host, install the app manually, then run the following PowerShell script that correlates to the defined `installer_scope`:
+    - Machine scope: `Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object {$_.DisplayName -like '*<App Name>*'} | Select-Object DisplayName, DisplayVersion, Publisher`
+    - User scope: `Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object {$_.DisplayName -like '*<App Name>*'} | Select-Object DisplayName, DisplayVersion, Publisher`
 
-#### `token` (required)
+If the `unique_identifier` doesn't match the `DisplayName`, then Fleet will incorrectly create two software titles when the Fleet-maintained app is added and later installed. One title for the Fleet-maintained app and a separate title for the inventoried software.
 
-This is the identifier used by homebrew for the app; it is the `token` field on the homebrew API response.
+3. Fill out the file according to the [input schema](#windows-input-file-schema). For example, Box Drive looks like this:
 
-#### `installer_format` (required)
+```json
+{
+  "name": "Box Drive",
+  "slug": "box-drive/windows",
+  "package_identifier": "Box.Box",
+  "unique_identifier": "Box",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}
+```
 
-This is the file format for the app's installer. Currently supported values are:
 
-- `zip`
-- `dmg`
-- `pkg`
+4. Run `go run cmd/maintained-apps/main.go --slug="<app-name>/windows" --debug` from the root of the
+   Fleet repo to generate the app's output data, replacing `<app-name>` with your app's name, for example:
 
-To find the app's installer format, you can look at the `url` field on the homebrew API response. The installer's extension should be at the end of this URL.
+```bash
+go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
+```
 
-Sometimes the file type is not included in the installer's URL. In this case, you can download the installer and use the extension of the downloaded file.
+5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script. **The script automatically adds the import statement and map entry to `frontend/pages/SoftwarePage/components/icons/index.ts`**, so you don't need to manually update the index file.
 
-#### `slug` (required)
+6. Add a description for the app in outputs/apps.json file. You can use descriptions from the wingest manifest.
 
-The `slug` identifies a specific app and platform combination. It is used to name the manifest files that contain the metadata that Fleet needs to add, install, and uninstall this app.  This is what is used when referring to the app in GitOps.
+7. Open a PR to the fleet repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the #g-software Product Designer (PD) in a comment that points them to the new icon. This way, the icon change gets a second pair of eyes.
 
-The slug is composed of a filesystem-friendly version of the app name, and an operating system platform identifier, separated by a `/`.
+8. If the app passes automated tests, it is approved and merged. The EM reviews the PR within 3 business days. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release.
 
-For the app name part, use `-` to separate words if necessary, for example `adobe-acrobat-reader`.
+### Windows input file schema
 
-Use `darwin` as the platform part.  For example, use a `slug` of `box-drive/darwin` for Box Drive on macOS.
+| Name                    | Type | Description                                                                                                                                                                                                                                   |
+|--------------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`                   | string       | **Required.** User-facing name of the application.                                                                                                                                                                                                          |
+| `unique_identifier`      | string       | **Required.** Platform-specific unique identifier. For Windows, this is the `DisplayName`.                                                                                                                                                                       |
+| `package_identifier`                  | string       | **Required.** The `PackageIdentifier` from winget. Fleet uses this to pull the correct metadata for the app.                                                                                                                                                             |
+| `slug`                   | string       | **Required.** Identifies the app/platform combination (e.g., `box-drive/windows`). Used to name manifest files and reference the app in [Fleet's best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps). Format: `<app-name>/<platform>`, where app name is filesystem-friendly and platform is `darwin`.             |
+| `installer_arch`       | string       | **Required.** `x64` or `x86` (most apps use `x64`).                                                        |
+| `installer_type`       | string       | **Required.** `exe`, `msi`, or `msix` (file type, not vendor tech like "wix")                                                        |
+| `installer_scope`       | string       | **Required.** `machine` or `user` (prefer `machine` for managed installs)                                                        |
+| `default_categories`     | string       | **Required.** Default categories for self-service if none are specified. Valid values: `Browsers`, `Communication`, `Developer Tools`, `Productivity`.                                                                                                      |
+| `install_script_path`    | string        | Filepath to a custom install script (`.ps1`). Overrides the generated install script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates install scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide PowerShell scripts that run the installer file directly. Fleet stores the installer and sends it to the host at install time; your script must execute it using the `INSTALLER_PATH` environment variable.                                                                                                |
+| `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.ps1`). Overrides the generated uninstall script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates uninstall scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide a script to uninstall the app. Scripts for `.exe` apps are vendor-specific. Use the vendor’s documented silent uninstall switch or the registered UninstallString (if available), ensuring the script runs silently and returns the installer’s exit code.                  |
+| `fuzzy_match_name`       | boolean       | If the `unique_identifier` doesn't match the `DisplayName`, use `fuzzy_match_name` to specify that Fleet uses "fuzzy matching" to match the Fleet-maintained app and the inventoried software. For example, for Pritunl, the `unique_identifier` is "Pritunl" and the inventories software's `DisplayName` is "Pritunl Client". With `fuzzy_match_name` set to true, Pritunl app will be matched to the inventories software.  |
 
-#### `pre_uninstall_scripts` (optional)
+#### Windows troubleshooting
 
-These are command lines that will be run _before_ the generated uninstall script is executed, e.g. for [Box](inputs/homebrew/box-drive.json).
+- App not found in Fleet UI: ensure `apps.json` was updated by the generator and your override URL is correct
+- Install fails silently: confirm your `installer_type`, `installer_arch`, and `installer_scope` match the selected winget installer; run your PowerShell script manually on a test host
+- Uninstall doesn’t remove the app: prefer explicit uninstall scripts; otherwise, ensure the winget manifest exposes `ProductCode` or `UpgradeCode`
+- Hash mismatch errors: if the upstream manifest is in flux, you can set `ignore_hash: true` in the input JSON (use sparingly)
 
-#### `post_uninstall_scripts` (optional)
+#### Can I do this on macOS?
 
-These are command lines that will be run _after_ the generated uninstall script is executed, e.g. for [Box](inputs/homebrew/box-drive.json).
-
-#### `default_categories` (required)
-
-These are the default categories assigned to the installer in [self-service](https://fleetdm.com/guides/software-self-service) if no categories are specified when it is added to a team's library.  Categories must be one or more of these values:
-
-- `Browsers`
-- `Communication`
-- `Developer Tools`
-- `Productivity`
-
-#### `install_script_path` (optional)
-
-This is a filepath to an install script. If provided, this script will be used instead of the generated install script. Only shell scripts (`.sh`) are supported.
-
-The script should be added to the `inputs/homebrew/scripts` directory.
-
-#### `uninstall_script_path` (optional)
-
-This is a filepath to an uninstall script. If provided, this script will be used instead of the generated uninstall script. Only shell scripts (`.sh`) are supported.
-
-`uninstall_script_path` can't be used together with `pre_uninstall_scripts` and `post_uninstall_scripts`.
-
-The script should be added to the `inputs/homebrew/scripts` directory.
-
-### Validating Fleet-maintained apps additions
-
-1. When a pull request (PR) is opened containing changes to `ee/maintained-apps/inputs/`, the [#g-software Product Designer (PD) and Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) are automatically added as reviewers.
-   1. The PD is responsible for approving the name and default category
-   2. The EM is repsonsible for validating or assigning a validator
-
-2. Ensure an associated issue exists for the PR.  If not, create one using the `Add Fleet-maintained app` issue template. Move the issue to the `g-software` project and set the status to `In Progress`.  Ensure the PR is linked to the issue.
-
-3. Validate the PR:
-
-   1. Find the app in [Homebrew's GitHub casks](https://github.com/Homebrew/homebrew-cask/tree/main/Casks) and download it locally using `cask.url`.
-   2. Install it on a host and run a live query on the host: `SELECT * FROM apps WHERE name LIKE '%App Name%';`
-   3. Validate and check off items in the `Validation` section of the issue.
-
-4. If the PR passes validation, the validator will also execute the test criteria in the QA section of the issue.  If tests fail, add feedback in the PR comments.  If the test failure(s) cannot be addressed by the contributor, close the PR and move the issue to the Drafting board for prioritization.  If tests pass, the PR is approved and merged.
-
-5. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)).
-
-6. QA ensures the icon is added to Fleet
-
-#### Testing additions to Fleet-maintained apps (no icon)
-
-Use the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
-
-   ```bash
-   https://raw.githubusercontent.com/<repository-name>/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
-   ```
-
-   Make sure you replace the `<PR-branch-name>` and `<repository-name>`
-
-Test criteria:
-
-- [X] App adds successfully to team's library
-- [X] App installs successfully on host
-- [X] App opens succuessfully on host
-- [X] App uninstalls successfully on host
-
-If the tests pass:
-
-- Move issue to `Ready` (icon addition still needed)
-- Approve and merge PR
-
-If testing fails:
-
-- Remove issue from the `g-software` release board, and add issue to the `Drafting` board. Remove the `:release` tag and add the `:product` tag.
+The instructions below are meant to be run on a Windows host. But, you can run most of this on a macOS host, as well:
+- You can author Windows inputs and run the generator on macOS. The ingester is Go code that fetches data from winget/GitHub and works cross‑platform.
+- To find the PackageName and Publisher, you can look in the locale and installer yaml files in the winget-pkgs repo.
+- Validation and testing still require a Windows host (to verify programs.name and to run install/uninstall).
 
 ## Updating existing Fleet-maintained apps
 

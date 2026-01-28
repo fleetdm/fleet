@@ -34,7 +34,7 @@ export interface ITeamPoliciesCountQueryKey
   scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
 }
 
-interface IPoliciesCountApiParams {
+export interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
   mergeInherited?: boolean;

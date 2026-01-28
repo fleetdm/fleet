@@ -1,5 +1,7 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { createCustomRenderer } from "test/test-utils";
+import { InstallerType } from "interfaces/software";
 
 import InstallerDetailsWidget from "./InstallerDetailsWidget";
 
@@ -13,13 +15,17 @@ afterAll(() => {
   jest.useRealTimers();
 });
 
+const render = createCustomRenderer({ withBackendMock: true });
+
 describe("InstallerDetailsWidget", () => {
   const defaultProps = {
     softwareName: "Test Software",
-    installerType: "package" as const,
+    installerType: "package" as InstallerType,
     addedTimestamp: "2024-05-06T10:00:00Z",
-    versionInfo: <span>v1.2.3</span>,
+    version: "v1.2.3",
     isFma: false,
+    isScriptPackage: false,
+    androidPlayStoreId: undefined,
   };
 
   it("renders the package icon when installerType is 'package'", () => {
@@ -36,6 +42,30 @@ describe("InstallerDetailsWidget", () => {
   it("renders version info and relative time when addedTimestamp is present", () => {
     render(<InstallerDetailsWidget {...defaultProps} />);
     expect(screen.getByText("v1.2.3")).toBeInTheDocument();
+    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
+  });
+
+  it("does not render Version (unknown) info for a script package", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        version={undefined}
+        isScriptPackage
+      />
+    );
+    expect(screen.queryByText(/Version \(unknown\)/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
+  });
+
+  it("renders Version (unknown) info for a non-script package with no version info", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        version={undefined}
+        isScriptPackage={false}
+      />
+    );
+    expect(screen.getByText(/Version \(unknown\)/i)).toBeInTheDocument();
     expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
   });
 
@@ -69,9 +99,24 @@ describe("InstallerDetailsWidget", () => {
   });
 
   it("renders VPP label", () => {
-    render(<InstallerDetailsWidget {...defaultProps} installerType="vpp" />);
+    render(
+      <InstallerDetailsWidget {...defaultProps} installerType="app-store" />
+    );
 
     expect(screen.getByText(/App Store \(VPP\)/i)).toBeInTheDocument();
+  });
+
+  it("renders Google Play Store label and 'latest' for version", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        installerType="app-store"
+        androidPlayStoreId="com.android.appname"
+      />
+    );
+
+    expect(screen.getByText(/Google Play Store/i)).toBeInTheDocument();
+    expect(screen.getByText(/latest/i)).toBeInTheDocument();
   });
 
   it("InstallerName disables tooltip if not truncated", () => {

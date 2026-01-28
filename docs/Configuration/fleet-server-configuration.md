@@ -23,6 +23,8 @@ periodically.
 
 For the address of the MySQL server that Fleet should connect to, include the hostname and port.
 
+If an Amazon Relational Database Service (RDS) endpoint is specified and `mysql_region` is set instead of `mysql_password` or `mysql_password_path`, Identity and Access Management (IAM) authentication is automatically used.
+
 - Default value: `localhost:3306`
 - Environment variable: `FLEET_MYSQL_ADDRESS`
 - Config file format:
@@ -196,6 +198,45 @@ This setting should not usually be used.
     sql_mode: ANSI
   ```
 
+### mysql_region
+
+AWS region to use for Identity and Access Management (IAM) authentication of an Amazon Relational Database Service (RDS) MySQL connection. This flag only has effect if all of the following are true:
+
+- `mysql_password` is not set
+- `mysql_password_path` is not set
+
+- Default value: none
+- Environment variable: `FLEET_MYSQL_REGION`
+- Config file format:
+  ```yaml
+  mysql:
+    region: ca-central-1
+  ```
+
+### mysql_sts_assume_role_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  mysql:
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/rds-auth-role
+  ```
+
+### mysql_sts_external_id
+
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `mysql_sts_assume_role_arn`.
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  mysql:
+    sts_external_id: your_unique_id
+  ```
+
 ## Redis
 
 Note that to test a TLS connection to a Redis instance, run the
@@ -212,6 +253,8 @@ By default, this will set up a Redis pool for that configuration and execute a
 ### redis_address
 
 For the address of the Redis server that Fleet should connect to, include the hostname and port.
+
+If an AWS ElastiCache endpoint is specified and no `redis_password` is provided, Fleet will attempt IAM authentication only if both `redis_region` and `redis_cluster` are also set. Otherwise, it falls back to authentication without a password.
 
 - Default value: `localhost:6379`
 - Environment variable: `FLEET_REDIS_ADDRESS`
@@ -267,6 +310,60 @@ Use a TLS connection to the Redis server.
   ```yaml
   redis:
     use_tls: true
+  ```
+
+### redis_region
+
+AWS region to use for IAM authentication of an Elasticache connection. This flag only has effect if all of the following are true:
+
+- `redis_password` is not set
+- `redis_cache_name` is set
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_REGION`
+- Config file format:
+  ```yaml
+  redis:
+    region: ca-central-1
+  ```
+
+### redis_cache_name
+
+Cache name to use for IAM authentication of an Elasticache connection. This flag only has effect if all of the following are true:
+
+- `redis_password` is not set
+- `redis_region` is set
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_CACHE_NAME`
+- Config file format:
+  ```yaml
+  redis:
+    cache_name: my-elasticache-instance
+  ```
+
+### redis_sts_assume_role_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+- Default value: `""`
+- Environment variable: `FLEET_REDIS_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  redis:
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/elasticache-auth-role
+  ```
+
+### redis_sts_external_id
+
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `redis_sts_assume_role_arn`.
+
+- Default value: `""`
+- Environment variable: `FLEET_REDIS_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  redis:
+    sts_external_id: your_unique_id
   ```
 
 ### redis_duplicate_results
@@ -631,6 +728,58 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
     private_key: 72414F4A688151F75D032F5CDA095FC4
   ```
 
+### server_private_key_region
+
+AWS region to use for Identity and Access Management (IAM) authentication. This flag only has effect if `server_private_key` is not set.
+
+- Default value: none
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_REGION`
+- Config file format:
+  ```yaml
+  server:
+    private_key_region: ca-central-1
+  ```
+
+### server_private_key_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the server private key.
+
+Only one of `server_private_key_arn` or `server_private_key` can be set.
+
+If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  server:
+    server_private_key_arn: arn:aws:secretsmanager:us-east-1:123456789012:secret:SecretName-473945
+  ```
+
+### server_private_key_sts_assume_role_arn
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  server:
+    private_key_sts_assume_role_arn: arn:aws:iam::1234567890:role/rds-auth-role
+  ```
+
+### server_private_key_sts_external_id
+
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `server_private_key_arn` and `server_private_key_sts_assume_role_arn`.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  server:
+    private_key_sts_external_id: your_unique_id
+  ```
+
 ## Auth
 
 ### auth_sso_session_validity_period
@@ -884,7 +1033,7 @@ Valid time units are `s`, `m`, `h`.
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -898,7 +1047,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -927,7 +1076,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asyncronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1098,7 +1247,7 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -1361,7 +1510,9 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
 - `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS role ARN to use for Firehose authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+If set, Fleet uses IAM authentication instead of basic authentication set by `firehose_access_key_id` and `firehose_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN`
@@ -1377,8 +1528,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
 - `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS External ID to use for Firehose authentication. This is typically used in 
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `firehose_sts_assume_role_arn`.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_STS_EXTERNAL_ID`
@@ -1509,7 +1659,9 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
 - `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS role ARN to use for Kinesis authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+If set, Fleet uses AWS IAM authentication instead of basic authentication set by `kinesis_access_key_id` and `kinesis_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_KINESIS_STS_ASSUME_ROLE_ARN`
@@ -1525,8 +1677,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
 - `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS External ID to use for Kinesis authentication. This is typically used in
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `kinesis_sts_assume_role_arn`.
 
 - Default value: none
 - Environment variable: `FLEET_KINESIS_STS_EXTERNAL_ID`
@@ -1657,7 +1808,10 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
 - `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS role ARN to use for Lambda authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+
+If set, Fleet uses AWS IAM authentication instead of basic authentication set by `lambda_access_key_id` and `lambda_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_STS_ASSUME_ROLE_ARN`
@@ -1673,8 +1827,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
 - `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-AWS STS External ID to use for Lambda authentication. This is typically used in
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `lambda_sts_assume_role_arn`.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_STS_EXTERNAL_ID`
@@ -1918,6 +2071,225 @@ The value of the Content-Type header to use in [Kafka REST Proxy API calls](http
     content_type_value: application/vnd.kafka.json.v2+json
   ```
 
+## NATS
+
+NATS subject configuration options (`nats_status_subject`, `nats_result_subject`,
+and `nats_audit_subject`) support dynamic subject generation using templates.
+Subjects can be constant strings, or templates containing expressions enclosed
+in curly braces (`{...}`).
+
+Template expressions are evaluated using [expr](https://expr-lang.org/) and have
+access to the log data via the `log` variable. Fields can be accessed using dot
+notation, such as `log.name` and `log.decorations.hostname`.
+
+#### Example log
+```json
+{
+  "action": "snapshot",
+  "decorations": {
+    "host_uuid": "85c1244f-9176-2445-8ceb-d6569dc1b417",
+    "hostname": "webserver"
+  },
+  "name": "pack/Global/process_events",
+  "snapshot": [
+    {"pid": "1234", "name": "nginx", "cmdline": "/usr/sbin/nginx"}
+  ]
+}
+```
+
+#### Example subject templates
+| Description         | Template                                          | Result                       |
+|---------------------|---------------------------------------------------|------------------------------|
+| Route by hostname   | `results.{log.decorations.hostname}`              | `results.webserver`          |
+| Extract query name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
+| Action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver` |
+
+### nats_server
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+The URL of the NATS server to connect to for publishing logs.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_SERVER`
+- Config file format:
+  ```yaml
+  nats:
+    server: nats://localhost:4222
+  ```
+
+### nats_status_subject
+
+This flag only has effect if `osquery_status_log_plugin` is set to `nats`.
+
+The NATS subject that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_STATUS_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    status_subject: osquery_status
+  ```
+
+### nats_result_subject
+
+This flag only has effect if `osquery_result_log_plugin` is set to `nats`.
+
+The NATS subject that osquery result logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_RESULT_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    result_subject: osquery_result
+  ```
+
+### nats_audit_subject
+
+This flag only has effect if `activity_audit_log_plugin` is set to `nats`.
+
+The NATS subject that audit logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_AUDIT_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    audit_subject: fleet_audit
+  ```
+
+### nats_cred_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the NATS [credentials file](https://docs.nats.io/using-nats/developer/connecting/creds) for authentication. Cannot be used together with `nats_nkey_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_CRED_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    cred_file: /path/to/nats.creds
+  ```
+
+### nats_nkey_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the NATS [NKey seed file](https://docs.nats.io/using-nats/developer/connecting/nkey) for authentication. Cannot be used together with `nats_cred_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_NKEY_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    nkey_file: /path/to/nats.nk
+  ```
+
+### nats_tls_client_crt_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the TLS client certificate file for NATS connection. Must be used together with `nats_tls_client_key_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_TLS_CLIENT_CRT_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    tls_client_crt_file: /path/to/client.crt
+  ```
+
+### nats_tls_client_key_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the TLS client key file for NATS connection. Must be used together with `nats_tls_client_crt_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_TLS_CLIENT_KEY_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    tls_client_key_file: /path/to/client.key
+  ```
+
+### nats_ca_crt_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the CA certificate file for verifying the NATS server certificate.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_CA_CRT_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    ca_crt_file: /path/to/ca.crt
+  ```
+
+### nats_compression
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Compression algorithm to use for log payloads before publishing to NATS. Supported values are `gzip`, `snappy`, and `zstd`. When not specified, logs are published uncompressed.
+
+- Default value: none (no compression)
+- Environment variable: `FLEET_NATS_COMPRESSION`
+- Config file format:
+  ```yaml
+  nats:
+    compression: gzip
+  ```
+
+### nats_jetstream
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Enable NATS JetStream for log publishing. When enabled, logs are published using JetStream instead of core NATS.
+
+- Default value: false
+- Environment variable: `FLEET_NATS_JETSTREAM`
+- Config file format:
+  ```yaml
+  nats:
+    jetstream: true
+  ```
+
+### nats_timeout
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
+
+- Default value: 30s
+- Environment variable: `FLEET_NATS_TIMEOUT`
+- Config file format:
+  ```yaml
+  nats:
+    timeout: 1m
+  ```
+
 ## Email backend
 
 By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
@@ -1992,11 +2364,28 @@ AWS secret access key to use for SES authentication.
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
+### ses_source_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
+required** when using the SES email backend.
+
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter of SendRawEmail.
+
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `ses_access_key_id` and `ses_secret_access_key`.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SOURCE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+    ses_source_arn: arn:aws:ses:us-east-1:123456789012:identity/example.com
+  ```
+
 ### ses_sts_assume_role_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
-AWS STS role ARN to use for SES authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
 
 - Default value: none
 - Environment variable: `FLEET_SES_STS_ASSUME_ROLE_ARN`
@@ -2010,8 +2399,7 @@ AWS STS role ARN to use for SES authentication.
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
-AWS STS External ID to use for SES authentication. This is typically used in
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `ses_source_arn` and `ses_sts_assume_role_arn`.
 
 
 - Default value: none
@@ -2020,22 +2408,6 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
   ```yaml
   ses:
     sts_external_id: your_unique_id
-  ```
-
-### ses_source_arn
-
-This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
-required** when using the SES email backend.
-
-The ARN of the identity that is associated with the sending authorization policy that permits you to send
-for the email address specified in the Source parameter of SendRawEmail.
-
-- Default value: none
-- Environment variable: `FLEET_SES_SOURCE_ARN`
-- Config file format:
-  ```yaml
-  ses:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
 ## S3
@@ -2105,7 +2477,9 @@ AWS secret access key to use for S3 authentication.
 
 *Available in Fleet Premium.*
 
-AWS STS role ARN to use for S3 authentication.
+Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
+
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN`
@@ -2119,8 +2493,7 @@ AWS STS role ARN to use for S3 authentication.
 
 *Available in Fleet Premium.*
 
-AWS STS External ID to use for S3 authentication. This is typically used in
-conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `s3_software_installers_sts_assume_role_arn`.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_EXTERNAL_ID`
@@ -2134,7 +2507,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 
 *Available in Fleet Premium.*
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
@@ -2168,7 +2541,7 @@ will use [virtual hosted bucket addressing](http://docs.aws.amazon.com/AmazonS3/
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
@@ -2708,7 +3081,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 
 ##### packaging_s3_endpoint_url
 
-This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
+This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
 - Default value: ""
@@ -2755,7 +3128,7 @@ See the [Virtual hosting of buckets doc](http://docs.aws.amazon.com/AmazonS3/lat
 
 This is the AWS S3 Region. Leave it blank to enable region discovery.
 
-Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
+You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`
@@ -2782,18 +3155,6 @@ The number of days the signed SCEP client certificates will be valid.
   ```yaml
   mdm:
     apple_scep_signer_validity_days: 100
-  ```
-
-### mdm.apple_scep_signer_allow_renewal_days
-
-The number of days allowed to renew SCEP certificates.
-
-- Default value: 14
-- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_signer_allow_renewal_days: 30
   ```
 
 ### mdm.apple_dep_sync_periodicity
@@ -2836,6 +3197,21 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+### mdm.sso_rate_limit_per_minute
+
+The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
+[Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
+
+The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users set up their Macs simultaneously).
+
+- Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in))
+- Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```yaml
+  mdm:
+    sso_rate_limit_per_minute: 200
   ```
 
 ## Partnerships

@@ -94,12 +94,12 @@ func TestGenerate(t *testing.T) {
 	require.NoError(t, err)
 	err = f.Close()
 	require.NoError(t, err)
-	err = os.Chmod(filepath.Join(testDir, "foo.txt"), os.ModePerm)
+	err = os.Chmod(filepath.Join(testDir, "foo.txt"), os.ModePerm) // nolint:gosec // G302
 	require.NoError(t, err)
 	require.NoError(t, err)
 	err = os.Mkdir(filepath.Join(testDir, "zoo"), os.ModePerm)
 	require.NoError(t, err)
-	err = os.Chmod(filepath.Join(testDir, "zoo"), os.ModePerm)
+	err = os.Chmod(filepath.Join(testDir, "zoo"), os.ModePerm) // nolint:gosec // G302
 	require.NoError(t, err)
 
 	// Test directory with a few entries.

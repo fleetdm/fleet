@@ -11,6 +11,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.replicas }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   selector:
     matchLabels:
       app: fleet
@@ -102,6 +103,8 @@ spec:
             value: "{{ .Values.fleet.carving.s3.endpointURL }}"
           - name: FLEET_S3_FORCE_S3_PATH_STYLE
             value: "{{ .Values.fleet.carving.s3.forceS3PathStyle }}"
+          - name: FLEET_S3_CARVES_REGION
+            value: "{{ .Values.fleet.carving.s3.region }}"
           {{- if ne .Values.fleet.carving.s3.accessKeyID "" }}
           - name: FLEET_S3_ACCESS_KEY_ID
             value: "{{ .Values.fleet.carving.s3.accessKeyID }}"
@@ -125,6 +128,8 @@ spec:
             value: "{{ .Values.fleet.softwareInstallers.s3.endpointURL }}"
           - name: FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE
             value: "{{ .Values.fleet.softwareInstallers.s3.forceS3PathStyle }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_REGION
+            value: "{{ .Values.fleet.softwareInstallers.s3.region }}"
           {{- if ne .Values.fleet.softwareInstallers.s3.accessKeyID "" }}
           - name: FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID
             value: "{{ .Values.fleet.softwareInstallers.s3.accessKeyID }}"

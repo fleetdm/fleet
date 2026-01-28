@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
@@ -16,6 +17,21 @@ import (
 type key int
 
 const hostIdentityKey key = 0
+
+var sigAuthenticatedEndpoints = []*regexp.Regexp{
+	regexp.MustCompile(`^/api/(?:v1|latest)/fleet/certificate_authorities/\d+/request_certificate$`),
+	regexp.MustCompile(`^/api/fleet/orbit/`),
+	regexp.MustCompile(`/osquery/`),
+}
+
+func IsSigAuthEndpoint(path string) bool {
+	for _, endp := range sigAuthenticatedEndpoints {
+		if endp.Match([]byte(path)) {
+			return true
+		}
+	}
+	return false
+}
 
 // NewContext creates a new context.Context with host identity cert.
 func NewContext(ctx context.Context, hostIdentity types.HostIdentityCertificate) context.Context {
@@ -43,7 +59,7 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if !strings.Contains(req.URL.Path, "/api/fleet/orbit/") && !strings.Contains(req.URL.Path, "/osquery/") {
+			if !IsSigAuthEndpoint(req.URL.Path) {
 				next.ServeHTTP(w, req)
 				return
 			}

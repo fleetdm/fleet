@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/xml"
 	"fmt"
 	"strings"
 	"time"
@@ -339,11 +340,26 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
+	// Check if document is XML
+	// We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+	documentIsXML := strings.HasPrefix(strings.TrimSpace(document), "<")
+
 	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
 		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
 			return "", false
 		}
 		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
+
+		if documentIsXML {
+			// Escape XML special characters
+			var b strings.Builder
+			err = xml.EscapeText(&b, []byte(val))
+			if err != nil {
+				return "", false
+			}
+			val = b.String()
+		}
+
 		return val, ok
 	})
 

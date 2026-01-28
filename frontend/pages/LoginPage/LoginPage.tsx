@@ -194,7 +194,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   }
 
   return (
-    <AuthenticationFormWrapper>
+    <AuthenticationFormWrapper header="Welcome to Fleet">
       <LoginForm
         handleSubmit={onSubmit}
         baseError={errors.base}

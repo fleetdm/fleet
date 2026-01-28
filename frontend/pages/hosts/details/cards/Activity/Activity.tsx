@@ -7,6 +7,7 @@ import {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
+import { IGetCommandsResponse } from "services/entities/command";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
@@ -18,13 +19,25 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
+import MDMCommandsToggle from "./MDMCommandsToggle";
+import PastCommandFeed from "./PastCommandFeed";
+import UpcomingCommandFeed from "./UpcomingCommandFeed";
+import CommandFeed from "./CommandFeed";
+import { ShowCommandDetailsHandler } from "./CommandItem/CommandItem";
 
-const baseClass = "activity-card";
+const baseClass = "host-activity-card";
 
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
-      tipContent="Failure of one activity won't cancel other activities."
+      tipContent={
+        <>
+          Failure of one activity won&apos;t cancel other activities.
+          <br />
+          <br />
+          Currently, only software and scripts are guaranteed to run in order.
+        </>
+      }
       className={`${baseClass}__upcoming-tooltip`}
     >
       Activities run as listed
@@ -34,22 +47,33 @@ const UpcomingTooltip = () => {
 
 interface IActivityProps {
   activeTab: "past" | "upcoming";
+  showMDMCommandsToggle: boolean;
+  showMDMCommands: boolean;
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
+  commands?: IGetCommandsResponse;
   isLoading?: boolean;
   isError?: boolean;
   className?: string;
+  /** The count displayed in the Upcoming tab. It consists of the amount of
+   * upcoming activities and mdm commands. */
   upcomingCount: number;
   canCancelActivities: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
+  onShowCommandDetails: ShowCommandDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
+  onShowMDMCommands: () => void;
+  onHideMDMCommands: () => void;
 }
 
 const Activity = ({
   activeTab,
+  showMDMCommandsToggle,
+  showMDMCommands,
   activities,
+  commands,
   isLoading,
   isError,
   className,
@@ -59,15 +83,19 @@ const Activity = ({
   onNextPage,
   onPreviousPage,
   onShowDetails,
+  onShowCommandDetails,
   onCancel,
+  onShowMDMCommands,
+  onHideMDMCommands,
 }: IActivityProps) => {
   const classNames = classnames(baseClass, className);
+
+  const commandCount = commands?.count ?? 0;
 
   return (
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       {isLoading && (
@@ -75,8 +103,11 @@ const Activity = ({
           <Spinner centered />
         </div>
       )}
-      <CardHeader header="Activity" />
-      <TabNav>
+      <div className={`${baseClass}__header`}>
+        <CardHeader header="Activity" />
+        {activeTab === "upcoming" && <UpcomingTooltip />}
+      </div>
+      <TabNav secondary>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}
@@ -89,28 +120,66 @@ const Activity = ({
               <TabText count={upcomingCount}>Upcoming</TabText>
             </Tab>
           </TabList>
-          <TabPanel>
-            <PastActivityFeed
-              activities={activities as IHostPastActivitiesResponse | undefined}
-              onShowDetails={onShowDetails}
-              isError={isError}
-              onNextPage={onNextPage}
-              onPreviousPage={onPreviousPage}
-            />
+          <TabPanel className={`${baseClass}__tab-panel`}>
+            {showMDMCommandsToggle && (
+              <MDMCommandsToggle
+                showMDMCommands={showMDMCommands}
+                onToggleMDMCommands={
+                  showMDMCommands ? onHideMDMCommands : onShowMDMCommands
+                }
+              />
+            )}
+            {showMDMCommands && commands ? (
+              <CommandFeed
+                commands={commands}
+                emptyDescription="Completed MDM commands will appear here."
+                onShowDetails={onShowCommandDetails}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
+              />
+            ) : (
+              <PastActivityFeed
+                activities={
+                  activities as IHostPastActivitiesResponse | undefined
+                }
+                onShowDetails={onShowDetails}
+                isError={isError}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
+              />
+            )}
           </TabPanel>
-          <TabPanel>
-            <UpcomingTooltip />
-            <UpcomingActivityFeed
-              activities={
-                activities as IHostUpcomingActivitiesResponse | undefined
-              }
-              onShowDetails={onShowDetails}
-              onCancel={onCancel}
-              isError={isError}
-              onNextPage={onNextPage}
-              onPreviousPage={onPreviousPage}
-              canCancelActivities={canCancelActivities}
-            />
+          <TabPanel className={`${baseClass}__tab-panel`}>
+            {showMDMCommandsToggle && (
+              <MDMCommandsToggle
+                showMDMCommands={showMDMCommands}
+                commandCount={commandCount}
+                onToggleMDMCommands={
+                  showMDMCommands ? onHideMDMCommands : onShowMDMCommands
+                }
+              />
+            )}
+            {showMDMCommands && commands ? (
+              <CommandFeed
+                commands={commands}
+                emptyDescription="Pending MDM commands will appear here."
+                onShowDetails={onShowCommandDetails}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
+              />
+            ) : (
+              <UpcomingActivityFeed
+                activities={
+                  activities as IHostUpcomingActivitiesResponse | undefined
+                }
+                onShowDetails={onShowDetails}
+                onCancel={onCancel}
+                isError={isError}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
+                canCancelActivities={canCancelActivities}
+              />
+            )}
           </TabPanel>
         </Tabs>
       </TabNav>

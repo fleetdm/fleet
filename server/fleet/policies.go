@@ -107,6 +107,9 @@ var (
 // PolicyNoTeamID is the team ID of "No team" policies.
 const PolicyNoTeamID = uint(0)
 
+// Max times a policy automation will be retried on failure.
+const MaxPolicyAutomationRetries = 3
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
 	if p.QueryID != nil {
@@ -310,9 +313,9 @@ type PolicySoftwareInstallerData struct {
 }
 
 type PolicyVPPData struct {
-	ID       uint                `db:"id"`
-	AdamID   string              `db:"adam_id"`
-	Platform AppleDevicePlatform `db:"platform"`
+	ID       uint                      `db:"id"`
+	AdamID   string                    `db:"adam_id"`
+	Platform InstallableDevicePlatform `db:"platform"`
 }
 
 type PolicyScriptData struct {
@@ -394,7 +397,8 @@ type PolicySoftwareTitle struct {
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
-	Name string `json:"name" db:"name"`
+	Name        string `json:"name" db:"name"`
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 // PolicyScript contains script data for policies.

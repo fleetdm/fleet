@@ -2,10 +2,10 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -389,109 +389,121 @@ const (
 	GoogleCalendarPrivateKey = "private_key"
 )
 
+// GoogleCalendarApiKey is a custom type for the Google Calendar API key JSON.
+// It handles JSON marshaling/unmarshaling with support for masking sensitive data.
+// When marshaled in masked state, it serializes to just "********".
+// When unmarshaled, it accepts either "********" (indicating masked/preserve) or a JSON object.
+type GoogleCalendarApiKey struct {
+	// Values contains the actual API key fields when not masked
+	Values map[string]string
+	// masked indicates if this key should be serialized as masked
+	masked bool
+}
+
+// MarshalJSON implements json.Marshaler. When masked, returns "********".
+// Otherwise, returns the JSON object representation of the values.
+func (k GoogleCalendarApiKey) MarshalJSON() ([]byte, error) {
+	if k.masked {
+		return json.Marshal(MaskedPassword)
+	}
+	return json.Marshal(k.Values)
+}
+
+// UnmarshalJSON implements json.Unmarshaler. Accepts either "********" string
+// (sets masked=true) or a JSON object (populates Values).
+func (k *GoogleCalendarApiKey) UnmarshalJSON(data []byte) error {
+	// Handle null - treat as empty (will fail validation if required)
+	if string(data) == "null" {
+		k.Values = nil
+		k.masked = false
+		return nil
+	}
+
+	// Try to unmarshal as a string first (for masked value)
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		if str == MaskedPassword {
+			k.masked = true
+			k.Values = nil
+			return nil
+		}
+		// Some other string value - invalid
+		return errors.New("api_key_json must be a JSON object or the masked value")
+	}
+
+	// Try to unmarshal as a map
+	var values map[string]string
+	if err := json.Unmarshal(data, &values); err != nil {
+		return fmt.Errorf("api_key_json must be a JSON object: %w", err)
+	}
+
+	k.Values = values
+	k.masked = false
+	return nil
+}
+
+// IsMasked returns true if this API key was unmarshaled from a masked value
+// or has been explicitly marked as masked.
+func (k GoogleCalendarApiKey) IsMasked() bool {
+	return k.masked
+}
+
+// SetMasked marks this API key as masked for serialization.
+func (k *GoogleCalendarApiKey) SetMasked() {
+	k.masked = true
+}
+
+// IsEmpty returns true if there are no values in the API key.
+func (k GoogleCalendarApiKey) IsEmpty() bool {
+	return len(k.Values) == 0
+}
+
 type GoogleCalendarIntegration struct {
-	Domain string            `json:"domain"`
-	ApiKey map[string]string `json:"api_key_json"`
-}
-
-type DigiCertIntegration struct {
-	Name                          string   `json:"name"`
-	URL                           string   `json:"url"`
-	APIToken                      string   `json:"api_token"`
-	ProfileID                     string   `json:"profile_id"`
-	CertificateCommonName         string   `json:"certificate_common_name"`
-	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names"`
-	CertificateSeatID             string   `json:"certificate_seat_id"`
-}
-
-func (d *DigiCertIntegration) Equals(other *DigiCertIntegration) bool {
-	return d.Name == other.Name &&
-		d.URL == other.URL &&
-		(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) &&
-		d.ProfileID == other.ProfileID &&
-		d.CertificateCommonName == other.CertificateCommonName &&
-		slices.Equal(d.CertificateUserPrincipalNames, other.CertificateUserPrincipalNames) &&
-		d.CertificateSeatID == other.CertificateSeatID
-}
-
-func (d *DigiCertIntegration) NeedToVerify(other *DigiCertIntegration) bool {
-	return d.Name != other.Name ||
-		d.URL != other.URL ||
-		!(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) ||
-		d.ProfileID != other.ProfileID
-}
-
-// NDESSCEPProxyIntegration configures SCEP proxy for NDES SCEP server. Premium feature.
-type NDESSCEPProxyIntegration struct {
-	URL      string `json:"url"`
-	AdminURL string `json:"admin_url"`
-	Username string `json:"username"`
-	Password string `json:"password"` // not stored here -- encrypted in DB
-}
-
-type SCEPConfigService interface {
-	ValidateNDESSCEPAdminURL(ctx context.Context, proxy NDESSCEPProxyIntegration) error
-	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyIntegration) (string, error)
-	ValidateSCEPURL(ctx context.Context, url string) error
-}
-
-type CustomSCEPProxyIntegration struct {
-	Name      string `json:"name"`
-	URL       string `json:"url"`
-	Challenge string `json:"challenge"`
-}
-
-func (s *CustomSCEPProxyIntegration) Equals(other *CustomSCEPProxyIntegration) bool {
-	return s.Name == other.Name &&
-		s.URL == other.URL &&
-		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
+	Domain string               `json:"domain"`
+	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
 }
 
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira           []*JiraIntegration                 `json:"jira"`
-	Zendesk        []*ZendeskIntegration              `json:"zendesk"`
-	GoogleCalendar []*GoogleCalendarIntegration       `json:"google_calendar"`
-	DigiCert       optjson.Slice[DigiCertIntegration] `json:"digicert"`
-	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
-	NDESSCEPProxy   optjson.Any[NDESSCEPProxyIntegration]     `json:"ndes_scep_proxy"`
-	CustomSCEPProxy optjson.Slice[CustomSCEPProxyIntegration] `json:"custom_scep_proxy"`
+	Jira           []*JiraIntegration           `json:"jira"`
+	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
+	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
 
 // ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".
-// It checks the global setup of the feature has been made.
+// It checks the global setup of the feature has been made (either Microsoft Entra or Okta).
 func ValidateConditionalAccessIntegration(
 	ctx context.Context,
 	g interface {
 		ConditionalAccessMicrosoftGet(context.Context) (*ConditionalAccessMicrosoftIntegration, error)
 	},
+	conditionalAccessSettings *ConditionalAccessSettings,
 	currentConditionalAccessEnabled bool,
 	newConditionalAccessEnabled bool,
 ) error {
 	switch {
 	case currentConditionalAccessEnabled == newConditionalAccessEnabled:
-		// No change, mothing to do.
+		// No change, nothing to do.
 	case currentConditionalAccessEnabled && !newConditionalAccessEnabled:
 		// Disabling feature on team/no-team, nothing to do.
 	case !currentConditionalAccessEnabled && newConditionalAccessEnabled:
 		// Enabling feature on team/no-team.
-		var settings *ConditionalAccessSettings
+		// Check that at least one integration is configured (Microsoft Entra or Okta)
 		conditionalAccessIntegration, err := g.ConditionalAccessMicrosoftGet(ctx)
 		if err != nil {
 			return fmt.Errorf("load conditional access microsoft: %w", err)
 		}
-		if conditionalAccessIntegration != nil {
-			settings = &ConditionalAccessSettings{
-				MicrosoftEntraTenantID:             conditionalAccessIntegration.TenantID,
-				MicrosoftEntraConnectionConfigured: conditionalAccessIntegration.SetupDone,
-			}
-		}
-		if settings == nil || !settings.MicrosoftEntraConnectionConfigured {
+		entraConfigured := conditionalAccessIntegration != nil && conditionalAccessIntegration.SetupDone
+
+		// Check Okta configuration from ConditionalAccessSettings
+		oktaConfigured := conditionalAccessSettings.OktaConfigured()
+
+		if !entraConfigured && !oktaConfigured {
 			return NewInvalidArgumentError(
 				"integrations.conditional_access_enabled",
-				"Couldn't enable because the integration isn't configured",
+				"Couldn't enable because no conditional access integration is configured",
 			)
 		}
 	}
@@ -539,14 +551,14 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 		invalid.Append("integrations.google_calendar", "integrating with >1 Google Workspace service account is not yet supported.")
 	}
 	for _, intg := range intgs {
-		if email, ok := intg.ApiKey[GoogleCalendarEmail]; !ok {
+		if email, ok := intg.ApiKey.Values[GoogleCalendarEmail]; !ok {
 			invalid.Append(
 				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarEmail),
 				fmt.Sprintf("%s is required", GoogleCalendarEmail),
 			)
 		} else {
 			email = strings.TrimSpace(email)
-			intg.ApiKey[GoogleCalendarEmail] = email
+			intg.ApiKey.Values[GoogleCalendarEmail] = email
 			if email == "" {
 				invalid.Append(
 					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarEmail),
@@ -554,14 +566,14 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 				)
 			}
 		}
-		if privateKey, ok := intg.ApiKey["private_key"]; !ok {
+		if privateKey, ok := intg.ApiKey.Values["private_key"]; !ok {
 			invalid.Append(
 				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
 				fmt.Sprintf("%s is required", GoogleCalendarPrivateKey),
 			)
 		} else {
 			privateKey = strings.TrimSpace(privateKey)
-			intg.ApiKey[GoogleCalendarPrivateKey] = privateKey
+			intg.ApiKey.Values[GoogleCalendarPrivateKey] = privateKey
 			if privateKey == "" {
 				invalid.Append(
 					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),

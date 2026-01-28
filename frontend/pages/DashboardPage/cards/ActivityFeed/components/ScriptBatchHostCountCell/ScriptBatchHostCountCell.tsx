@@ -1,5 +1,6 @@
 import React from "react";
-import { Link } from "react-router";
+
+import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -36,7 +37,7 @@ const ScriptBatchHostCountCell = ({
       <Button
         className={`${baseClass}__cancel-button`}
         onClick={onClickCancel}
-        variant="text-icon"
+        variant="inverse"
       >
         Cancel
       </Button>
@@ -45,7 +46,7 @@ const ScriptBatchHostCountCell = ({
 
   return (
     <div className={baseClass}>
-      <Link to={hostPath}>{count}</Link>
+      <CustomLink url={hostPath} text={count.toString()} />
       {renderCancelButton()}
     </div>
   );

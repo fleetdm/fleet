@@ -2,24 +2,26 @@ import React from "react";
 import { Column } from "react-table";
 
 import { IStringCellProps } from "interfaces/datatable_config";
-import { IHostMdmData } from "interfaces/host";
+import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
-  // FLEET_FILEVAULT_PROFILE_IDENTIFIER,
   IHostMdmProfile,
-  MdmDDMProfileStatus,
-  MdmProfileStatus,
   isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
+  MdmDDMProfileStatus,
+  MdmProfileStatus,
 } from "interfaces/mdm";
+import { isDDMProfile } from "services/entities/mdm";
+import { isIPadOrIPhone } from "interfaces/platform";
 
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
+import OSSettingsErrorCell from "./OSSettingsErrorCell";
+
 import {
   generateLinuxDiskEncryptionSetting,
   generateWinDiskEncryptionSetting,
 } from "../../helpers";
-import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 export interface IHostMdmProfileWithAddedStatus
   extends Omit<IHostMdmProfile, "status"> {
@@ -36,12 +38,13 @@ export type INonDDMProfileStatus = MdmProfileStatus | "action_required";
 
 export type OsSettingsTableStatusValue =
   | MdmDDMProfileStatus
-  | INonDDMProfileStatus;
+  | INonDDMProfileStatus
+  | HostAndroidCertStatus;
 
 const generateTableConfig = (
-  hostId: number,
   canResendProfiles: boolean,
-  onProfileResent?: () => void
+  resendRequest: (profileUUID: string) => Promise<void>,
+  onProfileResent: () => void
 ): ITableColumnConfig[] => {
   return [
     {
@@ -49,10 +52,17 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
+        let scope = cellProps.row.original.scope;
+
+        if (isIPadOrIPhone(cellProps.row.original.platform)) {
+          scope = null; // Don't show user-scoped icon for iOS/iPadOS profiles, since we don't support user channels.
+        }
+
         return (
-          <TooltipTruncatedTextCell
-            value={cellProps.cell.value}
-            className="os-settings-name-cell"
+          <OSSettingsNameCell
+            profileName={cellProps.cell.value}
+            scope={scope}
+            managedAccount={cellProps.row.original.managed_local_account}
           />
         );
       },
@@ -68,6 +78,7 @@ const generateTableConfig = (
             operationType={cellProps.row.original.operation_type}
             profileName={cellProps.row.original.name}
             hostPlatform={cellProps.row.original.platform}
+            profileUUID={cellProps.row.original.profile_uuid}
           />
         );
       },
@@ -77,18 +88,20 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, platform, status } = cellProps.row.original;
-        const isFailedWindowsDiskEncryption =
-          platform === "windows" &&
-          name === "Disk encryption" &&
-          status === "failed";
+        const { platform } = cellProps.row.original;
+
+        const isMacOSMobileConfigProfile =
+          platform === "darwin" && !isDDMProfile(cellProps.row.original);
+        const isWindowsProfile = platform === "windows";
+
         return (
           <OSSettingsErrorCell
             canResendProfiles={
-              canResendProfiles && !isFailedWindowsDiskEncryption
+              canResendProfiles &&
+              (isWindowsProfile || isMacOSMobileConfigProfile)
             }
-            hostId={hostId}
             profile={cellProps.row.original}
+            resendRequest={resendRequest}
             onProfileResent={onProfileResent}
           />
         );
@@ -184,8 +197,8 @@ export const generateTableData = (
     case "rhel":
       return makeLinuxRows(hostMDMData);
     case "ios":
-      return hostMDMData.profiles;
     case "ipados":
+    case "android":
       return hostMDMData.profiles;
     default:
       return null;

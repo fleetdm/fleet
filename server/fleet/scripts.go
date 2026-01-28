@@ -276,6 +276,11 @@ type HostScriptResult struct {
 	// Canceled indicates if that script execution request was canceled by a
 	// user.
 	Canceled bool `json:"-" db:"canceled"`
+
+	// AttemptNumber tracks which retry attempt this is for policy automation executions.
+	// nil = not triggered by a policy failure
+	// 1,2,3 attempt, 3 being max retries
+	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -284,7 +289,11 @@ func (hsr HostScriptResult) AuthzType() string {
 
 type BatchScriptHost struct {
 	// ID is the host on which the script was executed.
-	ID uint `json:"id" db:"id"`
+	ID             uint   `json:"id" db:"id"`
+	ComputerName   string `json:"-" db:"computer_name"`
+	HostName       string `json:"-" db:"hostname"`
+	HardwareModel  string `json:"-" db:"hardware_model"`
+	HardwareSerial string `json:"-" db:"hardware_serial"`
 	// Display name is the host's display name.
 	DisplayName string `json:"display_name" db:"display_name"`
 	// ExecutionID is a unique identifier for a single execution of the script.
@@ -430,9 +439,13 @@ type SoftwareInstallerPayload struct {
 	ValidatedLabels *LabelIdentsWithScope
 	SHA256          string   `json:"sha256"`
 	Categories      []string `json:"categories"`
+	DisplayName     string   `json:"display_name"`
 	// This is to support FMAs
 	Slug          *string        `json:"slug"`
 	MaintainedApp *MaintainedApp `json:"-"`
+
+	IconPath string `json:"-"`
+	IconHash string `json:"-"`
 }
 
 type HostLockWipeStatus struct {
@@ -453,6 +466,9 @@ type HostLockWipeStatus struct {
 	// macOS records the timestamp of the unlock request in the "unlock_ref",
 	// which is then stored here.
 	UnlockRequestedAt time.Time
+	// iOS/iPadOS hosts use an MDM command to unlock
+	UnlockMDMCommand       *MDMCommand
+	UnlockMDMCommandResult *MDMCommandResult
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 
@@ -462,6 +478,8 @@ type HostLockWipeStatus struct {
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
+
+	LocationPending bool
 }
 
 // ScriptResponse is the response type used when applying scripts by batch.
@@ -497,14 +515,17 @@ func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
 type PendingDeviceAction string
 
 const (
-	PendingActionLock   PendingDeviceAction = "lock"
-	PendingActionUnlock PendingDeviceAction = "unlock"
-	PendingActionWipe   PendingDeviceAction = "wipe"
-	PendingActionNone   PendingDeviceAction = ""
+	PendingActionLock     PendingDeviceAction = "lock"
+	PendingActionUnlock   PendingDeviceAction = "unlock"
+	PendingActionWipe     PendingDeviceAction = "wipe"
+	PendingActionLocation PendingDeviceAction = "location"
+	PendingActionNone     PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 	switch {
+	case s.LocationPending:
+		return PendingActionLocation
 	case s.IsPendingLock():
 		return PendingActionLock
 	case s.IsPendingUnlock():
@@ -526,10 +547,16 @@ func (s *HostLockWipeStatus) IsPendingLock() bool {
 }
 
 func (s HostLockWipeStatus) IsPendingUnlock() bool {
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
-		// Apple MDM does not have a concept of pending unlock.
+	if s.HostFleetPlatform == "darwin" {
+		// MacOS does not have a concept of pending unlock.
 		return false
 	}
+	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		// pending unlock if an MDM command is queued but no result received yet
+		// since for mobile apple devices we use lost mode.
+		return s.UnlockMDMCommand != nil && s.UnlockMDMCommandResult == nil
+	}
+
 	// pending unlock if script execution request is queued but no result yet and not canceled
 	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil && !s.UnlockScript.Canceled
 }
@@ -547,11 +574,17 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	// this state is regardless of pending unlock/wipe (it reports whether the
 	// host is locked *now*).
 
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+	if s.HostFleetPlatform == "darwin" {
 		// locked if an MDM command was sent and succeeded
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged
 	}
+
+	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
+			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged && !s.LocationPending
+	}
+
 	// locked if a script was sent and succeeded
 	return s.LockScript != nil && s.LockScript.ExitCode != nil &&
 		*s.LockScript.ExitCode == 0

@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
 
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -13,9 +12,6 @@ import { ILabelFormData } from "../LabelForm/LabelForm";
 import PlatformField from "../PlatformField";
 
 const baseClass = "dynamic-label-form";
-
-const IMMUTABLE_QUERY_HELP_TEXT =
-  "Label queries are immutable. To change the query, delete this label and create a new one.";
 
 export interface IDynamicLabelFormData {
   name: string;
@@ -33,6 +29,7 @@ interface IDynamicLabelFormProps {
   isEditing?: boolean;
   onOpenSidebar?: () => void;
   onOsqueryTableSelect?: (tableName: string) => void;
+  teamName: string | null;
   onSave: (formData: IDynamicLabelFormData) => void;
   onCancel: () => void;
 }
@@ -46,6 +43,7 @@ const DynamicLabelForm = ({
   showOpenSidebarButton = false,
   onOpenSidebar,
   onOsqueryTableSelect,
+  teamName,
   onSave,
   onCancel,
 }: IDynamicLabelFormProps) => {
@@ -86,7 +84,7 @@ const DynamicLabelForm = ({
     }
 
     return (
-      <Button variant="text-icon" onClick={onOpenSidebar}>
+      <Button variant="inverse" onClick={onOpenSidebar}>
         Schema
         <Icon name="info" size="small" />
       </Button>
@@ -121,8 +119,14 @@ const DynamicLabelForm = ({
       <LabelForm
         defaultName={defaultName}
         defaultDescription={defaultDescription}
+        teamName={teamName}
         onSave={onSaveForm}
         onCancel={onCancel}
+        immutableFields={
+          teamName
+            ? ["teams", "queries", "platforms"]
+            : ["queries", "platforms"]
+        }
         additionalFields={
           <>
             <SQLEditor
@@ -135,8 +139,8 @@ const DynamicLabelForm = ({
               readOnly={isEditing}
               onLoad={onLoad}
               wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
-              helpText={isEditing ? IMMUTABLE_QUERY_HELP_TEXT : ""}
               wrapEnabled
+              enableCopy={isEditing}
             />
             <PlatformField
               platform={platform}

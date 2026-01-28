@@ -1,3 +1,6 @@
+<!-- Add the related story/sub-task/bug number, like Resolves #123, or remove if NA -->
+**Related issue:** Resolves #
+
 # Checklist for submitter
 
 If some of the following don't apply, delete the relevant line.
@@ -22,7 +25,6 @@ For unreleased bug fixes in a release candidate, one of:
 
 ## Database migrations
 
-- [ ] Checked table schema to confirm autoupdate
 - [ ] Checked schema for all modified table for columns that will auto-update timestamps during migration.
 - [ ] Confirmed that updating the timestamps is acceptable, and will not cause unwanted side effects.
 - [ ] Ensured the correct collation is explicitly set for character columns (`COLLATE utf8mb4_unicode_ci`).

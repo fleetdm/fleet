@@ -5,7 +5,9 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -22,8 +24,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var ErrUnsupportedType = errors.New("unsupported file type")
-var ErrInvalidTarball = errors.New("not a valid .tar.gz archive")
+var (
+	ErrUnsupportedType = errors.New("unsupported file type")
+	ErrInvalidTarball  = errors.New("not a valid .tar.gz archive")
+)
 
 type InstallerMetadata struct {
 	Name             string
@@ -60,6 +64,8 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		meta, err = ExtractXARMetadata(tfr)
 	case "msi":
 		meta, err = ExtractMSIMetadata(tfr)
+	case "ipa":
+		meta, err = ExtractIPAMetadata(tfr)
 	case "tar.gz":
 		meta, err = ValidateTarball(tfr)
 		if err != nil {
@@ -91,6 +97,9 @@ func typeFromBytes(br *bufio.Reader) (string, error) {
 	// will capture standalone gz files but will fail on tar read attempt, so good enough
 	case hasPrefix(br, []byte{0x1f, 0x8b}):
 		return "tar.gz", nil
+	case hasPrefix(br, []byte{0x50, 0x4B, 0x03, 0x04}):
+		// TODO(JVE): we need to validate against the filename as well
+		return "ipa", nil
 	case hasPrefix(br, []byte("MZ")):
 		if blob, _ := br.Peek(0x3e); len(blob) == 0x3e {
 			reloc := binary.LittleEndian.Uint16(blob[0x3c:0x3e])
@@ -286,4 +295,19 @@ func ExtractTarGz(path string, destDir string, maxFileSize int64, logger zerolog
 			logger.Warn().Msgf("skipping unknown tar header flag type %d: %q", header.Typeflag, header.Name)
 		}
 	}
+}
+
+func SHA256FromTempFileReader(tfr *fleet.TempFileReader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, tfr); err != nil {
+		return "", err
+	}
+
+	hashString := hex.EncodeToString(h.Sum(nil))
+
+	if err := tfr.Rewind(); err != nil {
+		return "", err
+	}
+
+	return hashString, nil
 }

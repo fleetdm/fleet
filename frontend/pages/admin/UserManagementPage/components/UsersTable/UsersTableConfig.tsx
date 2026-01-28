@@ -172,6 +172,7 @@ const generateTableHeaders = (
           }
           placeholder="Actions"
           menuAlign="right"
+          variant="small-button"
         />
       ),
     },
@@ -207,6 +208,8 @@ const generateActionDropdownOptions = (
   isInvitePending: boolean,
   isSsoEnabled: boolean
 ): IDropdownOption[] => {
+  const disableDelete = isCurrentUser;
+
   let dropdownOptions = [
     {
       label: "Edit",
@@ -225,8 +228,19 @@ const generateActionDropdownOptions = (
     },
     {
       label: "Delete",
-      disabled: isCurrentUser,
+      disabled: disableDelete,
       value: "delete",
+      tooltipContent: disableDelete ? (
+        <>
+          There must be at least one Admin
+          <br />
+          user on the account. To delete this
+          <br />
+          user, add or set existing user with
+          <br />
+          role of &quot;Admin&quot;.
+        </>
+      ) : undefined,
     },
   ];
 

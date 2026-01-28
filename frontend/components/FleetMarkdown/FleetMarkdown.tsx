@@ -59,7 +59,8 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
           return (
             <SQLEditor
               wrapperClassName={`${baseClass}__ace-display`}
-              value={String(children).replace(/\n/, "")}
+              // Remove trailing newline added by markdown parser, preserving newlines within the code block
+              value={String(children).replace(/\n$/, "")}
               showGutter={false}
               onBlur={onEditorBlur}
               onLoad={onEditorLoad}

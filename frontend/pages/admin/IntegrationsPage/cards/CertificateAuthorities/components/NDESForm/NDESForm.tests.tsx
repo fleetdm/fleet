@@ -41,10 +41,10 @@ describe("NDESForm", () => {
       />
     );
 
-    // data is valid, submit should be enabled
+    // data is valid, so submit should be enabled
     expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
 
-    // name input is invalidated, submit should be disabled
+    // scepURL input is invalidated, submit should be disabled
     await user.clear(screen.getByLabelText("SCEP URL"));
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
@@ -62,5 +62,37 @@ describe("NDESForm", () => {
     );
 
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+  });
+
+  it("submit button is disabled if isDirty is false", () => {
+    render(
+      <NDESForm
+        formData={createTestFormData()}
+        isSubmitting={false}
+        submitBtnText="Submit"
+        isDirty={false}
+        onChange={noop}
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+  });
+
+  it("submit button is enabled if isDirty", () => {
+    render(
+      <NDESForm
+        formData={createTestFormData()}
+        isSubmitting={false}
+        submitBtnText="Submit"
+        isDirty
+        onChange={noop}
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
   });
 });

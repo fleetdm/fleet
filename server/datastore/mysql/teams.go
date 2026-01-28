@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -27,7 +28,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		query := `
     INSERT INTO teams (
       name,
-	  filename,
+      filename,
       description,
       config
     ) VALUES (?, ?, ?, ?)
@@ -46,6 +47,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 
 		id, _ := result.LastInsertId()
 		team.ID = uint(id) //nolint:gosec // dismiss G115
+		team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 
 		return saveTeamSecretsDB(ctx, tx, team)
 	})
@@ -55,12 +57,17 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	return team, nil
 }
 
-func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
+func (ds *Datastore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
 	return teamDB(ctx, ds.reader(ctx), tid, true)
 }
 
-func (ds *Datastore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
-	return teamDB(ctx, ds.reader(ctx), tid, false)
+func (ds *Datastore) TeamLite(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+	team, err := teamDB(ctx, ds.reader(ctx), tid, false)
+	if team == nil {
+		return nil, err
+	}
+
+	return team.ToTeamLite(), err // re-marshaling this way to avoid more code duplication
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
@@ -119,6 +126,31 @@ func saveTeamSecretsDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team)
 	return applyEnrollSecretsDB(ctx, q, &team.ID, team.Secrets)
 }
 
+// teamRefs are the tables referenced by teams.
+// These tables are cleared when the team is deleted.
+// Analogous to hostRefs.
+var teamRefs = []string{
+	"mdm_apple_configuration_profiles",
+	"mdm_windows_configuration_profiles",
+	"mdm_apple_declarations",
+	"mdm_android_configuration_profiles",
+	"certificate_templates",
+	"software_title_icons",
+	"software_title_display_names",
+}
+
+// teamLabelsRefs are the tables that could be referenced by team labels that
+// have ON DELETE RESTRICT so they have to be deleted before the team labels are deleted.
+// These tables are cleared when the team is deleted.
+// Analogous to hostRefs.
+var teamLabelsRefs = []string{
+	"in_house_app_labels",
+	"software_installer_labels",
+	"vpp_app_team_labels",
+	// `mdm_configuration_profile_labels` and `mdm_declaration_labels` are defined with `ON DELETE SET NULL`, so not necessary.
+	// `policy_labels` and `query_labels` are defined with `ON DELETE CASCADE`, so not necessary.
+}
+
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Delete team policies first, because policies can have associated installers and scripts
@@ -128,29 +160,48 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)
 		}
 
+		// Delete related records from teamRefs tables before deleting the team itself
+		// to avoid foreign key constraint violations
+		for _, table := range teamRefs {
+			_, err = tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE team_id = ?`, table), tid)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting %s for team %d", table, tid)
+			}
+		}
+
+		// Get labels that belong to this team.
+		getTeamLabelIDsStmt := `SELECT id FROM labels WHERE team_id = ?`
+		teamLabelIDs := []uint{}
+		if err := sqlx.SelectContext(ctx, tx, &teamLabelIDs, getTeamLabelIDsStmt, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "load labels for team %d", tid)
+		}
+
+		if len(teamLabelIDs) > 0 {
+			// Delete related records from teamLabelRefs tables before deleting labels on this team
+			// to avoid foreign key constraint violations.
+			for _, table := range teamLabelsRefs {
+				query, args, err := sqlx.In(fmt.Sprintf(`DELETE FROM %s WHERE label_id IN (?)`, table), teamLabelIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build sqlx.In statement for labels")
+				}
+				if _, err = tx.ExecContext(ctx, query, args...); err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete %s label associated tables", table)
+				}
+			}
+
+			if err := deleteLabelsInTx(ctx, tx, teamLabelIDs); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete labels")
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetTeam, tid)
+		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type = ? AND target_id = ?`, fleet.TargetTeam, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_configuration_profiles for team %d", tid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_windows_configuration_profiles for team %d", tid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_declarations WHERE team_id=?`, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_declarations for team %d", tid)
 		}
 
 		return nil
@@ -558,13 +609,15 @@ func defaultTeamConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.Tea
 
 // SaveDefaultTeamConfig saves the configuration for "No Team" hosts.
 func (ds *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
-	configBytes, err := json.Marshal(config)
+	// Create a copy to avoid saving unsupported fields such as scripts and software
+	configCopy := config.Copy()
+	configBytes, err := json.Marshal(&configCopy)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling config")
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?) 
+		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?)
 		 ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 		configBytes,
 	)

@@ -1,4 +1,7 @@
 .account-side-panel {
+  @include vertical-card-layout;
+  $gap-data-sets: $pad-medium;
+
   &__change-avatar {
     position: relative;
     padding: 0 0 20px;
@@ -13,40 +16,27 @@
     }
   }
 
-  &__header {
-    font-size: $x-small;
-    font-weight: $bold;
-    margin: $pad-large 0 $pad-xsmall;
-  }
-
-  &__description {
-    font-size: $x-small;
-    font-style: italic;
-    margin: $pad-xsmall 0;
-  }
-
   &__avatar {
     margin: 0 auto;
-  }
-
-  &__more-info-detail {
-    color: $core-fleet-black;
-
-    .fleeticon {
-      color: $ui-gray;
-      font-size: 18px;
-      margin-right: 11px;
-    }
   }
 
   &__button {
     width: 100%;
   }
 
+  &__grey-text {
+    @include grey-text;
+  }
+
+  &__password-info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    width: 100%;
+  }
+
   &__last-updated {
-    font-size: $x-small;
-    font-style: italic;
-    margin: 4px 0 $pad-large;
+    @include help-text;
   }
 
   &__confirm-update {
@@ -67,12 +57,10 @@
     font-size: $xx-small;
     text-align: center;
     display: block;
-    margin-top: $pad-large;
   }
 
   &__privacy-policy {
     text-align: center;
     display: block;
-    margin-top: $pad-xlarge;
   }
 }

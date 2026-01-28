@@ -1,7 +1,6 @@
 import { defaultActivityHandler } from "./handlers/activity-handlers";
 import {
   defaultDeviceHandler,
-  defaultDeviceMappingHandler,
   defaultMacAdminsHandler,
 } from "./handlers/device-handler";
 
@@ -21,7 +20,6 @@ export const baseUrl = (path: string) => {
 // method in the test file itself.
 const handlers = [
   defaultDeviceHandler,
-  defaultDeviceMappingHandler,
   defaultMacAdminsHandler,
   defaultActivityHandler,
 ];

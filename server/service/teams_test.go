@@ -32,7 +32,10 @@ func TestTeamAuth(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -74,6 +77,14 @@ func TestTeamAuth(t *testing.T) {
 	}
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, nil, nil
+	}
+
+	ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, teamID uint) error {
+		return nil
 	}
 
 	testCases := []struct {

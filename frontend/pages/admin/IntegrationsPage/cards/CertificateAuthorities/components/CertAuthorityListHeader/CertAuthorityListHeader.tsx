@@ -21,7 +21,7 @@ const CertAuthorityListHeader = ({
           renderChildren={(disableChildren) => (
             <Button
               disabled={disableChildren}
-              variant="text-icon"
+              variant="inverse"
               className={`${baseClass}__add-button`}
               onClick={onClickAddCertAuthority}
               iconStroke

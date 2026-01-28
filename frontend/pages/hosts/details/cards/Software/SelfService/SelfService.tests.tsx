@@ -74,17 +74,6 @@ describe("SelfService", () => {
     expect(screen.getAllByText("test3")).toHaveLength(2);
   });
 
-  it("should render the contact link text for self-service section if contact url is provided", () => {
-    mockServer.use(customDeviceSoftwareHandler());
-
-    const render = createCustomRenderer({ withBackendMock: true });
-    render(<SelfService {...TEST_PROPS} router={createMockRouter()} />);
-
-    const link = screen.getByRole("link", { name: /reach out to IT/i });
-
-    expect(link).toHaveAttribute("href", "http://example.com");
-  });
-
   it("renders installed status and 'Reinstall' action button and 'More' dropdown with 'installed' status and installed_versions", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({

@@ -1,4 +1,4 @@
-# MDM migration
+# macOS MDM migration
 
 This guide provides instructions for migrating devices from your current MDM solution to Fleet. There are two different workflows to migrate your devices.
 
@@ -49,11 +49,13 @@ End user experience:
 
 Configuration:
 
-- To kick off the default workflow, unenroll the hosts to be migrated in your current MDM solution. MacOS does not allow a host to be connected to multiple MDM solutions at once.
+- To kick off the default workflow, unenroll the hosts to be migrated in your current MDM solution. macOS does not allow a host to be connected to multiple MDM solutions at once.
 
 #### End user workflow
 
 > Available in Fleet Premium
+
+Fleet's agents must have [updates enabled](https://fleetdm.com/guides/fleetd-updates) (default), for the end user migration workflow to work.
 
 ![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog-494x327@2x.png)
 
@@ -125,5 +127,5 @@ However, Activation Lock bypass codes can only be retrieved from the Mac up to 3
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
 <meta name="publishedOn" value="2024-08-14">
-<meta name="articleTitle" value="MDM migration">
-<meta name="description" value="Instructions for migrating hosts away from an old MDM solution to Fleet.">
+<meta name="articleTitle" value="macOS MDM migration">
+<meta name="description" value="Instructions for migrating macOS hosts away from an old MDM solution to Fleet.">

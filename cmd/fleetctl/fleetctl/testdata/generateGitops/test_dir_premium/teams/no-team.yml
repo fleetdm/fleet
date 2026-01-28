@@ -1,11 +1,15 @@
 controls:
+  android_enabled_and_configured: true
   enable_disk_encryption: true
+  enable_turn_on_windows_mdm_manually: false
   ios_updates:
     deadline: "2025-12-31"
     minimum_version: "18.1"
+    update_new_hosts:
   ipados_updates:
     deadline: "2026-12-31"
     minimum_version: "18.2"
+    update_new_hosts:
   macos_migration:
     enable: true
     mode: voluntary
@@ -14,6 +18,7 @@ controls:
   macos_updates:
     deadline: "2024-12-31"
     minimum_version: "15.1"
+    update_new_hosts: true
   scripts:
   - path: ../lib/no-team/scripts/Script Z.ps1
   windows_enabled_and_configured: true

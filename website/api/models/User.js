@@ -282,6 +282,15 @@ without necessarily having a billing card.`
       defaultsTo: false,
     },
 
+    fleetPremiumTrialType: {
+      type: 'string',
+      description: 'The type of Fleet Premium trial this user was given.',
+      isIn: [
+        'render trial',
+        'local trial',
+      ],
+    }
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

@@ -41,7 +41,7 @@
     }
   }
 
-  .about-card,
+  .vitals-card,
   .agent-options-card {
     .info {
       &__item {
@@ -58,10 +58,6 @@
         }
       }
     }
-  }
-
-  .munki-issues-card {
-    margin-top: $pad-medium;
   }
 
   .button img {

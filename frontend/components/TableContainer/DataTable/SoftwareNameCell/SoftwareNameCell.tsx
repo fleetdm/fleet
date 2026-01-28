@@ -1,7 +1,7 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
-import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
@@ -23,6 +23,8 @@ export type PageContext = "deviceUser" | "hostDetails" | "hostDetailsLibrary";
 interface InstallIconTooltip {
   automaticInstallPoliciesCount?: number;
   pageContext?: PageContext;
+  isIosOrIpadosApp?: boolean;
+  isAndroidPlayStoreApp?: boolean;
 }
 
 interface InstallIconConfig {
@@ -30,6 +32,8 @@ interface InstallIconConfig {
   tooltip: ({
     automaticInstallPoliciesCount,
     pageContext,
+    isIosOrIpadosApp,
+    isAndroidPlayStoreApp,
   }: InstallIconTooltip) => JSX.Element;
 }
 
@@ -50,7 +54,8 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
   },
   selfService: {
     iconName: "user",
-    tooltip: () => SELF_SERVICE_TOOLTIP,
+    tooltip: ({ isIosOrIpadosApp = false, isAndroidPlayStoreApp = false }) =>
+      getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp),
   },
   automatic: {
     iconName: "refresh",
@@ -60,13 +65,15 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
   },
   automaticSelfService: {
     iconName: "automatic-self-service",
-    tooltip: ({ automaticInstallPoliciesCount = 0 }) => (
+    tooltip: ({
+      automaticInstallPoliciesCount = 0,
+      isIosOrIpadosApp = false,
+      isAndroidPlayStoreApp = false,
+    }) => (
       <>
         {getPolicyTooltip(automaticInstallPoliciesCount)}
         <br />
-        End users can reinstall from
-        <br />
-        <b>Fleet Desktop {">"} Self-service</b>.
+        {getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp)}
       </>
     ),
   },
@@ -76,6 +83,8 @@ interface IInstallIconWithTooltipProps {
   isSelfService: boolean;
   automaticInstallPoliciesCount?: number;
   pageContext?: PageContext;
+  isIosOrIpadosApp: boolean;
+  isAndroidPlayStoreApp: boolean;
 }
 
 const getInstallIconType = (
@@ -92,6 +101,8 @@ const InstallIconWithTooltip = ({
   isSelfService,
   automaticInstallPoliciesCount,
   pageContext,
+  isIosOrIpadosApp,
+  isAndroidPlayStoreApp,
 }: IInstallIconWithTooltipProps) => {
   const iconType = getInstallIconType(
     isSelfService,
@@ -107,6 +118,8 @@ const InstallIconWithTooltip = ({
   const tipContent = tooltip({
     automaticInstallPoliciesCount,
     pageContext,
+    isIosOrIpadosApp,
+    isAndroidPlayStoreApp,
   });
 
   return (
@@ -129,7 +142,10 @@ const InstallIconWithTooltip = ({
 };
 
 interface ISoftwareNameCellProps {
+  /** Used to key default software icon and name displayed if no display_name */
   name: string;
+  /** Overrides name for display */
+  display_name?: string;
   source?: string;
   /** pass in a `path` that this cell will link to */
   path?: string;
@@ -138,12 +154,17 @@ interface ISoftwareNameCellProps {
   hasInstaller?: boolean;
   isSelfService?: boolean;
   automaticInstallPoliciesCount?: number;
-  /** e.g. app_store_app's override default icons with URLs */
-  iconUrl?: string;
+  /** e.g. custom icons & app_store_app's override default icons with URLs */
+  iconUrl?: string | null;
+  isIosOrIpadosApp?: boolean;
+  isAndroidPlayStoreApp?: boolean;
+  /** Only used on Edit icon modal to render a preview of the chosen unsaved icon */
+  previewIcon?: JSX.Element;
 }
 
 const SoftwareNameCell = ({
   name,
+  display_name,
   source,
   path,
   router,
@@ -152,15 +173,17 @@ const SoftwareNameCell = ({
   isSelfService = false,
   automaticInstallPoliciesCount,
   iconUrl,
+  isIosOrIpadosApp = false,
+  isAndroidPlayStoreApp = false,
+  previewIcon,
 }: ISoftwareNameCellProps) => {
+  const icon = previewIcon || (
+    <SoftwareIcon name={name} source={source} url={iconUrl} />
+  );
   // My device page > Software fake link as entire row opens a modal
   if (pageContext === "deviceUser" && !isSelfService) {
     return (
-      <LinkCell
-        tooltipTruncate
-        prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
-        value={name}
-      />
+      <LinkCell tooltipTruncate prefix={icon} value={display_name || name} />
     );
   }
 
@@ -169,8 +192,8 @@ const SoftwareNameCell = ({
     return (
       <div className={baseClass}>
         <TooltipTruncatedTextCell
-          prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
-          value={name}
+          prefix={icon}
+          value={display_name || name}
           className="software-name"
         />
       </div>
@@ -189,14 +212,16 @@ const SoftwareNameCell = ({
       path={path}
       tooltipTruncate
       customOnClick={onClickSoftware}
-      prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
-      value={name}
+      prefix={icon}
+      value={display_name || name}
       suffix={
         hasInstaller ? (
           <InstallIconWithTooltip
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext={pageContext}
+            isIosOrIpadosApp={isIosOrIpadosApp}
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         ) : undefined
       }

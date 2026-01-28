@@ -31,6 +31,7 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
+import ManageLabelsPage from "pages/labels/ManageLabelsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
 import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
@@ -65,7 +66,7 @@ import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMd
 import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import Secrets from "pages/ManageControlsPage/Secrets/Secrets";
-import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
+import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
@@ -81,7 +82,7 @@ import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnera
 import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
 import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
-import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
+import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
 import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
@@ -193,8 +194,16 @@ const routes = (
                   to="integrations/mdm"
                 />
                 <Redirect from="integrations/vpp" to="integrations/mdm" />
+                <Redirect
+                  from="integrations/sso"
+                  to="integrations/sso/fleet-users"
+                />
                 <Route
                   path="integrations/:section"
+                  component={AdminIntegrationsPage}
+                />
+                <Route
+                  path="integrations/sso/:subsection"
                   component={AdminIntegrationsPage}
                 />
                 <Route component={ExcludeInSandboxRoutes}>
@@ -219,7 +228,7 @@ const routes = (
             />
             <Route
               path="integrations/automatic-enrollment/windows"
-              component={WindowsAutomaticEnrollmentPage}
+              component={WindowsEnrollmentPage}
             />
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
@@ -236,7 +245,8 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new" />
+            <IndexRedirect to="manage" />
+            <Route path="manage" component={ManageLabelsPage} />
             <Route path="new" component={NewLabelPage}>
               {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}
               <Route path="dynamic" component={NewLabelPage} />
@@ -267,9 +277,6 @@ const routes = (
                 <Route path="inventory" component={HostDetailsPage} />
                 <Route path="library" component={HostDetailsPage} />
               </Route>
-
-              <Route path="queries" component={HostDetailsPage} />
-              <Route path=":query_id" component={HostQueryReport} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 
@@ -286,16 +293,22 @@ const routes = (
                 <Route path="os-updates" component={OSUpdates} />
                 <Route path="os-settings" component={OSSettings} />
                 <Route path="os-settings/:section" component={OSSettings} />
+
                 <Route path="setup-experience" component={SetupExperience} />
+                <Route
+                  path="setup-experience/:section"
+                  component={SetupExperience}
+                />
+                <Route
+                  path="setup-experience/:section/:platform"
+                  component={SetupExperience}
+                />
+
                 <Route path="scripts">
                   <IndexRedirect to="library" />
                   <Route path=":section" component={Scripts} />
                 </Route>
                 <Route path="variables" component={Secrets} />
-                <Route
-                  path="setup-experience/:section"
-                  component={SetupExperience}
-                />
               </Route>
             </Route>
             <Route

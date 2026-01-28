@@ -8,7 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
 | [CEO](https://fleetdm.com/handbook/company/leadership#ceo-flaws) | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-| Executive Assistant | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
+| Executive Assistant | <sup><sub> _See [🧑‍🚀 People](https://fleetdm.com/handbook/people#team) </sup></sub>
 
 
 ## Contact us
@@ -20,7 +20,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, human resources, legal counsel, signatures on all documents, and brand &amp; product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
 
-> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
+> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
 
 ### Process the CEO's inbox
@@ -124,7 +124,16 @@ Use the following steps to schedule an interview between a candidate and the CEO
 3. Once you've secured a time for the interview, create a Google Calendar event with the title "¶¶ CANDIDATE_NAME (OPEN_POSITION_APPLYING_FOR) <> Mike, final interview w/ CEO".
 4. Add the "Why hire" doc to the calendar event description as the agenda (i.e. `Agenda: WHY_HIRE_DOC_FULL_URL`) and save the calendar event.
 5. Schedule a 30-minute "¶¶ Postgame" working session for the CEO to evaluate the candidate and give his recommendation.
-6. In the hiring channel for the position, apply the "green-check-mark" (✅) emoji to the CEO interview request to confirm the request has been processed. 
+6. In the hiring channel for the position, apply the "green-check-mark" (✅) emoji to the CEO interview request to confirm the request has been processed.
+7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
+
+
+### Schedule Journalist prep
+
+The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and a journalist:
+1. The EA will schedule a 30-minute “📰 Journalist prep” call right before the journalist meeting, with the CEO as the only attendee. 
+2. Before the journalist call, The EA will meet with the Manager of Training and Enablement to build an agenda with 3 vertebrae listed and bring it to the Manager of Training and Enablement to collect the answers along with suggestions for the other two primary talking points.
+3. The CEO will review the agenda during the “📰 Journalist prep” time.
 
 
 ### Confirm CEO shadow dates

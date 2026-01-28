@@ -3,17 +3,21 @@
 
 import React, { useState } from "react";
 import classnames from "classnames";
-import { stringToClipboard } from "utilities/copy_text";
 
+import { stringToClipboard } from "utilities/copy_text";
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { InstallerType } from "interfaces/software";
 
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import CustomLink from "components/CustomLink";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
 const baseClass = "installer-details-widget";
 
@@ -40,9 +44,16 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
   );
 };
 
-const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
+const renderInstallerDisplayText = (
+  installerType: string,
+  isFma: boolean,
+  androidPlayStoreId?: string
+) => {
   if (installerType === "package") {
     return isFma ? "Fleet-maintained" : "Custom package";
+  }
+  if (androidPlayStoreId) {
+    return "Google Play Store";
   }
   return "App Store (VPP)";
 };
@@ -50,11 +61,14 @@ const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
 interface IInstallerDetailsWidgetProps {
   className?: string;
   softwareName: string;
-  installerType: "package" | "vpp";
+  installerType: InstallerType;
   addedTimestamp?: string;
-  versionInfo?: JSX.Element;
+  version?: string | null;
   sha256?: string | null;
   isFma: boolean;
+  isScriptPackage: boolean;
+  androidPlayStoreId?: string;
+  customDetails?: string;
 }
 
 const InstallerDetailsWidget = ({
@@ -63,8 +77,11 @@ const InstallerDetailsWidget = ({
   installerType,
   addedTimestamp,
   sha256,
-  versionInfo,
+  version,
   isFma,
+  isScriptPackage,
+  androidPlayStoreId,
+  customDetails,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -84,14 +101,71 @@ const InstallerDetailsWidget = ({
   };
 
   const renderIcon = () => {
-    return installerType === "package" ? (
-      <Graphic name="file-pkg" />
-    ) : (
-      <SoftwareIcon name="appStore" size="medium" />
-    );
+    if (installerType === "app-store") {
+      if (androidPlayStoreId) {
+        return <SoftwareIcon name="androidPlayStore" size="medium" />;
+      }
+      return <SoftwareIcon name="appleAppStore" size="medium" />;
+    }
+    return <Graphic name="file-pkg" />;
   };
 
   const renderDetails = () => {
+    if (customDetails) {
+      return <>{customDetails}</>;
+    }
+
+    const renderVersionInfo = () => {
+      if (isScriptPackage) {
+        return null;
+      }
+
+      let versionInfo = <span>{version}</span>;
+
+      if (installerType === "app-store") {
+        versionInfo = (
+          <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
+            <span>{version}</span>
+          </TooltipWrapper>
+        );
+      }
+
+      if (!version) {
+        versionInfo = (
+          <TooltipWrapper
+            tipContent={
+              <span>
+                Fleet couldn&apos;t read the version from {softwareName}.
+                {installerType === "package" && (
+                  <>
+                    {" "}
+                    <CustomLink
+                      newTab
+                      url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+                      text="Learn more"
+                      variant="tooltip-link"
+                    />
+                  </>
+                )}
+              </span>
+            }
+          >
+            <span>Version (unknown)</span>
+          </TooltipWrapper>
+        );
+      }
+
+      if (androidPlayStoreId) {
+        versionInfo = (
+          <AndroidLatestVersionWithTooltip
+            androidPlayStoreId={androidPlayStoreId}
+          />
+        );
+      }
+
+      return <> &bull; {versionInfo}</>;
+    };
+
     const renderTimeStamp = () =>
       addedTimestamp ? (
         <>
@@ -123,7 +197,12 @@ const InstallerDetailsWidget = ({
               {sha256.slice(0, 7)}&hellip;
             </TooltipWrapper>
             <div className={`${baseClass}__sha-copy-button`}>
-              <Button variant="icon" iconStroke onClick={onCopySha256}>
+              <Button
+                variant="icon"
+                size="small"
+                iconStroke
+                onClick={onCopySha256}
+              >
                 <Icon name="copy" />
               </Button>
             </div>
@@ -143,7 +222,8 @@ const InstallerDetailsWidget = ({
 
     return (
       <>
-        {renderInstallerDisplayText(installerType, isFma)} &bull; {versionInfo}
+        {renderInstallerDisplayText(installerType, isFma, androidPlayStoreId)}
+        {renderVersionInfo()}
         {renderTimeStamp()}
         {renderSha256()}
       </>

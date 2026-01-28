@@ -28,7 +28,20 @@ module.exports = {
     },
     contactSource: {
       type: 'string',
-      required: true
+      required: true,
+      isIn: [
+        'Website - Contact forms',
+        'Website - Sign up',
+        'Website - Newsletter',
+        'Event',
+        'GitHub - Stared fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Contributed to fleetdm/fleet',
+        'LinkedIn - Comment',
+        'LinkedIn - Reaction',
+        'LinkedIn - Share',
+        'LinkedIn - Liked the LinkedIn company page',
+      ],
     },
     jobTitle: {
       type: 'string',
@@ -38,12 +51,32 @@ module.exports = {
     intentSignal: {
       type: 'string',
       required: true,
+      isIn: [
+        'Followed the Fleet LinkedIn company page',
+        'LinkedIn comment',
+        'LinkedIn share',
+        'LinkedIn reaction',
+        'Fleet channel member in MacAdmins Slack',
+        'Fleet channel member in osquery Slack',
+        'Implemented a trial key',
+        'Signed up for Fleet event',
+        'Engaged with Fleetie at event',
+        'Attended a Fleet happy hour',
+        'Stared the fleetdm/fleet repo on GitHub',
+        'Forked the fleetdm/fleet repo on GitHub',
+        'Contributed to the fleetdm/fleet repo on GitHub',
+        'Subscribed to the Fleet newsletter',
+        'Attended a Fleet training course'
+      ]
     },
     historicalContent: {
       type: 'string',
       required: true,
     },
     historicalContentUrl: {
+      type: 'string',
+    },
+    relatedCampaign: {
       type: 'string',
     }
   },
@@ -57,7 +90,7 @@ module.exports = {
   },
 
 
-  fn: async function ({webhookSecret, firstName, lastName, linkedinUrl, contactSource, jobTitle, intentSignal, historicalContent, historicalContentUrl}) {
+  fn: async function ({webhookSecret, firstName, lastName, linkedinUrl, contactSource, jobTitle, intentSignal, historicalContent, historicalContentUrl, relatedCampaign}) {
 
 
     if (!sails.config.custom.clayWebhookSecret) {
@@ -75,7 +108,8 @@ module.exports = {
       linkedinUrl,
       contactSource,
       jobTitle,
-    }).intercept((err)=>{
+    })
+    .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a contact/account could not be created or updated. Full error: ${require('util').inspect(err)}`);
       if(typeof err.errorCode !== 'undefined' && err.errorCode === 'DUPLICATES_DETECTED') {
         return 'duplicateContactOrAccountFound';
@@ -100,7 +134,9 @@ module.exports = {
       eventContent: historicalContent,
       eventContentUrl: historicalContentUrl,
       linkedinUrl: trimmedLinkedinUrl,
-    }).intercept((err)=>{
+      relatedCampaign,
+    })
+    .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);
       return 'couldNotCreateActivity';
     });

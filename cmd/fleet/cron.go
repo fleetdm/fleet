@@ -14,13 +14,19 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -64,7 +70,7 @@ func newVulnerabilitiesSchedule(
 
 	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
 
-	vulnFuncs := getVulnFuncs(ctx, ds, vulnerabilitiesLogger, config)
+	vulnFuncs := getVulnFuncs(ds, vulnerabilitiesLogger, config)
 	for _, fn := range vulnFuncs {
 		options = append(options, schedule.WithJob(fn.Name, fn.VulnFunc))
 	}
@@ -528,7 +534,6 @@ func newAutomationsSchedule(
 	logger kitlog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
-	enablePrimo bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronAutomations)
@@ -567,7 +572,7 @@ func newAutomationsSchedule(
 		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
-				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet, enablePrimo)
+				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
 			},
 		),
 	)
@@ -604,7 +609,6 @@ func triggerFailingPoliciesAutomation(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
-	enablePrimo bool,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -646,7 +650,7 @@ func triggerFailingPoliciesAutomation(
 			}
 		}
 		return nil
-	}, enablePrimo)
+	})
 	if err != nil {
 		return fmt.Errorf("triggering failing policies automation: %w", err)
 	}
@@ -662,6 +666,8 @@ func newWorkerIntegrationsSchedule(
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	androidModule android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -714,6 +720,7 @@ func newWorkerIntegrationsSchedule(
 		Log:                   logger,
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
 	}
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
@@ -724,7 +731,12 @@ func newWorkerIntegrationsSchedule(
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
+	softwareWorker := &worker.SoftwareWorker{
+		Datastore:     ds,
+		Log:           logger,
+		AndroidModule: androidModule,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -829,12 +841,15 @@ func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	svc fleet.Service,
 	logger kitlog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -858,7 +873,8 @@ func newCleanupsAndAggregationSchedule(
 				}
 
 				targetsStart := time.Now()
-				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, time.Now().Add(-24*time.Hour).UTC())
+				cleanupTimeWindow := time.Now().Add(-config.Server.CleanupDistTargetsAge).UTC()
+				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, cleanupTimeWindow)
 				if err != nil {
 					return err
 				}
@@ -889,7 +905,8 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"expired_hosts",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupExpiredHosts(ctx)
+				// Call service method to handle activity creation
+				_, err := svc.CleanupExpiredHosts(ctx)
 				return err
 			},
 		),
@@ -976,6 +993,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
+		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
+		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -1016,6 +1036,9 @@ func newCleanupsAndAggregationSchedule(
 			// in use.
 			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore, time.Now().Add(-time.Minute))
 		}),
+		schedule.WithJob("cleanup_unused_software_title_icons", func(ctx context.Context) error {
+			return ds.CleanupUnusedSoftwareTitleIcons(ctx, softwareTitleIconStore, time.Now().Add(-time.Minute))
+		}),
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
 			// remove only those unused created more than a minute ago to avoid a
 			// race where we delete those created after the mysql query to get those
@@ -1038,6 +1061,33 @@ func newCleanupsAndAggregationSchedule(
 			)
 			_, err := ds.CleanupWorkerJobs(ctx, failedSince, completedSince)
 			return err
+		}),
+		schedule.WithJob("revoke_old_conditional_access_certs", func(ctx context.Context) error {
+			const gracePeriod = 1 * time.Hour
+			count, err := ds.RevokeOldConditionalAccessCerts(ctx, gracePeriod)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
+			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+		}),
+		schedule.WithJob("revert_stale_android_certificate_templates", func(ctx context.Context) error {
+			// Revert certificate templates stuck in 'delivering' status for too long
+			// back to 'pending'. This is a safety net for server crashes during AMAPI calls.
+			const staleThreshold = 12 * time.Hour
+			affected, err := ds.RevertStaleCertificateTemplates(ctx, staleThreshold)
+			if err != nil {
+				return err
+			}
+			if affected > 0 {
+				level.Info(logger).Log("msg", "reverted stale certificate templates", "count", affected)
+			}
+			return nil
 		}),
 	)
 
@@ -1077,6 +1127,43 @@ func newFrequentCleanupsSchedule(
 			}
 			err = lq.CleanupInactiveQueries(ctx, completed)
 			return err
+		}),
+	)
+
+	return s, nil
+}
+
+func newQueryResultsCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	liveQueryStore fleet.LiveQueryStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronQueryResultsCleanup)
+		defaultInterval = 1 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			maxRows := appConfig.ServerSettings.GetQueryReportCap()
+			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			if err != nil {
+				return err
+			}
+			// Sync Redis counters to actual database row counts
+			for queryID, count := range queryCounts {
+				if err := liveQueryStore.SetQueryResultsCount(queryID, count); err != nil {
+					level.Warn(logger).Log("msg", "failed to set query results count in redis", "query_id", queryID, "err", err)
+				}
+			}
+			return nil
 		}),
 	)
 
@@ -1137,7 +1224,7 @@ func verifyDiskEncryptionKeys(
 	return nil
 }
 
-func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) (*schedule.Schedule, error) {
+func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger kitlog.Logger) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUsageStatistics)
 		defaultInterval = 1 * time.Hour
@@ -1310,6 +1397,31 @@ func newWindowsMDMProfileManagerSchedule(
 	return s, nil
 }
 
+func newAndroidMDMProfileManagerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	licenseKey string,
+	androidAgentConfig config.AndroidAgentConfig,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMDMAndroidProfileManager)
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
+		}),
+	)
+
+	return s, nil
+}
+
 func newMDMAppleServiceDiscoverySchedule(
 	ctx context.Context,
 	instanceID string,
@@ -1341,7 +1453,7 @@ func newMDMAPNsPusher(
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
 	interval := 1 * time.Minute
-	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
+	if intervalEnv := dev_mode.Env("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
@@ -1380,6 +1492,7 @@ func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger 
 func newActivitiesStreamingSchedule(
 	ctx context.Context,
 	instanceID string,
+	activitySvc activity_api.ListActivitiesService,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	auditLogger fleet.JSONLogger,
@@ -1395,7 +1508,7 @@ func newActivitiesStreamingSchedule(
 		schedule.WithJob(
 			"cron_activities_streaming",
 			func(ctx context.Context) error {
-				return cronActivitiesStreaming(ctx, ds, logger, auditLogger)
+				return cronActivitiesStreaming(ctx, activitySvc, ds, logger, auditLogger)
 			},
 		),
 	)
@@ -1406,21 +1519,23 @@ var ActivitiesToStreamBatchCount uint = 500
 
 func cronActivitiesStreaming(
 	ctx context.Context,
+	activitySvc activity_api.ListActivitiesService,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	auditLogger fleet.JSONLogger,
 ) error {
+	// Use system context for authorization since cron jobs don't have a user context
+	ctx = viewer.NewSystemContext(ctx)
+
 	page := uint(0)
 	for {
 		// (1) Get batch of activities that haven't been streamed.
-		activitiesToStream, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "id",
-				OrderDirection: fleet.OrderAscending,
-				PerPage:        ActivitiesToStreamBatchCount,
-				Page:           page,
-			},
-			Streamed: ptr.Bool(false),
+		activitiesToStream, _, err := activitySvc.ListActivities(ctx, activity_api.ListOptions{
+			OrderKey:       "id",
+			OrderDirection: activity_api.OrderAscending,
+			PerPage:        ActivitiesToStreamBatchCount,
+			Page:           page,
+			Streamed:       ptr.Bool(false),
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list activities")
@@ -1505,7 +1620,7 @@ func cronHostVitalsLabelMembership(
 	// so we'll filter them later.
 	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
 		PerPage: 0, // No limit.
-	})
+	}, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list labels")
 	}
@@ -1586,6 +1701,7 @@ func newIPhoneIPadRefetcher(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
+	newActivityFn apple_mdm.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-refetcher")
@@ -1593,7 +1709,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 
@@ -1684,6 +1800,7 @@ func newRefreshVPPAppVersionsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	vppAppsConfig apple_apps.Config,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronRefreshVPPAppVersions)
@@ -1695,7 +1812,7 @@ func newRefreshVPPAppVersionsSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
-			return vpp.RefreshVersions(ctx, ds)
+			return vpp.RefreshVersions(ctx, ds, vppAppsConfig)
 		}),
 	)
 
@@ -1783,5 +1900,83 @@ func newBatchActivitiesSchedule(
 		}),
 	)
 
+	return s, nil
+}
+
+// newAndroidMDMDeviceReconcilerSchedule periodically reconciles Android device existence
+// with Google AMAPI and flips hosts to unenrolled if missing.
+func newAndroidMDMDeviceReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	licenseKey string,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMDMAndroidDeviceReconciler)
+		defaultInterval = 1 * time.Hour
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey)
+		}),
+	)
+
+	return s, nil
+}
+
+func cronEnableAndroidAppReportsOnDefaultPolicy(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	androidSvc android.Service,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronEnableAndroidAppReportsOnDefaultPolicy)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 45*time.Second)
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return androidSvc.EnableAppReportsOnDefaultPolicy(ctx)
+		}),
+	)
+	return s, nil
+}
+
+func cronMigrateToPerHostPolicy(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	androidSvc android.Service,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMigrateToPerHostPolicy)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return androidSvc.MigrateToPerDevicePolicy(ctx)
+		}),
+	)
 	return s, nil
 }

@@ -1,8 +1,9 @@
 .scripts {
-  font-size: $x-small;
+  @include vertical-page-tab-panel-layout;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
   &__description {
-    margin: $pad-xxlarge 0;
+    margin: 0;
   }
 
   &__premium-feature-message {
@@ -21,7 +22,7 @@
       padding: 1rem 1.5rem;
       &:hover {
         // currently this behavior has only been specified for Script list items
-        background-color: $ui-fleet-blue-10;
+        background-color: $ui-off-white;
         cursor: pointer;
         .list-item__actions {
           display: flex;

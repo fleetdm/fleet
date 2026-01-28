@@ -1,10 +1,8 @@
 # API for contributors
 
-This document includes the internal (service) Fleet API routes that are helpful when developing or contributing to Fleet.
+Don't use these API endpoints. Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
 
-These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. 
-
-If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
+These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. 
 
 - [Authentication](#authentication)
 - [Packs](#packs)
@@ -18,6 +16,7 @@ If you are interested in gathering information from Fleet in a production enviro
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Certificates](#certificates)
 - [Users](#users)
 - [Conditional access](#conditional-access)
 - [Host identity](#host-identity)
@@ -1046,7 +1045,7 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 `204`
 
-### Initiate SSO during DEP or Account Driven MDM enrollment
+### Initiate SSO for end-user authentication during macOS, Windows or Linux setup
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
@@ -1058,7 +1057,9 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. Use `setup_experience` to initiate a web-based SSO login outside of the DEP flow. |
+| user_identifier | string | body | Passed by Apple for account-driven enrollment.
+| host_uuid | string | body | The hardware UUID of the device to enroll when using the `setup_experience` value for `initiator`.
 
 #### Example
 
@@ -1388,12 +1389,12 @@ This endpoint is used to delete Android Enterprise. Once deleted, hosts that bel
 
 `Status: 200`
 
-### Create Android enrollment token
+### Get Android enrollment token
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to generate enrollment token and enrollment URL which opens wizard (settings app) to enroll Android host.
+This endpoint is used to retrieve an Android enrollment token and enrollment URL using a Fleet enroll secret which opens the Android enrollment wizard (settings app) to enroll the Android host.
 
-`POST /api/v1/fleet/android_enterprise/enrollment_token`
+`GET /api/v1/fleet/android_enterprise/enrollment_token`
 
 #### Parameters
 
@@ -1403,7 +1404,7 @@ This endpoint is used to generate enrollment token and enrollment URL which open
 
 #### Example
 
-`POST /api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+`GET /api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
 
 ##### Default response
 
@@ -2157,7 +2158,11 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| specs | list | path | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
+| team_id | int | query | The ID of the team to set labels to; omit to set global labels |
+| specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
+| names_to_move | string[] | body | A list of names of labels that are both in `specs` in the current request and already exist on other teams. If the requesting user has permission to modify those labels, this endpoint will rename the specified labels so new labels on the correct team can be created. The request will fail with no changes if one or more of the specified labels cannot be moved. |
+
+The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance from having a label on one team (or global) to using that same label name on another team (or switching a team label to a global label). Once labels are created on the correct teams, the old labels are cleaned up when GitOps is run on the old team via explicit `DELETE` calls.
 
 #### Example
 
@@ -2180,7 +2185,8 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
       "label_membership_type": "manual",
       "hosts": ["snacbook-pro.local"]
     }
-  ]
+  ],
+  "names_to_move": ["local_machine"]
 }
 ```
 
@@ -2190,11 +2196,15 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels
 
+Gets all labels visible to the currently logged-in user.
+
 `GET /api/v1/fleet/spec/labels`
 
 #### Parameters
 
-None.
+| Name  | Type | In   | Description                                                                                                   |
+| ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id | int | query | The ID of the team to view all labels from; omit to see all labels, supply 0 to see only global labels |
 
 #### Example
 
@@ -2213,7 +2223,9 @@ None.
       "description": "All hosts which have enrolled in Fleet",
       "query": "SELECT 1;",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 7,
@@ -2222,7 +2234,9 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 8,
@@ -2231,7 +2245,9 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 9,
@@ -2239,7 +2255,9 @@ None.
       "description": "All CentOS hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 10,
@@ -2248,14 +2266,31 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters Ubuntu hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-      "label_membership_type": "dynamic"
+      "label_type": "builtin",
+      "label_membership_type": "dynamic",,
+      "team_id": null,
+      "team_name": null
+    },
+    {
+      "id": 4663,
+      "name": "Team: g-software",
+      "description": "Workstations used by team g-software",
+      "query": "",
+      "platform": "",
+      "label_type": "regular",
+      "label_membership_type": "manual",
+      "display_text": "Team: g-software",
+      "team_id": 1,
+      "team_name": "Workstations"
     }
   ]
 }
@@ -2263,7 +2298,7 @@ None.
 
 ### Get label
 
-Returns the label specified by name.
+Returns the label specified by name if it exists and its team (if any) is accessible by the current user.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 
@@ -2286,7 +2321,8 @@ None.
     "name": "local_machine",
     "description": "Includes only my local machine",
     "query": "",
-    "label_membership_type": "manual"
+    "label_membership_type": "manual",
+    "team_id": null
   }
 }
 ```
@@ -3144,6 +3180,16 @@ Same as [Refetch host route](https://fleetdm.com/docs/using-fleet/rest-api#refet
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 #### Get device's Google Chrome profiles
 
 Same as [Get host's Google Chrome profiles](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-google-chrome-profiles) for the current device.
@@ -3253,6 +3299,16 @@ Lists the software installed on the current device.
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 ##### Example
 
 `GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software`
@@ -3263,14 +3319,16 @@ Lists the software installed on the current device.
 
 ```json
 {
-  "count": 2,
+  "count": 3,
   "software": [
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
+      "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
       "software_package": {
-        "name": "GoogleChrome.pkg"
-        "version": "125.12.2"
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.2",
         "self_service": true,
         "categories": ["Browsers"],
      	"last_install": {
@@ -3301,6 +3359,8 @@ Lists the software installed on the current device.
     {
       "id": 143,
       "name": "Firefox.app",
+      "display_name": "Firefox",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
       "software_package": null,
       "app_store_app": null,
       "source": "apps",
@@ -3309,19 +3369,35 @@ Lists the software installed on the current device.
         {
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Firefox.app"]
+          "vulnerabilities": [],
+          "installed_paths": ["/Applications/Slack.app"]
         }
       ],
       "software_package": null,
       "app_store_app": {
-        "app_store_id": "12345",
-        "categories": ["Browsers"],
-        "version": "125.6",
+        "app_store_id": "618783545",
+        "categories": ["Communication"],
+        "version": "25.08.10",
         "self_service": false,
-        "icon_url": "https://example.com/logo-light.jpg",
         "last_install": null
       },
+    },
+    {
+      "id": 144,
+      "name": "Prettier",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "vscode_extensions",
+      "extesnion_for": "cursor",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "1.2.6",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Users/admin/.cursor/extensions/prettier"]
+        }
+      ],
     }
   ],
   "meta": {
@@ -3329,6 +3405,49 @@ Lists the software installed on the current device.
     "has_previous_results": false
   }
 }
+```
+
+### Download device software icon
+
+_Available in Fleet Premium._
+
+Retrieve the icon added via Fleet or icon from App Store (VPP).
+
+`GET /api/v1/fleet/device/:token/software/titles/121/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                               |
+| ----            | ------- | ---- | ----------------------------------------- |
+| id              | integer | path | ID of the software title to get icon for. |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
+This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/titles/121/icon`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: image/png
+Content-Disposition: inline; filename="zoom-icon-512x512.png"
+Content-Length: 124567
+
+<BINARY_IMAGE_DATA>
 ```
 
 ### Get device's software install results
@@ -3420,6 +3539,16 @@ Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The sof
 | token | string | path | **Required**. The device's authentication token. |
 | software_title_id | string | path | **Required**. The software title's ID. |
 
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
 ##### Example
 
 `POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
@@ -3440,6 +3569,16 @@ Uninstalls software from a host via the My device page.
 | ---------         | ---------- | ---- | --------------------------------------------     |
 | token | string | path | **Required**. The device's authentication token. |
 | software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
 
 #### Example
 
@@ -3604,32 +3743,6 @@ Lists the certificates installed on the current device.
 }
 ```
 
-#### Get device's API features
-
-This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
-
-`GET /api/v1/fleet/device/{token}/api_features`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`GET /api/v1/fleet/device/abcdef012456789/api_features`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "features": {}
-}
-```
-
 #### Get device's transparency URL
 
 Returns the URL to open when clicking the "About Fleet" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
@@ -3641,6 +3754,16 @@ Returns the URL to open when clicking the "About Fleet" menu item in Fleet Deskt
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
 
 ##### Example
 
@@ -3654,7 +3777,9 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Downloads the Mobile Device Management (MDM) enrollment profile to install on the device for a manual enrollment into Fleet MDM.
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
+for a device. A user may be required to complete SSO authenticaton if configured on the team before being presented
+with the download option.
 
 `GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
 
@@ -3672,12 +3797,10 @@ Downloads the Mobile Device Management (MDM) enrollment profile to install on th
 
 `Status: 200`
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<!-- ... -->
-</plist>
+```json
+{
+  "enroll_url": "https://your-fleet-server-url.com/enroll?enroll_secret=ABCzmPbtEECxZhHlFlz9uTWApZmXsCND"
+}
 ```
 
 ---
@@ -3725,6 +3848,47 @@ Signals the Fleet server to queue up the LUKS disk encryption escrow process (LU
 ##### Default response
 
 `Status: 204`
+
+---
+
+### Get the setup experience status for the device
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/device/{token}/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/setup_experience/status`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "setup_experience_results": {
+    "software": [
+      {
+        "name": "1password-latest.tar.gz",
+        "status": "running",
+        "software_title_id": 3007
+      },
+      {
+        "name": "slack.deb",
+        "status": "pending",
+        "software_title_id": 3008
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -3875,7 +4039,42 @@ Notifies the server about an agent error, resulting in two outcomes:
         "org_logo_url": ""
     }
 }
+```
 
+### Start the setup experience
+
+`POST /api/fleet/orbit/setup_experience/init`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/setup_experience/init`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"TuvSsWf0RwBEecUlNBTLmBcjGFAdzqt/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+Returns `enabled` set to `true` if items (e.g. software) for the setup experience were queued for the host.
+
+```json
+{
+  "result": {
+    "enabled": true
+  }
+}
 ```
 
 ### Set or update device token
@@ -4126,6 +4325,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | install_script_output         | string | body | The output from the install script.                     |
 | post_install_script_exit_code | number | body | The exit code from the post-install script.             |
 | post_install_script_output    | string | body | The output from the post-install script.                |
+| retries_remaining             | number | body | The number of retries remaining for this installation. When > 0, the server treats this as an intermediate failure. |
 
 ##### Example
 
@@ -4142,7 +4342,8 @@ Notifies the server about an agent error, resulting in two outcomes:
   "install_script_exit_code ": 0,
   "install_script_output ": "software installed",
   "post_install_script_exit_code ": 1,
-  "post_install_script_output ": "error: post-install script failed"
+  "post_install_script_output ": "error: post-install script failed",
+  "retries_remaining": 0
 }
 ```
 
@@ -4226,6 +4427,7 @@ Body: <blob>
   "uninstall_script": "sudo run-uninstaller",
   "post_install_script": "echo done",
   "self_service": true,
+  "max_retries": 2,
   "installer_url": {
     "url": "https://d1nsa5964r3p4i.cloudfront.net/software-installers/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
     "filename": "my-installer.pkg"
@@ -4552,7 +4754,19 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "team_id": 1,
       "title_id": 2751,
       "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
-      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "firefox-custom-icon.png"
+    },
+    {
+      "team_id": 1,
+      "title_id": 3496,
+      "url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
+      "hash_sha256": "c6aa78d0911a0cb504a21bcf8421de703cc7dd07b7388903cf29227ca5955737",
+      "fleet_maintained_app_id": 150,
+      "fleet_maintained_app_slug": "8x8-work/darwin",
+      "icon_hash_sha256": "dad98c7c1b9a5654a45972f2cd7e5c3e536fe5312b0e615291ceb35234eaaa7f",
+      "icon_filename": "custom-icon.png"
     }
   ]
 }
@@ -4591,6 +4805,7 @@ _Available in Fleet Premium._
 #### Example
 
 `POST /api/latest/fleet/software/app_store_apps/batch`
+
 ```json
 {
   "team_name": "Foobar",
@@ -4624,19 +4839,25 @@ _Available in Fleet Premium._
       "team_id": 1,
       "title_id": 123,
       "app_store_id": "597799333",
-      "platform": "darwin"
+      "platform": "darwin",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     },
     {
       "team_id": 1,
       "title_id": 124,
       "app_store_id": "597799333",
-      "platform": "ios"
+      "platform": "ios",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     },
     {
       "team_id": 1,
       "title_id": 125,
       "app_store_id": "597799333",
-      "platform": "ipados"
+      "platform": "ipados",
+      "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "icon_filename": "browser-custom-icon.png"
     }
   ]
 }
@@ -4702,6 +4923,76 @@ Body: <blob>
 ```
 
 ---
+
+## Certificates
+
+### Apply certificate templates
+
+_Available in Fleet Premium_
+
+`POST /api/latest/fleet/spec/certificates`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| specs     | array  | body  | **Required**. An array of objects with the certificate templates. Each item must contain `name` with the certificate template name, a `team` with a team name,  `certificate_authority_id` with the certificate authority id, and `subject_name` with the certificate's subject name.   |
+
+> Any existing certificate template that is not included in the list will be removed, and existing templates with the same name as the new template will be edited. Providing an empty list of certificate templates will remove existing scripts.
+
+#### Example
+
+`POST /api/latest/fleet/spec/certificates`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "WIFI_CERTIFICATE",
+      "team": "workstations",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    },
+    {
+      "name": "WIFI_CERTIFICATE_TEST",
+      "team": "workstations-canary",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Delete certificate templates
+
+`DELETE /api/latest/fleet/spec/certificates`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                                                            |
+|-----------|---------|-------|----------------------------------------------------------------------------------------|
+| ids       | array   | body  | **Required**. An array of certificate template ids to be deleted                       |
+| team_id   | integer | body  | **Required**. The team_id which the certificate templates you want to delete belong to |
+
+#### Example
+
+`DELETE /api/latest/fleet/spec/certificates`
+```json
+{
+  "ids": [1, 2, 3, 4],
+  "team_id": 1
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ## Users
 
@@ -4862,17 +5153,93 @@ None.
 }
 ```
 
-### Delete Microsoft Entra conditional access
+### Get Okta conditional access SAML IdP metadata
 
-`DELETE /api/v1/conditional-access/microsoft`
+**Note:** This endpoint is unauthenticated and used by Okta to discover Fleet's SAML IdP configuration.
+
+Returns SAML IdP metadata XML for Okta conditional access. This metadata is consumed by Okta to configure Fleet as a SAML identity provider.
+
+`GET /api/fleet/conditional_access/idp/metadata`
 
 #### Parameters
 
 None.
 
+#### Example
+
+`GET /api/fleet/conditional_access/idp/metadata`
+
 ##### Default response
 
 `Status: 200`
+
+Returns SAML IdP metadata XML with `Content-Type: application/xml`.
+
+### Okta conditional access SAML SSO
+
+**Note:** This endpoint requires mTLS authentication at the load balancer level. The regular Fleet load balancer should redirect requests to this endpoint to an mTLS-enabled load balancer that validates client certificates.
+
+Handles SAML authentication requests from Okta for conditional access. This endpoint validates the device's client certificate (via the `X-Client-Cert-Serial` header set by the mTLS load balancer), checks device health policies, and returns a SAML response.
+
+`POST /api/fleet/conditional_access/idp/sso`
+
+#### Parameters
+
+| Name                 | Type   | In     | Description                                                             |
+|----------------------|--------|--------|-------------------------------------------------------------------------|
+| X-Client-Cert-Serial | string | header | **Required.** The serial number of the client certificate (hex format). |
+| SAMLRequest          | string | body   | The SAML authentication request from Okta (URL-encoded).                |
+
+#### Example
+
+`POST /api/fleet/conditional_access/idp/sso`
+
+##### Request header
+
+```http
+X-Client-Cert-Serial: 1A
+```
+
+##### Default response
+
+`Status: 200`
+
+Returns a SAML response (HTML form auto-submit) or redirects to an error page if authentication fails.
+
+### Okta conditional access SCEP enrollment
+
+**Note:** This endpoint implements the SCEP protocol for automatic certificate enrollment. SCEP certificate requests are authenticated using a challenge password, which is a global enroll secret.
+
+Handles Simple Certificate Enrollment Protocol (SCEP) requests for Okta conditional access. Devices use this endpoint to automatically enroll and obtain client certificates.
+
+`GET /api/fleet/conditional_access/scep?operation={operation}`
+`POST /api/fleet/conditional_access/scep?operation={operation}`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                    |
+|-----------|--------|-------|--------------------------------------------------------------------------------|
+| operation | string | query | **Required.** The SCEP operation: `GetCACaps`, `GetCACert`, or `PKIOperation`. |
+
+#### Example
+
+Get CA capabilities:
+
+`GET /api/fleet/conditional_access/scep?operation=GetCACaps`
+
+Get CA certificate:
+
+`GET /api/fleet/conditional_access/scep?operation=GetCACert`
+
+Submit certificate signing request:
+
+`POST /api/fleet/conditional_access/scep?operation=PKIOperation`
+
+##### Default response
+
+`Status: 200`
+
+Response format varies by operation according to the SCEP protocol specification.
 
 ## Android fleetdm.com proxy
 

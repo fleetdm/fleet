@@ -16,9 +16,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -139,6 +141,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
 		cachedDS = ds
@@ -178,10 +186,14 @@ func ServeMDMBootstrapPackage(t *testing.T, pkgPath, pkgName string) (*httptest.
 }
 
 func StartSoftwareInstallerServer(t *testing.T) {
-	// start the web server that will serve the installer
+	// load the ruby installer to use as base bytes to repeat for the "too large" case
 	b, err := os.ReadFile(getPathRelative("../../../../server/service/testdata/software-installers/ruby.deb"))
 	require.NoError(t, err)
 
+	// get the base dir of all installers
+	baseDir := getPathRelative("../../../../server/service/testdata/software-installers/")
+
+	// start the web server that will serve the installer
 	srv := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -196,13 +208,16 @@ func StartSoftwareInstallerServer(t *testing.T) {
 				case strings.Contains(r.URL.Path, "toolarge"):
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					var sz int
-					for sz < 3000*1024*1024 {
+					for sz < 513*units.MiB {
 						n, _ := w.Write(b)
 						sz += n
 					}
-				default:
+				case strings.Contains(r.URL.Path, "other.deb"):
+					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				default:
+					http.ServeFile(w, r, filepath.Join(baseDir, filepath.Base(r.URL.Path)))
 				}
 			},
 		),
@@ -234,7 +249,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{
 		MDM: fleet.MDM{
-			EnabledAndConfigured: true,
+			EnabledAndConfigured:        true,
+			AndroidEnabledAndConfigured: true,
 		},
 	}
 	AddLabelMocks(ds)
@@ -256,11 +272,14 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		savedAppConfig = &appConfigCopy
 		return nil
 	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
-		return nil
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		return false, nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
+	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return []fleet.SoftwareAutoUpdateSchedule{}, nil
 	}
 
 	savedTeams := map[string]**fleet.Team{}
@@ -278,7 +297,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -289,6 +308,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
@@ -308,8 +333,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
@@ -362,10 +387,26 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		for _, tm := range savedTeams {
 			if (*tm).ID == tid {
 				return *tm, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		for _, tm := range savedTeams {
+			if (*tm).ID == tid {
+				teamToCopy := *tm
+				return &fleet.TeamLite{
+					ID:          teamToCopy.ID,
+					Filename:    teamToCopy.Filename,
+					CreatedAt:   teamToCopy.CreatedAt,
+					Name:        teamToCopy.Name,
+					Description: teamToCopy.Description,
+					Config:      teamToCopy.Config.ToLite(),
+				}, nil
 			}
 		}
 		return nil, &notFoundError{}
@@ -397,6 +438,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return declaration, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -446,6 +490,20 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 		return nil, &notFoundError{} // No existing EULA
+	}
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
@@ -586,7 +644,7 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 		_, _ = w.Write(resp)
 	}))
 
-	t.Setenv("FLEET_DEV_VPP_URL", srv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", srv.URL, t)
 	t.Cleanup(srv.Close)
 }
 
@@ -609,30 +667,90 @@ func StartAndServeVPPServer(t *testing.T) {
 
 	StartVPPApplyServer(t, config)
 
-	appleITunesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with
-		db := map[string]string{
-			// macos app
-			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-			// macos, ios, ipados app
-			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
-			// ipados app
-			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
-				"supportedDevices": ["iPadAir-iPadAir"] }`,
+	// Set up the VPP proxy metadata server using the new format
+	// This replaces the old iTunes API format
+	vppProxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer test-bearer-token" || r.Header.Get("vpp-token") == "" {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"error": "unauthorized"}`))
+			return
 		}
 
-		adamIDString := r.URL.Query().Get("id")
+		// deviceFamilies: "mac" -> osx platform, "iphone" -> ios platform, "ipad" -> ios platform
+		db := map[string]string{
+			// macos app
+			"1": `{
+				"id": "1",
+				"attributes": {
+					"name": "App 1",
+					"platformAttributes": {
+						"osx": {
+							"bundleId": "a-1",
+							"artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "1.0.0"}
+						}
+					},
+					"deviceFamilies": ["mac"]
+				}
+			}`,
+			// macos, ios, ipados app
+			"2": `{
+				"id": "2",
+				"attributes": {
+					"name": "App 2",
+					"platformAttributes": {
+						"osx": {
+							"bundleId": "b-2",
+							"artwork": {"url": "https://example.com/images/2-mac/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "1.2.3"}
+						},
+						"ios": {
+							"bundleId": "b-2",
+							"artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "2.0.0"}
+						}
+					},
+					"deviceFamilies": ["mac", "iphone", "ipad"]
+				}
+			}`,
+			// ipados app
+			"3": `{
+				"id": "3",
+				"attributes": {
+					"name": "App 3",
+					"platformAttributes": {
+						"ios": {
+							"bundleId": "c-3",
+							"artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "3.0.0"}
+						}
+					},
+					"deviceFamilies": ["ipad"]
+				}
+			}`,
+		}
+
+		adamIDString := r.URL.Query().Get("ids")
 		adamIDs := strings.Split(adamIDString, ",")
 
 		var objs []string
 		for _, a := range adamIDs {
-			objs = append(objs, db[a])
+			if obj, ok := db[a]; ok {
+				objs = append(objs, obj)
+			}
 		}
 
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+		_, _ = w.Write(fmt.Appendf(nil, `{"data": [%s]}`, strings.Join(objs, ",")))
 	}))
-	t.Setenv("FLEET_DEV_ITUNES_URL", appleITunesSrv.URL)
+
+	vppProxyAuthSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"fleetServerSecret": "test-bearer-token"}`))
+	}))
+
+	t.Cleanup(vppProxySrv.Close)
+	t.Cleanup(vppProxyAuthSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", vppProxySrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_VPP_PROXY_AUTH_URL", vppProxyAuthSrv.URL, t)
 }
 
 type MockPusher struct{}
@@ -669,7 +787,7 @@ func (m *MemKeyValueStore) Get(ctx context.Context, key string) (*string, error)
 
 func AddLabelMocks(ds *mock.Store) {
 	var deletedLabels []string
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
 				Name:                "a",
@@ -689,12 +807,12 @@ func AddLabelMocks(ds *mock.Store) {
 		return nil
 	}
 
-	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
-		return map[string]*fleet.Label{
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		validLabels := map[string]*fleet.Label{
 			"a": {
 				ID:   1,
 				Name: "a",
@@ -703,7 +821,15 @@ func AddLabelMocks(ds *mock.Store) {
 				ID:   2,
 				Name: "b",
 			},
-		}, nil
+		}
+
+		found := make(map[string]*fleet.Label)
+		for _, l := range names {
+			if label, ok := validLabels[l]; ok {
+				found[l] = label
+			}
+		}
+		return found, nil
 	}
 }
 

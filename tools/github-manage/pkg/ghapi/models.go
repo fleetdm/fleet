@@ -35,6 +35,7 @@ type Issue struct {
 	Labels    []Label    `json:"labels"`
 	Milestone *Milestone `json:"milestone,omitempty"`
 	Estimate  int        `json:"estimate,omitempty"` // Custom field for estimate
+	Status    string     `json:"status,omitempty"`   // Custom field for status
 }
 
 type Sprint struct {
@@ -108,6 +109,21 @@ type ProjectField struct {
 	Options []ProjectFieldOption `json:"options,omitempty"`
 }
 
+type User struct {
+	Login        string `json:"login"`
+	ID           int    `json:"id"`
+	NodeID       string `json:"node_id"`
+	AvatarURL    string `json:"avatar_url"`
+	HTMLURL      string `json:"html_url"`
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	GravatarID   string `json:"gravatar_id"`
+	URL          string `json:"url"`
+	Company      string `json:"company"`
+	UserViewType string `json:"user_view_type"`
+	SiteAdmin    bool   `json:"site_admin"`
+}
+
 func ConvertItemsToIssues(items []ProjectItem) []Issue {
 	var issues []Issue
 	for _, item := range items {
@@ -131,6 +147,7 @@ func ConvertItemsToIssues(items []ProjectItem) []Issue {
 			})
 		}
 		issue.Estimate = item.Estimate
+		issue.Status = item.Status
 		for _, label := range item.Labels {
 			if label == "story" {
 				issue.Typename = "Feature"

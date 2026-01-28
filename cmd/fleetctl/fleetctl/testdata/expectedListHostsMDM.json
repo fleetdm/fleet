@@ -57,6 +57,7 @@
       "team_id": null,
       "pack_stats": null,
       "team_name": null,
+      "timezone": null,
       "additional": {
         "query1": [
           {
@@ -68,6 +69,7 @@
       "gigs_disk_space_available": 0,
       "percent_disk_space_available": 0,
       "gigs_total_disk_space": 0,
+      "gigs_all_disk_space": null,
       "issues": {
         "total_issues_count": 0,
         "failing_policies_count": 0
@@ -134,9 +136,11 @@
       "team_id": null,
       "pack_stats": null,
       "team_name": null,
+      "timezone": null,
       "gigs_disk_space_available": 0,
       "percent_disk_space_available": 0,
       "gigs_total_disk_space": 0,
+      "gigs_all_disk_space": null,
       "issues": {
         "total_issues_count": 0,
         "failing_policies_count": 0

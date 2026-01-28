@@ -8,16 +8,16 @@ import { getPathWithQueryParams } from "utilities/url";
 
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
-import { ApplePlatform, isAndroid } from "interfaces/platform";
+import { ApplePlatform } from "interfaces/platform";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
-import EndUserOSRequirementPreview from "./components/EndUserOSRequirementPreview";
-import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "../../../components/GenericMsgWithNavButton/GenericMsgWithNavButton";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
@@ -117,7 +117,15 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     !config?.mdm.enabled_and_configured &&
     !config?.mdm.windows_enabled_and_configured
   ) {
-    return <TurnOnMdmMessage router={router} />;
+    return (
+      <GenericMsgWithNavButton
+        header="Manage your hosts"
+        info="MDM must be turned on to change settings on your hosts."
+        path={PATHS.ADMIN_INTEGRATIONS_MDM}
+        buttonText="Turn on"
+        router={router}
+      />
+    );
   }
 
   // If the user has not selected a platform yet, we default to the platform that
@@ -128,10 +136,9 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely encourage the installation of software updates on hosts
-        assigned to this team.
+        Remotely enforce software updates.
       </p>
-      <div className={`${baseClass}__content`}>
+      <>
         <div className={`${baseClass}__current-version-container`}>
           <CurrentVersionSection
             router={router}
@@ -140,6 +147,10 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
           />
         </div>
         <div className={`${baseClass}__target-container`}>
+          <SectionHeader
+            title="Target"
+            wrapperCustomClass={`${baseClass}__header`}
+          />
           <TargetSection
             key={teamIdForApi} // if the team changes, remount the target section
             appConfig={config}
@@ -152,12 +163,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
             refetchTeamConfig={refetchTeamConfig}
           />
         </div>
-        {!isAndroid(selectedPlatform) && (
-          <div className={`${baseClass}__nudge-preview`}>
-            <EndUserOSRequirementPreview platform={selectedPlatform} />
-          </div>
-        )}
-      </div>
+      </>
     </div>
   );
 };

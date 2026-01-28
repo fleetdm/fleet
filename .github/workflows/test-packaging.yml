@@ -60,7 +60,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -108,6 +108,12 @@ jobs:
 
       - name: Build RPM with Fleet Desktop
         run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+
+      - name: Build PKG.TAR.ZST
+        run: ./build/fleetctl package --type pkg.tar.zst --enroll-secret=foo --fleet-url=https://localhost:8080
+
+      - name: Build PKG.TAR.ZST with Fleet Desktop
+        run: ./build/fleetctl package --type pkg.tar.zst --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
       - name: Build MSI
         if: ${{ !startsWith(matrix.os, 'macos') }}

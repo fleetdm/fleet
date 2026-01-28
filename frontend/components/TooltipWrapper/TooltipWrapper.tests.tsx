@@ -1,33 +1,39 @@
 // TooltipWrapper.test.tsx
 import React from "react";
-import userEvent from "@testing-library/user-event";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 import TooltipWrapper from "./TooltipWrapper";
 
 describe("TooltipWrapper", () => {
   it("renders children and tooltip content", async () => {
-    render(
+    const { user } = renderWithSetup(
       <TooltipWrapper tipContent="Tooltip text">
         <span>Hover me</span>
       </TooltipWrapper>
     );
 
     const trigger = screen.getByText("Hover me");
-    userEvent.hover(trigger);
+    await user.hover(trigger);
 
-    // Wait for tooltip content to appear in the DOM
-    expect(await screen.findByText("Tooltip text")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Tooltip text")).toBeInTheDocument();
+    });
   });
 
-  it("does not render tooltip when disableTooltip is true", () => {
-    render(
+  it("does not render tooltip when disableTooltip is true", async () => {
+    const { user } = renderWithSetup(
       <TooltipWrapper tipContent="Tooltip text" disableTooltip>
         <span>Hover me</span>
       </TooltipWrapper>
     );
-    expect(screen.getByText("Hover me")).toBeInTheDocument();
-    // Tooltip content should not be in the DOM
-    expect(screen.queryByText("Tooltip text")).toBeNull();
+    const anchor = screen.getByText("Hover me");
+    expect(anchor).toBeInTheDocument();
+
+    await user.hover(anchor);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Tooltip text")).toBeNull();
+    });
   });
 
   it("applies underline class by default", () => {

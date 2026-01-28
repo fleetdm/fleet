@@ -6,7 +6,7 @@ interface ICheckboxIndeterminateProps {
 }
 
 const CheckboxIndeterminate = ({
-  color = "core-fleet-blue",
+  color = "core-fleet-green",
 }: ICheckboxIndeterminateProps) => {
   return (
     <svg width="16" height="17" fill="none" xmlns="http://www.w3.org/2000/svg">

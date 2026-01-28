@@ -1,0 +1,14 @@
+.os-settings-name-cell {
+  display: flex;
+  gap: $pad-small;
+
+  &__scope-tooltip {
+    text-align: center;
+  }
+}
+
+// need to do some overrides here to get the name text content to be the right size
+.data-table-block .data-table tbody td .os-settings-name-cell__name-tooltip {
+  max-width: 142px;
+  min-width: auto;
+}

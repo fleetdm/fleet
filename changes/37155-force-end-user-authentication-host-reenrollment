@@ -1,0 +1,1 @@
+- Fixed an issue where deleted Windows and Linux hosts could re-enroll without re-authenticating when End User Authentication was enabled.

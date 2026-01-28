@@ -1,53 +1,69 @@
+/** This modal is only used for VPP apps and their related installations.
+ * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
+ *  we use SoftwareIpaInstallDetailsModal with the command_uuid. */
+
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { formatDistanceToNow } from "date-fns";
 
-import mdmApi, { IGetMdmCommandResultsResponse } from "services/entities/mdm";
+import commandAPI, {
+  IGetCommandResultsResponse,
+} from "services/entities/command";
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
 
-import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
-import { IMdmCommandResult } from "interfaces/mdm";
+import {
+  IHostSoftware,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
+import { ICommandResult } from "interfaces/command";
+import { isAppleDevice, isMacOS } from "interfaces/platform";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
 
 import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
+import decodeBase64Utf8 from "../helpers";
 
 interface IGetStatusMessageProps {
-  isDUP?: boolean;
+  isMyDevicePage?: boolean;
   /** "pending" is an edge case here where VPP install activities that were added to the feed prior to v4.57
    * (when we split pending into pending_install/pending_uninstall) will list the status as "pending" rather than "pending_install" */
-  displayStatus: SoftwareInstallStatus | "pending";
+  displayStatus: SoftwareInstallUninstallStatus | "pending";
   isMDMStatusNotNow: boolean;
   isMDMStatusAcknowledged: boolean;
   appName: string;
   hostDisplayName: string;
   commandUpdatedAt: string;
+  platform?: string;
+  hasInstalledVersions?: boolean;
 }
 
 export const getStatusMessage = ({
-  isDUP = false,
+  isMyDevicePage = false,
   displayStatus,
   isMDMStatusNotNow,
   isMDMStatusAcknowledged,
   appName,
   hostDisplayName,
   commandUpdatedAt,
+  platform,
+  hasInstalledVersions = false,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const displayTimeStamp =
@@ -79,15 +95,14 @@ export const getStatusMessage = ({
     return (
       <>
         Fleet tried to install <b>{appName}</b>
-        {!isDUP && (
+        {!isMyDevicePage && (
           <>
             {" "}
             on {formattedHost} but couldn&apos;t because the host was locked or
             was running on battery power while in Power Nap
-            {displayTimeStamp && <> {displayTimeStamp}</>}
           </>
         )}
-        . Fleet will try again.
+        {displayTimeStamp && <> {displayTimeStamp}</>}. Fleet will try again.
       </>
     );
   }
@@ -97,9 +112,9 @@ export const getStatusMessage = ({
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && <> on {formattedHost}</>} was acknowledged but the
+        {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. To re-check, select <b>Refetch</b>
-        {!isDUP && " for this host"}.
+        {!isMyDevicePage && " for this host"}.
       </>
     );
   }
@@ -108,9 +123,34 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && <> on {formattedHost}</>} was acknowledged but the
-        installation has not been verified. Please re-attempt this installation.
+        {isAppleDevice(platform) ? (
+          <>
+            <div>
+              The host acknowledged the MDM command to install <b>{appName}</b>
+              {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed
+              to install.
+            </div>
+            {platform && isMacOS(platform) && hasInstalledVersions && (
+              <div className="vpp-install-details-modal__update-tip">
+                If you&apos;re updating the app and the app is open,{" "}
+                <TooltipWrapper
+                  tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
+                  position="top"
+                >
+                  close it
+                </TooltipWrapper>{" "}
+                and try again.
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            The MDM command (request) to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but
+            the installation has not been verified. Please re-attempt this
+            installation.
+          </>
+        )}
       </>
     );
   }
@@ -119,17 +159,27 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install") {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && <> on {formattedHost}</>} failed
-        {!isDUP && displayTimeStamp && <> {displayTimeStamp}</>}. Please
-        re-attempt this installation.
+        {isAppleDevice(platform) ? (
+          <>
+            The MDM command to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try
+            again.
+          </>
+        ) : (
+          <>
+            The MDM command (request) to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>} failed
+            {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt
+            this installation.
+          </>
+        )}
       </>
     );
   }
 
   const renderSuffix = () => {
-    if (isDUP) {
-      return null;
+    if (isMyDevicePage) {
+      return <> {displayTimeStamp && <> {displayTimeStamp}</>}</>;
     }
     return (
       <>
@@ -150,7 +200,7 @@ export const getStatusMessage = ({
 };
 
 interface IModalButtonsProps {
-  displayStatus: SoftwareInstallStatus | "pending";
+  displayStatus: SoftwareInstallUninstallStatus | "pending";
   deviceAuthToken?: string;
   onCancel: () => void;
   onRetry?: (id: number) => void;
@@ -165,7 +215,7 @@ export const ModalButtons = ({
   hostSoftwareId,
 }: IModalButtonsProps) => {
   const onClickRetry = () => {
-    // on DUP, where this is relevant, both will be defined
+    // on My Device Page, where this is relevant, both will be defined
     if (onRetry && hostSoftwareId) {
       onRetry(hostSoftwareId);
     }
@@ -197,20 +247,21 @@ const baseClass = "vpp-install-details-modal";
 
 export type IVppInstallDetails = {
   /** Status: null when a host manually installed not using Fleet */
-  fleetInstallStatus: SoftwareInstallStatus | null;
+  fleetInstallStatus: SoftwareInstallUninstallStatus | null;
   hostDisplayName: string;
   appName: string;
   commandUuid?: string;
+  platform?: string;
 };
 
 interface IVPPInstallDetailsModalProps {
   details: IVppInstallDetails;
   /** for inventory versions, not present on activity feeds */
   hostSoftware?: IHostSoftware;
-  /** DUP only */
+  /** My Device Page only */
   deviceAuthToken?: string;
   onCancel: () => void;
-  /** DUP only */
+  /** My Device Page only */
   onRetry?: (id: number) => void;
 }
 export const VppInstallDetailsModal = ({
@@ -225,6 +276,7 @@ export const VppInstallDetailsModal = ({
     commandUuid = "",
     hostDisplayName = "",
     appName = "",
+    platform: detailsPlatform,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -233,21 +285,19 @@ export const VppInstallDetailsModal = ({
   };
 
   const responseHandler = (
-    response:
-      | IGetVppInstallCommandResultsResponse
-      | IGetMdmCommandResultsResponse
+    response: IGetVppInstallCommandResultsResponse | IGetCommandResultsResponse
   ) => {
     const results = response.results?.[0];
     if (!results) {
       // FIXME: It's currently possible that the command results API response is empty for pending
       // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
       // display some minimal pending UI. This should be removed once the API response is fixed.
-      return {} as IMdmCommandResult;
+      return {} as ICommandResult;
     }
     return {
       ...results,
-      payload: atob(results.payload),
-      result: atob(results.result),
+      payload: results.payload ? decodeBase64Utf8(results.payload) : "",
+      result: results.result ? decodeBase64Utf8(results.result) : "",
     };
   };
 
@@ -256,14 +306,14 @@ export const VppInstallDetailsModal = ({
     isLoading: isLoadingVPPCommandResult,
     isError: isErrorVPPCommandResult,
     error: errorVPPCommandResult,
-  } = useQuery<IMdmCommandResult, AxiosError>(
+  } = useQuery<ICommandResult, AxiosError>(
     ["mdm_command_results", commandUuid],
     async () => {
       return deviceAuthToken
         ? deviceUserAPI
             .getVppCommandResult(deviceAuthToken, commandUuid)
             .then(responseHandler)
-        : mdmApi.getCommandResults(commandUuid).then(responseHandler);
+        : commandAPI.getCommandResults(commandUuid).then(responseHandler);
     },
     {
       refetchOnWindowFocus: false,
@@ -300,13 +350,17 @@ export const VppInstallDetailsModal = ({
     : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const statusMessage = getStatusMessage({
-    isDUP: !!deviceAuthToken,
+    isMyDevicePage: !!deviceAuthToken,
     displayStatus,
     isMDMStatusNotNow,
     isMDMStatusAcknowledged,
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
+    platform: hostSoftware?.app_store_app?.platform || detailsPlatform,
+    hasInstalledVersions:
+      (vppCommandResult?.results_metadata?.software_installed as boolean) ??
+      !!hostSoftware?.installed_versions?.length,
   });
 
   const renderInventoryVersionsSection = () => {
@@ -317,6 +371,11 @@ export const VppInstallDetailsModal = ({
   };
 
   const renderInstallDetailsSection = () => {
+    // Hide section if there's no details to display
+    if (!vppCommandResult?.result && !vppCommandResult?.payload) {
+      return null;
+    }
+
     return (
       <>
         <RevealButton
@@ -375,10 +434,11 @@ export const VppInstallDetailsModal = ({
     }
     return (
       <div className={`${baseClass}__modal-content`}>
-        <div className={`${baseClass}__status-message`}>
-          {!!iconName && <Icon name={iconName} />}
-          <span>{statusMessage}</span>
-        </div>
+        <IconStatusMessage
+          className={`${baseClass}__status-message`}
+          iconName={iconName}
+          message={<span>{statusMessage}</span>}
+        />
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&

@@ -115,7 +115,7 @@ const PolicyResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Show query <Icon name="eye" />
@@ -126,11 +126,11 @@ const PolicyResults = ({
           onClick={
             tableType === "errors" ? onExportErrorsResults : onExportResults
           }
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export {tableType}
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" color="ui-fleet-black-75" />
           </>
         </Button>
       </div>
@@ -182,8 +182,8 @@ const PolicyResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <InfoBanner>
-          Hosts that responded with results are marked <strong>Yes</strong>.
-          Hosts that responded with no results are marked <strong>No</strong>.
+          Hosts that responded with results are marked <strong>Pass</strong>.
+          Hosts that responded with no results are marked <strong>Fail</strong>.
         </InfoBanner>
         <div className={`${baseClass}__results-table-header`}>
           <span className={`${baseClass}__results-meta`}>

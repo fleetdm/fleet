@@ -6,8 +6,14 @@ import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
-  SoftwareSource,
 } from "interfaces/software";
+import {
+  HostPlatform,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isMacOS,
+  isWindows,
+} from "interfaces/platform";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
@@ -18,13 +24,13 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import { sourcesWithLastOpenedTime } from "pages/hosts/details/components/InventoryVersions/InventoryVersions";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -40,6 +46,7 @@ interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
   onShowInventoryVersions: (software: IHostSoftware) => void;
+  platform: HostPlatform;
 }
 
 // NOTE: cellProps come from react-table
@@ -48,6 +55,7 @@ export const generateSoftwareTableHeaders = ({
   router,
   teamId,
   onShowInventoryVersions,
+  platform,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -60,9 +68,11 @@ export const generateSoftwareTableHeaders = ({
         const {
           id,
           name,
+          display_name,
           source,
           app_store_app,
           software_package,
+          icon_url,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -76,18 +86,23 @@ export const generateSoftwareTableHeaders = ({
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
+        const isAndroidPlayStoreApp =
+          !!app_store_app && source === "android_apps";
 
         return (
           <SoftwareNameCell
             name={name}
+            display_name={display_name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             path={softwareTitleDetailsPath}
             router={router}
             hasInstaller={hasInstaller}
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
       },
@@ -107,55 +122,86 @@ export const generateSoftwareTableHeaders = ({
     {
       Header: "Type",
       disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          formatter={() =>
-            formatSoftwareType({
-              source: cellProps.cell.value as SoftwareSource,
-            })
-          }
-        />
-      ),
+      id: "source",
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { source, extension_for } = cellProps.row.original;
+        const value = formatSoftwareType({ source, extension_for });
+        return <TextCell value={value} />;
+      },
     },
     {
       Header: (): JSX.Element => {
-        return <HeaderCell value="Last opened" disableSortBy />;
+        let tooltipContent = <></>;
+
+        if (isMacOS(platform)) {
+          tooltipContent = (
+            <>When the version installed most recently was last opened.</>
+          );
+        } else if (isLinuxLike(platform) || isWindows(platform)) {
+          tooltipContent = <>When any version was last opened.</>;
+        } else if (isIPadOrIPhone(platform)) {
+          tooltipContent = <>Date and time of last open.</>;
+        }
+
+        const lastOpenedHeader = tooltipContent ? (
+          <TooltipWrapper tipContent={tooltipContent}>
+            Last opened
+          </TooltipWrapper>
+        ) : (
+          "Last opened"
+        );
+        return <HeaderCell value={lastOpenedHeader} disableSortBy />;
       },
       id: "Last opened",
       disableSortBy: true,
       accessor: (originalRow) => {
-        // Extract all last_opened_at values, filter out null/undefined, and ensure valid dates
-        const dateStrings = (originalRow.installed_versions || [])
+        const versions = originalRow.installed_versions || [];
+
+        const isSupported = versions.some(
+          (v) => v.last_opened_at !== undefined
+        );
+
+        // Extract all last_opened_at values that are actual dates (not empty strings)
+        const dateStrings = versions
           .map((v) => v.last_opened_at)
           .filter(
-            (date): date is string => !!date && !isNaN(new Date(date).getTime())
+            (date): date is string =>
+              date !== undefined &&
+              date !== "" &&
+              !isNaN(new Date(date).getTime())
           );
 
-        if (dateStrings.length === 0) return null;
+        // If we have actual dates, return the most recent one
+        if (dateStrings.length > 0) {
+          return dateStrings.reduce((a, b) =>
+            new Date(a).getTime() > new Date(b).getTime() ? a : b
+          );
+        }
 
-        // Find the most recent date string by comparing their Date values
-        return dateStrings.reduce((a, b) =>
-          new Date(a).getTime() > new Date(b).getTime() ? a : b
-        ); // cellProps.cell.value = mostRecent;
+        // If source supports last_opened_at, return empty string to indicate "Never"
+        // Otherwise return undefined to indicate "Not supported"
+        return isSupported ? "" : undefined;
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        if (cellProps.cell.value) {
+        const lastOpenedAt = cellProps.cell.value;
+
+        // If we have a non-empty string value, display it
+        if (lastOpenedAt && lastOpenedAt !== "") {
           return (
             <TextCell
-              value={
-                <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
-              }
+              value={<HumanTimeDiffWithDateTip timeString={lastOpenedAt} />}
             />
           );
         }
 
-        return sourcesWithLastOpenedTime.has(cellProps.row.original.source) ? (
-          <TextCell value="Never" />
-        ) : (
-          <TextCell value="Not supported" grey />
-        );
+        // If last_opened_at is an empty string, it means the software supports
+        // the field but hasn't been opened
+        if (lastOpenedAt === "") {
+          return <TextCell value="Never" />;
+        }
+
+        // If last_opened_at is undefined/missing, it's not supported
+        return <TextCell value="Not supported" grey />;
       },
     },
     {

@@ -16,13 +16,18 @@ interface IInstallerStatusTableProps {
   teamId?: number;
   status: ISoftwarePackageStatus | ISoftwareAppStoreAppStatus;
   isLoading?: boolean;
+  isScriptPackage?: boolean;
+  isAndroidPlayStoreApp?: boolean;
 }
+
 const InstallerStatusTable = ({
   className,
   softwareId,
   teamId,
   status,
   isLoading = false,
+  isScriptPackage = false,
+  isAndroidPlayStoreApp = false,
 }: IInstallerStatusTableProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -30,6 +35,8 @@ const InstallerStatusTable = ({
     baseClass: classNames,
     softwareId,
     teamId,
+    isScriptPackage,
+    isAndroidPlayStoreApp,
   });
 
   return (
@@ -45,6 +52,7 @@ const InstallerStatusTable = ({
       isAllPagesSelected={false}
       disableHighlightOnHover
       hideFooter
+      disableTableHeader
     />
   );
 };

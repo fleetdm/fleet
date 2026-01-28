@@ -2,18 +2,20 @@ import {
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
-  IMdmCommandResult,
   IMdmProfile,
   IMdmSSOReponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { ISoftwareTitle } from "interfaces/software";
+import { SetupExperiencePlatform } from "interfaces/platform";
+
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import { ISoftwareTitlesResponse } from "./software";
+import { PaginationParams } from "./common";
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -67,16 +69,15 @@ export interface IAppleSetupEnrollmentProfileResponse {
 export interface IMDMSSOParams {
   deviceinfo: string;
   initiator: string;
+  // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
+  // enrollments with end-user authentication.
+  host_uuid?: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {
   token: string;
   ref?: string;
   deviceinfo?: string;
-}
-
-export interface IGetMdmCommandResultsResponse {
-  results: IMdmCommandResult[];
 }
 
 export interface IGetSetupExperienceScriptResponse {
@@ -87,9 +88,9 @@ export interface IGetSetupExperienceScriptResponse {
   updated_at: string;
 }
 
-interface IGetSetupExperienceSoftwareParams {
+interface IGetSetupExperienceSoftwareParams extends Partial<PaginationParams> {
   team_id: number;
-  per_page: number;
+  platform: SetupExperiencePlatform;
 }
 
 export type IGetSetupExperienceSoftwareResponse = ISoftwareTitlesResponse & {
@@ -101,10 +102,10 @@ export type IGetBootstrapPackageSummaryResponse = IBootstrapPackageAggregate;
 
 const mdmService = {
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
-    const { HOST_MDM_UNENROLL } = endpoints;
+    const { HOST_MDM } = endpoints;
     return sendRequest(
-      "PATCH",
-      HOST_MDM_UNENROLL(hostId),
+      "DELETE",
+      HOST_MDM(hostId),
       undefined,
       undefined,
       timeout
@@ -261,6 +262,14 @@ const mdmService = {
     });
   },
 
+  updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP, {
+      team_id: teamId,
+      require_all_software_macos: isEnabled,
+    });
+  },
+
   updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     const body = {
@@ -339,14 +348,6 @@ const mdmService = {
     return sendRequest("DELETE", path);
   },
 
-  getCommandResults: (
-    command_uuid: string
-  ): Promise<IGetMdmCommandResultsResponse> => {
-    const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
-    const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
-    return sendRequest("GET", url);
-  },
-
   downloadManualEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest(
@@ -372,20 +373,14 @@ const mdmService = {
   },
 
   updateSetupExperienceSoftware: (
+    platform: SetupExperiencePlatform,
     teamId: number,
     softwareTitlesIds: number[]
   ) => {
-    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
-
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        team_id: teamId,
-      }
-    )}`;
-
-    return sendRequest("PUT", path, {
-      team_id: teamId,
+    return sendRequest("PUT", endpoints.MDM_SETUP_EXPERIENCE_SOFTWARE, {
       software_title_ids: softwareTitlesIds,
+      team_id: teamId,
+      platform,
     });
   },
 

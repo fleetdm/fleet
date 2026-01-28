@@ -5,12 +5,17 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   isLinuxLike,
   isAppleDevice,
+  isMacOS,
   isMobilePlatform,
   isAndroid,
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
-import { isPersonalEnrollmentInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isAutomaticDeviceEnrollment,
+  isBYODAccountDrivenUserEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -66,7 +71,6 @@ const DEFAULT_OPTIONS = [
   },
 ] as const;
 
-// eslint-disable-next-line import/prefer-default-export
 interface IHostActionConfigOptions {
   hostPlatform: string;
   isPremiumTier: boolean;
@@ -81,9 +85,11 @@ interface IHostActionConfigOptions {
   isConnectedToFleetMdm?: boolean;
   isMacMdmEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
+  isAndroidMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
+  scriptsGloballyDisabled: boolean | undefined;
   isPrimoMode: boolean;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
 }
@@ -108,14 +114,12 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isEnrolledInMdm,
     isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
-    hostMdmEnrollmentStatus,
+    isAndroidMdmEnabledAndConfigured,
   } = config;
   return (
-    !isAndroid(hostPlatform) && // TODO(android): confirm can't turn off MDM for windows, iOS, iPadOS?
-    isAppleDevice(hostPlatform) &&
-    isMacMdmEnabledAndConfigured &&
+    ((isAndroid(hostPlatform) && isAndroidMdmEnabledAndConfigured) ||
+      (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured)) &&
     isEnrolledInMdm &&
-    hostMdmEnrollmentStatus !== "On (personal)" && // can't turn off MDM for personally enrolled hosts
     isConnectedToFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
@@ -137,10 +141,20 @@ const canLockHost = ({
   isTeamAdmin,
   isTeamMaintainer,
   hostMdmDeviceStatus,
+  hostMdmEnrollmentStatus,
 }: IHostActionConfigOptions) => {
-  // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
-  const canLockDarwin =
+  // apple device hosts can be locked if they are enrolled in MDM and the MDM is enabled
+  const isLockableMacOSDevice =
     hostPlatform === "darwin" &&
+    isConnectedToFleetMdm &&
+    isMacMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  // ios and ipad devices can be locked if they are company owned enrollment in MDM,
+  // meaning they have to be enrolled via automated device enrollment (ADE)
+  const isLockableIosOrIpadDevice =
+    isIPadOrIPhone(hostPlatform) &&
+    isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus) &&
     isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
@@ -151,7 +165,8 @@ const canLockHost = ({
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
-      canLockDarwin) &&
+      isLockableMacOSDevice ||
+      isLockableIosOrIpadDevice) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -179,16 +194,16 @@ const canWipeHost = ({
   const canWipeWindowsOrAppleOS =
     hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
 
-  // there is a special case for iOS and iPadOS devices that are personally enrolled
+  // there is a special case for iOS and iPadOS devices that are account driven enrolled
   // in MDM. These hosts cannot be wiped.
-  const isPersonallyEnrolledIosOrIpadDevice =
+  const isAccountDrivenEnrolledIosOrIpadosDevice =
     isIPadOrIPhone(hostPlatform) &&
-    isPersonalEnrollmentInMdm(hostMdmEnrollmentStatus);
+    isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
   return (
     isPremiumTier &&
     !isAndroid(hostPlatform) &&
-    !isPersonallyEnrolledIosOrIpadDevice &&
+    !isAccountDrivenEnrolledIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -207,19 +222,20 @@ const canUnlock = ({
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  // macOS hosts can be unlocked if they are enrolled in the Fleet MDM and the
+  // apple device hosts can be unlocked if they are enrolled in the Fleet MDM and the
   // MDM is enabled and configured.
-  const canUnlockDarwin =
-    hostPlatform === "darwin" &&
+  const canUnlockApple =
+    isAppleDevice(hostPlatform) &&
     isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
-  // "unlocking" for a macOS host means that somebody saw the unlock pin, but
-  // shouldn't prevent users from trying to see the pin again, which is
-  // considered an "unlock"
+  // "unlocking" for a macos devices host means that somebody saw the unlock pin, but we
+  // shouldn't prevent users from trying to see the pin again so we still want to show
+  // the unlock option when macos hosts are unlocking. This is not the same for
+  // ios/ipad devices.
   const isValidState =
-    (hostMdmDeviceStatus === "unlocking" && hostPlatform === "darwin") ||
+    (hostMdmDeviceStatus === "unlocking" && isMacOS(hostPlatform)) ||
     hostMdmDeviceStatus === "locked";
 
   return (
@@ -227,7 +243,7 @@ const canUnlock = ({
     !isAndroid(hostPlatform) &&
     isValidState &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
-    (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
+    (canUnlockApple || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };
 
@@ -242,10 +258,23 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
-  return (
-    !isMobilePlatform(hostPlatform) && isPremiumTier && doesStoreEncryptionKey
-  );
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    doesStoreEncryptionKey,
+    hostPlatform,
+  } = config;
+  if (!isPremiumTier) {
+    return false;
+  }
+  if (isMobilePlatform(hostPlatform)) {
+    return false;
+  }
+  // For Apple devices, the encryption key is only available when connected to Fleet MDM
+  if (isAppleDevice(hostPlatform) && !isConnectedToFleetMdm) {
+    return false;
+  }
+  return doesStoreEncryptionKey;
 };
 
 const canRunScript = ({
@@ -255,6 +284,8 @@ const canRunScript = ({
   isTeamAdmin,
   isTeamMaintainer,
 }: IHostActionConfigOptions) => {
+  // Scripts globally disabled, shown as disabled by modifyOptions
+
   return (
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
     isScriptSupportedPlatform(hostPlatform)
@@ -311,8 +342,13 @@ const removeUnavailableOptions = (
 // Available tooltips for disabled options
 export const getDropdownOptionTooltipContent = (
   value: string | number,
-  isHostOnline?: boolean
+  isHostOnline?: boolean,
+  scriptsGloballyDisabled?: boolean
 ) => {
+  if (value === "runScript" && scriptsGloballyDisabled) {
+    return <>Running scripts is disabled in organization settings.</>;
+  }
+
   const tooltipAction: Record<string, string> = {
     runScript: "run scripts on",
     wipe: "wipe",
@@ -336,6 +372,19 @@ export const getDropdownOptionTooltipContent = (
   return undefined;
 };
 
+/** for ios, ipad, and android we want to display different text for mdmOff.
+ * The functionality is the same, but the action is called unenroll on those platforms.
+ */
+const formatTurnOffOptionLabel = (
+  options: IDropdownOption[],
+  hostPlatform: string
+) => {
+  const option = options.find((opt) => opt.value === "mdmOff");
+  if (option && (isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform))) {
+    option.label = "Unenroll";
+  }
+};
+
 const modifyOptions = (
   options: IDropdownOption[],
   {
@@ -343,6 +392,7 @@ const modifyOptions = (
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     hostPlatform,
+    scriptsGloballyDisabled,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -350,14 +400,29 @@ const modifyOptions = (
       option.disabled = true;
       option.tooltipContent = getDropdownOptionTooltipContent(
         option.value,
-        isHostOnline
+        isHostOnline,
+        scriptsGloballyDisabled
       );
     });
   };
 
   let optionsToDisable: IDropdownOption[] = [];
+  // When the host is offline, always disable Query, but allow Unenroll for iOS/iPadOS and Android.
+  if (!isHostOnline) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "query")
+    );
+
+    // Disable "Turn off MDM" (Unenroll) when offline for all platforms except iOS/iPadOS and Android
+    if (!isIPadOrIPhone(hostPlatform) && !isAndroid(hostPlatform)) {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter((option) => option.value === "mdmOff")
+      );
+    }
+  }
+
+  // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM
   if (
-    (!isIPadOrIPhone(hostPlatform) && !isHostOnline) ||
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
     hostMdmDeviceStatus === "wiped"
@@ -366,6 +431,13 @@ const modifyOptions = (
       options.filter(
         (option) => option.value === "query" || option.value === "mdmOff"
       )
+    );
+  }
+
+  // Disable run script feature if scripts are globally disabled
+  if (scriptsGloballyDisabled) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "runScript")
     );
   }
 
@@ -396,6 +468,7 @@ const modifyOptions = (
     }
   }
   disableOptions(optionsToDisable);
+  formatTurnOffOptionLabel(options, hostPlatform);
   return options;
 };
 

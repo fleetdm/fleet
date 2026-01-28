@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
@@ -24,12 +26,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -92,7 +95,8 @@ func MakeHandler(
 	config config.FleetConfig,
 	logger kitlog.Logger,
 	limitStore throttled.GCRAStore,
-	featureRoutes []endpoint_utils.HandlerRoutesFunc,
+	redisPool fleet.RedisPool,
+	featureRoutes []endpointer.HandlerRoutesFunc,
 	extra ...ExtraHandlerOption,
 ) http.Handler {
 	var eopts extraHandlerOpts
@@ -100,13 +104,19 @@ func MakeHandler(
 		fn(&eopts)
 	}
 
+	// Create the client IP extraction strategy based on config.
+	ipStrategy, err := endpointer.NewClientIPStrategy(config.Server.TrustedProxies)
+	if err != nil {
+		panic(fmt.Sprintf("invalid server.trusted_proxies configuration: %v", err))
+	}
+
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: logger}),
-		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
+		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			log.LogRequestEnd(logger),
@@ -129,28 +139,28 @@ func MakeHandler(
 		}
 	}
 
-	r.Use(publicIP)
+	// Add middleware to extract the client IP and set it in the request context.
+	r.Use(func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
+			if ip != "" {
+				r.RemoteAddr = ip
+			}
+			handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
+		})
+	})
+
 	if eopts.httpSigVerifier != nil {
 		r.Use(eopts.httpSigVerifier)
 	}
 
-	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
+	attachFleetAPIRoutes(r, svc, config, logger, limitStore, redisPool, fleetAPIOptions, eopts)
 	for _, featureRoute := range featureRoutes {
 		featureRoute(r, fleetAPIOptions)
 	}
 	addMetrics(r)
 
 	return r
-}
-
-func publicIP(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := endpoint_utils.ExtractIP(r)
-		if ip != "" {
-			r.RemoteAddr = ip
-		}
-		handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
-	})
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -235,12 +245,22 @@ func addMetrics(r *mux.Router) {
 
 // These are defined as const so that they can be used in tests.
 const (
-	desktopRateLimitMaxBurst        = 100 // Max burst used for device request rate limiting.
-	forgotPasswordRateLimitMaxBurst = 9   // Max burst used for rate limiting on the the forgot_password endpoint.
+	forgotPasswordRateLimitMaxBurst = 9 // Max burst used for rate limiting on the the forgot_password endpoint.
+
+	// Fleet Desktop API endpoints rate limiting:
+	//
+	// Allow up to 1_000 consecutive failing requests per minute.
+	// If the threshold of 1_000 consecutive failures is reached for an IP,
+	// ban requests from such IP for a duration of 1 minute.
+	//
+
+	deviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
+	deviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
+	deviceIPBanTime                                     = 1 * time.Minute
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
-	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
+	logger kitlog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
 	apiVersions := []string{"v1", "2022-04"}
@@ -323,6 +343,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
 	ue.POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
+	ue.POST("/api/_version_/fleet/certificates", createCertificateTemplateEndpoint, createCertificateTemplateRequest{})
+	ue.GET("/api/_version_/fleet/certificates", listCertificateTemplatesEndpoint, listCertificateTemplatesRequest{})
+	ue.GET("/api/_version_/fleet/certificates/{id:[0-9]+}", getCertificateTemplateEndpoint, getCertificateTemplateRequest{})
+	ue.DELETE("/api/_version_/fleet/certificates/{id:[0-9]+}", deleteCertificateTemplateEndpoint, deleteCertificateTemplateRequest{})
+	ue.POST("/api/_version_/fleet/spec/certificates", applyCertificateTemplateSpecsEndpoint, applyCertificateTemplateSpecsRequest{})
+	ue.DELETE("/api/_version_/fleet/spec/certificates", deleteCertificateTemplateSpecsEndpoint, deleteCertificateTemplateSpecsRequest{})
+
 	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}", getQueryEndpoint, getQueryRequest{})
 	ue.GET("/api/_version_/fleet/queries", listQueriesEndpoint, listQueriesRequest{})
 	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}/report", getQueryReportEndpoint, getQueryReportRequest{})
@@ -377,14 +404,23 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/software/batch", batchSetSoftwareInstallersEndpoint, batchSetSoftwareInstallersRequest{})
 	ue.GET("/api/_version_/fleet/software/batch/{request_uuid}", batchSetSoftwareInstallersResultEndpoint, batchSetSoftwareInstallersResultRequest{})
 
+	// software title custom icons
+	ue.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/icon", getSoftwareTitleIconsEndpoint, getSoftwareTitleIconsRequest{})
+	ue.PUT("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/icon", putSoftwareTitleIconEndpoint, putSoftwareTitleIconRequest{})
+	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/icon", deleteSoftwareTitleIconEndpoint, deleteSoftwareTitleIconRequest{})
+
 	// App store software
 	ue.GET("/api/_version_/fleet/software/app_store_apps", getAppStoreAppsEndpoint, getAppStoreAppsRequest{})
 	ue.POST("/api/_version_/fleet/software/app_store_apps", addAppStoreAppEndpoint, addAppStoreAppRequest{})
 	ue.PATCH("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/app_store_app", updateAppStoreAppEndpoint, updateAppStoreAppRequest{})
 
 	// Setup Experience
+	//
+	// Setup experience software endpoints:
 	ue.PUT("/api/_version_/fleet/setup_experience/software", putSetupExperienceSoftware, putSetupExperienceSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/setup_experience/software", getSetupExperienceSoftware, getSetupExperienceSoftwareRequest{})
+
+	// Setup experience script endpoints:
 	ue.GET("/api/_version_/fleet/setup_experience/script", getSetupExperienceScriptEndpoint, getSetupExperienceScriptRequest{})
 	ue.POST("/api/_version_/fleet/setup_experience/script", setSetupExperienceScriptEndpoint, setSetupExperienceScriptRequest{})
 	ue.DELETE("/api/_version_/fleet/setup_experience/script", deleteSetupExperienceScriptEndpoint, deleteSetupExperienceScriptRequest{})
@@ -412,13 +448,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/transfer", addHostsToTeamEndpoint, addHostsToTeamRequest{})
 	ue.POST("/api/_version_/fleet/hosts/transfer/filter", addHostsToTeamByFilterEndpoint, addHostsToTeamByFilterRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
-	// Deprecated: Emails are now included in host details endpoint: /api/_version_/fleet/hosts/{id}
+	// Deprecated: Device mappings are included in the host details endpoint: /api/_version_/fleet/hosts/{id}
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", listHostDeviceMappingEndpoint, listHostDeviceMappingRequest{})
-	// Deprecated: Because the corresponding GET endpoint is deprecated.
-	// /api/fleet/orbit/device_mapping can be used instead.
-	// FIXME(sarah): Is this really deprecated? The orbit-authenticated endpoint is not a substitute
-	// for the user-authenticated endpoint?
 	ue.PUT("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", putHostDeviceMappingEndpoint, putHostDeviceMappingRequest{})
+	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping/idp", deleteHostIDPEndpoint, deleteHostIDPRequest{})
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
@@ -436,12 +469,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/labels/{id:[0-9]+}", modifyLabelEndpoint, modifyLabelRequest{})
 	ue.GET("/api/_version_/fleet/labels/{id:[0-9]+}", getLabelEndpoint, getLabelRequest{})
 	ue.GET("/api/_version_/fleet/labels", listLabelsEndpoint, listLabelsRequest{})
-	ue.GET("/api/_version_/fleet/labels/summary", getLabelsSummaryEndpoint, nil)
+	ue.GET("/api/_version_/fleet/labels/summary", getLabelsSummaryEndpoint, getLabelsSummaryRequest{})
 	ue.GET("/api/_version_/fleet/labels/{id:[0-9]+}/hosts", listHostsInLabelEndpoint, listHostsInLabelRequest{})
 	ue.DELETE("/api/_version_/fleet/labels/{name}", deleteLabelEndpoint, deleteLabelRequest{})
 	ue.DELETE("/api/_version_/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, deleteLabelByIDRequest{})
 	ue.POST("/api/_version_/fleet/spec/labels", applyLabelSpecsEndpoint, applyLabelSpecsRequest{})
-	ue.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, nil)
+	ue.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, getLabelSpecsRequest{})
 	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
 	// This endpoint runs live queries synchronously (with a configured timeout).
@@ -455,8 +488,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/queries/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
 	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
-
-	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
@@ -535,6 +566,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateEndpoint, conditionalAccessMicrosoftCreateRequest{})
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmEndpoint, conditionalAccessMicrosoftConfirmRequest{})
 	ue.DELETE("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftDeleteEndpoint, conditionalAccessMicrosoftDeleteRequest{})
+
+	// Okta Conditional Access
+	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
+	ue.GET("/api/_version_/fleet/conditional_access/idp/apple/profile", conditionalAccessGetIdPAppleProfileEndpoint, nil)
+
+	// Deprecated: PATCH /mdm/apple/setup is now deprecated, replaced by the
+	// PATCH /setup_experience endpoint.
+	ue.PATCH("/api/_version_/fleet/mdm/apple/setup", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
+	ue.PATCH("/api/_version_/fleet/setup_experience", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
@@ -637,11 +677,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// host-specific mdm routes
 
-	// Deprecated: PATCH /mdm/hosts/:id/unenroll is now deprecated, replaced by
-	// DELETE /hosts/:id/mdm.
-	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
-	mdmAppleMW.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
-
 	// Deprecated: POST /mdm/hosts/:id/lock is now deprecated, replaced by
 	// POST /hosts/:id/lock.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/lock", deviceLockEndpoint, deviceLockRequest{})
@@ -652,11 +687,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
 	// TODO: Confirm if response should be updated to include Windows profiles and use mdmAnyMW
 	mdmAppleMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
-
-	// Deprecated: PATCH /mdm/apple/setup is now deprecated, replaced by the
-	// PATCH /setup_experience endpoint.
-	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/apple/setup", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
-	mdmAppleMW.PATCH("/api/_version_/fleet/setup_experience", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
 
 	// Deprecated: GET /mdm/apple is now deprecated, replaced by the
 	// GET /apns endpoint.
@@ -690,7 +720,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
-	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleOrWindowsMDM())
+	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	// Deprecated: POST /mdm/commands/run is now deprecated, replaced by the
 	// POST /commands/run endpoint.
@@ -706,6 +736,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// GET /commands endpoint.
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
+
+	// Deprecated: PATCH /mdm/hosts/:id/unenroll is now deprecated, replaced by
+	// DELETE /hosts/:id/mdm.
+	mdmAnyMW.PATCH("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll", mdmUnenrollEndpoint, mdmUnenrollRequest{})
+	mdmAnyMW.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", mdmUnenrollEndpoint, mdmUnenrollRequest{})
 
 	// Deprecated: GET /mdm/disk_encryption/summary is now deprecated, replaced by the
 	// GET /disk_encryption endpoint.
@@ -729,8 +764,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Deprecated: DELETE /mdm/profiles/:profile_uuid is now deprecated, replaced by
 	// DELETE /configuration_profiles/:profile_uuid.
-	mdmAnyMW.DELETE("/api/_version_/fleet/mdm/profiles/{profile_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
-	mdmAnyMW.DELETE("/api/_version_/fleet/configuration_profiles/{profile_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
+	ue.DELETE("/api/_version_/fleet/mdm/profiles/{profile_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
+	ue.DELETE("/api/_version_/fleet/configuration_profiles/{profile_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
 
 	// Deprecated: GET /mdm/profiles is now deprecated, replaced by the
 	// GET /configuration_profiles endpoint.
@@ -741,6 +776,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// POST /configuration_profiles endpoint.
 	mdmAnyMW.POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
+	// Batch needs to allow being called without any MDM enabled, to support deleting profiles, but will fail later if trying to add
+	ue.POST("/api/_version_/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesEndpoint, batchModifyMDMConfigProfilesRequest{})
 
 	// Deprecated: POST /hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid} is now deprecated, replaced by the
 	// POST /hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend endpoint.
@@ -805,77 +842,51 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// input to `fleetctl apply`
 	ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})
 
-	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
+	// Certificate Authority endpoints
+	ue.POST("/api/_version_/fleet/certificate_authorities", createCertificateAuthorityEndpoint, createCertificateAuthorityRequest{})
+	ue.GET("/api/_version_/fleet/certificate_authorities", listCertificateAuthoritiesEndpoint, listCertificateAuthoritiesRequest{})
+	ue.GET("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", getCertificateAuthorityEndpoint, getCertificateAuthorityRequest{})
+	ue.DELETE("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", deleteCertificateAuthorityEndpoint, deleteCertificateAuthorityRequest{})
+	ue.PATCH("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", updateCertificateAuthorityEndpoint, updateCertificateAuthorityRequest{})
+	ue.POST("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}/request_certificate", requestCertificateEndpoint, requestCertificateRequest{})
+	ue.POST("/api/_version_/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesEndpoint, batchApplyCertificateAuthoritiesRequest{})
+	ue.GET("/api/_version_/fleet/spec/certificate_authorities", getCertificateAuthoritiesSpecEndpoint, getCertificateAuthoritiesSpecRequest{})
 
-	// device-authenticated endpoints
+	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
+		deviceIPAllowedConsecutiveFailingRequestsCount,
+		deviceIPAllowedConsecutiveFailingRequestsTimeWindow,
+		deviceIPBanTime,
+	)
+	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
+
+	// Device-authenticated endpoints.
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
-	// We allow a quota of 720 because in the onboarding of a Fleet Desktop takes a few tries until it authenticates
-	// properly
-	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: desktopRateLimitMaxBurst}
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_host", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_fleet_desktop", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("ping_device_auth", desktopQuota, logger),
-	).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("refetch_device_host", desktopQuota, logger),
-	).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_mapping", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_macadmins", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_policies", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_transparency", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("send_device_error", desktopQuota, logger),
-	).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("install_self_service", desktopQuota, logger),
-	).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("uninstall_self_service", desktopQuota, logger),
-	).POST("/api/_version_/fleet/device/{token}/software/uninstall/{software_title_id}", submitDeviceSoftwareUninstall, fleetDeviceSoftwareUninstallRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_install_results", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/software/install/{install_uuid}/results", getDeviceSoftwareInstallResultsEndpoint,
-		getDeviceSoftwareInstallResultsRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_uninstall_results", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/software/uninstall/{execution_id}/results", getDeviceSoftwareUninstallResultsEndpoint, getDeviceSoftwareUninstallResultsRequest{})
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_certificates", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
-
-	// mdm-related endpoints available via device authentication
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
+	de.WithCustomMiddleware(errorLimiter).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
+	// Deprecated: Device mapping data is now included in host details endpoint
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/uninstall/{software_title_id}", submitDeviceSoftwareUninstall, fleetDeviceSoftwareUninstallRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/install/{install_uuid}/results", getDeviceSoftwareInstallResultsEndpoint, getDeviceSoftwareInstallResultsRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/uninstall/{execution_id}/results", getDeviceSoftwareUninstallResultsEndpoint, getDeviceSoftwareUninstallResultsRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/setup_experience/status", getDeviceSetupExperienceStatusEndpoint, getDeviceSetupExperienceStatusRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
+	// Device authenticated, Apple MDM endpoints.
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
-	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_mdm", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
-	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota, logger),
-	).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint,
-		getDeviceMDMCommandResultsRequest{})
-
-	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota, logger),
-	).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
-
-	de.WithCustomMiddleware(
-		errorLimiter.Limit("post_device_trigger_linux_escrow", desktopQuota, logger),
-	).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
 	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -900,6 +911,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	he.WithAltPaths("/api/v1/osquery/yara/{name}").
 		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
 
+	// android authenticated end-points
+	// Authentication is implemented using the orbit_node_key from the 'Authentication' header.
+	// The 'orbit_node_key' is used because it's the only thing we have available when the device gets enrolled
+	// after the MDM setup is complete.
+	androidEndpoints := androidAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
+	androidEndpoints.GET("/api/fleetd/certificates/{id:[0-9]+}", getDeviceCertificateTemplateEndpoint, getDeviceCertificateTemplateRequest{})
+	androidEndpoints.PUT("/api/fleetd/certificates/{id:[0-9]+}/status", updateCertificateStatusEndpoint, updateCertificateStatusRequest{})
+
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	oe.POST("/api/fleet/orbit/device_token", setOrUpdateDeviceTokenEndpoint, setOrUpdateDeviceTokenRequest{})
@@ -912,8 +931,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oe.POST("/api/fleet/orbit/software_install/result", postOrbitSoftwareInstallResultEndpoint, orbitPostSoftwareInstallResultRequest{})
 	oe.POST("/api/fleet/orbit/software_install/package", orbitDownloadSoftwareInstallerEndpoint, orbitDownloadSoftwareInstallerRequest{})
 	oe.POST("/api/fleet/orbit/software_install/details", getOrbitSoftwareInstallDetails, orbitGetSoftwareInstallRequest{})
+	oe.POST("/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitEndpoint, orbitSetupExperienceInitRequest{})
 
-	oeAppleMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	// POST /api/fleet/orbit/setup_experience/status is used by macOS and Linux hosts.
+	// For macOS hosts we verify Apple MDM is enabled and configured.
+	oeAppleMDM := oe.WithCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAppleMDMOnMacOSHosts())
 	oeAppleMDM.POST("/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusEndpoint, getOrbitSetupExperienceStatusRequest{})
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
@@ -990,7 +1012,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This endpoint is unauthenticated and is used by to retrieve the MDM enrollment Terms of Use
 	neWindowsMDM.GET(microsoft_mdm.MDE2TOSPath, mdmMicrosoftTOSEndpoint, MDMWebContainer{})
 
-	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
+	// These endpoints are unauthenticated and made from orbit, and add the orbit capabilities header.
+	neOrbit := newOrbitNoAuthEndpointer(svc, opts, r, apiVersions...)
+	neOrbit.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
+
+	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/in_house_app", getInHouseAppPackageEndpoint, getInHouseAppPackageRequest{})
+	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/in_house_app/manifest", getInHouseAppManifestEndpoint, getInHouseAppManifestRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.
@@ -1143,14 +1170,15 @@ func RegisterAppleMDMProtocolServices(
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
 	serverURLPrefix string,
+	fleetConfig config.FleetConfig,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
 	}
 	return nil
@@ -1160,6 +1188,7 @@ func registerMDMServiceDiscovery(
 	mux *http.ServeMux,
 	logger kitlog.Logger,
 	serverURLPrefix string,
+	fleetConfig config.FleetConfig,
 ) error {
 	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
 	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
@@ -1173,7 +1202,7 @@ func registerMDMServiceDiscovery(
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	})
-	mux.Handle(apple_mdm.ServiceDiscoveryPath, serviceDiscoveryHandler)
+	mux.Handle(apple_mdm.ServiceDiscoveryPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryPath, fleetConfig))
 	return nil
 }
 
@@ -1185,6 +1214,7 @@ func registerSCEP(
 	scepStorage scep_depot.Depot,
 	mdmStorage fleet.MDMAppleStore,
 	logger kitlog.Logger,
+	fleetConfig config.FleetConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
@@ -1209,7 +1239,7 @@ func registerSCEP(
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
-	mux.Handle(apple_mdm.SCEPPath, scepHandler)
+	mux.Handle(apple_mdm.SCEPPath, otel.WrapHandler(scepHandler, apple_mdm.SCEPPath, fleetConfig))
 	return nil
 }
 
@@ -1218,7 +1248,11 @@ func RegisterSCEPProxy(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	timeout *time.Duration,
+	fleetConfig *config.FleetConfig,
 ) error {
+	if fleetConfig == nil {
+		return errors.New("fleet config is nil")
+	}
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
 		kitlog.With(logger, "component", "scep-proxy-service"),
@@ -1229,6 +1263,8 @@ func RegisterSCEPProxy(
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 	scepHandler := scepserver.MakeHTTPHandlerWithIdentifier(e, apple_mdm.SCEPProxyPath, scepLogger)
+	// Not using OTEL dynamic wrapper so as not to expose {identifier} in the span name
+	scepHandler = otel.WrapHandler(scepHandler, apple_mdm.SCEPProxyPath, *fleetConfig)
 	rootMux.Handle(apple_mdm.SCEPProxyPath, scepHandler)
 	return nil
 }
@@ -1267,6 +1303,7 @@ func registerMDM(
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
 	logger kitlog.Logger,
+	fleetConfig config.FleetConfig,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
@@ -1280,7 +1317,7 @@ func registerMDM(
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
 	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService),
-		nanomdm.WithProfileService(profileService))
+		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService))
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to
@@ -1298,7 +1335,7 @@ func registerMDM(
 	}
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, httpmdm.MdmSignatureVerifierFunc(cryptoutil.VerifyMdmSignature),
 		httpmdm.SigLogWithLogger(mdmLogger.With("handler", "cert-extract")))
-	mux.Handle(apple_mdm.MDMPath, mdmHandler)
+	mux.Handle(apple_mdm.MDMPath, otel.WrapHandler(mdmHandler, apple_mdm.MDMPath, fleetConfig))
 	return nil
 }
 

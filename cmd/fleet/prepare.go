@@ -2,12 +2,14 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/spf13/cobra"
 )
@@ -27,8 +29,8 @@ To setup Fleet infrastructure, use one of the available commands.
 	}
 
 	noPrompt := false
-	// Whether to enable developer options
-	dev := false
+	// Whether to show table stats before and after the migration
+	showTableStats := false
 
 	dbCmd := &cobra.Command{
 		Use:   "db",
@@ -37,7 +39,7 @@ To setup Fleet infrastructure, use one of the available commands.
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
 
-			if dev {
+			if dev_mode.IsEnabled {
 				applyDevFlags(&config)
 				noPrompt = true
 			}
@@ -51,6 +53,36 @@ To setup Fleet infrastructure, use one of the available commands.
 			if err != nil {
 				initFatal(err, "retrieving migration status")
 			}
+			if status.StatusCode == fleet.NeedsFleetv4732Fix {
+				if !noPrompt {
+					printFleetv4732FixMessage()
+					bufio.NewScanner(os.Stdin).Scan()
+				} else {
+					fmt.Println("Applying automatic fix for mis-numbered v4.73.2 migrations")
+				}
+				if err := ds.FixFleetv4732Migrations(cmd.Context()); err != nil {
+					initFatal(err, "fixing v4.73.2 migrations")
+				}
+				// re-check status after fix
+				status, err = ds.MigrationStatus(cmd.Context())
+				if err != nil {
+					initFatal(err, "retrieving migration status")
+				}
+			}
+
+			if showTableStats {
+				defer func() {
+					stats, err := ds.GetTableRowCounts(cmd.Context())
+					if err != nil {
+						initFatal(err, "getting table stats")
+					}
+					statsAsJSON, err := json.Marshal(stats)
+					if err != nil {
+						initFatal(err, "encoding table row counts to JSON")
+					}
+					fmt.Printf("Table Row Counts: %s\n", statsAsJSON)
+				}()
+			}
 
 			switch status.StatusCode {
 			case fleet.NoMigrationsCompleted:
@@ -63,9 +95,11 @@ To setup Fleet infrastructure, use one of the available commands.
 					printMissingMigrationsPrompt(status.MissingTable, status.MissingData)
 					bufio.NewScanner(os.Stdin).Scan()
 				}
+			case fleet.NeedsFleetv4732Fix, fleet.UnknownFleetv4732State:
+				printFleetv4732UnknownStateMessage(status.StatusCode)
 			case fleet.UnknownMigrations:
 				printUnknownMigrationsMessage(status.UnknownTable, status.UnknownData)
-				if dev {
+				if dev_mode.IsEnabled {
 					os.Exit(1)
 				}
 			}
@@ -83,7 +117,8 @@ To setup Fleet infrastructure, use one of the available commands.
 	}
 
 	dbCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "disable prompting before migrations (for use in scripts)")
-	dbCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	dbCmd.PersistentFlags().BoolVar(&dev_mode.IsEnabled, "dev", false, "Enable developer options")
+	dbCmd.PersistentFlags().BoolVar(&showTableStats, "with-table-stats", false, "Show approximate table row counts after migrations")
 
 	prepareCmd.AddCommand(dbCmd)
 	return prepareCmd
@@ -111,6 +146,29 @@ func printMissingMigrationsPrompt(tables []int64, data []int64) {
 		"#   Press Enter to continue, or Control-c to exit.\n"+
 		"################################################################################\n",
 		tablesAndDataToString(tables, data))
+}
+
+func printFleetv4732FixMessage() {
+	fmt.Printf("################################################################################\n" +
+		"# WARNING:\n" +
+		"#   Your Fleet database has misnumbered migrations introduced in some released\n" +
+		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n" +
+		"#   migrations. Please back up your data before continuing.\n" +
+		"################################################################################\n")
+}
+
+func printFleetv4732UnknownStateMessage(statusCode fleet.MigrationStatusCode) {
+	extra := "your Fleet database is in an unknown state."
+	if statusCode == fleet.NeedsFleetv4732Fix {
+		extra = "the automatic fix did not result in the expected state."
+	}
+	fmt.Print("################################################################################\n" +
+		"# WARNING:\n" +
+		"#   Your Fleet database has misnumbered migrations introduced in some released\n" +
+		"#   v4.73.2 artifacts. Fleet attempts to fix this problem automatically, however\n" +
+		"#  " + extra + "\n" +
+		"#   Please contact Fleet support for assistance in resolving this.\n" +
+		"################################################################################\n")
 }
 
 func tablesAndDataToString(tables, data []int64) string {

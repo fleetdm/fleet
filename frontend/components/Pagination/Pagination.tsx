@@ -40,7 +40,7 @@ const Pagination = ({
         onClick={onPrevPage}
         className={`${baseClass}__pagination-button`}
       >
-        <Icon name="chevron-left" color="core-fleet-blue" /> Previous
+        <Icon name="chevron-left" color="ui-fleet-black-75" /> Previous
       </Button>
       <Button
         variant="inverse"
@@ -48,7 +48,7 @@ const Pagination = ({
         onClick={onNextPage}
         className={`${baseClass}__pagination-button`}
       >
-        Next <Icon name="chevron-right" color="core-fleet-blue" />
+        Next <Icon name="chevron-right" color="ui-fleet-black-75" />
       </Button>
     </div>
   );

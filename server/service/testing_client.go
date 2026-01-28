@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -38,13 +39,14 @@ import (
 )
 
 type withDS struct {
-	s  *suite.Suite
-	ds *mysql.Datastore
+	s       *suite.Suite
+	ds      *mysql.Datastore
+	dbConns *common_mysql.DBConnections
 }
 
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
-	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
+	ts.ds, ts.dbConns = mysql.CreateNamedMySQLDSWithConns(t, dbName)
 	// remove any migration-created labels
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
@@ -77,6 +79,8 @@ type withServer struct {
 	cachedTokens   map[string]string // email -> auth token
 
 	lq *live_query_mock.MockLiveQuery
+
+	redisPool fleet.RedisPool
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
@@ -85,11 +89,13 @@ func (ts *withServer) SetupSuite(dbName string) {
 	rs := pubsub.NewInmemQueryResults()
 	cfg := config.TestConfig()
 	cfg.Osquery.EnrollCooldown = 0
+	redisPool := redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false)
 	opts := &TestServerOpts{
 		Rs:          rs,
 		Lq:          ts.lq,
 		FleetConfig: &cfg,
-		Pool:        redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false),
+		Pool:        redisPool,
+		DBConns:     ts.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		opts.Logger = kitlog.NewNopLogger()
@@ -99,6 +105,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 	ts.users = users
 	ts.token = ts.getTestAdminToken()
 	ts.cachedAdminToken = ts.token
+	ts.redisPool = redisPool
 }
 
 func (ts *withServer) TearDownSuite() {
@@ -139,14 +146,28 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
-		return err
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "DELETE FROM in_house_apps;")
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "DELETE FROM vpp_apps;")
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
-	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := ts.ds.DeleteLabel(ctx, lbl.Name)
+			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
 			require.NoError(t, err)
 		}
 	}
@@ -199,7 +220,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Do the software/titles cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
-	err = ts.ds.ReconcileSoftwareTitles(ctx)
+	err = ts.ds.CleanupSoftwareTitles(ctx)
 	require.NoError(t, err)
 	err = ts.ds.SyncHostsSoftwareTitles(ctx, time.Now())
 	require.NoError(t, err)
@@ -237,6 +258,10 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	})
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM invites; ")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM host_conditional_access")
 		return err
 	})
 }
@@ -649,6 +674,16 @@ func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id ui
 	}
 }
 
+// listActivities retrieves all activities via the HTTP API endpoint.
+func (ts *withServer) listActivities() []*fleet.Activity {
+	t := ts.s.T()
+	var resp listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
+		"order_key", "a.id", "order_direction", "asc", "per_page", "1000000")
+	require.NotNil(t, resp.Activities)
+	return resp.Activities
+}
+
 func (ts *withServer) uploadSoftwareInstaller(
 	t *testing.T,
 	payload *fleet.UploadSoftwareInstallerPayload,
@@ -667,19 +702,26 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 ) {
 	t.Helper()
 
-	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
-	// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
-	if errors.Is(err, os.ErrNotExist) {
-		var err2 error
-		tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
-		if err2 == nil {
-			err = nil
+	// Determine which file to use: either provided by test or opened from testdata
+	var installerFile io.Reader
+	if payload.InstallerFile == nil {
+		// Open file from testdata and close it when done
+		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+		// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
+		if errors.Is(err, os.ErrNotExist) {
+			var err2 error
+			tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
+			if err2 == nil {
+				err = nil
+			}
 		}
+		require.NoError(t, err)
+		defer tfr.Close()
+		installerFile = tfr
+	} else {
+		// Use the file provided by the test
+		installerFile = payload.InstallerFile
 	}
-	require.NoError(t, err)
-	defer tfr.Close()
-
-	payload.InstallerFile = tfr
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -687,7 +729,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	// add the software field
 	fw, err := w.CreateFormFile("software", payload.Filename)
 	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
+	n, err := io.Copy(fw, installerFile)
 	require.NoError(t, err)
 	require.NotZero(t, n)
 
@@ -800,6 +842,9 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("categories", c))
 		}
 	}
+	if payload.DisplayName != nil {
+		require.NoError(t, w.WriteField("display_name", *payload.DisplayName))
+	}
 
 	w.Close()
 
@@ -815,5 +860,16 @@ func (ts *withServer) updateSoftwareInstaller(
 	if expectedError != "" {
 		errMsg := extractServerErrorText(r.Body)
 		require.Contains(t, errMsg, expectedError)
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+
+	var resp getSoftwareInstallerResponse
+	require.NoError(t, json.Unmarshal(bodyBytes, &resp))
+
+	if payload.DisplayName != nil {
+		assert.Equal(t, *payload.DisplayName, resp.SoftwareInstaller.DisplayName)
 	}
 }

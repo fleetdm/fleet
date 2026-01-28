@@ -5,6 +5,12 @@ import { uniqueId } from "lodash";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 
+import { getPerformanceImpactIndicatorTooltip } from "utilities/helpers";
+import {
+  isPerformanceImpactIndicator,
+  PerformanceImpactIndicatorValue,
+} from "interfaces/schedulable_query";
+
 interface IPerformanceImpactCellValue {
   indicator: string;
   id?: number;
@@ -40,49 +46,11 @@ const PerformanceImpactCell = ({
     "Undetermined",
   ].includes(indicator);
 
-  const tooltipText = () => {
-    switch (indicator) {
-      case "Minimal":
-        return (
-          <>
-            Running this query very frequently has little to no <br /> impact on
-            your device&apos;s performance.
-          </>
-        );
-      case "Considerable":
-        return (
-          <>
-            Running this query frequently can have a noticeable <br />
-            impact on your device&apos;s performance.
-          </>
-        );
-      case "Excessive":
-        return (
-          <>
-            Running this query, even infrequently, can have a <br />
-            significant impact on your device&apos;s performance.
-          </>
-        );
-      case "Denylisted":
-        return (
-          <>
-            This query has been <br /> stopped from running <br /> because of
-            excessive <br /> resource consumption.
-          </>
-        );
-      case "Undetermined":
-        return (
-          <>
-            Performance impact will be available when{" "}
-            {isHostSpecific ? "the" : "this"} <br />
-            query runs{isHostSpecific && " on this host"}.
-          </>
-        );
-      default:
-        return null;
-    }
-  };
   const tooltipId = uniqueId();
+
+  const indicatorValue = isPerformanceImpactIndicator(indicator)
+    ? indicator
+    : PerformanceImpactIndicatorValue.UNDETERMINED;
 
   return (
     <span className={`${baseClass}`}>
@@ -91,7 +59,7 @@ const PerformanceImpactCell = ({
         data-for={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
         data-tip-disable={disableTooltip}
       >
-        <span className={pillClassName}>{indicator}</span>
+        <span className={pillClassName}>{indicatorValue}</span>
       </span>
       <ReactTooltip
         place="top"
@@ -102,10 +70,10 @@ const PerformanceImpactCell = ({
       >
         <span
           className={`tooltip ${generateClassTag(
-            indicator || ""
+            indicatorValue || ""
           )}__tooltip-text`}
         >
-          {tooltipText()}
+          {getPerformanceImpactIndicatorTooltip(indicatorValue, isHostSpecific)}
         </span>
       </ReactTooltip>
     </span>

@@ -1,0 +1,109 @@
+.edit-icon-modal {
+  h2 {
+    font-size: $medium;
+  }
+
+  .modal__content {
+    @include vertical-modal-layout;
+  }
+
+  .self-service-preview__preview-card {
+    height: 230px; // Match height of Fleet UI preview
+  }
+
+  &__preview-card {
+    height: 230px; // Match height of self-service preview
+    overflow: hidden;
+
+    &__fleet,
+    &__self-service {
+      width: 500px;
+    }
+
+    &__fleet {
+      h1 {
+        width: 400px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      img {
+        border-radius: $border-radius-xxlarge;
+      }
+    }
+  }
+
+  &__preview-results-count {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+    height: 40px;
+
+    > span:first-child {
+      font-weight: $bold;
+    }
+  }
+
+  &__preview-table {
+    width: 520px;
+    height: 100px;
+    border-top-right-radius: 0;
+  }
+
+  &__self-service-preview {
+    position: relative;
+    top: -79px;
+    left: 188px;
+    display: flex;
+    gap: $pad-xsmall;
+    font-size: 12px;
+    align-items: center;
+    max-width: 210px;
+
+    .software-icon__xsmall {
+      border-radius: $border-radius-small;
+    }
+  }
+
+  // Specific offsets for mobile in edit modal
+  &__self-service-preview--mobile {
+    top: -88px;
+    left: 156px;
+    gap: $pad-small;
+  }
+
+  // Required for tooltip truncating long software names (desktop)
+  &__self-service-preview-name {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__mask-overlay {
+    position: relative;
+    width: 550px;
+
+    background: linear-gradient(
+      180deg,
+      rgba(249, 250, 252, 0) 0%,
+      rgba(249, 250, 252, 0.75) 29.33%,
+      #f9fafc 83.17%
+    );
+
+    &--fleet {
+      bottom: 130px;
+      height: 135px;
+    }
+
+    &--self-service {
+      bottom: 200px;
+      height: 75px;
+    }
+  }
+
+  .modal-footer__content-wrapper {
+    padding-top: $pad-large;
+  }
+}

@@ -59,7 +59,7 @@ const Munki = ({
         </div>
       )}
       <div style={opacity}>
-        <TabNav>
+        <TabNav secondary>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>

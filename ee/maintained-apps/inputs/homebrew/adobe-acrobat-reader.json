@@ -4,5 +4,7 @@
   "token": "adobe-acrobat-reader",
   "installer_format": "dmg",
   "slug": "adobe-acrobat-reader/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Productivity"
+  ]
 }

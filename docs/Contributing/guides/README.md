@@ -11,6 +11,7 @@ This directory contains guides for common development tasks in Fleet.
 - [Troubleshooting Live Queries](troubleshooting-live-queries.md) - Guide for troubleshooting live queries
 - [Enroll hosts with plain osquery](enroll-hosts-with-plain-osquery.md) - Guide for enrolling hosts with plain osquery
 - [Upcoming activities](upcoming-activities.md) - Guide for managing upcoming host activities
+- [mTLS reverse proxy setup](mtls-reverse-proxy-setup.md) - Guide for setting up an mTLS reverse proxy for testing
 
 ## UI development
 
@@ -26,11 +27,3 @@ This directory contains guides for common development tasks in Fleet.
 
 - [SCIM Integration](integrations/scim-integration.md) - Guide for integrating Fleet with SCIM
 - [Digicert Integration](integrations/digicert-integration.md) - Guide for integrating Fleet with Digicert
-
-## Product group guides
-
-Each product group has its own set of guides:
-
-- [MDM Guides](mdm/README.md) - Guides for MDM development
-- [Orchestration Guides](orchestration/README.md) - Guides for Orchestration development
-- [Software Guides](software/README.md) - Guides for Software development

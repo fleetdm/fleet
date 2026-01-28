@@ -2,10 +2,10 @@ import React from "react";
 
 import paths from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-import { MdmProfileStatus } from "interfaces/mdm";
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 import { ProfileStatusSummaryResponse } from "services/entities/mdm";
 
+import Card from "components/Card";
 import Spinner from "components/Spinner";
 import StatusIndicatorWithIcon, {
   IndicatorStatus,
@@ -18,27 +18,18 @@ const baseClass = "profile-status-aggregate";
 
 interface IProfileStatusCountProps {
   statusIcon: IndicatorStatus;
-  statusValue: MdmProfileStatus;
   title: string;
-  teamId: number;
   hostCount: number;
-  tooltipText: string;
+  tooltipText: JSX.Element;
 }
 
 const ProfileStatusCount = ({
   statusIcon,
-  statusValue,
-  teamId,
   title,
   hostCount,
   tooltipText,
 }: IProfileStatusCountProps) => {
-  const hostsByStatusParams = {
-    team_id: teamId,
-    [HOSTS_QUERY_PARAMS.OS_SETTINGS]: statusValue,
-  };
-
-  const path = getPathWithQueryParams(paths.MANAGE_HOSTS, hostsByStatusParams);
+  const countText = hostCount === 1 ? "host" : "hosts";
 
   return (
     <div className={`${baseClass}__profile-status-count`}>
@@ -49,7 +40,9 @@ const ProfileStatusCount = ({
         layout="vertical"
         valueClassName={`${baseClass}__status-indicator-value`}
       />
-      <a href={path}>{hostCount} hosts</a>
+      <div className={`${baseClass}__host-count`}>
+        {hostCount} {countText}
+      </div>
     </div>
   );
 };
@@ -85,16 +78,26 @@ const ProfileStatusAggregate = ({
     const { value, text, iconName, tooltipText } = status;
     const count = aggregateProfileStatusData[value];
 
+    const hostsByStatusParams = {
+      team_id: teamId,
+      [HOSTS_QUERY_PARAMS.OS_SETTINGS]: value,
+    };
+
+    const path = getPathWithQueryParams(
+      paths.MANAGE_HOSTS,
+      hostsByStatusParams
+    );
+
     return (
-      <ProfileStatusCount
-        key={value}
-        statusIcon={iconName}
-        statusValue={value}
-        teamId={teamId}
-        title={text}
-        hostCount={count}
-        tooltipText={tooltipText}
-      />
+      <Card className={baseClass} borderRadiusSize="large" path={path}>
+        <ProfileStatusCount
+          key={value}
+          statusIcon={iconName}
+          title={text}
+          hostCount={count}
+          tooltipText={tooltipText}
+        />
+      </Card>
     );
   });
 

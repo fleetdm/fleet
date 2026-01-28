@@ -42,6 +42,7 @@ module.exports = {
     // If an error or error_description are provided, then the admin did not consent, and we will return a 200 response.
     if(error || error_description) {// eslint-disable-line camelcase
       // If an admin did not consent (or a user who started connecting the integration does not have admin permissions), try to match the provided state to a MicrosoftComplianceTenant record, and redirect to that.
+      // IMPORTANT: Don't change the below setupError value. The error string is checked by the Fleet UI frontend.
       let newSetupError = 'A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration.';
       let tenantRecordWithThisState = await MicrosoftComplianceTenant.findOne({stateTokenForAdminConsent: state});
       // If we couldn't find a MicrosoftComplianceTenant record with this state, return a notFound response.
@@ -67,6 +68,10 @@ module.exports = {
       // Use the microsoftProcy.getAccessTokenAndApiUrls helper to get an access token and API urls for this tenant.
       let accessTokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
         complianceTenantRecordId: informationAboutThisTenant.id
+      }).intercept(async (err)=>{
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Error occurred when retrieving API tokens and URLs for a new tenant. Full error: ${require('util').inspect(err, {depth: null})}`});
+        sails.log.warn(`When retrieving API tokens and the URLs of API endpoints to provision new Microsoft compliance tenant, the getAccessTokenAndApiUrls helper returned an error. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return {redirect: fleetInstanceUrlToRedirectTo };
       });
 
       let manageApiAccessToken = accessTokenAndApiUrls.manageApiAccessToken;
@@ -202,6 +207,7 @@ module.exports = {
       // If the response from the Microsoft Graph API did not contain any groups, log a warning and save a setup error on the database record for this tenant.
       if(parsedGroupResponse.value.length === 0){
         sails.log.warn(`When an Entra tenant (${informationAboutThisTenant.fleetInstanceUrl}) tried setting up a conditional access integration, no "Fleet conditional access" Entra ID group was found on this Entra tenant.`);
+        // IMPORTANT: Don't change the below setupError value. The error string is checked by the Fleet UI frontend.
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `No "Fleet conditional access" Entra ID group was found on this Entra tenant.`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
@@ -209,7 +215,7 @@ module.exports = {
       let groupId = parsedGroupResponse.value[0].id;
 
 
-      // Send a request to assign the new compliance policy to the "All users" group.
+      // Send a request to assign the new compliance policy to the "Fleet conditional access" group.
       let assignPolicyResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'POST',
         url: `${tenantDataSyncUrl}/PartnerCompliancePolicies(guid'${encodeURIComponent(createdPolicyId)}')/Assign?api-version=1.6`,
@@ -224,7 +230,7 @@ module.exports = {
         }
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        sails.log.warn(`An error occurred when sending a assign a new compliance policy to "All users" on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        sails.log.warn(`An error occurred when sending a assign a new compliance policy to "Fleet conditional access" group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
         return {redirect: fleetInstanceUrlToRedirectTo };
       });
       // Example response:

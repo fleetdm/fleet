@@ -217,6 +217,9 @@ type HostListOptions struct {
 	// PopulateLabels adds the `Labels` array field to all host responses returned
 	PopulateLabels bool
 
+	// IncludeDeviceStatus adds the `MDM` field with the `device_status` & `pending_action` sub fields to all hosts returned
+	IncludeDeviceStatus bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 
@@ -314,6 +317,9 @@ type Host struct {
 	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
+	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
+	// CSV not exported to not break automations.
+	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
@@ -339,7 +345,10 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
-	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	// GigsTotalDiskSpace and GigsAllDiskSpace as defined by `server > service > osquery_utils >
+	// queries.go > hostDetailQueries.disk_space_unix`
+	GigsTotalDiskSpace float64  `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
+	GigsAllDiskSpace   *float64 `json:"gigs_all_disk_space" db:"gigs_all_disk_space" csv:"gigs_all_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -816,7 +825,9 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 // IsLUKSSupported returns true if the host's platform is Linux and running
 // one of the supported OS versions.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
+	return h.Platform == "ubuntu" ||
+		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
@@ -983,18 +994,42 @@ func PlatformSupportsOsquery(platform string) bool {
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
+// IMPORTANT: When updating this, also make sure to update HOST_LINUX_PLATFORMS in frontend code.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
+	"linux",
+	"ubuntu",
+	"debian",
+	"rhel",
+	"centos",
+	"sles",
+	"kali",
+	"gentoo",
+	"amzn",
+	"pop",
+	"arch",
+	"linuxmint",
+	"void",
+	"nixos",
+	"endeavouros",
+	"manjaro",
+	"manjaro-arm",
+	"opensuse-leap",
+	"opensuse-tumbleweed",
+	"tuxedo",
+	"neon",
+	"archarm",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
 var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"arch":        {},
+	"archarm":     {},
 	"gentoo":      {},
 	"void":        {},
 	"nixos":       {},
 	"endeavouros": {},
 	"manjaro":     {},
+	"manjaro-arm": {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
@@ -1022,6 +1057,23 @@ var HostRpmPackageOSs = map[string]struct{}{
 
 func IsLinux(hostPlatform string) bool {
 	return slices.Contains(HostLinuxOSs, hostPlatform)
+}
+
+func IsApplePlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
+func IsMacOSPlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin"
+}
+
+// Return true if the platform is either iOS or iPadOS
+func IsAppleMobilePlatform(hostPlatform string) bool {
+	return hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
+func IsAndroidPlatform(hostPlatform string) bool {
+	return hostPlatform == "android"
 }
 
 func IsUnixLike(hostPlatform string) bool {
@@ -1076,6 +1128,7 @@ func ExpandPlatform(platform string) []string {
 const (
 	DeviceMappingGoogleChromeProfiles = "google_chrome_profiles"
 	DeviceMappingMDMIdpAccounts       = "mdm_idp_accounts"
+	DeviceMappingIDP                  = "idp"              // set by user via PUT /hosts/{id}/device_mapping with source=idp
 	DeviceMappingCustomInstaller      = "custom_installer" // set by fleetd via device-authenticated API
 	DeviceMappingCustomOverride       = "custom_override"  // set by user via user-authenticated API
 
@@ -1141,6 +1194,7 @@ const (
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
 	WellKnownMDMFleet     = "Fleet"
+	WellKnownMDMMosyle    = "Mosyle"
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
@@ -1152,6 +1206,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
 	"fleetdm":   WellKnownMDMFleet,
+	"mosyle":    WellKnownMDMMosyle,
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
@@ -1342,11 +1397,16 @@ type OSVersion struct {
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
 	// For Linux-based operating systems, these are vulnerabilities associated with the Linux kernel.
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
+	// VulnerabilitiesCount is the total count of vulnerabilities for this OS version.
+	// This is useful when vulnerabilities are limited but the total count is needed.
+	VulnerabilitiesCount int `json:"vulnerabilities_count"`
 	// Kernels is a list of Linux kernels found on this operating system.
 	// This list is only populated for Linux-based operating systems.
 	// Vulnerabilities are pulled based on the software entries for the kernels.
 	// Kernels are associated based on enrolled hosts with the selected OS version.
-	Kernels []*Kernel `json:"kernels"`
+	// NOTE: The aggregate os_versions endpoint should not return this field.
+	// Uses a pointer to distinguish between nil (omit field) and empty slice (show as []).
+	Kernels *[]*Kernel `json:"kernels,omitempty"`
 }
 
 type HostDetailOptions struct {
@@ -1364,6 +1424,7 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
+	HostID             uint   `json:"-" db:"host_id"`
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
@@ -1372,6 +1433,7 @@ type HostMDMCheckinInfo struct {
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
+	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
 	Platform              string `json:"-" db:"platform"`
 }
 
@@ -1407,8 +1469,12 @@ type HostSoftwareInstalledPath struct {
 	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
 	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
 	TeamIdentifier string `db:"team_identifier"`
-	// A SHA256 hash of the executable file of the software.
+	// CDHashSHA256 is the SHA256 hash of the code directory of the software bundle as reported on macOS by `codesign --display --verbose=3`. See https://developer.apple.com/documentation/endpointsecurity/es_process_t/cdhash
+	CDHashSHA256 *string `db:"cdhash_sha256"`
+	// ExecutableSHA256 is the SHA256 hash of the executable located at ExecutablePath
 	ExecutableSHA256 *string `db:"executable_sha256"`
+	// ExecutablePath is the path to the executable of the software bundle
+	ExecutablePath *string `db:"executable_path"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
@@ -1520,4 +1586,83 @@ func NewAddHostsToTeamParams(teamID *uint, hostIDs []uint) *AddHostsToTeamParams
 func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTeamParams {
 	params.BatchSize = batchSize
 	return params
+}
+
+func GetEndUserIdpFullName(ctx context.Context, ds Datastore, hostID uint) (string, error) {
+	endUsers, err := GetEndUsers(ctx, ds, hostID)
+	if err != nil {
+		return "", fmt.Errorf("getting host end user idp name: %w", err)
+	}
+
+	// There can be multiple end users, but should only be a single idp user
+	for _, eu := range endUsers {
+		if eu.IdpFullName != "" {
+			return eu.IdpFullName, nil
+		}
+	}
+
+	return "", nil
+}
+
+func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser, error) {
+	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
+	if err != nil && !IsNotFound(err) {
+		return nil, fmt.Errorf("get scim user by host id: %w", err)
+	}
+
+	var endUsers []HostEndUser
+	if scimUser != nil {
+		endUser := HostEndUser{
+			IdpUserName:      scimUser.UserName,
+			IdpFullName:      scimUser.DisplayName(),
+			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
+		}
+
+		if scimUser.ExternalID != nil {
+			endUser.IdpID = *scimUser.ExternalID
+		}
+		for _, group := range scimUser.Groups {
+			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
+		}
+		if scimUser.Department != nil {
+			endUser.Department = *scimUser.Department
+		}
+		endUsers = append(endUsers, endUser)
+	}
+
+	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("get host device mapping: %w", err)
+	}
+
+	if len(deviceMapping) > 0 {
+		endUser := HostEndUser{}
+		for _, email := range deviceMapping {
+			switch {
+			case (email.Source == DeviceMappingMDMIdpAccounts || email.Source == DeviceMappingIDP) && len(endUsers) == 0:
+				// If SCIM data is missing, we still populate IdpUserName if present.
+				// For DeviceMappingIDP source, this is the user-provided IDP username.
+				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
+				endUser.IdpUserName = email.Email
+			case email.Source != DeviceMappingMDMIdpAccounts && email.Source != DeviceMappingIDP:
+				// Only add to OtherEmails if it's not an IDP source
+				endUser.OtherEmails = append(endUser.OtherEmails, *email)
+			}
+		}
+		if len(endUsers) > 0 {
+			endUsers[0].OtherEmails = endUser.OtherEmails
+		} else {
+			endUsers = append(endUsers, endUser)
+		}
+	}
+
+	return endUsers, nil
+}
+
+// DeletedHostDetails contains details about a host that has been deleted.
+type DeletedHostDetails struct {
+	ID               uint
+	DisplayName      string
+	Serial           string
+	HostExpiryWindow int
 }

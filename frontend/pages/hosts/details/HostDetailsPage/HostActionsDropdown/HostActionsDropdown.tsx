@@ -41,6 +41,7 @@ const HostActionsDropdown = ({
     isGlobalMaintainer = false,
     isMacMdmEnabledAndConfigured = false,
     isWindowsMdmEnabledAndConfigured = false,
+    isAndroidMdmEnabledAndConfigured = false,
     currentUser,
     config: globalConfig,
   } = useContext(AppContext);
@@ -69,9 +70,11 @@ const HostActionsDropdown = ({
     isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
+    isAndroidMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
+    scriptsGloballyDisabled: globalConfig?.server_settings.scripts_disabled,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
   });
@@ -87,6 +90,7 @@ const HostActionsDropdown = ({
         placeholder="Actions"
         options={options}
         menuAlign="right"
+        variant="brand-button"
       />
     </div>
   );

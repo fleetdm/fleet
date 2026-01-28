@@ -3,9 +3,7 @@ import classnames from "classnames";
 import { noop } from "lodash";
 
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import hostAPI from "services/entities/hosts";
 import { NotificationContext } from "context/notification";
-
 import { IHostMdmProfile } from "interfaces/mdm";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
@@ -35,13 +33,36 @@ const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
     <Button
       disabled={isFetching}
       onClick={onClick}
-      variant="text-icon"
+      variant="inverse"
       className={classNames}
+      size="small"
     >
-      <Icon name="refresh" color="core-fleet-blue" size="small" />
+      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
       {buttonText}
     </Button>
   );
+};
+
+const formatAndroidProfileNotAppliedError = (
+  detail: IHostMdmProfile["detail"]
+) => {
+  if (
+    detail.includes("settings couldn't apply to a host") ||
+    detail.includes("Other settings are applied")
+  ) {
+    return (
+      <>
+        {detail}{" "}
+        <CustomLink
+          text="Learn more"
+          url="https://fleetdm.com/learn-more-about/android-profile-errors"
+          newTab
+          variant="tooltip-link"
+        />
+      </>
+    );
+  }
+  return null;
 };
 
 /**
@@ -197,6 +218,13 @@ const generateErrorTooltip = (
     return certificateError;
   }
 
+  const androidProfileNotAppliedError = formatAndroidProfileNotAppliedError(
+    profile.detail
+  );
+  if (androidProfileNotAppliedError) {
+    return androidProfileNotAppliedError;
+  }
+
   if (profile.platform === "windows") {
     return formatDetailWindowsProfile(profile.detail);
   }
@@ -206,15 +234,15 @@ const generateErrorTooltip = (
 
 interface IOSSettingsErrorCellProps {
   canResendProfiles: boolean;
-  hostId: number;
   profile: IHostMdmProfileWithAddedStatus;
+  resendRequest: (profileUUID: string) => Promise<void>;
   onProfileResent?: () => void;
 }
 
 const OSSettingsErrorCell = ({
   canResendProfiles,
-  hostId,
   profile,
+  resendRequest,
   onProfileResent = noop,
 }: IOSSettingsErrorCellProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -223,7 +251,7 @@ const OSSettingsErrorCell = ({
   const onResendProfile = async () => {
     setIsLoading(true);
     try {
-      await hostAPI.resendProfile(hostId, profile.profile_uuid);
+      await resendRequest(profile.profile_uuid);
       onProfileResent();
     } catch (e) {
       renderFlash("error", "Couldn't resend. Please try again.");

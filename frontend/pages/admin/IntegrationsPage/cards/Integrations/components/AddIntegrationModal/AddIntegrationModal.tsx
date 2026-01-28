@@ -7,6 +7,7 @@ import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import CustomLink from "components/CustomLink";
+import PageDescription from "components/PageDescription";
 import { IIntegration, IZendeskJiraIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
 
@@ -45,7 +46,11 @@ const AddIntegrationModal = ({
   };
 
   return (
-    <Modal title="Add integration" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Add ticket destination"
+      onExit={onCancel}
+      className={baseClass}
+    >
       <div className="form">
         {!testingConnection && (
           <>
@@ -59,10 +64,15 @@ const AddIntegrationModal = ({
               wrapperClassname={`${baseClass}__form-field ${baseClass}__form-field--platform`}
               isDisabled={gitOpsModeEnabled}
             />
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
-              text="Suggest a new destination"
-              newTab
+            <PageDescription
+              variant="modal"
+              content={
+                <CustomLink
+                  url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
+                  text="Suggest a new destination"
+                  newTab
+                />
+              }
             />
           </>
         )}

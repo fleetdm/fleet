@@ -1,0 +1,18 @@
+// TODO: Confirm all styling
+
+.software-script-details-modal {
+  overflow-wrap: anywhere;
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  .data-set__horizontal {
+    flex-direction: row;
+  }
+  .reveal-button {
+    width: min-content;
+  }
+}

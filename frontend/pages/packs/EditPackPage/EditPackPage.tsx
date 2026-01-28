@@ -27,7 +27,7 @@ import PATHS from "router/paths";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import EditPackForm from "components/forms/packs/EditPackForm";
 import MainContent from "components/MainContent";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
@@ -235,7 +235,7 @@ const EditPacksPage = ({
     <MainContent className={baseClass}>
       <>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to packs" path={PATHS.MANAGE_PACKS} />
+          <BackButton text="Back to packs" path={PATHS.MANAGE_PACKS} />
         </div>
         {storedPack && storedPackQueries && (
           <EditPackForm

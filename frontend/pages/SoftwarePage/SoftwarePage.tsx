@@ -27,6 +27,7 @@ import TeamsHeader from "components/TeamsHeader";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import PageDescription from "components/PageDescription";
 
 import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/modals/AddSoftwareModal";
@@ -102,6 +103,7 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       available_for_install?: string;
+      self_service?: string;
       vulnerable?: string;
       exploit?: string;
       min_cvss_score?: string;
@@ -189,6 +191,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
     includeAllTeams: true,
     includeNoTeam: true,
+    // When switching to "All teams" context, remove any unsupported query params that might be set
+    overrideParamsOnTeamChange: {
+      available_for_install: (newTeamId: number | undefined) =>
+        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
+      self_service: (newTeamId: number | undefined) =>
+        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
+    },
   });
 
   // softwareConfig is either the global config or the team config of the
@@ -380,10 +389,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       suffix = isAllTeamsSelected ? " for all hosts" : " on this team";
     }
     return (
-      <p>
+      <>
         Manage software and search for installed software, OS, and
         vulnerabilities{suffix}.
-      </p>
+      </>
     );
   };
 
@@ -430,33 +439,34 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   return (
-    <MainContent>
-      <div className={`${baseClass}__wrapper`}>
+    <MainContent className={baseClass}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
-            <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>
-                {isPremiumTier && !isPrimoMode ? (
-                  <TeamsHeader
-                    isOnGlobalTeam={isOnGlobalTeam}
-                    currentTeamId={currentTeamId}
-                    userTeams={userTeams}
-                    onTeamChange={onTeamChange}
-                  />
-                ) : (
-                  <h1>Software</h1>
-                )}
+            <div className={`${baseClass}__header`}>
+              <div className={`${baseClass}__text`}>
+                <div className={`${baseClass}__title`}>
+                  {isPremiumTier && !isPrimoMode ? (
+                    <TeamsHeader
+                      isOnGlobalTeam={isOnGlobalTeam}
+                      currentTeamId={currentTeamId}
+                      userTeams={userTeams}
+                      onTeamChange={onTeamChange}
+                    />
+                  ) : (
+                    <h1>Software</h1>
+                  )}
+                </div>
               </div>
             </div>
+            {renderPageActions()}
           </div>
-          {renderPageActions()}
-        </div>
-        <div className={`${baseClass}__description`}>
-          {renderHeaderDescription()}
+          <PageDescription content={renderHeaderDescription()} />
         </div>
         {renderBody()}
         {showManageAutomationsModal && softwareConfig && (
           <ManageAutomationsModal
+            router={router}
             onCancel={toggleManageAutomationsModal}
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
@@ -480,7 +490,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             isPremiumTier={isPremiumTier || false}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

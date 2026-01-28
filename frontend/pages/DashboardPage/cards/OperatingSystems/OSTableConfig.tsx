@@ -13,7 +13,10 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { ISoftwareVulnerability } from "interfaces/software";
+import {
+  ISoftwareVulnerability,
+  ROLLING_ARCH_LINUX_NAMES,
+} from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -28,6 +31,7 @@ import {
   IStringCellProps,
 } from "interfaces/datatable_config";
 import { isLinuxLike } from "interfaces/platform";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
@@ -95,10 +99,18 @@ const generateDefaultTableHeaders = (
   {
     Header: "Version",
     disableSortBy: true,
-    accessor: "version",
-    Cell: (cellProps: IVersionCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IVersionCellProps) => {
+      const { version, name_only } = cellProps.row.original;
+      if (
+        ROLLING_ARCH_LINUX_NAMES.includes(name_only) &&
+        version === "rolling"
+      ) {
+        return (
+          <TextCell value={<TooltipWrapperArchLinuxRolling capitalized />} />
+        );
+      }
+      return <TextCell value={version} />;
+    },
   },
   {
     Header: (): JSX.Element => {
@@ -131,7 +143,12 @@ const generateDefaultTableHeaders = (
       ) {
         return <TextCell value="Not supported" grey />;
       }
-      return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      return (
+        <VulnerabilitiesCell
+          vulnerabilities={cellProps.cell.value}
+          vulnerabilitiesCount={cellProps.row.original.vulnerabilities_count}
+        />
+      );
     },
   },
   {

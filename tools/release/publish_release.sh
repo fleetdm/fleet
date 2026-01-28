@@ -70,23 +70,24 @@ usage() {
     echo "Usage: $0 [options] (optional|start_version)"
     echo ""
     echo "Options:"
-    echo "  -a, --and_cherry_pick  This is a minor release and cherry pick. Used for unscheduled minor releases that are patches + a specific feature"
+    echo "  -a, --and_cherry_pick      This is a minor release and cherry pick. Used for unscheduled minor releases that are patches + a specific feature"
     echo "  -c, --cherry_pick_resolved The script has been run, had merge conflicts, and those have been resolved and all cherry picks completed manually."
-    echo "  -d, --dry_run          Perform a trial run with no changes made"
-    echo "  -f, --force            Skip all confirmations"
-    echo "  -h, --help             Display this help message and exit"
-    echo "  -g, --tag              Run the tag step"
-    echo "  -k, --skip_dogfood     Skip deploying to dogfood. Necessary if you need to release without interrupting demos"
-    echo "  -m, --minor            Increment to a minor version instead of patch (required if including non-bugs)"
-    echo "  -n, --announce_only    Announce the release only, do not publish the release."
-    echo "  -o, --open_api_key     Set the Open API key for calling out to ChatGPT"
-    echo "  -p, --print            If the release is already drafted then print out the helpful info"
-    echo "  -q, --quiet            This will skip notifying in slack"
-    echo "  -r, --release_notes    Update the release notes in the named release on github and exit (requires changelog output from running the script previously)."
-    echo "  -s, --start_version    Set the target starting version (can also be the first positional arg) for the release, defaults to latest release on github"
-    echo "  -t, --target_date      Set the target date for the release, defaults to today if not provided"
-    echo "  -u, --publish_release  Set's release from draft to release, deploys to dogfood."
-    echo "  -v, --target_version   Set the target version for the release"
+    echo "  -d, --dry_run              Perform a trial run with no changes made"
+    echo "  -f, --force                Skip all confirmations"
+    echo "  -h, --help                 Display this help message and exit"
+    echo "  -g, --tag                  Run the tag step"
+    echo "  -k, --skip_dogfood         Skip deploying to dogfood. Necessary if you need to release without interrupting demos"
+    echo "  -m, --minor                Increment to a minor version instead of patch (required if including non-bugs)"
+    echo "  -M, --manual_cherry_pick   Have the script prompt you for each found related PR to cherry-pick"
+    echo "  -n, --announce_only        Announce the release only, do not publish the release."
+    echo "  -o, --open_api_key         Set the Open API key for calling out to ChatGPT"
+    echo "  -p, --print                If the release is already drafted then print out the helpful info"
+    echo "  -q, --quiet                This will skip notifying in slack"
+    echo "  -r, --release_notes        Update the release notes in the named release on github and exit (requires changelog output from running the script previously)."
+    echo "  -s, --start_version        Set the target starting version (can also be the first positional arg) for the release, defaults to latest release on github"
+    echo "  -t, --target_date          Set the target date for the release, defaults to today if not provided"
+    echo "  -u, --publish_release      Set's release from draft to release, deploys to dogfood."
+    echo "  -v, --target_version       Set the target version for the release"
     echo ""
     echo "Environment Variables:"
     echo "  OPEN_API_KEY           Open API key used for api requests to chat GPT"
@@ -122,6 +123,7 @@ release_notes=false
 do_tag=false
 quiet=false
 skip_deploy_dogfood=false
+manual_cherry_pick_selection=false
 
 # Parse long options manually
 for arg in "$@"; do
@@ -132,12 +134,13 @@ for arg in "$@"; do
     "--dry-run") set -- "$@" "-d" ;;
     "--force") set -- "$@" "-f" ;;
     "--help") set -- "$@" "-h" ;;
+    "--skip_dogfood") set -- "$@" "-k" ;;
     "--minor") set -- "$@" "-m" ;;
+    "--manual_cherry_pick") set -- "$@" "-M" ;;
     "--announce_only") set -- "$@" "-n" ;;
     "--open_api_key") set -- "$@" "-o" ;;
     "--print") set -- "$@" "-p" ;;
     "--quiet") set -- "$@" "-q" ;;
-    "--skip_dogfood") set -- "$@" "-k" ;;
     "--publish_release") set -- "$@" "-u" ;;
     "--release_notes") set -- "$@" "-r" ;;
     "--start_version") set -- "$@" "-s" ;;
@@ -149,7 +152,7 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "acdfhgkmno:pqrs:t:uv:w" opt; do
+while getopts "acdfhgkmMno:pqrs:t:uv:w" opt; do
     case "$opt" in
         a) minor_cherry_pick=true ;;
         c) cherry_pick_resolved=true ;;
@@ -159,6 +162,7 @@ while getopts "acdfhgkmno:pqrs:t:uv:w" opt; do
         g) do_tag=true ;;
         k) skip_deploy_dogfood=true ;;
         m) minor=true ;;
+        M) manual_cherry_pick_selection=true ;;
         n) announce_only=true ;;
         o) open_api_key=$OPTARG ;;
         p) print_info=true ;;
@@ -240,7 +244,7 @@ ask() {
 check_required_binaries() {
     local missing_counter=0
     # List of required binaries used in the script
-    local required_binaries=("jq" "gh" "git" "curl" "awk" "sed" "make" "ack")
+    local required_binaries=("jq" "gh" "git" "curl" "awk" "sed" "make" "ack" "helm")
 
     for bin in "${required_binaries[@]}"; do
         if ! command -v "$bin" &> /dev/null; then
@@ -293,6 +297,14 @@ determine_grep_command() {
     else
         echo "grep"  # Default to grep if ggrep is not available and -P is not supported
         # Note: You might want to handle the lack of -P support differently here
+    fi
+}
+
+# setup helm to include fleet repo
+check_and_setup_helm() {
+    out=`helm repo list | grep fleet | awk '{print $2}'`
+    if [[ "$out" != "https://fleetdm.github.io/fleet/charts" ]]; then
+        helm repo add fleet https://fleetdm.github.io/fleet/charts
     fi
 }
 
@@ -364,7 +376,7 @@ changelog_and_versions() {
         gh pr create -f -B $source_branch
         gh workflow run goreleaser-snapshot-fleet.yaml --ref $source_branch # Manually trigger workflow run
     else
-        echo "DRYRUN: Would have created Changelog / version pr from $branch_for_changelog to $source_branch"
+        echo "DRYRUN: Would have created Changelog / verison pr from $branch_for_changelog to $source_branch"
     fi
 }
 
@@ -375,9 +387,10 @@ create_qa_issue() {
         if [[ "$found" == "0" ]]; then
             cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
             gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "pezhub"  --label "#g-mdm" --label ":release" \
-                --assignee "jmwatts" --label "#g-software" \
-                --assignee "xpkoala" --label "#g-orchestration"
+                --assignee "AndreyKizimenko"  --label "#g-mdm" --label ":release" \
+                --label "#g-software" \
+                --assignee "xpkoala" --label "#g-orchestration" \
+                --label "#g-security-compliance"
             rm -f temp_qa_issue_file
         fi
     else
@@ -501,6 +514,10 @@ tag() {
         git tag $next_tag
         git push origin $next_tag
 
+        # The v4.XX.YY tag is used for publishing Fleet's Go module (https://go.dev/doc/modules/publishing).
+        git tag $next_ver
+        git push origin $next_ver
+
         # This lets us wait for github actions to trigger
         # we are specifically waiting for goreleaser to start
         # off the `tag` branch ie: fleet-v4.47.2 to watch until it completes
@@ -527,14 +544,34 @@ tag() {
 publish() {
     if [ "$dry_run" = "false" ]; then
         if [ "$announce_only" = "false" ]; then
+            helm repo update fleet
+            local_chart_version=`cat charts/fleet/Chart.yaml | grep "^version" | awk '{print $2}'`
+            published_chart_match=`helm search repo fleet/fleet -l | grep fleet | awk '{print $2}' | grep $local_chart_version`
+            if [[ "$published_chart_match" != "" ]]; then
+                echo "Chart matches already published version please increment"
+                echo "Check released versions with 'helm repo search fleet/fleet -l'"
+                exit 1
+            fi
             # TODO more checks to validate we are ready to publish
             gh release edit --draft=false --latest $next_tag
 
             if [ "$skip_deploy_dogfood" = "false" ]; then
-                gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+                if [ "$force" = "false" ]; then
+                    read -r -p "Are you ABSOLUTELY SURE you want to deploy to Dogfood right now?? Check for demo's: [y/n]" response
+                        case "$response" in
+                                [yY][eE][sS]|[yY])
+                                        gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+                                        show_spinner 200
+                                        dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
+                                        echo
+                                        ;;
+                                *)
+                                        dogfood_deploy="skipped"
+                                        echo
+                                        ;;
+                        esac
+                fi
             fi
-            show_spinner 200
-            dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
             latest_npm=$(npm view fleetctl --json | jq -r '.version' | sed -e 's/^v//')
             latest_local=$(jq -r '.version' tools/fleetctl-npm/package.json | sed -e 's/^v//')
 
@@ -547,7 +584,7 @@ publish() {
             fi
 
 
-            issues=$(gh issue list -m $target_milestone --json number | jq -r '.[] | .number')
+            issues=$(gh issue list -L 500 -m $target_milestone --json number | jq -r '.[] | .number')
             for iss in $issues; do
                 is_story=$(gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story)
                 # close all non-stories
@@ -575,6 +612,8 @@ publish() {
 
 # Validate we have all commands required to perform this script
 check_required_binaries
+
+check_and_setup_helm
 
 # Now you can use the $dry_run variable to see if the option was set
 if $dry_run; then
@@ -735,7 +774,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
 
     total_prs=()
 
-    issue_list=$(gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number')
+    issue_list=$(gh issue list -L 500 --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number')
 
     if [[ "$issue_list" == "" && "$dry_run" == "false" ]]; then
         echo "Milestone $target_milestone has no target issues, please tie tickets to the milestone to continue"
@@ -771,14 +810,28 @@ if [ "$cherry_pick_resolved" = "false" ]; then
             commit=$(echo $output | jq -r .mergeCommit.oid)
             target_pr_branch=$(echo $output | jq -r .baseRefName)
             echo -n "$pr $state $commit $target_pr_branch:"
-            if [[ "$state" != "MERGED" || "$target_pr_branch" != "main" ]]; then
-                echo " WARNING - Skipping pr https://github.com/fleetdm/fleet/pull/$pr"
+            if [[ "$manual_cherry_pick_selection" == "true" ]]; then
+                prompt="Include? [y/n]"
+                read -r -p "$prompt" response
+                    case "$response" in
+                        [yY][eE][sS]|[yY])
+                            commits+="$commit "
+                            echo
+                            ;;
+                        *)
+                            echo
+                            ;;
+                    esac
             else
-                if [[ "$commit" != "" && "$commit" != "null" ]]; then
-                    echo " Commit looks valid - $commit, adding to cherry-pick"
-                    commits+="$commit "
+                if [[ "$state" != "MERGED" || "$target_pr_branch" != "main" ]]; then
+                    echo " WARNING - Skipping pr https://github.com/fleetdm/fleet/pull/$pr"
                 else
-                    echo " WARNING - invalid commit for pr https://github.com/fleetdm/fleet/pull/$pr - $commit"
+                    if [[ "$commit" != "" && "$commit" != "null" ]]; then
+                        echo " Commit looks valid - $commit, adding to cherry-pick"
+                        commits+="$commit "
+                    else
+                        echo " WARNING - invalid commit for pr https://github.com/fleetdm/fleet/pull/$pr - $commit"
+                    fi
                 fi
             fi
             #echo "======================================="
@@ -852,6 +905,8 @@ if [[ "$failed" == "false" ]]; then
         git checkout main 
         git pull origin main
         ask "Are you on main? [y/n]"
+        changelog_and_versions "$update_changelog_prepare_branch"-main main
+        git checkout $target_branch
     else
         echo "DRYRUN: Would have switched to main and pulled latest"
     fi

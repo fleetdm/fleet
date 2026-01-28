@@ -58,7 +58,7 @@ const mdmUnenrollmentTotalWaitTime = 90 * time.Second
 const defaultUnenrollmentRetryInterval = 5 * time.Second
 
 var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemplate").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and look for this notification in your notification center:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
@@ -66,7 +66,7 @@ Select **Start** and look for this notification in your notification center:` +
 ))
 
 var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and My device page will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
@@ -74,7 +74,7 @@ Select **Start** and My device page will appear soon:` +
 ))
 
 var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and Remote Management window will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)\n\n" +
@@ -84,13 +84,13 @@ Select **Start** and Remote Management window will appear soon:` +
 var errorTemplate = template.Must(template.New("").Parse(`
 ### Something's gone wrong.
 
-Please [contact your IT admin]({{ .ContactURL }}).
+Please contact your IT admin.
 `))
 
-var unenrollBody = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
+var unenrollBody = "### Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
 
 var mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 🛜🚫 No internet connection. Please connect to internet to continue.`,
 ))
@@ -303,17 +303,26 @@ func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma, isManual bool) 
 
 func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan error) {
 	var errorMessage bytes.Buffer
-	if err := errorTemplate.Execute(
-		&errorMessage,
-		m.props.OrgInfo,
-	); err != nil {
+	if err := errorTemplate.Execute(&errorMessage, nil); err != nil {
 		codeChan := make(chan swiftDialogExitCode, 1)
 		errChan := make(chan error, 1)
 		errChan <- fmt.Errorf("execute error template: %w", err)
 		return codeChan, errChan
 	}
 
-	return m.render(errorMessage.String(), "--button1text", "Close", "--height", "220")
+	// if no contact url just show a dialog with a Close button
+	if m.props.OrgInfo.ContactURL == "" {
+		return m.render(errorMessage.String(),
+			"--button1text", "Close",
+			"--height", "220")
+	}
+
+	// otherwise show a Contact IT button that links to the contact URL
+	return m.render(errorMessage.String(),
+		"--button1text", "Contact IT",
+		"--button1action", m.props.OrgInfo.ContactURL,
+		"--button2text", "Close",
+		"--height", "220")
 }
 
 // waitForUnenrollment waits 90 seconds (value determined by product) for the
@@ -581,6 +590,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigrati
 		)
 	}
 
+	// otherwise show a Contact IT button that links to the contact URL
 	if m.props.OrgInfo.ContactURL != "" {
 		flags = append(flags,
 			// info button

@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -326,6 +327,16 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				// the ack of the message should be the only returned command
 				require.Len(t, cmds, 1)
 
+				// Simulate the host having fleetd installed and reporting back in as un-enrolled
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(context.Background(), `
+	              UPDATE host_mdm
+	              SET enrolled = 0, server_url = ''
+	              WHERE host_id = ?
+		`, host.ID)
+					return err
+				})
+
 				// re-enroll
 				require.NoError(t, device.Enroll())
 			},
@@ -358,13 +369,28 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					&orbitScriptResp,
 				)
 
+				// Simulate the host having fleetd installed after being wiped and reporting back in as un-enrolled
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(context.Background(), `
+	              UPDATE host_mdm
+	              SET enrolled = 0, server_url = ''
+	              WHERE host_id = ?
+		`, host.ID)
+					return err
+				})
+
 				require.NoError(t, device.Enroll())
 			},
 		},
 		{
 			"host turns on MDM features out of the blue",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
-				require.NoError(t, device.Enroll())
+				if strings.Contains(t.Name(), "automatic") {
+					require.NoError(t, device.Enroll())
+				} else {
+					// A programatically-enrolled host that randomly turns on MDM after already enabled will get a SOAP fault
+					require.Error(t, device.Enroll())
+				}
 			},
 		},
 		{
@@ -437,7 +463,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				host := createOrbitEnrolledHost(t, "windows", "windows_automatic", s.ds)
 
 				azureMail := "foo.bar.baz@example.com"
-				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail)
+				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
 				device.HardwareID = host.UUID
 				device.DeviceID = host.UUID
 				require.NoError(t, device.Enroll())
@@ -570,6 +596,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 		&fleet.MDMAppleBootstrapPackage{Bytes: bp, Name: "pkg.pkg", TeamID: 0},
 		http.StatusOK,
 		"",
+		false,
 	)
 
 	// enable disk encryption
@@ -658,7 +685,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	signedPkg := b
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "bs.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "bs.pkg", TeamID: 0}, http.StatusOK, "", false)
 
 	// add a device that's manually enrolled
 	desktopToken := uuid.New().String()
@@ -997,24 +1024,6 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	t := s.T()
 
-	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-		foundInstallFleetdCommand := false
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-				foundInstallFleetdCommand = true
-				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-			}
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-		require.Equal(t, wantCommand, foundInstallFleetdCommand)
-	}
-
 	triggerRefetchCron := func(hostID uint) {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, hostID)
@@ -1060,7 +1069,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 				cmd, err = mdmDevice.AcknowledgeCertificateList(mdmDevice.UUID, cmd.CommandUUID, []*x509.Certificate{})
 				require.NoError(t, err)
 			case "DeviceInformation":
-				cmd, err = mdmDevice.AcknowledgeDeviceInformation(mdmDevice.UUID, cmd.CommandUUID, "Test Name", "iPhone 16")
+				cmd, err = mdmDevice.AcknowledgeDeviceInformation(mdmDevice.UUID, cmd.CommandUUID, "Test Name", "iPhone 16", "America/Los_Angeles")
 				require.NoError(t, err)
 			default:
 				require.Fail(t, "unexpected command", cmd.Command.RequestType)
@@ -1100,7 +1109,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, false)
+	checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 	// mu.Lock()
 	// require.Len(t, recordedPushes, 1)
@@ -1215,4 +1224,76 @@ func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
 
 	e := extractServerErrorText(res.Body)
 	require.Contains(t, e, "Can't lock the host because it doesn't have MDM turned on")
+}
+
+// Test case for https://github.com/fleetdm/fleet/issues/33074
+func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
+	t := s.T()
+
+	// Setup Apple MDM
+	s.appleCoreCertsSetup()
+
+	// Turn on disk encryption for no team
+	s.Do("POST", "/api/latest/fleet/disk_encryption", json.RawMessage(`{
+		"enable_disk_encryption": true
+	}`), http.StatusNoContent)
+
+	// Check that FileVault profile exists in the database
+	var initialProfileID uint
+	var initialTimestamp time.Time
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return q.QueryRowxContext(context.Background(),
+			`SELECT profile_id, uploaded_at FROM mdm_apple_configuration_profiles 
+			 WHERE identifier = ? AND team_id = 0`,
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&initialProfileID, &initialTimestamp)
+	})
+	require.NotZero(t, initialProfileID, "FileVault profile should exist in database after enabling disk encryption")
+
+	// Wait a moment to ensure timestamp difference will be detectable
+	time.Sleep(100 * time.Millisecond)
+
+	// Turn off Apple MDM
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
+
+	// Turn back on Apple MDM
+	s.appleCoreCertsSetup()
+
+	// Check that FileVault profile still exists and has been updated
+	var updatedProfileID uint
+	var updatedTimestamp time.Time
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return q.QueryRowxContext(context.Background(),
+			`SELECT profile_id, uploaded_at FROM mdm_apple_configuration_profiles 
+			 WHERE identifier = ? AND team_id = 0`,
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&updatedProfileID, &updatedTimestamp)
+	})
+	require.NotZero(t, updatedProfileID, "FileVault profile should exist in database after re-enabling MDM")
+
+	// Verify the profile has been updated (newer timestamp or different profile ID)
+	profileWasUpdated := updatedTimestamp.After(initialTimestamp) || updatedProfileID != initialProfileID
+	require.True(t, profileWasUpdated,
+		"FileVault profile should have been updated when MDM was re-enabled. Initial ID: %d (time: %v), Updated ID: %d (time: %v)",
+		initialProfileID, initialTimestamp, updatedProfileID, updatedTimestamp)
+
+	// Disable MDM and remove filevault profile, then re-enable
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`DELETE FROM mdm_apple_configuration_profiles 
+			 WHERE identifier = ? AND team_id = 0`,
+			mobileconfig.FleetFileVaultPayloadIdentifier)
+		return err
+	})
+
+	// Turn back on MDM, and see it succesfully creates the profile without fail
+	s.appleCoreCertsSetup()
+
+	var finalProfileID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return q.QueryRowxContext(context.Background(),
+			`SELECT profile_id FROM mdm_apple_configuration_profiles 
+			 WHERE identifier = ? AND team_id = 0`,
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&finalProfileID)
+	})
+	require.NotZero(t, finalProfileID, "FileVault profile should exist in database after re-enabling MDM when it was previously deleted")
 }

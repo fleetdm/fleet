@@ -29,6 +29,8 @@ RPM_FLEET_URL=https://host.docker.internal:8080 \
 RPM_TUF_URL=http://host.docker.internal:8081 \
 MSI_FLEET_URL=https://host.docker.internal:8080 \
 MSI_TUF_URL=http://host.docker.internal:8081 \
+PKG_TAR_ZST_FLEET_URL=https://host.docker.internal:8080 \
+PKG_TAR_ZST_TUF_URL=http://host.docker.internal:8081 \
 GENERATE_PKG=1 \
 GENERATE_DEB=1 \
 GENERATE_DEB_ARM64=1 \
@@ -36,9 +38,10 @@ GENERATE_RPM=1 \
 GENERATE_RPM_ARM64=1 \
 GENERATE_MSI=1 \
 GENERATE_MSI_ARM64=1 \
+GENERATE_PKG_TAR_ZST=1 \
+GENERATE_PKG_TAR_ZST_ARM64=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
-USE_FLEET_SERVER_CERTIFICATE=1 \
 DEBUG=1 \
 ./tools/tuf/test/main.sh
 ```
@@ -178,7 +181,6 @@ If you decide that you want to run your local fleet server with the `--server_tl
 
 ```
 + INSECURE=1 \
-- USE_FLEET_SERVER_CERTIFICATE=1 \
 
 + PKG_FLEET_URL=http://localhost:8080 \
 - PKG_FLEET_URL=https://localhost:8080 \
@@ -191,6 +193,9 @@ If you decide that you want to run your local fleet server with the `--server_tl
 
 + MSI_FLEET_URL=http://host.docker.internal:8080 \
 - MSI_FLEET_URL=https://host.docker.internal:8080 \
+
++ PKG_TAR_ZST_FLEET_URL=http://host.docker.internal:8080 \
+- PKG_TAR_ZST_FLEET_URL=https://host.docker.internal:8080 \
 ```
 
 These flags change the way `tools/tuf/test/gen_pkgs.sh` builds the binaries to properly support a local server not running ssl.

@@ -6,9 +6,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,33 +17,45 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	condaccessdepot "github.com/fleetdm/fleet/v4/ee/server/service/condaccess/depot"
 	hostidscepdepot "github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/depot"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/rdsauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 )
+
+// Compile-time interface check
+var _ activities.ActivityStore = (*Datastore)(nil)
 
 const (
-	defaultSelectLimit   = 1000000
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
-)
 
-// Matches all non-word and '-' characters for replacement
-var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
+	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
+	// See https://github.com/fleetdm/fleet/issues/33562
+	fleet4732BadMigrationID1  = 20250918154557 // was 20250918154557_AddKernelHostCountsIndexForVulnQueries.go
+	fleet4732GoodMigrationID1 = 20250817154557 // 20250817154557_AddKernelHostCountsIndexForVulnQueries.go
+
+	fleet4732BadMigrationID2  = 20250904115553 // was 20250904115553_OptimizeHostScriptResultsIndex.go
+	fleet4732GoodMigrationID2 = 20250816115553 // 20250816115553_OptimizeHostScriptResultsIndex.go
+
+	fleet4731GoodMigrationID = 20250815130115
+)
 
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
@@ -58,7 +70,7 @@ type Datastore struct {
 	android.Datastore
 
 	// nil if no read replica
-	readReplicaConfig *config.MysqlConfig
+	readReplicaConfig *common_mysql.MysqlConfig
 
 	// minimum interval between software last_opened_at timestamp to update the
 	// database (see file software.go).
@@ -77,28 +89,6 @@ type Datastore struct {
 	testUpsertMDMDesiredProfilesBatchSize int
 	// for tests set to override the default batch size.
 	testSelectMDMProfilesBatchSize int
-
-	// set this in tests to simulate an error at various stages in the
-	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
-	// will be in the insert/upsert stage, "delete" for deletion, "select" to load
-	// existing ones, "reselect" to reload existing ones after insert, and "labels"
-	// to simulate an error in batch setting the profile label associations.
-	// "inselect", "inreselect", "indelete", etc. can also be used to fail the
-	// sqlx.In before the corresponding statement.
-	//
-	//	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
-	testBatchSetMDMAppleProfilesErr string
-
-	// set this in tests to simulate an error at various stages in the
-	// batchSetMDMWindowsProfilesDB execution: if the string starts with "insert",
-	// it will be in the insert/upsert stage, "delete" for deletion, "select" to
-	// load existing ones, "reselect" to reload existing ones after insert, and
-	// "labels" to simulate an error in batch setting the profile label
-	// associations. "inselect", "inreselect", "indelete", etc. can also be used to
-	// fail the sqlx.In before the corresponding statement.
-	//
-	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
-	testBatchSetMDMWindowsProfilesErr string
 
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next
@@ -133,11 +123,11 @@ func (ds *Datastore) writer(ctx context.Context) *sqlx.DB {
 	return ds.primary
 }
 
-// loadOrPrepareStmt will load a statement from the statements cache.
+// loadOrPrepareStmt will load a statement from the statement cache.
 // If not available, it will attempt to prepare (create) it.
 // Returns nil if it failed to prepare a statement.
 //
-// IMPORTANT: Adding prepare statements consumes MySQL server resources, and is limited by MySQL max_prepared_stmt_count
+// IMPORTANT: Adding prepare statements consumes MySQL server resources and is limited by the MySQL max_prepared_stmt_count
 // system variable. This method may create 1 prepare statement for EACH database connection. Customers must be notified
 // to update their MySQL configurations when additional prepare statements are added.
 // For more detail, see: https://github.com/fleetdm/fleet/issues/15476
@@ -195,6 +185,12 @@ func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.Fle
 	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
 }
 
+// NewConditionalAccessSCEPDepot returns a new conditional access SCEP depot that uses the
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewConditionalAccessSCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+	return condaccessdepot.NewConditionalAccessSCEPDepot(ds.primary, ds, logger, cfg)
+}
+
 type entity struct {
 	name string
 }
@@ -217,8 +213,23 @@ func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err erro
 	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
-// New creates an MySQL datastore.
-func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+// withReadTx runs fn in a read-only transaction with a consistent snapshot of the DB
+// for executing multiple SELECT queries in an isolated fashion. It should be preferred
+// over withTx for these usecases as mysql applies some optimizations to transactions
+// declared as read-only versus.
+func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (err error) {
+	reader := ds.reader(ctx)
+	readerDB, ok := reader.(*sqlx.DB)
+	if !ok {
+		return ctxerr.New(ctx, "failed to cast reader to *sqlx.DB")
+	}
+	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
+}
+
+// NewDBConnections creates database connections from config.
+// The returned connections can be used to create multiple datastores
+// that share the same underlying database connections.
+func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.DBConnections, error) {
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
@@ -233,44 +244,73 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	if err := checkConfig(&config); err != nil {
+	if err := checkConfig(&cfg); err != nil {
 		return nil, err
 	}
 	if options.ReplicaConfig != nil {
-		if err := checkConfig(options.ReplicaConfig); err != nil {
+		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
+		if err := checkConfig(replicaConf); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
 
-	dbWriter, err := NewDB(&config, options)
+	// Set up IAM authentication connector factory if needed
+	if err := setupIAMAuthIfNeeded(&cfg, options); err != nil {
+		return nil, err
+	}
+
+	dbWriter, err := NewDB(&cfg, options)
 	if err != nil {
 		return nil, err
 	}
 	dbReader := dbWriter
 	if options.ReplicaConfig != nil {
-		dbReader, err = NewDB(options.ReplicaConfig, options)
+		// Set up IAM auth for replica if needed (may have different region/credentials)
+		replicaOptions := *options
+		// Reset ConnectorFactory - replica may have different auth requirements than primary
+		replicaOptions.ConnectorFactory = nil
+		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
+		if err := setupIAMAuthIfNeeded(replicaConf, &replicaOptions); err != nil {
+			return nil, fmt.Errorf("replica: %w", err)
+		}
+		dbReader, err = NewDB(replicaConf, &replicaOptions)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	return &common_mysql.DBConnections{Primary: dbWriter, Replica: dbReader, Options: options}, nil
+}
+
+// NewDatastore creates a Datastore using existing database connections.
+// Use this when you need to share database connections with other bounded context datastores.
+func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c clock.Clock) (*Datastore, error) {
 	ds := &Datastore{
-		primary:             dbWriter,
-		replica:             dbReader,
-		logger:              options.Logger,
+		primary:             conns.Primary,
+		replica:             conns.Replica,
+		logger:              conns.Options.Logger,
 		clock:               c,
-		config:              config,
-		readReplicaConfig:   options.ReplicaConfig,
+		config:              cfg,
+		readReplicaConfig:   conns.Options.ReplicaConfig,
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
-		serverPrivateKey:    options.PrivateKey,
-		Datastore:           NewAndroidDatastore(options.Logger, dbWriter, dbReader),
+		minLastOpenedAtDiff: conns.Options.MinLastOpenedAtDiff,
+		serverPrivateKey:    conns.Options.PrivateKey,
+		Datastore:           NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()
 
 	return ds, nil
+}
+
+// New creates a MySQL datastore.
+func New(cfg config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+	conns, err := NewDBConnections(cfg, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return NewDatastore(conns, cfg, c)
 }
 
 type itemToWrite struct {
@@ -308,7 +348,7 @@ var otelTracedDriverName string
 func init() {
 	var err error
 	otelTracedDriverName, err = otelsql.Register("mysql",
-		otelsql.WithAttributes(semconv.DBSystemMySQL),
+		otelsql.WithAttributes(semconv.DBSystemNameMySQL),
 		otelsql.WithSpanOptions(otelsql.SpanOptions{
 			// DisableErrSkip ignores driver.ErrSkip errors which are frequently returned by the MySQL driver
 			// when certain optional methods or paths are not implemented/taken.
@@ -340,7 +380,65 @@ func init() {
 }
 
 func NewDB(conf *config.MysqlConfig, opts *common_mysql.DBOptions) (*sqlx.DB, error) {
-	return common_mysql.NewDB(conf, opts, otelTracedDriverName)
+	return common_mysql.NewDB(toCommonMysqlConfig(conf), opts, otelTracedDriverName)
+}
+
+// toCommonMysqlConfig converts a config.MysqlConfig to common_mysql.MysqlConfig.
+func toCommonMysqlConfig(conf *config.MysqlConfig) *common_mysql.MysqlConfig {
+	return &common_mysql.MysqlConfig{
+		Protocol:        conf.Protocol,
+		Address:         conf.Address,
+		Username:        conf.Username,
+		Password:        conf.Password,
+		PasswordPath:    conf.PasswordPath,
+		Database:        conf.Database,
+		TLSCert:         conf.TLSCert,
+		TLSKey:          conf.TLSKey,
+		TLSCA:           conf.TLSCA,
+		TLSServerName:   conf.TLSServerName,
+		TLSConfig:       conf.TLSConfig,
+		MaxOpenConns:    conf.MaxOpenConns,
+		MaxIdleConns:    conf.MaxIdleConns,
+		ConnMaxLifetime: conf.ConnMaxLifetime,
+		SQLMode:         conf.SQLMode,
+		Region:          conf.Region,
+	}
+}
+
+// toCommonLoggingConfig converts a config.LoggingConfig to common_mysql.LoggingConfig.
+func toCommonLoggingConfig(conf *config.LoggingConfig) *common_mysql.LoggingConfig {
+	if conf == nil {
+		return nil
+	}
+	return &common_mysql.LoggingConfig{
+		TracingEnabled: conf.TracingEnabled,
+		TracingType:    conf.TracingType,
+	}
+}
+
+// fromCommonMysqlConfig converts a common_mysql.MysqlConfig to config.MysqlConfig.
+func fromCommonMysqlConfig(conf *common_mysql.MysqlConfig) *config.MysqlConfig {
+	if conf == nil {
+		return nil
+	}
+	return &config.MysqlConfig{
+		Protocol:        conf.Protocol,
+		Address:         conf.Address,
+		Username:        conf.Username,
+		Password:        conf.Password,
+		PasswordPath:    conf.PasswordPath,
+		Database:        conf.Database,
+		TLSCert:         conf.TLSCert,
+		TLSKey:          conf.TLSKey,
+		TLSCA:           conf.TLSCA,
+		TLSServerName:   conf.TLSServerName,
+		TLSConfig:       conf.TLSConfig,
+		MaxOpenConns:    conf.MaxOpenConns,
+		MaxIdleConns:    conf.MaxIdleConns,
+		ConnMaxLifetime: conf.ConnMaxLifetime,
+		SQLMode:         conf.SQLMode,
+		Region:          conf.Region,
+	}
 }
 
 func checkConfig(conf *config.MysqlConfig) error {
@@ -366,6 +464,28 @@ func checkConfig(conf *config.MysqlConfig) error {
 			return fmt.Errorf("register TLS config for mysql: %w", err)
 		}
 	}
+	return nil
+}
+
+// setupIAMAuthIfNeeded configures IAM authentication for RDS if the config
+// indicates it should be used (no password provided but region is set).
+func setupIAMAuthIfNeeded(conf *config.MysqlConfig, opts *common_mysql.DBOptions) error {
+	if conf.Password != "" || conf.PasswordPath != "" || conf.Region == "" {
+		return nil
+	}
+
+	// Parse host and port from address
+	host, port, err := net.SplitHostPort(conf.Address)
+	if err != nil {
+		host = conf.Address
+		port = "3306"
+	}
+
+	factory, err := rdsauth.NewConnectorFactory(conf, host, port)
+	if err != nil {
+		return fmt.Errorf("failed to create RDS IAM auth connector factory: %w", err)
+	}
+	opts.ConnectorFactory = factory
 	return nil
 }
 
@@ -421,12 +541,73 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 	if err != nil {
 		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
+	// This will only return a non-nil status if we detect the specific broken state from v4.73.2
+	status := ds.CheckFleetv4732BadMigrations(appliedTable)
+	if status != nil {
+		return status, nil
+	}
 	return compareMigrations(
 		tables.MigrationClient.Migrations,
 		data.MigrationClient.Migrations,
 		appliedTable,
 		appliedData,
 	), nil
+}
+
+// Checks for misnumbered migrations introduced in some released fleet v4.73.2 versions
+func (ds *Datastore) CheckFleetv4732BadMigrations(appliedTable []int64) *fleet.MigrationStatus {
+	if len(appliedTable) == 0 {
+		return nil
+	}
+	// If the last 3 migrations are the "bad" 4.73.2 migrations and then the good 4.73.1 migration, in that order,
+	// we are in the known-bad 4.73.2 state and should apply the fix
+	if len(appliedTable) > 2 &&
+		appliedTable[len(appliedTable)-1] == fleet4732BadMigrationID1 &&
+		appliedTable[len(appliedTable)-2] == fleet4732BadMigrationID2 &&
+		appliedTable[len(appliedTable)-3] == fleet4731GoodMigrationID {
+		return &fleet.MigrationStatus{
+			StatusCode: fleet.NeedsFleetv4732Fix,
+		}
+	}
+	for _, v := range appliedTable {
+		if v == fleet4732BadMigrationID1 || v == fleet4732BadMigrationID2 {
+			return &fleet.MigrationStatus{
+				StatusCode: fleet.UnknownFleetv4732State,
+			}
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) FixFleetv4732Migrations(ctx context.Context) error {
+	// Update version ID of the bad migrations to the renumbered version IDs. Exactly 1 row should be affected
+	// by each query
+	stmt := `UPDATE ` + tables.MigrationClient.TableName + ` SET version_id = ? WHERE version_id = ?`
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, stmt, fleet4732GoodMigrationID1, fleet4732BadMigrationID1)
+		if err != nil {
+			return err
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected != 1 {
+			return ctxerr.Errorf(ctx, "expected to affect 1 row for migration %d, affected %d", fleet4732BadMigrationID1, affected)
+		}
+		result, err = tx.ExecContext(ctx, stmt, fleet4732GoodMigrationID2, fleet4732BadMigrationID2)
+		if err != nil {
+			return err
+		}
+		affected, err = result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected != 1 {
+			return ctxerr.Errorf(ctx, "expected to affect 1 row for migration %d, affected %d", fleet4732BadMigrationID2, affected)
+		}
+		return nil
+	})
 }
 
 // It assumes some deployments may have performed migrations out of order.
@@ -592,23 +773,6 @@ func (ds *Datastore) Close() error {
 	return err
 }
 
-// sanitizeColumn is used to sanitize column names which can't be passed as placeholders when executing sql queries
-func sanitizeColumn(col string) string {
-	col = columnCharsRegexp.ReplaceAllString(col, "")
-	oldParts := strings.Split(col, ".")
-	parts := oldParts[:0]
-	for _, p := range oldParts {
-		if len(p) != 0 {
-			parts = append(parts, p)
-		}
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	col = "`" + strings.Join(parts, "`.`") + "`"
-	return col
-}
-
 // appendListOptionsToSelect will apply the given list options to ds and
 // return the new select dataset.
 //
@@ -645,7 +809,7 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	// to insure that an unbounded query with many results doesn't consume too
 	// much memory or hang
 	if perPage == 0 {
-		perPage = defaultSelectLimit
+		perPage = fleet.DefaultPerPage
 	}
 
 	offset := perPage * opts.Page
@@ -662,79 +826,23 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	return ds
 }
 
-// Appends the list options SQL to the passed in SQL string. This appended
-// SQL is determined by the passed in options.
-//
-// NOTE: this method will mutate the options argument if no explicit PerPage
-// option is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []interface{}) {
+// sanitizeColumn is a facade that calls common_mysql.SanitizeColumn.
+func sanitizeColumn(col string) string {
+	return common_mysql.SanitizeColumn(col)
+}
+
+// appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
 	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
-// Appends the list options SQL to the passed in SQL string. This appended
-// SQL is determined by the passed in options. This supports cursor options
-//
-// NOTE: this method will mutate the options argument if no explicit PerPage option
-// is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fleet.ListOptions) (string, []interface{}) {
-	orderKey := sanitizeColumn(opts.OrderKey)
-
-	if opts.After != "" && orderKey != "" {
-		afterSql := " WHERE "
-		if strings.Contains(strings.ToLower(sql), "where") {
-			afterSql = " AND "
-		}
-		if strings.HasSuffix(orderKey, "id") {
-			i, _ := strconv.Atoi(opts.After)
-			params = append(params, i)
-		} else {
-			params = append(params, opts.After)
-		}
-		direction := ">" // ASC
-		if opts.OrderDirection == fleet.OrderDescending {
-			direction = "<" // DESC
-		}
-		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, orderKey, direction)
-
-		// After existing supersedes Page, so we disable it
-		opts.Page = 0
-	}
-
-	if orderKey != "" {
-		direction := "ASC"
-		if opts.OrderDirection == fleet.OrderDescending {
-			direction = "DESC"
-		}
-
-		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
-		if opts.TestSecondaryOrderKey != "" {
-			direction := "ASC"
-			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
-				direction = "DESC"
-			}
-			sql += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.TestSecondaryOrderKey), direction)
-		}
-	}
-	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
-	// that an unbounded query with many results doesn't consume too much memory
-	// or hang
+// appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
+// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
+func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
 	if opts.PerPage == 0 {
-		opts.PerPage = defaultSelectLimit
+		opts.PerPage = fleet.DefaultPerPage
 	}
-
-	perPage := opts.PerPage
-	if opts.IncludeMetadata {
-		perPage++
-	}
-	sql = fmt.Sprintf("%s LIMIT %d", sql, perPage)
-
-	offset := opts.PerPage * opts.Page
-
-	if offset > 0 {
-		sql = fmt.Sprintf("%s OFFSET %d", sql, offset)
-	}
-
-	return sql, params
+	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
@@ -801,7 +909,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
 }
 
-// whereFilterGlobalOrTeamIDByTeams is the same as whereFilterHostsByTeams, it
+// whereFilterTeamWithGlobalStats is the same as whereFilterHostsByTeams, it
 // returns the appropriate condition to use in the WHERE clause to render only
 // the appropriate teams, but is to be used when the team_id column uses "0" to
 // mean "all teams including no team". This is the case e.g. for
@@ -810,7 +918,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filter provides the filtering parameters that should be used.
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
-func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+func (ds *Datastore) whereFilterTeamWithGlobalStats(filter fleet.TeamFilter, filterTableAlias string) string {
 	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)

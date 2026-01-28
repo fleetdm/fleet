@@ -180,20 +180,22 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   // ...
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <PackForm
-          className={`${baseClass}__pack-form`}
-          handleSubmit={handleSubmit}
-          onFetchTargets={onFetchTargets}
-          selectedTargetsCount={selectedTargetsCount}
-          isPremiumTier={isPremiumTier}
-        />
-      </MainContent>
-      <SidePanelContent>
-        <PackInfoSidePanel />
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <PackForm
+            className={`${baseClass}__pack-form`}
+            handleSubmit={handleSubmit}
+            onFetchTargets={onFetchTargets}
+            selectedTargetsCount={selectedTargetsCount}
+            isPremiumTier={isPremiumTier}
+          />
+        </MainContent>
+        <SidePanelContent>
+          <PackInfoSidePanel />
       </SidePanelContent>
     </>
+  </SidePanelPage>
   );
 };
 

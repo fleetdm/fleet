@@ -282,9 +282,9 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	h, err := ds.EnrollHost(context.Background(),
-		fleet.WithEnrollHostOsqueryHostID("1"),
-		fleet.WithEnrollHostNodeKey("key1"),
+	h, err := ds.EnrollOsquery(context.Background(),
+		fleet.WithEnrollOsqueryHostID("1"),
+		fleet.WithEnrollOsqueryNodeKey("key1"),
 	)
 	require.NoError(t, err)
 
@@ -399,23 +399,23 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	allLinux, _, err := ds.Label(context.Background(), 12, filter)
 	require.NoError(t, err)
 
-	allBuiltIn := []*fleet.Label{
+	allBuiltIn := []*fleet.LabelWithTeamName{
 		allHosts, macOS, ubuntuLinux, centOSLinux, msWindows, redHatLinux, allLinux,
 	}
 	for _, item := range []struct {
 		host   *fleet.Host
-		labels map[*fleet.Label]struct{}
+		labels map[*fleet.LabelWithTeamName]struct{}
 	}{
 		{
 			host: h1,
-			labels: map[*fleet.Label]struct{}{
+			labels: map[*fleet.LabelWithTeamName]struct{}{
 				allHosts: {},
 				macOS:    {},
 			},
 		},
 		{
 			host: h2,
-			labels: map[*fleet.Label]struct{}{
+			labels: map[*fleet.LabelWithTeamName]struct{}{
 				allHosts:    {},
 				centOSLinux: {},
 				allLinux:    {},
@@ -423,7 +423,7 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 		},
 		{
 			host: h3,
-			labels: map[*fleet.Label]struct{}{
+			labels: map[*fleet.LabelWithTeamName]struct{}{
 				allHosts:    {},
 				ubuntuLinux: {},
 				allLinux:    {},
@@ -431,21 +431,21 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 		},
 		{
 			host: h4,
-			labels: map[*fleet.Label]struct{}{
+			labels: map[*fleet.LabelWithTeamName]struct{}{
 				allHosts:  {},
 				msWindows: {},
 			},
 		},
 		{
 			host: h5,
-			labels: map[*fleet.Label]struct{}{
+			labels: map[*fleet.LabelWithTeamName]struct{}{
 				allHosts:  {},
 				msWindows: {},
 			},
 		},
 		{
 			host: h6,
-			labels: map[*fleet.Label]struct{}{
+			labels: map[*fleet.LabelWithTeamName]struct{}{
 				allHosts: {},
 				macOS:    {},
 			},

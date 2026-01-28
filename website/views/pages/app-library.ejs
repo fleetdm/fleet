@@ -8,14 +8,49 @@
           <p>Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.</p>
         </div>
       </div>
+      <div purpose="platform-filters" class="d-flex justify-content-center" :class="[bowser.windows ? 'detected-windows' : '']">
+        <div purpose="platform-filter" :class="[selectedPlatform === 'macos' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('macos')">
+          <h1 class="d-flex align-items-center">
+          <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
+          <span class="d-none d-sm-inline">macOS</span>
+          </h1>
+        </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
+          <h1 class="d-flex align-items-center">
+            <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
+            <span class="d-none d-sm-inline">Windows</span>
+          </h1>
+        </div>
+      </div>
       <div purpose="count-and-cta" class="d-flex flex-sm-row flex-column align-items-sm-center align-items-start justify-content-sm-between justify-content-center mb-3">
-        <div><p class="mb-0"><strong>{{allApps.length}} and counting....</strong></p></div>
+        <div v-if="selectedPlatform === 'macos'"><p class="mb-0"><strong>{{macOsApps.length}} and counting....</strong></p></div>
+        <div v-if="selectedPlatform === 'windows'"><p class="mb-0"><strong>{{windowsApps.length}} and counting....</strong></p></div>
         <div class="d-sm-block d-none">
           <a purpose="request-button" href="https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/README.md" target="_blank" no-icon>Add an app</a>
         </div>
       </div>
-      <div purpose="app-cards" class="card-deck flex-wrap">
-        <% for(let app of allApps) { %>
+      <div purpose="app-cards" class="card-deck flex-wrap"  v-if="selectedPlatform === 'macos'">
+        <% for(let app of macOsApps) { %>
+
+          <a href="/software-catalog/<%- app.identifier %>" purpose="app-card" class="card d-flex">
+            <div class="d-flex flex-row align-items-center justify-content-start">
+              <div purpose="app-icon">
+                <img alt="<%- app.name %> icon" src="/images/<%= app.iconFilename %>">
+              </div>
+              <div class="flex-column">
+                <h4><%- app.name %></h4>
+                <p purpose="app-version" class="mb-0">
+                  <%- app.version %>
+                </p>
+              </div>
+            </div>
+          </a>
+        <% } %>
+        <div purpose="app-card" class="card d-flex invisible"></div>
+        <div purpose="app-card" class="card d-flex invisible"></div>
+      </div>
+      <div purpose="app-cards" class="card-deck flex-wrap" v-if="selectedPlatform === 'windows'">
+        <% for(let app of windowsApps) { %>
 
           <a href="/software-catalog/<%- app.identifier %>" purpose="app-card" class="card d-flex">
             <div class="d-flex flex-row align-items-center justify-content-start">
@@ -54,11 +89,12 @@
           <div class="d-flex flex-column">
             <h3>App store</h3>
             <p>Manage app deployments and updates for your computers and mobile devices from any app store.</p>
-            <p purpose="feature-footnote">*Microsoft Store and Google Play coming soon</p>
+            <p purpose="feature-footnote">*Microsoft Store coming soon</p>
           </div>
         </div>
       </div>
     </div>
   </div>
+  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -29,7 +29,7 @@ import {
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
 // @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -37,9 +37,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import PageDescription from "components/PageDescription";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import DataSet from "components/DataSet";
 
 import labelsAPI, {
   getCustomLabels,
@@ -165,15 +167,20 @@ const PolicyForm = ({
     config,
   } = useContext(AppContext);
 
-  const {
-    data: { labels } = { labels: [] },
-    isFetching: isFetchingLabels,
-  } = useQuery<ILabelsSummaryResponse, Error>(
-    ["custom_labels"],
-    () => labelsAPI.summary(),
+  const { data: { labels } = { labels: [] } } = useQuery<
+    ILabelsSummaryResponse,
+    Error
+  >(
+    ["custom_labels", currentTeam],
+    () => labelsAPI.summary(currentTeam?.id, true),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
+      // Wait for the current team to load from context before pulling labels, otherwise on a page load
+      // directly on the policies new/edit page this gets called with currentTeam not set, then again
+      // with the correct team value. If we don't trigger on currentTeam changes we'll just start with a
+      // null team ID here and never populate with the correct team unless we navigate from another page
+      // where team context is already set prior to navigation.
+      enabled: isPremiumTier && !!currentTeam,
       staleTime: 10000,
       select: (res) => ({ labels: getCustomLabels(res.labels) }),
     }
@@ -375,22 +382,25 @@ const PolicyForm = ({
 
   const renderAuthor = (): JSX.Element | null => {
     return storedPolicy ? (
-      <>
-        <b>Author</b>
-        <div>
-          <Avatar
-            user={addGravatarUrlToResource({
-              email: storedPolicy.author_email,
-            })}
-            size="xsmall"
-          />
-          <span>
-            {storedPolicy.author_name === currentUser?.name
-              ? "You"
-              : storedPolicy.author_name}
-          </span>
-        </div>
-      </>
+      <DataSet
+        className={`${baseClass}__author`}
+        title="Author"
+        value={
+          <>
+            <Avatar
+              user={addGravatarUrlToResource({
+                email: storedPolicy.author_email,
+              })}
+              size="xsmall"
+            />
+            <span>
+              {storedPolicy.author_name === currentUser?.name
+                ? "You"
+                : storedPolicy.author_name}
+            </span>
+          </>
+        }
+      />
     ) : null;
   };
 
@@ -398,10 +408,10 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+          <Button variant="inverse" onClick={onOpenSchemaSidebar}>
             <>
               Schema
-              <Icon name="info" size="small" />
+              <Icon name="info" />
             </>
           </Button>
         )}
@@ -435,12 +445,12 @@ const PolicyForm = ({
     }
   };
 
-  const policyNameWrapperBase = "policy-name-wrapper";
+  const policyNameWrapperBase = `${baseClass}__policy-name-wrapper`;
   const policyNameWrapperClasses = classnames(policyNameWrapperBase, {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const policyDescriptionWrapperBase = "policy-description-wrapper";
+  const policyDescriptionWrapperBase = `${baseClass}__policy-description-wrapper`;
   const policyDescriptionWrapperClasses = classnames(
     policyDescriptionWrapperBase,
     {
@@ -448,7 +458,7 @@ const PolicyForm = ({
     }
   );
 
-  const policyResolutionWrapperBase = "policy-resolution-wrapper";
+  const policyResolutionWrapperBase = `${baseClass}__policy-resolution-wrapper`;
   const policyResolutionWrapperClasses = classnames(
     policyResolutionWrapperBase,
     {
@@ -490,8 +500,11 @@ const PolicyForm = ({
                 />
                 <Icon
                   name="pencil"
-                  className={`edit-icon ${isEditingName ? "hide" : ""}`}
+                  className={`${baseClass}__edit-icon ${
+                    isEditingName ? `${baseClass}__edit-icon--hide` : ""
+                  }`}
                   size="small-medium"
+                  color="core-fleet-green"
                 />
               </div>
             );
@@ -543,6 +556,7 @@ const PolicyForm = ({
                   name="pencil"
                   className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
                   size="small-medium"
+                  color="core-fleet-green"
                 />
               </div>
             );
@@ -590,6 +604,7 @@ const PolicyForm = ({
                     name="pencil"
                     className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
                     size="small-medium"
+                    color="core-fleet-green"
                   />
                 </div>
               );
@@ -615,7 +630,7 @@ const PolicyForm = ({
 
   const renderCriticalPolicy = () => {
     return (
-      <div className="critical-checkbox-wrapper">
+      <div className={`${baseClass}__critical-checkbox-wrapper`}>
         <Checkbox
           name="critical-policy"
           className="critical-policy"
@@ -646,22 +661,23 @@ const PolicyForm = ({
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
-        <div className="name-description-resolve">
-          <h1 className={`${baseClass}__policy-name no-hover`}>
-            {lastEditedQueryName}
-          </h1>
-          <p className={`${baseClass}__policy-description no-hover`}>
-            {lastEditedQueryDescription}
-          </p>
-          <p className="resolve-title">
-            <strong>Resolve:</strong>
-          </p>
-          <p className={`${baseClass}__policy-resolution no-hover`}>
-            {lastEditedQueryResolution}
-          </p>
-        </div>
-        <div className="author">{renderAuthor()}</div>
+        <h1
+          className={`${baseClass}__policy-name ${baseClass}__policy-name--no-hover`}
+        >
+          {lastEditedQueryName}
+        </h1>
+        {renderAuthor()}
       </div>
+      <PageDescription
+        className={`${baseClass}__policy-description no-hover`}
+        content={lastEditedQueryDescription}
+      />
+      <p className="resolve-title">
+        <strong>Resolve:</strong>
+      </p>
+      <p className={`${baseClass}__policy-resolution no-hover`}>
+        {lastEditedQueryResolution}
+      </p>
       <RevealButton
         isShowing={showQueryEditor}
         className={baseClass}
@@ -683,7 +699,6 @@ const PolicyForm = ({
         <div className="button-wrap">
           <Button
             className={`${baseClass}__run`}
-            variant="success"
             onClick={goToSelectTargets}
             disabled={isEditMode && !isAnyPlatformSelected}
           >
@@ -712,13 +727,11 @@ const PolicyForm = ({
       <>
         <form className={`${baseClass}__wrapper`} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
-            <div className="name-description-resolve">
-              {renderName()}
-              {renderDescription()}
-              {renderResolution()}
-            </div>
-            <div className="author">{isEditMode && renderAuthor()}</div>
+            <div className={`${baseClass}__policy-name`}>{renderName()}</div>
+            {isEditMode && renderAuthor()}
           </div>
+          {renderDescription()}
+          {renderResolution()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
@@ -731,7 +744,6 @@ const PolicyForm = ({
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
-            disabled={gitOpsModeEnabled}
           />
           {renderPlatformCompatibility()}
           {isEditMode && platformSelector.render()}
@@ -805,14 +817,13 @@ const PolicyForm = ({
               }
             >
               <Button
-                className={`${baseClass}__run`}
-                variant="success"
                 onClick={goToSelectTargets}
                 disabled={
                   (isEditMode && !isAnyPlatformSelected) || disabledLiveQuery
                 }
+                variant="inverse"
               >
-                Run
+                Run <Icon name="run" />
               </Button>
             </span>
             <ReactTooltip

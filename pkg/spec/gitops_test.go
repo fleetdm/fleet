@@ -272,7 +272,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Equal(t, "SELECT 1 FROM osquery_info", gitops.Labels[0].Query)
 					require.Len(t, gitops.Labels[1].Hosts, 2)
 					assert.Equal(t, "host1", gitops.Labels[1].Hosts[0])
-					assert.Equal(t, "host2", gitops.Labels[1].Hosts[1])
+					assert.Equal(t, "2", gitops.Labels[1].Hosts[1])
 
 				}
 
@@ -296,6 +296,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_enabled_and_configured not found")
 				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
 				assert.True(t, ok, "windows_migration_enabled not found")
+				_, ok = gitops.Controls.EnableTurnOnWindowsMDMManually.(bool)
+				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
@@ -697,6 +699,12 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "org_settings:\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "'org_settings.secrets' is required")
+
+					// Bad label spec (float instead of string in hosts)
+					config = getConfig([]string{"labels"})
+					config += "labels:\n  - name: TestLabel\n    description: Label for testing\n    hosts:\n    - 2.5\n    label_membership_type: manual\n"
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "hosts must be strings or integers, got float 2.5")
 				}
 
 				// Invalid agent_options
@@ -1179,7 +1187,36 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "at \"policy.install_software.package_path\", expected type fleet.SoftwarePackageSpec but got string")
+	assert.ErrorContains(t, err, "file \"./microsoft-teams.pkg.software.yml\" does not contain a valid software package definition")
+
+	// Policy references a software installer file that has multiple pieces of software specified
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+  - path: ./multipkg.policies.yml
+software:
+  packages:
+    - path: ./multiple-packages.yml
+`
+	path, basePath = createTempFile(t, "", config)
+	err = file.Copy(
+		filepath.Join("testdata", "multipkg.policies.yml"),
+		filepath.Join(basePath, "multipkg.policies.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	err = file.Copy(
+		filepath.Join("testdata", "software", "multiple-packages.yml"),
+		filepath.Join(basePath, "multiple-packages.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	appConfig = fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, "contains multiple packages, so cannot be used as a target for policy automation")
 }
 
 func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {
@@ -1270,6 +1307,63 @@ func getBaseConfig(options map[string]string, optsToExclude []string) string {
 	return config
 }
 
+func TestSoftwarePackagesUnmarshalMulti(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/single-package.yml
+    - path: software/multiple-packages.yml
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	for _, f := range []string{"single-package.yml", "multiple-packages.yml"} {
+		err := file.Copy(
+			filepath.Join("testdata", "software", f),
+			filepath.Join(basePath, "software", f),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+	}
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	require.NoError(t, err)
+}
+
+func TestSoftwarePackagesPathWithInline(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/single-package.yml
+      icon:
+        path: ./foo/bar.png
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	err := file.Copy(
+		filepath.Join("testdata", "software", "single-package.yml"),
+		filepath.Join(basePath, "software", "single-package.yml"),
+		os.FileMode(0o755),
+	)
+	require.NoError(t, err)
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the team level")
+}
+
 func TestIllegalFleetSecret(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
@@ -1293,6 +1387,65 @@ func TestInvalidSoftwareInstallerHash(t *testing.T) {
 	}
 	_, err := GitOpsFromFile("testdata/team_config_invalid_sha.yml", "./testdata", appConfig, nopLogf)
 	assert.ErrorContains(t, err, "must be a valid lower-case hex-encoded (64-character) SHA-256 hash value")
+}
+
+func TestSoftwareDisplayNameValidation(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	// Create a string with 256 'a' characters (exceeds 255 limit)
+	longDisplayName := strings.Repeat("a", 256)
+
+	t.Run("package_display_name_too_long", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		// Use hash instead of URL to avoid script validation before display_name validation
+		config += `name: Test Team
+software:
+  packages:
+    - hash_sha256: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+      display_name: "` + longDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
+	})
+
+	t.Run("app_store_display_name_too_long", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      display_name: "` + longDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
+	})
+
+	t.Run("valid_display_name", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		// Use hash instead of URL to avoid network calls, and no scripts required
+		config += `name: Test Team
+software:
+  packages:
+    - hash_sha256: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+      display_name: "Custom Package Name"
+  app_store_apps:
+    - app_store_id: "12345"
+      display_name: "Custom VPP App Name"
+`
+		path, basePath := createTempFile(t, "", config)
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.Equal(t, "Custom Package Name", result.Software.Packages[0].DisplayName)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		assert.Equal(t, "Custom VPP App Name", result.Software.AppStoreApps[0].DisplayName)
+	})
 }
 
 func TestWebhookPolicyIDsValidation(t *testing.T) {

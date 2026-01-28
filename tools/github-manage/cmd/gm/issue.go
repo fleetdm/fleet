@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"fleetdm/gm/pkg/tui"
+
 	"github.com/spf13/cobra"
 )
 
@@ -16,11 +17,7 @@ var issuesCmd = &cobra.Command{
 			fmt.Printf("Error getting search flag: %v\n", err)
 			return
 		}
-		model := initializeModelForIssues(search)
-		p := tea.NewProgram(&model)
-		if _, err := p.Run(); err != nil {
-			fmt.Printf("Error running Bubble Tea program: %v\n", err)
-		}
+		tui.RunTUI(tui.IssuesCommand, 0, 0, search)
 	},
 }
 

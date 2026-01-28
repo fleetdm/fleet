@@ -97,28 +97,6 @@ parasails.registerPage('start', {
       this.psychologicalStage = this.me.psychologicalStage;
     }
     if(window.location.hash) {
-      if(window.analytics !== undefined) {
-        if(window.location.hash === '#signup') {
-          analytics.identify(this.me.id, {
-            email: this.me.emailAddress,
-            firstName: this.me.firstName,
-            lastName: this.me.lastName,
-            company: this.me.organization,
-            primaryBuyingSituation: this.me.primaryBuyingSituation,
-            psychologicalStage: this.me.psychologicalStage,
-          });
-          analytics.track('fleet_website__sign_up');
-        } else if(window.location.hash === '#login') {
-          analytics.identify(this.me.id, {
-            email: this.me.emailAddress,
-            firstName: this.me.firstName,
-            lastName: this.me.lastName,
-            company: this.me.organization,
-            primaryBuyingSituation: this.me.primaryBuyingSituation,
-            psychologicalStage: this.me.psychologicalStage,
-          });
-        }
-      }
       window.location.hash = '';
     }
   },
@@ -141,16 +119,6 @@ parasails.registerPage('start', {
       this.previouslyAnsweredQuestions[this.currentStep] = questionanireProgress.getStartedProgress[this.currentStep];
       this.psychologicalStage = questionanireProgress.psychologicalStage;
       this.primaryBuyingSituation = questionanireProgress.primaryBuyingSituation;
-      if(typeof analytics !== 'undefined') {
-        analytics.identify(this.me.id, {
-          email: this.me.emailAddress,
-          firstName: this.me.firstName,
-          lastName: this.me.lastName,
-          company: this.me.organization,
-          primaryBuyingSituation: this.primaryBuyingSituation,
-          psychologicalStage: this.psychologicalStage,
-        });
-      }
       if(_.startsWith(nextStep, '/')){
         this.goto(nextStep);
       } else {

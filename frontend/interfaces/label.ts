@@ -16,6 +16,15 @@ export default PropTypes.shape({
 
 export type LabelType = "regular" | "builtin";
 export type LabelMembershipType = "dynamic" | "manual" | "host_vitals";
+export const LabelMembershipTypeToDisplayCopy: Record<
+  LabelMembershipType,
+  string
+> = {
+  dynamic: "Dynamic",
+  manual: "Manual",
+  host_vitals: "Host vitals",
+};
+
 export type LabelHostVitalsCriterion =
   | "end_user_idp_group"
   | "end_user_idp_department"; // for now, may expand to be configurable
@@ -71,6 +80,8 @@ export interface ILabel extends ILabelSummary {
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
   author_id?: number;
+  team_id: number | null;
+  team_name?: string | null; // returned on individual label endpoints but not list endpoints
 
   label_membership_type: LabelMembershipType;
 

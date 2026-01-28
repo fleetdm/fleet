@@ -14,7 +14,7 @@ import (
 
 func computeRawChecksumIncludingName(sw fleet.Software) ([]byte, error) {
 	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
-	cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
+	cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.ExtensionFor, sw.ExtensionID}
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func TestUp_20250410104321(t *testing.T) {
 		{Name: "MacApp2 2.app", Source: "apps", BundleIdentifier: "com.example.foo2", Version: "2"},
 		{Name: "MacApp2.1.app", Source: "apps", BundleIdentifier: "com.example.foo2", Version: "2.1"},   // should be a different software post-migration
 		{Name: "MacApp2.1 2.app", Source: "apps", BundleIdentifier: "com.example.foo2", Version: "2.1"}, // should be the same software as the line above
-		{Name: "Chrome Extension", Source: "chrome_extensions", Browser: "chrome", Version: "3"},
+		{Name: "Chrome Extension", Source: "chrome_extensions", ExtensionFor: "chrome", Version: "3"},
 		{Name: "Microsoft Teams.exe", Source: "programs", Version: "4"},
 		{Name: "Live Captions.app", Source: "apps", BundleIdentifier: "com.apple.accessibility.LiveTranscriptionAgent", Version: "1.0"},
 		{Name: "LiveTranscriptionAgent.app", Source: "apps", BundleIdentifier: "com.apple.accessibility.LiveTranscriptionAgent", Version: "1.0"},
@@ -49,7 +49,7 @@ func TestUp_20250410104321(t *testing.T) {
 	}
 
 	// add some software titles
-	dataStmt := `INSERT INTO software_titles (name, source, browser, bundle_identifier) VALUES (?, ?, ?, ?)`
+	dataStmt := `INSERT INTO software_titles (name, source, extension_for, bundle_identifier) VALUES (?, ?, ?, ?)`
 	for i, s := range softwares {
 		if (i > 0 && s.BundleIdentifier == "com.example.foo") ||
 			s.Name == "LiveTranscriptionAgent.app" ||
@@ -61,7 +61,7 @@ func TestUp_20250410104321(t *testing.T) {
 		if s.BundleIdentifier == "" {
 			bid = nil
 		}
-		id := execNoErrLastID(t, db, dataStmt, s.Name, s.Source, s.Browser, bid)
+		id := execNoErrLastID(t, db, dataStmt, s.Name, s.Source, s.ExtensionFor, bid)
 		if s.BundleIdentifier == "com.example.foo" { // All the initial duplicates should map to the same title ID
 			for i := range 4 {
 				softwares[i].TitleID = ptr.Uint(uint(id)) //nolint:gosec // dismiss G115
@@ -85,7 +85,7 @@ func TestUp_20250410104321(t *testing.T) {
 
 	// add some software entries and host_software entries
 	dataStmt = `INSERT INTO software
-		(name, version, source, bundle_identifier, ` + "`release`" + `, arch, vendor, browser, extension_id, checksum, title_id)
+		(name, version, source, bundle_identifier, ` + "`release`" + `, arch, vendor, extension_for, extension_id, checksum, title_id)
 	VALUES
 		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
@@ -98,7 +98,7 @@ func TestUp_20250410104321(t *testing.T) {
 			t,
 			db,
 			dataStmt,
-			s.Name, s.Version, s.Source, s.BundleIdentifier, "", "", "", s.Browser, "",
+			s.Name, s.Version, s.Source, s.BundleIdentifier, "", "", "", s.ExtensionFor, "",
 			checksum,
 			s.TitleID,
 		)
@@ -146,7 +146,7 @@ func TestUp_20250410104321(t *testing.T) {
 	require.Len(t, gotSoftware, 9)
 
 	var gotSoftwareTitles []fleet.SoftwareTitle
-	err = db.Select(&gotSoftwareTitles, "SELECT id, name, source, browser, bundle_identifier FROM software_titles")
+	err = db.Select(&gotSoftwareTitles, "SELECT id, name, source, extension_for, bundle_identifier FROM software_titles")
 	require.NoError(t, err)
 	require.Len(t, gotSoftwareTitles, 8) // two versions of MacApp2
 

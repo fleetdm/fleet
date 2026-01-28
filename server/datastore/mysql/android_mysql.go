@@ -5,9 +5,9 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 )
@@ -46,4 +46,8 @@ func (ds *AndroidDatastore) Writer(_ context.Context) *sqlx.DB {
 
 func (ds *AndroidDatastore) WithRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
 	return common_mysql.WithRetryTxx(ctx, ds.Writer(ctx), fn, ds.logger)
+}
+
+func (ds *AndroidDatastore) WithTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+	return common_mysql.WithTxx(ctx, ds.Writer(ctx), fn, ds.logger)
 }

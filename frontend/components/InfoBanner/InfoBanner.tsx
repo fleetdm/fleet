@@ -20,7 +20,7 @@ export interface IInfoBannerProps {
   cta?: JSX.Element;
   /** closable and link are mutually exclusive */
   closable?: boolean;
-  icon?: IconNames;
+  icon?: IconNames; // TODO: This is unused but several banners have icons within children that can be refactored to use this for consistent styling
 }
 
 const InfoBanner = ({

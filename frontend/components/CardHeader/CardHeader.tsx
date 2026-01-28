@@ -7,12 +7,20 @@ interface ICardHeaderProps {
   header?: JSX.Element | string;
   subheader?: JSX.Element | string;
   className?: string;
+  variant?: "mobile-header";
 }
 
 /** A generic CardHeader component to be used within Card component
  * that styles header and subheader */
-const CardHeader = ({ header, subheader, className }: ICardHeaderProps) => {
-  const classNames = classnames(baseClass, className);
+const CardHeader = ({
+  header,
+  subheader,
+  className,
+  variant,
+}: ICardHeaderProps) => {
+  const classNames = classnames(baseClass, className, {
+    [`${baseClass}--${variant}`]: !!variant,
+  });
 
   return (
     <div className={classNames}>

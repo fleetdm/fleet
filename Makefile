@@ -210,7 +210,10 @@ lint-js:
 .help-short--lint-go:
 	@echo "Run the Go linters"
 lint-go:
-	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
+	golangci-lint run --timeout 15m
+ifndef SKIP_INCREMENTAL
+	golangci-lint run -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+endif
 
 .help-short--lint:
 	@echo "Run linters"
@@ -275,7 +278,7 @@ endif
 	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
 	@echo "Arguments to send to \"go test\"."
 run-go-tests:
-	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
+	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
 .help-short--debug-go-tests:
 	@echo "Debug Go tests in specific packages (with Delve)"
@@ -289,7 +292,7 @@ run-go-tests:
 	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
 	@echo "Arguments to send to \"go test\"."
 debug-go-tests:
-	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
+	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Set up packages for CI testing.
 DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
@@ -673,21 +676,21 @@ endif
 # Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
 #
 # Usage:
-# make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
+# make swift-dialog-app-tar-gz version=2.5.6 build=4805 out-path=.
 swift-dialog-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
 	@exit 1
 endif
-	# locking the version of swiftDialog to 2.2.1-4591 as newer versions
+	# locking the version of swiftDialog to 2.5.6-4805 as newer versions
 	# might have layout issues.
-ifneq ($(version), 2.2.1)
-	@echo "Version is locked at 2.1.0, see comments in Makefile target for details"
+ifneq ($(version), 2.5.6)
+	@echo "Version is locked at 2.5.6, see comments in Makefile target for details"
 	@exit 1
 endif
 
-ifneq ($(build), 4591)
-	@echo "Build version is locked at 4591, see comments in Makefile target for details"
+ifneq ($(build), 4805)
+	@echo "Build version is locked at 4805, see comments in Makefile target for details"
 	@exit 1
 endif
 	$(eval TMP_DIR := $(shell mktemp -d))
@@ -695,6 +698,8 @@ endif
 	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
 	mkdir -p $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/tmp-package.pkg/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	# Remove xattrs which are included in the .pkg(erroneously?) in some versions
+	xattr -cr $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
@@ -758,7 +763,7 @@ desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir -p /output/fleet-desktop && \
-		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		CGO_ENABLED=1 CC=musl-gcc go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-linkmode external -extldflags \\\"-static\\\" -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
@@ -813,9 +818,9 @@ db-replica-setup:
 	$(eval MYSQL_REPLICATION_USER := replicator)
 	$(eval MYSQL_REPLICATION_PASSWORD := rotacilper)
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "stop slave; reset slave all;"
-	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%'; flush privileges;"
-	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep Position | grep -o '[0-9]*'))
-	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep File | sed -n -e 's/^.*: //p'))
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%' identified with mysql_native_password by '$(MYSQL_REPLICATION_PASSWORD)'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%'; flush privileges;"
+	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot --vertical -e 'show master status' | grep Position | grep -o '[0-9]*'))
+	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot --vertical -e 'show master status' | grep File | sed -n -e 's/^.*: //p'))
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_port=3306,master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
 	if [ "${FLEET_MYSQL_IMAGE}" == "mysql:8.0" ]; then MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to get_master_public_key=1;"; fi
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_delay=1;"
@@ -836,6 +841,10 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleet >> security/status.md'
 	sh -c 'echo "## \`fleetdm/fleetctl\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
+	sh -c 'echo "## \`fleetdm/wix\` docker image\n" >> security/status.md'
+	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
+	sh -c 'echo "## \`fleetdm/bomutils\` docker image\n" >> security/status.md'
+	sh -c 'go run ./tools/vex-parser ./security/vex/bomutils >> security/status.md'
 
 # make update-go version=1.24.4
 UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile

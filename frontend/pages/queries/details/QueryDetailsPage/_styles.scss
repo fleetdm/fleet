@@ -1,20 +1,10 @@
 .query-details-page {
-  &__wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-  }
+  @include vertical-page-layout;
+
   &__title-bar {
     display: flex;
     justify-content: space-between;
-    margin-top: $pad-small;
     gap: $pad-medium;
-
-    .name-description {
-      display: flex;
-      flex-direction: column;
-      gap: $pad-small;
-    }
   }
 
   &__action-button-container {
@@ -27,12 +17,6 @@
   &__query-name {
     margin-top: 0;
     font-size: $large;
-  }
-
-  &__query-description {
-    margin-top: 0;
-    margin-bottom: $pad-small;
-    font-size: $x-small;
   }
 
   &__settings {
@@ -62,12 +46,12 @@
     }
 
     ul {
-      color: $core-white;
+      color: $core-fleet-white;
 
       li {
         &::before {
           content: "•";
-          color: $core-white;
+          color: $core-fleet-white;
         }
       }
     }

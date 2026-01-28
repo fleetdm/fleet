@@ -12,7 +12,11 @@ import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { IConfig, IWebhookSettings } from "interfaces/config";
+import {
+  IConfig,
+  IWebhookSettings,
+  isConditionalAccessConfigured,
+} from "interfaces/config";
 import { IZendeskJiraIntegrations } from "interfaces/integration";
 import { INotification } from "interfaces/notification";
 import {
@@ -52,6 +56,7 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
 import LastUpdatedText from "components/LastUpdatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -120,6 +125,11 @@ const ManagePolicyPage = ({
   } = useContext(AppContext);
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
+  const isManagedCloud =
+    globalConfigFromContext?.license?.managed_cloud || false;
+  const conditionalAccessProviderText = isManagedCloud
+    ? "Okta or Microsoft Entra"
+    : "Okta";
 
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -363,8 +373,7 @@ const ManagePolicyPage = ({
 
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canManageAutomations = canAddOrDeletePolicies;
 
   const {
     data: globalConfig,
@@ -1115,10 +1124,6 @@ const ManagePolicyPage = ({
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
-  const isConditionalAccessConfigured =
-    globalConfig?.conditional_access?.microsoft_entra_connection_configured ??
-    false;
-
   const isConditionalAccessEnabled =
     (teamIdForApi === API_NO_TEAM_ID
       ? globalConfig?.integrations.conditional_access_enabled
@@ -1198,17 +1203,14 @@ const ManagePolicyPage = ({
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
-    ];
-
-    if (globalConfigFromContext?.license.managed_cloud) {
-      options.push({
+      {
         label: "Conditional access",
         value: "conditional_access",
         isDisabled: !!disabledConditionalAccessTooltipContent,
         helpText: "Block single sign-on for hosts failing policies.",
         tooltipContent: disabledConditionalAccessTooltipContent,
-      });
-    }
+      },
+    ];
 
     // Maintainers do not have access to other workflows
     if (!isGlobalMaintainer && !isTeamMaintainer) {
@@ -1308,37 +1310,40 @@ const ManagePolicyPage = ({
   }
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
+
+            {showCtaButtons && (
+              <div className={`${baseClass} button-wrap`}>
+                {automationsDropdown}
+                {canAddOrDeletePolicies && (
+                  <div className={`${baseClass}__action-button-container`}>
+                    <Button
+                      className={`${baseClass}__select-policy-button`}
+                      onClick={onAddPolicyClick}
+                    >
+                      Add policy
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          {showCtaButtons && (
-            <div className={`${baseClass} button-wrap`}>
-              {automationsDropdown}
-              {canAddOrDeletePolicies && (
-                <div className={`${baseClass}__action-button-container`}>
-                  <Button
-                    className={`${baseClass}__select-policy-button`}
-                    onClick={onAddPolicyClick}
-                  >
-                    Add policy
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className={`${baseClass}__description`}>
-          <p>{teamsDropdownHelpText}</p>
+          <PageDescription content={teamsDropdownHelpText} />
         </div>
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
+            router={router}
             automationsConfig={automationsConfig}
-            availableIntegrations={automationsConfig.integrations}
+            availableIntegrations={
+              // Although TypeScript thinks globalConfig could be undefined here, in practice it will always be present for users with canManageAutomations/canAddOrDeletePolicies permissions.
+              globalConfig?.integrations || automationsConfig.integrations
+            }
             availablePolicies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
@@ -1389,14 +1394,15 @@ const ManagePolicyPage = ({
           <ConditionalAccessModal
             onExit={toggleConditionalAccessModal}
             onSubmit={onUpdateConditionalAccess}
-            configured={isConditionalAccessConfigured}
+            configured={isConditionalAccessConfigured(globalConfig)}
             enabled={isConditionalAccessEnabled}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}
             teamId={currentTeamId ?? 0}
+            providerText={conditionalAccessProviderText}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

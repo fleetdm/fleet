@@ -175,6 +175,7 @@ const IntegrationForm = ({
           className={`${baseClass}__form`}
           onSubmit={onFormSubmit}
           autoComplete="off"
+          noValidate
         >
           <InputField
             autofocus
@@ -211,6 +212,7 @@ const IntegrationForm = ({
               parseTarget
               value={email}
               disabled={gitOpsModeEnabled}
+              type="email"
             />
           )}
           <InputField
@@ -292,7 +294,7 @@ const IntegrationForm = ({
                         type="submit"
                         disabled={formInvalid || disableChildren}
                       >
-                        Save
+                        Add
                       </Button>
                     </div>
                     <ReactTooltip

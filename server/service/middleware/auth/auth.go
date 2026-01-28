@@ -3,8 +3,14 @@ package auth
 import (
 	"context"
 	"net/http"
+	"time"
 
+	kithttp "github.com/go-kit/kit/transport/http"
+
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -40,6 +46,22 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			return next(ctx, request)
 		}
 
+		requestPath, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+
+		httpSig, sigOk := httpsig.FromContext(ctx)
+		if sigOk && httpsig.IsSigAuthEndpoint(requestPath) {
+			if time.Now().After(httpSig.NotValidAfter) {
+				return nil, fleet.NewAuthFailedError("host identity certificate expired")
+			}
+			if httpSig.HostID == nil {
+				return nil, fleet.NewAuthFailedError("identity certificate is not linked to a specific host")
+			}
+			if ac, ok := authz.FromContext(ctx); ok {
+				ac.SetAuthnMethod(authz.AuthnHTTPMessageSignature)
+			}
+			return next(ctx, request)
+		}
+
 		// if not successful, try again this time with errors
 		sessionKey, ok := token.FromContext(ctx)
 		if !ok {
@@ -56,6 +78,10 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		}
 
 		ctx = viewer.NewContext(ctx, *v)
+		// Register viewer as error context provider for ctxerr enrichment
+		ctx = ctxerr.AddErrorContextProvider(ctx, v)
+		// Register viewer as user emailer for logging
+		ctx = logging.WithUserEmailer(ctx, v)
 		if ac, ok := authz.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz.AuthnUserToken)
 		}
@@ -103,6 +129,10 @@ func AuthenticatedUserMiddleware(svc fleet.Service, errHandler errorHandler, nex
 		}
 
 		ctx := viewer.NewContext(r.Context(), *v)
+		// Register viewer as error context provider for ctxerr enrichment
+		ctx = ctxerr.AddErrorContextProvider(ctx, v)
+		// Register viewer as user emailer for logging
+		ctx = logging.WithUserEmailer(ctx, v)
 		if ac, ok := authz.FromContext(r.Context()); ok {
 			ac.SetAuthnMethod(authz.AuthnUserToken)
 		}

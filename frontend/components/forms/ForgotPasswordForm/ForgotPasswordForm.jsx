@@ -17,13 +17,19 @@ class ForgotPasswordForm extends Component {
       email: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func,
+    isLoading: PropTypes.bool,
   };
 
   render() {
-    const { baseError, fields, handleSubmit } = this.props;
+    const { baseError, fields, handleSubmit, isLoading } = this.props;
 
     return (
-      <form onSubmit={handleSubmit} className={baseClass} autoComplete="off">
+      <form
+        onSubmit={handleSubmit}
+        className={baseClass}
+        autoComplete="off"
+        noValidate
+      >
         {baseError && <div className="form__base-error">{baseError}</div>}
         <p>
           Enter your email below to receive an email with instructions to reset
@@ -34,9 +40,14 @@ class ForgotPasswordForm extends Component {
           autofocus
           label="Email"
           placeholder="Email"
+          type="email"
         />
         <div className="button-wrap">
-          <Button className={`${baseClass}__submit-btn`} type="submit">
+          <Button
+            className={`${baseClass}__submit-btn`}
+            type="submit"
+            isLoading={isLoading}
+          >
             Get instructions
           </Button>
         </div>

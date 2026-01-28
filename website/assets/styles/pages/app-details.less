@@ -78,8 +78,8 @@
     }
     [purpose='app-details'] {
       padding-right: 64px;
-      max-width: 800px;
       width: 100%;
+      min-width: 0px;// Prevents long overflowing text from keeping this element from shrinking.
       p {
         margin-bottom: 24px;
         margin-top: 16px;
@@ -149,7 +149,7 @@
     }
 
     [purpose='right-sidebar'] {
-      width: 256px;
+      min-width: 220px;
       margin-left: 16px;
       font-size: 14px;
       transition-property: transform;

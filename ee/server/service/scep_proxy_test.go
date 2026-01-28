@@ -2,23 +2,20 @@ package service
 
 import (
 	"context"
-	"crypto/x509"
+	"database/sql"
 	"encoding/binary"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
-	"syscall"
 	"testing"
 	"time"
-	"unicode/utf16"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
-	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,7 +38,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}))
 	t.Cleanup(ndesAdminServer.Close)
 
-	proxy := fleet.NDESSCEPProxyIntegration{
+	proxy := fleet.NDESSCEPProxyCA{
 		AdminURL: ndesAdminServer.URL,
 		Username: "admin",
 		Password: "password",
@@ -102,13 +99,90 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.NoError(t, err)
+
+	// Test UTF-8 response (like Okta returns) - should also work with auto-detection
+	returnPage = func() []byte {
+		// Return UTF-8 directly without converting to UTF-16
+		dat, err := os.ReadFile("./testdata/mscep_admin_password.html")
+		require.NoError(t, err)
+		return dat
+	}
+	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	assert.NoError(t, err)
 }
 
-func TestValidateNDESSCEPURL(t *testing.T) {
+func TestDecodeHTMLResponse(t *testing.T) {
 	t.Parallel()
-	srv := newSCEPServer(t)
 
-	proxy := fleet.NDESSCEPProxyIntegration{
+	testCases := []struct {
+		name        string
+		input       []byte
+		contentType string
+		expected    string
+	}{
+		{
+			name:        "empty input",
+			input:       []byte{},
+			contentType: "",
+			expected:    "",
+		},
+		{
+			name:        "UTF-8 ASCII without content type",
+			input:       []byte("<HTML><Body>The enrollment challenge password is: <B> ABC123 </B></Body></HTML>"),
+			contentType: "",
+			expected:    "<HTML><Body>The enrollment challenge password is: <B> ABC123 </B></Body></HTML>",
+		},
+		{
+			name:        "UTF-8 with explicit charset",
+			input:       []byte("<HTML><Body>Test</Body></HTML>"),
+			contentType: "text/html; charset=utf-8",
+			expected:    "<HTML><Body>Test</Body></HTML>",
+		},
+		{
+			name: "UTF-16 LE detected by HTML pattern",
+			input: func() []byte {
+				// "<HTML>" in UTF-16 LE: '<' 0x00 'H' 0x00 ... detected by '<' 0x00 pattern
+				s := "<HTML>"
+				result := make([]byte, len(s)*2)
+				for i := 0; i < len(s); i++ {
+					result[i*2] = s[i]
+					result[i*2+1] = 0x00
+				}
+				return result
+			}(),
+			contentType: "",
+			expected:    "<HTML>",
+		},
+		{
+			name: "UTF-16 LE detected by BOM",
+			input: func() []byte {
+				// BOM (FF FE) followed by "<H>" in UTF-16 LE
+				return []byte{0xFF, 0xFE, '<', 0x00, 'H', 0x00, '>', 0x00}
+			}(),
+			contentType: "",
+			expected:    "<H>",
+		},
+		{
+			name:        "short UTF-8 input",
+			input:       []byte("Hi"),
+			contentType: "",
+			expected:    "Hi",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := decodeHTMLResponse(tc.input, tc.contentType)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestValidateSCEPURL(t *testing.T) {
+	t.Parallel()
+	srv := NewTestSCEPServer(t)
+
+	proxy := fleet.NDESSCEPProxyCA{
 		URL: srv.URL + "/scep",
 	}
 	logger := kitlog.NewNopLogger()
@@ -121,51 +195,927 @@ func TestValidateNDESSCEPURL(t *testing.T) {
 	assert.ErrorContains(t, err, "could not retrieve CA certificate")
 }
 
-// utf16FromString returns the UTF-16 encoding of the UTF-8 string s, with a terminating NUL added.
-// If s contains a NUL byte at any location, it returns (nil, syscall.EINVAL).
-func utf16FromString(s string) ([]uint16, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, syscall.EINVAL
+func TestValidateIdentifier(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	logger := kitlog.NewNopLogger()
+
+	// Helper to create a scepProxyService with a mock datastore
+	newTestService := func(ds *mock.DataStore) *scepProxyService {
+		return &scepProxyService{
+			ds:          ds,
+			debugLogger: logger,
+			Timeout:     ptr.Duration(30 * time.Second),
 		}
 	}
-	return utf16.Encode([]rune(s + "\x00")), nil
-}
 
-func newSCEPServer(t *testing.T) *httptest.Server {
-	var err error
-	var certDepot depot.Depot // cert storage
-	depotPath := "./testdata/testca"
-	t.Cleanup(func() {
-		_ = os.Remove("./testdata/testca/serial")
-		_ = os.Remove("./testdata/testca/index.txt")
+	// Helper to create a valid identifier
+	makeIdentifier := func(hostUUID, profileUUID, caName, challenge string) string {
+		id := hostUUID + "," + profileUUID
+		if caName != "" {
+			id += "," + caName
+		}
+		if challenge != "" {
+			id += "," + challenge
+		}
+		return url.PathEscape(id)
+	}
+
+	t.Run("identifier parsing errors", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		svc := newTestService(ds)
+
+		testCases := []struct {
+			name       string
+			identifier string
+			errMsg     string
+		}{
+			{
+				name:       "empty identifier",
+				identifier: "",
+				errMsg:     "invalid identifier in URL path",
+			},
+			{
+				name:       "single element",
+				identifier: "host-uuid-only",
+				errMsg:     "invalid identifier in URL path",
+			},
+			{
+				name:       "empty host UUID",
+				identifier: makeIdentifier("", "a-profile-uuid", "", ""),
+				errMsg:     "invalid identifier in URL path",
+			},
+			{
+				name:       "empty profile UUID",
+				identifier: makeIdentifier("host-uuid", "", "", ""),
+				errMsg:     "invalid identifier in URL path",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := svc.validateIdentifier(ctx, tc.identifier, false)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errMsg)
+			})
+		}
 	})
-	certDepot, err = filedepot.NewFileDepot(depotPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	certDepot = &noopDepot{certDepot}
-	crt, key, err := certDepot.CA([]byte{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var svc scepserver.Service // scep service
-	svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
-	if err != nil {
-		t.Fatal(err)
-	}
-	logger := kitlog.NewNopLogger()
-	e := scepserver.MakeServerEndpoints(svc)
-	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
-	r := mux.NewRouter()
-	r.Handle("/scep", scepHandler)
-	server := httptest.NewServer(r)
-	t.Cleanup(server.Close)
-	return server
-}
 
-type noopDepot struct{ depot.Depot }
+	t.Run("invalid profile UUID prefix", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		svc := newTestService(ds)
 
-func (d *noopDepot) Put(_ string, _ *x509.Certificate) error {
-	return nil
+		// Profile UUID must start with "a" (Apple) or "w" (Windows)
+		identifier := makeIdentifier("host-uuid", "invalid-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid profile UUID")
+	})
+
+	t.Run("profile not found", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return nil, nil // Profile not found
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown identifier in URL path")
+	})
+
+	t.Run("profile status not pending for Apple profile", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		verifiedStatus := fleet.MDMDeliveryVerified
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &verifiedStatus,
+				Type:        fleet.CAConfigNDES,
+				CAName:      caName,
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "profile status (verified) is not 'pending'")
+	})
+
+	t.Run("Windows profile skips status check", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "test-ca", URL: "https://scep.example.com/scep"},
+				},
+			}, nil
+		}
+		verifiedStatus := fleet.MDMDeliveryVerified
+		ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &verifiedStatus, // Not pending, but should pass for Windows
+				Type:        fleet.CAConfigCustomSCEPProxy,
+				CAName:      "test-ca",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		// Windows profiles skip status check
+		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "test-ca", "")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, false)
+		require.NoError(t, err)
+		assert.Equal(t, "https://scep.example.com/scep", scepURL)
+	})
+
+	t.Run("NDES CA not configured", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: nil, // NDES not configured
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigNDES,
+				CAName:      "NDES",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), MessageSCEPProxyNotConfigured)
+	})
+
+	t.Run("NDES valid request without challenge check", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigNDES,
+				CAName:      "NDES",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, false)
+		require.NoError(t, err)
+		assert.Equal(t, "https://ndes.example.com/scep", scepURL)
+	})
+
+	t.Run("NDES challenge expired triggers requeue", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		expiredTime := time.Now().Add(-58 * time.Minute) // Expired (>57 minutes)
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &pendingStatus,
+				Type:                 fleet.CAConfigNDES,
+				CAName:               "NDES",
+				ChallengeRetrievedAt: &expiredTime,
+			}, nil
+		}
+		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "a-profile-uuid", profileUUID)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "challenge password has expired")
+		assert.True(t, ds.ResendHostMDMProfileFuncInvoked)
+		ds.ResendHostMDMProfileFuncInvoked = false
+	})
+
+	t.Run("NDES challenge not expired", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		recentTime := time.Now().Add(-30 * time.Minute) // Not expired (<57 minutes)
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &pendingStatus,
+				Type:                 fleet.CAConfigNDES,
+				CAName:               "NDES",
+				ChallengeRetrievedAt: &recentTime,
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, true)
+		require.NoError(t, err)
+		assert.Equal(t, "https://ndes.example.com/scep", scepURL)
+	})
+
+	t.Run("Smallstep CA not configured", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				Smallstep: []fleet.SmallstepSCEPProxyCA{}, // Empty
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigSmallstep,
+				CAName:      "my-smallstep",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-smallstep", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), MessageSCEPProxyNotConfigured)
+	})
+
+	t.Run("Smallstep valid request", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				Smallstep: []fleet.SmallstepSCEPProxyCA{
+					{Name: "my-smallstep", URL: "https://smallstep.example.com/scep"},
+				},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigSmallstep,
+				CAName:      "my-smallstep",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-smallstep", "")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, false)
+		require.NoError(t, err)
+		assert.Equal(t, "https://smallstep.example.com/scep", scepURL)
+	})
+
+	t.Run("Smallstep challenge expired triggers requeue", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				Smallstep: []fleet.SmallstepSCEPProxyCA{
+					{Name: "my-smallstep", URL: "https://smallstep.example.com/scep"},
+				},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		expiredTime := time.Now().Add(-5 * time.Minute) // Expired (>4 minutes)
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &pendingStatus,
+				Type:                 fleet.CAConfigSmallstep,
+				CAName:               "my-smallstep",
+				ChallengeRetrievedAt: &expiredTime,
+			}, nil
+		}
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "a-profile-uuid", profileUUID)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-smallstep", "")
+		_, err := svc.validateIdentifier(ctx, identifier, true)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "challenge password has expired")
+		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
+		ds.ResendHostCertificateProfileFuncInvoked = false
+	})
+
+	t.Run("Smallstep challenge not expired", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				Smallstep: []fleet.SmallstepSCEPProxyCA{
+					{Name: "my-smallstep", URL: "https://smallstep.example.com/scep"},
+				},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		recentTime := time.Now().Add(-2 * time.Minute) // Not expired (<4 minutes)
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &pendingStatus,
+				Type:                 fleet.CAConfigSmallstep,
+				CAName:               "my-smallstep",
+				ChallengeRetrievedAt: &recentTime,
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-smallstep", "")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, true)
+		require.NoError(t, err)
+		assert.Equal(t, "https://smallstep.example.com/scep", scepURL)
+	})
+
+	t.Run("Custom SCEP CA not configured", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{}, // Empty
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigCustomSCEPProxy,
+				CAName:      "my-custom-ca",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-custom-ca", "test-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), MessageSCEPProxyNotConfigured)
+	})
+
+	t.Run("Custom SCEP valid request without challenge check", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "my-custom-ca", URL: "https://custom-scep.example.com/scep"},
+				},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigCustomSCEPProxy,
+				CAName:      "my-custom-ca",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-custom-ca", "test-challenge")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, false)
+		require.NoError(t, err)
+		assert.Equal(t, "https://custom-scep.example.com/scep", scepURL)
+	})
+
+	t.Run("Custom SCEP valid challenge consumption", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "my-custom-ca", URL: "https://custom-scep.example.com/scep"},
+				},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigCustomSCEPProxy,
+				CAName:      "my-custom-ca",
+			}, nil
+		}
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+			assert.Equal(t, "valid-challenge", challenge)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-custom-ca", "valid-challenge")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, true)
+		require.NoError(t, err)
+		assert.Equal(t, "https://custom-scep.example.com/scep", scepURL)
+		assert.True(t, ds.ConsumeChallengeFuncInvoked)
+		ds.ConsumeChallengeFuncInvoked = false
+	})
+
+	t.Run("Custom SCEP invalid challenge triggers requeue", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "my-custom-ca", URL: "https://custom-scep.example.com/scep"},
+				},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigCustomSCEPProxy,
+				CAName:      "my-custom-ca",
+			}, nil
+		}
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+			return sql.ErrNoRows // Challenge not found
+		}
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "a-profile-uuid", profileUUID)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-custom-ca", "invalid-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, true)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "custom scep challenge failed")
+		assert.True(t, ds.ConsumeChallengeFuncInvoked)
+		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
+		ds.ConsumeChallengeFuncInvoked = false
+		ds.ResendHostCertificateProfileFuncInvoked = false
+	})
+
+	t.Run("Custom SCEP Windows profile skips challenge check", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "my-custom-ca", URL: "https://custom-scep.example.com/scep"},
+				},
+			}, nil
+		}
+		verifiedStatus := fleet.MDMDeliveryVerified
+		ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &verifiedStatus,
+				Type:        fleet.CAConfigCustomSCEPProxy,
+				CAName:      "my-custom-ca",
+			}, nil
+		}
+		// ConsumeChallenge should NOT be called for Windows profiles
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "my-custom-ca", "test-challenge")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true but should be skipped
+		require.NoError(t, err)
+		assert.Equal(t, "https://custom-scep.example.com/scep", scepURL)
+		assert.False(t, ds.ConsumeChallengeFuncInvoked, "ConsumeChallenge should not be called for Windows profiles")
+	})
+
+	t.Run("datastore error getting CAs", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return nil, errors.New("database connection failed")
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "getting grouped certificate authorities")
+	})
+
+	t.Run("datastore error getting profile", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return nil, errors.New("database query failed")
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "getting host MDM profile")
+	})
+
+	t.Run("NDES resend error still returns challenge expired error", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		expiredTime := time.Now().Add(-58 * time.Minute)
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &pendingStatus,
+				Type:                 fleet.CAConfigNDES,
+				CAName:               "NDES",
+				ChallengeRetrievedAt: &expiredTime,
+			}, nil
+		}
+		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			return errors.New("resend failed")
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, true)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "resending host mdm profile")
+	})
+
+	t.Run("default CA name is NDES", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			// Verify default CA name is "NDES"
+			assert.Equal(t, "NDES", caName)
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigNDES,
+				CAName:      "NDES",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		// Identifier with only host and profile UUID (no CA name)
+		identifier := url.PathEscape("host-uuid,a-profile-uuid")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, false)
+		require.NoError(t, err)
+		assert.Equal(t, "https://ndes.example.com/scep", scepURL)
+	})
+
+	t.Run("Smallstep CA name mismatch returns not configured", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				Smallstep: []fleet.SmallstepSCEPProxyCA{
+					{Name: "other-smallstep", URL: "https://other.example.com/scep"},
+				},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		ds.GetAppleHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &pendingStatus,
+				Type:        fleet.CAConfigSmallstep,
+				CAName:      "my-smallstep", // Different from configured
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "my-smallstep", "")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), MessageSCEPProxyNotConfigured)
+	})
+
+	t.Run("Android request", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		svc := newTestService(ds)
+
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "android-ca", URL: "https://scep.example.com/scep"},
+				},
+			}, nil
+		}
+
+		deliveredStatus := fleet.CertificateTemplateDelivered
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, uint(1), certificateTemplateID)
+			return &fleet.CertificateTemplateForHost{
+				HostUUID:              "host-uuid",
+				CertificateTemplateID: 1,
+				FleetChallenge:        ptr.String("test-challenge"),
+				Status:                &deliveredStatus,
+				CAType:                fleet.CAConfigCustomSCEPProxy,
+				CAName:                "android-ca",
+			}, nil
+		}
+
+		// Android identifier format: {hostUUID},g{certificateTemplateID},{caType},{challenge}
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, false)
+		require.NoError(t, err)
+		assert.Equal(t, "https://scep.example.com/scep", scepURL)
+		assert.True(t, ds.GetCertificateTemplateForHostFuncInvoked)
+		ds.GetCertificateTemplateForHostFuncInvoked = false
+	})
+
+	t.Run("Android invalid certificate template ID", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		svc := newTestService(ds)
+
+		// Invalid certificate template ID (not a number)
+		identifier := makeIdentifier("host-uuid", "ginvalid", "custom_scep_proxy", "test-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid Android certificate template ID")
+	})
+
+	t.Run("Android certificate template not found", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return nil, sql.ErrNoRows // Not found
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "getting Android certificate template")
+	})
+
+	t.Run("Android status not pending", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "android-ca", URL: "https://scep.example.com/scep"},
+				},
+			}, nil
+		}
+		verifiedStatus := fleet.CertificateTemplateVerified
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return &fleet.CertificateTemplateForHost{
+				HostUUID:              "host-uuid",
+				CertificateTemplateID: 1,
+				FleetChallenge:        ptr.String("test-challenge"),
+				Status:                &verifiedStatus,
+				CAType:                fleet.CAConfigCustomSCEPProxy,
+				CAName:                "android-ca",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "profile status (verified) is not 'pending'")
+	})
+
+	t.Run("Android CA not configured", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{}, // Empty - no CAs configured
+			}, nil
+		}
+		deliveredStatus := fleet.CertificateTemplateDelivered
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return &fleet.CertificateTemplateForHost{
+				HostUUID:              "host-uuid",
+				CertificateTemplateID: 1,
+				FleetChallenge:        ptr.String("test-challenge"),
+				Status:                &deliveredStatus,
+				CAType:                fleet.CAConfigCustomSCEPProxy,
+				CAName:                "android-ca",
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), MessageSCEPProxyNotConfigured)
+	})
+
+	t.Run("Android CA name mismatch", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "other-ca", URL: "https://other.example.com/scep"}, // Different CA name
+				},
+			}, nil
+		}
+		deliveredStatus := fleet.CertificateTemplateDelivered
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return &fleet.CertificateTemplateForHost{
+				HostUUID:              "host-uuid",
+				CertificateTemplateID: 1,
+				FleetChallenge:        ptr.String("test-challenge"),
+				Status:                &deliveredStatus,
+				CAType:                fleet.CAConfigCustomSCEPProxy,
+				CAName:                "android-ca", // This CA is not configured
+			}, nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), MessageSCEPProxyNotConfigured)
+	})
+
+	t.Run("Android with challenge validation", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "android-ca", URL: "https://scep.example.com/scep"},
+				},
+			}, nil
+		}
+		deliveredStatus := fleet.CertificateTemplateDelivered
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return &fleet.CertificateTemplateForHost{
+				HostUUID:              "host-uuid",
+				CertificateTemplateID: 1,
+				FleetChallenge:        ptr.String("valid-challenge"),
+				Status:                &deliveredStatus,
+				CAType:                fleet.CAConfigCustomSCEPProxy,
+				CAName:                "android-ca",
+			}, nil
+		}
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+			assert.Equal(t, "valid-challenge", challenge)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "valid-challenge")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true
+		require.NoError(t, err)
+		assert.Equal(t, "https://scep.example.com/scep", scepURL)
+		assert.True(t, ds.ConsumeChallengeFuncInvoked)
+		ds.ConsumeChallengeFuncInvoked = false
+	})
+
+	t.Run("Android invalid challenge triggers requeue", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "android-ca", URL: "https://scep.example.com/scep"},
+				},
+			}, nil
+		}
+		deliveredStatus := fleet.CertificateTemplateDelivered
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return &fleet.CertificateTemplateForHost{
+				HostUUID:              "host-uuid",
+				CertificateTemplateID: 1,
+				FleetChallenge:        ptr.String("valid-challenge"),
+				Status:                &deliveredStatus,
+				CAType:                fleet.CAConfigCustomSCEPProxy,
+				CAName:                "android-ca",
+			}, nil
+		}
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+			return sql.ErrNoRows // Challenge not found/expired
+		}
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "g1", profileUUID)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "invalid-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, true)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "custom scep challenge failed")
+		assert.True(t, ds.ConsumeChallengeFuncInvoked)
+		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
+		ds.ConsumeChallengeFuncInvoked = false
+		ds.ResendHostCertificateProfileFuncInvoked = false
+	})
+
+	t.Run("Android datastore error getting templates", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return nil, errors.New("database connection failed")
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "test-challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "getting Android certificate template")
+	})
+
+	t.Run("Android uses challenge from template when not in identifier", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{
+					{Name: "android-ca", URL: "https://scep.example.com/scep"},
+				},
+			}, nil
+		}
+		deliveredStatus := fleet.CertificateTemplateDelivered
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return &fleet.CertificateTemplateForHost{
+				HostUUID:              "host-uuid",
+				CertificateTemplateID: 1,
+				FleetChallenge:        ptr.String("template-challenge"), // Challenge from template
+				Status:                &deliveredStatus,
+				CAType:                fleet.CAConfigCustomSCEPProxy,
+				CAName:                "android-ca",
+			}, nil
+		}
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+			// Should use challenge from template since not provided in identifier
+			assert.Equal(t, "template-challenge", challenge)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		// No challenge in identifier - should use one from template
+		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, true)
+		require.NoError(t, err)
+		assert.Equal(t, "https://scep.example.com/scep", scepURL)
+		assert.True(t, ds.ConsumeChallengeFuncInvoked)
+		ds.ConsumeChallengeFuncInvoked = false
+	})
 }

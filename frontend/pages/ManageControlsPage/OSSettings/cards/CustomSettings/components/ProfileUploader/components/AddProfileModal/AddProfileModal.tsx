@@ -18,11 +18,12 @@ import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import ProfileGraphic from "../AddProfileGraphic";
+import ProfileGraphic from "../ProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
   getErrorMessage,
+  IParseFileResult,
   parseFile,
 } from "../../helpers";
 import {
@@ -38,18 +39,30 @@ interface IFileChooserProps {
   onFileOpen: (files: FileList | null) => void;
 }
 
+/** TODO: Legacy component, should be replaced with newer FileUploader */
 const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
   <div className={`${baseClass}__file-chooser`}>
-    <ProfileGraphic baseClass={baseClass} showMessage />
+    <ProfileGraphic
+      baseClass={baseClass}
+      title="Upload configuration profile"
+      message={
+        <>
+          .mobileconfig and .json for macOS, iOS, and iPadOS.
+          <br />
+          .json for Android.
+          <br />
+          .xml for Windows.
+        </>
+      }
+    />
     <Button
       className={`${baseClass}__upload-button`}
-      variant="text-icon"
+      variant="brand-inverse-icon"
       isLoading={isLoading}
     >
       <label htmlFor="upload-profile">
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          <Icon name="upload" />
-          Choose file
+          Choose file <Icon name="upload" color="core-fleet-green" />
         </span>
       </label>
     </Button>
@@ -65,22 +78,19 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
 );
 
 interface IFileDetailsProps {
-  details: {
-    name: string;
-    platform: string;
-  };
+  details: IParseFileResult;
 }
 
 // TODO: if we reuse this one more time, we should consider moving this
 // into FileUploader as a default preview. Currently we have this in
 // AddPackageForm.tsx and here.
-const FileDetails = ({ details: { name, platform } }: IFileDetailsProps) => (
+const FileDetails = ({ details: { name, ext } }: IFileDetailsProps) => (
   <div className={`${baseClass}__selected-file`}>
     <ProfileGraphic baseClass={baseClass} />
     <div className={`${baseClass}__selected-file--details`}>
       <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
       <div className={`${baseClass}__selected-file--details--platform`}>
-        {platform}
+        .{ext}
       </div>
     </div>
   </div>
@@ -102,10 +112,7 @@ const AddProfileModal = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [fileDetails, setFileDetails] = useState<{
-    name: string;
-    platform: string;
-  } | null>(null);
+  const [fileDetails, setFileDetails] = useState<IParseFileResult | null>(null);
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
   const [selectedLabels, setSelectedLabels] = useState<Record<string, boolean>>(
     {}
@@ -123,7 +130,10 @@ const AddProfileModal = ({
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () =>
+      labelsAPI
+        .summary(currentTeamId)
+        .then((res) => getCustomLabels(res.labels)),
     {
       enabled: isPremiumTier,
       refetchOnWindowFocus: false,
@@ -161,7 +171,6 @@ const AddProfileModal = ({
       renderFlash("success", "Successfully uploaded!");
       onUpload();
     } catch (e) {
-      // TODO: cleanup this error handling
       renderFlash("error", getErrorMessage(e as AxiosResponse<IApiError>));
     } finally {
       setIsLoading(false);
@@ -180,8 +189,8 @@ const AddProfileModal = ({
     fileRef.current = file;
 
     try {
-      const [name, platform] = await parseFile(file);
-      setFileDetails({ name, platform });
+      const details = await parseFile(file);
+      setFileDetails(details);
     } catch (e) {
       renderFlash("error", "Invalid file type");
     } finally {

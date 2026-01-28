@@ -8,10 +8,15 @@ on:
       - prepare-*
     paths:
       - '**.go'
+      - '.github/workflows/golangci-lint.yml'
+      - '.golangci.yml'
+      - '.golangci-incremental.yml'
   pull_request:
     paths:
       - '**.go'
       - '.github/workflows/golangci-lint.yml'
+      - '.golangci.yml'
+      - '.golangci-incremental.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -44,7 +49,7 @@ jobs:
       # flags every single file on windows-latest
       - run: 'git config --global core.autocrlf input'
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -65,11 +70,69 @@ jobs:
       - name: Run go lint
         run: |
           # Don't forget to update
-          # docs/Contributing/Testing-and-local-development.md when this
-          # version changes
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@8b37f14162043f908949f1b363d061dc9ba713c0 # v1.64.8
-          make lint-go
+          # docs/Contributing/Testing-and-local-development.md when this version changes
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@a4b55ebc3471c9fbb763fd56eefede8050f99887 # v2.7.1
+          SKIP_INCREMENTAL=1 make lint-go
 
       - name: Run cloner-check tool
         run: |
           go run ./tools/cloner-check/main.go -check
+
+      - name: Ensure all FLEET_DEV_* env var accesses are proxied
+        run: |
+          if grep -R 'os.Getenv("FLEET_DEV' --include="*.go" .; then
+            echo "Error: Found unproxied FLEET_DEV_* env var access. Please proxy via dev_mode.Env()." >&2
+            exit 1
+          else
+            echo "OK: No unproxied FLEET_DEV_* env var accesses found."
+          fi
+
+      - name: Restrict FLEET_DEV_* env var overrides to test code only
+        run: |
+          if grep -R 'SetOverride("FLEET_DEV' --include="*.go" --exclude="*_test.go" --exclude="testing_utils.go" --exclude-dir="mdmtest" .; then
+            echo "Error: Found FLEET_DEV_* overrides in non-test code." >&2
+            exit 1
+          else
+            echo "OK: No FLEET_DEV_* overrides in non-test code."
+          fi
+
+  golangci-incremental:
+    # Only run on pull requests (needs base branch for incremental comparison)
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    name: lint-incremental
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0  # Fetch full history for accurate diff
+
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # The following packages are needed to build Fleet Desktop on Ubuntu.
+          sudo apt update -y && sudo apt install -y gcc libgtk-3-dev libayatana-appindicator3-dev
+
+      - name: Run incremental go lint
+        run: |
+          # Don't forget to update
+          # docs/Contributing/Testing-and-local-development.md when this version changes
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@a4b55ebc3471c9fbb763fd56eefede8050f99887 # v2.7.1
+          golangci-lint run -c .golangci-incremental.yml --new-from-rev=origin/${{ github.base_ref }} --timeout 15m ./...

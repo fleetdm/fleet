@@ -1,4 +1,16 @@
 .host-queries-card {
+  @include vertical-page-tab-panel-layout;
+
+  // prevent layout shift if last page of paginated table
+  // doesn't fill all the vertical space due to fewer rows.
+  min-height: 305px;
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
   .table-container__header {
     display: none;
   }
@@ -6,25 +18,27 @@
     .data-table__table {
       thead {
         .query_name__header {
-          min-width: $col-lg;
+          min-width: $col-sm;
         }
         .last_fetched__header {
           display: table-cell;
         }
-        @media (max-width: $break-md) {
-          .last_fetched__header {
-            display: none;
-            width: 0;
-          }
-        }
       }
       tbody {
         tr {
+          .report-updated-cell__view-report {
+            opacity: 0;
+          }
+
           .query_name__cell {
-            min-width: $col-lg;
+            min-width: $col-sm;
           }
           .last_fetched__cell {
-            display: table-cell;
+            .report-updated-cell {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
           }
           .performance-cell {
             @include cell-with-link;
@@ -35,23 +49,27 @@
           }
 
           &:hover {
-            .report-updated-cell__link-text {
+            .report-updated-cell__view-report {
               opacity: 1;
             }
           }
-          @media (max-width: $break-md) {
-            .last_fetched__cell {
+
+          @media (min-width: $break-md) and (max-width: 1300px) {
+            .report-updated-cell__view-report--text {
               display: none;
               width: 0;
             }
-            .performance-cell__link-icon {
-              display: inline-flex;
-              align-self: center;
-              width: initial;
+
+            td {
+              max-width: 140px;
             }
           }
         }
       }
     }
+  }
+
+  .empty-header {
+    font-weight: $bold;
   }
 }

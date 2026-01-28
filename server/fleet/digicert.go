@@ -14,6 +14,6 @@ type DigiCertCertificate struct {
 }
 
 type DigiCertService interface {
-	VerifyProfileID(ctx context.Context, config DigiCertIntegration) error
-	GetCertificate(ctx context.Context, config DigiCertIntegration) (*DigiCertCertificate, error)
+	VerifyProfileID(ctx context.Context, config DigiCertCA) error
+	GetCertificate(ctx context.Context, config DigiCertCA) (*DigiCertCertificate, error)
 }

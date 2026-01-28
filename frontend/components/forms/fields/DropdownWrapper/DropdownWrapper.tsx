@@ -31,6 +31,65 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { TooltipContent } from "interfaces/dropdownOption";
 
+interface CustomOptionProps
+  extends Omit<OptionProps<CustomOptionType, false>, "data"> {
+  data: CustomOptionType;
+}
+
+const baseClass = "dropdown-wrapper";
+
+const CustomOption = (props: CustomOptionProps) => {
+  const { data, ...rest } = props;
+
+  const optionContent = (
+    <div className={`${baseClass}__option`} data-testid="dropdown-option">
+      {data.label}
+      {data.helpText && (
+        <span className={`${baseClass}__help-text`}>{data.helpText}</span>
+      )}
+    </div>
+  );
+
+  return (
+    <components.Option {...rest} data={data}>
+      {data.tooltipContent ? (
+        <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
+          {optionContent}
+        </DropdownOptionTooltipWrapper>
+      ) : (
+        optionContent
+      )}
+    </components.Option>
+  );
+};
+
+export const CustomDropdownIndicator = (
+  props: DropdownIndicatorProps<
+    CustomOptionType,
+    false,
+    GroupBase<CustomOptionType>
+  >
+) => {
+  const { isFocused, selectProps } = props;
+  const color =
+    isFocused || selectProps.menuIsOpen
+      ? "ui-fleet-black-75-over"
+      : "ui-fleet-black-75";
+
+  return (
+    <components.DropdownIndicator
+      {...props}
+      className={`${baseClass}__indicator`}
+    >
+      <Icon
+        name="chevron-down"
+        color={color}
+        className={`${baseClass}__icon`}
+      />
+    </components.DropdownIndicator>
+  );
+};
+
 export interface CustomOptionType {
   label: React.ReactNode;
   value: string;
@@ -65,12 +124,13 @@ export interface IDropdownWrapper {
   /** This makes the menu fit all text without wrapping,
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
+  customNoOptionsMessage?: string;
 }
 
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
 const getOptionFontWeight = (
@@ -83,124 +143,18 @@ const getOptionFontWeight = (
   }
 
   // For other variants, selected options are bold
-  return state.isSelected ? "bold" : "normal";
+  return state.isSelected ? "600" : "normal";
 };
 
-const baseClass = "dropdown-wrapper";
-
-const DropdownWrapper = ({
-  options,
-  value,
-  onChange,
-  name,
-  className,
-  labelClassname,
-  wrapperClassname,
-  error,
-  label,
-  helpText,
-  isSearchable = false,
+/** generates the default custom styles for the dropdown component.
+ * NOTE: we export this from DropdownWrapper components so that other more
+ * customisable dropdown components can use this for consistency in styling */
+export const generateCustomDropdownStyles = (
+  variant?: DropdownWrapperVariant,
   isDisabled = false,
-  iconName,
-  placeholder,
-  onMenuOpen,
-  variant,
-  nowrapMenu,
-}: IDropdownWrapper) => {
-  const wrapperClassNames = classnames(baseClass, className, {
-    [`${baseClass}__table-filter`]: variant === "table-filter",
-    [`${wrapperClassname}`]: !!wrapperClassname,
-  });
-
-  const handleChange = (newValue: SingleValue<CustomOptionType>) => {
-    onChange(newValue);
-  };
-
-  // Ability to handle value of type string or CustomOptionType
-  const getCurrentValue = () => {
-    if (typeof value === "string") {
-      return options.find((option) => option.value === value) || null;
-    }
-    return value;
-  };
-
-  interface CustomOptionProps
-    extends Omit<OptionProps<CustomOptionType, false>, "data"> {
-    data: CustomOptionType;
-  }
-
-  const CustomOption = (props: CustomOptionProps) => {
-    const { data, ...rest } = props;
-
-    const optionContent = (
-      <div className={`${baseClass}__option`}>
-        {data.label}
-        {data.helpText && (
-          <span className={`${baseClass}__help-text`}>{data.helpText}</span>
-        )}
-      </div>
-    );
-
-    return (
-      <components.Option {...rest} data={data}>
-        {data.tooltipContent ? (
-          <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
-            {optionContent}
-          </DropdownOptionTooltipWrapper>
-        ) : (
-          optionContent
-        )}
-      </components.Option>
-    );
-  };
-
-  const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<
-      CustomOptionType,
-      false,
-      GroupBase<CustomOptionType>
-    >
-  ) => {
-    const { isFocused, selectProps } = props;
-    const color =
-      isFocused || selectProps.menuIsOpen
-        ? "core-fleet-blue"
-        : "core-fleet-black";
-
-    return (
-      <components.DropdownIndicator
-        {...props}
-        className={`${baseClass}__indicator`}
-      >
-        <Icon
-          name="chevron-down"
-          color={color}
-          className={`${baseClass}__icon`}
-        />
-      </components.DropdownIndicator>
-    );
-  };
-
-  const ValueContainer = ({
-    children,
-    ...props
-  }: ValueContainerProps<CustomOptionType, false>) => {
-    const iconToDisplay =
-      iconName || (variant === "table-filter" ? "filter" : null);
-
-    return (
-      components.ValueContainer && (
-        <components.ValueContainer {...props}>
-          {!!children && iconToDisplay && (
-            <Icon name={iconToDisplay} className="filter-icon" />
-          )}
-          {children}
-        </components.ValueContainer>
-      )
-    );
-  };
-
-  const customStyles: StylesConfig<CustomOptionType, false> = {
+  nowrapMenu = false
+): StylesConfig<CustomOptionType, false> => {
+  return {
     container: (provided) => {
       const buttonVariantContainer = {
         borderRadius: "6px",
@@ -213,13 +167,13 @@ const DropdownWrapper = ({
       return {
         ...provided,
         width: "100%",
-        height: "40px",
+        height: "36px",
         ...(variant === "button" && buttonVariantContainer),
       };
     },
 
     control: (provided, state) => {
-      if (variant === "button")
+      if (variant === "button") {
         return {
           backgroundColor: "initial",
           borderColor: "none",
@@ -232,35 +186,35 @@ const DropdownWrapper = ({
           boxShadow: "none",
           cursor: "pointer",
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-fleet-blue"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
           "&:hover": {
             backgroundColor: "rgba(25, 33, 71, 0.05)",
             boxShadow: "none",
             ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-over"],
+              color: COLORS["ui-fleet-black-75-over"],
             },
             ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-over"],
+              stroke: COLORS["ui-fleet-black-75-over"],
             },
           },
           ".react-select__control--is-focused": {
             backgroundColor: "rgba(25, 33, 71, 0.05)",
             boxShadow: "none",
             ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-down"],
+              color: COLORS["ui-fleet-black-75-down"],
             },
             ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-down"],
+              stroke: COLORS["ui-fleet-black-75-down"],
             },
           },
           ...(state.isFocused && {
             backgroundColor: "rgba(25, 33, 71, 0.05)",
             ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-down"],
+              color: COLORS["ui-fleet-black-75-down"],
             },
             ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-down"],
+              stroke: COLORS["ui-fleet-black-75-down"],
             },
           }),
           // TODO: Figure out a way to apply separate &:focus-visible styling
@@ -273,53 +227,54 @@ const DropdownWrapper = ({
           }),
           ...(variant === "button" && { height: "22px" }),
         };
+      }
 
       return {
         ...provided,
         display: "flex",
         flexDirection: "row",
         width: "100%",
-        backgroundColor: COLORS["ui-off-white"],
+        backgroundColor: COLORS["core-fleet-white"],
         paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
         paddingRight: "8px",
         cursor: "pointer",
         boxShadow: "none",
         borderRadius: "4px",
         borderColor: state.isFocused
-          ? COLORS["core-fleet-blue"]
+          ? COLORS["core-fleet-black"]
           : COLORS["ui-fleet-black-10"],
         "&:hover": {
           boxShadow: "none",
-          borderColor: COLORS["core-vibrant-blue-over"],
+          borderColor: COLORS["ui-fleet-black-50"],
           ".dropdown-wrapper__single-value": {
-            color: COLORS["core-vibrant-blue-over"],
+            color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-over"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-over"],
+            fill: COLORS["ui-fleet-black-75"],
           },
         },
         // When tabbing
         // Relies on --is-focused for styling as &:focus-visible cannot be applied
         "&.react-select__control--is-focused": {
           borderColor: state.isFocused
-            ? COLORS["core-vibrant-blue-down"]
-            : COLORS["ui-fleet-black-10"],
+            ? COLORS["core-fleet-black"]
+            : COLORS["ui-fleet-black-25"],
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-down"],
+            fill: COLORS["ui-fleet-black-75"],
           },
         },
         ...(state.isFocused && {
           ".dropdown-wrapper__placeholder": {
-            color: COLORS["core-vibrant-blue-down"],
+            color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
         }),
         ...(state.isDisabled && {
@@ -335,13 +290,13 @@ const DropdownWrapper = ({
         }),
         "&:active": {
           ".dropdown-wrapper__single-value": {
-            color: COLORS["core-vibrant-blue-down"],
+            color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-down"],
+            fill: COLORS["ui-fleet-black-75"],
           },
         },
         ...(state.menuIsOpen && {
@@ -355,10 +310,10 @@ const DropdownWrapper = ({
     placeholder: (provided, state) => {
       const buttonVariantPlaceholder = {
         color: state.isFocused
-          ? COLORS["core-vibrant-blue-over"]
-          : COLORS["core-fleet-blue"],
-        fontSize: "14px",
-        fontWeight: "bold",
+          ? COLORS["ui-fleet-black-75-over"]
+          : COLORS["ui-fleet-black-75"],
+        fontSize: "13px",
+        fontWeight: "600",
         lineHeight: "normal",
         paddingLeft: 0,
         opacity: isDisabled ? 0.5 : 1,
@@ -372,7 +327,7 @@ const DropdownWrapper = ({
     },
     singleValue: (provided) => ({
       ...provided,
-      fontSize: "14px",
+      fontSize: "13px",
       margin: 0,
       padding: 0,
     }),
@@ -392,7 +347,7 @@ const DropdownWrapper = ({
       zIndex: 6,
       overflow: "hidden",
       border: 0,
-      marginTop: variant === "button" ? "3px" : 0,
+      marginTop: "3px",
       left: 0,
       maxHeight: "none",
       position: "absolute",
@@ -414,11 +369,12 @@ const DropdownWrapper = ({
       padding: 0,
       display: "flex",
       gap: PADDING[variant === "button" ? "pad-xsmall" : "pad-small"],
+      flexWrap: "nowrap", // This ensures the value is on a single line and truncated
     }),
     option: (provided, state) => ({
       ...provided,
       padding: "10px 8px",
-      fontSize: "14px",
+      fontSize: "13px",
       borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
       fontWeight: getOptionFontWeight(state, variant),
@@ -426,13 +382,13 @@ const DropdownWrapper = ({
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-fleet-black-5"],
         cursor: state.isDisabled ? "not-allowed" : "pointer",
       },
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-25"],
+          : COLORS["ui-fleet-black-5"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
@@ -462,9 +418,66 @@ const DropdownWrapper = ({
     noOptionsMessage: (provided) => ({
       ...provided,
       textAlign: "left",
-      fontSize: "14px",
+      fontSize: "13px",
       padding: "10px 8px",
     }),
+  };
+};
+
+const DropdownWrapper = ({
+  options,
+  value,
+  onChange,
+  name,
+  className,
+  labelClassname,
+  wrapperClassname,
+  error,
+  label,
+  helpText,
+  isSearchable = false,
+  isDisabled = false,
+  iconName,
+  placeholder,
+  onMenuOpen,
+  variant,
+  nowrapMenu,
+  customNoOptionsMessage,
+}: IDropdownWrapper) => {
+  const wrapperClassNames = classnames(baseClass, className, {
+    [`${baseClass}__table-filter`]: variant === "table-filter",
+    [`${wrapperClassname}`]: !!wrapperClassname,
+  });
+
+  const handleChange = (newValue: SingleValue<CustomOptionType>) => {
+    onChange(newValue);
+  };
+
+  // Ability to handle value of type string or CustomOptionType
+  const getCurrentValue = () => {
+    if (typeof value === "string") {
+      return options.find((option) => option.value === value) || null;
+    }
+    return value;
+  };
+
+  const ValueContainer = ({
+    children,
+    ...props
+  }: ValueContainerProps<CustomOptionType, false>) => {
+    const iconToDisplay =
+      iconName || (variant === "table-filter" ? "filter" : null);
+
+    return (
+      components.ValueContainer && (
+        <components.ValueContainer {...props}>
+          {!!children && iconToDisplay && (
+            <Icon name={iconToDisplay} className="filter-icon" />
+          )}
+          {children}
+        </components.ValueContainer>
+      )
+    );
   };
 
   const renderLabel = () => {
@@ -499,7 +512,7 @@ const DropdownWrapper = ({
       <Select<CustomOptionType, false>
         classNamePrefix="react-select"
         isSearchable={isSearchable}
-        styles={customStyles}
+        styles={generateCustomDropdownStyles(variant, isDisabled, nowrapMenu)}
         options={options}
         components={{
           Option: CustomOption,
@@ -510,7 +523,7 @@ const DropdownWrapper = ({
         value={getCurrentValue()}
         onChange={handleChange}
         isDisabled={isDisabled}
-        noOptionsMessage={() => "No results found"}
+        noOptionsMessage={() => customNoOptionsMessage ?? "No results found"}
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}

@@ -1,12 +1,11 @@
 .software-installer-card {
-  display: flex;
-  flex-direction: column;
+  @include vertical-card-layout;
   justify-content: space-between;
   align-items: center;
-  gap: $pad-medium;
 
   &__actions {
     display: flex;
+    align-items: center;
 
     .component__tooltip-wrapper__element {
       display: flex; // Required for vertical align icons that have and don't have tooltip
@@ -29,6 +28,10 @@
     display: flex;
     flex-grow: 1;
     justify-content: space-between;
+  }
+
+  &__auto-updates-tooltip {
+    text-align: center;
   }
 
   // Lots of data (10 items) on one line responsive fix (#29397)
@@ -71,45 +74,9 @@
     font-size: $x-small;
   }
 
-  &__status {
-    display: flex;
-    flex-direction: column;
-    padding: 16px 24px;
-    justify-content: center;
-    align-items: center;
-    flex: 1 0 0;
-    border-right: 1px solid var(--UI-Fleet-Black-10, #e2e4ea);
-
-    &:last-child {
-      border-right: none;
-    }
-
-    .react-tooltip {
-      text-align: center;
-    }
-  }
-
-  &__status-title {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-small;
-  }
-
-  &__status-count {
-    font-weight: normal;
-
-    // When tabbing
-    &:focus-visible {
-      overflow: initial;
-      outline: 2px solid $ui-vibrant-blue-25;
-      box-shadow: inset 0 0 0 1px $ui-vibrant-blue-10;
-    }
-  }
-
   &__actions-wrapper {
     display: flex;
-    gap: $pad-medium;
+    gap: $pad-xsmall;
   }
 
   &__download-icon {

@@ -17,10 +17,10 @@
         display: block;
 
         &.is-focused {
-          background-color: $ui-vibrant-blue-25;
+          background-color: $ui-fleet-black-25;
 
           .Select-icon {
-            color: $ui-vibrant-blue-25;
+            color: $ui-fleet-black-25;
           }
         }
 
@@ -39,7 +39,7 @@
     .Select-control {
       .Select-value {
         border: 1px solid $core-vibrant-blue;
-        background-color: $ui-vibrant-blue-10;
+        background-color: $ui-fleet-black-10;
       }
       .Select-clear-zone {
         transition: color 150ms ease-in-out;

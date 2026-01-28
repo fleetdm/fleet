@@ -1,6 +1,6 @@
 //go:build windows
-// +build windows
 
+// nolint:gosec,G103 // Reason: unsafe required for Windows API calls.
 package main
 
 import (

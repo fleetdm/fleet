@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -45,6 +46,7 @@ func TestScim(t *testing.T) {
 		{"ScimUsersExist", testScimUsersExist},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1821,36 +1823,55 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
 	host3 := test.NewHost(t, ds, "host3", "3", "host3key", "host3uuid", time.Now())
+	hostW1 := test.NewHost(t, ds, "hostW1", "4", "hostW1key", "hostW1uuid", time.Now(), test.WithPlatform("windows"))
+	hostW2 := test.NewHost(t, ds, "hostW2", "5", "hostW2key", "hostW2uuid", time.Now(), test.WithPlatform("windows"))
+	hostW3 := test.NewHost(t, ds, "hostW3", "6", "hostW3key", "hostW3uuid", time.Now(), test.WithPlatform("windows"))
 
 	// create profiles that use the IdP variables, and one that doesn't
-	profUsername, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0), nil)
+	profUsername, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
-	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0), nil)
+	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", 0), nil)
 	require.NoError(t, err)
-	profAll, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0), nil)
+	profAll, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("c", "c", 0), nil)
 	require.NoError(t, err)
-	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("d", "d", 0), nil)
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("d", "d", 0), nil)
+	require.NoError(t, err)
+
+	profWUsername, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("w", "w", 0), nil)
+	require.NoError(t, err)
+	profWGroup, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("x", "x", 0), nil)
+	require.NoError(t, err)
+	profWAll, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("y", "y", 0), nil)
+	require.NoError(t, err)
+	profWNone, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("z", "z", 0), nil)
 	require.NoError(t, err)
 
 	t.Logf("profUsername=%s, profGroup=%s, profAll=%s, profNone=%s", profUsername.ProfileUUID, profGroup.ProfileUUID, profAll.ProfileUUID, profNone.ProfileUUID)
 
 	// insert the relationship between profile and variables
 	varsPerProfile := map[string][]string{
-		profUsername.ProfileUUID: {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart)},
-		profGroup.ProfileUUID:    {string(fleet.FleetVarHostEndUserIDPGroups)},
-		profAll.ProfileUUID:      {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart), string(fleet.FleetVarHostEndUserIDPGroups)},
+		profUsername.ProfileUUID:  {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart)},
+		profWUsername.ProfileUUID: {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart)},
+		profGroup.ProfileUUID:     {string(fleet.FleetVarHostEndUserIDPGroups)},
+		profWGroup.ProfileUUID:    {string(fleet.FleetVarHostEndUserIDPGroups)},
+		profAll.ProfileUUID:       {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart), string(fleet.FleetVarHostEndUserIDPGroups)},
+		profWAll.ProfileUUID:      {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart), string(fleet.FleetVarHostEndUserIDPGroups)},
 	}
 	for profUUID, vars := range varsPerProfile {
+		column := "apple_profile_uuid"
+		if strings.HasPrefix(profUUID, "w") {
+			column = "windows_profile_uuid"
+		}
 		for _, v := range vars {
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id)
-					SELECT ?, id FROM fleet_variables WHERE name = ?`, profUUID, "FLEET_VAR_"+v)
+				_, err := q.ExecContext(ctx, fmt.Sprintf(`INSERT INTO mdm_configuration_profile_variables (%s, fleet_variable_id)
+					SELECT ?, id FROM fleet_variables WHERE name = ?`, column), profUUID, "FLEET_VAR_"+v)
 				return err
 			})
 		}
 	}
 
-	// create some scim users and assign one to hosts 1 and 2
+	// create some scim users and assign one to hosts 1/4 and 2/5
 	scimUser1, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "a@example.com"})
 	require.NoError(t, err)
 	scimUser2, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "b@example.com"})
@@ -1859,13 +1880,20 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser1)
 	require.NoError(t, err)
+	err = ds.associateHostWithScimUser(ctx, hostW1.ID, scimUser1)
+	require.NoError(t, err)
 	err = ds.associateHostWithScimUser(ctx, host2.ID, scimUser2)
+	require.NoError(t, err)
+	err = ds.associateHostWithScimUser(ctx, hostW2.ID, scimUser2)
 	require.NoError(t, err)
 
 	// no profiles exist yet for any host, so this setup hasn't triggered anything
 	assertHostProfileStatus(t, ds, host1.UUID)
 	assertHostProfileStatus(t, ds, host2.UUID)
 	assertHostProfileStatus(t, ds, host3.UUID)
+	assertHostProfileStatus(t, ds, hostW1.UUID)
+	assertHostProfileStatus(t, ds, hostW2.UUID)
+	assertHostProfileStatus(t, ds, hostW3.UUID)
 
 	// mark all profiles as installed on all hosts
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
@@ -1880,12 +1908,24 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// change username of scim user 1
 	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com"})
 	require.NoError(t, err)
 
-	// this triggered a resend of profUsername and profAll on host1
+	// this triggered a resend of profUsername and profAll on host1 and hostW1
 	assertHostProfileStatus(t, ds, host1.UUID,
 		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryPending},
@@ -1901,10 +1941,27 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// reset the status for host1
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// create a scim group for user1 and user2
 	group1, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g1", ScimUsers: []uint{scimUser1, scimUser2}})
@@ -1926,12 +1983,31 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// reset the statuses
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// create another scim group with no user and update other properties of
 	// user1, does not trigger anything
@@ -1955,6 +2031,21 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// change group1's name, affects host1 and host2 (via user1 and user2)
 	err = ds.ReplaceScimGroup(ctx, &fleet.ScimGroup{ID: group1, DisplayName: "G1", ScimUsers: []uint{scimUser1, scimUser2}})
@@ -1975,15 +2066,36 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// reset the statuses
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// assign user3 as IdP user of host3
 	err = ds.associateHostWithScimUser(ctx, host3.ID, scimUser3)
+	require.NoError(t, err)
+	err = ds.associateHostWithScimUser(ctx, hostW3.ID, scimUser3)
 	require.NoError(t, err)
 
 	// affects host3
@@ -2002,11 +2114,29 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
 
 	// reset the statuses
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// add user3 and remove user2 from the group
 	err = ds.ReplaceScimGroup(ctx, &fleet.ScimGroup{ID: group1, DisplayName: "G1", ScimUsers: []uint{scimUser1, scimUser3}})
@@ -2029,12 +2159,31 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
 
 	// reset the statuses
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// delete group2, has no user so no effect
 	err = ds.DeleteScimGroup(ctx, group2)
@@ -2055,6 +2204,21 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// delete user3, affects only host3 (not the official IdP user for host1)
 	err = ds.DeleteScimUser(ctx, scimUser3)
@@ -2075,17 +2239,37 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
 
 	// reset the statuses
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host3.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// delete user1
 	err = ds.DeleteScimUser(ctx, scimUser1)
 	require.NoError(t, err)
 	// add user2 as new user for host1
 	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser2)
+	require.NoError(t, err)
+	err = ds.associateHostWithScimUser(ctx, hostW1.ID, scimUser2)
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2103,11 +2287,29 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// reset the statuses, but set username operation to remove
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profUsername, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWUsername, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW1.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// update name of user2, will affect host1 and host2, but NOT the
 	// profUsername of host1 because it is not installed (it is removed)
@@ -2128,6 +2330,20 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW1.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW3.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
 // for https://github.com/fleetdm/fleet/issues/28820
@@ -2137,20 +2353,27 @@ func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	// create a couple hosts to deploy profiles to
 	host1 := test.NewHost(t, ds, "host1", "1", "h1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "2", "h2key", "host2uuid", time.Now())
+	hostW1 := test.NewHost(t, ds, "hostW1", "3", "hw1key", "hostW1uuid", time.Now(), test.WithPlatform("windows"))
+	hostW2 := test.NewHost(t, ds, "hostW2", "4", "hw2key", "hostW2uuid", time.Now(), test.WithPlatform("windows"))
 
 	// create a team and make host2 part of that team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID}))
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID, hostW2.ID}))
 	require.NoError(t, err)
 
 	// create some profiles with/without vars on the team
-	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
+	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", team.ID), []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 	require.NoError(t, err)
-	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", team.ID), nil)
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", team.ID), nil)
+	require.NoError(t, err)
+	profWGroup, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("wa", "wa", team.ID), []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
+	require.NoError(t, err)
+	profWNone, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("wb", "wb", team.ID), nil)
 	require.NoError(t, err)
 
 	t.Logf("profGroup=%s, profNone=%s", profGroup.ProfileUUID, profNone.ProfileUUID)
+	t.Logf("profWGroup=%s, profWNone=%s", profWGroup.ProfileUUID, profWNone.ProfileUUID)
 
 	// create some scim data
 	scimUser1, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "a@example.com"})
@@ -2159,27 +2382,39 @@ func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.associateHostWithScimUser(ctx, host2.ID, scimUser1)
 	require.NoError(t, err)
+	err = ds.associateHostWithScimUser(ctx, hostW2.ID, scimUser1)
+	require.NoError(t, err)
 	group1, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g1", ScimUsers: []uint{scimUser1, scimUser2}})
 	require.NoError(t, err)
 
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	assertHostProfileStatus(t, ds, host1.UUID)
+	assertHostProfileStatus(t, ds, hostW1.UUID)
 	assertHostProfileStatus(t, ds, host2.UUID,
 		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	// remove user 1 from group, affects the host2 profile
 	err = ds.ReplaceScimGroup(ctx, &fleet.ScimGroup{ID: group1, DisplayName: "g1", ScimUsers: []uint{scimUser2}})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID)
+	assertHostProfileStatus(t, ds, hostW1.UUID)
 	// the bug was failing this check, profNone was set to Pending although only
 	// profGroup should have changed.
 	assertHostProfileStatus(t, ds, host2.UUID,
 		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW2.UUID,
+		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryPending})
 }
 
 type hostProfileStatus struct {
@@ -2211,13 +2446,15 @@ func assertHostProfileOpStatus(t *testing.T, ds *Datastore, hostUUID string, wan
 	require.NoError(t, err)
 	appleProfs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
 	require.NoError(t, err)
+	androidProfs, err := ds.GetHostMDMAndroidProfiles(ctx, hostUUID)
+	require.NoError(t, err)
 
 	type commonHostProf struct {
 		Status      fleet.MDMDeliveryStatus
 		Type        fleet.MDMOperationType
 		ProfileUUID string
 	}
-	profs := make([]commonHostProf, 0, len(appleProfs)+len(winProfs))
+	profs := make([]commonHostProf, 0, len(appleProfs)+len(winProfs)+len(androidProfs))
 	for _, wp := range winProfs {
 		var status fleet.MDMDeliveryStatus
 		if wp.Status == nil {
@@ -2242,6 +2479,19 @@ func assertHostProfileOpStatus(t *testing.T, ds *Datastore, hostUUID string, wan
 			ProfileUUID: ap.ProfileUUID,
 			Status:      status,
 			Type:        ap.OperationType,
+		})
+	}
+	for _, anp := range androidProfs {
+		var status fleet.MDMDeliveryStatus
+		if anp.Status == nil {
+			status = fleet.MDMDeliveryPending
+		} else {
+			status = *anp.Status
+		}
+		profs = append(profs, commonHostProf{
+			ProfileUUID: anp.ProfileUUID,
+			Status:      status,
+			Type:        anp.OperationType,
 		})
 	}
 
@@ -2343,49 +2593,133 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 	assert.True(t, exist, "Large batch with only existing users should return true")
 }
 
-func forceSetWindowsHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMWindowsConfigProfile, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
+func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// empty status string means set to NULL
-	var actualStatus *fleet.MDMDeliveryStatus
-	if status != "" {
-		actualStatus = &status
+	// Create test SCIM users
+	user1 := fleet.ScimUser{
+		UserName:   "mapping-test-user1",
+		ExternalID: ptr.String("ext-mapping-123"),
+		GivenName:  ptr.String("Test"),
+		FamilyName: ptr.String("User1"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "user1@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		Department: ptr.String("Engineering"),
 	}
 
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
-				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
-			VALUES
-				(?, ?, ?, ?, ?, UNHEX(MD5(?)), ?)
-			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type)
-			`,
-			hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.SyncML, profile.ProfileUUID)
-		return err
-	})
-}
-
-func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMAppleDeclaration, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
-	ctx := t.Context()
-
-	// empty status string means set to NULL
-	var actualStatus *fleet.MDMDeliveryStatus
-	if status != "" {
-		actualStatus = &status
+	user2 := fleet.ScimUser{
+		UserName:   "mapping-test-user2",
+		ExternalID: ptr.String("ext-mapping-456"),
+		GivenName:  ptr.String("Test"),
+		FamilyName: ptr.String("User2"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "user2@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		Department: ptr.String("Sales"),
 	}
 
+	var err error
+	user1.ID, err = ds.CreateScimUser(ctx, &user1)
+	require.NoError(t, err)
+
+	user2.ID, err = ds.CreateScimUser(ctx, &user2)
+	require.NoError(t, err)
+
+	hostID1 := uint(1)
+	hostID2 := uint(2)
+
+	// Create new host-SCIM user mapping
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	require.NoError(t, err)
+
+	// Verify the mapping was created
+	var scimUserID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		token := uuid.New() // Generate binary UUID
-		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
-				(declaration_identifier, host_uuid, status, operation_type, token, declaration_name, declaration_uuid)
-			VALUES
-				(?, ?, ?, ?, ?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type)
-			`,
-			profile.Identifier, hostUUID, actualStatus, operation, token[:], profile.Name, profile.DeclarationUUID)
-		return err
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
 	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Test 2: Update existing host-SCIM user mapping
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user2.ID)
+	require.NoError(t, err)
+
+	// Verify the mapping was updated (should now point to user2)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user2.ID, scimUserID)
+
+	// Verify there's only one mapping for this host
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			"SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, 1, count)
+
+	// Test 3: Create mapping for a different host
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID2, user1.ID)
+	require.NoError(t, err)
+
+	// Verify both hosts have mappings
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID2)
+	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Verify total mappings
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			"SELECT COUNT(*) FROM host_scim_user")
+	})
+	assert.Equal(t, 2, count)
+
+	// Update mapping back to original user for hostID1
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, user1.ID)
+	require.NoError(t, err)
+
+	// Verify hostID1 now maps to user1
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user1.ID, scimUserID)
+
+	// Error case - non-existent SCIM user
+	nonExistentUserID := uint(999999)
+	err = ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID1, nonExistentUserID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "foreign key constraint")
+
+	// Verify that failing update didn't change existing mapping
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scimUserID,
+			"SELECT scim_user_id FROM host_scim_user WHERE host_id = ?", hostID1)
+	})
+	assert.Equal(t, user1.ID, scimUserID) // Should still be user1
+
+	// Verify the mapping can be queried via ScimUserByHostID
+	result, err := ds.ScimUserByHostID(ctx, hostID1)
+	require.NoError(t, err)
+	assert.Equal(t, user1.ID, result.ID)
+	assert.Equal(t, "mapping-test-user1", result.UserName)
+
+	result, err = ds.ScimUserByHostID(ctx, hostID2)
+	require.NoError(t, err)
+	assert.Equal(t, user1.ID, result.ID)
+	assert.Equal(t, "mapping-test-user1", result.UserName)
 }

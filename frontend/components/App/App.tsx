@@ -51,7 +51,7 @@ interface RecordWithRenewDate {
 const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
 
 // TODO: add tests for this function
-const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
+export const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
   const earliest = records.reduce((acc, record) => {
     const renewDate = new Date(record.renew_date);
     return isBefore(acc, renewDate) ? acc : renewDate;
@@ -98,15 +98,20 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   useQuery(["android_enterprise"], () => mdmAndroidAPI.getAndroidEnterprise(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     retry: false,
-    enabled:
-      false && // TODO: reenable when the BE is completed
-      !!isGlobalAdmin &&
-      !!config?.mdm.android_enabled_and_configured,
+    enabled: !!isGlobalAdmin && !!config?.mdm.android_enabled_and_configured,
     onSuccess: () => {
       setAndroidEnterpriseDeleted(false);
     },
-    onError: () => {
-      setAndroidEnterpriseDeleted(true);
+    onError: (error: AxiosError) => {
+      // Only set androidEnterpriseDeleted for 404 errors (actual deletion)
+      // Don't set it for 403 errors (credential/permission issues)
+      // Check both error.response?.status and error.status for different error formats
+      const statusCode = error.response?.status || error.status;
+      if (statusCode === 404) {
+        setAndroidEnterpriseDeleted(true);
+      } else {
+        setAndroidEnterpriseDeleted(false);
+      }
     },
   });
 

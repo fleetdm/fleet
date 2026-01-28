@@ -58,7 +58,6 @@ const AgentOptions = ({
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       <CardHeader

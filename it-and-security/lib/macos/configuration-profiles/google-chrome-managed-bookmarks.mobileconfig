@@ -64,7 +64,7 @@
                             <key>name</key>
                             <string>🔐 Security (Handbook)</string>
                             <key>url</key>
-                            <string>https://fleetdm.com/handbook/finance/security#security</string>
+                            <string>https://fleetdm.com/handbook/it/security#security</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -355,6 +355,24 @@
                         </dict>
                         <dict>
                             <key>name</key>
+                            <string>Issue: 🦟Bug report</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/fleet/issues/new?template=bug-report.md</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Issue: +New public issue</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/fleet/issues/new/choose</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Issue: +New confidential issue</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/issues/new/choose</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
                             <string>Issues assigned to me</string>
                             <key>url</key>
                             <string>https://github.com/issues?q=is%3Aopen%20is%3Aissue%20archived%3Afalse%20org%3Afleetdm%20no%3Amilestone%20assignee%3A%40me%20%20sort%3Aupdated-desc</string>
@@ -472,37 +490,37 @@
                             <key>name</key>
                             <string>🚀 Kanban board (~engineering-initiated)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/73/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/73</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>🕸️ Kanban board (#g-website)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/92/views/1</string>
-                        </dict>
-                        <dict>
-                            <key>name</key>
-                            <string>Issue: 🦟Bug report</string>
-                            <key>url</key>
-                            <string>https://github.com/fleetdm/fleet/issues/new?assignees=&amp;labels=bug%2C%3Areproduce&amp;projects=&amp;template=bug-report.md&amp;title=</string>
+                            <string>https://github.com/orgs/fleetdm/projects/92</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>💻 Current sprint (#g-mdm)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/58/views/12</string>
-                        </dict>
-                        <dict>
-                            <key>name</key>
-                            <string>🪄 Current sprint (#g-orchestration)</string>
-                            <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/71/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/58</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>📦 Current sprint (#g-software)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/70/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/70</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🪄 Current sprint (#g-orchestration)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/71</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🛡️ Current sprint (#g-security-compliance)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/97</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -514,12 +532,12 @@
                 </dict>
                 <dict>
                     <key>name</key>
-                    <string>🦢 Product design</string>
+                    <string>🦢 Product Design</string>
                     <key>children</key>
                     <array>
                         <dict>
                             <key>name</key>
-                            <string>🦢 Product design (Handbook)</string>
+                            <string>🦢 Product Design (Handbook)</string>
                             <key>url</key>
                             <string>https://fleetdm.com/handbook/product-design</string>
                         </dict>
@@ -527,31 +545,25 @@
                             <key>name</key>
                             <string>🦢 Kanban board (:help-design)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/93/views/2</string>
+                            <string>https://github.com/orgs/fleetdm/projects/93</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>🦢 Drafting board (:product)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/67/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/67</string>
                         </dict>
                         <dict>
                             <key>name</key>
-                            <string>🎁 Kanban board (~feature fest)</string>
+                            <string>🎁 Feature fest board (~feature fest)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/72/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/72</string>
                         </dict>
                         <dict>
                             <key>name</key>
-                            <string>💝 Customer requests (prioritized) (~customer request)</string>
+                            <string>🗺️ Release planning</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/82/views/1</string>
-                        </dict>
-                        <dict>
-                            <key>name</key>
-                            <string>🗺️ Roadmap</string>
-                            <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/87/views/2</string>
+                            <string>https://github.com/orgs/fleetdm/projects/87</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -563,7 +575,7 @@
                 </dict>
                 <dict>
                     <key>name</key>
-                    <string>🌦️ Customer success</string>
+                    <string>🌦️ Customer Success</string>
                     <key>children</key>
                     <array>
                         <dict>
@@ -576,7 +588,13 @@
                             <key>name</key>
                             <string>🌦️ Kanban board (:help-customers)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/79/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/79</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Customer codenames</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/labels?q=customer-</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -637,7 +655,13 @@
                             <key>name</key>
                             <string>🦄 Kanban board (#g-unicorns)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/81/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/81</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Prospect codenames</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/labels?q=prospect-</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -686,7 +710,7 @@
                             <key>name</key>
                             <string>🫧 Kanban board (:help-marketing)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/94/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/94</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -698,26 +722,26 @@
                 </dict>
                 <dict>
                     <key>name</key>
-                    <string>🌐 IT &amp; Enablement</string>
+                    <string>🌐 IT</string>
                     <key>children</key>
                     <array>
                         <dict>
                             <key>name</key>
-                            <string>🌐 IT &amp; Enablement (Handbook)</string>
+                            <string>🌐 IT (Handbook)</string>
                             <key>url</key>
-                            <string>https://fleetdm.com/handbook/it-and-enablement</string>
+                            <string>https://fleetdm.com/handbook/it</string>
                         </dict>
                         <dict>
                             <key>name</key>
-                            <string>🌐 Kanban board (:help-it-and-enablement)</string>
+                            <string>🌐 Kanban board (:help-it)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/69/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/101</string>
                         </dict>
                         <dict>
                             <key>name</key>
                             <string>🍽️ Kanban board (:help-dogfooding)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/57/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/57</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -729,7 +753,7 @@
                             <key>name</key>
                             <string>Account recovery process | Security</string>
                             <key>url</key>
-                            <string>https://fleetdm.com/handbook/finance/security#account-recovery-process</string>
+                            <string>https://fleetdm.com/handbook/it/security#account-recovery-process</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -754,7 +778,7 @@
                             <key>name</key>
                             <string>🧑‍🚀 Kanban board (:help-people)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/91/views/2</string>
+                            <string>https://github.com/orgs/fleetdm/projects/91</string>
                         </dict>
                         <dict>
                             <key>name</key>
@@ -773,7 +797,7 @@
                             <key>name</key>
                             <string>Kanban board (:help-finance)</string>
                             <key>url</key>
-                            <string>https://github.com/orgs/fleetdm/projects/80/views/1</string>
+                            <string>https://github.com/orgs/fleetdm/projects/80</string>
                         </dict>
                         <dict>
                             <key>name</key>

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -296,7 +297,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet, false)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
 	require.NoError(t, err)
 	s.Start()
 
@@ -685,7 +686,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
-	ds.ReconcileSoftwareTitlesFunc = func(ctx context.Context) error {
+	ds.CleanupSoftwareTitlesFunc = func(ctx context.Context) error {
 		return nil
 	}
 
@@ -806,7 +807,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet(), false)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
 	require.NoError(t, err)
 	s.Start()
 
@@ -872,7 +873,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet(), false)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
 	require.NoError(t, err)
 	s.Start()
 
@@ -1016,8 +1017,18 @@ func TestDebugMux(t *testing.T) {
 	}
 }
 
+// mockActivityService is a mock implementation of activity_api.ListActivitiesService for testing.
+type mockActivityService struct {
+	ListActivitiesFunc func(ctx context.Context, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error)
+}
+
+func (m *mockActivityService) ListActivities(ctx context.Context, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error) {
+	return m.ListActivitiesFunc(ctx, opt)
+}
+
 func TestCronActivitiesStreaming(t *testing.T) {
 	ds := new(mock.Store)
+	activitySvc := &mockActivityService{}
 
 	newActivity := func(
 		id uint,
@@ -1025,9 +1036,9 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		actorID uint,
 		actorGravatar, actorEmail, actType string,
 		details string,
-	) *fleet.Activity {
+	) *activity_api.Activity {
 		jsonRawMessage := json.RawMessage(details)
-		return &fleet.Activity{
+		return &activity_api.Activity{
 			ID:            id,
 			ActorFullName: &actorName,
 			ActorID:       &actorID,
@@ -1043,9 +1054,9 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	a3 := newActivity(3, "foo3", 9, "foo3_gravatar", "foo3_email", "foobar3", `{"foo3":"bar3"}`)
 
 	t.Run("basic", func(t *testing.T) {
-		as := []*fleet.Activity{a1, a2, a3}
+		as := []*activity_api.Activity{a1, a2, a3}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+		activitySvc.ListActivitiesFunc = func(ctx context.Context, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error) {
 			return as, nil, nil
 		}
 
@@ -1055,11 +1066,11 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		var auditLogger jsonLogger
-		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, log.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
 		require.Len(t, auditLogger.logs, 3)
 		for i, m := range auditLogger.logs {
-			var a *fleet.Activity
+			var a *activity_api.Activity
 			err := json.Unmarshal([]byte(m), &a)
 			require.NoError(t, err)
 			require.Equal(t, as[i], a)
@@ -1067,9 +1078,9 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	})
 
 	t.Run("fail_to_stream_an_activity", func(t *testing.T) {
-		as := []*fleet.Activity{a1, a2, a3}
+		as := []*activity_api.Activity{a1, a2, a3}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+		activitySvc.ListActivitiesFunc = func(ctx context.Context, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error) {
 			return as, nil, nil
 		}
 
@@ -1079,11 +1090,11 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		auditLogger := jsonLogger{failAfter: 1}
-		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, log.NewNopLogger(), &auditLogger)
 		require.Error(t, err)
 		require.ErrorIs(t, err, errStreamFailed)
 		require.Len(t, auditLogger.logs, 1)
-		var a *fleet.Activity
+		var a *activity_api.Activity
 		err = json.Unmarshal([]byte(auditLogger.logs[0]), &a)
 		require.NoError(t, err)
 		require.Equal(t, a1, a)
@@ -1092,13 +1103,13 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	t.Run("bigger_than_batch", func(t *testing.T) {
 		// Make slice that will require three iterations (3 pages,
 		// two pages of ActivitiesToStreamBatchCount and one extra page of one item.
-		as := make([]*fleet.Activity, ActivitiesToStreamBatchCount*2+1)
+		as := make([]*activity_api.Activity, ActivitiesToStreamBatchCount*2+1)
 		for i := range as {
 			as[i] = newActivity(uint(i), "foo", uint(i), //nolint:gosec // dismiss G115
 				"foog", "fooe", "bar", `{"bar": "foo"}`)
 		}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+		activitySvc.ListActivitiesFunc = func(ctx context.Context, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error) {
 			require.Equal(t, opt.PerPage, ActivitiesToStreamBatchCount)
 			switch opt.Page {
 			case 0:
@@ -1139,7 +1150,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		var auditLogger jsonLogger
-		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, log.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
 		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1) //nolint:gosec // dismiss G115
 		require.Equal(t, 3, call)
@@ -1262,7 +1273,7 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 		{Name: "Vital Vince", ID: 3, HostVitalsCriteria: ptr.RawMessage(json.RawMessage(`{"vital":"owl", "value":"hoot"}`)), LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeHostVitals},
 	}
 
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 		return labels, nil
 	}
 

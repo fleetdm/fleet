@@ -197,6 +197,21 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW == "visual_studio_code"
 			},
 		},
+		// When we're inventorying the Steam launcher for Dota, version recorded is 1.0,
+		// which shows a bunch of false positive CVEs. See #34323.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2020-7949": {},
+				"CVE-2020-7950": {},
+				"CVE-2020-7951": {},
+				"CVE-2020-7952": {},
+				"CVE-2020-9005": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "valvesoftware" && cpeMeta.Product == "dota_2" &&
+					cpeMeta.TargetSW == "macos" && (cpeMeta.Version == "1\\.0" || cpeMeta.Version == "1\\.0\\.0")
+			},
+		},
 		// Issue #18733 incorrect CPEs that should be matching
 		// visual studio code extensions
 		CPEMatchingRule{
@@ -269,6 +284,15 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW == "windows"
 			},
 		},
+		// CVE-2024-7006 only targets Linux operating systems (libtiff vulnerability)
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-7006": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "linux"
+			},
+		},
 		// these CVEs only target iOS, and we don't yet support iOS vuln scanning (and can't tell iOS/Mac CPEs apart yet)
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{
@@ -276,6 +300,18 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				"CVE-2024-10327": {}, // also missing a CPE as of 2025-01-01
 			},
 			IgnoreAll: true,
+		},
+		// Gitk and Git GUI CVEs should not match the base git package
+		// These CVEs affect gitk/git-gui which is git-gui on Homebrew
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2025-27613": {}, // Gitk file creation/truncation via OS command injection
+				"CVE-2025-27614": {}, // Gitk arbitrary command execution
+				"CVE-2025-46835": {}, // Git GUI arbitrary file overwrite
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "git" && cpeMeta.Product == "git"
+			},
 		},
 	}
 

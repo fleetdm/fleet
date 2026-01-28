@@ -867,7 +867,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS hosts that automatically enroll to",
+        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -884,7 +884,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS hosts that automatically enroll to no team.",
+        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -899,7 +899,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS hosts that automatically enroll to",
+        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -916,7 +916,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS hosts that automatically enroll to no team.",
+        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -1036,23 +1036,20 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a 'mdm_enrolled' type for apple with host display name and personal enrollment provided", () => {
+  it("renders a 'mdm_enrolled' type for android or apple personal devices with actor full name provided", () => {
     const activity = createMockActivity({
       type: ActivityType.MdmEnrolled,
       details: {
         host_display_name: "Test Host",
         enrollment_id: "test-enrollment-id",
-        mdm_platform: "apple",
+        platform: "android",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
-        return (
-          node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features for <b>Test Host (personal)</b>."
-        );
+        return node?.innerHTML === "<b>Test Host</b> enrolled to Fleet.";
       })
     ).toBeInTheDocument();
   });
@@ -1341,6 +1338,57 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
   });
 
+  it("renders a 'deleted_host' type activity for manual deletion", () => {
+    const activity = createMockActivity({
+      type: ActivityType.HostDeleted,
+      details: {
+        host_display_name: "My Host",
+        triggered_by: "manual",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("My Host", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.queryByText("automatically", { exact: false })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_host' type activity for automatic deletion due to expiration", () => {
+    const activity = createMockActivity({
+      type: ActivityType.HostDeleted,
+      details: {
+        host_display_name: "Expired Host",
+        triggered_by: "expiration",
+        host_expiry_window: 30,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("automatically deleted host", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Expired Host", { exact: false })
+    ).toBeInTheDocument();
+
+    // Check for "30 days" and "of inactivity" separately since they're in different DOM elements
+    expect(screen.getByText("30 days", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("of inactivity", { exact: false })
+    ).toBeInTheDocument();
+
+    // Verify tooltip wrapper is present with correct data attributes
+    const tooltipElement = screen
+      .getByText("30 days", { exact: false })
+      .closest("[data-tip]");
+    expect(tooltipElement).toBeInTheDocument();
+    expect(tooltipElement).toHaveAttribute("data-tip", "true");
+  });
+
   it("renders the correct actor for a installed_software activity without self_service", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,
@@ -1399,6 +1447,60 @@ describe("Activity Feed", () => {
 
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("An end user")).toBeInTheDocument();
+  });
+
+  it("renders script package ran status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "sh_packages",
+        status: "installed",
+        software_package: "myscript.sh",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/ran/i)).toBeInTheDocument(); // For status: "installed"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+  });
+
+  it("renders script package pending run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "sh_packages",
+        status: "pending_install",
+        software_package: "myscript.sh",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/told Fleet to run/i)).toBeInTheDocument(); // For status: "pending_install"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+  });
+
+  it("renders script package failed run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Payload-free Script",
+        source: "ps1_packages", // Other script package source
+        status: "failed_install",
+        software_package: "myscript.ps1",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to run/i)).toBeInTheDocument(); // For status: "failed_install"
+    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
   });
 
   it("renders addedNdesScepProxy activity correctly", () => {
@@ -1534,5 +1636,134 @@ describe("Activity Feed", () => {
       screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders addedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/added a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders editedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/edited a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders deletedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/deleted a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders an mdm unenroll activity with an actor name for ios, ipados, and android devices", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmUnenrolled,
+      actor_full_name: "Test User",
+      details: {
+        platform: "ios",
+        host_display_name: "Test Host",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(/told Fleet to unenroll/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Host/)).toBeInTheDocument();
+  });
+
+  it("renders an mdm unenroll activity with no actor name for ios, ipados, and android devices", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmUnenrolled,
+      actor_full_name: undefined,
+      details: {
+        platform: "ios",
+        host_display_name: "Test Host",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Test Host/)).toBeInTheDocument();
+    expect(screen.getByText(/is unenrolled from Fleet/)).toBeInTheDocument();
+  });
+  it("renders an editedSetupExperienceSoftware type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedSetupExperienceSoftware,
+      details: {
+        platform: "darwin", // macOS
+        team_name: "Bears",
+        team_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(
+        /edited setup experience software for macOS hosts that enroll to the/i
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Bears/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
+  });
+  it("renders an enabledMacosUpdateNewHosts activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacosUpdateNewHosts,
+      details: {
+        team_name: "Lions",
+        team_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/enabled OS updates for all new/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/macOS/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lions/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
+  });
+  it("renders a disabledMacosUpdateNewHosts activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacosUpdateNewHosts,
+      details: {
+        team_name: "Lions",
+        team_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/disabled updates for all new/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/macOS/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lions/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
   });
 });

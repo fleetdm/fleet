@@ -1,7 +1,6 @@
-.policies-card {
-  .info-banner {
-    margin-bottom: 1rem;
-  }
+.host-policies-card {
+  @include vertical-page-tab-panel-layout;
+
   .table-container__header {
     display: none;
   }
@@ -15,7 +14,7 @@
           width: 0;
         }
         .linkToFilteredHosts__header {
-          width: 140px;
+          width: 125px;
         }
       }
     }

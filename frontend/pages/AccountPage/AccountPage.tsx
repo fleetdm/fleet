@@ -17,6 +17,7 @@ import ChangePasswordForm from "components/forms/ChangePasswordForm";
 // @ts-ignore
 import Modal from "components/Modal";
 
+import SidePanelPage from "components/SidePanelPage";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
@@ -219,33 +220,35 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   }
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <>
-          <div className={`${baseClass}__manage`}>
-            <h1>My account</h1>
-            <UserSettingsForm
-              formData={currentUser}
-              handleSubmit={handleSubmit}
-              onCancel={onCancel}
-              pendingEmail={pendingEmail}
-              serverErrors={errors}
-              smtpConfigured={config?.smtp_settings?.configured || false}
-            />
-          </div>
-          {renderEmailModal()}
-          {renderPasswordModal()}
-          {renderApiTokenModal()}
-        </>
-      </MainContent>
-      <SidePanelContent>
-        <AccountSidePanel
-          currentUser={currentUser}
-          onChangePassword={onShowPasswordModal}
-          onGetApiToken={onShowApiTokenModal}
-        />
-      </SidePanelContent>
-    </>
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <>
+            <div className={`${baseClass}__manage`}>
+              <h1>My account</h1>
+              <UserSettingsForm
+                formData={currentUser}
+                handleSubmit={handleSubmit}
+                onCancel={onCancel}
+                pendingEmail={pendingEmail}
+                serverErrors={errors}
+                smtpConfigured={config?.smtp_settings?.configured || false}
+              />
+            </div>
+            {renderEmailModal()}
+            {renderPasswordModal()}
+            {renderApiTokenModal()}
+          </>
+        </MainContent>
+        <SidePanelContent>
+          <AccountSidePanel
+            currentUser={currentUser}
+            onChangePassword={onShowPasswordModal}
+            onGetApiToken={onShowApiTokenModal}
+          />
+        </SidePanelContent>
+      </>
+    </SidePanelPage>
   );
 };
 

@@ -1,0 +1,8 @@
+{
+  "name": "PyCharm Community Edition",
+  "unique_identifier": "com.jetbrains.pycharm.ce",
+  "token": "pycharm-ce",
+  "installer_format": "dmg",
+  "slug": "pycharm-ce/darwin",
+  "default_categories": ["Developer tools"]
+}

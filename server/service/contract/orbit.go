@@ -12,6 +12,8 @@ type EnrollOrbitRequest struct {
 	Hostname string `json:"hostname"`
 	// Platform is the device's platform as defined by osquery.
 	Platform string `json:"platform"`
+	// PlatformLike is the device's platform_like as defined by osquery.
+	PlatformLike string `json:"platform_like"`
 	// OsqueryIdentifier holds the identifier used by osquery.
 	// If not set, then the hardware UUID is used to match orbit and osquery.
 	OsqueryIdentifier string `json:"osquery_identifier"`

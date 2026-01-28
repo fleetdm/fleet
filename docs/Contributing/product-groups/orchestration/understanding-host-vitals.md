@@ -46,6 +46,24 @@ SELECT
 		path LIKE '/Users/%/Library/Keychains/login.keychain-db';
 ```
 
+## certificates_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, username,
+		path
+	FROM
+		certificates
+	WHERE
+		store = 'Personal';
+```
+
 ## chromeos_profile_user_info
 
 - Platforms: chrome
@@ -80,7 +98,7 @@ SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = '
 
 ## disk_encryption_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
 
 - Query:
 ```sql
@@ -105,14 +123,63 @@ WITH encrypted(enabled) AS (
 
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin
 
 - Query:
 ```sql
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-FROM mounts WHERE path = '/' LIMIT 1;
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
+-- exclude mounts with no space
+blocks > 0
+AND blocks_size > 0
+
+-- exclude external storage
+AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
+  
+-- exclude device drivers
+AND path NOT LIKE '/dev%' 
+
+-- exclude kernel-related mounts
+AND path NOT LIKE '/proc%'
+AND path NOT LIKE '/sys%'
+
+-- exclude process files
+AND path NOT LIKE '/run%'
+AND path NOT LIKE '/var/run%'
+
+-- exclude boot files
+AND path NOT LIKE '/boot%' 
+
+-- exclude snap packages
+AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
+
+-- exclude virtualized mounts, would double-count bare metal storage
+AND path NOT LIKE '/var/lib/docker%'
+AND path NOT LIKE '/var/lib/containers%'
+
+AND type IN (
+'ext4', 
+'ext3', 
+'ext2', 
+'xfs', 
+'btrfs', 
+'ntfs', 
+'vfat',
+'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
+'zfs' --also valid storage
+)
+AND (
+device LIKE '/dev/sd%' 
+OR device LIKE '/dev/hd%' 
+OR device LIKE '/dev/vd%' 
+OR device LIKE '/dev/nvme%' 
+OR device LIKE '/dev/mapper%'
+OR device LIKE '/dev/md%'
+OR device LIKE '/dev/dm-%'
+)) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;
 ```
 
 ## disk_space_windows
@@ -292,7 +359,7 @@ WITH registry_keys AS (
 			-- in order to account for hosts that might not have this
 			-- key, and servers
 					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- old enrollments that aren't completely cleaned up may still be around
 			-- in the registry so we want to make sure we return the one with an actual
 			-- discovery URL set if there is one. LENGTH is used here to prefer those
 			-- with actual URLs over empty string/null if there are multiple
@@ -325,7 +392,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin
 
 - Query:
 ```sql
@@ -401,7 +468,7 @@ LIMIT 1;
 
 ## orbit_info
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Discovery query:
 ```sql
@@ -435,7 +502,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin
 
 - Query:
 ```sql
@@ -527,7 +594,7 @@ WITH display_version_table AS (
 
 ## osquery_flags
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Query:
 ```sql
@@ -545,7 +612,7 @@ select * from osquery_info limit 1
 
 ## scheduled_query_stats
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Query:
 ```sql
@@ -564,7 +631,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
@@ -575,7 +642,7 @@ FROM chrome_extensions
 
 - Description: A software override query[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
 
 - Discovery query:
 ```sql
@@ -585,15 +652,43 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 - Query:
 ```sql
 SELECT package, MAX(atime) AS last_opened_at
-		FROM deb_package_files 
-		CROSS JOIN file USING (path) 
+		FROM deb_package_files
+		CROSS JOIN file USING (path)
 		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
 		GROUP BY package
 ```
 
+## software_jetbrains_plugins
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'jetbrains_plugins'
+```
+
+- Query:
+```sql
+WITH cached_users AS (WITH cached_groups AS (select * from groups)
+ SELECT uid, uuid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  product_type AS extension_for,
+  'jetbrains_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)
+```
+
 ## software_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
 
 - Query:
 ```sql
@@ -605,7 +700,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -618,7 +713,7 @@ SELECT
   package AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -630,7 +725,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -642,7 +737,7 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -654,7 +749,7 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -666,13 +761,37 @@ SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
   '' AS arch,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid);
+```
+
+## software_linux_fleetd_pacman
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'fleetd_pacman_packages'
+```
+
+- Query:
+```sql
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'pacman_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  arch AS arch,
+  '' AS installed_path
+FROM fleetd_pacman_packages
 ```
 
 ## software_macos
@@ -686,11 +805,11 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'apps' AS source,
   '' AS vendor,
   last_opened_time AS last_opened_at,
@@ -702,7 +821,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -714,7 +833,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -726,7 +845,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'safari_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -738,7 +857,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -752,6 +871,18 @@ SELECT
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
+  'npm_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM npm_packages
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -777,6 +908,24 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
+```
+
+## software_macos_executable_sha256
+
+- Description: A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'executable_hashes'
+```
+
+- Query:
+```sql
+SELECT eh.*
+		FROM apps a
+		JOIN executable_hashes eh ON a.path = eh.path
 ```
 
 ## software_macos_firefox
@@ -811,7 +960,7 @@ WITH app_paths AS (
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
 				apps.bundle_identifier AS bundle_identifier,
 				'' AS extension_id,
-				'' AS browser,
+				'' AS extension_for,
 				'apps' AS source,
 				'' AS vendor,
 				apps.last_opened_time AS last_opened_at,
@@ -825,7 +974,7 @@ WITH app_paths AS (
 
 - Description: Prior to osquery version 5.16.0, the python_packages table did not search user directories.
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Discovery query:
 ```sql
@@ -842,7 +991,7 @@ SELECT
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -853,7 +1002,7 @@ SELECT
 
 - Description: As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table.
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Discovery query:
 ```sql
@@ -874,7 +1023,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 		  name AS name,
 		  version AS version,
 		  '' AS extension_id,
-		  '' AS browser,
+		  '' AS extension_for,
 		  'python_packages' AS source,
 		  '' AS vendor,
 		  path AS installed_path
@@ -885,7 +1034,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 
 - Description: A software override query[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
 
 - Discovery query:
 ```sql
@@ -903,7 +1052,7 @@ SELECT package, MAX(atime) AS last_opened_at
 
 ## software_vscode_extensions
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Discovery query:
 ```sql
@@ -920,8 +1069,8 @@ SELECT
   name,
   version,
   '' AS bundle_identifier,
-  uuid AS extension_id,
-  '' AS browser,
+  vscode_extensions.uuid AS extension_id,
+  vscode_edition AS extension_for,
   'vscode_extensions' AS source,
   publisher AS vendor,
   '' AS last_opened_at,
@@ -943,50 +1092,55 @@ SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'programs' AS source,
   publisher AS vendor,
-  install_location AS installed_path
+  install_location AS installed_path,
+  upgrade_code AS upgrade_code
 FROM programs
 UNION
 SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'ie_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM ie_extensions
 UNION
 SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  browser_type AS browser,
+  browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   identifier AS extension_id,
-  'firefox' AS browser,
+  'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'chocolatey_packages' AS source,
   '' AS vendor,
-  path AS installed_path
+  path AS installed_path,
+  '' as upgrade_code
 FROM chocolatey_packages
 ```
 
@@ -1016,7 +1170,7 @@ select * from system_info limit 1
 
 ## uptime
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Query:
 ```sql
@@ -1025,7 +1179,7 @@ select * from uptime limit 1
 
 ## users
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Query:
 ```sql

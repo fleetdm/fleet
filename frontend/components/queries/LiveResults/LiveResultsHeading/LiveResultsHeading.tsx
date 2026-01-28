@@ -28,7 +28,7 @@ const FinishedButtons = ({
     <Button
       className={`${baseClass}__run-btn`}
       onClick={onClickRunAgain}
-      variant="success"
+      variant="brand-inverse-icon"
     >
       Run again
     </Button>

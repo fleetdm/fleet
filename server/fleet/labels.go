@@ -151,6 +151,12 @@ type Label struct {
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
+	TeamID              *uint               `json:"team_id" db:"team_id"`
+}
+
+type LabelWithTeamName struct {
+	Label
+	TeamName *string `json:"team_name" db:"team_name"`
 }
 
 // Implement the HostVitalsLabel interface.
@@ -162,6 +168,7 @@ type LabelSummary struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
+	TeamID      *uint     `json:"team_id" db:"team_id"`
 	LabelType   LabelType `json:"label_type" db:"label_type"`
 }
 
@@ -181,16 +188,49 @@ type LabelQueryExecution struct {
 	HostID    uint
 }
 
+type HostsSlice []string
+
+// Custom unmarshaler to handle both string and integer host identifiers.
+func (s *HostsSlice) UnmarshalJSON(data []byte) error {
+	var raw []interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw == nil {
+		// Differentiate between nil and empty array.
+		return nil
+	}
+	result := make([]string, 0, len(raw))
+	for _, v := range raw {
+		switch val := v.(type) {
+		case string:
+			result = append(result, val)
+		case float64:
+			// Check if the float64 is actually an integer.
+			if val != float64(int64(val)) {
+				return fmt.Errorf("hosts must be strings or integers, got float %g", val)
+			}
+			// Convert to string.
+			result = append(result, fmt.Sprintf("%.0f", val))
+		default:
+			return fmt.Errorf("hosts must be strings or integers, got %T", v)
+		}
+	}
+	*s = result
+	return nil
+}
+
 type LabelSpec struct {
-	ID                  uint                `json:"id"`
+	ID                  uint                `json:"id" db:"id"`
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`
 	Query               string              `json:"query"`
 	Platform            string              `json:"platform,omitempty"`
 	LabelType           LabelType           `json:"label_type,omitempty" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
-	Hosts               []string            `json:"hosts"`
+	Hosts               HostsSlice          `json:"hosts"`
 	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
+	TeamID              *uint               `json:"team_id" db:"team_id"`
 }
 
 const (
@@ -317,7 +357,7 @@ func (l *Label) CalculateHostVitalsQuery() (query string, values []any, err erro
 	// We'll use a set to gather the foreign vitals groups we need to join on,
 	// so that we can avoid duplicates.
 	foreignVitalsGroups := make(map[*HostForeignVitalGroup]struct{})
-	// Hold values to be substituted in the paramerized query.
+	// Hold values to be substituted in the parameterized query.
 	values = make([]any, 0)
 	// Recursively parse the criteria to build the WHERE clause.
 	whereClause, err := parseHostVitalCriteria(criteria, foreignVitalsGroups, &values)
@@ -377,4 +417,28 @@ func parseHostVitalCriteria(criteria *HostVitalCriteria, foreignVitalsGroups map
 		return "", fmt.Errorf("operator %s not supported for vital %s", *operator, *criteria.Vital)
 	}
 	return fmt.Sprintf("%s = ?", vital.Path), nil
+}
+
+type MissingLabelError struct {
+	*BadRequestError
+	MissingLabelName string
+}
+
+// NewMissingLabelError creates a new MissingLabelError, determining which label name was missing
+// based on the provided list of labels and the map of found labels.
+func NewMissingLabelError(providedLabels []string, foundLabels map[string]uint) *MissingLabelError {
+	notFoundLabel := ""
+	for _, name := range providedLabels {
+		if _, ok := foundLabels[name]; !ok {
+			notFoundLabel = name
+			break
+		}
+	}
+	return &MissingLabelError{
+		BadRequestError: &BadRequestError{
+			Message:     "some or all the labels provided don't exist",
+			InternalErr: fmt.Errorf("names provided: %v", providedLabels),
+		},
+		MissingLabelName: notFoundLabel,
+	}
 }

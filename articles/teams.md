@@ -15,16 +15,12 @@ To manage teams:
 
 ## Best practice
 
-Fleet's best practice teams: 
+Fleet's best practice teams:
 - `💻 Workstations`: End users' production work computers (macOS, Windows, and Linux)
-- `💻🐣 Workstations (canary)`: IT team's test work computers. Sometimes, for demos or testing, includes end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
-- `☁️ Servers`: Security team's production servers.
-- `☁️🐣 Servers (canary)`: Security team's test servers.
-- `Compliance exclusions`: All contributors' test work computers or virtual machines (VMs). Used for validating workflows for Fleet customers or reproducing bugs in the Fleet product.
-- `📱🏢 Company-owned mobile devices`: iPhones and iPads purchased by the organization that enroll to Fleet automatically via Apple Business Manager. For example, iPhones used by iOS Engineers or conference room iPads.
-- `📱🔐 Personal mobile devices`: End users' personal Android devices or iPhones, like those enrolled through a BYOD program, that have access to company resources.
-
-If some of your hosts don't fit into the teams listed above, consider their purpose. This will help determine their risk and compliance requirements, which in turn define their security baseline and appropriate team in Fleet. If these hosts have distinct compliance needs and security baselines, it's advisable to create a new team in Fleet.
+- `☁️ IT servers`: Production servers used to host internal tools like certificate authorities (CAs).
+- `📱🔐 Personal mobile devices`: iPhones, iPads, and Android devices owned by employees that can access company data.
+- `📱🏢 Employee-issued mobile devices`: iPhones, iPads, and Android devices issued to employees that can access company data.
+- `🖥️ Dedicated devices`: iPads or iPhones for dedicated or shared use. If some of your devices have different use cases, break this team into separate teams (ex. `🖥️ Kiosk devices` and `🎥 Zoom room devices`).
 
 ## Add hosts to a team
 

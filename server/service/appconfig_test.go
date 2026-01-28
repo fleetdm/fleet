@@ -12,25 +12,19 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -539,7 +533,19 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 					{APIToken: "zendesktoken"},
 				},
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
-					{ApiKey: map[string]string{fleet.GoogleCalendarPrivateKey: "google-calendar-private-key"}},
+					{ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						"type":                         "service_account",
+						"project_id":                   "test-project-123",
+						"private_key_id":               "key-id-456",
+						fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----",
+						fleet.GoogleCalendarEmail:      "test@test-project.iam.gserviceaccount.com",
+						"client_id":                    "123456789",
+						"auth_uri":                     "https://accounts.google.com/o/oauth2/auth",
+						"token_uri":                    "https://oauth2.googleapis.com/token",
+						"auth_provider_x509_cert_url":  "https://www.googleapis.com/oauth2/v1/certs",
+						"client_x509_cert_url":         "https://www.googleapis.com/robot/v1/metadata/x509/test",
+						"universe_domain":              "googleapis.com",
+					}}},
 				},
 			},
 		}, nil
@@ -618,8 +624,8 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
-				// Google Calendar private key is not obfuscated
-				require.Equal(t, ac.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey], "google-calendar-private-key")
+				// Verify Google Calendar API key is masked (will serialize to "********")
+				require.True(t, ac.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 			}
 		})
 	}
@@ -688,60 +694,63 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPConfigured)
 }
 
-// TestTransparencyURL tests that Fleet Premium licensees can use custom transparency urls and Fleet
-// Free licensees are restricted to the default transparency url.
-func TestTransparencyURL(t *testing.T) {
+// TestAppConfigFleetDesktopSettings tests that Fleet Premium licensees can set Fleet Desktop custom settings and that
+// Fleet Free licensees are restricted.
+func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
-		if shouldFail {
-			require.Error(t, err)
-			require.ErrorContains(t, err, "missing or invalid license")
-		} else {
-			require.NoError(t, err)
-		}
-	}
 	testCases := []struct {
 		name             string
 		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		initialSettings  fleet.FleetDesktopSettings
+		newSettings      fleet.FleetDesktopSettings
+		expectedSettings fleet.FleetDesktopSettings
+		invalid          []map[string]string
 	}{
 		{
-			name:             "customURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "",
-			shouldFailModify: true,
+			name:             "modifying Desktop settings on Free Tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "missing or invalid license"},
+				{"name": "alternative_browser_host", "reason": "missing or invalid license"},
+			},
 		},
 		{
-			name:             "customURL",
+			name:             "modifying Desktop settings on Premium Tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "customURL",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
 		},
 		{
-			name:             "emptyURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			name:             "empty values on Free tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
 		},
 		{
-			name:             "emptyURL",
+			name:             "empty values on Premium tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "customURL",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
+		},
+		{
+			name:             "using invalid values",
+			licenseTier:      fleet.TierPremium,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "@:13.com", AlternativeBrowserHost: "@:12.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "parse \"@:13.com\": first path segment in URL cannot contain colon"},
+				{"name": "alternative_browser_host", "reason": "must be a valid hostname or IP address"},
+			},
 		},
 	}
 
@@ -757,13 +766,12 @@ func TestTransparencyURL(t *testing.T) {
 				ServerSettings: fleet.ServerSettings{
 					ServerURL: "https://example.org",
 				},
-				FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.initialURL},
+				FleetDesktop: tt.initialSettings,
 			}
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return dsAppConfig, nil
 			}
-
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 				*dsAppConfig = *conf
 				return nil
@@ -772,37 +780,44 @@ func TestTransparencyURL(t *testing.T) {
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 				return nil
 			}
-
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 				return []*fleet.VPPTokenDB{}, nil
 			}
-
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				return []*fleet.ABMToken{}, nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
-			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 
-			raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: tt.newURL})
+			raw, err := json.Marshal(tt.newSettings)
 			require.NoError(t, err)
 			raw = []byte(`{"fleet_desktop":` + string(raw) + `}`)
 			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
-			checkLicenseErr(t, tt.shouldFailModify, err)
 
+			if len(tt.invalid) != 0 {
+				var invalid *fleet.InvalidArgumentError
+				ok := errors.As(err, &invalid)
+				require.True(t, ok)
+				require.Equal(t, tt.invalid, invalid.Invalid())
+			}
 			if modified != nil {
-				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, modified.FleetDesktop.AlternativeBrowserHost)
+
 				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
-				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 			}
 
 			expectedURL := fleet.DefaultTransparencyURL
 			expectedSecureframeURL := fleet.SecureframeTransparencyURL
-			if tt.expectedURL != "" {
-				expectedURL = tt.expectedURL
-				expectedSecureframeURL = tt.expectedURL
+			if tt.expectedSettings.TransparencyURL != "" {
+				expectedURL = tt.expectedSettings.TransparencyURL
+				expectedSecureframeURL = tt.expectedSettings.TransparencyURL
 			}
 
 			transparencyURL, err := svc.GetTransparencyURL(ctx)
@@ -942,7 +957,7 @@ func TestMDMConfig(t *testing.T) {
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -950,25 +965,33 @@ func TestMDMConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedError: licenseErr,
-		}, {
+		},
+		{
 			name:          "notFoundNew",
 			licenseTier:   "premium",
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedError: notFoundErr,
-		}, {
+		},
+		{
 			name:          "notFoundEdit",
 			licenseTier:   "premium",
 			oldMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			expectedError: notFoundErr,
-		}, {
+		},
+		{
 			name:        "foundNew",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -984,7 +1007,7 @@ func TestMDMConfig(t *testing.T) {
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -992,9 +1015,14 @@ func TestMDMConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1011,7 +1039,7 @@ func TestMDMConfig(t *testing.T) {
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -1019,15 +1047,21 @@ func TestMDMConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:          "ssoFree",
 			licenseTier:   "free",
 			findTeam:      true,
 			newMDM:        fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedError: licenseErr,
-		}, {
+		},
+		{
 			name:        "ssoFreeNoChanges",
 			licenseTier: "free",
 			findTeam:    true,
@@ -1044,7 +1078,7 @@ func TestMDMConfig(t *testing.T) {
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -1052,9 +1086,14 @@ func TestMDMConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:        "ssoAllFields",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1078,7 +1117,7 @@ func TestMDMConfig(t *testing.T) {
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -1086,9 +1125,14 @@ func TestMDMConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:        "ssoShortEntityID",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1112,7 +1156,7 @@ func TestMDMConfig(t *testing.T) {
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -1120,9 +1164,14 @@ func TestMDMConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:        "ssoMissingMetadata",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1131,7 +1180,8 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:  "onelogin",
 			}}},
 			expectedError: "either metadata or metadata_url must be defined",
-		}, {
+		},
+		{
 			name:        "ssoMultiMetadata",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1142,7 +1192,8 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedError: "invalid URI for request",
-		}, {
+		},
+		{
 			name:        "ssoIdPName",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1151,7 +1202,8 @@ func TestMDMConfig(t *testing.T) {
 				Metadata: "not-empty",
 			}}},
 			expectedError: "idp_name required",
-		}, {
+		},
+		{
 			name:        "disableDiskEncryption",
 			licenseTier: "premium",
 			newMDM: fleet.MDM{
@@ -1168,13 +1220,17 @@ func TestMDMConfig(t *testing.T) {
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
@@ -1589,896 +1645,307 @@ func TestModifyEnableAnalytics(t *testing.T) {
 	}
 }
 
-func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
-	t.Parallel()
-	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
-	scepURL := "https://example.com/mscep/mscep.dll"
-	adminURL := "https://example.com/mscep_admin/"
-	username := "user"
-	password := "password"
+func TestValidAddress(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hostname string
+		expected bool
+	}{
+		// Empty and basic cases
+		{name: "empty string", hostname: "", expected: false},
 
-	appConfig := &fleet.AppConfig{
+		// Make sure we don't allow URLs
+		{name: "http prefix", hostname: "http://example.com", expected: false},
+		{name: "https prefix", hostname: "https://example.com", expected: false},
+		{name: "with path", hostname: "example.com/path", expected: false},
+		{name: "with query", hostname: "example.com?query=value", expected: false},
+		{name: "with fragment", hostname: "example.com#fragment", expected: false},
+
+		// Test ports are allowd
+		{name: "with port", hostname: "example.com:9090", expected: true},
+		{name: "port without hostname", hostname: ":9090", expected: false},
+		{name: "port without hostname", hostname: "   :9090", expected: false},
+
+		// Valid IPv4 addresses
+		{name: "IPv4 localhost", hostname: "127.0.0.1", expected: true},
+		{name: "IPv4 address", hostname: "192.168.1.1", expected: true},
+		{name: "IPv4 all zeros", hostname: "0.0.0.0", expected: false},
+		{name: "IPv4 loopback with port", hostname: "127.0.0.1:9090", expected: true},
+
+		// Valid IPv6 addresses
+		{name: "IPv6 localhost", hostname: "::1", expected: true},
+		{name: "IPv6 full", hostname: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", expected: true},
+		{name: "IPv6 compressed", hostname: "2001:db8::1", expected: true},
+		{name: "IPv6 all zeros", hostname: "::", expected: false},
+
+		// IPv6 with brackets
+		{name: "IPv6 localhost with brackets", hostname: "[::1]", expected: true},
+		{name: "IPv6 with brackets", hostname: "[2001:db8::1]", expected: true},
+		{name: "brackets only", hostname: "[]", expected: false},
+		{name: "empty brackets", hostname: "[", expected: false},
+		{name: "IPv6 locahost brackets with port", hostname: "[::1]:8089", expected: true},
+
+		// Valid DNS hostnames
+		{name: "localhostname", hostname: "localhost", expected: true},
+		{name: "hostname with subdomain", hostname: "api.example.com", expected: true},
+		{name: "hostname with multiple subdomains", hostname: "a.b.c.example.com", expected: true},
+		{name: "hostname with numbers", hostname: "server1.example.com", expected: true},
+		{name: "hostname starting with number", hostname: "1server.example.com", expected: true},
+		{name: "all numeric label", hostname: "123.example.com", expected: true},
+		{name: "hostname with hyphen", hostname: "my-server.example.com", expected: true},
+		{name: "hostname with multiple hyphens", hostname: "my-cool-server.example.com", expected: true},
+		{name: "single character label", hostname: "a.b.c", expected: true},
+		{name: "single character hostname", hostname: "a", expected: true},
+
+		// Invalid DNS hostnames - hyphen rules
+		{name: "label starting with hyphen", hostname: "-example.com", expected: false},
+		{name: "label ending with hyphen", hostname: "example-.com", expected: false},
+		{name: "label starting and ending with hyphen", hostname: "-example-.com", expected: false},
+		{name: "only hyphen label", hostname: "-.com", expected: false},
+
+		// Invalid DNS hostnames - special characters
+		{name: "hostname with underscore", hostname: "my_server.example.com", expected: false},
+		{name: "hostname with space", hostname: "my server.example.com", expected: false},
+		{name: "hostname with at symbol", hostname: "user@example.com", expected: false},
+		{name: "hostname with exclamation", hostname: "example!.com", expected: false},
+
+		// Invalid DNS hostnames - empty labels
+		{name: "empty label (double dot)", hostname: "example..com", expected: false},
+		{name: "leading dot", hostname: ".example.com", expected: false},
+		{name: "trailing dot only", hostname: "example.com.", expected: false},
+
+		// Length limits
+		{name: "label exactly 63 chars", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: true},
+		{name: "label 64 chars (too long)", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: false},
+
+		// Real-world examples
+		{name: "fleet server URL", hostname: "fleet.example.com", expected: true},
+		{name: "AWS endpoint", hostname: "s3.us-west-2.amazonaws.com", expected: true},
+		{name: "internal hostname", hostname: "db-primary-01.internal", expected: true},
+		{name: "gibberish", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app", expected: false},
+		{name: "gibberish II", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app:9800", expected: false},
+		{name: "hostname with port", hostname: "example:8080", expected: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := validateAddress(tc.hostname)
+			assert.Equal(t, tc.expected, result, "isValidHostnameAndPort(%q) = %v, want %v", tc.hostname, result, tc.expected)
+		})
+	}
+}
+
+// TestModifyAppConfigGoogleCalendarAPIKey tests that Google Calendar API keys
+// are preserved when omitted from the request, and replaced (not merged) when provided.
+func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Initial config with Google Calendar integration
+	dsAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName: "Test",
 		},
 		ServerSettings: fleet.ServerSettings{
-			ServerURL: "https://localhost:8080",
+			ServerURL: "https://example.org",
+		},
+		Integrations: fleet.Integrations{
+			GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+				{
+					Domain: "example.com",
+					ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						fleet.GoogleCalendarEmail:      "test@example.com",
+						fleet.GoogleCalendarPrivateKey: "original-private-key",
+						"project_id":                   "original-project",
+					}},
+				},
+			},
 		},
 	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		if appConfig.Integrations.NDESSCEPProxy.Valid {
-			appConfig.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
-		}
-		return appConfig, nil
+		return dsAppConfig.Copy(), nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
-		appConfig = conf
+		*dsAppConfig = *conf
 		return nil
 	}
-	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return []*fleet.ABMToken{{ID: 1}}, nil
-	}
-	ds.SaveABMTokenFunc = func(ctx context.Context, token *fleet.ABMToken) error {
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{}, nil
 	}
-
-	jsonPayloadBase := `
-{
-	"integrations": {
-		"ndes_scep_proxy": {
-			"url": "%s",
-			"admin_url": "%s",
-			"username": "%s",
-			"password": "%s"
-		}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
-}
-`
-	jsonPayload := fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, password)
+
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
-	// SCEP proxy not configured for free users
-	_, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	assert.ErrorContains(t, err, ErrMissingLicense.Error())
-	assert.ErrorContains(t, err, "integrations.ndes_scep_proxy")
+	t.Run("preserve API key when omitted (no changes)", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
 
-	fleetConfig := config.TestConfig()
-	scepConfig := &scep_mock.SCEPConfigService{}
-	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
-	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
-	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{
-		License:           &fleet.LicenseInfo{Tier: fleet.TierPremium},
-		SCEPConfigService: scepConfig,
-	})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time,
-	) error {
-		assert.IsType(t, fleet.ActivityAddedNDESSCEPProxy{}, activity)
-		return nil
-	}
-	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	checkSCEPProxy := func() {
-		require.NotNil(t, ac.Integrations.NDESSCEPProxy)
-		assert.Equal(t, scepURL, ac.Integrations.NDESSCEPProxy.Value.URL)
-		assert.Equal(t, adminURL, ac.Integrations.NDESSCEPProxy.Value.AdminURL)
-		assert.Equal(t, username, ac.Integrations.NDESSCEPProxy.Value.Username)
-		assert.Equal(t, fleet.MaskedPassword, ac.Integrations.NDESSCEPProxy.Value.Password)
-	}
-	checkSCEPProxy()
-	assert.True(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.True(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	assert.True(t, ds.SaveAppConfigFuncInvoked)
-	ds.SaveAppConfigFuncInvoked = false
-	assert.True(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
+		// Update without including api_key_json (simulates frontend sending masked value)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com"
+				}]
+			}
+		}`
 
-	// Validation not done if there is no change
-	appConfig = ac
-	scepConfig.ValidateSCEPURLFuncInvoked = false
-	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, " "+scepURL, adminURL+" ", " "+username+" ", fleet.MaskedPassword)
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err, jsonPayload)
-	checkSCEPProxy()
-	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
-
-	// Validation not done if there is no change, part 2
-	scepConfig.ValidateSCEPURLFuncInvoked = false
-	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
-	ac, err = svc.ModifyAppConfig(ctx, []byte(`{"integrations":{}}`), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	checkSCEPProxy()
-	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
-
-	// Validation done for SCEP URL. Password is blank, which is not considered a change.
-	scepURL = "https://new.com/mscep/mscep.dll"
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, "")
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time,
-	) error {
-		assert.IsType(t, fleet.ActivityEditedNDESSCEPProxy{}, activity)
-		return nil
-	}
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	checkSCEPProxy()
-	assert.True(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	appConfig = ac
-	scepConfig.ValidateSCEPURLFuncInvoked = false
-	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
-	assert.True(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
-
-	// Validation done for SCEP admin URL
-	adminURL = "https://new.com/mscep_admin/"
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, fleet.MaskedPassword)
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	checkSCEPProxy()
-	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.True(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	assert.True(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
-
-	// Validation fails
-	scepConfig.ValidateSCEPURLFuncInvoked = false
-	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
-	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error {
-		return errors.New("**invalid** 1")
-	}
-	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-		return errors.New("**invalid** 2")
-	}
-	scepURL = "https://new2.com/mscep/mscep.dll"
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, password)
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	assert.ErrorContains(t, err, "**invalid**")
-	assert.True(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.True(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
-
-	// Reset validation
-	scepConfig.ValidateSCEPURLFuncInvoked = false
-	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
-	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
-	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
-
-	// Config cleared with explicit null
-	payload := `
-{
-	"integrations": {
-		"ndes_scep_proxy": null
-	}
-}
-`
-	// First, dry run.
-	appConfig.Integrations.NDESSCEPProxy.Valid = true
-	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{DryRun: true})
-	require.NoError(t, err)
-	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
-	// Also check what was saved.
-	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked, "DB write should not happen in dry run")
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
-
-	// Second, real run.
-	appConfig.Integrations.NDESSCEPProxy.Valid = true
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time,
-	) error {
-		assert.IsType(t, fleet.ActivityDeletedNDESSCEPProxy{}, activity)
-		return nil
-	}
-	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
-		return nil
-	}
-	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
-	// Also check what was saved.
-	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	assert.True(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
-	ds.HardDeleteMDMConfigAssetFuncInvoked = false
-	assert.True(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
-
-	// Deleting again should be a no-op
-	appConfig.Integrations.NDESSCEPProxy.Valid = false
-	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
-	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
-	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
-	ds.HardDeleteMDMConfigAssetFuncInvoked = false
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
-
-	// Cannot configure NDES without private key
-	fleetConfig.Server.PrivateKey = ""
-	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-	_, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	assert.ErrorContains(t, err, "private key")
-}
-
-func TestAppConfigCAs(t *testing.T) {
-	t.Parallel()
-
-	pathRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
-	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
-		matches := pathRegex.FindStringSubmatch(r.URL.Path)
-		if len(matches) != 2 {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		profileID := matches[1]
-
-		resp := map[string]string{
-			"id":     profileID,
-			"name":   "Test CA",
-			"status": "Active",
-		}
-		w.Header().Set("Content-Type", "application/json")
-		err := json.NewEncoder(w).Encode(resp)
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
 		require.NoError(t, err)
-	}))
-	defer mockDigiCertServer.Close()
 
-	setUpDigiCert := func() configCASuite {
-		mt := configCASuite{
-			ctx:          license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium}),
-			invalid:      &fleet.InvalidArgumentError{},
-			newAppConfig: getAppConfigWithDigiCertIntegration(mockDigiCertServer.URL, "WIFI"),
-			oldAppConfig: &fleet.AppConfig{},
-			appConfig:    &fleet.AppConfig{},
-			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
-		}
-		mt.svc.config.Server.PrivateKey = "exists"
-		mt.svc.digiCertService = digicert.NewService()
-		addMockDatastoreForCA(t, mt)
-		return mt
-	}
-	setUpCustomSCEP := func() configCASuite {
-		mt := configCASuite{
-			ctx:          license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium}),
-			invalid:      &fleet.InvalidArgumentError{},
-			newAppConfig: getAppConfigWithSCEPIntegration("https://example.com", "SCEP_WIFI"),
-			oldAppConfig: &fleet.AppConfig{},
-			appConfig:    &fleet.AppConfig{},
-			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
-		}
-		mt.svc.config.Server.PrivateKey = "exists"
-		scepConfig := &scep_mock.SCEPConfigService{}
-		scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
-		mt.svc.scepConfigService = scepConfig
-		addMockDatastoreForCA(t, mt)
-		return mt
-	}
+		// API key should be preserved (check datastore, not returned config which is obfuscated)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
 
-	t.Run("free license", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
-		mt.newAppConfig = &fleet.AppConfig{}
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.ndes)
-		assert.Empty(t, status.digicert)
-		assert.Empty(t, status.customSCEPProxy)
-
-		mt.invalid = &fleet.InvalidArgumentError{}
-		mt.newAppConfig = &fleet.AppConfig{}
-		mt.newAppConfig.Integrations.DigiCert.Set = true
-		mt.newAppConfig.Integrations.DigiCert.Valid = true
-		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "digicert", ErrMissingLicense.Error())
-
-		mt.invalid = &fleet.InvalidArgumentError{}
-		mt.newAppConfig = &fleet.AppConfig{}
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Set = true
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Valid = true
-		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "custom_scep_proxy", ErrMissingLicense.Error())
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 	})
 
-	t.Run("digicert keep old value", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		mt.oldAppConfig = mt.newAppConfig
-		mt.appConfig = mt.oldAppConfig.Copy()
-		mt.newAppConfig = &fleet.AppConfig{}
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+	t.Run("preserve API key when updating only domain", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Update only domain, omit api_key_json
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "newdomain.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
 		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.ndes)
-		assert.Empty(t, status.digicert)
-		assert.Empty(t, status.customSCEPProxy)
-		assert.Len(t, mt.appConfig.Integrations.DigiCert.Value, 1)
+
+		// Domain should be updated, API key preserved (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "newdomain.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 	})
 
-	t.Run("custom_scep keep old value", func(t *testing.T) {
-		mt := setUpCustomSCEP()
-		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		mt.oldAppConfig = mt.newAppConfig
-		mt.appConfig = mt.oldAppConfig.Copy()
-		mt.newAppConfig = &fleet.AppConfig{}
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+	t.Run("replace API key when new one provided (not merge)", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Provide new API key with different fields
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": {
+						"client_email": "new@example.com",
+						"private_key": "new-private-key",
+						"new_field": "new-value"
+					}
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
 		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.ndes)
-		assert.Empty(t, status.digicert)
-		assert.Empty(t, status.customSCEPProxy)
-		assert.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 1)
+
+		// API key should be completely replaced (not merged) - check datastore
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "new@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "new-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "new-value", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["new_field"])
+		// Old fields should NOT be present (confirms replacement, not merge)
+		_, hasOldProject := dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"]
+		require.False(t, hasOldProject, "old project_id should not be present after replacement")
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 	})
 
-	t.Run("missing server private key", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.svc.config.Server.PrivateKey = ""
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert", "private key")
+	t.Run("validation passes with preserved API key", func(t *testing.T) {
+		// Reset to valid state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "valid@example.com",
+			fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nvalid-key\n-----END PRIVATE KEY-----",
+		}}
 
-		mt = setUpCustomSCEP()
-		mt.svc.config.Server.PrivateKey = ""
-		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		// Update without api_key_json (should preserve valid key and pass validation)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
 		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy", "private key")
+
+		// Should succeed with preserved API key (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "valid@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "-----BEGIN PRIVATE KEY-----\nvalid-key\n-----END PRIVATE KEY-----", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 	})
 
-	t.Run("invalid integration name", func(t *testing.T) {
-		testCases := []struct {
-			testName      string
-			name          string
-			errorContains []string
-		}{
-			{
-				testName:      "empty",
-				name:          "",
-				errorContains: []string{"CA name cannot be empty"},
-			},
-			{
-				testName:      "NDES",
-				name:          "NDES",
-				errorContains: []string{"CA name cannot be NDES"},
-			},
-			{
-				testName:      "too long",
-				name:          strings.Repeat("a", 256),
-				errorContains: []string{"CA name cannot be longer than"},
-			},
-			{
-				testName:      "invalid characters",
-				name:          "a/b",
-				errorContains: []string{"Only letters, numbers and underscores allowed"},
-			},
-		}
+	t.Run("preserve API key when masked value sent", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
 
-		for _, tc := range testCases {
-			t.Run(tc.testName, func(t *testing.T) {
-				baseErrorContains := tc.errorContains
-				mt := setUpDigiCert()
-				mt.newAppConfig = getAppConfigWithDigiCertIntegration(mockDigiCertServer.URL, tc.name)
-				status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-				require.NoError(t, err)
-				errorContains := baseErrorContains
-				errorContains = append(errorContains, "integrations.digicert.name")
-				checkExpectedCAValidationError(t, mt.invalid, status, errorContains...)
+		// Send masked api_key_json (simulates frontend sending back obfuscated value)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": "********"
+				}]
+			}
+		}`
 
-				mt = setUpCustomSCEP()
-				mt.newAppConfig = getAppConfigWithSCEPIntegration("https://example.com", tc.name)
-				status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-				require.NoError(t, err)
-				errorContains = baseErrorContains
-				errorContains = append(errorContains, "integrations.custom_scep_proxy.name")
-				checkExpectedCAValidationError(t, mt.invalid, status, errorContains...)
-			})
-		}
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be preserved, not overwritten with masked values (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 	})
-
-	t.Run("invalid digicert URL", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = ""
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
-			"empty url")
-
-		mt = setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = "nonhttp://bad.com"
-		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
-			"URL must be https or http")
-	})
-
-	t.Run("invalid custom_scep URL", func(t *testing.T) {
-		mt := setUpCustomSCEP()
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = ""
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.url",
-			"empty url")
-
-		mt = setUpCustomSCEP()
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = "nonhttp://bad.com"
-		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.url",
-			"URL must be https or http")
-	})
-
-	t.Run("duplicate digicert integration name", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value = append(mt.newAppConfig.Integrations.DigiCert.Value,
-			mt.newAppConfig.Integrations.DigiCert.Value[0])
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.name",
-			"name is already used by another certificate authority")
-	})
-
-	t.Run("duplicate custom_scep integration name", func(t *testing.T) {
-		mt := setUpCustomSCEP()
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Value = append(mt.newAppConfig.Integrations.CustomSCEPProxy.Value,
-			mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0])
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.name",
-			"name is already used by another certificate authority")
-	})
-
-	t.Run("same digicert and custom_scep integration name", func(t *testing.T) {
-		mtSCEP := setUpCustomSCEP()
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.CustomSCEPProxy = mtSCEP.newAppConfig.Integrations.CustomSCEPProxy
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Name = mt.newAppConfig.Integrations.DigiCert.Value[0].Name
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.name",
-			"name is already used by another certificate authority")
-	})
-
-	t.Run("digicert more than 1 user principal name", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = append(mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames,
-			"another")
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
-			"one certificate user principal name")
-	})
-
-	t.Run("digicert empty user principal name", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = []string{" "}
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
-			"user principal name cannot be empty")
-	})
-
-	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " ${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
-		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_BOZO"
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
-			"FLEET_VAR_BOZO is not allowed")
-	})
-
-	t.Run("digicert Fleet vars in common name", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
-		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "$FLEET_VAR_BOZO"
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_common_name",
-			"FLEET_VAR_BOZO is not allowed")
-	})
-
-	t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " $FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial)
-		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_BOZO"
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_seat_id",
-			"FLEET_VAR_BOZO is not allowed")
-	})
-
-	t.Run("digicert API token not set", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].APIToken = fleet.MaskedPassword
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.api_token", "DigiCert API token must be set")
-	})
-
-	t.Run("custom_scep challenge not set", func(t *testing.T) {
-		mt := setUpCustomSCEP()
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Challenge = fleet.MaskedPassword
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.challenge", "Custom SCEP challenge must be set")
-	})
-
-	t.Run("digicert common name not set", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "\n\t"
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_common_name", "Common Name (CN) cannot be empty")
-	})
-
-	t.Run("digicert seat id not set", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "\t\n"
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_seat_id", "Seat ID cannot be empty")
-	})
-
-	t.Run("digicert happy path -- add one", func(t *testing.T) {
-		mt := setUpDigiCert()
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.customSCEPProxy)
-		require.Len(t, status.digicert, 1)
-		assert.Equal(t, caStatusAdded, status.digicert[mt.newAppConfig.Integrations.DigiCert.Value[0].Name])
-		require.Len(t, mt.appConfig.Integrations.DigiCert.Value, 1)
-		assert.True(t, mt.newAppConfig.Integrations.DigiCert.Value[0].Equals(&mt.appConfig.Integrations.DigiCert.Value[0]))
-	})
-
-	t.Run("digicert happy path -- delete one", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.oldAppConfig = mt.newAppConfig
-		mt.appConfig = mt.oldAppConfig.Copy()
-		mt.newAppConfig = &fleet.AppConfig{
-			Integrations: fleet.Integrations{
-				DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
-					Set:   true,
-					Valid: true,
-				},
-			},
-		}
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.customSCEPProxy)
-		require.Len(t, status.digicert, 1)
-		assert.Equal(t, caStatusDeleted, status.digicert[mt.oldAppConfig.Integrations.DigiCert.Value[0].Name])
-		assert.False(t, mt.appConfig.Integrations.DigiCert.Valid)
-	})
-
-	t.Run("digicert API token not set on modify", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.oldAppConfig.Integrations.DigiCert.Value = append(mt.oldAppConfig.Integrations.DigiCert.Value,
-			mt.newAppConfig.Integrations.DigiCert.Value[0])
-		mt.appConfig = mt.oldAppConfig.Copy()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = "https://new.com"
-		mt.newAppConfig.Integrations.DigiCert.Value[0].APIToken = ""
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.api_token", "DigiCert API token must be set when modifying")
-	})
-
-	t.Run("digicert happy path -- add one, delete one, modify one", func(t *testing.T) {
-		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertIntegration]{
-			Set:   true,
-			Valid: true,
-			Value: []fleet.DigiCertIntegration{
-				{
-					Name:                          "add",
-					URL:                           mockDigiCertServer.URL,
-					APIToken:                      "api_token",
-					ProfileID:                     "profile_id",
-					CertificateCommonName:         "common_name",
-					CertificateUserPrincipalNames: []string{"user_principal_name"},
-					CertificateSeatID:             "seat_id",
-				},
-				{
-					Name:                          "modify",
-					URL:                           mockDigiCertServer.URL,
-					APIToken:                      "api_token",
-					ProfileID:                     "profile_id",
-					CertificateCommonName:         "common_name",
-					CertificateUserPrincipalNames: nil,
-					CertificateSeatID:             "seat_id",
-				},
-				{
-					Name:                          "same",
-					URL:                           mockDigiCertServer.URL,
-					APIToken:                      "api_token",
-					ProfileID:                     "profile_id",
-					CertificateCommonName:         "other_cn",
-					CertificateUserPrincipalNames: nil,
-					CertificateSeatID:             "seat_id",
-				},
-			},
-		}
-		mt.oldAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertIntegration]{
-			Set:   true,
-			Valid: true,
-			Value: []fleet.DigiCertIntegration{
-				{
-					Name:                          "delete",
-					URL:                           mockDigiCertServer.URL,
-					APIToken:                      "api_token",
-					ProfileID:                     "profile_id",
-					CertificateCommonName:         "common_name",
-					CertificateUserPrincipalNames: []string{"user_principal_name"},
-					CertificateSeatID:             "seat_id",
-				},
-				{
-					Name:                          "modify",
-					URL:                           mockDigiCertServer.URL,
-					APIToken:                      "api_token",
-					ProfileID:                     "profile_id",
-					CertificateCommonName:         "common_name",
-					CertificateUserPrincipalNames: []string{"user_principal_name"},
-					CertificateSeatID:             "seat_id",
-				},
-				{
-					Name:                          "same",
-					URL:                           mockDigiCertServer.URL,
-					APIToken:                      "api_token",
-					ProfileID:                     "profile_id",
-					CertificateCommonName:         "other_cn",
-					CertificateUserPrincipalNames: nil,
-					CertificateSeatID:             "seat_id",
-				},
-			},
-		}
-		mt.appConfig = mt.oldAppConfig.Copy()
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.customSCEPProxy)
-		require.Len(t, status.digicert, 3)
-		assert.Equal(t, caStatusAdded, status.digicert["add"])
-		assert.Equal(t, caStatusEdited, status.digicert["modify"])
-		assert.Equal(t, caStatusDeleted, status.digicert["delete"])
-		require.Len(t, mt.appConfig.Integrations.DigiCert.Value, 3)
-	})
-
-	t.Run("custom_scep happy path -- add one", func(t *testing.T) {
-		mt := setUpCustomSCEP()
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.digicert)
-		require.Len(t, status.customSCEPProxy, 1)
-		assert.Equal(t, caStatusAdded, status.customSCEPProxy[mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Name])
-		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 1)
-		assert.True(t, mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Equals(&mt.appConfig.Integrations.CustomSCEPProxy.Value[0]))
-	})
-
-	t.Run("custom_scep happy path -- delete one", func(t *testing.T) {
-		mt := setUpCustomSCEP()
-		mt.oldAppConfig = mt.newAppConfig
-		mt.appConfig = mt.oldAppConfig.Copy()
-		mt.newAppConfig = &fleet.AppConfig{
-			Integrations: fleet.Integrations{
-				CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
-					Set:   true,
-					Valid: true,
-				},
-			},
-		}
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.digicert)
-		require.Len(t, status.customSCEPProxy, 1)
-		assert.Equal(t, caStatusDeleted, status.customSCEPProxy[mt.oldAppConfig.Integrations.CustomSCEPProxy.Value[0].Name])
-		assert.False(t, mt.appConfig.Integrations.CustomSCEPProxy.Valid)
-	})
-
-	t.Run("custom_scep API token not set on modify", func(t *testing.T) {
-		mt := setUpCustomSCEP()
-		mt.oldAppConfig.Integrations.CustomSCEPProxy.Value = append(mt.oldAppConfig.Integrations.CustomSCEPProxy.Value,
-			mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0])
-		mt.appConfig = mt.oldAppConfig.Copy()
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = "https://new.com"
-		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Challenge = ""
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.challenge",
-			"Custom SCEP challenge must be set when modifying")
-	})
-
-	t.Run("custom_scep happy path -- add one, delete one, modify one", func(t *testing.T) {
-		mt := setUpCustomSCEP()
-		mt.newAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyIntegration]{
-			Set:   true,
-			Valid: true,
-			Value: []fleet.CustomSCEPProxyIntegration{
-				{
-					Name:      "add",
-					URL:       "https://example.com",
-					Challenge: "challenge",
-				},
-				{
-					Name:      "modify",
-					URL:       "https://example.com",
-					Challenge: "challenge",
-				},
-				{
-					Name:      "SCEP_WIFI", // same
-					URL:       "https://example.com",
-					Challenge: "challenge",
-				},
-			},
-		}
-		mt.oldAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyIntegration]{
-			Set:   true,
-			Valid: true,
-			Value: []fleet.CustomSCEPProxyIntegration{
-				{
-					Name:      "delete",
-					URL:       "https://example.com",
-					Challenge: "challenge",
-				},
-				{
-					Name:      "modify",
-					URL:       "https://modify.com",
-					Challenge: "challenge",
-				},
-				{
-					Name:      "SCEP_WIFI", // same
-					URL:       "https://example.com",
-					Challenge: fleet.MaskedPassword,
-				},
-			},
-		}
-		mt.appConfig = mt.oldAppConfig.Copy()
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		require.NoError(t, err)
-		assert.Empty(t, mt.invalid.Errors)
-		assert.Empty(t, status.digicert)
-		require.Len(t, status.customSCEPProxy, 3)
-		assert.Equal(t, caStatusAdded, status.customSCEPProxy["add"])
-		assert.Equal(t, caStatusEdited, status.customSCEPProxy["modify"])
-		assert.Equal(t, caStatusDeleted, status.customSCEPProxy["delete"])
-		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 3)
-	})
-}
-
-type configCASuite struct {
-	ctx          context.Context
-	svc          *Service
-	appConfig    *fleet.AppConfig
-	newAppConfig *fleet.AppConfig
-	oldAppConfig *fleet.AppConfig
-	invalid      *fleet.InvalidArgumentError
-}
-
-func addMockDatastoreForCA(t *testing.T, s configCASuite) {
-	mockDS := &mock.Store{}
-	s.svc.ds = mockDS
-	mockDS.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-		switch assetType {
-		case fleet.CAConfigDigiCert:
-			return map[string]fleet.CAConfigAsset{
-				"WIFI": {
-					Name:  "WIFI",
-					Value: []byte("api_token"),
-					Type:  fleet.CAConfigDigiCert,
-				},
-			}, nil
-		case fleet.CAConfigCustomSCEPProxy:
-			return map[string]fleet.CAConfigAsset{
-				"SCEP_WIFI": {
-					Name:  "SCEP_WIFI",
-					Value: []byte("challenge"),
-					Type:  fleet.CAConfigCustomSCEPProxy,
-				},
-			}, nil
-		default:
-			t.Fatalf("unexpected asset type: %s", assetType)
-		}
-		return nil, nil
-	}
-}
-
-func checkExpectedCAValidationError(t *testing.T, invalid *fleet.InvalidArgumentError, status appConfigCAStatus, contains ...string) {
-	assert.Len(t, invalid.Errors, 1)
-	for _, expected := range contains {
-		assert.Contains(t, invalid.Error(), expected)
-	}
-	assert.Empty(t, status.ndes)
-	assert.Empty(t, status.digicert)
-	assert.Empty(t, status.customSCEPProxy)
-}
-
-func getAppConfigWithDigiCertIntegration(url string, name string) *fleet.AppConfig {
-	newAppConfig := &fleet.AppConfig{
-		Integrations: fleet.Integrations{
-			DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
-				Set:   true,
-				Valid: true,
-				Value: []fleet.DigiCertIntegration{getDigiCertIntegration(url, name)},
-			},
-		},
-	}
-	return newAppConfig
-}
-
-func getDigiCertIntegration(url string, name string) fleet.DigiCertIntegration {
-	digiCertCA := fleet.DigiCertIntegration{
-		Name:                          name,
-		URL:                           url,
-		APIToken:                      "api_token",
-		ProfileID:                     "profile_id",
-		CertificateCommonName:         "common_name",
-		CertificateUserPrincipalNames: []string{"user_principal_name"},
-		CertificateSeatID:             "seat_id",
-	}
-	return digiCertCA
-}
-
-func getAppConfigWithSCEPIntegration(url string, name string) *fleet.AppConfig {
-	newAppConfig := &fleet.AppConfig{
-		Integrations: fleet.Integrations{
-			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
-				Set:   true,
-				Valid: true,
-				Value: []fleet.CustomSCEPProxyIntegration{getCustomSCEPIntegration(url, name)},
-			},
-		},
-	}
-	return newAppConfig
-}
-
-func getCustomSCEPIntegration(url string, name string) fleet.CustomSCEPProxyIntegration {
-	challenge, _ := server.GenerateRandomText(6)
-	return fleet.CustomSCEPProxyIntegration{
-		Name:      name,
-		URL:       url,
-		Challenge: challenge,
-	}
 }

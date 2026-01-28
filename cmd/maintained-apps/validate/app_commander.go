@@ -29,13 +29,7 @@ type AppCommander struct {
 }
 
 func (ac *AppCommander) isFrozen() (bool, error) {
-	var inputPath string
-	switch ac.cfg.operatingSystem {
-	case "darwin":
-		inputPath = "ee/maintained-apps/inputs/homebrew"
-	case "windows":
-		inputPath = "ee\\maintained-apps\\inputs\\winget"
-	}
+	inputPath := ac.cfg.inputsPath
 	parts := strings.Split(ac.Slug, "/")
 	if len(parts) != 2 {
 		return false, fmt.Errorf("invalid slug format: %s, expected <name>/<platform>", ac.Slug)

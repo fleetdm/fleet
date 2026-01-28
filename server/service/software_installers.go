@@ -17,10 +17,11 @@ import (
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 type uploadSoftwareInstallerRequest struct {
@@ -48,6 +49,7 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
 	Categories        []string
+	DisplayName       *string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -63,16 +65,17 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// populate software title ID since we're overriding the decoder that would do it for us
 	titleID, err := uint32FromRequest(r, "id")
 	if err != nil {
-		return nil, endpoint_utils.BadRequestErr("IntFromRequest", err)
+		return nil, endpointer.BadRequestErr("IntFromRequest", err)
 	}
 	decoded.TitleID = uint(titleID)
 
+	maxInstallerSize := installersize.FromContext(ctx)
 	err = r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 3 GB.",
+				Message:     fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 				InternalErr: err,
 			}
 		}
@@ -92,10 +95,10 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// unlike for uploadSoftwareInstallerRequest, every field is optional, including the file upload
 	if r.MultipartForm.File["software"] != nil || len(r.MultipartForm.File["software"]) > 0 {
 		decoded.File = r.MultipartForm.File["software"][0]
-		if decoded.File.Size > fleet.MaxSoftwareInstallerSize {
+		if decoded.File.Size > maxInstallerSize {
 			// Should never happen here since the request's body is limited to the maximum size.
 			return nil, &fleet.BadRequestError{
-				Message: "The maximum file size is 3 GB.",
+				Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 			}
 		}
 	}
@@ -173,6 +176,48 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.Categories = categories
 	}
 
+	displayNameMultiPart, existsDisplayName := r.MultipartForm.Value["display_name"]
+	if existsDisplayName && len(displayNameMultiPart) > 0 {
+		decoded.DisplayName = ptr.String(displayNameMultiPart[0])
+		if len(*decoded.DisplayName) > fleet.SoftwareTitleDisplayNameMaxLength {
+			return nil, &fleet.BadRequestError{
+				Message: "The maximum display name length is 255 characters.",
+			}
+		}
+	}
+
+	// Check if scripts are base64 encoded (to bypass WAF rules that block script patterns)
+	if isScriptsEncoded(r) {
+		if decoded.InstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.InstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for install_script"}
+			}
+			decoded.InstallScript = &decodedScript
+		}
+		if decoded.UninstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.UninstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for uninstall_script"}
+			}
+			decoded.UninstallScript = &decodedScript
+		}
+		if decoded.PreInstallQuery != nil {
+			decodedScript, err := decodeBase64Script(*decoded.PreInstallQuery)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for pre_install_query"}
+			}
+			decoded.PreInstallQuery = &decodedScript
+		}
+		if decoded.PostInstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.PostInstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for post_install_script"}
+			}
+			decoded.PostInstallScript = &decodedScript
+		}
+	}
+
 	return &decoded, nil
 }
 
@@ -190,6 +235,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsIncludeAny:  req.LabelsIncludeAny,
 		LabelsExcludeAny:  req.LabelsExcludeAny,
 		Categories:        req.Categories,
+		DisplayName:       req.DisplayName,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -229,12 +275,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 
+	maxInstallerSize := installersize.FromContext(ctx)
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 3 GB.",
+				Message:     fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 				InternalErr: err,
 			}
 		}
@@ -259,11 +306,11 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	decoded.File = r.MultipartForm.File["software"][0]
-	if decoded.File.Size > fleet.MaxSoftwareInstallerSize {
+	if decoded.File.Size > maxInstallerSize {
 		// Should never happen here since the request's body is limited to the
 		// maximum size.
 		return nil, &fleet.BadRequestError{
-			Message: "The maximum file size is 3 GB.",
+			Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 		}
 	}
 
@@ -337,6 +384,23 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode automatic_install bool in multipart form: %s", err.Error())}
 		}
 		decoded.AutomaticInstall = parsed
+	}
+
+	// Check if scripts are base64 encoded (to bypass WAF rules that block script patterns)
+	if isScriptsEncoded(r) {
+		var err error
+		if decoded.InstallScript, err = decodeBase64Script(decoded.InstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for install_script"}
+		}
+		if decoded.UninstallScript, err = decodeBase64Script(decoded.UninstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for uninstall_script"}
+		}
+		if decoded.PreInstallQuery, err = decodeBase64Script(decoded.PreInstallQuery); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for pre_install_query"}
+		}
+		if decoded.PostInstallScript, err = decodeBase64Script(decoded.PostInstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for post_install_script"}
+		}
 	}
 
 	return &decoded, nil
@@ -852,7 +916,9 @@ func submitDeviceSoftwareUninstall(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
-	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL)
 	if !alreadyAuthenticated {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return false, err
@@ -900,6 +966,100 @@ func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fl
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type getInHouseAppManifestRequest struct {
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
+}
+
+type getInHouseAppManifestResponse struct {
+	// Manifest field is used in HijackRender for the response.
+	Manifest []byte
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getInHouseAppManifestResponse) Error() error { return r.Err }
+
+func (r getInHouseAppManifestResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	// make the browser download the content to a file
+	w.Header().Add("Content-Disposition", `attachment; filename="in-house-app-manifest.plist"`)
+	// explicitly set the content length before the write, so the caller can
+	// detect short writes (if it fails to send the full content properly)
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Manifest)), 10))
+	// this content type will make macos open the profile with the proper application
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
+	// prevent detection of content, obey the provided content-type
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	if n, err := w.Write(r.Manifest); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getInHouseAppManifestRequest)
+	manifest, err := svc.GetInHouseAppManifest(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return &getInHouseAppManifestResponse{Err: err}, nil
+	}
+
+	return &getInHouseAppManifestResponse{Manifest: manifest}, nil
+}
+
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type getInHouseAppPackageRequest struct {
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
+}
+
+type getInHouseAppPackageResponse struct {
+	payload *fleet.DownloadSoftwareInstallerPayload
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getInHouseAppPackageResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := io.Copy(w, r.payload.Installer); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+	r.payload.Installer.Close()
+}
+
+func (r getInHouseAppPackageResponse) Error() error { return r.Err }
+
+func getInHouseAppPackageEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getInHouseAppPackageRequest)
+	file, err := svc.GetInHouseAppPackage(ctx, req.TitleID, req.TeamID)
+	if err != nil {
+		return &getInHouseAppPackageResponse{Err: err}, nil
+	}
+
+	return &getInHouseAppPackageResponse{payload: file}, nil
+}
+
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

@@ -6,9 +6,18 @@
   padding: $pad-medium 0;
   gap: 2.5rem;
   align-items: center;
+  @include gradient-background;
 
-  &__logo {
-    width: 120px;
+  &__card {
+    @include vertical-card-layout;
+    width: 470px;
+  }
+
+  &__header-container {
+    display: flex;
+    align-items: center;
+    padding-bottom: $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
   }
 
   @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {

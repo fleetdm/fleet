@@ -65,8 +65,8 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: 1}, nil
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 1}, nil
 	}
 	ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{}, nil

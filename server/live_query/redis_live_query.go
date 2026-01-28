@@ -62,11 +62,12 @@ import (
 )
 
 const (
-	bitsInByte       = 8
-	queryKeyPrefix   = "livequery:"
-	sqlKeyPrefix     = "sql:"
-	activeQueriesKey = "livequery:active"
-	queryExpiration  = 7 * 24 * time.Hour
+	bitsInByte              = 8
+	queryKeyPrefix          = "livequery:"
+	sqlKeyPrefix            = "sql:"
+	activeQueriesKey        = "livequery:active"
+	queryExpiration         = 7 * 24 * time.Hour
+	queryResultsCountPrefix = "query_results_count:"
 )
 
 type redisLiveQuery struct {
@@ -263,8 +264,17 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 
 	targetKey, _ := generateKeys(name)
 
-	// Update the bitfield for this host.
-	if _, err := conn.Do("SETBIT", targetKey, hostID, 0); err != nil {
+	// Update the bitfield for this host only if the key exists.
+	// If the key doesn't exist (e.g. query marked as completed or cancelled)
+	// then we don't want to call SETBIT because it will create a new
+	// key (that won't expire and linger "forever").
+	const setBitScript = `
+	if redis.call('EXISTS', KEYS[1]) == 1 then
+		return redis.call('SETBIT', KEYS[1], ARGV[1], ARGV[2])
+	else
+		return nil
+	end`
+	if _, err := conn.Do("EVAL", setBitScript, 1, targetKey, hostID, 0); err != nil {
 		return fmt.Errorf("setbit query key: %w", err)
 	}
 
@@ -527,4 +537,108 @@ func mapBitfield(hostIDs []uint) []byte {
 	}
 
 	return field
+}
+
+func queryResultsCountKey(queryID uint) string {
+	return fmt.Sprintf("%s%d", queryResultsCountPrefix, queryID)
+}
+
+// GetQueryResultsCounts returns the current count of query results for multiple queries.
+// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error) {
+	if len(queryIDs) == 0 {
+		return make(map[uint]int), nil
+	}
+
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// Pipeline GET requests for all query IDs
+	for _, queryID := range queryIDs {
+		key := queryResultsCountKey(queryID)
+		if err := conn.Send("GET", key); err != nil {
+			return nil, fmt.Errorf("send get query results count: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return nil, fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	// Receive results and build the map
+	results := make(map[uint]int, len(queryIDs))
+	for _, queryID := range queryIDs {
+		count, err := redigo.Int(conn.Receive())
+		if err != nil {
+			if err == redigo.ErrNil {
+				results[queryID] = 0
+				continue
+			}
+			return nil, fmt.Errorf("receive query results count: %w", err)
+		}
+		results[queryID] = count
+	}
+
+	return results, nil
+}
+
+// IncrQueryResultsCounts increments the query results counts by the given amounts.
+// Takes a map of query ID -> amount to increment.
+func (r *redisLiveQuery) IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) error {
+	if len(queryIDsToAmounts) == 0 {
+		return nil
+	}
+
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// Pipeline INCRBY requests for all query IDs
+	for queryID, amount := range queryIDsToAmounts {
+		key := queryResultsCountKey(queryID)
+		if err := conn.Send("INCRBY", key, amount); err != nil {
+			return fmt.Errorf("send incrby query results count: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	// Receive all results to complete the pipeline (we don't need the values)
+	for range queryIDsToAmounts {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive incrby result: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// SetQueryResultsCount sets the query results count for a query to a specific value.
+// Used to reset counts to zero when a query is modified, or to adjust the count
+// in the cleanup cron job after deleting excess rows.
+func (r *redisLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	key := queryResultsCountKey(queryID)
+	if _, err := conn.Do("SET", key, count); err != nil {
+		return fmt.Errorf("set query results count: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteQueryResultsCount deletes the query results count for a query.
+// Used when deleting a query, to remove the Redis key.
+func (r *redisLiveQuery) DeleteQueryResultsCount(queryID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	key := queryResultsCountKey(queryID)
+	if _, err := conn.Do("DEL", key); err != nil {
+		return fmt.Errorf("delete query results count: %w", err)
+	}
+
+	return nil
 }

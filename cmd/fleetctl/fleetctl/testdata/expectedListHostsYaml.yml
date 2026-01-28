@@ -23,6 +23,7 @@ spec:
   fleet_desktop_version: null
   gigs_disk_space_available: 0
   gigs_total_disk_space: 0
+  gigs_all_disk_space: null
   hardware_model: ""
   hardware_serial: ""
   hardware_vendor: ""
@@ -64,6 +65,7 @@ spec:
   status: offline
   team_id: null
   team_name: null
+  timezone: null
   updated_at: "0001-01-01T00:00:00Z"
   uptime: 0
   uuid: ""
@@ -122,6 +124,7 @@ spec:
   status: offline
   team_id: null
   team_name: null
+  timezone: null
   updated_at: "0001-01-01T00:00:00Z"
   uptime: 0
   uuid: ""

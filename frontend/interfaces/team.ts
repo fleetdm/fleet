@@ -63,6 +63,7 @@ export interface ITeam extends ITeamSummary {
       macos_setup_assistant: string | null;
       enable_release_device_manually: boolean | null;
       manual_agent_install: boolean | null;
+      require_all_software_macos: boolean | null;
     };
     windows_updates: {
       deadline_days: number | null;

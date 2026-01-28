@@ -184,6 +184,15 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
+kind: policy
+spec:
+  name: Get Ubuntu Advantage (Ubuntu Pro) attachment status
+  platform: linux
+  description: Checks to see if the Ubuntu Pro status file exists, and ensures attachment and expiry are as expected. Combine with a script automation to run the attach command for remediation.
+  query: SELECT 1 FROM parse_json WHERE path = '/var/lib/ubuntu-advantage/status.json' AND ((key = 'attached' AND value = 'true') OR (key = 'expires' AND datetime(value) > datetime('now'))) GROUP BY path HAVING SUM(CASE WHEN key = 'attached' AND value = 'true' THEN 1 ELSE 0 END) = 1 AND SUM(CASE WHEN key = 'expires' AND datetime(value) > datetime('now') THEN 1 ELSE 0 END) = 1;
+  contributors: GrayW
+---
+apiVersion: v1
 kind: query
 spec:
   name: Get authorized SSH keys
@@ -2134,4 +2143,28 @@ spec:
       <integer>1</integer>
     </dict>
     </plist>
-
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CrowdStrike Falcon System Extension enabled and activated (macOS)
+  query: |
+    SELECT 1
+      WHERE EXISTS (
+        SELECT 1 FROM system_extensions
+        WHERE identifier = 'com.crowdstrike.falcon.Agent'
+        )
+      AND EXISTS (
+        SELECT 1 FROM system_extensions
+        WHERE state = 'activated_enabled'
+        );
+  bash: systemextensionsctl list | grep 'falcon' | grep 'activated enabled'
+  description: Checks to make sure that the CrowdStrike System Extension is enabled and activated on macOS devices.
+  resolution: "To activate the CrowdStrike Falcon System Extension, on the failing device, run the following command in the Terminal app: sudo /Applications/Falcon.app/Contents/Resources/falconctl load"
+  tags: compliance, hardening, critical
+  platform: darwin
+  contributors: spalmesano0
+  script: |
+    #!/bin/sh
+    
+    /Applications/Falcon.app/Contents/Resources/falconctl load

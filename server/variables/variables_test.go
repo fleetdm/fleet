@@ -10,7 +10,7 @@ func TestFind(t *testing.T) {
 	tests := []struct {
 		name     string
 		content  string
-		expected map[string]struct{}
+		expected []string
 	}{
 		{
 			name:     "no variables",
@@ -20,45 +20,45 @@ func TestFind(t *testing.T) {
 		{
 			name:    "single variable without braces",
 			content: "Device ID: $FLEET_VAR_HOST_UUID",
-			expected: map[string]struct{}{
-				"HOST_UUID": {},
+			expected: []string{
+				"HOST_UUID",
 			},
 		},
 		{
 			name:    "single variable with braces",
 			content: "Device ID: ${FLEET_VAR_HOST_UUID}",
-			expected: map[string]struct{}{
-				"HOST_UUID": {},
+			expected: []string{
+				"HOST_UUID",
 			},
 		},
 		{
 			name:    "multiple different variables",
 			content: "Host: $FLEET_VAR_HOST_UUID, Email: ${FLEET_VAR_HOST_EMAIL}, Serial: $FLEET_VAR_HOST_SERIAL",
-			expected: map[string]struct{}{
-				"HOST_UUID":   {},
-				"HOST_EMAIL":  {},
-				"HOST_SERIAL": {},
+			expected: []string{
+				"HOST_SERIAL",
+				"HOST_EMAIL",
+				"HOST_UUID",
 			},
 		},
 		{
 			name:    "duplicate variables",
 			content: "ID1: $FLEET_VAR_HOST_UUID, ID2: ${FLEET_VAR_HOST_UUID}, ID3: $FLEET_VAR_HOST_UUID",
-			expected: map[string]struct{}{
-				"HOST_UUID": {},
+			expected: []string{
+				"HOST_UUID",
 			},
 		},
 		{
 			name:    "variables in XML content",
 			content: `<Replace><Data>Device: $FLEET_VAR_HOST_UUID</Data></Replace>`,
-			expected: map[string]struct{}{
-				"HOST_UUID": {},
+			expected: []string{
+				"HOST_UUID",
 			},
 		},
 		{
 			name:    "mixed case sensitivity",
 			content: "Valid: $FLEET_VAR_HOST_UUID, Invalid: $fleet_var_host_uuid",
-			expected: map[string]struct{}{
-				"HOST_UUID": {},
+			expected: []string{
+				"HOST_UUID",
 			},
 		},
 	}
@@ -102,7 +102,16 @@ func TestFindKeepDuplicates(t *testing.T) {
 		{
 			name:     "mixed variables with duplicates",
 			content:  "$FLEET_VAR_HOST_UUID, $FLEET_VAR_HOST_EMAIL, ${FLEET_VAR_HOST_UUID}",
-			expected: []string{"HOST_UUID", "HOST_EMAIL", "HOST_UUID"},
+			expected: []string{"HOST_EMAIL", "HOST_UUID", "HOST_UUID"},
+		},
+		{
+			name:    "sorted by length",
+			content: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME, $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART, $FLEET_VAR_HOST_UUID",
+			expected: []string{
+				"HOST_END_USER_IDP_USERNAME_LOCAL_PART",
+				"HOST_END_USER_IDP_USERNAME",
+				"HOST_UUID",
+			},
 		},
 	}
 

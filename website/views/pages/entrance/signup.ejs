@@ -1,7 +1,7 @@
 <div id="signup" v-cloak>
-  <div purpose="announcement-banner">
-    <animated-arrow-button arrow-color="white" text-color="white" href="/funding-announcement" target="_blank">🎉 Fleet raises $27M for<br> open device management </animated-arrow-button>
-  </div>
+  <!-- <div purpose="announcement-banner">
+    <animated-arrow-button arrow-color="white" text-color="white" href="/articles/free-migration-from-jamf-to-fleet">Free Jamf to Fleet MDM migration service</animated-arrow-button>
+  </div> -->
   <div purpose="page-container" class="container">
     <div purpose="page-heading">
       <h1>Welcome to Fleet</h1>
@@ -24,14 +24,16 @@
                 <label for="password">Choose a password *</label>
                 <input tabindex="2" class="form-control" id="password" type="password"  :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
                 <div class="invalid-feedback" v-if="formErrors.password === 'minLength'">Password too short.</div>
+                <div class="invalid-feedback" v-if="formErrors.password === 'maxLength'">Password too long.</div>
+                <div class="invalid-feedback" v-if="formErrors.password === 'custom'">Password does not meet requirements.</div>
                 <div class="invalid-feedback" v-if="formErrors.password === 'required'">Please enter a password.</div>
-                <p class="mt-2 small"> Minimum length is 8 characters</p>
+                <p class="mt-2 small">Passwords must be 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).</p>
               </div>
-              <div class="form-group">
+<!--               <div class="form-group">
                 <label for="organization">Organization *</label>
                 <input tabindex="3" class="form-control" id="organization" type="text"  :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" @input="typeClearOneFormError('organization')">
                 <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
-              </div>
+              </div> -->
               <div class="row">
                 <div class="col-12 col-sm-6 pr-sm-2">
                   <div class="form-group">

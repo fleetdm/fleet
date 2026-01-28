@@ -57,7 +57,11 @@ const (
 	// SCEPProxyPath is the HTTP path that serves the SCEP proxy service. The path is followed by identifier.
 	SCEPProxyPath = "/mdm/scep/proxy/"
 
+	// It's important we don't sync more than 1000 at a time,
+	// as we also process DEP cooldowns and limit how many we process with this variable
 	DEPSyncLimit = 200
+
+	VPPLicenseNotFound = 9610
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
@@ -617,16 +621,23 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	for _, device := range resp.Devices {
-		level.Debug(d.logger).Log( // Keeping this at Debug level since this could generate a lot of log traffic (one per device)
-			"msg", "device",
+		deadline := "nil"
+		if device.MDMMigrationDeadline != nil {
+			deadline = device.MDMMigrationDeadline.String()
+		}
+		// FIXME: Move this log back to debug level after we've added/improved functionality for accessing DEP status.
+		level.Info(d.logger).Log(
+			"msg", "process device response",
 			"serial_number", device.SerialNumber,
 			"device_assigned_by", device.DeviceAssignedBy,
 			"device_assigned_date", device.DeviceAssignedDate,
 			"op_date", device.OpDate,
 			"op_type", device.OpType,
+			"profile_status", device.ProfileStatus,
 			"profile_assign_time", device.ProfileAssignTime,
 			"push_push_time", device.ProfilePushTime,
 			"profile_uuid", device.ProfileUUID,
+			"mdm_migration_deadline", deadline,
 		)
 
 		switch strings.ToLower(device.OpType) {
@@ -651,6 +662,9 @@ func (d *DEPService) processDeviceResponse(
 	// Remove added/modified devices if they have been subsequently deleted
 	// Remove deleted devices if they have been subsequently added (or re-added)
 	for _, deletedDevice := range deletedDevices {
+		// FIXME: Shouldn't the logic for modified devices follow the if/else pattern used for added
+		// devices? It seems like it should, but it doesn't seem to be making a difference in
+		// practice. Presumably, we're catching this sommewhere else, but it isn't obvious where.
 		modifiedDevice, ok := modifiedDevices[deletedDevice.SerialNumber]
 		if ok && deletedDevice.OpDate.After(modifiedDevice.OpDate) {
 			delete(modifiedDevices, deletedDevice.SerialNumber)
@@ -674,6 +688,7 @@ func (d *DEPService) processDeviceResponse(
 		needProfileAssign[addedDevice.SerialNumber] = struct{}{}
 	}
 	for _, modifiedDevice := range modifiedDevices {
+		// FIXME: Are we properly determining whether a modified device needs a profile assigned?
 		modifiedSerials = append(modifiedSerials, modifiedDevice.SerialNumber)
 	}
 	for _, deletedDevice := range deletedDevices {
@@ -694,10 +709,13 @@ func (d *DEPService) processDeviceResponse(
 	// if the IT admin changes the MDM server assignment in the ABM UI. In
 	// these cases, the device is new ("added") to us, but it comes with
 	// the wrong op_type.
-	for _, d := range modifiedDevices {
-		if _, ok := existingSerials[d.SerialNumber]; !ok {
-			addedDevicesSlice = append(addedDevicesSlice, d)
+	for _, md := range modifiedDevices {
+		if _, ok := existingSerials[md.SerialNumber]; !ok {
+			level.Info(d.logger).Log("msg", "treating device with op_type modified as added device", "serial_number", md.SerialNumber)
+			addedDevicesSlice = append(addedDevicesSlice, md)
 		}
+		// FIXME: addedDevicesSlice is used in part to determine if a profile assignment is needed.
+		// Should be be checking if the modified device has the right profile UUID and current timestamp?
 	}
 
 	// Check if added devices belong to another ABM server. If so, we must delete them before adding them.
@@ -737,8 +755,11 @@ func (d *DEPService) processDeviceResponse(
 		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
 	}
 
-	level.Info(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
-		strings.Join(deletedSerials, ", "), "to_modify", strings.Join(modifiedSerials, ", "))
+	level.Info(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles",
+		"to_add", strings.Join(addedSerials, ", "),
+		"to_remove", strings.Join(deletedSerials, ", "),
+		"to_modify", strings.Join(modifiedSerials, ", "),
+	)
 
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
@@ -775,28 +796,34 @@ func (d *DEPService) processDeviceResponse(
 	// for all other hosts we received, find out the right DEP profile to
 	// assign, based on the team.
 	existingHosts := []fleet.Host{}
+	existingHostMigrationDeadlines := make(map[uint]time.Time)
 	for _, existingHost := range existingSerials {
-		dd, ok := modifiedDevices[existingHost.HardwareSerial]
+		level.Info(d.logger).Log("msg", "preparing to upsert DEP assignment for existing host", "serial", existingHost.HardwareSerial, "host_id", existingHost.ID)
+		md, ok := modifiedDevices[existingHost.HardwareSerial]
 		if !ok {
 			level.Error(kitlog.With(d.logger)).Log("msg",
 				"serial coming from ABM is in the database, but it's not in the list of modified devices", "serial",
 				existingHost.HardwareSerial)
 			continue
 		}
+		if md.MDMMigrationDeadline != nil {
+			existingHostMigrationDeadlines[existingHost.ID] = *md.MDMMigrationDeadline
+		}
 		existingHosts = append(existingHosts, *existingHost)
-		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
+		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], md)
 	}
 
 	// Upsert the host DEP assignment records now so that the team is properly linked to the ABM
 	// token if this is the first device DEP host for this token assigned to the team.
 	if len(existingHosts) > 0 {
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID, existingHostMigrationDeadlines); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
 		}
 	}
 
 	// assign the profile to each device
 	for team, devices := range devicesByTeam {
+		// FIXME: Do we have replication issues or races? There seem to be alot of calls going on inside this function.
 		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
@@ -899,7 +926,7 @@ func (d *DEPService) processDeviceResponse(
 func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmTokenOrgName string) (string, error) {
 	var appleBMTeam *fleet.Team
 	if tmID != nil {
-		tm, err := d.ds.Team(ctx, *tmID)
+		tm, err := d.ds.TeamWithExtras(ctx, *tmID) // TODO see if we can convert to TeamLite
 		if err != nil && !fleet.IsNotFound(err) {
 			return "", ctxerr.Wrap(ctx, err, "get team")
 		}
@@ -1370,7 +1397,10 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 	pb.currentState[currentProfile] = wantedProfile
 }
 
-func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger) error {
+// NewActivityFunc is the function signature for creating a new activity.
+type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+
+func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger, newActivityFn NewActivityFunc) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1390,23 +1420,41 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return nil
 	}
 	logger.Log("msg", "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
-	commandUUID := uuid.NewString()
 
 	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3*len(devices))
-	installedAppsUUIDs := make([]string, 0, len(devices))
+	installedAppsUUIDs := struct {
+		ManagedOnly []string
+		All         []string
+	}{}
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
-			installedAppsUUIDs = append(installedAppsUUIDs, device.UUID)
+			if isBYODDevice := !device.InstalledFromDEP; isBYODDevice {
+				installedAppsUUIDs.ManagedOnly = append(installedAppsUUIDs.ManagedOnly, device.UUID)
+			} else {
+				installedAppsUUIDs.All = append(installedAppsUUIDs.All, device.UUID)
+			}
 			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
 				HostID:      device.HostID,
 				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 			})
 		}
 	}
-	if len(installedAppsUUIDs) > 0 {
-		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+	if len(installedAppsUUIDs.ManagedOnly)+len(installedAppsUUIDs.All) > 0 {
+		for i, uuids := range [][]string{installedAppsUUIDs.ManagedOnly, installedAppsUUIDs.All} {
+			managedOnly := i == 0
+			if len(uuids) == 0 {
+				continue
+			}
+
+			commandUUID := uuid.NewString()
+			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+			turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
+			if turnedOffError != nil {
+				return turnedOffError
+			}
+			if err != nil && !turnedOff {
+				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+			}
 		}
 	}
 
@@ -1421,8 +1469,13 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 	if len(certsListUUIDs) > 0 {
+		commandUUID := uuid.NewString()
 		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
-		if err != nil {
+		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
+		if turnedOffError != nil {
+			return turnedOffError
+		}
+		if err != nil && !turnedOff {
 			return ctxerr.Wrap(ctx, err, "send CertificateList commands to ios and ipados devices")
 		}
 	}
@@ -1439,7 +1492,13 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 	if len(deviceInfoUUIDs) > 0 {
-		if err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID); err != nil {
+		commandUUID := uuid.NewString()
+		err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID)
+		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
+		if turnedOffError != nil {
+			return turnedOffError
+		}
+		if err != nil && !turnedOff {
 			return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
 		}
 	}
@@ -1450,6 +1509,37 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return ctxerr.Wrap(ctx, err, "add host mdm commands")
 	}
 	return nil
+}
+
+// turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
+// Returns a boolean value to indicate whether or not MDM was turned off.
+func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger kitlog.Logger, newActivityFn NewActivityFunc) (bool, error) {
+	var e *APNSDeliveryError
+	if !errors.As(err, &e) {
+		return false, nil
+	}
+
+	for uuid, err := range e.errorsByUUID {
+		if strings.Contains(err.Error(), "device token is inactive") {
+			level.Info(logger).Log("msg", "turning off MDM for device with inactive device token", "uuid", uuid)
+			users, activities, err := ds.MDMTurnOff(ctx, uuid)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "turn off mdm for failed device")
+			}
+
+			if len(users) != len(activities) {
+				return false, ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+			}
+
+			for i, act := range activities {
+				user := users[i]
+				if err := newActivityFn(ctx, user, act); err != nil {
+					return false, ctxerr.Wrap(ctx, err, "create activity")
+				}
+			}
+		}
+	}
+	return true, nil
 }
 
 func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string) ([]byte, error) {

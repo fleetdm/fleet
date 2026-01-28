@@ -118,6 +118,10 @@ func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVeri
 		host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
 		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, host, cmdUUID)
 		if err != nil {
+			// FIXME: In cases where the command is superseded before the host reports the results,
+			// for example, when the scep proxy profile is resent due to challenge expiration, we
+			// expect to see some error logs with "HostMDMCommand command uuid not found for host uuid".
+			// But it would be better to find a way to avoid that log noise while still logging unexpected errors.
 			return err
 		}
 

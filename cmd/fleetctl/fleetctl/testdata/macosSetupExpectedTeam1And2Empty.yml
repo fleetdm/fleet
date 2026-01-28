@@ -19,23 +19,30 @@ spec:
         custom_settings: null
       windows_settings:
         custom_settings: null
+      android_settings:
+        custom_settings: null
+        certificates: null
       macos_setup:
         bootstrap_package: null
         enable_end_user_authentication: false
         macos_setup_assistant: null
         manual_agent_install: null
+        require_all_software_macos: false
         enable_release_device_manually: false
         script: null
         software: null
       macos_updates:
         deadline: null
         minimum_version: null
+        update_new_hosts: null
       ios_updates:
         deadline: null
         minimum_version: null
+        update_new_hosts: null
       ipados_updates:
         deadline: null
         minimum_version: null
+        update_new_hosts: null
       windows_updates:
         deadline_days: null
         grace_period_days: null
@@ -66,6 +73,9 @@ spec:
         custom_settings: null
       windows_settings:
         custom_settings: null
+      android_settings:
+        custom_settings: null
+        certificates: null
       macos_setup:
         bootstrap_package: null
         macos_setup_assistant: null

@@ -1,14 +1,8 @@
 .host-details,
 .device-user {
-  .react-tabs__tab-panel--selected {
-    margin-top: $pad-medium;
-  }
-
-  display: flex;
-  flex-direction: column;
-  gap: $pad-medium;
-
+  @include vertical-page-layout;
   @include color-contrasted-sections;
+
   .header {
     display: flex;
     flex-direction: column;
@@ -55,12 +49,11 @@
 
     .display-name-container {
       display: flex;
-      align-items: center;
+      align-items: baseline; // Align text to bottom
     }
 
     .display-name {
       font-size: $large;
-      font-weight: $bold;
       @include ellipse-text(300px);
 
       @media (min-width: $break-md) {
@@ -79,16 +72,7 @@
 
   &__tab-nav,
   &__software-tab-nav {
-    background-color: $ui-off-white;
     width: 100%;
-
-    // direct descendant of selector allows us to only change the first level of
-    // tab styling and not change the tabs inside the cards.
-    > .react-tabs > .react-tabs__tab-list {
-      .react-tabs__tab--selected {
-        background-color: $ui-off-white;
-      }
-    }
   }
 
   .col-50 {
@@ -152,12 +136,7 @@
     &__container {
       margin: $pad-xxlarge 0; // Equal padding above and below empty states
       min-height: initial;
+      align-self: center;
     }
   }
-}
-
-// we dont need the margin on the host details page as we are not using grid css
-// for the spacing.
-.host-details__tab-nav .card {
-  margin-top: 0;
 }

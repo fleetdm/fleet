@@ -1,9 +1,18 @@
 .host-header {
+  &__device-status-tag-wrapper {
+    // We are aligning self on the tag wrapper to center it vertically with the Host title.
+    // This tag will not always display and the default of the parent container is
+    // align: baseline, so we need to overrride this explicitly for the tag when we display it.
+    align-self: center;
+  }
+
   &__device-status-tag {
+    display: block;
     margin-left: $pad-small;
     background-color: $ui-warning;
     padding: $pad-xsmall;
-    font-size: 10px;
+    font-size: $xx-small;
+    color: $core-fleet-black;
     font-weight: $bold;
     border-radius: $border-radius;
 
@@ -12,45 +21,33 @@
     }
 
     &.error {
-      color: $core-white;
+      color: $core-fleet-white;
       background-color: $core-vibrant-red;
     }
   }
 
   &__last-fetched {
     font-size: $xx-small;
-    color: $core-fleet-black;
+    color: $ui-fleet-black-75;
     margin: 0;
     margin-left: $pad-medium;
   }
 
   &__refetch {
     display: flex;
-    margin-left: $pad-medium;
-    margin-right: $pad-small;
 
     .refetch-btn {
-      font-size: $x-small;
-      height: 38px;
-
       &:hover {
         svg {
           path {
-            fill: $core-vibrant-blue-over;
+            fill: $ui-fleet-black-75-over;
           }
         }
       }
     }
 
+    // Inherits disabled button styles
     .refetch-spinner {
-      color: $core-vibrant-blue;
-      cursor: default;
-      font-size: $x-small;
-      height: 38px;
-      opacity: 50%;
-      filter: saturate(100%);
-      margin-left: $pad-small;
-
       .icon {
         animation: spin 2s linear infinite;
       }
@@ -67,5 +64,12 @@
         }
       }
     }
+  }
+
+  .title__actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: $pad-medium;
   }
 }

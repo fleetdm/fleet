@@ -131,6 +131,9 @@ func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPE
 			return CPETranslation{}, false, err
 		}
 		if match {
+			if len(item.Filter.Product) == 0 {
+				item.Filter.Product = []string{s.Name}
+			}
 			return item.Filter, true, nil
 		}
 	}
@@ -217,10 +220,11 @@ func (c CPETranslationSoftware) Matches(reCache *regexpCache, s *fleet.Software)
 }
 
 type CPETranslation struct {
-	Product  []string `json:"product"`
-	Vendor   []string `json:"vendor"`
-	TargetSW []string `json:"target_sw"`
-	Part     string   `json:"part"`
+	Product   []string `json:"product"`
+	Vendor    []string `json:"vendor"`
+	TargetSW  []string `json:"target_sw"`
+	SWEdition []string `json:"sw_edition"`
+	Part      string   `json:"part"`
 	// If Skip is set, no NVD vulnerabilities will be reported for the matching software.
 	Skip bool `json:"skip"`
 }

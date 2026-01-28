@@ -136,6 +136,7 @@ class InputField extends Component {
         variant="icon"
         className={`${baseClass}__show-secret-icon`}
         onClick={onToggleSecret}
+        size="small"
       >
         <Icon name="eye" />
       </Button>
@@ -157,7 +158,7 @@ class InputField extends Component {
         {this.state.copied && (
           <span className={copiedConfirmationClasses}>Copied!</span>
         )}
-        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
+        <Button variant="icon" onClick={onClickCopy} size="small" iconStroke>
           {copyButtonValue}
         </Button>
         {this.props.enableShowSecret && this.renderShowSecretButton()}

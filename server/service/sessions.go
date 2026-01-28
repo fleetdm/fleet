@@ -18,8 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/log/level"
 )
@@ -166,7 +166,7 @@ var (
 	sendingMFAEmail = errors.New("sending MFA email")
 
 	noMFASupported           = errors.New("client with no MFA email support")
-	mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
+	mfaNotSupportedForClient = endpointer.BadRequestErr(
 		"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
 		noMFASupported,
 	)
@@ -493,6 +493,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(
 		ctx, samlProvider, svc.ssoSessionStore, redirectURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		sso.SSORequestData{},
 	)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
@@ -575,7 +576,7 @@ func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter
 	deleteSSOCookie(w)
 }
 
-func makeCallbackSSOEndpoint(urlPrefix string) endpoint_utils.HandlerFunc {
+func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		callbackRequest := request.(*callbackSSORequest)
 		session, userID, err := getSSOSession(ctx, svc, callbackRequest)
@@ -715,7 +716,7 @@ func (svc *Service) InitSSOCallback(
 func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {
 	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
-		var nfe endpoint_utils.NotFoundErrorInterface
+		var nfe endpointer.NotFoundErrorInterface
 		if errors.As(err, &nfe) {
 			return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountInvalid))
 		}
