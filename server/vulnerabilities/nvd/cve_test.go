@@ -368,6 +368,30 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:apple:safari:16.2:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-28205", resolvedInVersion: "16.4.1"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:15.6.1:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:14.1.2:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:13.1.3:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:microsoft:365_apps:16.0.17628.20144:*:*:*:*:windows:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2024-21402"},
@@ -690,6 +714,55 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			osID:     3,
 			// This was resolved in 15.3, so it should be excluded. See https://github.com/fleetdm/fleet/issues/26561.
 			excludedCVEs: []string{"CVE-2025-24176"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.2",
+			osID:     4,
+			// macOS Ventura 13.2 < 13.3.1 is vulnerable to CVE-2023-28205
+			includedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.3.1",
+			osID:     5,
+			// macOS Ventura 13.3.1 includes system-level WebKit patch for CVE-2023-28205
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "12.7.6",
+			osID:     6,
+			// macOS Monterey 12.7.6 did NOT receive system-level fix (rely on Safari matching)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "12.6.5",
+			osID:     7,
+			// macOS Monterey 12.6.5 did NOT fix CVE-2023-28205 (only fixed CVE-2023-28206)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "11.7.10",
+			osID:     8,
+			// macOS Big Sur 11.7.10 did NOT receive system-level fix (rely on Safari matching)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "11.7.6",
+			osID:     9,
+			// macOS Big Sur 11.7.6 did NOT fix CVE-2023-28205 (only fixed CVE-2023-28206)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "10.15.7",
+			osID:     10,
+			// macOS Catalina (10.x) should NOT match CVE-2023-28205 (pre-Big Sur)
+			excludedCVEs: []string{"CVE-2023-28205"},
 		},
 	}
 
