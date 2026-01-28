@@ -455,6 +455,26 @@ var (
 				s.Name = "ninxsoft-mist"
 			},
 		},
+		{
+			// 7-Zip on Windows installed with MSI reports versions like "24.09.00.0" but NVD uses "24.09".
+			// Strip trailing ".00.0" components to match NVD version format.
+			// See https://github.com/fleetdm/fleet/issues/36335
+			matches: func(s *fleet.Software) bool {
+				return strings.HasPrefix(s.Name, "7-Zip") && s.Source == "programs"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				parts := strings.Split(s.Version, ".")
+				switch len(parts) {
+				case 0, 1:
+					level.Debug(logger).Log("msg", "unexpected 7-Zip version format", "source", "programs", "name", s.Name, "version", s.Version)
+					return
+				case 2:
+					return // Already in the correct format
+				default:
+					s.Version = parts[0] + "." + parts[1]
+				}
+			},
+		},
 	}
 )
 
