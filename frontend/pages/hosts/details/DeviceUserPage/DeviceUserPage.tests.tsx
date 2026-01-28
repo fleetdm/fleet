@@ -312,7 +312,11 @@ describe("Device User Page", () => {
         {
           host,
           global_config: {
-            features: { enable_software_inventory: true },
+            features: {
+              enable_software_inventory: true,
+              enable_conditional_access: false,
+              enable_conditional_access_bypass: false,
+            },
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
@@ -359,7 +363,11 @@ describe("Device User Page", () => {
         {
           host,
           global_config: {
-            features: { enable_software_inventory: true },
+            features: {
+              enable_software_inventory: true,
+              enable_conditional_access: false,
+              enable_conditional_access_bypass: false,
+            },
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
@@ -440,7 +448,11 @@ describe("Device User Page", () => {
             enabled_and_configured: true,
             require_all_software_macos: false,
           },
-          features: { enable_software_inventory: true },
+          features: {
+            enable_software_inventory: true,
+            enable_conditional_access: false,
+            enable_conditional_access_bypass: false,
+          },
         },
       });
 
@@ -460,7 +472,11 @@ describe("Device User Page", () => {
             enabled_and_configured: true,
             require_all_software_macos: false,
           },
-          features: { enable_software_inventory: true },
+          features: {
+            enable_software_inventory: true,
+            enable_conditional_access: false,
+            enable_conditional_access_bypass: false,
+          },
         },
       });
 
@@ -480,7 +496,11 @@ describe("Device User Page", () => {
             enabled_and_configured: false,
             require_all_software_macos: false,
           },
-          features: { enable_software_inventory: true },
+          features: {
+            enable_software_inventory: true,
+            enable_conditional_access: false,
+            enable_conditional_access_bypass: false,
+          },
         },
       });
 
@@ -501,7 +521,11 @@ describe("Device User Page", () => {
             enabled_and_configured: true,
             require_all_software_macos: false,
           },
-          features: { enable_software_inventory: true },
+          features: {
+            enable_software_inventory: true,
+            enable_conditional_access: false,
+            enable_conditional_access_bypass: false,
+          },
         },
       });
 
