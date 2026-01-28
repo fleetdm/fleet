@@ -25,7 +25,8 @@ This list (for now) will be in chronological order as assets are created:
 | Asset | Date posted | Business purpose 
 |:------------|:------------|:----------------|
 | [Why enterprise Linux is important in 2026](https://fleetdm.com/guides/why-enterprise-linux-is-important-in-2026#basic-article) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop managment |
-
+| [Fleeet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | 2026-01-28 | Part of a series on competior analysis |
+| [Fleet GitOps workshop](https://fleetdm.com/gitops-workshop) | 2026-01-28 | 1=-page explainer & FAQ for GitOps workshop | 
 
 ## Responsibilities
 
