@@ -4625,6 +4625,7 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 	var (
 		notAccessible []string
 		failed        []string
+		throttled     []string
 	)
 
 	for serial, status := range payload.Devices {
@@ -4635,6 +4636,8 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 			notAccessible = append(notAccessible, serial)
 		case string(fleet.DEPAssignProfileResponseFailed):
 			failed = append(failed, serial)
+		case string(fleet.DEPAssignProfileResponseThrottled):
+			throttled = append(throttled, serial)
 		default:
 			// this should never happen unless Apple changes the response format, so we log it for
 			// future debugging
@@ -4653,6 +4656,10 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 		}
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed,
 			string(fleet.DEPAssignProfileResponseFailed), abmTokenID); err != nil {
+			return err
+		}
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, throttled,
+			string(fleet.DEPAssignProfileResponseThrottled), abmTokenID); err != nil {
 			return err
 		}
 		return nil
@@ -4794,7 +4801,7 @@ WHERE
 ) OR (assign_profile_response = ?
 	AND(retry_job_id = 0 OR j.state = ?)
 	AND(response_updated_at IS NULL
-		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))
+		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND)))
 ORDER BY response_updated_at ASC
 LIMIT ?`
 
