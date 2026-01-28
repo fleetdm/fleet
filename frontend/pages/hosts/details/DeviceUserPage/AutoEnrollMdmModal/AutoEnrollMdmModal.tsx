@@ -19,12 +19,14 @@ const AutoEnrollMdmModal = ({
   onCancel,
 }: IAutoEnrollMdmModalProps): JSX.Element => {
   let isMacOsSonomaOrLater = false;
+  let isMacOs26OrLater = false;
   if (platform === "darwin" && os_version.startsWith("macOS ")) {
     const [major] = os_version
       .replace("macOS ", "")
       .split(".")
       .map((s) => parseInt(s, 10));
     isMacOsSonomaOrLater = major >= 14;
+    isMacOs26OrLater = major >= 26;
   }
 
   const preSonomaBody = (
@@ -66,6 +68,9 @@ const AutoEnrollMdmModal = ({
     </>
   );
 
+  const enrollCTA = isMacOs26OrLater
+    ? "Enroll in Device Management"
+    : "Enroll in Remote Management";
   const sonomaAndAboveBody = (
     <>
       <p className={`${baseClass}__description`}>
@@ -77,14 +82,14 @@ const AutoEnrollMdmModal = ({
           <b>System Settings</b>.
         </li>
         <li>
-          In the sidebar menu, select <b>Enroll in Remote Management</b>, and
-          select <b>Enroll</b>.
+          In the sidebar menu, select <b>{enrollCTA}</b>, and select{" "}
+          <b>Enroll</b>.
           <div className={`${baseClass}__profiles-renew`}>
             <div className={`${baseClass}__profiles-renew--instructions`}>
-              If you don&apos;t see <b>Enroll in Remote Management</b>, open
-              your <b>Terminal</b> app (<b>Finder</b> {">"} <b>Applications</b>{" "}
-              {">"} <b>Utilities</b> folder), copy and paste the below command,
-              press enter, enter your password, and press enter again.
+              If you don&apos;t see <b>{enrollCTA}</b>, open your{" "}
+              <b>Terminal</b> app (<b>Finder</b> {">"} <b>Applications</b> {">"}{" "}
+              <b>Utilities</b> folder), copy and paste the below command, press
+              enter, enter your password, and press enter again.
             </div>
             <InputField
               enableCopy
