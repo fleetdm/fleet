@@ -15,16 +15,8 @@ import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+import CA_LABEL_BY_TYPE from "../helpers";
 
-export const CA_LABEL_BY_TYPE: Record<ICertificateAuthorityType, string> = {
-  custom_est_proxy: "Custom EST (Enrollment Over Secure Transport)",
-  custom_scep_proxy: "Custom SCEP (Simple Certificate Enrollment Protocol)",
-  digicert: "DigiCert",
-  hydrant: "Hydrant EST (Enrollment Over Secure Transport)",
-  ndes_scep_proxy:
-    "Okta CA or Microsoft NDES (Network Device Enrollment Service)",
-  smallstep: "Smallstep",
-};
 // keep these alphabetized
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
   {

@@ -6,6 +6,7 @@ import UploadList from "pages/ManageControlsPage/components/UploadList";
 
 import CertAuthorityListHeader from "../CertAuthorityListHeader";
 import CertAuthorityListItem from "../CertAuthorityListItem";
+import CA_LABEL_BY_TYPE from "../helpers";
 
 const baseClass = "certificate-authority-list";
 
@@ -24,9 +25,10 @@ export const generateListData = (
     switch (cert.type) {
       case "ndes_scep_proxy":
         description = "Microsoft Network Device Enrollment Service (NDES)";
+        description = CA_LABEL_BY_TYPE.ndes_scep_proxy;
         break;
       case "digicert":
-        description = "DigiCert";
+        description = CA_LABEL_BY_TYPE.digicert;
         break;
       case "custom_scep_proxy":
         description = "Custom Simple Certificate Enrollment Protocol (SCEP)";
@@ -35,7 +37,7 @@ export const generateListData = (
         description = "Hydrant (EST - Enrollment Over Secure Transport) ";
         break;
       case "smallstep":
-        description = "Smallstep";
+        description = CA_LABEL_BY_TYPE.smallstep;
         break;
       case "custom_est_proxy":
         description = "Custom Enrollment Over Secure Transport (EST)";
