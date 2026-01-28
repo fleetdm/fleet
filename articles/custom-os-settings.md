@@ -108,7 +108,7 @@ Hosts that are running MDM commands or will run MDM commands to apply OS setting
 
 Hosts that failed to apply OS settings. For Windows profiles, status codes are listed in [Microsoft's OMA DM docs](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
-The macOS, iOS, or iPadOS host may display **Failed** status for OS settings even though MDM isn't turned on. This happens when a host previously had MDM enabled, the user deleted the enrollment profile, but the host was offline at the time. Since Fleet didn't receive [confirmation](https://developer.apple.com/documentation/devicemanagement/check-out) that MDM was removed, it still tries to send MDM commands that can't be executed. To fix this, wait for the host to come online and check in with Fleet, or remove it from Fleet and [enroll](https://fleetdm.com/guides/enroll-hosts) it again.
+macOS, iOS, or iPadOS hosts can display "Failed" even when MDM is turned off for that host. This happens when a host previously had MDM turned on and the end user deleted the enrollment profile while the host was offline. Since Fleet didn't receive [confirmation](https://developer.apple.com/documentation/devicemanagement/check-out) that the enrollment profile was removed, it still sends MDM commands to enforce the OS settings. These commands always fail. To fix this, wait for the host to come online and check in with Fleet. If you want, you can delete the host from Fleet. It will re-appear when it checks back in with Fleet.
 
 ### Special Windows behavior
 
