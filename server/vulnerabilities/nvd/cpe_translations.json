@@ -726,7 +726,8 @@
     },
     "filter": {
       "product": ["pgadmin", "pgadmin_4"],
-      "vendor": ["pgadmin"]
+      "vendor": ["pgadmin"],
+      "target_sw": ["postgresql"]
     }
   }
 ]
