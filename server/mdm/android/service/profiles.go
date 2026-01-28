@@ -168,7 +168,29 @@ func (r *profileReconciler) sendHostProfiles(
 	// if every profile to install has > max failures, mark all as failed and done.
 	setFailCount := initRequestFailCountForSetOfProfiles(profilesToMerge, profilesToRemove)
 	if setFailCount >= maxRequestFailures {
-		detail := `Couldn't apply profile. Google returned error. Please re-add profile to try again.`
+		// try to get the Google error from the last failed request
+		var googleErr string
+		for _, prof := range profilesToMerge {
+			if prof.LastErrorDetails != "" {
+				googleErr = prof.LastErrorDetails
+				break
+			}
+		}
+		if googleErr == "" {
+			for _, prof := range profilesToRemove {
+				if prof.LastErrorDetails != "" {
+					googleErr = prof.LastErrorDetails
+					break
+				}
+			}
+		}
+
+		var detail string
+		if googleErr != "" {
+			detail = fmt.Sprintf("Google returned error: %s. Please re-add the profile and try again.", googleErr)
+		} else {
+			detail = "Couldn't apply profile. Google returned error. Please re-add the profile and try again."
+		}
 		for _, prof := range profilesToMerge {
 			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
 				HostUUID:      hostUUID,

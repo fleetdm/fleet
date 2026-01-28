@@ -342,8 +342,8 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error. Please re-add profile to try again.`},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error. Please re-add profile to try again.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Google returned error: nope. Please re-add the profile and try again.`},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Google returned error: nope. Please re-add the profile and try again.`},
 	})
 
 	// next run has nothing to do
