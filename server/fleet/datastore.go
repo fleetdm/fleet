@@ -2582,9 +2582,8 @@ type Datastore interface {
 	// If there are no pending certificate templates, then nothing is returned.
 	GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*HostCertificateTemplatesForDelivery, error)
 
-	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
-	// and sets the fleet_challenge for each template.
-	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error
+	// TransitionCertificateTemplatesToDelivered transitions the specified templates from 'delivering' to 'delivered'.
+	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, templateIDs []uint) error
 
 	// RevertHostCertificateTemplatesToPending reverts specific host certificate templates from 'delivering' back to 'pending'.
 	RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
@@ -2609,6 +2608,11 @@ type Datastore interface {
 	// by setting status to 'pending', clearing validity fields, and generating a new UUID.
 	// The new UUID signals to the Android agent that the certificate needs renewal.
 	SetAndroidCertificateTemplatesForRenewal(ctx context.Context, templates []HostCertificateTemplateForRenewal) error
+
+	// GetOrCreateFleetChallengeForCertificateTemplate ensures a fleet challenge exists for the given
+	// host and certificate template. If a challenge already exists, it returns it. If not, it creates
+	// a new one atomically. Only works for templates in 'delivered' status and with operation_type 'install'.
+	GetOrCreateFleetChallengeForCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) (string, error)
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
