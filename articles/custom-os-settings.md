@@ -77,9 +77,7 @@ If you want to make sure the profile stays device-scoped, update `PayloadScope` 
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
-In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts.
-
-In the **Hosts** page, select a host and select the **OS settings** item to see the status for a specific setting.
+To see the status for a specific settings, hover over a row in the **Custom settings** table and select the information (**i**) icon.
 
 Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
 Profile's status to update to "Pending."
