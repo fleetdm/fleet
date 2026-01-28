@@ -6,11 +6,6 @@ import {
 } from "interfaces/script";
 import sendRequest from "services";
 
-import {
-  createMockBatchScriptSummary,
-  createMockScriptBatchHostResults,
-} from "__mocks__/scriptMock";
-
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import {
@@ -137,25 +132,14 @@ export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
   scope: "script_batch_summary";
 }
 
-export interface IScriptBatchHostCountsV1 {
+export interface IScriptBatchHostStatuses {
   ran: number;
   pending: number;
   errored: number;
   canceled: number;
 }
-export type ScriptBatchHostCountV1 = keyof IScriptBatchHostCountsV1;
-// 200 successful response
 
-export interface IScriptBatchSummaryV1 extends IScriptBatchHostCountsV1 {
-  team_id: number;
-  script_name: string;
-  created_at: string;
-  // below fields not yet used by the UI
-  targeted: number;
-  script_id: number;
-}
-
-export interface IScriptBatchHostCountsV2 {
+export interface IScriptBatchHostCounts {
   targeted_host_count: number;
   ran_host_count: number;
   errored_host_count: number;
@@ -164,7 +148,7 @@ export interface IScriptBatchHostCountsV2 {
   canceled_host_count: number;
 }
 
-export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
+export interface IScriptBatchSummary extends IScriptBatchHostCounts {
   batch_execution_id: string;
   /** ISO 8601 date-time string. When the script batch run was created (NOT when it is/was scheduled
    * to run by, which is represented by `not_before`. */
@@ -195,7 +179,7 @@ export interface IScriptBatchSummariesQueryKey
 
 export interface IScriptBatchSummariesResponse
   extends ListEntitiesResponseCommon {
-  batch_executions: IScriptBatchSummaryV2[] | null; // should not return `null`, but API currently does sometimes. Remove this option when it's fixed.
+  batch_executions: IScriptBatchSummary[] | null; // should not return `null`, but API currently does sometimes. Remove this option when it's fixed.
 }
 
 export type ScriptBatchHostsOrderKey = "display_name" | "script_executed_at";
@@ -305,21 +289,12 @@ export default {
     const { SCRIPT_CANCEL_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_CANCEL_BATCH(batchExecutionId));
   },
-  /** calls the deprecated endpoint */
-  getRunScriptBatchSummaryV1({
+  getRunScriptBatchSummary({
     batch_execution_id,
-  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryV1> {
+  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummary> {
     return sendRequest(
       "GET",
-      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V1(batch_execution_id)}`
-    );
-  },
-  getRunScriptBatchSummaryV2({
-    batch_execution_id,
-  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryV2> {
-    return sendRequest(
-      "GET",
-      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V2(batch_execution_id)}`
+      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
     );
   },
   getRunScriptBatchSummaries(

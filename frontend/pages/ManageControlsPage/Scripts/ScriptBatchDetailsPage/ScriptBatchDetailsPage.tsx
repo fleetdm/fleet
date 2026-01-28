@@ -16,7 +16,7 @@ import { NotificationContext } from "context/notification";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryV2,
+  IScriptBatchSummary,
 } from "services/entities/scripts";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -112,13 +112,13 @@ const ScriptBatchDetailsPage = ({
     isError,
     refetch: refetchBatchDetails,
   } = useQuery<
-    IScriptBatchSummaryV2,
+    IScriptBatchSummary,
     AxiosError,
-    IScriptBatchSummaryV2,
+    IScriptBatchSummary,
     IScriptBatchSummaryQueryKey[]
   >(
     [{ scope: "script_batch_summary", batch_execution_id: batchExecutionId }],
-    ({ queryKey }) => scriptsAPI.getRunScriptBatchSummaryV2(queryKey[0]),
+    ({ queryKey }) => scriptsAPI.getRunScriptBatchSummary(queryKey[0]),
     { ...DEFAULT_USE_QUERY_OPTIONS, enabled: !!batchExecutionId }
   );
 
