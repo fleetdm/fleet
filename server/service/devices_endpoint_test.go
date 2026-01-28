@@ -262,19 +262,19 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 	// EnableConditionalAccessBypass is controlled solely by AppConfig.ConditionalAccess.
 
 	cases := []struct {
-		name                              string
-		conditionalAccessConfig           *fleet.ConditionalAccessSettings
-		expectedEnableConditionalAccess   bool
-		expectedEnableBypass              bool
+		name                            string
+		conditionalAccessConfig         *fleet.ConditionalAccessSettings
+		expectedEnableConditionalAccess bool
+		expectedEnableBypass            bool
 	}{
 		{
-			name:                              "No ConditionalAccess config",
-			conditionalAccessConfig:           nil,
-			expectedEnableConditionalAccess:   false,
-			expectedEnableBypass:              false,
+			name:                            "No ConditionalAccess config",
+			conditionalAccessConfig:         nil,
+			expectedEnableConditionalAccess: false,
+			expectedEnableBypass:            false,
 		},
 		{
-			name: "ConditionalAccess set, bypass default (BypassDisabled not set)",
+			name:                    "ConditionalAccess set, bypass default (BypassDisabled not set)",
 			conditionalAccessConfig: &fleet.ConditionalAccessSettings{
 				// BypassDisabled not set (Valid=false) -> bypass enabled by default
 			},

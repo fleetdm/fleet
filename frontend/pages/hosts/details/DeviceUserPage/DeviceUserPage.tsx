@@ -97,11 +97,7 @@ import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDe
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
 import BypassModal from "./BypassModal";
-import { AppContext } from "context/app";
-import endpoints from "utilities/endpoints";
 
 const baseClass = "device-user";
 
