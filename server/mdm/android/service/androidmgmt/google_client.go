@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -347,6 +348,8 @@ func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseNa
 	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
 	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
 	if err != nil {
+		spew.Config.DisableMethods = true
+		fmt.Println(">>>>> GoogleClient.EnterprisesApplications err:", spew.Sdump(err))
 		if isErrorCode(err, http.StatusNotFound) || (isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found")) {
 			// For some reason, the AMAPI can return a 500 when an app is not found.
 			return nil, ctxerr.Wrap(ctx, appNotFoundError{})

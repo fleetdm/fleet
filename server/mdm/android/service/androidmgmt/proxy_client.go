@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -42,6 +43,7 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 	if proxyEndpoint == "" {
 		proxyEndpoint = defaultProxyEndpoint
 	}
+	fmt.Println(">>>>> ProxyCLient using proxy endpoint:", proxyEndpoint)
 
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
@@ -307,6 +309,8 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 
 	app, err := call.Do()
 	if err != nil {
+		spew.Config.DisableMethods = true
+		fmt.Println(">>>>> ProxyClient.EnterprisesApplications err:", spew.Sdump(err))
 		if isErrorCode(err, http.StatusNotFound) || (isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found")) {
 			// For some reason, the AMAPI can return a 500 when an app is not found.
 			return nil, ctxerr.Wrap(ctx, appNotFoundError{})
