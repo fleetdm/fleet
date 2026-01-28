@@ -4,9 +4,9 @@ import classnames from "classnames";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 
+import { isLinuxLike } from "interfaces/platform";
 import { ISelectTargetsEntity } from "interfaces/target";
 import { isTargetLabel, isTargetHost } from "../helpers";
-import { isLinuxLike } from "interfaces/platform";
 
 const baseClass = "target-option";
 

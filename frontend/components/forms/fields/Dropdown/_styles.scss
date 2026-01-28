@@ -212,6 +212,7 @@
   }
 
   .Select-menu-outer {
+    position: relative;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
     z-index: 6;
     overflow: auto;

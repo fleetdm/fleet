@@ -3,11 +3,11 @@ import classnames from "classnames";
 
 import { ISelectTargetsEntity } from "interfaces/target";
 // @ts-ignore
-import TargetIcon from "./TargetIcon";
-// @ts-ignore
 import Button from "components/buttons/Button/Button";
 // @ts-ignore
 import Icon from "components/Icon";
+// @ts-ignore
+import TargetIcon from "./TargetIcon";
 import { isTargetHost, isTargetLabel, isTargetTeam } from "../helpers";
 
 const baseClass = "target-option";

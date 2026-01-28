@@ -47,7 +47,6 @@
   }
 
   &__spotlight {
-    @include vertical-card-layout;
     width: 50%;
     float: right;
     overflow-y: auto;

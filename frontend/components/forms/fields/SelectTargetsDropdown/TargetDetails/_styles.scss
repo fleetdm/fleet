@@ -1,5 +1,7 @@
 .host-target,
 .label-target {
+  @include vertical-page-tab-panel-layout;
+
   width: 100%;
 
   &__back {
@@ -111,26 +113,6 @@
     color: $core-fleet-blue;
     margin-right: $pad-small;
     width: 30px;
-  }
-
-  &__hosts {
-    margin: $pad-xsmall 0;
-    letter-spacing: 0.4px;
-    font-size: $x-small;
-    font-weight: $regular;
-  }
-
-  &__hosts-count {
-    font-weight: $bold;
-    color: $core-fleet-black;
-
-    strong {
-      min-width: 21px;
-      text-align: center;
-      font-weight: $bold;
-      display: inline-block;
-      margin-right: $pad-small;
-    }
   }
 
   &__hosts-online {

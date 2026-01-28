@@ -11,6 +11,7 @@ import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
 
 import { isTargetHost, isTargetTeam, isTargetLabel } from "../helpers";
+import TableCount from "components/TableContainer/TableCount";
 
 const baseClass = "target-details";
 
@@ -138,9 +139,7 @@ const TargetDetails = ({
         </p>
 
         <p className={`${labelBaseClass}__hosts`}>
-          <span className={`${labelBaseClass}__hosts-count`}>
-            <strong>{count}</strong>HOSTS
-          </span>
+          <TableCount count={count} name="hosts" />
         </p>
 
         <p className={`${labelBaseClass}__description`}>
@@ -181,9 +180,7 @@ const TargetDetails = ({
         </p>
 
         <p className={`${labelBaseClass}__hosts`}>
-          <span className={`${labelBaseClass}__hosts-count`}>
-            <strong>{count}</strong>HOSTS
-          </span>
+          <TableCount count={count} name="hosts" />
         </p>
       </div>
     );
