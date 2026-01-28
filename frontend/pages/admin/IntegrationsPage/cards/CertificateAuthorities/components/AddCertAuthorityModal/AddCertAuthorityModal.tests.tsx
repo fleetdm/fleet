@@ -6,7 +6,7 @@ import { createMockCertificateAuthorityPartial } from "__mocks__/certificatesMoc
 import { renderWithSetup } from "test/test-utils";
 
 import AddCertAuthorityModal from "./AddCertAuthorityModal";
-import { CA_LABEL_BY_TYPE } from "./helpers";
+import CA_LABEL_BY_TYPE from "../helpers";
 
 describe("AddCertAuthorityModal", () => {
   it("renders the Custom EST form by default", () => {
