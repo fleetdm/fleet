@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -243,6 +244,9 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 				installPendingProfile,
 			}, nil
 		}
+		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return nil, nil
+		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
 		}
@@ -323,6 +327,9 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 				installPendingProfile2,
 			}, nil
 		}
+		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return nil, nil
+		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
 		}
@@ -395,6 +402,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			if id == policyRequestUUID {
 				payload, err := json.Marshal(map[string]any{
 					"policy": map[string]any{
+						// TODO(JK): rename to passwordPolicies
 						"DefaultPermissionPolicy": true,
 						"cameraDisabled":          true,
 					},
@@ -414,11 +422,16 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil, errors.New("something went wrong")
 		}
 
+		// TODO(JK): maybe given this is a mock, we can only do the second part of the test
+
 		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 			return []*fleet.MDMAndroidProfilePayload{
 				installPendingProfile1,
 				installPendingProfile2,
 			}, nil
+		}
+		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return nil, nil
 		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
@@ -479,6 +492,11 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return []*fleet.MDMAndroidProfilePayload{
 				// installPendingProfile1,
 				installPendingProfile2,
+			}, nil
+		}
+		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{
+				installPendingProfile1,
 			}, nil
 		}
 
@@ -1247,6 +1265,9 @@ func TestBuildNonComplianceErrorMessage(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualMessage := buildNonComplianceErrorMessage(tc.nonCompliance)
+			fmt.Println("----------------------")
+			fmt.Println(actualMessage)
+			fmt.Println("----------------------")
 			require.Equal(t, tc.expectedErrorMessage, actualMessage)
 		})
 	}
@@ -1277,6 +1298,9 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		return nil
 	}
 	mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+		return nil, nil
+	}
+	mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 		return nil, nil
 	}
 	mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {

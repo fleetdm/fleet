@@ -1261,6 +1261,34 @@ func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx con
 	return profiles, nil
 }
 
+func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	const stmt = `
+		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
+		FROM host_mdm_android_profiles
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ?
+	`
+
+	var failedProfiles []*fleet.MDMAndroidProfilePayload
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &failedProfiles, stmt, hostUUID, policyVersion, fleet.MDMDeliveryFailed, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles that failed due to non compliance but could be reverified")
+	}
+
+	// TODO(JK): each "detail" can have multiple settings and multiple reasons
+	// but, only one reason per each setting
+	// we might have to change the db to store a nicer format
+
+	var profiles []*fleet.MDMAndroidProfilePayload
+	for _, profile := range failedProfiles {
+		if strings.Contains(profile.Detail, "USER_ACTION") ||
+			strings.Contains(profile.Detail, "PENDING") {
+			profiles = append(profiles, profile)
+		}
+	}
+
+	return profiles, nil
+}
+
 func (ds *Datastore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionId int64) error {
 	stmt := `
 		DELETE FROM host_mdm_android_profiles

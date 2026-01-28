@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -629,6 +630,13 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
 		return
 	}
+	failedNonComplianceProfiles, err := svc.ds.ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx, hostUUID, appliedPolicyVersion)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "error getting failed profiles", "err", err)
+		return
+	}
+	pendingInstallProfiles = slices.Concat(pendingInstallProfiles, failedNonComplianceProfiles)
+
 	pendingProfilesUUIDMap := make(map[string]*fleet.MDMAndroidProfilePayload, len(pendingInstallProfiles))
 	for _, profile := range pendingInstallProfiles {
 		pendingProfilesUUIDMap[profile.ProfileUUID] = profile
