@@ -32,11 +32,13 @@ You can also manage which Google Play Store apps are available for self-service 
 
 ## Edit or delete the app
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
-2. Search for the app you want to delete and select the app to head to its **Software details** page.
-3. On the **Software details** page, select **Actions > Edit software** to edit the app's [self-service](https://fleetdm.com/guides/software-self-service) status and categories, or to change its target to different sets of hosts.
-4 On the **Software details** page, select **Actions > Edit appearance** to edit the apps's icon and display name. The icon and display name can be edited for software that is available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded, as well as on **My device > Self-service**. If the display name is not set, then the default name (ingested by osquery) will be used.
-5. To delete the app, on the **Software details** page, select the trash can (delete) icon.
+Go to **Software page** select a team, and select the app you wish to edit or delete.
+
+To delete the app, select the **Trash icon** next to the app details.
+
+To make the app available in [self-service](https://fleetdm.com/guides/software-self-service) or to edit categories, target scope, or managed configuration, select **Actions > Edit software**.
+
+To edit the app icon and display name, select **Actions > Edit appearance**. This applies only to software available for install. The changes will appear on the software list and details pages for the team where the app is added, as well as on [self-service](https://fleetdm.com/guides/software-self-service). By default, Fleet uses the name provided by osquery.
 
 ## Install an app
 
@@ -53,6 +55,19 @@ To find the minimum OS version for the app, visit the [App Store](https://apps.a
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
+
+## Managed app configuration (Android)
+
+Currently, managed configuration is supported for Android apps only. You can use `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
+
+### Example configuration (Google Chrome)
+
+```json
+{
+  "managedConfiguration" {}
+}
+
+```
 
 ## API and GitOps
 
