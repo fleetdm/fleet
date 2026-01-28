@@ -10,10 +10,10 @@ org_settings:
     host_expiry_enabled: false
   integrations:
     google_calendar:
-    - api_key_json: $DOGFOOD_CALENDAR_API_KEY
-      domain: fleetdm.com
-    jira: [ ]
-    zendesk: [ ]
+      - api_key_json: $DOGFOOD_CALENDAR_API_KEY
+        domain: fleetdm.com
+    jira: []
+    zendesk: []
   mdm:
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
@@ -85,7 +85,7 @@ org_settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids: [ ]
+      policy_ids: []
     host_status_webhook:
       days_count: 5
       destination_url: $DOGFOOD_HOST_STATUS_WEBHOOK_URL
@@ -106,7 +106,7 @@ queries:
   - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/queries/detect-apns-certificate.yml
   - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
-controls: 
+controls:
   enable_disk_encryption: true
   macos_migration:
     enable: true
@@ -138,3 +138,4 @@ labels:
   - path: ./lib/all/labels/department-finance.yml
   - path: ./lib/all/labels/department-product-design.yml
   - path: ./lib/all/labels/department-executive.yml
+  - path: ./lib/all/labels/department-customer-success.yml
