@@ -88,7 +88,7 @@ const NDESForm = ({
         onChange={onInputChange}
         parseTarget
         placeholder="username@example.microsoft.com"
-        helpText="The username in the down-level logon name format required to log in to the SCEP admin page."
+        helpText="For Microsoft, this is the username in the down-level logon name format required to log in to the SCEP admin page."
       />
       <InputField
         label="Password"
