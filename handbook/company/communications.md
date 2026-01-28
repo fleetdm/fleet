@@ -206,7 +206,7 @@ All managers at Fleet have [1:1 meetings](https://handbook.gitlab.com/handbook/l
 
 ### Skip-level 1:1 meetings 
 
-Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#performance-feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
+Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
 1. Create a copy of the ["Skip-level 1:1 agenda template"](https://docs.google.com/document/d/191wiy-_a9XBMndLlM97iOwUF6a-0PtkbboQ2FCUIy6w/copy) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
 2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager's supervisor and title the calendar event by copying your skip-level agenda title and appending "[no shadows]" to the end (this tells other team members that this is a private conversation).
 3. Link the skip-level agenda in the calendar event description before saving.
@@ -433,7 +433,7 @@ Learn how to contribute to the handbook, documentation, and articles at Fleet on
 
 ## Feedback
 
-At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
+At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#delivering-performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
 - Feedback is something to share with the DRI, who has the context and mission to hear your feedback and decide what to do.
 - Feedback is better shared in a way that doesn't ping the customer. Reading it doesn't help them. 
 - Feedback is ready to share. If it's just an opinion without a solution or an opinion about a customer's contribution without specifically saying why the contribution would make the product worse, it's not feedback that's ready to share.
