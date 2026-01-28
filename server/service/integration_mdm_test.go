@@ -20429,3 +20429,123 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	checkExpectedCommands(mdmClientBYOD, true, 1)
 	checkExpectedCommands(mdmClientDEP, false, 1)
 }
+
+func (s *integrationMDMTestSuite) TestHostUnenrollWhileOffline() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// enroll host to mdm
+	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	key := setOrbitEnrollment(t, mdmHost, s.ds)
+	mdmHost.OrbitNodeKey = &key
+	s.runWorker()
+
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	setupPusher(s, t, mdmDevice)
+	s.awaitTriggerProfileSchedule(t)
+
+	hostConnected, err := s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
+	require.NoError(t, err)
+	require.True(t, hostConnected)
+
+	// add some VPP apps for the host to install
+	s.setVPPTokenForTeam(team.ID)
+
+	app1 := &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}}
+	app2 := &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}}
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app1.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app2.AdamID, SelfService: false}, http.StatusOK, &addAppResp)
+
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	require.NoError(t, listSw.Err)
+	require.Len(t, listSw.SoftwareTitles, 2)
+
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, listSw.SoftwareTitles[0].ID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, listSw.SoftwareTitles[1].ID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[1].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[1].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{}, nil)
+
+	sendMDMDetailsQuery := func(enrolled, serverURL string) {
+		// simulate osquery reporting mdm information
+		rows := []map[string]string{
+			{
+				"enrolled":           enrolled,
+				"installed_from_dep": "false",
+				"server_url":         serverURL,
+				"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+			},
+		}
+		err = detailQueries["mdm"].DirectIngestFunc(
+			context.Background(),
+			kitlog.NewNopLogger(),
+			mdmHost,
+			s.ds,
+			rows,
+		)
+		require.NoError(t, err)
+	}
+
+	// simulate the host deleting MDM enrollment profile
+	// while offline, then osquery reporting that mdm is off
+	// when the host is online again
+
+	sendMDMDetailsQuery("true", "https://text.example.com")
+
+	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
+	require.NoError(t, err)
+	require.True(t, hostConnected)
+
+	sendMDMDetailsQuery("false", "")
+
+	hostConnected, err = s.ds.IsHostConnectedToFleetMDM(ctx, mdmHost)
+	require.NoError(t, err)
+	require.False(t, hostConnected)
+
+	// there should be no pending activities/installs now
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+
+	var listPastResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost.ID), nil, http.StatusOK, &listPastResp)
+	require.Len(t, listPastResp.Activities, 1)
+	require.Equal(t, "installed_app_store_app", listPastResp.Activities[0].Type)
+	act, err := listPastResp.Activities[0].Details.MarshalJSON()
+	require.Contains(t, string(act), "failed_install")
+
+	// test sending more osquery reports from the unenrolled host
+	sendMDMDetailsQuery("false", "")
+	sendMDMDetailsQuery("false", "")
+	sendMDMDetailsQuery("false", "")
+}
