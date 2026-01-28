@@ -17,11 +17,12 @@ If you're configuring [end user authentication](https://fleetdm.com/guides/setup
 
 Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
 
+> Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)," but after the app is set up, Okta labels this as "Audience Restriction."
+
 ![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
 
 > The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
 
-> Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)," but after the app is set up, Okta labels this as "Audience Restriction."
 
 ## Google Workspace
 
