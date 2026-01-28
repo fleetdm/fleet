@@ -242,7 +242,7 @@ software:
       self_service: true
       setup_experience: true
   app_store_apps:
-    - app_store_id: "409183694" # Keynote
+    - app_store_id: "361285480" # Keynote
       self_service: true
   fleet_maintained_apps:
     # macOS apps
