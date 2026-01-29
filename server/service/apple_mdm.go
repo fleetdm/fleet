@@ -3630,6 +3630,8 @@ func (svc *MDMAppleCheckinAndCommandService) runCommandHandlers(ctx context.Cont
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	level.Debug(svc.logger).Log("msg", "CommandAndReportResults", "host_uuid", r.ID, "params", fmt.Sprintf("%+v", r.Params))
+
 	if cmdResult.Status == "Idle" {
 		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
 		// been deleted from Fleet (no host entry) will still send checkin
@@ -3904,12 +3906,47 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		return svc.handleRefetchCertsResults(ctx, host, cmdResult)
 
 	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix):
+		// for devices added via legacy enrollment flows, we may need to set an enroll reference
+		// we don't expect this info to change often so we're only checking on device info refetches
+		if _, err := svc.maybeUpdateIDeviceEnrollRef(ctx, host, r.Params["enroll_reference"]); err != nil {
+			// TODO: consider if we want to return an error here, for now we just log and continue
+			level.Error(svc.logger).Log("msg", "maybe update enroll reference", "host_uuid", host.UUID, "enroll_reference", r.Params["enroll_reference"], "err", err)
+		}
 		return svc.handleRefetchDeviceResults(ctx, host, cmdResult)
 
 	default:
 		// This should never happen, but just in case we'll return an error.
 		return nil, ctxerr.New(ctx, fmt.Sprintf("unknown refetch command type %s", cmdResult.CommandUUID))
 	}
+}
+
+func (svc *MDMAppleCheckinAndCommandService) maybeUpdateIDeviceEnrollRef(ctx context.Context, host *fleet.Host, enrollRef string) (bool, error) {
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		// caller should ensure this doesn't happen, but just in case we'll log it and return false
+		level.Debug(svc.logger).Log("msg", "unexpected usage of maybeUpdateIDeviceEnrollRef for non-iOS/non-iPadOS host", "host_id", host.ID, "host_uuid", host.UUID, "platform", host.Platform)
+		return false, nil
+	}
+	hmer, err := svc.ds.GetMDMAppleHostMDMEnrollRef(ctx, host.ID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking enroll reference")
+	}
+	if hmer == enrollRef {
+		// no change
+		return false, nil
+	}
+
+	level.Info(svc.logger).Log("msg", "updating enroll reference for host", "host_id", host.ID, "host_uuid", host.UUID, "old_enroll_ref", hmer, "new_enroll_ref", enrollRef)
+	didUpdate, err := svc.ds.UpdateMDMAppleHostMDMEnrollRef(ctx, host.ID, enrollRef)
+	switch {
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "updating enroll reference")
+	case !didUpdate:
+		level.Debug(svc.logger).Log("msg", "unexpected enroll reference update no-op", "host_id", host.ID, "host_uuid", host.UUID, "old_enroll_ref", hmer, "new_enroll_ref", enrollRef)
+	}
+
+	// TODO: consider if we also want to clear pending mdm commands to renew enroll profile
+
+	return didUpdate, nil
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
