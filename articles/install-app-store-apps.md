@@ -56,7 +56,7 @@ To find the minimum OS version for the app, visit the [App Store](https://apps.a
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
 
-### Configuration
+#### Configuration
 
 Currently, editing configuration is only supported for Android apps only. And, currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
 
