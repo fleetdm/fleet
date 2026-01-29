@@ -527,7 +527,7 @@ const ConditionalAccess = () => {
                 }
                 showArrow={false}
               >
-                Disable bypass
+                Allow end user to temporarily restore access
               </TooltipWrapper>
             </Checkbox>
             <Button
