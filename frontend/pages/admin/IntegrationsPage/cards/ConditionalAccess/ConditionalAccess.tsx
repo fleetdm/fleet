@@ -292,11 +292,6 @@ const ConditionalAccess = () => {
     }
   }, [entraTenantId, entraConfigured, entraPhase]);
 
-  // Sync bypass disabled state when config changes
-  useEffect(() => {
-    setBypassDisabled(config?.conditional_access?.bypass_disabled || false);
-  }, [config?.conditional_access?.bypass_disabled]);
-
   if (!isPremiumTier) {
     return <PremiumFeatureMessage />;
   }
@@ -535,15 +530,13 @@ const ConditionalAccess = () => {
                 Disable bypass
               </TooltipWrapper>
             </Checkbox>
-            <p className={`${baseClass}__checkbox-description`}>
-              When enabled, end users cannot bypass conditional access.
-            </p>
             <Button
               type="submit"
               isLoading={isUpdatingBypass}
               disabled={
                 bypassDisabled ===
-                (config?.conditional_access?.bypass_disabled ?? false)
+                  (config?.conditional_access?.bypass_disabled ?? false) ||
+                !config
               }
             >
               Save
