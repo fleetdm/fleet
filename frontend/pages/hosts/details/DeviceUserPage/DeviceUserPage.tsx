@@ -828,6 +828,9 @@ const DeviceUserPage = ({
                     conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
                     }
+                    conditionalAccessBypassed={
+                      host?.conditional_access_bypassed
+                    }
                   />
                 </TabPanel>
               )}
