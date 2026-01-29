@@ -260,11 +260,13 @@ export const isSafeImagePreviewUrl = (url?: string | null) => {
 };
 
 // TODO: When software directories are restructured, move this to /software/helpers.tsx
+// TODO: Naming conversion should be server-side in future iteration to be compatible with server-side sort
+/** Map of known awkward software titles to more human-readable names */
 const WELL_KNOWN_SOFTWARE_TITLES: Record<string, string> = {
   "microsoft.companyportal": "Company Portal",
 };
 
-/** Prioritizes display_name over name and converts problematic names
+/** Prioritizes display_name over name and converts awkward software titles
  * listed in WELL_KNOWN_SOFTWARE_TITLES to more human readable names */
 export const getDisplayedSoftwareName = (
   name?: string | null,
