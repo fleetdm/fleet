@@ -32,11 +32,11 @@ You can also manage which Google Play Store apps are available for self-service 
 
 ## Edit or delete the app
 
-Go to **Software page** select a team, and select the app you wish to edit or delete.
+Go to the **Software page**, select a team, and select the app you want to edit or delete.
 
 To delete the app, select the **Trash icon** next to the app details.
 
-To make the app available in [self-service](https://fleetdm.com/guides/software-self-service) or to edit categories, target scope, or [managed configuration](#managed-configuration), select **Actions > Edit software**.
+To make the app available in [self-service](https://fleetdm.com/guides/software-self-service) or to edit categories, target scope, or [configuration](#managed-configuration), select **Actions > Edit software**.
 
 To edit the app icon and display name, select **Actions > Edit appearance**. This applies only to software available for install. The changes will appear on the software list and details pages for the team where the app is added, as well as on [self-service](https://fleetdm.com/guides/software-self-service). By default, Fleet uses the name provided by osquery.
 
@@ -56,9 +56,9 @@ To find the minimum OS version for the app, visit the [App Store](https://apps.a
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
 
-## Managed configuration
+### Configuration
 
-Currently, managed configuration is supported for Android apps only. You can use `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
+Currently, editing configuration is only supported for Android apps only. And, currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
 
 `managedConfiguration` supports any option provided by the app developer. Each app may support different options. To find the supported options, check the app documentation.
 
