@@ -5,13 +5,11 @@ import (
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"unicode"
 
 	"github.com/smallstep/pkcs7"
@@ -178,17 +176,12 @@ func EncryptAndEncode(plainText string, symmetricKey string) (string, error) {
 		return "", fmt.Errorf("create new cipher: %w", err)
 	}
 
-	aesGCM, err := cipher.NewGCM(block)
+	aesGCM, err := cipher.NewGCMWithRandomNonce(block)
 	if err != nil {
 		return "", fmt.Errorf("create new gcm: %w", err)
 	}
 
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", fmt.Errorf("generate nonce: %w", err)
-	}
-
-	return base64.StdEncoding.EncodeToString(aesGCM.Seal(nonce, nonce, []byte(plainText), nil)), nil
+	return base64.StdEncoding.EncodeToString(aesGCM.Seal(nil, nil, []byte(plainText), nil)), nil
 }
 
 func DecodeAndDecrypt(base64CipherText string, symmetricKey string) (string, error) {
@@ -202,18 +195,12 @@ func DecodeAndDecrypt(base64CipherText string, symmetricKey string) (string, err
 		return "", fmt.Errorf("create new cipher: %w", err)
 	}
 
-	aesGCM, err := cipher.NewGCM(block)
+	aesGCM, err := cipher.NewGCMWithRandomNonce(block)
 	if err != nil {
 		return "", fmt.Errorf("create new gcm: %w", err)
 	}
 
-	// Get the nonce size
-	nonceSize := aesGCM.NonceSize()
-
-	// Extract the nonce from the encrypted data
-	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
-
-	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
+	decrypted, err := aesGCM.Open(nil, nil, encrypted, nil)
 	if err != nil {
 		return "", fmt.Errorf("decrypting: %w", err)
 	}

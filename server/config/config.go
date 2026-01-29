@@ -24,6 +24,7 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
@@ -1093,6 +1094,15 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 	cfg := &tls.Config{
 		RootCAs: rootCertPool,
 	}
+
+	if cryptoutil.IsFIPSMode() {
+		cfg.CurvePreferences = []tls.CurveID{
+			tls.CurveP256,
+			tls.CurveP384,
+			tls.CurveP521,
+		}
+	}
+
 	if t.TLSCert != "" {
 		clientCert := make([]tls.Certificate, 0, 1)
 		certs, err := tls.LoadX509KeyPair(t.TLSCert, t.TLSKey)
