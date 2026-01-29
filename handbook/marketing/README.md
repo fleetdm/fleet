@@ -25,7 +25,7 @@ This list (for now) will be in chronological order as assets are created:
 | Asset | Date posted | Business purpose 
 |:------------|:------------|:----------------|
 | [Why enterprise Linux is important in 2026](https://fleetdm.com/guides/why-enterprise-linux-is-important-in-2026#basic-article) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop managment |
-
+| [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026-01-29 | Fleet GitOps product page |
 
 ## Responsibilities
 
