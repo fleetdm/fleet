@@ -9,14 +9,14 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import IconStatusMessage from "components/IconStatusMessage";
 
 import {
   generatePolicyTableHeaders,
   generatePolicyDataSet,
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
-import InfoBanner from "components/InfoBanner";
-import IconStatusMessage from "components/IconStatusMessage";
 
 const baseClass = "host-policies-card";
 
