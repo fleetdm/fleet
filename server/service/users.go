@@ -555,7 +555,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if p.NewPassword != nil {
 		// setNewPassword takes care of calling saveUser
-		err = svc.setNewPassword(ctx, user, *p.NewPassword)
+		err = svc.setNewPassword(ctx, user, *p.NewPassword, true)
 	} else {
 		err = svc.saveUser(ctx, user)
 	}
@@ -745,7 +745,7 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
 	}
 
-	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
+	if err := svc.setNewPassword(ctx, vc.User, newPass, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
 	}
 	return nil
@@ -1058,7 +1058,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	user.AdminForcedPasswordReset = false
-	err := svc.setNewPassword(ctx, user, password)
+	err := svc.setNewPassword(ctx, user, password, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
 	}
@@ -1069,7 +1069,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 // setNewPassword is a helper for changing a user's password. It should be
 // called to set the new password after proper authorization has been
 // performed.
-func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
+func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string, clearSessions bool) error {
 	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
@@ -1088,8 +1088,10 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 	}
 
 	// Clear all sessions for this user.
-	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting sessions after password change")
+	if clearSessions {
+		if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting sessions after password change")
+		}
 	}
 
 	return nil
@@ -1151,7 +1153,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	}
 
 	// password requirements are validated as part of `setNewPassword``
-	err = svc.setNewPassword(ctx, user, password)
+	err = svc.setNewPassword(ctx, user, password, true)
 	if err != nil {
 		return fleet.NewInvalidArgumentError("new_password", err.Error())
 	}
