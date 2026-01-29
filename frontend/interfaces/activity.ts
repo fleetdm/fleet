@@ -142,6 +142,7 @@ export enum ActivityType {
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
   DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
+  UpdatedConditionalAccessBypass = "update_conditional_access_bypass",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
@@ -421,6 +422,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedAndroidCertificate]:
     "GitOps: edited certificate templates: Android",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
+  [ActivityType.UpdatedConditionalAccessBypass]:
+    "Updated conditional access experience",
   [ActivityType.DeletedConditionalAccessOkta]:
     "Deleted conditional access: Okta",
   [ActivityType.EditedSetupExperienceSoftware]:
