@@ -1276,7 +1276,7 @@ func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx cont
 
 	// extract details since they are stored as a formatted message
 	splitFunc := func(r rune) bool {
-		return r == ':' || r == ',' || r == ' '
+		return r == ',' || r == ' '
 	}
 	var shouldAppend bool
 	var profiles []*fleet.MDMAndroidProfilePayload
@@ -1285,8 +1285,14 @@ func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx cont
 	// on a status report and do not indicate anything was wrong with the settings. We add a failed profile
 	// to get verified again if it previously failed only due to those reasons and no others.
 	for _, profile := range failedProfiles {
-		trimmed := profile.Detail[strings.Index(profile.Detail, ":"):]
-		trimmed = trimmed[:strings.Index(trimmed, ".")]
+		_, after, ok := strings.Cut(profile.Detail, ":")
+		if !ok {
+			continue
+		}
+		trimmed, _, ok := strings.Cut(after, ".")
+		if !ok {
+			continue
+		}
 		fields := strings.FieldsFunc(trimmed, splitFunc)
 
 		for _, f := range fields {
