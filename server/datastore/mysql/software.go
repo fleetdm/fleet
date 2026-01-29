@@ -978,7 +978,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
-						name:         strings.ToLower(title.Name), // lowercase for case-insensitive dedup matching MySQL collation
+						// adjust for matching MySQL collation
+						name:         strings.ToLower(normalizeForCollation(title.Name)),
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
