@@ -3912,6 +3912,155 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.True(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 }
 
+// TestDeviceHostConditionalAccessFeatures tests the EnableConditionalAccess and
+// EnableConditionalAccessBypass flags in the device endpoint response for hosts WITH teams.
+// EnableConditionalAccess requires: host has team + global Okta configured + team conditional access enabled.
+// EnableConditionalAccessBypass is controlled solely by AppConfig.ConditionalAccess.BypassEnabled().
+func (s *integrationEnterpriseTestSuite) TestDeviceHostConditionalAccessFeatures() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.clearOktaConditionalAccess()
+	// Clean up Okta conditional access config at the end
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+	})
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        "team-conditional-access-test",
+		Description: "Test team for conditional access",
+	})
+	require.NoError(t, err)
+
+	// Create a host with device token and assign to team
+	token := "conditional_access_features_test_token"
+	host := createHostAndDeviceToken(t, s.ds, token)
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+
+	// Helper to call the device endpoint and return the response
+	getDeviceHost := func() getDeviceHostResponse {
+		var resp getDeviceHostResponse
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		res.Body.Close()
+		return resp
+	}
+
+	// Test case 1: No global Okta configured, team conditional access not enabled
+	// Expected: EnableConditionalAccess=false, EnableConditionalAccessBypass=false (no ConditionalAccess in AppConfig)
+	t.Run("no_okta_no_team_config", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be false when Okta not configured")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when no ConditionalAccess config")
+	})
+
+	// Configure Okta at global level (without bypass settings first)
+	validCert := `-----BEGIN CERTIFICATE-----
+MIICpDCCAYwCCQDU+pQ4P2GH3jANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
+b2NhbGhvc3QwHhcNMjMxMjA2MTYyOTQ0WhcNMjQxMjA1MTYyOTQ0WjAUMRIwEAYD
+VQQDDAlsb2NhbGhvc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC8
+fKEMF69sJR8Ky7Vrt3EfJvL3NlVPgj/OAkFhpKgL9QPrjAAY9qdmkLuU5eBPpSvB
+jAqGUEBLHKGUKx8kIJxoBguq5WIWwIBq1b3cmPbUXtDi7GzqoUqPSfPWMzLCrmpl
+N5RYPu/pRWg9M4vI2XdhVFaDOE6X1sXhNqYfr7TNbOfxDQ0VPjpNqHY+kiEAqmcr
+tJzuJFYN1y8eyevZj4VGTS/dZ3HYHWBpZ6xpVoZ6LWDqdmLPLQkp2ceGLCvoFaG8
+TaMMfz3dfHnMvI9o7IrT8kCbLqVoxhLk1FwT+iLLL9v0rhOUbg/mvNT6BQM0P7rA
+wDOx1kIauDmJQVWe9nYPAgMBAAEwDQYJKoZIhvcNAQELBQADggEBAChAhSvUqH+u
+wksgUXqBpQt7OPQhYmpCtq16eIYb6+LzX1FnTuMdaiT4q9FBnJVNcS2ofxhkv/67
+d7r5SjMqFvCnSZujddP0TGo5Z7wfPhXKG5+X2GQMIX7agh7lfx5y5F5I/TsTQ+DS
+AbKIDRWaHD5hPjUobJKtBdZxicXZj7e/K1mPxyQu9K3j/wPqIGkKwmEQQNWw/mFH
+A9XUANZP+7e9EbV6AMtJPA/vmg3mSFqX+N2xLBFvpfhxdPMXLDOO3EHKQ8IMWPOC
+A3smrFnIVFrVeLPn47FnPVP8HzT8dcMBwGKOGANW1VAMEwlZXHdVlRaGVqd9FbxS
+KSCy+VfKBn4=
+-----END CERTIFICATE-----`
+
+	s.DoRaw("PATCH", "/api/latest/fleet/config", fmt.Appendf(nil, `{
+		"conditional_access": {
+			"okta_idp_id": "https://www.okta.com/saml2/service-provider/test",
+			"okta_assertion_consumer_service_url": "https://dev-test.okta.com/sso/saml2/test",
+			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/test",
+			"okta_certificate": %q
+		}
+	}`, validCert), http.StatusOK)
+
+	// Test case 2: Global Okta configured, team conditional access NOT enabled
+	// Expected: EnableConditionalAccess=false (team not enabled), EnableConditionalAccessBypass=true (default)
+	t.Run("okta_configured_team_not_enabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be false when team conditional access not enabled")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when bypass not explicitly disabled")
+	})
+
+	// Enable conditional access on the team
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"integrations": map[string]any{
+			"conditional_access_enabled": true,
+		},
+	}, http.StatusOK, &tmResp)
+
+	// Test case 3: Global Okta configured, team conditional access enabled
+	// Expected: EnableConditionalAccess=true, EnableConditionalAccessBypass=true (default)
+	t.Run("okta_configured_team_enabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be true when Okta configured and team enabled")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when bypass not explicitly disabled")
+	})
+
+	// Disable bypass explicitly
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"conditional_access": {
+			"bypass_disabled": true
+		}
+	}`), http.StatusOK)
+
+	// Test case 4: Bypass explicitly disabled
+	// Expected: EnableConditionalAccess=true, EnableConditionalAccessBypass=false
+	t.Run("bypass_explicitly_disabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should still be true")
+		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be false when bypass explicitly disabled")
+	})
+
+	// Re-enable bypass explicitly
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"conditional_access": {
+			"bypass_disabled": false
+		}
+	}`), http.StatusOK)
+
+	// Test case 5: Bypass explicitly enabled
+	// Expected: EnableConditionalAccess=true, EnableConditionalAccessBypass=true
+	t.Run("bypass_explicitly_enabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should still be true")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when bypass explicitly enabled")
+	})
+
+	// Disable conditional access on the team
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"integrations": map[string]any{
+			"conditional_access_enabled": false,
+		},
+	}, http.StatusOK, &tmResp)
+
+	// Test case 6: Global Okta configured, team conditional access disabled
+	// Expected: EnableConditionalAccess=false, EnableConditionalAccessBypass=true
+	t.Run("okta_configured_team_disabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be false when team disabled")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should still be true since global bypass is enabled")
+	})
+}
+
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
 func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	t := s.T()

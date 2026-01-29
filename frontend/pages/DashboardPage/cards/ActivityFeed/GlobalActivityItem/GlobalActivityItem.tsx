@@ -1379,6 +1379,16 @@ const TAGGED_TEMPLATES = {
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
+  hostBypassedConditionalAccess: (activity: IActivity) => {
+    const idpFullName = activity.details?.idp_full_name;
+    const hostDisplayName = activity.details?.host_display_name;
+    return (
+      <>
+        <strong>{idpFullName}</strong> temporarily bypassed conditional access
+        for <strong>{hostDisplayName}</strong>.
+      </>
+    );
+  },
   updatedConditionalAccessBypass: () => (
     <> edited conditional access end user experience.</>
   ),
@@ -2031,6 +2041,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EnabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.HostBypassedConditionalAccess: {
+      return TAGGED_TEMPLATES.hostBypassedConditionalAccess(activity);
     }
     case ActivityType.DisabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);

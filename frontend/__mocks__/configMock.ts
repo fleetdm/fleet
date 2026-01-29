@@ -206,6 +206,8 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   features: {
     enable_host_users: true,
     enable_software_inventory: true,
+    enable_conditional_access: true,
+    enable_conditional_access_bypass: true,
   },
   fleet_desktop: {
     transparency_url: "https://fleetdm.com/transparency",
