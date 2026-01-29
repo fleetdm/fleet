@@ -1321,7 +1321,7 @@ This process is followed when offboarding a customer and deleting all of the pro
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14     |
+| @allenhouchins | 2024-03-14     |
 
 Fleet requires all workforce members to comply with the encryption policy, such that:
 
@@ -1360,7 +1360,7 @@ Encryption and key management for local disk encryption of end-user devices foll
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @mikermcneil | 2022-06-01     |
+| @ireedy | 2022-06-01     |
 
 
 Fleet is committed to ensuring all workforce members participate in security and compliance in their roles at Fleet. We encourage self-management and reward the right behaviors. 
@@ -1604,7 +1604,7 @@ incident response plan annually.
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14     |
+| @allenhouchins | 2024-03-14     |
 
 Fleet Device Management is committed to conducting business in compliance with all applicable laws, regulations, and company policies. Fleet has adopted this policy to outline the security measures required to protect electronic information systems and related equipment from unauthorized use.
 
@@ -1699,7 +1699,7 @@ How we implement:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14     |
+| @allenhouchins | 2024-03-14     |
 
 Fleet policy requires
 
@@ -1718,7 +1718,7 @@ Fleet policy requires
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14    |
+| @allenhouchins | 2024-03-14    |
 
 Fleet policy requires:
 
@@ -1770,7 +1770,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14      |
+| @allenhouchins | 2024-03-14      |
 
 Fleet policy requires that:
 - Fleet policies must be developed and maintained to meet all applicable compliance requirements and adhere to security best practices, including but not limited to:
@@ -1792,7 +1792,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @mikermcneil | 2022-06-01     |
+| @allenhouchins | 2022-06-01     |
 
 Fleet makes every effort to assure all third-party organizations are compliant and do not compromise the integrity, security, and privacy of Fleet or Fleet Customer data. Third Parties include Vendors, Customers, Partners, Subcontractors, and Contracted Developers.
 
