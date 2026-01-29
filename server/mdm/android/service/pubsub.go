@@ -643,7 +643,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	}
 
 	// -----------------------------------------------------------------------------------------
-	// TODO(JK): can we look upon status_report, which I think is here, look for failed profiles
+	// TODO(JK): can we upon status_report, which I think is here, look for failed profiles
 	// for this hostUUID that are stuats=failed + details.contains(...USER_ACTION...)?
 	// if we have that then we can either mark it successful, or keep it failed
 	// -----------------------------------------------------------------------------------------

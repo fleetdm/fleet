@@ -1274,14 +1274,11 @@ func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx cont
 		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles that failed due to non compliance but could be reverified")
 	}
 
-	// TODO(JK): each "detail" can have multiple settings and multiple reasons
-	// but, only one reason per each setting
-	// we might have to change the db to store a nicer format
-
+	// if ANY of the settings failed due to a reason that can be
+	// fixed on a new status report, the profile will be listed
 	var profiles []*fleet.MDMAndroidProfilePayload
 	for _, profile := range failedProfiles {
-		if strings.Contains(profile.Detail, "USER_ACTION") ||
-			strings.Contains(profile.Detail, "PENDING") {
+		if strings.Contains(profile.Detail, "USER_ACTION") || strings.Contains(profile.Detail, "PENDING") {
 			profiles = append(profiles, profile)
 		}
 	}

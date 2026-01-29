@@ -2624,7 +2624,6 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 }
 
 func testListHostMDMAndroidProfilesFailedDueToNonCompliance(t *testing.T, ds *Datastore) {
-	// TODO(JK): use a table driven test please
 	ctx := t.Context()
 
 	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
@@ -2644,46 +2643,58 @@ func testListHostMDMAndroidProfilesFailedDueToNonCompliance(t *testing.T, ds *Da
 	}
 	policyVersion := ptr.Int(1)
 
-	cases := []struct {
-		Desc           string
-		AllProfiles    []*fleet.MDMAndroidProfilePayload
-		WantedProfiles []*fleet.MDMAndroidProfilePayload
-	}{
-		{
-			Desc: "Failed due to various reasons",
-			AllProfiles: []*fleet.MDMAndroidProfilePayload{
-				{
-					HostUUID:      hostUUID,
-					ProfileUUID:   profiles[0].ProfileUUID,
-					ProfileName:   profiles[0].Name,
-					OperationType: fleet.MDMOperationTypeInstall,
-					Status:        &fleet.MDMDeliveryFailed,
-					Detail: `passwordPolicies" setting couldn't apply to a host.
-Reason: USER_ACTION. Other settings are applied.`,
-					IncludedInPolicyVersion: policyVersion,
-				},
-			},
-			WantedProfiles: []*fleet.MDMAndroidProfilePayload{
-				{
-					HostUUID:      hostUUID,
-					ProfileUUID:   profiles[0].ProfileUUID,
-					ProfileName:   profiles[0].Name,
-					OperationType: fleet.MDMOperationTypeInstall,
-					Status:        &fleet.MDMDeliveryFailed,
-					Detail: `passwordPolicies" setting couldn't apply to a host.
-Reason: USER_ACTION. Other settings are applied.`,
-					IncludedInPolicyVersion: policyVersion,
-				},
-			},
-		},
+	detailMesageUserAction := `passwordPolicies" setting couldn't apply to a host.
+Reason: USER_ACTION. Other settings are applied.`
+	detailMessageMixedSettings := `bluetoothDisabled", "cameraDisabled", and "passwordPolicies" settings couldn't apply to a host.
+Reasons: MANAGEMENT_MODE, API_LEVEL, and USER_ACTION. Other settings are applied.`
+	detailMessageReverifiableSettings := `bluetoothDisabled", and "passwordPolicies" settings couldn't apply to a host.
+Reasons: PENDING, and USER_ACTION. Other settings are applied.`
+
+	profile1 := fleet.MDMAndroidProfilePayload{
+		HostUUID:                hostUUID,
+		ProfileUUID:             profiles[0].ProfileUUID,
+		ProfileName:             profiles[0].Name,
+		OperationType:           fleet.MDMOperationTypeInstall,
+		Status:                  &fleet.MDMDeliveryFailed,
+		Detail:                  detailMesageUserAction,
+		IncludedInPolicyVersion: policyVersion,
 	}
 
-	for _, c := range cases {
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, c.AllProfiles)
-		require.NoError(t, err)
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx, hostUUID, int64(*policyVersion))
-		require.NoError(t, err)
-		require.Len(t, hostProfiles, len(c.WantedProfiles))
-		clearOutHostMDMAndroidProfilesTable()
+	profile2 := fleet.MDMAndroidProfilePayload{
+		HostUUID:                hostUUID,
+		ProfileUUID:             profiles[1].ProfileUUID,
+		ProfileName:             profiles[1].Name,
+		OperationType:           fleet.MDMOperationTypeInstall,
+		Status:                  &fleet.MDMDeliveryFailed,
+		Detail:                  detailMessageMixedSettings,
+		IncludedInPolicyVersion: policyVersion,
 	}
+
+	profile3 := fleet.MDMAndroidProfilePayload{
+		HostUUID:                hostUUID,
+		ProfileUUID:             profiles[2].ProfileUUID,
+		ProfileName:             profiles[2].Name,
+		OperationType:           fleet.MDMOperationTypeInstall,
+		Status:                  &fleet.MDMDeliveryFailed,
+		Detail:                  detailMessageReverifiableSettings,
+		IncludedInPolicyVersion: policyVersion,
+	}
+
+	allProfiles := []*fleet.MDMAndroidProfilePayload{
+		&profile1,
+		&profile2,
+		&profile3,
+	}
+	wantedProfiles := []*fleet.MDMAndroidProfilePayload{
+		&profile1,
+		&profile2,
+		&profile3,
+	}
+
+	defer clearOutHostMDMAndroidProfilesTable()
+	err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, allProfiles)
+	require.NoError(t, err)
+	hostProfiles, err := ds.ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx, hostUUID, int64(*policyVersion))
+	require.NoError(t, err)
+	require.ElementsMatch(t, hostProfiles, wantedProfiles)
 }
