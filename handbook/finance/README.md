@@ -24,7 +24,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Responsibilities
 
-The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
 
 
 ### Prepare for OCV meeting
