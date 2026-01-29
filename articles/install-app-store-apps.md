@@ -65,6 +65,7 @@ Currently, editing configuration is only supported for Android apps only. And, c
 ##### Example (GlobalProtect)
 
 This configuration makes it so the end user won't have to type the portal hostname the first time they open GlobalProtect. It also makes it so GlobalProtect isn't always on just because the Android host is connected to the internet. The end user has to tap **Connect**.
+
 ```json
 {
   "managedConfiguration": {
