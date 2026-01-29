@@ -118,11 +118,16 @@ $max-width: 2560px;
   }
 }
 
-@mixin disabled {
+@mixin disabled($allow-pointer-events: false) {
   opacity: 0.5;
   filter: grayscale(0.5);
-  pointer-events: none;
   cursor: default;
+
+  @if $allow-pointer-events {
+    pointer-events: auto; // Allows text selection/scroll in disabled state
+  } @else {
+    pointer-events: none;
+  }
 
   // Must override
   &:hover,
@@ -207,6 +212,7 @@ $max-width: 2560px;
   border: solid 1px #e2e4ea;
   border-radius: 10px;
   padding: 2px 6px;
+  margin: -4px 0;
 }
 
 @mixin color-contrasted-sections {
@@ -433,7 +439,9 @@ $max-width: 2560px;
   height: 32px;
   border-radius: 4px;
 
-  a {
+  a,
+  span.link-with-context // Disabled side nav item
+  {
     display: flex;
     align-items: center;
     height: 100%;
@@ -442,8 +450,10 @@ $max-width: 2560px;
     font-weight: $regular;
     text-decoration: none;
     border-bottom: none;
-    cursor: pointer;
+  }
 
+  a {
+    cursor: pointer;
     &:hover {
       color: $ui-fleet-black-75-over;
     }

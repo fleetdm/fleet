@@ -14,7 +14,7 @@ In this article, we’ll explore how to leverage this new feature to automate pa
 
 ## Why it matters
 
-Around 60% of data breaches in 2023 involved vulnerabilities for which patches were available but not applied, underscoring the impact of delayed patch management.1
+Around [60% of data breaches in 2023](https://www.automox.com/blog/bad-cyber-hygiene-breaches-tied-to-unpatched-vulnerabilities) involved vulnerabilities for which patches were available but not applied, underscoring the impact of delayed patch management.
 
 Regular updates often include bug fixes that improve stability and enhance user experience, allowing employees to work without disruptions. These updates also make sure compatibility with other applications, preventing integration issues that could impact workflows. 
 
@@ -76,9 +76,6 @@ Nest an **install_software** block in the policy you want to automate and ensure
 
 Reach out for more information and a demo, or explore Fleet's detailed [documentation](https://fleetdm.com/docs/get-started/why-fleet). 
 
-Sources
-
-1. https://www.automox.com/blog/bad-cyber-hygiene-breaches-tied-to-unpatched-vulnerabilities
 
 <meta name="articleTitle" value="How to use policies for patch management in Fleet">
 <meta name="authorFullName" value="Harrison Ravazzolo">

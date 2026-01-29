@@ -225,6 +225,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		// validator requires that an authz check has been performed upstream so we'll set it now for
 		// the rest of the tests
 		authCtx.SetChecked()
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 		mockLabels := map[string]uint{
 			"foo": 1,
@@ -232,7 +233,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			"baz": 3,
 		}
 
-		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 			res := make(map[string]uint)
 			if names == nil {
 				return res, nil
@@ -244,7 +245,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			}
 			return res, nil
 		}
-		ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 			res := make(map[string]*fleet.Label)
 			if names == nil {
 				return res, nil
@@ -312,7 +313,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				nil,
 				"",
-				"some or all the labels provided don't exist",
+				`Couldn't update. Label "qux" doesn't exist. Please remove the label from the software`,
 			},
 			{
 				"duplicate label",
@@ -338,7 +339,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				[]string{""},
 				nil,
 				"",
-				"some or all the labels provided don't exist",
+				`Couldn't update. Label "" doesn't exist. Please remove the label from the software`,
 			},
 		}
 		for _, tt := range testCases {
@@ -381,7 +382,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			"baz": 3,
 		}
 
-		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 			res := make(map[string]uint)
 			if names == nil {
 				return res, nil

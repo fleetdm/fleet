@@ -676,9 +676,6 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		return fleet.DiskEncryptionConfig{}, nil
 	}
-	ds.GetMDMProfileSummaryFromHostCertificateTemplatesFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-		return &fleet.MDMProfilesSummary{}, nil
-	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
@@ -1355,7 +1352,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements."},
+		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{
 			"BitLocker profile", 0,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
@@ -1371,7 +1368,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements."},
+		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{
 			"team BitLocker profile", 1,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
@@ -1626,7 +1623,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 				{Name: "N2", Contents: mobileconfigForTest("N1", "I2")},
 			},
-			`The name provided for the profile must match the profile PayloadDisplayName: "N1"`,
+			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
 		},
 		{
 			"duplicate macOS profile identifier",
@@ -2350,9 +2347,9 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 	var labelID uint
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		m := map[string]uint{}
-		for _, label := range labels {
+		for _, label := range names {
 			if label != "baddy" {
 				labelID++
 				m[label] = labelID
@@ -2360,7 +2357,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		}
 		return m, nil
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		m := map[string]*fleet.Label{}
 		for _, name := range names {
 			if name != "baddy" {
@@ -2478,7 +2475,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		LabelsExcludeAny: []string{"baddy"},
 	}}, false, false, ptr.Bool(true), false)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "some or all the labels provided don't exist")
+	require.ErrorContains(t, err, `Label "baddy" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// ...unless we're in dry run mode
 	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{

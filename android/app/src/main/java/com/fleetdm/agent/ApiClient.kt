@@ -7,8 +7,13 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -23,14 +28,44 @@ import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
+/**
+ * Converts a java.util.Date to ISO8601 format string.
+ * Format: "yyyy-MM-dd'T'HH:mm:ss'Z'" (UTC timezone)
+ * Example: "2025-12-31T23:59:59Z"
+ */
+private fun Date.toISO8601String(): String = this.toInstant().toString() // Returns "2025-12-31T23:59:59Z"
+
 val Context.prefDataStore: DataStore<Preferences> by preferencesDataStore(name = "pref_datastore")
 
-object ApiClient {
+/**
+ * Result of fetching a certificate template, including the computed SCEP URL.
+ */
+data class CertificateTemplateResult(val template: GetCertificateTemplateResponse, val scepUrl: String)
+
+/**
+ * Interface for certificate-related API operations.
+ * Used by CertificateOrchestrator for dependency injection and testability.
+ */
+interface CertificateApiClient {
+    suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult>
+    suspend fun updateCertificateStatus(
+        certificateId: Int,
+        status: UpdateCertificateStatusStatus,
+        operationType: UpdateCertificateStatusOperation,
+        detail: String? = null,
+        notAfter: Date? = null,
+        notBefore: Date? = null,
+        serialNumber: BigInteger? = null,
+    ): Result<Unit>
+}
+
+object ApiClient : CertificateApiClient {
+    private const val TAG = "fleet-ApiClient"
     private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
     private val API_KEY = stringPreferencesKey("api_key")
-    private val BASE_URL_KEY = stringPreferencesKey("base_url")
+    private val SERVER_URL_KEY = stringPreferencesKey("server_url")
     private val ENROLL_SECRET = stringPreferencesKey("enroll_secret")
     private val HARDWARE_UUID = stringPreferencesKey("hardware_uuid")
     private val COMPUTER_NAME = stringPreferencesKey("computer_name")
@@ -38,7 +73,7 @@ object ApiClient {
     private val enrollmentMutex = Mutex()
 
     fun initialize(context: Context) {
-        Log.d("fleet-apiClient", "initializing api client")
+        Log.d(TAG, "initializing api client")
         if (!::dataStore.isInitialized) {
             dataStore = context.applicationContext.prefDataStore
         }
@@ -50,27 +85,15 @@ object ApiClient {
         }
     }
 
-    suspend fun setBaseUrl(url: String) {
+    private suspend fun clearApiKey() {
         dataStore.edit { preferences ->
-            preferences[BASE_URL_KEY] = url
+            preferences.remove(API_KEY)
         }
     }
 
-    val apiKeyFlow: Flow<String?>
-        get() = dataStore.data.map { preferences ->
-            preferences[API_KEY]?.let { encrypted ->
-                try {
-                    KeystoreManager.decrypt(encrypted)
-                } catch (e: Exception) {
-                    Log.e("ApiClient", "Failed to decrypt API key", e)
-                    null
-                }
-            }
-        }
-
     val baseUrlFlow: Flow<String?>
         get() = dataStore.data.map { preferences ->
-            preferences[BASE_URL_KEY]
+            preferences[SERVER_URL_KEY]
         }
 
     suspend fun getApiKey(): String? {
@@ -78,12 +101,12 @@ object ApiClient {
         return try {
             KeystoreManager.decrypt(encrypted)
         } catch (e: Exception) {
-            Log.e("ApiClient", "Failed to decrypt API key", e)
+            Log.e(TAG, "Failed to decrypt API key", e)
             null
         }
     }
 
-    suspend fun getBaseUrl(): String? = dataStore.data.first()[BASE_URL_KEY]
+    suspend fun getBaseUrl(): String? = dataStore.data.first()[SERVER_URL_KEY]
 
     private suspend fun <R, T> makeRequest(
         endpoint: String,
@@ -133,8 +156,9 @@ object ApiClient {
                 readTimeout = 15000
 
                 if (body != null && method != "GET") {
+                    requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
                     doOutput = true
-                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer!!)
+                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
                     outputStream.use { it.write(bodyJson.toByteArray()) }
                 }
             }
@@ -147,11 +171,13 @@ object ApiClient {
                     ?: "HTTP $responseCode"
             }
 
-            Log.d("ApiClient", "server response from $method $endpoint ($responseCode): $response")
+            Log.d(TAG, "server response from $method $endpoint ($responseCode): $response")
 
             if (responseCode in 200..299) {
                 val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
                 Result.success(parsed)
+            } else if (responseCode == 401) {
+                Result.failure(UnauthorizedException(response))
             } else {
                 Result.failure(Exception("HTTP $responseCode: $response"))
             }
@@ -160,6 +186,27 @@ object ApiClient {
         } finally {
             connection?.disconnect()
         }
+    }
+
+    /**
+     * Exception thrown when the server returns HTTP 401 Unauthorized.
+     * This typically indicates the node key has been invalidated (e.g., host was deleted).
+     */
+    class UnauthorizedException(message: String) : Exception("HTTP 401: $message")
+
+    /**
+     * Executes a request block with automatic re-enrollment on 401 Unauthorized.
+     * If the block returns a 401 failure, clears the stored node key and retries once.
+     * On retry, the block is called fresh so it will get a new node key via enrollment.
+     */
+    private suspend fun <T> withReenrollOnUnauthorized(block: suspend () -> Result<T>): Result<T> {
+        val result = block()
+        if (result.isFailure && result.exceptionOrNull() is UnauthorizedException) {
+            Log.d(TAG, "Received 401, clearing node key and retrying with re-enrollment")
+            clearApiKey()
+            return block()
+        }
+        return result
     }
 
     suspend fun enroll(): Result<EnrollResponse> {
@@ -182,20 +229,20 @@ object ApiClient {
             setApiKey(value.orbitNodeKey)
         }
         resp.onFailure { exception ->
-            Log.d("ApiClient.enroll", "Enrollment failed: ${exception.message}")
+            Log.d(TAG, "Enrollment failed: ${exception.message}")
         }
 
         return resp
     }
 
-    suspend fun getOrbitConfig(): Result<OrbitConfig> {
+    suspend fun getOrbitConfig(): Result<OrbitConfig> = withReenrollOnUnauthorized {
         val nodeKeyResult = getNodeKeyOrEnroll()
 
         val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-            return Result.failure(error)
+            return@withReenrollOnUnauthorized Result.failure(error)
         }
 
-        return makeRequest(
+        makeRequest(
             endpoint = "/api/fleet/orbit/config",
             method = "POST",
             body = GetConfigRequest(orbitNodeKey = orbitNodeKey),
@@ -205,24 +252,25 @@ object ApiClient {
         )
     }
 
-    suspend fun setEnrollmentCredentials(enrollSecret: String, hardwareUUID: String, computerName: String, baseUrl: String) {
+    suspend fun setEnrollmentCredentials(enrollSecret: String, hardwareUUID: String, computerName: String, serverUrl: String) {
         dataStore.edit { preferences ->
             preferences[ENROLL_SECRET] = enrollSecret
             preferences[HARDWARE_UUID] = hardwareUUID
             preferences[COMPUTER_NAME] = computerName
-            preferences[BASE_URL_KEY] = baseUrl
+            preferences[SERVER_URL_KEY] = serverUrl
         }
     }
 
-    suspend fun getCertificateTemplate(certificateId: Int): Result<GetCertificateTemplateResponse> {
+    override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> = withReenrollOnUnauthorized {
         val nodeKeyResult = getNodeKeyOrEnroll()
         val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-            return Result.failure(error)
+            return@withReenrollOnUnauthorized Result.failure(error)
         }
 
-        val credentials = getEnrollmentCredentials() ?: return Result.failure(Exception("enroll credentials not set"))
+        val credentials = getEnrollmentCredentials()
+            ?: return@withReenrollOnUnauthorized Result.failure(Exception("enroll credentials not set"))
 
-        return makeRequest(
+        makeRequest(
             endpoint = "/api/fleetd/certificates/$certificateId",
             method = "GET",
             body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
@@ -230,52 +278,66 @@ object ApiClient {
             responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
         ).fold(
             onSuccess = { wrapper ->
-                val res = wrapper.certificate
-                Log.i("ApiClient", "successfully retrieved certificate template ${res.id}: ${res.name}")
-                Result.success(
-                    res.apply {
-                        setUrl(
-                            serverUrl = credentials.baseUrl,
-                            hostUUID = credentials.hardwareUUID,
-                        )
-                    },
+                val template = wrapper.certificate
+                Log.i(TAG, "successfully retrieved certificate template ${template.id}: ${template.name}")
+                val scepUrl = template.buildScepUrl(
+                    serverUrl = credentials.baseUrl,
+                    hostUUID = credentials.hardwareUUID,
                 )
+                Result.success(CertificateTemplateResult(template, scepUrl))
             },
             onFailure = { throwable ->
-                Log.e("ApiClient", "failed to get certificate template $certificateId")
+                Log.e(TAG, "failed to get certificate template $certificateId")
                 Result.failure(throwable)
             },
         )
     }
 
-    suspend fun updateCertificateStatus(certificateId: Int, status: String, detail: String? = null): Result<Unit> = makeRequest(
-        endpoint = "/api/fleetd/certificates/$certificateId/status",
-        method = "PUT",
-        body = UpdateCertificateStatusRequest(status = status, detail = detail),
-        bodySerializer = UpdateCertificateStatusRequest.serializer(),
-        responseSerializer = UpdateCertificateStatusResponse.serializer(),
-    ).fold(
-        onSuccess = { response ->
-            if (response.error != null) {
-                Log.e("ApiClient", "failed to update certificate status $certificateId: ${response.error}")
-                Result.failure(Exception(response.error))
-            } else {
-                Log.i("ApiClient", "successfully updated certificate status for $certificateId to $status")
-                Result.success(Unit)
-            }
-        },
-        onFailure = { throwable ->
-            Log.e("ApiClient", "failed to update certificate status $certificateId: ${throwable.message}")
-            Result.failure(throwable)
-        },
-    )
+    override suspend fun updateCertificateStatus(
+        certificateId: Int,
+        status: UpdateCertificateStatusStatus,
+        operationType: UpdateCertificateStatusOperation,
+        detail: String?,
+        notAfter: Date?,
+        notBefore: Date?,
+        serialNumber: BigInteger?,
+    ): Result<Unit> = withReenrollOnUnauthorized {
+        makeRequest(
+            endpoint = "/api/fleetd/certificates/$certificateId/status",
+            method = "PUT",
+            body = UpdateCertificateStatusRequest(
+                status = status,
+                operationType = operationType,
+                detail = detail,
+                notAfter = notAfter?.toISO8601String(),
+                notBefore = notBefore?.toISO8601String(),
+                serialNumber = serialNumber?.toString(),
+            ),
+            bodySerializer = UpdateCertificateStatusRequest.serializer(),
+            responseSerializer = UpdateCertificateStatusResponse.serializer(),
+        ).fold(
+            onSuccess = { response ->
+                if (response.error != null) {
+                    Log.e(TAG, "failed to update certificate status $certificateId: ${response.error}")
+                    Result.failure(Exception(response.error))
+                } else {
+                    Log.i(TAG, "successfully updated certificate status for $certificateId to $status")
+                    Result.success(Unit)
+                }
+            },
+            onFailure = { throwable ->
+                Log.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
+                Result.failure(throwable)
+            },
+        )
+    }
 
     private suspend fun getEnrollmentCredentials(): EnrollmentCredentials? {
         val prefs = dataStore.data.first()
         val enrollSecret = prefs[ENROLL_SECRET]
         val hardwareUUID = prefs[HARDWARE_UUID]
         val computerName = prefs[COMPUTER_NAME]
-        val baseUrl = prefs[BASE_URL_KEY]
+        val baseUrl = prefs[SERVER_URL_KEY]
 
         if (enrollSecret == null || hardwareUUID == null || computerName == null || baseUrl == null) {
             return null
@@ -298,18 +360,18 @@ object ApiClient {
             }
 
             // Node key is missing, attempt auto-enrollment
-            Log.d("ApiClient", "Orbit node key missing, attempting auto-enrollment")
+            Log.d(TAG, "Orbit node key missing, attempting auto-enrollment")
 
             // Re-enroll
             val enrollResult = enroll()
 
             return enrollResult.fold(
                 onSuccess = { response ->
-                    Log.d("ApiClient", "Auto-enrollment successful")
+                    Log.d(TAG, "Auto-enrollment successful")
                     Result.success(response.orbitNodeKey)
                 },
                 onFailure = { error ->
-                    Log.e("ApiClient", "Auto-enrollment failed: ${error.message}")
+                    Log.e(TAG, "Auto-enrollment failed: ${error.message}")
                     Result.failure(error)
                 },
             )
@@ -428,10 +490,36 @@ private data class GetCertificateTemplateRequest(
 @Serializable
 data class UpdateCertificateStatusRequest(
     @SerialName("status")
-    val status: String,
+    val status: UpdateCertificateStatusStatus,
+    @SerialName("operation_type")
+    val operationType: UpdateCertificateStatusOperation,
     @SerialName("detail")
     val detail: String? = null,
+    @SerialName("not_valid_after")
+    val notAfter: String? = null,
+    @SerialName("not_valid_before")
+    val notBefore: String? = null,
+    @SerialName("serial")
+    val serialNumber: String? = null,
 )
+
+@Serializable
+enum class UpdateCertificateStatusStatus {
+    @SerialName("verified")
+    VERIFIED,
+
+    @SerialName("failed")
+    FAILED,
+}
+
+@Serializable
+enum class UpdateCertificateStatusOperation {
+    @SerialName("install")
+    INSTALL,
+
+    @SerialName("remove")
+    REMOVE,
+}
 
 @Serializable
 private data class UpdateCertificateStatusResponse(
@@ -474,21 +562,20 @@ data class GetCertificateTemplateResponse(
     val status: String,
 
     @SerialName("scep_challenge")
-    val scepChallenge: String? = "",
+    val scepChallenge: String? = null,
 
     @SerialName("fleet_challenge")
-    val fleetChallenge: String? = "",
+    val fleetChallenge: String? = null,
 
     @Transient
     val keyLength: Int = 2048,
 
     @Transient
     val signatureAlgorithm: String = "SHA256withRSA",
+)
 
-    @Transient
-    var url: String? = null,
-) {
-    fun setUrl(serverUrl: String, hostUUID: String) {
-        url = "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"
-    }
-}
+/**
+ * Builds the SCEP proxy URL for this certificate template.
+ */
+fun GetCertificateTemplateResponse.buildScepUrl(serverUrl: String, hostUUID: String): String =
+    "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"fleetdm/gm/pkg/logger"
+	"fleetdm/gm/pkg/util"
 )
 
 // GetIssuesByMilestone returns issue numbers for a given milestone name. Limit controls max items.
@@ -298,6 +299,36 @@ func looksLikeRateLimit(s string) bool {
 	}
 	return false
 }
+
+// GetMilestoneOpenIssueCount returns the count of OPEN issues for the given milestone title in the current repo.
+// This uses GitHub GraphQL search to retrieve the issueCount efficiently without listing all issues.
+func GetMilestoneOpenIssueCount(title string) (int, error) {
+	owner, repo, err := getRepoOwnerAndName()
+	if err != nil {
+		return 0, err
+	}
+	// Build a search query limited to the current repository, milestone title, and open issues.
+	q := fmt.Sprintf("repo:%s/%s is:issue is:open milestone:\"%s\"", owner, repo, title)
+	gql := `query($q:String!){ search(type: ISSUE, query: $q, first: 1){ issueCount } }`
+	cmd := fmt.Sprintf("gh api graphql -f query='%s' -f q='%s'", gql, util.EscapeSingleQuotes(q))
+	out, err := runCommandWithRetry(cmd, 5, 2*time.Second)
+	if err != nil {
+		return 0, err
+	}
+	var resp struct {
+		Data struct {
+			Search struct {
+				IssueCount int `json:"issueCount"`
+			} `json:"search"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return 0, err
+	}
+	return resp.Data.Search.IssueCount, nil
+}
+
+// escape moved to util.EscapeSingleQuotes
 
 // RepoMilestone represents a repository milestone (from REST API).
 type RepoMilestone struct {

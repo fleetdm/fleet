@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -34,12 +33,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func newOsqueryErrorWithInvalidNode(msg string) *endpoint_utils.OsqueryError {
-	return endpoint_utils.NewOsqueryError(msg, true)
+func newOsqueryErrorWithInvalidNode(msg string) *OsqueryError {
+	return NewOsqueryError(msg, true)
 }
 
-func newOsqueryError(msg string) *endpoint_utils.OsqueryError {
-	return endpoint_utils.NewOsqueryError(msg, false)
+func newOsqueryError(msg string) *OsqueryError {
+	return NewOsqueryError(msg, false)
 }
 
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
@@ -100,7 +99,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithExtras(ctx, "hostIdentifier", hostIdentifier)
+	logging.WithLevel(logging.WithExtras(ctx, "hostIdentifier", hostIdentifier), level.Info)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -138,7 +137,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	if !canEnroll {
 		deviceCount := "unknown"
 		if lic, _ := license.FromContext(ctx); lic != nil {
-			deviceCount = strconv.Itoa(lic.DeviceCount)
+			deviceCount = strconv.Itoa(lic.GetDeviceCount())
 		}
 		return "", newOsqueryErrorWithInvalidNode(fmt.Sprintf("enroll host failed: maximum number of hosts reached: %s", deviceCount))
 	}
@@ -2946,6 +2945,24 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
+	// Batch fetch query result counts from Redis for all queries
+	var queryResultCounts map[uint]int
+	if svc.liveQueryStore != nil {
+		queryIDs := make([]uint, 0, len(queriesDBData))
+		for _, dbQuery := range queriesDBData {
+			queryIDs = append(queryIDs, dbQuery.ID)
+		}
+		var err error
+		queryResultCounts, err = svc.liveQueryStore.GetQueryResultsCounts(queryIDs)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "get result counts for queries", "err", err)
+			return
+		}
+	}
+
+	// Track rows added per query for batched Redis increment
+	rowsAddedByQuery := make(map[uint]int)
+
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
@@ -2968,20 +2985,29 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 
-		// We first check the current query results count using the DB reader (also cached)
-		// to reduce the DB writer load of osquery/log requests when the host count is high.
-		count, err := svc.ds.ResultCountForQuery(ctx, dbQuery.ID)
-		if err != nil {
-			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
-			continue
+		// Check Redis counter for approximate count (fast, distributed check).
+		if queryResultCounts != nil {
+			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows {
+				continue
+			}
 		}
-		if count >= maxQueryReportRows {
+
+		var rowsAdded int
+		var err error
+		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
+			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
 
-		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
-			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
-			continue
+		// Track rows added for batched Redis increment
+		rowsAddedByQuery[dbQuery.ID] += rowsAdded
+	}
+
+	// Batch increment Redis counters after all successful inserts
+	if svc.liveQueryStore != nil && len(rowsAddedByQuery) > 0 {
+		if err := svc.liveQueryStore.IncrQueryResultsCounts(rowsAddedByQuery); err != nil {
+			// Log but don't fail - the inserts succeeded, counter is just a heuristic
+			level.Debug(svc.logger).Log("msg", "incr query results counts in redis", "err", err)
 		}
 	}
 }
@@ -3112,7 +3138,7 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) (int, error) {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -3138,10 +3164,16 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	if err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
-		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	var rowsAdded int
+	var err error
+	if rowsAdded, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
+		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	return nil
+	// If we only inserted an error row, don't count it against the limit.
+	if len(result.Snapshot) == 0 {
+		rowsAdded--
+	}
+	return rowsAdded, nil
 }
 
 // getMostRecentResults returns only the most recent result per query.

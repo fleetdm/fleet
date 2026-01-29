@@ -1,0 +1,8 @@
+{
+  "name": "calibre",
+  "unique_identifier": "net.kovidgoyal.calibre",
+  "token": "calibre",
+  "installer_format": "dmg",
+  "slug": "calibre/darwin",
+  "default_categories": ["Productivity"]
+}

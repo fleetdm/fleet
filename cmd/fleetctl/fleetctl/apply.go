@@ -20,7 +20,7 @@ func applyCommand() *cli.Command {
 	)
 	return &cli.Command{
 		Name:      "apply",
-		Usage:     "Apply files to declaratively manage osquery configurations",
+		Usage:     "Use for one-off imports and backwards compatibility GitOps",
 		UsageText: `fleetctl apply [options]`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -95,7 +95,7 @@ func applyCommand() *cli.Command {
 			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
 
-			_, _, _, _, err = fleetClient.ApplyGroup(c.Context, false, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+			_, _, _, _, err = fleetClient.ApplyGroup(c.Context, false, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, nil)
 			if err != nil {
 				return err
 			}

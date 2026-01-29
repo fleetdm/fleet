@@ -4,6 +4,12 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
+import CrashPlan from "./CrashPlan";
+import Nextcloud from "./Nextcloud";
+import Notepad from "./Notepad++";
+import OktaVerify from "./OktaVerify";
+import Proxifier from "./Proxifier";
+import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
 import AdobeAcrobat from "./AdobeAcrobat";
@@ -19,6 +25,7 @@ import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
 import AnyDesk from "./AnyDesk";
 import Apparency from "./Apparency";
+import AppCleaner from "./AppCleaner";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
@@ -35,6 +42,7 @@ import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
+import Calibre from "./Calibre";
 import CleanMyMac from "./CleanMyMac";
 import CleanShotX from "./CleanShotX";
 import CLion from "./CLion";
@@ -55,6 +63,7 @@ import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
 import Cyberduck from "./Cyberduck";
+import Dash from "./Dash";
 import DataGrip from "./DataGrip";
 import DbBrowserForSqLite from "./DbBrowserForSqLite";
 import DBeaver from "./DBeaver";
@@ -176,6 +185,7 @@ import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Spotify from "./Spotify";
 import Stats from "./Stats";
+import Steam from "./Steam";
 import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
@@ -188,6 +198,7 @@ import Teams from "./Teams";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
+import TextExpander from "./TextExpander";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
@@ -224,6 +235,8 @@ import Zoom from "./Zoom";
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
+  "7 zip": SevenZip,
+  "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
   abstract: Abstract,
@@ -231,6 +244,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
+  "adobe dng converter": AdobeDngConverter,
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
@@ -240,6 +254,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anka: Anka,
   anydesk: AnyDesk,
   apparency: Apparency,
+  appcleaner: AppCleaner,
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
@@ -247,6 +262,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   audacity: Audacity,
   avast: AvastSecureBrowser,
   "aws vpn client": AwsVpnClient,
+  "aws client vpn": AwsVpnClient,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
   "beyond compare": BeyondCompare,
@@ -255,6 +271,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
   "chatgpt atlas": ChatGptAtlas,
@@ -263,6 +280,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
   cleanmymac_5: CleanMyMac,
+  cleanmymac: CleanMyMac,
   "cleanshot x": CleanShotX,
   clion: CLion,
   clickup: ClickUp,
@@ -270,15 +288,22 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
+  crashplan: CrashPlan,
+  "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
   cyberduck: Cyberduck,
+  dash: Dash,
   datagrip: DataGrip,
   "db browser for sqlite": DbBrowserForSqLite,
   "dbeaver community": DBeaver,
+  dbeaver: DBeaver,
   "dbeaver enterprise edition": DBeaverEe,
+  dbeaveree: DBeaverEe,
   "dbeaver lite edition": DBeaverLite,
+  dbeaverlite: DBeaverLite,
   "dbeaver ultimate edition": DBeaverUltimate,
+  dbeaverultimate: DBeaverUltimate,
   deepl: DeepL,
   dialpad: Dialpad,
   discord: Discord,
@@ -291,6 +316,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   edge: MicrosoftEdge,
   egnyte: Egnyte,
   "elgato control center": ElgatoControlCenter,
+  "elgato stream deck": ElgatoStreamDeck,
   evernote: Evernote,
   expressvpn: ExpressVpn,
   falcon: Falcon,
@@ -302,6 +328,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   ghostty: Ghostty,
   gimp: Gimp,
   "gpg keychain": GpgKeychain,
+  "gpg suite": GpgKeychain,
   hyper: Hyper,
   inkscape: Inkscape,
   "jabra direct": JabraDirect,
@@ -313,6 +340,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   maccy: Maccy,
   mattermost: Mattermost,
   "microsoft autoupdate": MicrosoftAutoUpdate,
+  "microsoft auto update": MicrosoftAutoUpdate,
   "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
@@ -344,15 +372,18 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft word": Word,
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
+  nextcloud: Nextcloud,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
+  "notepad++": Notepad,
   "notion calendar": NotionCalendar,
   notion: Notion,
   nova: Nova,
   nudge: Nudge,
   obs: Obs,
   obsidian: Obsidian,
+  "okta verify": OktaVerify,
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
@@ -362,6 +393,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
   "pgadmin 4": PgAdmin4,
+  pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
   "podman desktop": PodmanDesktop,
   postman: Postman,
@@ -369,6 +401,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   pritunl: Pritunl,
   "proton mail": ProtonMail,
   protonvpn: ProtonVpn,
+  proxifier: Proxifier,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
   quip: Quip,
@@ -392,6 +425,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop streamer": SplashtopStreamer,
   spotify: Spotify,
   stats: Stats,
+  steam: Steam,
   "stream deck": ElgatoStreamDeck,
   "sublime merge": SublimeMerge,
   "sublime text": SublimeText,
@@ -406,6 +440,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teleport: TeleportConnect,
   terminal: Terminal,
   teamviewer: TeamViewer,
+  textexpander: TextExpander,
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
@@ -419,6 +454,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
   "wacom center": WacomCenter,
+  "wacom tablet": WacomCenter,
   webstorm: WebStorm,
   webex: Webex,
   whatsapp: WhatsApp,
@@ -515,6 +551,8 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;
+    case name === "microsoft.companyportal":
+      return IntuneCompanyPortal;
     default:
       return null;
   }

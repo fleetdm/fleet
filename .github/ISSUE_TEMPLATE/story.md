@@ -19,19 +19,9 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-## Roadmap item
-
-<!-- Paste the roadmap item, from the current quarter's roadmap preview article, this story contributes to. Put "None" if it doesn't contribute to a roadmap item. -->
-
 ## Original requests
 
 <!-- Insert the link to the feature request that this story contributes to and add the feature request as this story's parent issue. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
-
-## Resources
-  
-<!--
-Provide links to any research or helpful resources (ex. Apple documentation). Put "None" if there are no resources.
--->
 
 ## Changes
 
@@ -41,6 +31,9 @@ Provide links to any research or helpful resources (ex. Apple documentation). Pu
 - [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
 - [ ] REST API changes: TODO <!-- Specify changes in the REST API doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
 - [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. Put "No changes" if there are no changes necessary. -->
+- [ ] Fleet server configuration changes: TODO <!-- Specify changes in the Fleet server configuration doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting File a :help-customers request and assign the SVP of Customer Success. Up to Customer Success to device if any changes to cloud environments is needed. Put "No changes" if there are no changes necessary. -->
+- [ ] Exposed, public API endpoint changes: TODO <!-- Specify changes in the "Which API endpoints to expose to the public internet?" guide as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting File a :help-customers request and assign the SVP of Customer Success. Up to Customer Success to device if any changes to cloud environments is needed.  Put "No changes" if there are no changes necessary. -->
+- [ ] fleetdm.com changes: TODO <!-- Does this story include changes to fleetdm.com? (e.g. new API endpoints) If yes, create a blank subtask with the #g-website label, assign @eashaw, and add @eashaw and @lukeheath to the next design review meeting. fleetdm.com changes are up to @eashaw -->
 - [ ] GitOps mode UI changes: TODO <!-- Specify UI changes for read-only GitOps mode. Put "No changes" if there are no changes necessary. -->
 - [ ] GitOps generation changes: TODO <!-- Specify changes to results from the fleetctl generate-gitops command. Put "No changes" if there are no changes necessary. -->
 - [ ] Activity changes: TODO <!-- Specify the changes to the Audit log page in the contributor docs and the display name that will appear on the dashboard ("type" filter). Add Put "No changes" if there are no changes necessary. -->
@@ -59,6 +52,7 @@ Provide links to any research or helpful resources (ex. Apple documentation). Pu
 - [ ] Feature guide changes: TODO <!-- Specify if a new feature guide is required at fleetdm.com/guides, or if a previous guide should be updated to reflect feature changes. -->
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Load testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
+- [ ] Pre-QA load test: TODO <!-- If this story has high risk of changing load profile, engineers must load-test prior to QA, with a subtask dedicated to that effort. Remove this checkbox if the change won't measurably modify Fleet's load profile, such that either load testing isn't needed at all or load testing is expected to be only performed during QA. -->
 - [ ] Load testing/osquery-perf improvements: TODO <!-- List, or link a subtask for, any osquery-perf or load test environment changes required to comprehensively load test this story if load testing is needed. -->
 - [ ] This is a premium only feature: Yes / No  <!-- If yes, make sure the test plan includes confirmation that both the frontend and backend are protected. -->
 
@@ -78,9 +72,9 @@ Provide links to any research or helpful resources (ex. Apple documentation). Pu
 
 > Make sure to go through [the list](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/ui/design-qa-considerations.md) and consider all events that might be related to this story, so we catch edge cases earlier.
 
-1. TODO
-2. TODO
-3. TODO
+- TODO
+- TODO
+- TODO
 
 <!-- Consider: Do the steps above apply to all global access roles, including admin, maintainer, observer, observer+, and GitOps?  Do the steps above apply to all team-level access roles?  If not, write the steps used to test each variation.
 -->

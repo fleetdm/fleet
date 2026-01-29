@@ -57,10 +57,10 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 		Context: context.Background(),
 		IntegrationConfig: &fleet.GoogleCalendarIntegration{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				"client_email": loadEmail,
 				"private_key":  s.server.URL,
-			},
+			}},
 		},
 		Logger: kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout)),
 	}
@@ -124,10 +124,10 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 		Context: context.Background(),
 		IntegrationConfig: &fleet.GoogleCalendarIntegration{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				"client_email": loadEmail,
 				"private_key":  s.server.URL,
-			},
+			}},
 		},
 		Logger: kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout)),
 	}

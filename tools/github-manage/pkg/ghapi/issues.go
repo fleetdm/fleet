@@ -37,6 +37,32 @@ func GetIssues(search string) ([]Issue, error) {
 	return issues, nil
 }
 
+// GetIssuesByMilestoneLimited returns up to 'limit' issues for the given milestone title.
+// It fetches limit+1 to detect whether there are more results than the limit; the returned
+// slice is trimmed to 'limit', and the boolean indicates if more were available.
+func GetIssuesByMilestoneLimited(title string, limit int) ([]Issue, bool, error) {
+	if limit <= 0 {
+		limit = 300
+	}
+	// Request one extra to detect overflow
+	reqLimit := limit + 1
+	cmd := fmt.Sprintf("gh issue list --milestone %q --json number,title,author,createdAt,updatedAt,state,labels,body --limit %d", title, reqLimit)
+	out, err := RunCommandAndReturnOutput(cmd)
+	if err != nil {
+		return nil, false, err
+	}
+	issues, err := ParseJSONtoIssues(out)
+	if err != nil {
+		return nil, false, err
+	}
+	exceeded := false
+	if len(issues) > limit {
+		exceeded = true
+		issues = issues[:limit]
+	}
+	return issues, exceeded, nil
+}
+
 // AddLabelToIssue adds a label to an issue.
 func AddLabelToIssue(issueNumber int, label string) error {
 	command := fmt.Sprintf("gh issue edit %d --add-label %s", issueNumber, label)
@@ -50,6 +76,16 @@ func AddLabelToIssue(issueNumber int, label string) error {
 // RemoveLabelFromIssue removes a label from an issue.
 func RemoveLabelFromIssue(issueNumber int, label string) error {
 	command := fmt.Sprintf("gh issue edit %d --remove-label %s", issueNumber, label)
+	_, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// CloseIssue closes a GitHub issue.
+func CloseIssue(issueNumber int) error {
+	command := fmt.Sprintf("gh issue close %d", issueNumber)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
 		return err

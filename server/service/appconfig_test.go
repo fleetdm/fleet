@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -532,7 +533,19 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 					{APIToken: "zendesktoken"},
 				},
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
-					{ApiKey: map[string]string{fleet.GoogleCalendarPrivateKey: "google-calendar-private-key"}},
+					{ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						"type":                         "service_account",
+						"project_id":                   "test-project-123",
+						"private_key_id":               "key-id-456",
+						fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----",
+						fleet.GoogleCalendarEmail:      "test@test-project.iam.gserviceaccount.com",
+						"client_id":                    "123456789",
+						"auth_uri":                     "https://accounts.google.com/o/oauth2/auth",
+						"token_uri":                    "https://oauth2.googleapis.com/token",
+						"auth_provider_x509_cert_url":  "https://www.googleapis.com/oauth2/v1/certs",
+						"client_x509_cert_url":         "https://www.googleapis.com/robot/v1/metadata/x509/test",
+						"universe_domain":              "googleapis.com",
+					}}},
 				},
 			},
 		}, nil
@@ -611,8 +624,8 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
-				// Google Calendar private key is not obfuscated
-				require.Equal(t, ac.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey], "google-calendar-private-key")
+				// Verify Google Calendar API key is masked (will serialize to "********")
+				require.True(t, ac.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 			}
 		})
 	}
@@ -681,60 +694,63 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPConfigured)
 }
 
-// TestTransparencyURL tests that Fleet Premium licensees can use custom transparency urls and Fleet
-// Free licensees are restricted to the default transparency url.
-func TestTransparencyURL(t *testing.T) {
+// TestAppConfigFleetDesktopSettings tests that Fleet Premium licensees can set Fleet Desktop custom settings and that
+// Fleet Free licensees are restricted.
+func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
-		if shouldFail {
-			require.Error(t, err)
-			require.ErrorContains(t, err, "missing or invalid license")
-		} else {
-			require.NoError(t, err)
-		}
-	}
 	testCases := []struct {
 		name             string
 		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		initialSettings  fleet.FleetDesktopSettings
+		newSettings      fleet.FleetDesktopSettings
+		expectedSettings fleet.FleetDesktopSettings
+		invalid          []map[string]string
 	}{
 		{
-			name:             "customURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "",
-			shouldFailModify: true,
+			name:             "modifying Desktop settings on Free Tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "missing or invalid license"},
+				{"name": "alternative_browser_host", "reason": "missing or invalid license"},
+			},
 		},
 		{
-			name:             "customURL",
+			name:             "modifying Desktop settings on Premium Tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "customURL",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
 		},
 		{
-			name:             "emptyURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			name:             "empty values on Free tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
 		},
 		{
-			name:             "emptyURL",
+			name:             "empty values on Premium tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "customURL",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
+		},
+		{
+			name:             "using invalid values",
+			licenseTier:      fleet.TierPremium,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "@:13.com", AlternativeBrowserHost: "@:12.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "parse \"@:13.com\": first path segment in URL cannot contain colon"},
+				{"name": "alternative_browser_host", "reason": "must be a valid hostname or IP address"},
+			},
 		},
 	}
 
@@ -750,13 +766,12 @@ func TestTransparencyURL(t *testing.T) {
 				ServerSettings: fleet.ServerSettings{
 					ServerURL: "https://example.org",
 				},
-				FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.initialURL},
+				FleetDesktop: tt.initialSettings,
 			}
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return dsAppConfig, nil
 			}
-
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 				*dsAppConfig = *conf
 				return nil
@@ -765,37 +780,44 @@ func TestTransparencyURL(t *testing.T) {
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 				return nil
 			}
-
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 				return []*fleet.VPPTokenDB{}, nil
 			}
-
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				return []*fleet.ABMToken{}, nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
-			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 
-			raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: tt.newURL})
+			raw, err := json.Marshal(tt.newSettings)
 			require.NoError(t, err)
 			raw = []byte(`{"fleet_desktop":` + string(raw) + `}`)
 			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
-			checkLicenseErr(t, tt.shouldFailModify, err)
 
+			if len(tt.invalid) != 0 {
+				var invalid *fleet.InvalidArgumentError
+				ok := errors.As(err, &invalid)
+				require.True(t, ok)
+				require.Equal(t, tt.invalid, invalid.Invalid())
+			}
 			if modified != nil {
-				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, modified.FleetDesktop.AlternativeBrowserHost)
+
 				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
-				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 			}
 
 			expectedURL := fleet.DefaultTransparencyURL
 			expectedSecureframeURL := fleet.SecureframeTransparencyURL
-			if tt.expectedURL != "" {
-				expectedURL = tt.expectedURL
-				expectedSecureframeURL = tt.expectedURL
+			if tt.expectedSettings.TransparencyURL != "" {
+				expectedURL = tt.expectedSettings.TransparencyURL
+				expectedSecureframeURL = tt.expectedSettings.TransparencyURL
 			}
 
 			transparencyURL, err := svc.GetTransparencyURL(ctx)
@@ -936,8 +958,8 @@ func TestMDMConfig(t *testing.T) {
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -986,8 +1008,8 @@ func TestMDMConfig(t *testing.T) {
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -1018,8 +1040,8 @@ func TestMDMConfig(t *testing.T) {
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -1057,8 +1079,8 @@ func TestMDMConfig(t *testing.T) {
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -1096,8 +1118,8 @@ func TestMDMConfig(t *testing.T) {
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -1135,8 +1157,8 @@ func TestMDMConfig(t *testing.T) {
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -1199,8 +1221,8 @@ func TestMDMConfig(t *testing.T) {
 					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -1621,4 +1643,309 @@ func TestModifyEnableAnalytics(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidAddress(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hostname string
+		expected bool
+	}{
+		// Empty and basic cases
+		{name: "empty string", hostname: "", expected: false},
+
+		// Make sure we don't allow URLs
+		{name: "http prefix", hostname: "http://example.com", expected: false},
+		{name: "https prefix", hostname: "https://example.com", expected: false},
+		{name: "with path", hostname: "example.com/path", expected: false},
+		{name: "with query", hostname: "example.com?query=value", expected: false},
+		{name: "with fragment", hostname: "example.com#fragment", expected: false},
+
+		// Test ports are allowd
+		{name: "with port", hostname: "example.com:9090", expected: true},
+		{name: "port without hostname", hostname: ":9090", expected: false},
+		{name: "port without hostname", hostname: "   :9090", expected: false},
+
+		// Valid IPv4 addresses
+		{name: "IPv4 localhost", hostname: "127.0.0.1", expected: true},
+		{name: "IPv4 address", hostname: "192.168.1.1", expected: true},
+		{name: "IPv4 all zeros", hostname: "0.0.0.0", expected: false},
+		{name: "IPv4 loopback with port", hostname: "127.0.0.1:9090", expected: true},
+
+		// Valid IPv6 addresses
+		{name: "IPv6 localhost", hostname: "::1", expected: true},
+		{name: "IPv6 full", hostname: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", expected: true},
+		{name: "IPv6 compressed", hostname: "2001:db8::1", expected: true},
+		{name: "IPv6 all zeros", hostname: "::", expected: false},
+
+		// IPv6 with brackets
+		{name: "IPv6 localhost with brackets", hostname: "[::1]", expected: true},
+		{name: "IPv6 with brackets", hostname: "[2001:db8::1]", expected: true},
+		{name: "brackets only", hostname: "[]", expected: false},
+		{name: "empty brackets", hostname: "[", expected: false},
+		{name: "IPv6 locahost brackets with port", hostname: "[::1]:8089", expected: true},
+
+		// Valid DNS hostnames
+		{name: "localhostname", hostname: "localhost", expected: true},
+		{name: "hostname with subdomain", hostname: "api.example.com", expected: true},
+		{name: "hostname with multiple subdomains", hostname: "a.b.c.example.com", expected: true},
+		{name: "hostname with numbers", hostname: "server1.example.com", expected: true},
+		{name: "hostname starting with number", hostname: "1server.example.com", expected: true},
+		{name: "all numeric label", hostname: "123.example.com", expected: true},
+		{name: "hostname with hyphen", hostname: "my-server.example.com", expected: true},
+		{name: "hostname with multiple hyphens", hostname: "my-cool-server.example.com", expected: true},
+		{name: "single character label", hostname: "a.b.c", expected: true},
+		{name: "single character hostname", hostname: "a", expected: true},
+
+		// Invalid DNS hostnames - hyphen rules
+		{name: "label starting with hyphen", hostname: "-example.com", expected: false},
+		{name: "label ending with hyphen", hostname: "example-.com", expected: false},
+		{name: "label starting and ending with hyphen", hostname: "-example-.com", expected: false},
+		{name: "only hyphen label", hostname: "-.com", expected: false},
+
+		// Invalid DNS hostnames - special characters
+		{name: "hostname with underscore", hostname: "my_server.example.com", expected: false},
+		{name: "hostname with space", hostname: "my server.example.com", expected: false},
+		{name: "hostname with at symbol", hostname: "user@example.com", expected: false},
+		{name: "hostname with exclamation", hostname: "example!.com", expected: false},
+
+		// Invalid DNS hostnames - empty labels
+		{name: "empty label (double dot)", hostname: "example..com", expected: false},
+		{name: "leading dot", hostname: ".example.com", expected: false},
+		{name: "trailing dot only", hostname: "example.com.", expected: false},
+
+		// Length limits
+		{name: "label exactly 63 chars", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: true},
+		{name: "label 64 chars (too long)", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: false},
+
+		// Real-world examples
+		{name: "fleet server URL", hostname: "fleet.example.com", expected: true},
+		{name: "AWS endpoint", hostname: "s3.us-west-2.amazonaws.com", expected: true},
+		{name: "internal hostname", hostname: "db-primary-01.internal", expected: true},
+		{name: "gibberish", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app", expected: false},
+		{name: "gibberish II", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app:9800", expected: false},
+		{name: "hostname with port", hostname: "example:8080", expected: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := validateAddress(tc.hostname)
+			assert.Equal(t, tc.expected, result, "isValidHostnameAndPort(%q) = %v, want %v", tc.hostname, result, tc.expected)
+		})
+	}
+}
+
+// TestModifyAppConfigGoogleCalendarAPIKey tests that Google Calendar API keys
+// are preserved when omitted from the request, and replaced (not merged) when provided.
+func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Initial config with Google Calendar integration
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://example.org",
+		},
+		Integrations: fleet.Integrations{
+			GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+				{
+					Domain: "example.com",
+					ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						fleet.GoogleCalendarEmail:      "test@example.com",
+						fleet.GoogleCalendarPrivateKey: "original-private-key",
+						"project_id":                   "original-project",
+					}},
+				},
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	t.Run("preserve API key when omitted (no changes)", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Update without including api_key_json (simulates frontend sending masked value)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be preserved (check datastore, not returned config which is obfuscated)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("preserve API key when updating only domain", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Update only domain, omit api_key_json
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "newdomain.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// Domain should be updated, API key preserved (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "newdomain.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("replace API key when new one provided (not merge)", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Provide new API key with different fields
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": {
+						"client_email": "new@example.com",
+						"private_key": "new-private-key",
+						"new_field": "new-value"
+					}
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be completely replaced (not merged) - check datastore
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "new@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "new-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "new-value", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["new_field"])
+		// Old fields should NOT be present (confirms replacement, not merge)
+		_, hasOldProject := dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"]
+		require.False(t, hasOldProject, "old project_id should not be present after replacement")
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("validation passes with preserved API key", func(t *testing.T) {
+		// Reset to valid state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "valid@example.com",
+			fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nvalid-key\n-----END PRIVATE KEY-----",
+		}}
+
+		// Update without api_key_json (should preserve valid key and pass validation)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// Should succeed with preserved API key (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "valid@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "-----BEGIN PRIVATE KEY-----\nvalid-key\n-----END PRIVATE KEY-----", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("preserve API key when masked value sent", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Send masked api_key_json (simulates frontend sending back obfuscated value)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": "********"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be preserved, not overwritten with masked values (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
 }

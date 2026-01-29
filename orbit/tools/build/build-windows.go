@@ -1,6 +1,6 @@
 package main
 
-// This tool builds Orbit binaries with versioninfo information.
+// This tool builds Orbit and Fleet Desktop windows binaries with versioninfo information.
 // https://learn.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
 
 import (
@@ -43,6 +43,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	info := resourceInfo{
+		productName:     "Fleet osquery",
+		fileDescription: "Orbit osquery runtime and autoupdater",
+		comments:        "Fleet osquery",
+	}
+	if strings.HasSuffix(*flagCmdDir, "desktop") {
+		info.productName = "Fleet Desktop"
+		info.fileDescription = "Fleet Desktop" // shown in Windows taskbar
+		info.comments = "Fleet Desktop"
+	}
+
 	// now we need to create the 'resource_windows.syso' metadata file which contains versioninfo data
 
 	// lets start with sanitizing the version data
@@ -64,7 +75,7 @@ func main() {
 
 	// now we can create the VersionInfo struct
 	targetIconPath := filepath.Join(*flagCmdDir, *flagIcon)
-	vi, err := createVersionInfo(vParts, targetIconPath, manifestPath)
+	vi, err := createVersionInfo(vParts, targetIconPath, manifestPath, info)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("parsing versioninfo")
 		os.Exit(1) //nolint:gocritic // ignore exitAfterDefer
@@ -97,9 +108,15 @@ func main() {
 	}
 }
 
+type resourceInfo struct {
+	productName     string
+	fileDescription string
+	comments        string
+}
+
 // createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource_windows.syso'
 // metadata file (see writeResourceSyso).
-func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*goversioninfo.VersionInfo, error) {
+func createVersionInfo(vParts []string, iconPath string, manifestPath string, ri resourceInfo) (*goversioninfo.VersionInfo, error) {
 	vIntParts := make([]int, 0, len(vParts))
 	for _, p := range vParts {
 		v, err := strconv.Atoi(p)
@@ -143,16 +160,16 @@ func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*
 			FileSubType:   "00",
 		},
 		StringFileInfo: goversioninfo.StringFileInfo{
-			Comments:         "Fleet osquery",
+			Comments:         ri.comments,
 			CompanyName:      "Fleet Device Management (fleetdm.com)",
-			FileDescription:  "Orbit osquery runtime and autoupdater",
+			FileDescription:  ri.fileDescription,
 			FileVersion:      version,
 			InternalName:     "",
 			LegalCopyright:   copyright,
 			LegalTrademarks:  "",
 			OriginalFilename: "",
 			PrivateBuild:     "",
-			ProductName:      "Fleet osquery",
+			ProductName:      ri.productName,
 			ProductVersion:   version,
 			SpecialBuild:     "",
 		},

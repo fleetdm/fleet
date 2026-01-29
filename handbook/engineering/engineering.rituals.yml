@@ -34,7 +34,7 @@
   frequency: "Weekly"
   description: "Hand off the oncall engineering responsibilities to the next oncall engineer."
   moreInfoUrl: 
-  dri: "lukeheath"
+  dri: "oncall"
 - 
   task: "Vulnerability alerts (fleetdm.com)"
   startedOn: "2023-08-09" 
@@ -57,26 +57,47 @@
   moreInfoUrl: "https://github.com/fleetdm/fleet/security"
   dri: "lukeheath"
 - 
-  task: "Release candidate ritual"
+  task: "Minor version release candidate ritual"
   startedOn: "2023-08-09" 
   frequency: "Triweekly"
   description: "Go through the process of creating a release candidate."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#create-a-release-candidate"
   dri: "lukeheath"
 - 
-  task: "Release ritual"
+  task: "Minor version release ritual"
   startedOn: "2023-08-09" 
   frequency: "Triweekly"
   description: "Go through the process of releasing the next minor version of Fleet."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#prepare-fleet-release"
   dri: "lukeheath"
 - 
-  task: "Create patch release branch"
-  startedOn: "2023-08-09" 
-  frequency: "Every patch release"
-  description: "Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet."
+  task: "Patch version release candidate ritual"
+  startedOn: "2023-08-19"
+  frequency: "Triweekly"
+  description: "Go through the process of creating a patch release candidate."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#create-a-release-candidate"
+  dri: "georgekarrv"
+-
+  task: "Patch version release ritual"
+  startedOn: "2023-08-19"
+  frequency: "Triweekly"
+  description: "Go through the process of releasing the next patch version of Fleet."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#prepare-fleet-release"
   dri: "lukeheath"
+-
+  task: "Fleetd release candidate ritual"
+  startedOn: "2023-08-19"
+  frequency: "As needed"
+  description: "Go through the process of creating a fleetd release candidate."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#create-a-release-candidate"
+  dri: "sharon-fdm"
+-
+  task: "Fleetd release ritual"
+  startedOn: "2023-08-19"
+  frequency: "As needed"
+  description: "Go through the process of releasing the next version of fleetd."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#prepare-fleetd-agent-release"
+  dri: "sharon-fdm"
 - 
   task: "QA report"
   startedOn: "2023-08-09" 
@@ -145,12 +166,25 @@
   description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#change-the-integrations-admin-salesforce-account-password"
   dri: "eashaw"
-
-
-
-
-
-
-
+-
+  task: "Pre-sprint prioritization"
+  startedOn: "2024-02-27" 
+  frequency: "Triweekly"
+  description: "Decide which stories and bugs to bring in to the upcoming sprint. Ahead of the call, Engineering Managers (EM) for each product group prepare their team's estimated capacity that factors in time off (PTO) and the on-call rotation."
+  dri: "lukeheath"
+-
+  task: "Sprint kickoff review"
+  startedOn: "2024-03-07" 
+  frequency: "Triweekly" 
+  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams." 
+  moreInfoUrl: 
+  dri: "lukeheath"
+-
+  task: "Release planning project review"
+  startedOn: "2024-03-07" 
+  frequency: "Weekly" 
+  description: "Review the release planning project board to ensure issues are progressing appropriately towards the next release." 
+  moreInfoUrl: "https://github.com/orgs/fleetdm/projects/87"
+  dri: "lukeheath"
 
 

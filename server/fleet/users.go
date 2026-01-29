@@ -12,6 +12,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// UserSummary contains the minimal user fields.
+type UserSummary struct {
+	ID          uint   `db:"id"`
+	Name        string `db:"name"`
+	Email       string `db:"email"`
+	GravatarURL string `db:"gravatar_url"`
+	APIOnly     bool   `db:"api_only"`
+}
+
 // User is the model struct that represents a Fleet user.
 type User struct {
 	UpdateCreateTimestamps
@@ -435,6 +444,32 @@ func (u *User) SetFakePassword(keySize, cost int) error {
 	u.Salt = salt
 
 	return nil
+}
+
+func (u *User) TeamIDsWithAnyRole() (teamIDs []uint) {
+	for _, team := range u.Teams {
+		teamIDs = append(teamIDs, team.ID)
+	}
+
+	return teamIDs
+}
+
+func (u *User) HasAnyGlobalRole() bool {
+	return u.GlobalRole != nil
+}
+
+func (u *User) HasAnyTeamRole() bool {
+	return len(u.Teams) > 0
+}
+
+func (u *User) HasAnyRoleInTeam(id uint) bool {
+	for _, team := range u.Teams {
+		if team.ID == id {
+			return true
+		}
+	}
+
+	return false
 }
 
 func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte, salt string, err error) {

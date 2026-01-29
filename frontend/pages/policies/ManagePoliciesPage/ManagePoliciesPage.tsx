@@ -12,7 +12,11 @@ import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { IConfig, IWebhookSettings } from "interfaces/config";
+import {
+  IConfig,
+  IWebhookSettings,
+  isConditionalAccessConfigured,
+} from "interfaces/config";
 import { IZendeskJiraIntegrations } from "interfaces/integration";
 import { INotification } from "interfaces/notification";
 import {
@@ -121,6 +125,11 @@ const ManagePolicyPage = ({
   } = useContext(AppContext);
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
+  const isManagedCloud =
+    globalConfigFromContext?.license?.managed_cloud || false;
+  const conditionalAccessProviderText = isManagedCloud
+    ? "Okta or Microsoft Entra"
+    : "Okta";
 
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -544,28 +553,8 @@ const ManagePolicyPage = ({
     try {
       setIsUpdatingPolicies(true);
 
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-
-        const turnedOff =
-          prevPolicyState?.install_software !== undefined &&
-          formPolicy.installSoftwareEnabled === false;
-
-        const turnedOn =
-          prevPolicyState?.install_software === undefined &&
-          formPolicy.installSoftwareEnabled === true;
-
-        const updatedSwId =
-          prevPolicyState?.install_software?.software_title_id !== undefined &&
-          formPolicy.swIdToInstall !==
-            prevPolicyState?.install_software?.software_title_id;
-
-        return turnedOff || turnedOn || updatedSwId;
-      });
-
-      if (!changedPolicies.length) {
+      // Truly dirty items previously detected in InstallSoftwareModal
+      if (!formData.length) {
         renderFlash("success", "No changes detected.");
         return;
       }
@@ -574,7 +563,7 @@ const ManagePolicyPage = ({
       const results: PromiseSettledResult<any>[] = [];
 
       // Use reduce to execute promises sequentially
-      await changedPolicies.reduce(async (previousPromise, changedPolicy) => {
+      await formData.reduce(async (previousPromise, changedPolicy) => {
         await previousPromise;
         try {
           const result = await teamPoliciesAPI.update(changedPolicy.id, {
@@ -638,27 +627,8 @@ const ManagePolicyPage = ({
     try {
       setIsUpdatingPolicies(true);
 
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-
-        const turnedOff =
-          prevPolicyState?.run_script !== undefined &&
-          formPolicy.scriptIdToRun === null;
-
-        const turnedOn =
-          prevPolicyState?.run_script === undefined &&
-          formPolicy.scriptIdToRun !== null;
-
-        const updatedScriptId =
-          prevPolicyState?.run_script?.id !== undefined &&
-          formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
-
-        return turnedOff || turnedOn || updatedScriptId;
-      });
-
-      if (!changedPolicies.length) {
+      // Truly dirty items previously detected in PolicyRunScriptModal
+      if (!formData.length) {
         renderFlash("success", "No changes detected.");
         return;
       }
@@ -1115,10 +1085,6 @@ const ManagePolicyPage = ({
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
-  const isConditionalAccessConfigured =
-    globalConfig?.conditional_access?.microsoft_entra_connection_configured ??
-    false;
-
   const isConditionalAccessEnabled =
     (teamIdForApi === API_NO_TEAM_ID
       ? globalConfig?.integrations.conditional_access_enabled
@@ -1198,17 +1164,14 @@ const ManagePolicyPage = ({
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
-    ];
-
-    if (globalConfigFromContext?.license.managed_cloud) {
-      options.push({
+      {
         label: "Conditional access",
         value: "conditional_access",
         isDisabled: !!disabledConditionalAccessTooltipContent,
         helpText: "Block single sign-on for hosts failing policies.",
         tooltipContent: disabledConditionalAccessTooltipContent,
-      });
-    }
+      },
+    ];
 
     // Maintainers do not have access to other workflows
     if (!isGlobalMaintainer && !isTeamMaintainer) {
@@ -1336,6 +1299,7 @@ const ManagePolicyPage = ({
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
+            router={router}
             automationsConfig={automationsConfig}
             availableIntegrations={
               // Although TypeScript thinks globalConfig could be undefined here, in practice it will always be present for users with canManageAutomations/canAddOrDeletePolicies permissions.
@@ -1391,11 +1355,12 @@ const ManagePolicyPage = ({
           <ConditionalAccessModal
             onExit={toggleConditionalAccessModal}
             onSubmit={onUpdateConditionalAccess}
-            configured={isConditionalAccessConfigured}
+            configured={isConditionalAccessConfigured(globalConfig)}
             enabled={isConditionalAccessEnabled}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}
             teamId={currentTeamId ?? 0}
+            providerText={conditionalAccessProviderText}
           />
         )}
       </>
