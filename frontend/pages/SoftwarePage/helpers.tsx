@@ -258,3 +258,32 @@ export const isSafeImagePreviewUrl = (url?: string | null) => {
     return false;
   }
 };
+
+// TODO: When software directories are restructured, move this to /software/helpers.tsx
+const WELL_KNOWN_SOFTWARE_TITLES: Record<string, string> = {
+  "microsoft.companyportal": "Company Portal",
+};
+
+/** Prioritizes display_name over name and converts problematic names
+ * listed in WELL_KNOWN_SOFTWARE_TITLES to more human readable names */
+export const getDisplayedSoftwareName = (
+  name?: string | null,
+  display_name?: string | null
+): string => {
+  // 1. End-user custom name always wins.
+  if (display_name) {
+    return display_name;
+  }
+
+  if (name) {
+    // 2. Normalize known titles only from the raw name.
+    const key = name.toLowerCase();
+    if (WELL_KNOWN_SOFTWARE_TITLES[key]) {
+      return WELL_KNOWN_SOFTWARE_TITLES[key];
+    }
+    return name;
+  }
+
+  // This should not happen
+  return "Software";
+};

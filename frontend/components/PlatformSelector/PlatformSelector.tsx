@@ -7,6 +7,7 @@ import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
 import paths from "router/paths";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 interface IPlatformSelectorProps {
   baseClass?: string;
@@ -47,7 +48,10 @@ export const PlatformSelector = ({
     if (!installSoftware) {
       return null;
     }
-    const softwareName = installSoftware.display_name || installSoftware.name;
+    const softwareName = getDisplayedSoftwareName(
+      installSoftware.name,
+      installSoftware.display_name
+    );
     const softwareId = installSoftware.software_title_id.toString();
     const softwareLink = getPathWithQueryParams(
       paths.SOFTWARE_TITLE_DETAILS(softwareId),
