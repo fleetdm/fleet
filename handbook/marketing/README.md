@@ -25,7 +25,10 @@ This list (for now) will be in chronological order as assets are created:
 | Asset | Date posted | Business purpose 
 |:------------|:------------|:----------------|
 | [Why enterprise Linux is important in 2026](https://fleetdm.com/guides/why-enterprise-linux-is-important-in-2026#basic-article) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop managment |
+| [Fleeet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | 2026-01-28 | Part of a series on competior analysis |
+| [Fleet GitOps workshop](https://fleetdm.com/gitops-workshop) | 2026-01-28 | 1=-page explainer & FAQ for GitOps workshop | 
 | [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026-01-29 | Fleet GitOps product page |
+
 
 ## Responsibilities
 
@@ -290,8 +293,6 @@ This view displays the website's efficiency by tracking the rate at which users 
 
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
-
-
 #### Stubs
 The following stubs are included only to make links backward compatible
 
@@ -309,10 +310,6 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
-
-
-
-
 
 <meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing">
