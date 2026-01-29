@@ -3950,7 +3950,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceHostConditionalAccessFeatures
 		resp := getDeviceHost()
 		require.NoError(t, resp.Err)
 		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be false when Okta not configured")
-		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be false when no ConditionalAccess config")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when no ConditionalAccess config")
 	})
 
 	// Configure Okta at global level (without bypass settings first)
