@@ -1,0 +1,1 @@
+- Add `gzip_responses` server configuration option that allows the server to gzip API responses when the client indicates support through the `Accept-Encoding: gzip` request header.

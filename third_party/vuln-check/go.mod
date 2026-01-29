@@ -9,7 +9,7 @@
 
 module github.com/fleetdm/fleet/v4/third_party/vuln-check
 
-go 1.25.5
+go 1.25.6
 
 require (
 	// NanoMDM - Apple MDM server (server/mdm/nanomdm/)
