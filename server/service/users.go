@@ -1082,12 +1082,12 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 		return ctxerr.Wrap(ctx, err, "saving changed password")
 	}
 
-	// Clear all password reset requests for this user.
+	// Ensure that any existing links for password resets will no longer work.
 	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
 	}
 
-	// Clear all sessions for this user.
+	// Force the user to log in again with new password unless explicitly told not to.
 	if clearSessions {
 		if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting sessions after password change")
