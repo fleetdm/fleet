@@ -61,7 +61,7 @@ const WindowsAutomaticEnrollmentPage = () => {
               label="MDM terms of use URL"
               name="mdmTermsOfUseUrl"
               tooltip="The terms of use URL is used to display the terms of service to end users
-              before turning on MDM their host. The terms of use text informs users about
+              before turning on MDM for their host. The terms of use text informs users about
               policies that will be enforced on the host."
               value={generateMdmTermsOfUseUrl(
                 config?.server_settings.server_url || ""
