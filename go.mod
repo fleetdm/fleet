@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.25.5
+go 1.25.6
 
 require (
 	cloud.google.com/go/pubsub v1.49.0
