@@ -174,6 +174,7 @@ export interface IConfig {
     okta_assertion_consumer_service_url: string;
     okta_audience_uri: string;
     okta_certificate: string;
+    // Bypass setting
     bypass_disabled?: boolean;
   };
   host_expiry_settings: {
