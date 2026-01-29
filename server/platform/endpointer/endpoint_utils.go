@@ -563,6 +563,7 @@ type CommonEndpointer[H any] struct {
 	alternativePaths  []string
 	usePathPrefix     bool
 
+	// The limit of the request body size in bytes, if set to -1 there is no limit.
 	requestBodySizeLimit int64
 }
 
@@ -626,8 +627,10 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 		mw := e.CustomMiddleware[i]
 		endp = mw(endp)
 	}
+
 	// Default to MaxRequestBodySize if no limit is set, this ensures no endpointers are forgot
-	if e.requestBodySizeLimit <= 0 || e.requestBodySizeLimit < MaxRequestBodySize {
+	// -1 = no limit, so don't default to anything if that is set, which can only be set with the appropriate SKIP method.
+	if e.requestBodySizeLimit != -1 && (e.requestBodySizeLimit == 0 || e.requestBodySizeLimit < MaxRequestBodySize) {
 		// If no value is configured set default, or if the set endpoint value is less than global default use default.
 		e.requestBodySizeLimit = MaxRequestBodySize
 	}
@@ -689,7 +692,16 @@ func (e *CommonEndpointer[H]) UsePathPrefix() *CommonEndpointer[H] {
 
 func (e *CommonEndpointer[H]) WithRequestBodySizeLimit(limit int64) *CommonEndpointer[H] {
 	ae := *e
-	ae.requestBodySizeLimit = limit
+	if limit > 0 {
+		// Only set it when the limit is more than 0
+		ae.requestBodySizeLimit = limit
+	}
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) SkipRequestBodySizeLimit() *CommonEndpointer[H] {
+	ae := *e
+	ae.requestBodySizeLimit = -1
 	return &ae
 }
 
