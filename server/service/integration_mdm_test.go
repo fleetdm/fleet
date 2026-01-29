@@ -13333,15 +13333,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
 	iOSHost, iOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
 	iPadOSHost, iPadOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ipados")
-	iPodHost, iPodMdmClient := s.createIpodHostThenEnrollMDM()
 	// ensure a valid alternate device token for self-service status access checking later
 	updateDeviceTokenForHost(t, s.ds, mdmHost.ID, "foobar")
 
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial,
-		iOSHost.HardwareSerial, iPadOSHost.HardwareSerial, iPodHost.HardwareSerial)
+		iOSHost.HardwareSerial, iPadOSHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, iOSHost.ID, iPadOSHost.ID, iPodHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, iOSHost.ID, iPadOSHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// Add all apps to the team
 	addedApp = expectedApps[0]
@@ -13791,22 +13790,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			extraAvailable: 1,
 			hostCount:      1,
 		},
-		"iPod app install": {
-			installHost:    iPodHost,
-			titleID:        iOSTitleID,
-			mdmClient:      iPodMdmClient,
-			app:            iOSApp,
-			hostCount:      2, // will be 2 because of the iOS app install above
-			extraAvailable: -1,
+		"macOS app install": {
+			installHost: selfServiceHost,
+			titleID:     macOSTitleID,
+			mdmClient:   selfServiceDevice,
+			app:         macOSApp,
+			hostCount:   2,
+			deviceToken: selfServiceToken,
 		},
-		// "macOS app install": {
-		// 	installHost: selfServiceHost,
-		// 	titleID:     macOSTitleID,
-		// 	mdmClient:   selfServiceDevice,
-		// 	app:         macOSApp,
-		// 	hostCount:   2,
-		// 	deviceToken: selfServiceToken,
-		// },
 	}
 
 	for name, install := range installs {
