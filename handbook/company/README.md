@@ -2,24 +2,15 @@
 
 ## Purpose
 
-Fleet is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source systems management platform and security agent. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/feed/update/urn:li:activity:7120880290859728897/).
+Fleet Device Management is the [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/feed/update/urn:li:sponsoredContentV2:(urn:li:share:7296343346921250816,urn:li:sponsoredCreative:745249963)/?actorCompanyId=0&viewContext=REVIEWER).
 
 Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
-
-- 🔌 making security and IT interoperable and easy to automate with open standards and data.
+- 🔌 helping IT and cybersecurity teams move more quickly on strategic projects.
 - 🚪 creating an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure.
-- 🪟 building clarity and trust through open-source software.
+- 🪟 reducing complexity by eliminating tool overlap from multiple traditional systems.
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
 
-<!--
-With great power
-comes great openness
-With agents comes agency
-Lighter than air
-Light in every corner
-Open by design
--->
 
 ## Culture
 
@@ -28,6 +19,8 @@ Fleet Device Management Inc. is an all-remote company with 60+ team members spre
 
 ### Open source
 Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+
+<!-- If our grandchildren are going to be monitored all the time, at least let's set the precedent that they're monitored with open-source software, like Signal Messenger or Mozilla Firefox. -->
 
 ### Why this way?
 At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
