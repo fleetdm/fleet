@@ -1,0 +1,8 @@
+# This configures how golangci-lint builds a custom build, wich is necessary to use nilaway as a plugin per https://github.com/uber-go/nilaway?tab=readme-ov-file#golangci-lint--v1570
+
+# This has to be >= v1.57.0 for module plugin system support.
+version: v2.7.1
+plugins:
+  - module: "go.uber.org/nilaway"
+    import: "go.uber.org/nilaway/cmd/gclplugin"
+    version: latest # Or a fixed version for reproducible builds.
