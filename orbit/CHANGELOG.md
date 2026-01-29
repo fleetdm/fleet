@@ -14,7 +14,7 @@
 
 * Updated github.com/shoenig/go-m1cpu to v0.1.7 to fix a build warning on Apple silicon.
 
-* Implemented the `executable_hashes` `fleetd` table, providing easy access to the sha256 hash and absolute path to the main executable of (a) mac app bundle(s) matching the `path` provided in the query's WHERE clause. Can match a specific bundle via equality or multiple bundles via LIKE.
+* Implemented the `executable_hashes` `fleetd` table, providing easy access to the SHA-256 hash and absolute path of the main executable for macOS app bundles matching the `path` in the query’s WHERE clause. Supports exact matches or multiple bundles via LIKE.
 
 ## Orbit 1.50.2 (Dec 12, 2025)
 
