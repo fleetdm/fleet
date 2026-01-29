@@ -5,7 +5,7 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import PATHS from "router/paths";
 
 import scriptsAPI, {
-  IScriptBatchSummaryV2,
+  IScriptBatchSummary,
   IScriptBatchSummariesResponse,
 } from "services/entities/scripts";
 
@@ -59,7 +59,7 @@ const ScriptBatchProgress = ({
 }: IScriptBatchProgressProps) => {
   const [pageNumber, setPageNumber] = useState(0);
 
-  const paginatedListRef = useRef<IPaginatedListHandle<IScriptBatchSummaryV2>>(
+  const paginatedListRef = useRef<IPaginatedListHandle<IScriptBatchSummary>>(
     null
   );
 
@@ -102,7 +102,7 @@ const ScriptBatchProgress = ({
     [location?.search, router]
   );
 
-  const onClickRow = (r: IScriptBatchSummaryV2) => {
+  const onClickRow = (r: IScriptBatchSummary) => {
     // explicitly including the status param here avoids triggering the script details page's effect
     // which would add it automatically, muddying browser history and preventing smooth forward/back navigation
     router.push(
@@ -113,7 +113,7 @@ const ScriptBatchProgress = ({
     return r;
   };
 
-  const renderRow = (summary: IScriptBatchSummaryV2) => {
+  const renderRow = (summary: IScriptBatchSummary) => {
     const {
       script_name,
       targeted_host_count,
@@ -190,7 +190,7 @@ const ScriptBatchProgress = ({
             {count} batch script{count > 1 ? "s" : ""}
           </div>
         )}
-        <PaginatedList<IScriptBatchSummaryV2>
+        <PaginatedList<IScriptBatchSummary>
           ref={paginatedListRef}
           count={count}
           data={rows}

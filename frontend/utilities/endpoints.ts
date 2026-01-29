@@ -290,9 +290,7 @@ export default {
   SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
   SCRIPT_CANCEL_BATCH: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${executionId}/cancel`,
-  SCRIPT_RUN_BATCH_SUMMARY_V1: (id: string) =>
-    `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
-  SCRIPT_RUN_BATCH_SUMMARY_V2: (id: string) =>
+  SCRIPT_RUN_BATCH_SUMMARY: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${id}`,
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   SCRIPT_BATCH_HOST_RESULTS: (id: string) =>
