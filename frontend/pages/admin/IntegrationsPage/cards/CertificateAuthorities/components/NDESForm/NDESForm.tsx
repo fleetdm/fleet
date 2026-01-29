@@ -20,7 +20,6 @@ interface INDESFormProps {
   formData: INDESFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  isEditing?: boolean;
   isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
@@ -74,7 +73,13 @@ const NDESForm = ({
         onChange={onInputChange}
         parseTarget
         placeholder="https://example.com/certsrv/mscep_admin/"
-        helpText="The admin interface for managing the SCEP service and viewing configuration details."
+        helpText={
+          <>
+            The URL for the <b>Network Device Enrollment Service</b> page to
+            view configuration details. Okta calls this the <b>Challenge URL</b>
+            .
+          </>
+        }
       />
       <InputField
         label="Username"
@@ -83,7 +88,7 @@ const NDESForm = ({
         onChange={onInputChange}
         parseTarget
         placeholder="username@example.microsoft.com"
-        helpText="The username in the down-level logon name format required to log in to the SCEP admin page."
+        helpText="For Microsoft, this is the username in the down-level logon name format required to log in to the SCEP admin page."
       />
       <InputField
         label="Password"
@@ -93,7 +98,12 @@ const NDESForm = ({
         onChange={onInputChange}
         parseTarget
         blockAutoComplete
-        helpText="The password required to log in to the SCEP admin page."
+        helpText={
+          <>
+            The password required to log in to the{" "}
+            <b>Network Device Enrollment Service</b> page.
+          </>
+        }
       />
       <div className="modal-cta-wrap">
         <TooltipWrapper

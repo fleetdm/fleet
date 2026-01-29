@@ -86,7 +86,7 @@ const buildGoogleMapsLinkFromGeo = (loc: IGeoLocation): string | null => {
     Array.isArray(geometry.coordinates) &&
     geometry.coordinates.length >= 2
   ) {
-    const [lng, lat] = geometry.coordinates; // GeoJSON is [lng, lat]
+    const [lat, lng] = geometry.coordinates; // GeoJSON is [lat, lng]
     if (lat != null && lng != null) {
       return `https://www.google.com/maps?q=${lat},${lng}`;
     }

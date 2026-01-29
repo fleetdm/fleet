@@ -4634,6 +4634,10 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.NotZero(t, createResp.Label.ID)
 		assert.Equal(t, t.Name(), createResp.Label.Name)
 		assert.Empty(t, createResp.Label.HostIDs)
+		assert.False(t, createResp.Label.CreatedAt.IsZero())
+		assert.WithinDuration(t, time.Now(), createResp.Label.CreatedAt, time.Minute)
+		assert.False(t, createResp.Label.UpdatedAt.IsZero())
+		assert.WithinDuration(t, time.Now(), createResp.Label.UpdatedAt, time.Minute)
 		lbl1 := createResp.Label.Label
 
 		// try to create a manual label with the same name
