@@ -231,6 +231,18 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					Server:        conf.Nats.Server,
 				},
 			}
+		case "clickhouse":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "clickhouse",
+				Config: fleet.ClickHouseConfig{
+					Address:     conf.ClickHouse.Address,
+					Database:    conf.ClickHouse.Database,
+					Username:    conf.ClickHouse.Username,
+					StatusTable: conf.ClickHouse.StatusTable,
+					ResultTable: conf.ClickHouse.ResultTable,
+					AuditTable:  conf.ClickHouse.AuditTable,
+				},
+			}
 		default:
 			return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", lp.plugin)
 		}

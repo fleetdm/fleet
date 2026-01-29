@@ -561,6 +561,28 @@ type NatsConfig struct {
 	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
 }
 
+// ClickHouseConfig defines configs for the ClickHouse logging plugin.
+type ClickHouseConfig struct {
+	StatusTable       string `json:"status_table" yaml:"status_table"`
+	ResultTable       string `json:"result_table" yaml:"result_table"`
+	AuditTable        string `json:"audit_table" yaml:"audit_table"`
+	Address           string `json:"address" yaml:"address"`
+	Database          string `json:"database" yaml:"database"`
+	Username          string `json:"username" yaml:"username"`
+	Password          string `json:"password" yaml:"password"`
+	Compression       string `json:"compression" yaml:"compression"`
+	TLSEnabled        bool   `json:"tls_enabled" yaml:"tls_enabled"`
+	TLSSkipVerify     bool   `json:"tls_skip_verify" yaml:"tls_skip_verify"`
+	TLSCAFile         string `json:"tls_ca_file" yaml:"tls_ca_file"`
+	TLSClientCertFile string `json:"tls_client_cert_file" yaml:"tls_client_cert_file"`
+	TLSClientKeyFile  string `json:"tls_client_key_file" yaml:"tls_client_key_file"`
+	BatchSize         int    `json:"batch_size" yaml:"batch_size"`
+	FlushInterval     int    `json:"flush_interval" yaml:"flush_interval"`
+	MaxQueueSize      int    `json:"max_queue_size" yaml:"max_queue_size"`
+	MaxRetries        int    `json:"max_retries" yaml:"max_retries"`
+	RetryBackoff      int    `json:"retry_backoff" yaml:"retry_backoff"`
+}
+
 // LicenseConfig defines configs related to licensing Fleet.
 type LicenseConfig struct {
 	Key              string `yaml:"key"`
@@ -649,6 +671,7 @@ type FleetConfig struct {
 	Webhook                    WebhookConfig
 	KafkaREST                  KafkaRESTConfig
 	Nats                       NatsConfig
+	ClickHouse                 ClickHouseConfig
 	License                    LicenseConfig
 	Vulnerabilities            VulnerabilitiesConfig
 	Upgrades                   UpgradesConfig
@@ -1478,6 +1501,26 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
 	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
 
+	// ClickHouse
+	man.addConfigString("clickhouse.address", "localhost:9000", "ClickHouse server address (host:port)")
+	man.addConfigString("clickhouse.database", "fleet", "ClickHouse database name")
+	man.addConfigString("clickhouse.username", "default", "ClickHouse username")
+	man.addConfigString("clickhouse.password", "", "ClickHouse password")
+	man.addConfigString("clickhouse.status_table", "osquery_status_logs", "ClickHouse table for status logs")
+	man.addConfigString("clickhouse.result_table", "osquery_result_logs", "ClickHouse table for result logs")
+	man.addConfigString("clickhouse.audit_table", "fleet_audit_logs", "ClickHouse table for audit logs")
+	man.addConfigString("clickhouse.compression", "lz4", "Compression method: none, lz4, zstd (default: lz4)")
+	man.addConfigBool("clickhouse.tls_enabled", false, "Enable TLS for ClickHouse connection")
+	man.addConfigBool("clickhouse.tls_skip_verify", false, "Skip TLS certificate verification")
+	man.addConfigString("clickhouse.tls_ca_file", "", "Path to CA certificate for ClickHouse TLS")
+	man.addConfigString("clickhouse.tls_client_cert_file", "", "Path to TLS client certificate file for mTLS")
+	man.addConfigString("clickhouse.tls_client_key_file", "", "Path to TLS client key file for mTLS")
+	man.addConfigInt("clickhouse.batch_size", 1000, "Number of logs to batch before writing")
+	man.addConfigInt("clickhouse.flush_interval", 10, "Flush interval in seconds")
+	man.addConfigInt("clickhouse.max_queue_size", 100000, "Maximum queue size for buffered logs")
+	man.addConfigInt("clickhouse.max_retries", 3, "Maximum retries for failed writes")
+	man.addConfigInt("clickhouse.retry_backoff", 5, "Backoff in seconds between retries")
+
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 	man.addConfigBool("license.enforce_host_limit", false, "Enforce license limit of enrolled hosts")
@@ -1828,6 +1871,26 @@ func (man Manager) LoadConfig() FleetConfig {
 			Compression:      man.getConfigString("nats.compression"),
 			JetStream:        man.getConfigBool("nats.jetstream"),
 			Timeout:          man.getConfigDuration("nats.timeout"),
+		},
+		ClickHouse: ClickHouseConfig{
+			Address:           man.getConfigString("clickhouse.address"),
+			Database:          man.getConfigString("clickhouse.database"),
+			Username:          man.getConfigString("clickhouse.username"),
+			Password:          man.getConfigString("clickhouse.password"),
+			StatusTable:       man.getConfigString("clickhouse.status_table"),
+			ResultTable:       man.getConfigString("clickhouse.result_table"),
+			AuditTable:        man.getConfigString("clickhouse.audit_table"),
+			Compression:       man.getConfigString("clickhouse.compression"),
+			TLSEnabled:        man.getConfigBool("clickhouse.tls_enabled"),
+			TLSSkipVerify:     man.getConfigBool("clickhouse.tls_skip_verify"),
+			TLSCAFile:         man.getConfigString("clickhouse.tls_ca_file"),
+			TLSClientCertFile: man.getConfigString("clickhouse.tls_client_cert_file"),
+			TLSClientKeyFile:  man.getConfigString("clickhouse.tls_client_key_file"),
+			BatchSize:         man.getConfigInt("clickhouse.batch_size"),
+			FlushInterval:     man.getConfigInt("clickhouse.flush_interval"),
+			MaxQueueSize:      man.getConfigInt("clickhouse.max_queue_size"),
+			MaxRetries:        man.getConfigInt("clickhouse.max_retries"),
+			RetryBackoff:      man.getConfigInt("clickhouse.retry_backoff"),
 		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),

@@ -1620,6 +1620,16 @@ type NatsConfig struct {
 	AuditSubject  string `json:"audit_subject"`
 }
 
+// ClickHouseConfig contains ClickHouse logging configuration.
+type ClickHouseConfig struct {
+	Address     string `json:"address"`
+	Database    string `json:"database"`
+	Username    string `json:"username"`
+	StatusTable string `json:"status_table"`
+	ResultTable string `json:"result_table"`
+	AuditTable  string `json:"audit_table"`
+}
+
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
