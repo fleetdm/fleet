@@ -1,1 +1,0 @@
-* Script and software installer policy automations will retry up to three times if attempts to run them fail.
