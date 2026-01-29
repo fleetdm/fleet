@@ -1,6 +1,6 @@
 # Manage software using GitOps
 
-This guide is a walkthrough on how to manage software using [GitOps](https://fleetdm.com/docs/configuration/yaml-files#gitops). In Fleet, there are three types of software: [Fleet-maintained apps](#fleet-maintained-apps), [App store apps](#app-store-apps), and [custom packages](#custom-packages).
+This guide is a walkthrough on how to manage software using [GitOps](https://fleetdm.com/docs/configuration/yaml-files#gitops). In Fleet, there are three types of software: [Fleet-maintained apps](#fleet-maintained-apps), [app store apps](#app-store-apps), and [custom packages](#custom-packages).
 
 When using GitOps, you can optionally put Fleet in [GitOps mode](https://fleetdm.com/guides/gitops-mode). This prevents you from making changes in the UI that would be overridden by GitOps workflows.
 
