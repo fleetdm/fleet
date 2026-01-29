@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.2026.013",
+      "version": "1.2026.014",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat';"
       },
-      "installer_url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT_Desktop_public_1.2026.013_1768606532.dmg",
+      "installer_url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT_Desktop_public_1.2026.014_1769698892.dmg",
       "install_script_ref": "8383182d",
       "uninstall_script_ref": "1ba164ed",
-      "sha256": "9e070d183c2e43a5ae339122a3338e93fe928d6573b82465bdc6c6ede3ff1a1c",
+      "sha256": "daf10ef5d262f43d84537030abf24918669f87a11916715ac8d225921a500539",
       "default_categories": [
         "Productivity"
       ]
