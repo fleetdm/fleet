@@ -641,9 +641,9 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		return 0, nil
 	}
 	teamQueryResultsStored := false
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		if len(rows) == 0 {
-			return nil
+			return 0, nil
 		}
 		if rows[0].QueryID == 777 {
 			require.Len(t, rows, 3)
@@ -684,7 +684,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			require.NotZero(t, rows[1].LastFetched)
 			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(*rows[1].Data))
 		}
-		return nil
+		return 0, nil
 	}
 
 	// Hack to get at the service internals and modify the writer
@@ -790,7 +790,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 
 func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	liveQueryStore := makeLiveQueryStore(t, 10)
+	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
 
 	// Hack to get at the private methods
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -810,32 +811,70 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	}
 
 	// Results not saved if DiscardData is true in Query
-	discardDataFalse := map[string]*fleet.Query{
+	discardDataTrue := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
 			ID:          1,
 			DiscardData: true,
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, fleet.DefaultMaxQueryReportRows)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
-	discardDataTrue := map[string]*fleet.Query{
+	discardDataFalse := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
 			ID:          1,
 			DiscardData: false,
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
-		return nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return 0, nil
+	}
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
+	ds := new(mock.Store)
+	// We allow 10% overage on the limit so that the cleanup job helps to rotate the rows.
+	// So we want to do 1000 + 10% + 1 here.
+	liveQueryStore := makeLiveQueryStore(t, 1101)
+	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
+
+	// Hack to get at the private methods
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+
+	host := fleet.Host{}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	results := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Uptime",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot: []*json.RawMessage{
+				ptr.RawMessage(json.RawMessage(`{"hour":"20","minutes":"8"}`)),
+			},
+			UnixTime: 1484078931,
+		},
+	}
+
+	discardDataFalse := map[string]*fleet.Query{
+		"pack/Global/Uptime": {
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		},
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return 0, nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, fleet.DefaultMaxQueryReportRows)
-	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
+	require.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
 func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
@@ -876,12 +915,12 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return nil
+		return 0, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -927,12 +966,12 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return nil
+		return 0, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -984,8 +1023,8 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
-		return nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return 0, nil
 	}
 
 	// Expect an error when unable to write to logging destination.
@@ -4639,4 +4678,21 @@ func TestUpdateFleetdVersion(t *testing.T) {
 		updateFleetdVersion("windows", results)
 		require.Equal(t, originalResults, results)
 	})
+}
+
+// makeLiveQueryStore creates a mock live query store that returns `countToReturn` from the
+// GetQueryResultsCounts method.
+func makeLiveQueryStore(t *testing.T, countToReturn int) *live_query_mock.MockLiveQuery {
+	lq := live_query_mock.New(t)
+	lq.GetQueryResultsCountsOverride = func(queryIDs []uint) (map[uint]int, error) {
+		result := make(map[uint]int, len(queryIDs))
+		for _, id := range queryIDs {
+			result[id] = countToReturn
+		}
+		return result, nil
+	}
+	lq.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
+		return nil
+	}
+	return lq
 }

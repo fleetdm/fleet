@@ -19,19 +19,9 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-## Roadmap item
-
-<!-- Paste the roadmap item, from the current quarter's roadmap preview article, this story contributes to. Put "None" if it doesn't contribute to a roadmap item. -->
-
 ## Original requests
 
 <!-- Insert the link to the feature request that this story contributes to and add the feature request as this story's parent issue. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
-
-## Resources
-  
-<!--
-Provide links to any research or helpful resources (ex. Apple documentation). Put "None" if there are no resources.
--->
 
 ## Changes
 

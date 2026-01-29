@@ -96,7 +96,7 @@ func (svc *Service) GetHostLocationData(ctx context.Context, hostID uint) (*flee
 	}
 
 	ret.Geometry = &fleet.Geometry{
-		Coordinates: []float64{locData.Longitude, locData.Latitude},
+		Coordinates: []float64{locData.Latitude, locData.Longitude},
 	}
 
 	return &ret, nil

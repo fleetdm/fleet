@@ -596,6 +596,27 @@ module.exports.routes = {
     }
   },
 
+  'GET /gitops-workshop': {
+    action: 'landing-pages/view-gitops-workshop',
+    locals: {
+      pageTitleForMeta: 'GitOps workshops',
+      pageDescriptionForMeta: 'Join Fleet’s GitOps workshop to learn configuration-as-code for managing devices at scale. See every change, undo any error, and repeat every success.',
+    }
+  },
+
+  'GET /compare/:slug': {
+    action: 'landing-pages/view-basic-comparison'
+  },
+
+  'GET /fleet-gitops': {
+    action: 'view-fleet-gitops',
+    locals: {
+      pageTitleForMeta: 'Fleet GitOps',
+      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet and GitOps work together to optimize your endpoint management strategy.',
+      currentSection: 'platform',
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -1263,7 +1284,7 @@ module.exports.routes = {
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
-
+  'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
 
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

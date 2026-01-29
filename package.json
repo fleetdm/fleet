@@ -16,6 +16,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@sgress454/node-sql-parser": "5.4.0-fork.1",
     "@types/dompurify": "3.0.2",
     "ace-builds": "1.4.14",
     "axios": "1.12.0",
