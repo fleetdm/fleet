@@ -332,7 +332,10 @@ const TableContainer = <T,>({
           <>
             {actionButton.buttonText}
             {actionButton.iconSvg && (
-              <Icon name={actionButton.iconSvg} color="ui-fleet-black-75" />
+              <Icon
+                name={actionButton.iconSvg}
+                color={actionButton.iconColor || "ui-fleet-black-75"}
+              />
             )}
           </>
         </Button>

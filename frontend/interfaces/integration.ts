@@ -63,7 +63,7 @@ export interface IIntegrationFormErrors {
 
 export interface IGlobalCalendarIntegration {
   domain: string;
-  api_key_json: string;
+  api_key_json: Record<string, string>;
 }
 
 interface ITeamCalendarSettings {

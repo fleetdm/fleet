@@ -46,6 +46,10 @@ Apps can be installed manually on each host's **Host details** page. For macOS a
 
 Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 
+If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
+
+To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
+
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).

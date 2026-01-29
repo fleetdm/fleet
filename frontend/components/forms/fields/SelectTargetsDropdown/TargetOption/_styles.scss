@@ -9,37 +9,33 @@
 
   &__wrapper {
     display: flex;
-    align-items: stretch;
-    align-content: stretch;
+    align-items: center;
+    align-content: center;
+    justify-content: space-between;
+    height: 40px;
+    gap: $pad-medium;
     cursor: default;
     border-radius: 8px;
     padding: 0 $pad-xsmall;
   }
 
-  &__target-content,
-  &__add-btn {
+  &__target-content {
     font-size: $x-small;
     font-weight: $regular;
     text-transform: none;
     padding: 0;
+    width: 100% !important; // Need specificity to override button styles TODO, fix
   }
 
-  &__add-btn {
-    min-width: 60px;
-    justify-content: end !important;
-  }
-
-  &__add-btn::after {
-    content: url("../assets/images/icon-plus-circle-16x16@2x.png");
-    transform: scale(0.5);
-    border: none;
-  }
+  // form .button.target-option__target-content
 
   &__target-content {
-    flex-grow: 1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    .children-wrapper {
+      flex-grow: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
   }
 
   &__count {
@@ -78,7 +74,7 @@
   }
 
   &__label-label {
-    color: $core-fleet-black;
+    color: $core-fleet-black !important; // Override .Select > .Select-menu-outer .is-disabled *, .actions-dropdown .is-disabled *, .react-select__option .is-disabled *
     font-size: $xx-small;
     margin-left: $pad-small;
 

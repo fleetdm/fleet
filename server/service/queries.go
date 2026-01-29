@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -487,6 +488,17 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
+	// If the query was modified in a way that requires discarding results,
+	// reset the Redis count as well.
+	if shouldDiscardQueryResults && svc.liveQueryStore != nil {
+		err = svc.liveQueryStore.SetQueryResultsCount(query.ID, 0)
+		if err != nil {
+			// Log the error but don't fail the request; this will get cleaned up
+			// in the "query_results_cleanup" job.
+			level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", query.ID)
+		}
+	}
+
 	var teamID int64
 	var teamName *string
 	if query.TeamID != nil {
@@ -574,6 +586,15 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		return err
 	}
 
+	// Delete the Redis counter for query results
+	if svc.liveQueryStore != nil {
+		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
+			// Log the error but don't fail the request; this will get cleaned up
+			// in the "query_results_cleanup" job.
+			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+		}
+	}
+
 	var logTeamID int64
 	var teamName *string
 	if query.TeamID != nil {
@@ -641,6 +662,15 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 
 	if err := svc.ds.DeleteQuery(ctx, query.TeamID, query.Name); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete query")
+	}
+
+	// Delete the Redis counter for query results
+	if svc.liveQueryStore != nil {
+		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
+			// Log the error but don't fail the request; this will get cleaned up
+			// in the "query_results_cleanup" job.
+			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+		}
 	}
 
 	var logTeamID int64
@@ -727,6 +757,17 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 	n, err := svc.ds.DeleteQueries(ctx, ids)
 	if err != nil {
 		return n, err
+	}
+
+	// Delete the Redis counters for query results
+	if svc.liveQueryStore != nil {
+		for _, id := range ids {
+			if err = svc.liveQueryStore.DeleteQueryResultsCount(id); err != nil {
+				// Log the error but don't fail the request; this will get cleaned up
+				// in the "query_results_cleanup" job.
+				level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", id)
+			}
+		}
 	}
 
 	if err := svc.NewActivity(
@@ -820,6 +861,17 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries, queriesToDiscardResults)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "applying queries")
+	}
+
+	// Reset the Redis counters for queries whose results were discarded
+	if svc.liveQueryStore != nil {
+		for queryID := range queriesToDiscardResults {
+			if err = svc.liveQueryStore.SetQueryResultsCount(queryID, 0); err != nil {
+				// Log the error but don't fail the request; this will get cleaned up
+				// in the "query_results_cleanup" job.
+				level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", queryID)
+			}
+		}
 	}
 
 	if err := svc.NewActivity(
