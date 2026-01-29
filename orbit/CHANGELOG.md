@@ -1,4 +1,4 @@
-## Orbit 1.51.0 (Jan 20, 2026)
+## Orbit 1.51.1 (Jan 28, 2026)
 
 * Improved "Fleet Desktop" description in Windows' system tray.
 
