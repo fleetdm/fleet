@@ -50,7 +50,7 @@ interface TooltipArgs {
   isAppleAppStoreApp?: boolean;
   isHostOnline?: boolean;
   /** API statuses */
-  apiStatus?: SoftwareInstallUninstallStatus;
+  apiStatus?: SoftwareInstallUninstallStatus | null;
 }
 
 export type IStatusDisplayConfig = {
