@@ -158,6 +158,7 @@ enum EntraPhase {
   ConfirmationError = "confirmation-error",
   AwaitingOAuth = "awaiting-oauth",
   Configured = "configured",
+  ConsentFailed = "consent-failed",
 }
 
 const ConditionalAccess = () => {
@@ -197,8 +198,7 @@ const ConditionalAccess = () => {
           "Successfully verified Microsoft Entra conditional access integration"
         );
       } else {
-        setEntraPhase(EntraPhase.NotConfigured);
-
+        setEntraPhase(EntraPhase.ConsentFailed);
         if (
           // IT admin did not complete the consent.
           !setup_error ||
@@ -256,13 +256,13 @@ const ConditionalAccess = () => {
   // Note: entraPhase is intentionally included in the dependency array to allow
   // manual phase overrides (e.g., AwaitingOAuth) to persist until config changes
   useEffect(() => {
-    // Don't check config if we're in AwaitingOAuth phase
-    if (entraPhase === EntraPhase.AwaitingOAuth) {
-      return;
-    }
+    const finalStates = [
+      EntraPhase.AwaitingOAuth, // Don't check config if we're in AwaitingOAuth phase
+      EntraPhase.ConfirmationError, // Don't do confirm call if we are in a final error state
+      EntraPhase.ConsentFailed, // Don't do confirm call if after tenant ID provided, something went wrong
+    ];
 
-    // Don't override the error state if configuration is not done yet
-    if (entraPhase === EntraPhase.ConfirmationError && !entraConfigured) {
+    if (finalStates.includes(entraPhase)) {
       return;
     }
 
