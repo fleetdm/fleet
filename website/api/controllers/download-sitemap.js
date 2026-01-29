@@ -66,7 +66,6 @@ module.exports = {
       '/orchestration',
       '/device-management',
       '/software-management',
-      '/software-management',
       '/fleet-gitops',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
