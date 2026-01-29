@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -29,10 +30,11 @@ import (
 )
 
 // WE need the default to be a var, since we want it configurable, and to avoid misses in the future we set it to the config value on startup/serve.
-var MaxRequestBodySize int64 = 1024 * 1024 // Default which is 1 MB
+var MaxRequestBodySize int64 = units.MiB // Default which is 1 MiB
 
 const (
-	MaxFleetdErrorReportSize int64 = 5 * 1024 * 1024
+	MaxFleetdErrorReportSize int64 = 5 * units.MiB
+	MaxMultipartFormSize     int64 = 50 * units.MiB
 )
 
 // We have to create our own wrapper here as it's not possible to directly access
