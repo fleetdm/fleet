@@ -1281,7 +1281,9 @@ func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx cont
 	var shouldAppend bool
 	var profiles []*fleet.MDMAndroidProfilePayload
 
-	// add a profile if it only has settings with the errors USER_ACTION or PENDING
+	// Profiles with settings that failed because of the reasons USER_ACTION or PENDING can be verified again
+	// on a status report and do not indicate anything was wrong with the settings. We add a failed profile
+	// to get verified again if it previously failed only due to those reasons and no others.
 	for _, profile := range failedProfiles {
 		trimmed := profile.Detail[strings.Index(profile.Detail, ":"):]
 		trimmed = trimmed[:strings.Index(trimmed, ".")]

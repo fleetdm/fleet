@@ -630,6 +630,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
 		return
 	}
+	// Get profiles that failed due to requiring waiting or user action, that can be verified again
 	failedNonComplianceProfiles, err := svc.ds.ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "error getting failed profiles", "err", err)
@@ -641,12 +642,6 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	for _, profile := range pendingInstallProfiles {
 		pendingProfilesUUIDMap[profile.ProfileUUID] = profile
 	}
-
-	// -----------------------------------------------------------------------------------------
-	// TODO(JK): can we upon status_report, which I think is here, look for failed profiles
-	// for this hostUUID that are stuats=failed + details.contains(...USER_ACTION...)?
-	// if we have that then we can either mark it successful, or keep it failed
-	// -----------------------------------------------------------------------------------------
 
 	// First case, if nonComplianceDetails is empty, verify all profiles that is pending install, and remove the pending remove ones.
 	if len(device.NonComplianceDetails) == 0 {
