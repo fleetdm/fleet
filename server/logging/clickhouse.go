@@ -217,7 +217,7 @@ func NewClickHouseLogWriter(
 	// Configure TLS if enabled
 	if tlsEnabled {
 		tlsConfig := &tls.Config{
-			InsecureSkipVerify: tlsSkipVerify,
+			InsecureSkipVerify: tlsSkipVerify, //nolint:gosec // G402: User-configurable option for testing/dev environments
 		}
 
 		// Load CA certificate for server verification
@@ -255,25 +255,25 @@ func NewClickHouseLogWriter(
 	w := &clickHouseLogWriter{
 		conn: conn,
 		config: ClickHouseConfig{
-			Address:         address,
-			Database:        database,
-			Username:        username,
-			Password:        password,
-			TableName:       resolvedTableName,
-			StatusTableName: statusTableName,
-			ResultTableName: resultTableName,
-			AuditTableName:  auditTableName,
-			Compression:     compression,
+			Address:           address,
+			Database:          database,
+			Username:          username,
+			Password:          password,
+			TableName:         resolvedTableName,
+			StatusTableName:   statusTableName,
+			ResultTableName:   resultTableName,
+			AuditTableName:    auditTableName,
+			Compression:       compression,
 			TLSEnabled:        tlsEnabled,
 			TLSSkipVerify:     tlsSkipVerify,
 			TLSCAFile:         tlsCAFile,
 			TLSClientCertFile: tlsClientCertFile,
 			TLSClientKeyFile:  tlsClientKeyFile,
 			BatchSize:         batchSize,
-			FlushInterval:   flushInterval,
-			MaxQueueSize:    maxQueueSize,
-			MaxRetries:      maxRetries,
-			RetryBackoff:    retryBackoff,
+			FlushInterval:     flushInterval,
+			MaxQueueSize:      maxQueueSize,
+			MaxRetries:        maxRetries,
+			RetryBackoff:      retryBackoff,
 		},
 		logger:        logger,
 		name:          name,
