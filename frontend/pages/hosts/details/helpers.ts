@@ -89,8 +89,9 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
   wiped: "wiped",
   wipe: "wiping",
-  /** Only if device is locked AND pending action is locating
-   * Unlocked AND pending action is locating is still "locking" */
+  /** When device_status is "locked" and pending_action is "location", show "locating",
+   * device_status is "unlocked" and pending_action is "location" is still "locking"
+   */
   location: "locating",
 };
 
@@ -112,9 +113,9 @@ export const getHostDeviceStatusUIState = (
     return API_TO_UI_DEVICE_STATUS_MAP[deviceStatus];
   }
 
-  // Special case: if the pending action is locating and the device is unlocked,
-  // the device is still in the process of "locking" to be able to locate it. So we
-  // return "locking" in this case.
+  // Special case: when pending_action is "location" and device_status is "unlocked",
+  // the device is in the process of locking in order to enable location tracking.
+  // Return "locking" in this case.
   if (pendingAction === "location" && deviceStatus === "unlocked") {
     return "locking";
   }

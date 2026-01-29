@@ -116,8 +116,6 @@ const LocationModal = ({
   iosOrIpadosDetails,
   detailsUpdatedAt,
 }: ILocationModal) => {
-  console.log("hostGeolocation:", hostGeolocation);
-  console.log("iosOrIpadosDetails:", iosOrIpadosDetails);
   const googleMapsUrl = hostGeolocation
     ? buildGoogleMapsLinkFromGeo(hostGeolocation)
     : null;
