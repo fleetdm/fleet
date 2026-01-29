@@ -329,18 +329,35 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				"CVE-2023-28205": {},
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
-				// For Safari CPE matches, only match versions 16.0-16.4.0
+				// For Safari CPE matches, only match versions 16.x
 				if cpeMeta.Vendor == "apple" && cpeMeta.Product == "safari" {
 					version := wfn.StripSlashes(cpeMeta.Version)
 					parts := strings.Split(version, ".")
 
 					if len(parts) > 0 {
-						if majorVer, err := strconv.Atoi(parts[0]); err == nil {
-							if majorVer < 16 {
+						majorVer, err := strconv.Atoi(parts[0])
+						if err != nil {
+							return false
+						}
+
+						if majorVer < 16 || majorVer > 16 {
+							return true
+						}
+
+						if majorVer == 16 && len(parts) >= 2 {
+							minorVer, _ := strconv.Atoi(parts[1])
+
+							// Safari 16.5+
+							if minorVer > 4 {
 								return true
 							}
-							if majorVer > 16 {
-								return true
+
+							// Safari 16.4.x
+							if minorVer == 4 && len(parts) >= 3 {
+								patchVer, _ := strconv.Atoi(parts[2])
+								if patchVer >= 1 {
+									return true
+								}
 							}
 						}
 					}
@@ -363,11 +380,23 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 						}
 
 						// For Ventura, check if >= 13.3.1
-						if len(parts) >= 3 {
+						if len(parts) >= 2 {
 							minorVer, _ := strconv.Atoi(parts[1])
-							patchVer, _ := strconv.Atoi(parts[2])
-							if minorVer > 3 || (minorVer == 3 && patchVer >= 1) {
+
+							if minorVer > 3 {
 								return true
+							}
+
+							if minorVer == 3 {
+								if len(parts) == 2 {
+									return false
+								}
+								if len(parts) >= 3 {
+									patchVer, _ := strconv.Atoi(parts[2])
+									if patchVer >= 1 {
+										return true
+									}
+								}
 							}
 						}
 					}
