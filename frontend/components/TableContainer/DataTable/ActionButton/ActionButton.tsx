@@ -7,6 +7,8 @@ import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
 
+import { Colors } from "styles/var/colors";
+
 import Button from "../../../buttons/Button";
 
 const baseClass = "action-button";
@@ -19,6 +21,7 @@ export interface IActionButtonProps {
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   iconSvg?: IconNames;
   iconStroke?: boolean;
+  iconColor?: Colors;
   iconPosition?: string;
   isDisabled?: boolean;
   tooltipContent?: React.ReactNode;
@@ -45,6 +48,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     hideButton,
     iconSvg,
     iconStroke = false,
+    iconColor,
     iconPosition,
     isDisabled,
     tooltipContent,
@@ -81,9 +85,13 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
         size="small"
       >
         <>
-          {iconPosition === "left" && iconSvg && <Icon name={iconSvg} />}
+          {iconPosition === "left" && iconSvg && (
+            <Icon name={iconSvg} color={iconColor} />
+          )}
           {buttonText}
-          {iconPosition !== "left" && iconSvg && <Icon name={iconSvg} />}
+          {iconPosition !== "left" && iconSvg && (
+            <Icon name={iconSvg} color={iconColor} />
+          )}
         </>
       </Button>
     </div>

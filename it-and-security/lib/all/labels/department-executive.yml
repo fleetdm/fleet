@@ -1,0 +1,6 @@
+- name: "Department: Executive"
+  description: Hosts belonging to members of the Executive department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Executive

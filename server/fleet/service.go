@@ -78,8 +78,8 @@ type OsqueryService interface {
 type UserLookupService interface {
 	// ListUsers returns all users.
 	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
-	// UsersByIDs returns users matching the provided IDs.
-	UsersByIDs(ctx context.Context, ids []uint) ([]*User, error)
+	// UsersByIDs returns minimal user info matching the provided IDs.
+	UsersByIDs(ctx context.Context, ids []uint) ([]*UserSummary, error)
 }
 
 type Service interface {
@@ -426,6 +426,9 @@ type Service interface {
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
+	// BypassConditionalAccess lets a host skip conditional access checks for one check
+	BypassConditionalAccess(ctx context.Context, host *Host) error
+
 	GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
 	// DisableAuthForPing is used by the /orbit/ping and /device/ping endpoints
@@ -704,6 +707,7 @@ type Service interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
 
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error

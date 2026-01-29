@@ -611,7 +611,8 @@ SELECT
 		hihsi.command_uuid AS command_uuid,
 		ncr.updated_at AS ack_at,
 		ncr.status AS install_command_status,
-		iha.bundle_identifier AS bundle_identifier
+		iha.bundle_identifier AS bundle_identifier,
+		iha.version AS expected_version
 FROM nano_command_results ncr
 JOIN host_in_house_software_installs hihsi ON hihsi.command_uuid = ncr.command_uuid
 JOIN in_house_apps iha ON iha.id = hihsi.in_house_app_id AND iha.platform = hihsi.platform
@@ -630,6 +631,10 @@ AND hihsi.verification_failed_at IS NULL
 }
 
 func (ds *Datastore) GetPastActivityDataForInHouseAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	return ds.getPastActivityDataForInHouseAppInstallDB(ctx, ds.reader(ctx), commandResults)
+}
+
+func (ds *Datastore) getPastActivityDataForInHouseAppInstallDB(ctx context.Context, q sqlx.QueryerContext, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
 	if commandResults == nil {
 		return nil, nil, nil
 	}
@@ -676,7 +681,7 @@ WHERE
 	}
 
 	var res result
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+	if err := sqlx.GetContext(ctx, q, &res, listStmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, notFound("install_command")
 		}

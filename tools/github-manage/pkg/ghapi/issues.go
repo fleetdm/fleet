@@ -83,6 +83,16 @@ func RemoveLabelFromIssue(issueNumber int, label string) error {
 	return nil
 }
 
+// CloseIssue closes a GitHub issue.
+func CloseIssue(issueNumber int) error {
+	command := fmt.Sprintf("gh issue close %d", issueNumber)
+	_, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetMilestoneToIssue sets a milestone for an issue.
 func SetMilestoneToIssue(issueNumber int, milestone string) error {
 	command := fmt.Sprintf("gh issue edit %d --milestone %s", issueNumber, milestone)

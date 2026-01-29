@@ -96,7 +96,9 @@ github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	EnableFailingPolicie
 github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	EnableSoftwareVulnerabilities	bool
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleCalendar	[]*fleet.GoogleCalendarIntegration
 github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	Domain	string
-github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	ApiKey	map[string]string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	ApiKey	fleet.GoogleCalendarApiKey
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarApiKey	Values	map[string]string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarApiKey	masked	bool
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	ConditionalAccessEnabled	optjson.Bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
@@ -201,5 +203,6 @@ github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaIDPID	opt
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAssertionConsumerServiceURL	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAudienceURI	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaCertificate	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	BypassDisabled	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	strictDecoding	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	didUnmarshalLegacySettings	[]string

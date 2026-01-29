@@ -55,6 +55,7 @@ func TestScripts(t *testing.T) {
 		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 		{"CountHostScriptAttempts", testCountHostScriptAttempts},
+		{"ScriptModificationResetsAttemptNumber", testScriptModificationResetsAttemptNumber},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3129,4 +3130,93 @@ func testCountHostScriptAttempts(t *testing.T, ds *Datastore) {
 	count, err = ds.CountHostScriptAttempts(ctx, host.ID, script2.ID, policy.ID)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+}
+
+func testScriptModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create a policy
+	policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     t.Name(),
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	// Create script content
+	var scriptContentID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`,
+			"md5hash", "echo 'v1'")
+		if err != nil {
+			return err
+		}
+		scriptContentID, err = res.LastInsertId()
+		return err
+	})
+
+	// Create a script
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:            "test.sh",
+		TeamID:          &team.ID,
+		ScriptContentID: uint(scriptContentID),
+		ScriptContents:  "echo 'v1'",
+	})
+	require.NoError(t, err)
+
+	// Completed first attempt (exit_code IS NOT NULL, attempt_number = 1)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, script_id, policy_id, attempt_number)
+			VALUES (1, 'exec-1', ?, 'output', 1, ?, ?, 1)
+		`, scriptContentID, script.ID, policy.ID)
+		return err
+	})
+	// Pending second attempt (exit_code IS NULL, attempt_number = 2)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, script_id, policy_id, attempt_number)
+			VALUES (1, 'exec-2', ?, '', NULL, ?, ?, 2)
+		`, scriptContentID, script.ID, policy.ID)
+		return err
+	})
+
+	// Update script contents - this should reset all attempt_number to 0
+	_, err = ds.UpdateScriptContents(ctx, script.ID, "echo 'v2'")
+	require.NoError(t, err)
+
+	// Verify results
+	type result struct {
+		ExecutionID   string `db:"execution_id"`
+		ExitCode      *int64 `db:"exit_code"`
+		AttemptNumber *int64 `db:"attempt_number"`
+		Canceled      bool   `db:"canceled"`
+	}
+	var results []result
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &results, `
+			SELECT execution_id, exit_code, attempt_number, canceled
+			FROM host_script_results
+			WHERE script_id = ? AND policy_id = ?
+			ORDER BY execution_id ASC
+		`, script.ID, policy.ID)
+	})
+
+	require.Len(t, results, 2)
+
+	// completed, reset to 0, not canceled
+	require.Equal(t, "exec-1", results[0].ExecutionID)
+	require.NotNil(t, results[0].AttemptNumber)
+	require.Equal(t, int64(0), *results[0].AttemptNumber)
+	require.False(t, results[0].Canceled)
+
+	// pending, reset to 0, canceled
+	require.Equal(t, "exec-2", results[1].ExecutionID)
+	require.NotNil(t, results[1].AttemptNumber)
+	require.Equal(t, int64(0), *results[1].AttemptNumber)
+	require.True(t, results[1].Canceled)
 }

@@ -88,7 +88,7 @@ const EndUserAuthentication = ({
             info="Connect Fleet to your identity provider (IdP) to get started."
             buttonText="Connect"
             router={router}
-            path={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
+            path={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
           />
         ) : (
           <EndUserAuthForm
