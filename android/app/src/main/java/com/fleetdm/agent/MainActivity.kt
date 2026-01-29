@@ -2,6 +2,7 @@
 
 package com.fleetdm.agent
 
+import com.fleetdm.agent.osquery.OsqueryTables
 import android.app.admin.DevicePolicyManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -63,6 +64,10 @@ import androidx.navigation.compose.rememberNavController
 import com.fleetdm.agent.ui.theme.FleetTextDark
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
 import kotlinx.serialization.Serializable
+import androidx.lifecycle.lifecycleScope
+import com.fleetdm.agent.osquery.FleetDistributedQueryRunner
+import kotlinx.coroutines.launch
+
 
 const val CLICKS_TO_DEBUG = 8
 
@@ -75,6 +80,10 @@ object DebugDestination
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        OsqueryTables.registerAll(applicationContext)
+        lifecycleScope.launch {
+            FleetDistributedQueryRunner.runForever(applicationContext)
+        }
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
                 scrim = Color.TRANSPARENT,

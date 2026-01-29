@@ -256,6 +256,9 @@ dependencies {
     implementation(libs.amapi.sdk)
     implementation(libs.kotlinx.serialization.json)
 
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+
     // SCEP (Simple Certificate Enrollment Protocol)
     implementation(libs.jscep)
 
