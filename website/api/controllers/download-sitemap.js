@@ -66,7 +66,8 @@ module.exports = {
       '/orchestration',
       '/device-management',
       '/software-management',
-      '/meetups',
+      '/software-management',
+      '/fleet-gitops',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs
@@ -80,6 +81,9 @@ module.exports = {
       '/scripts',// « overview page (all subpages are dynamic)
       '/os-settings',
       '/fast-track',
+      '/meetups',
+      '/testimonials',
+      '/gitops-workshop',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
