@@ -1271,47 +1271,54 @@ func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx cont
 	var failedProfiles []*fleet.MDMAndroidProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &failedProfiles, stmt, hostUUID, policyVersion, fleet.MDMDeliveryFailed, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles that failed due to non compliance but could be reverified")
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles failed install")
 	}
 
-	// extract details since they are stored as a formatted message
-	splitFunc := func(r rune) bool {
-		return r == ',' || r == ' '
-	}
-	var shouldAppend bool
 	var profiles []*fleet.MDMAndroidProfilePayload
 
 	// Profiles with settings that failed because of the reasons USER_ACTION or PENDING can be verified again
 	// on a status report and do not indicate anything was wrong with the settings. We add a failed profile
 	// to get verified again if it previously failed only due to those reasons and no others.
 	for _, profile := range failedProfiles {
-		_, after, ok := strings.Cut(profile.Detail, ":")
-		if !ok {
-			continue
+		ok, err := checkAndroidProfileDetailReasons(ctx, profile.Detail)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles failed install")
 		}
-		trimmed, _, ok := strings.Cut(after, ".")
-		if !ok {
-			continue
-		}
-		fields := strings.FieldsFunc(trimmed, splitFunc)
-
-		for _, f := range fields {
-			if f == "and" {
-				continue
-			} else if f == "USER_ACTION" || f == "PENDING" {
-				shouldAppend = true
-			} else {
-				shouldAppend = false
-				break
-			}
-		}
-
-		if shouldAppend {
+		if ok {
 			profiles = append(profiles, profile)
 		}
 	}
 
 	return profiles, nil
+}
+
+func checkAndroidProfileDetailReasons(ctx context.Context, profileDetail string) (bool, error) {
+	// extract reasons from detail since it is stored as a formatted message, assuming
+	// it matches the format in android.Service.buildNonComplianceErrorMessage
+	_, after, ok := strings.Cut(profileDetail, ":")
+	if !ok {
+		return false, ctxerr.New(ctx, "failed to parse profile detail string")
+	}
+	trimmed, _, ok := strings.Cut(after, ".")
+	if !ok {
+		return false, ctxerr.New(ctx, "failed to parse profile detail string")
+	}
+	fields := strings.FieldsFunc(trimmed, func(r rune) bool {
+		return r == ',' || r == ' '
+	})
+	var shouldAppend bool
+
+	for _, f := range fields {
+		switch f {
+		case "and":
+			continue
+		case "USER_ACTION", "PENDING":
+			shouldAppend = true
+		default:
+			return false, nil
+		}
+	}
+	return shouldAppend, nil
 }
 
 func (ds *Datastore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionId int64) error {
