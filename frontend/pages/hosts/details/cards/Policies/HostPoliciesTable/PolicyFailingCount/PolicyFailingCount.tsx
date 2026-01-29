@@ -49,7 +49,7 @@ const PolicyFailingCount = ({
         <br />
         To restore access, click on the policies makes &quot;Action
         required&quot; and follow the resolution steps.
-        {deviceUser && 'Once resolved, click "Refetch" to check status.'}
+        {deviceUser && ' Once resolved, click "Refetch" to check status.'}
       </span>
     );
 
