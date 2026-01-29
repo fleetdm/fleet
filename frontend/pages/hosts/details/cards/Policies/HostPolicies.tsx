@@ -26,7 +26,7 @@ interface IPoliciesProps {
   hostPlatform: string;
   router: InjectedRouter;
   currentTeamId?: number;
-  conditionalAccessEnbled?: boolean;
+  conditionalAccessEnabled?: boolean;
 }
 
 interface IHostPoliciesRowProps extends Row {
@@ -41,7 +41,7 @@ const Policies = ({
   hostPlatform,
   router,
   currentTeamId,
-  conditionalAccessEnbled,
+  conditionalAccessEnabled,
 }: IPoliciesProps): JSX.Element => {
   const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
@@ -114,12 +114,12 @@ const Policies = ({
           <PolicyFailingCount
             policyList={policies}
             deviceUser={deviceUser}
-            conditionalAccessEnabled={conditionalAccessEnbled}
+            conditionalAccessEnabled={conditionalAccessEnabled}
           />
         )}
         <TableContainer
           columnConfigs={tableHeaders}
-          data={generatePolicyDataSet(policies, !!conditionalAccessEnbled)}
+          data={generatePolicyDataSet(policies, !!conditionalAccessEnabled)}
           isLoading={isLoading}
           defaultSortHeader="status"
           resultsTitle="policies"

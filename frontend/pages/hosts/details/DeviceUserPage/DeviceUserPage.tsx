@@ -825,7 +825,7 @@ const DeviceUserPage = ({
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
                     router={router}
-                    conditionalAccessEnbled={
+                    conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
                     }
                   />
