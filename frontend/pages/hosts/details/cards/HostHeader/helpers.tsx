@@ -52,7 +52,7 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
       );
     },
   },
-  /** Pending action is location but device status is locked */
+  /** When device_status is "locked" and pending_action is "location", still show "Locked" tag */
   locating: {
     title: "Locked",
     tagType: "warning",
@@ -91,7 +91,8 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     generateTooltip: () =>
       "Host will unlock when it comes online.  If the host is online, it will unlock the next time it checks in to Fleet.",
   },
-  /** "locking" also includes pending action is location but device status is unlocked */
+  /** "locking" also includes device_status is "unlocked" and pending_action is "location" as
+   * that combination is a part of the locking process */
   locking: {
     title: "Lock pending",
     tagType: "warning",
