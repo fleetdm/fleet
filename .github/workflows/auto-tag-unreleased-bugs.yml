@@ -1,0 +1,141 @@
+name: Auto-tag unreleased bugs
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  tag-unreleased-bug:
+    # Only run when the issue has a 'bug' label
+    if: contains(github.event.issue.labels.*.name, 'bug')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Check and tag unreleased bug
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const labels = issue.labels.map(label => label.name);
+
+            // Check if issue already has released or unreleased labels
+            const hasReleasedLabel = labels.some(label =>
+              label.includes('released') || label.includes('unreleased')
+            );
+
+            if (hasReleasedLabel) {
+              console.log('Issue already has released/unreleased label, skipping');
+              return;
+            }
+
+            // Parse Fleet version from issue body
+            const body = issue.body || '';
+            const versionMatch = body.match(/\*\*Fleet version\*\*:\s*(.+)/);
+
+            if (!versionMatch || !versionMatch[1]) {
+              console.log('No Fleet version found in issue body');
+              return;
+            }
+
+            const reportedVersion = versionMatch[1].trim();
+            console.log(`Found reported version: ${reportedVersion}`);
+
+            // Skip if version is empty, placeholder, or unknown
+            if (!reportedVersion ||
+                reportedVersion === '' ||
+                reportedVersion.includes('<!--') ||
+                reportedVersion.toLowerCase().includes('todo') ||
+                reportedVersion.toLowerCase().includes('unknown')) {
+              console.log('Version is placeholder or empty, skipping');
+              return;
+            }
+
+            // Fetch all releases from the repository
+            let allReleases = [];
+            let page = 1;
+            const perPage = 100;
+
+            while (true) {
+              const { data: releases } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: perPage,
+                page: page
+              });
+
+              if (releases.length === 0) break;
+              allReleases = allReleases.concat(releases);
+              if (releases.length < perPage) break;
+              page++;
+            }
+
+            console.log(`Found ${allReleases.length} total releases`);
+
+            // Extract version numbers from releases
+            // Fleet releases are tagged as "fleet-v4.X.X" or similar
+            const releasedVersions = allReleases
+              .map(release => {
+                // Try to extract version from tag_name (e.g., "fleet-v4.62.0")
+                const tagMatch = release.tag_name.match(/fleet-v?(.+)/);
+                if (tagMatch) return tagMatch[1];
+
+                // Try to extract from name
+                const nameMatch = release.name?.match(/v?(\d+\.\d+\.\d+)/);
+                if (nameMatch) return nameMatch[1];
+
+                return null;
+              })
+              .filter(v => v !== null);
+
+            console.log(`Extracted ${releasedVersions.length} version numbers from releases`);
+            console.log(`Sample versions: ${releasedVersions.slice(0, 5).join(', ')}`);
+
+            // Normalize version for comparison
+            // Remove common prefixes/suffixes and extract core version number
+            const normalizeVersion = (version) => {
+              // Extract version number pattern (e.g., "4.62.0" from "v4.62.0" or "4.62.0-123-abc")
+              const match = version.match(/v?(\d+\.\d+\.\d+)/);
+              return match ? match[1] : version;
+            };
+
+            const normalizedReportedVersion = normalizeVersion(reportedVersion);
+            console.log(`Normalized reported version: ${normalizedReportedVersion}`);
+
+            // Check if the reported version matches any released version
+            const isReleased = releasedVersions.some(releasedVer => {
+              const normalized = normalizeVersion(releasedVer);
+              return normalized === normalizedReportedVersion;
+            });
+
+            if (!isReleased) {
+              console.log(`Version ${reportedVersion} is not in released versions, adding unreleased-bug label`);
+
+              // Add the ~unreleased-bug label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['~unreleased-bug']
+              });
+
+              // Post a comment explaining the action
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `This issue has been automatically tagged as \`~unreleased-bug\` because the reported Fleet version (${reportedVersion}) does not match any published release.\n\nIf this was filed against an unreleased version (e.g., from \`main\` branch or a pre-release), this tag is correct. If you believe this version should be recognized as released, please verify the version number matches a published release tag.`
+              });
+
+              console.log('Successfully added label and comment');
+            } else {
+              console.log(`Version ${reportedVersion} is a released version, no action needed`);
+            }
