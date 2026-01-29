@@ -2645,10 +2645,10 @@ func testListHostMDMAndroidProfilesFailedDueToNonCompliance(t *testing.T, ds *Da
 
 	detailMesageUserAction := `passwordPolicies" setting couldn't apply to a host.
 Reason: USER_ACTION. Other settings are applied.`
-	detailMessageMixedSettings := `bluetoothDisabled", "cameraDisabled", and "passwordPolicies" settings couldn't apply to a host.
-Reasons: MANAGEMENT_MODE, API_LEVEL, and USER_ACTION. Other settings are applied.`
 	detailMessageReverifiableSettings := `bluetoothDisabled", and "passwordPolicies" settings couldn't apply to a host.
 Reasons: PENDING, and USER_ACTION. Other settings are applied.`
+	detailMessageMixedSettings := `bluetoothDisabled", "cameraDisabled", and "passwordPolicies" settings couldn't apply to a host.
+Reasons: MANAGEMENT_MODE, API_LEVEL, and USER_ACTION. Other settings are applied.`
 
 	profile1 := fleet.MDMAndroidProfilePayload{
 		HostUUID:                hostUUID,
@@ -2666,7 +2666,7 @@ Reasons: PENDING, and USER_ACTION. Other settings are applied.`
 		ProfileName:             profiles[1].Name,
 		OperationType:           fleet.MDMOperationTypeInstall,
 		Status:                  &fleet.MDMDeliveryFailed,
-		Detail:                  detailMessageMixedSettings,
+		Detail:                  detailMessageReverifiableSettings,
 		IncludedInPolicyVersion: policyVersion,
 	}
 
@@ -2676,7 +2676,7 @@ Reasons: PENDING, and USER_ACTION. Other settings are applied.`
 		ProfileName:             profiles[2].Name,
 		OperationType:           fleet.MDMOperationTypeInstall,
 		Status:                  &fleet.MDMDeliveryFailed,
-		Detail:                  detailMessageReverifiableSettings,
+		Detail:                  detailMessageMixedSettings,
 		IncludedInPolicyVersion: policyVersion,
 	}
 
@@ -2688,7 +2688,6 @@ Reasons: PENDING, and USER_ACTION. Other settings are applied.`
 	wantedProfiles := []*fleet.MDMAndroidProfilePayload{
 		&profile1,
 		&profile2,
-		&profile3,
 	}
 
 	defer clearOutHostMDMAndroidProfilesTable()

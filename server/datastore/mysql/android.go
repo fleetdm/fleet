@@ -1274,11 +1274,31 @@ func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx cont
 		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles that failed due to non compliance but could be reverified")
 	}
 
-	// if ANY of the settings failed due to a reason that can be
-	// fixed on a new status report, the profile will be listed
+	// extract details since they are stored as a formatted message
+	splitFunc := func(r rune) bool {
+		return r == ':' || r == ',' || r == ' '
+	}
+	var shouldAppend bool
 	var profiles []*fleet.MDMAndroidProfilePayload
+
+	// add a profile if it only has settings with the errors USER_ACTION or PENDING
 	for _, profile := range failedProfiles {
-		if strings.Contains(profile.Detail, "USER_ACTION") || strings.Contains(profile.Detail, "PENDING") {
+		trimmed := profile.Detail[strings.Index(profile.Detail, ":"):]
+		trimmed = trimmed[:strings.Index(trimmed, ".")]
+		fields := strings.FieldsFunc(trimmed, splitFunc)
+
+		for _, f := range fields {
+			if f == "and" {
+				continue
+			} else if f == "USER_ACTION" || f == "PENDING" {
+				shouldAppend = true
+			} else {
+				shouldAppend = false
+				break
+			}
+		}
+
+		if shouldAppend {
 			profiles = append(profiles, profile)
 		}
 	}
