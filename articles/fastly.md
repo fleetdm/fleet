@@ -1,4 +1,4 @@
-# Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually
+# Fastly gains visibility into all endpoints and critical infrastructure worldwide
 
 ## The Challenge
 
