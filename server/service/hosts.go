@@ -1750,22 +1750,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get end users for host")
 	}
 
-	conditionalAccessBypassedAt, err := svc.ds.ConditionalAccessBypassedAt(ctx, host.ID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get conditional access bypass status")
-	}
-	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
-
 	return &fleet.HostDetail{
-		Host:                      *host,
-		Labels:                    labels,
-		Packs:                     packs,
-		Batteries:                 &bats,
-		MaintenanceWindow:         nextMw,
-		EndUsers:                  endUsers,
-		LastMDMEnrolledAt:         mdmLastEnrollment,
-		LastMDMCheckedInAt:        mdmLastCheckedIn,
-		ConditionalAccessBypassed: conditionalAccessBypassed,
+		Host:               *host,
+		Labels:             labels,
+		Packs:              packs,
+		Batteries:          &bats,
+		MaintenanceWindow:  nextMw,
+		EndUsers:           endUsers,
+		LastMDMEnrolledAt:  mdmLastEnrollment,
+		LastMDMCheckedInAt: mdmLastCheckedIn,
 	}, nil
 }
 

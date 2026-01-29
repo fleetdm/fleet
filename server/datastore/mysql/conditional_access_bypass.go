@@ -80,23 +80,3 @@ func (ds *Datastore) ConditionalAccessClearBypasses(ctx context.Context) error {
 
 	return nil
 }
-
-func (ds *Datastore) ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error) {
-	const stmt = `
-		SELECT
-			bypassed_at
-		FROM
-			host_conditional_access
-		WHERE
-			host_id = ?`
-
-	var bypassedAt time.Time
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &bypassedAt, stmt, hostID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	} else if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host bypass time")
-	}
-
-	return &bypassedAt, nil
-}

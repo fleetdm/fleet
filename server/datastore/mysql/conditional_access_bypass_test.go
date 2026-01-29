@@ -21,7 +21,6 @@ func TestConditionalAccessBypass(t *testing.T) {
 		{"ConditionalAccessConsumeBypass", testConditionalAccessConsumeBypass},
 		{"ConditionalAccessClearBypasses", testConditionalAccessClearBypasses},
 		{"ConditionalAccessBypassDeletedWithHost", testConditionalAccessBypassDeletedWithHost},
-		{"ConditionalAccessBypassedAt", testConditionalAccessBypassedAt},
 	}
 
 	for _, c := range cases {
@@ -216,55 +215,4 @@ func testConditionalAccessBypassDeletedWithHost(t *testing.T, ds *Datastore) {
 	err = ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id = ?", host.ID)
 	require.NoError(t, err)
 	require.Equal(t, 0, count, "bypass record should be deleted when host is deleted")
-}
-
-func testConditionalAccessBypassedAt(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("1"),
-		UUID:            "1",
-		Hostname:        "foo.local",
-		PrimaryIP:       "192.168.1.1",
-		PrimaryMac:      "30-65-EC-6F-C4-58",
-	})
-	require.NoError(t, err)
-
-	bypassedAt, err := ds.ConditionalAccessBypassedAt(ctx, host.ID)
-	require.NoError(t, err)
-	require.Nil(t, bypassedAt)
-
-	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
-	require.NoError(t, err)
-
-	bypassedAt, err = ds.ConditionalAccessBypassedAt(ctx, host.ID)
-	require.NoError(t, err)
-	require.NotNil(t, bypassedAt)
-	require.WithinDuration(t, time.Now(), *bypassedAt, 5*time.Second)
-
-	bypassedAtAgain, err := ds.ConditionalAccessBypassedAt(ctx, host.ID)
-	require.NoError(t, err)
-	require.NotNil(t, bypassedAtAgain)
-	require.Equal(t, bypassedAt, bypassedAtAgain)
-
-	hostWithoutBypass, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("2"),
-		UUID:            "2",
-		Hostname:        "bar.local",
-		PrimaryIP:       "192.168.1.2",
-		PrimaryMac:      "30-65-EC-6F-C4-59",
-	})
-	require.NoError(t, err)
-
-	bypassedAtOther, err := ds.ConditionalAccessBypassedAt(ctx, hostWithoutBypass.ID)
-	require.NoError(t, err)
-	require.Nil(t, bypassedAtOther)
 }
