@@ -191,7 +191,7 @@ module.exports = {
 
         if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
           // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
-          attributionDetails.sourceChannelDetails = 'Direct Traffic (DT)';
+          attributionDetails.sourceChannelDetails = 'Direct traffic (DT)';
           attributionDetails.campaign = 'Default-DT-Direct';
         } else {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.

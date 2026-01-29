@@ -42,8 +42,11 @@
                 <%= thisPage.meta.companyInfoLineTwo %>
               </p>
             </div>
-            <div purpose="case-study-links">
-              <h4>More customer stories</h4>
+            <div purpose="sidebar-links">
+              <div purpose="heading-and-link">
+                <h4>More customer stories</h4>
+                <a href="/testimonials">See all</a>
+              </div>
               <div purpose="case-study-links" >
                 <a href="/case-study/foursquare" purpose="case-study-link" v-if="thisPage.url !== '/case-study/foursquare'">
                   <div purpose="link-image">
@@ -52,6 +55,15 @@
                   <div purpose="link-text">
                     <p><strong>Foursquare</strong></p>
                     <p>Foursquare cut costs and gained 114% ROI with Fleet</p>
+                  </div>
+                </a>
+                <a href="/case-study/fastly" purpose="case-study-link" v-if="thisPage.url !== '/case-study/fastly'">
+                  <div purpose="link-image">
+                    <img alt="Fastly" src="/images/nav-icon-fastly-40x40@2x.png">
+                  </div>
+                  <div purpose="link-text">
+                    <p><strong>Fastly</strong></p>
+                    <p>Fastly gains visibility into all endpoints and critical infrastructure worldwide</p>
                   </div>
                 </a>
                 <a href="/case-study/stripe" purpose="case-study-link" v-if="thisPage.url !== '/case-study/stripe'">
@@ -109,8 +121,11 @@
         </div>
       </div>
       <div purpose="bottom-case-study-links" class="d-flex d-md-none flex-column">
-        <div>
-          <h4>More customer stories</h4>
+        <div purpose="sidebar-links">
+          <div purpose="heading-and-link">
+            <h4>More customer stories</h4>
+            <a href="/testimonials">See all</a>
+          </div>
           <div purpose="case-study-links">
             <a href="/case-study/foursquare" purpose="case-study-link" v-if="thisPage.url !== '/case-study/foursquare'">
               <div purpose="link-image">
@@ -119,6 +134,15 @@
               <div purpose="link-text">
                 <p><strong>Foursquare</strong></p>
                 <p>Foursquare cut costs and gained 114% ROI with Fleet</p>
+              </div>
+            </a>
+            <a href="/case-study/fastly" purpose="case-study-link" v-if="thisPage.url !== '/case-study/fastly'">
+              <div purpose="link-image">
+                <img alt="Fastly" src="/images/nav-icon-fastly-40x40@2x.png">
+              </div>
+              <div purpose="link-text">
+                <p><strong>Fastly</strong></p>
+                <p>Fastly gains visibility into all endpoints and critical infrastructure worldwide</p>
               </div>
             </a>
             <a href="/case-study/stripe" purpose="case-study-link" v-if="thisPage.url !== '/case-study/stripe'">

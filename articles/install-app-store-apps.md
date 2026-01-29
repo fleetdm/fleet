@@ -44,7 +44,11 @@ You can also manage which Google Play Store apps are available for self-service 
 
 Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
+
+If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
+
+To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
 ### Google Play (Android)
 

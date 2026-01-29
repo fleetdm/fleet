@@ -20,6 +20,19 @@ data "aws_iam_policy_document" "aws_backup_policy" {
   statement {
     effect = "Allow"
     actions = [
+      "backup:StartCopyJob",
+      "backup:ListCopyJobs",
+      "backup:ListCopyJobSummaries",
+      "backup:DescribeCopyJob",
+      "backup:CopyIntoBackupVault",
+      "backup:CopyFromBackupVault"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
       "dynamodb:DescribeTable",
       "dynamodb:CreateBackup"
     ]
