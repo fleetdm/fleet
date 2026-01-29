@@ -7,6 +7,7 @@ import com.fleetdm.agent.osquery.core.TableRegistry
 import com.fleetdm.agent.osquery.core.parseSelectSql
 import com.fleetdm.agent.osquery.core.WhereCond
 import com.fleetdm.agent.osquery.core.WhereOp
+import com.fleetdm.agent.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -24,13 +25,16 @@ import javax.net.ssl.SSLSession
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
+
 object FleetDistributedQueryRunner {
 
     private const val tag = "FleetOsquery"
 
     // DEV ONLY defaults. We will wire these to Fleet settings later.
-    var fleetBaseUrl: String = "https://192.168.1.2:8080"
-    var nodeKey: String = "W0s/1eKzJwTWyaxy6C6p9p84jtYmuF24"
+
+    val fleetBaseUrl: String = BuildConfig.FLEET_BASE_URL
+    val nodeKey: String = BuildConfig.FLEET_NODE_KEY
+
 
     // If true, when we cannot run a query, we still answer it with [] so Fleet stops sending it.
     var clearUnknownQueries: Boolean = true
@@ -41,6 +45,9 @@ object FleetDistributedQueryRunner {
     suspend fun runForever(context: Context) {
         withContext(Dispatchers.Default) {
             Log.i(tag, "Starting distributed query loop")
+            require(fleetBaseUrl.isNotBlank()) { "FLEET_BASE_URL is empty. Set it in android/config.properties" }
+            require(nodeKey.isNotBlank()) { "FLEET_NODE_KEY is empty. Set it in android/config.properties" }
+
             while (true) {
                 try {
                     val readResp = fleetDistributedRead(nodeKey)

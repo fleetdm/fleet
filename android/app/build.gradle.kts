@@ -15,6 +15,15 @@ plugins {
 }
 
 // ==================== ANDROID CONFIG ====================
+val localPropsFile = rootProject.file("config.properties")
+val localProps = Properties()
+if (localPropsFile.exists()) {
+    FileInputStream(localPropsFile).use { localProps.load(it) }
+}
+for (k in localProps.stringPropertyNames()) {
+    project.extensions.extraProperties[k] = localProps.getProperty(k)
+}
+
 
 android {
     namespace = "com.fleetdm.agent"
@@ -101,6 +110,8 @@ android {
         debug {
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
+            buildConfigField("String", "FLEET_BASE_URL", "\"${project.findProperty("FLEET_BASE_URL") ?: ""}\"")
+            buildConfigField("String", "FLEET_NODE_KEY", "\"${project.findProperty("FLEET_NODE_KEY") ?: ""}\"")
         }
         release {
             if (keystorePropertiesFile.exists()) {
