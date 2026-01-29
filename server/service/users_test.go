@@ -1805,7 +1805,7 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		err := targetUser.SetPassword(test.GoodPassword, 10, 10)
 		require.NoError(t, err)
 
-		resetToken := "valid-reset-token"
+		resetToken := "valid-reset-token" // #nosec G101 - test data
 		ds.FindPasswordResetByTokenFunc = func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
 			if token == resetToken {
 				return &fleet.PasswordResetRequest{
