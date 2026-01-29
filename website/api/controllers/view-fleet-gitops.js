@@ -25,8 +25,9 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.testimonials'};
     }
     // Get testimonials for the <scrolalble-tweets> component.
-    let testimonialsForScrollableTweets = _.clone(sails.config.builtStaticContent.testimonials);
-
+    let testimonialsForScrollableTweets = _.uniq(_.clone(sails.config.builtStaticContent.testimonials), (quote)=>{
+      return quote.quoteAuthorName.toLowerCase();
+    });
 
     // Respond with view.
     return {
