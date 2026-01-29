@@ -23,11 +23,13 @@ import (
 
 func makeDecoder(iface interface{}, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (request interface{}, err error) {
-		limitedReader := io.LimitReader(r.Body, requestBodySizeLimit).(*io.LimitedReader)
+		if requestBodySizeLimit != -1 {
+			limitedReader := io.LimitReader(r.Body, requestBodySizeLimit).(*io.LimitedReader)
 
-		r.Body = &eu.LimitedReadCloser{
-			LimitedReader: limitedReader,
-			Closer:        r.Body,
+			r.Body = &eu.LimitedReadCloser{
+				LimitedReader: limitedReader,
+				Closer:        r.Body,
+			}
 		}
 
 		return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody, fleetQueryDecoder)(ctx, r)
