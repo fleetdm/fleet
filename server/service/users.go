@@ -1063,9 +1063,6 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
 	}
 
-	// Sessions should already have been cleared when the reset was
-	// required
-
 	return user, nil
 }
 
@@ -1083,6 +1080,16 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving changed password")
+	}
+
+	// Clear all password reset requests for this user.
+	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+	}
+
+	// Clear all sessions for this user.
+	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting sessions after password change")
 	}
 
 	return nil
@@ -1147,17 +1154,6 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	err = svc.setNewPassword(ctx, user, password)
 	if err != nil {
 		return fleet.NewInvalidArgumentError("new_password", err.Error())
-	}
-
-	// delete password reset tokens for user
-	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete password reset requests")
-	}
-
-	// Clear sessions so that any other browsers will have to log in with
-	// the new password
-	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete user sessions")
 	}
 
 	return nil
