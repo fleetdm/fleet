@@ -46,13 +46,16 @@ jobs:
               return;
             }
 
-            const reportedVersion = versionMatch[1].trim();
+            // Extract version, removing any HTML comments
+            let reportedVersion = versionMatch[1].trim();
+            // Remove HTML comment if present (e.g., "4.62.0 <!-- comment -->")
+            reportedVersion = reportedVersion.replace(/\s*<!--.*?-->\s*/g, '').trim();
+
             console.log(`Found reported version: ${reportedVersion}`);
 
             // Skip if version is empty, placeholder, or unknown
             if (!reportedVersion ||
                 reportedVersion === '' ||
-                reportedVersion.includes('<!--') ||
                 reportedVersion.toLowerCase().includes('todo') ||
                 reportedVersion.toLowerCase().includes('unknown')) {
               console.log('Version is placeholder or empty, skipping');
