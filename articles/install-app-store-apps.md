@@ -30,15 +30,15 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
-## Edit or remove an app
+## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
 
 2. Search for the app you want to remove and select the app to head to its **Software details** page.
 
-3. To edit the app's name or icon, click the Actions button and select **Edit appearance**.
+3. To edit the app's display name or icon, select **Actions > Edit appearance**. Appearance can be edited for software that is available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded, as well as on **My device > Self-service**. If the display name is not set, then the default name (ingested by osquery) will be used.
 
-4. To configure the app's self-service categories or change which hosts can install the app, click the Actions button and select **Edit software**.
+4. To configure the app's [self-service](https://fleetdm.com/guides/software-self-service) status and categories, or to change its target to different sets of hosts, select **Actions > Edit software**.
 
 5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
 
@@ -57,6 +57,10 @@ You can also manage which Google Play Store apps are available for self-service 
 ### Apple (VPP)
 
 Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+> If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
+> 
+> To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
 Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 

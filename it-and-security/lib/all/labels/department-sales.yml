@@ -1,0 +1,6 @@
+- name: "Department: Sales"
+  description: Hosts belonging to members of the Sales department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Sales

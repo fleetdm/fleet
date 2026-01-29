@@ -171,6 +171,19 @@ module.exports.custom = {
     'handbook/company/writing.md': 'mike-j-thomas',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',
+    'handbook/finance': 'rfoo2015',
+    'handbook/people': 'ireedy',
+    'handbook/it': 'allenhouchins',
+    'handbook/sales': 'sampfluger88',
+    'handbook/customer-success': 'zayhanlon',
+    'handbook/marketing': 'akuthiala',
+    'handbook/README.md': 'mikermcneil',
+    'handbook/company/README.md': 'mikermcneil',
+    'handbook/company/why-this-way.md': 'mikermcneil',
+    'handbook/company/communications.md': 'mikermcneil',
+    'handbook/company/leadership.md': 'mikermcneil',
+    'handbook/it/security.md': 'allenhouchins',
+    'handbook/company/go-to-market-groups.md': 'sampfluger88',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -272,19 +285,19 @@ module.exports.custom = {
     '.github/workflows/dogfood-gitops.yml': 'allenhouchins',
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],// (« for changing who reviews is automatically requested from for given paths)
-    'website/config/custom.js': ['eashaw', 'mikermcneil', 'lukeheath', 'sampfluger88'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'],// (« for changing who reviews is automatically requested from for given paths)
+    'website/config/custom.js': ['eashaw', 'mikermcneil', 'lukeheath', 'sampfluger88', 'ireedy'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/company/communications.md': ['mikermcneil'],
-    'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil'],
+    'handbook/company/communications.md': ['mikermcneil', 'sampfluger88'],
+    'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],
     'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
+    'handbook/it': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
     'handbook/finance': ['sampfluger88', 'mikermcneil', 'rfoo2015'],
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
     'handbook/marketing': ['sampfluger88', 'mikermcneil', 'akuthiala'],
@@ -311,10 +324,20 @@ module.exports.custom = {
     // Config as code for infrastructure, internal security and IT use cases, and more.
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
-    '.github/workflows': ['sampfluger88', 'lukeheath'],//« CI/CD workflows
+    '.github/workflows': ['lukeheath'],//« CI/CD workflows
+
+    // Issue templates
+    '.github/ISSUE_TEMPLATE/3-sale.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/2-expansion.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/9-renewal.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/prepare-event.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/technical-evaluation.md': ['allenhouchins', 'sampfluger88'],
+    '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
+    '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
+
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'], // (« for changing who reviews is automatically requested from for given paths)
     '.gitignore': ['lukeheath', 'rfairburn', 'sampfluger88'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
@@ -492,5 +515,10 @@ module.exports.custom = {
   // vppProxyTokenTeamId: '',
   // vppProxyTokenKeyId: '',
   // vppProxyTokenPrivateKey: '',
+
+
+  // Eventbrite API
+  // eventbriteOrgId: '',
+  // eventbriteApiToken: '',
 
 };

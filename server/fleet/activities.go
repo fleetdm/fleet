@@ -22,6 +22,11 @@ type ActivityWebhookPayload struct {
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
+// ActivityAutomationAuthor is the name used for the actor when an activity
+// is performed by Fleet automation (cron jobs, system operations, etc.)
+// rather than by a human user.
+const ActivityAutomationAuthor = "Fleet"
+
 type Activity struct {
 	CreateTimestamp
 
@@ -840,13 +845,18 @@ func (a ActivityTypeCreatedUser) Documentation() (activity string, details strin
 }
 
 type ActivityTypeDeletedUser struct {
-	UserID    uint   `json:"user_id"`
-	UserName  string `json:"user_name"`
-	UserEmail string `json:"user_email"`
+	UserID               uint   `json:"user_id"`
+	UserName             string `json:"user_name"`
+	UserEmail            string `json:"user_email"`
+	FromScimUserDeletion bool   `json:"-"`
 }
 
 func (a ActivityTypeDeletedUser) ActivityName() string {
 	return "deleted_user"
+}
+
+func (a ActivityTypeDeletedUser) WasFromAutomation() bool {
+	return a.FromScimUserDeletion
 }
 
 func (a ActivityTypeDeletedUser) Documentation() (activity string, details string, detailsExample string) {
@@ -3042,6 +3052,48 @@ func (a ActivityTypeDisabledConditionalAccessAutomations) Documentation() (strin
 - "team_name": The name of the team (empty for "No team").`, `{
   "team_id": 5,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeUpdateConditionalAccessBypass struct {
+	BypassDisabled bool `json:"bypass_disabled"`
+}
+
+func (a ActivityTypeUpdateConditionalAccessBypass) ActivityName() string {
+	return "update_conditional_access_bypass"
+}
+
+func (a ActivityTypeUpdateConditionalAccessBypass) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when conditional access bypass settings are updated.`,
+		`This activity contains the following field:
+- "bypass_disabled": Whether conditional access bypass was disabled.`, `{
+	"bypass_disabled": true,
+}`
+}
+
+type ActivityTypeHostBypassedConditionalAccess struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	IdPFullName     string `json:"idp_full_name"`
+}
+
+func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
+	return "host_bypassed_conditional_access"
+}
+
+func (a ActivityTypeHostBypassedConditionalAccess) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeHostBypassedConditionalAccess) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host bypasses conditional access.`,
+		`This activity contains the following fields:
+- "host_display_name": The display name of the bypassed host.
+- "host_id": ID of the host.
+- "idp_full_name": The end user's full name from Okta.`, `{
+	"host_display_name": "Anna's Macbook Pro",
+	"host_id": 123,
+	"idp_full_name": "Anna Chao"
 }`
 }
 

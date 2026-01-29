@@ -4757,6 +4757,16 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_filename": "firefox-custom-icon.png"
+    },
+    {
+      "team_id": 1,
+      "title_id": 3496,
+      "url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
+      "hash_sha256": "c6aa78d0911a0cb504a21bcf8421de703cc7dd07b7388903cf29227ca5955737",
+      "fleet_maintained_app_id": 150,
+      "fleet_maintained_app_slug": "8x8-work/darwin",
+      "icon_hash_sha256": "dad98c7c1b9a5654a45972f2cd7e5c3e536fe5312b0e615291ceb35234eaaa7f",
+      "icon_filename": "custom-icon.png"
     }
   ]
 }
