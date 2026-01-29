@@ -604,6 +604,19 @@ module.exports.routes = {
     }
   },
 
+  'GET /compare/:slug': {
+    action: 'landing-pages/view-basic-comparison'
+  },
+
+  'GET /fleet-gitops': {
+    action: 'view-fleet-gitops',
+    locals: {
+      pageTitleForMeta: 'Fleet GitOps',
+      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet and GitOps work together to optimize your endpoint management strategy.',
+      currentSection: 'platform',
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
