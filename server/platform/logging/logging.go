@@ -82,6 +82,11 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 		if lvl, ok := a.Value.Any().(slog.Level); ok {
 			return slog.String(slog.LevelKey, strings.ToLower(lvl.String()))
 		}
+	case slog.MessageKey:
+		// Suppress empty messages (go-kit/log didn't print msg when absent)
+		if a.Value.String() == "" {
+			return slog.Attr{}
+		}
 	}
 	return a
 }
