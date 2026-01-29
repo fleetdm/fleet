@@ -24,7 +24,7 @@ module.exports = {
     },
     linkedinUrl: {
       type: 'string',
-      required: true,
+      required: false,
     },
     contactSource: {
       type: 'string',
