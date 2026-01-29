@@ -250,13 +250,13 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   failed_install_update_available: {
-    iconName: "error",
+    iconName: "error-outline", // Match update available icon and not failed install icon
     displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
-    iconName: "error",
+    iconName: "error-outline", // Match update available icon and not failed uninstall icon
     displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedUninstallTooltip,

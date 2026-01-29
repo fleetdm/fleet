@@ -159,7 +159,7 @@ describe("SelfService", () => {
     expect(moreText).not.toBeInTheDocument();
   });
 
-  it("renders failed status and 'Install' action button and 'Retry uninstall' dropdown with 'failed_uninstall' status and installed_versions detected", async () => {
+  it("renders installed status and 'Install' action button and 'Retry uninstall' dropdown with 'installed' status and installed_versions detected", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -180,7 +180,7 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("install-status-cell__status--test")
-    ).toHaveTextContent("Failed");
+    ).toHaveTextContent("Installed");
 
     expect(screen.getByRole("button", { name: "Reinstall" })).toBeEnabled();
     const moreDropdown = getMoreDropdown();
