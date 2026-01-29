@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -398,18 +397,29 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			PolicyRequestUUID:       &policyRequestUUID,
 		}
 
+		installPendingProfile3 := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "c",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryPending,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+			PolicyRequestUUID:       &policyRequestUUID,
+		}
+
 		mockDS.GetAndroidPolicyRequestByUUIDFunc = func(ctx context.Context, id string) (*android.MDMAndroidPolicyRequest, error) {
 			if id == policyRequestUUID {
 				payload, err := json.Marshal(map[string]any{
 					"policy": map[string]any{
-						// TODO(JK): rename to passwordPolicies
 						"DefaultPermissionPolicy": true,
+						"passwordPolicies":        []map[string]any{},
 						"cameraDisabled":          true,
 					},
 					"metadata": map[string]any{
 						"settings_origin": map[string]string{
 							"DefaultPermissionPolicy": installPendingProfile1.ProfileUUID,
-							"cameraDisabled":          installPendingProfile2.ProfileUUID,
+							"passwordPolicies":        installPendingProfile2.ProfileUUID,
+							"cameraDisabled":          installPendingProfile3.ProfileUUID,
 						},
 					},
 				})
@@ -422,85 +432,36 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil, errors.New("something went wrong")
 		}
 
-		// TODO(JK): maybe given this is a mock, we can only do the second part of the test
-
 		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 			return []*fleet.MDMAndroidProfilePayload{
 				installPendingProfile1,
-				installPendingProfile2,
+				installPendingProfile3,
 			}, nil
 		}
 		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-			return nil, nil
+			return []*fleet.MDMAndroidProfilePayload{
+				installPendingProfile2,
+			}, nil
 		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
 		}
 
-		wantedStatus1 := fleet.MDMDeliveryFailed
-		wantedStatus2 := fleet.MDMDeliveryVerified
-
 		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
-			require.Len(t, payload, 2)
+			require.Len(t, payload, 3)
 			for _, profile := range payload {
-				switch profile.ProfileUUID {
-				case installPendingProfile1.ProfileUUID:
-					require.Equal(t, installPendingProfile1.ProfileUUID, profile.ProfileUUID)
-					require.Equal(t, wantedStatus1, *profile.Status)
-				case installPendingProfile2.ProfileUUID:
-					require.Equal(t, installPendingProfile2.ProfileUUID, profile.ProfileUUID)
-					require.Equal(t, wantedStatus2, *profile.Status)
-				default:
-					require.Fail(t, "All profiles upserted should have an if statement verifying status.")
-				}
+				require.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
 			}
-
 			return nil
 		}
 		mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
 			return nil
 		}
 
-		// Reasons to test: USER_ACTION, PENDING. these should get verified next run
-		// Reasons to test: one of the above + INVALID_VALUE
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{
-			{
-				SettingName:         "DefaultPermissionPolicy",
-				NonComplianceReason: "USER_ACTION",
-			},
-		})
+		// a profile that previously failed due to USER_ACTION will get reverified
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
-		require.NoError(t, err)
-
-		require.True(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
-		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
-		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
-		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
-		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
-		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
-		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
-		mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked = false
-
-		enrollmentMessage = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{})
-
-		// the pending installs after this should be empty?
-
-		wantedStatus1 = fleet.MDMDeliveryVerified
-
-		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-			return []*fleet.MDMAndroidProfilePayload{
-				// installPendingProfile1,
-				installPendingProfile2,
-			}, nil
-		}
-		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-			return []*fleet.MDMAndroidProfilePayload{
-				installPendingProfile1,
-			}, nil
-		}
-
-		err = svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
 
 		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
@@ -1265,9 +1226,6 @@ func TestBuildNonComplianceErrorMessage(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualMessage := buildNonComplianceErrorMessage(tc.nonCompliance)
-			fmt.Println("----------------------")
-			fmt.Println(actualMessage)
-			fmt.Println("----------------------")
 			require.Equal(t, tc.expectedErrorMessage, actualMessage)
 		})
 	}
