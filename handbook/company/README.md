@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management is the [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/feed/update/urn:li:sponsoredContentV2:(urn:li:share:7296343346921250816,urn:li:sponsoredCreative:745249963)/?actorCompanyId=0&viewContext=REVIEWER).
+Fleet Device Management is the [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
 Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
 - 🔌 helping IT and cybersecurity teams move more quickly on strategic projects.
