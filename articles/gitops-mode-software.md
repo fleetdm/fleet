@@ -21,7 +21,7 @@ If you want to use Fleet to host custom packages instead of a third-party packag
 
 ## App store apps
 
-To manage Apple App Store (VPP) or Android Gogole Play apps via GitOps, please see the [`app_store_apps`](https://fleetdm.com/docs/configuration/yaml-files#app-store-apps) in Fleet's best practice GitOps docs. Note that VPP apps must first be added to [Apple Business Manager](https://business.apple.com).
+To manage Apple App Store (VPP) or Android Google Play apps via GitOps, please see the [`app_store_apps`](https://fleetdm.com/docs/configuration/yaml-files#app-store-apps) in Fleet's best practice GitOps docs. Note that VPP apps must first be added to [Apple Business Manager](https://business.apple.com).
 
 ## Fleet-maintained apps
 
