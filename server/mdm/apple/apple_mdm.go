@@ -783,7 +783,7 @@ func (d *DEPService) processDeviceResponse(
 	for _, newDevice := range addedDevicesSlice {
 		var teamID *uint
 		switch newDevice.DeviceFamily {
-		case "iPhone":
+		case "iPhone", "iPod":
 			teamID = iosTeamID
 		case "iPad":
 			teamID = ipadTeamID

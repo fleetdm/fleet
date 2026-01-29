@@ -6813,10 +6813,11 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	depDevices := []godep.Device{
 		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
+		{SerialNumber: "iPod_SERIAL", DeviceFamily: "iPod", OpType: "added"},
 	}
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), n)
+	require.Equal(t, int64(3), n)
 
 	// Hosts are not enrolled yet (e.g. DEP enrolled)
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
@@ -6847,17 +6848,30 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, iPadOS0, false)
 
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "iPod_UUID",
+		HardwareSerial: "iPod_SERIAL",
+		HardwareModel:  "iPod 7",
+		Platform:       "ios",
+		OsqueryHostID:  ptr.String("iPod_OSQUERY_HOST_ID"),
+	}, false)
+	require.NoError(t, err)
+	iPod, err := ds.HostByIdentifier(ctx, "iPod_SERIAL")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPod, false)
+
 	// Test with hosts but empty state in nanomdm command tables.
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, devices, 2)
-	uuids := []string{devices[0].UUID, devices[1].UUID}
+	require.Len(t, devices, 3)
+	uuids := []string{devices[0].UUID, devices[1].UUID, devices[2].UUID}
 	sort.Slice(uuids, func(i, j int) bool {
 		return uuids[i] < uuids[j]
 	})
-	assert.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+	assert.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID", "iPod_UUID"})
 	assert.Empty(t, devices[0].CommandsAlreadySent)
 	assert.Empty(t, devices[1].CommandsAlreadySent)
+	assert.Empty(t, devices[2].CommandsAlreadySent)
 
 	// Set iOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -6868,8 +6882,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	// iOS device should not be returned because it was refetched recently
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, devices, 1)
+	require.Len(t, devices, 2)
 	require.Equal(t, devices[0].UUID, "iPadOS0_UUID")
+	require.Equal(t, devices[1].UUID, "iPod_UUID")
 
 	// Set iPadOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -6877,7 +6892,19 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	// Both devices are up-to-date thus none should be returned.
+	// two devices are up to date now, only iPod should be returned
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iPod_UUID")
+
+	// set iPod device detail_updated_at as 30 minutes in the past.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 30 MINUTE) WHERE id = ?`, iPod.ID)
+		return err
+	})
+
+	// all devices are up to date now, none should be returned
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
 	require.Empty(t, devices)
@@ -7002,6 +7029,7 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 	depDevices := []godep.Device{
 		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
+		{SerialNumber: "iPod_SERIAL", DeviceFamily: "iPod", OpType: "added"},
 	}
 
 	encTok := uuid.NewString()
@@ -7011,7 +7039,7 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), n)
+	require.Equal(t, int64(3), n)
 
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{
 		User: &fleet.User{
@@ -7019,11 +7047,13 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 		},
 	}, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 2)
+	require.Len(t, hosts, 3)
 	require.Equal(t, "ios", hosts[0].Platform)
 	require.Equal(t, false, hosts[0].RefetchRequested)
 	require.Equal(t, "ipados", hosts[1].Platform)
 	require.Equal(t, false, hosts[1].RefetchRequested)
+	require.Equal(t, "ios", hosts[2].Platform)
+	require.Equal(t, false, hosts[2].RefetchRequested)
 }
 
 func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -7078,6 +7108,17 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	iPadOS0, err := ds.HostByIdentifier(ctx, "iPadOS0_UUID")
 	require.NoError(t, err)
 	nanoEnroll(t, ds, iPadOS0, false)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "iPod_UUID",
+		HardwareSerial: "iPod_SERIAL",
+		HardwareModel:  "iPod 7",
+		Platform:       "ios",
+		OsqueryHostID:  ptr.String("iPod_OSQUERY_HOST_ID"),
+	}, false)
+	require.NoError(t, err)
+	iPod, err := ds.HostByIdentifier(ctx, "iPod_UUID")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPod, false)
 
 	someProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
@@ -7093,6 +7134,10 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	require.Len(t, profiles, 1)
 	require.Equal(t, someProfile.Name, profiles[0].Name)
 	profiles, err = ds.GetHostMDMAppleProfiles(ctx, "iPadOS0_UUID")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.Equal(t, someProfile.Name, profiles[0].Name)
+	profiles, err = ds.GetHostMDMAppleProfiles(ctx, "iPod_UUID")
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	require.Equal(t, someProfile.Name, profiles[0].Name)
