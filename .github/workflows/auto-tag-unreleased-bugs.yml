@@ -55,7 +55,7 @@ jobs:
 
             // Skip if version is empty, placeholder, or unknown
             if (!reportedVersion ||
-                reportedVersion === '' ||
+                reportedVersion.trim() === '' ||
                 reportedVersion.toLowerCase().includes('todo') ||
                 reportedVersion.toLowerCase().includes('unknown')) {
               console.log('Version is placeholder or empty, skipping');
