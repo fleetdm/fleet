@@ -110,6 +110,24 @@ When you reach out to a prospect or customer, make sure you're the right person:
 - **🌦️ Customers**: The Customer Success Manager (CSM) reaches out.
 - **🫧 Any other prospects**: The Solutions Consultant (SC) reaches out.
 
+  
+### Outbound messaging experimentation and tracking
+
+Our outbound motion for Solution Specialists is intentionally experimental and evolving. Rather than locking into a single script or sequence, we actively test different messaging approaches and learn from real conversations.
+
+This spreadsheet is used to track:
+	•	the initial outreach approach
+	•	how we build toward an ask
+	•	where and how we pivot to a meeting request
+	•	the exact wording used at the pivot point
+	•	the outcome and post-mortem notes
+
+The goal is not perfect attribution or rigid process. The goal is to:
+	•	identify which messaging patterns create momentum
+	•	understand when a prospect signals readiness for a call
+	•	refine how and when we transition from curiosity to a meeting ask
+
+  https://docs.google.com/spreadsheets/d/1VjJTrldUpJTZTLg0Xz2B9dZ-D8vYZNhGVMSYBxOxqEA/edit?gid=0#gid=0
 
 ### Programs
 
