@@ -1279,13 +1279,7 @@ const HostDetailsPage = ({
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
-              // Setting this to "locking" because if a host is "locating", it is also
-              // "locking"; an iOS/iPadOS host isn't "locked" until the location is found.
-              hostMdmDeviceStatus={
-                hostMdmDeviceStatus === "locating"
-                  ? "locking"
-                  : hostMdmDeviceStatus
-              }
+              hostMdmDeviceStatus={hostMdmDeviceStatus}
               hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
             />
           </div>

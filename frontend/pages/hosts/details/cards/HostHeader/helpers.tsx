@@ -52,8 +52,9 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
       );
     },
   },
+  /** Pending action is location but device status is locked */
   locating: {
-    title: "LOCKED",
+    title: "Locked",
     tagType: "warning",
     generateTooltip: (platform) => {
       if (isIPadOrIPhone(platform)) {
@@ -90,6 +91,7 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     generateTooltip: () =>
       "Host will unlock when it comes online.  If the host is online, it will unlock the next time it checks in to Fleet.",
   },
+  /** "locking" also includes pending action is location but device status is unlocked */
   locking: {
     title: "Lock pending",
     tagType: "warning",
