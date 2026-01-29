@@ -17,4 +17,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
+  &__horizontal {
+    flex-direction: row;
+  }
 }

@@ -260,6 +260,10 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		_, err := q.ExecContext(ctx, "DELETE FROM invites; ")
 		return err
 	})
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM host_conditional_access")
+		return err
+	})
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {

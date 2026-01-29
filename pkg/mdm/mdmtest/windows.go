@@ -2,6 +2,7 @@ package mdmtest
 
 import (
 	"bytes"
+	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
 	"crypto/rsa"
 	"crypto/tls"
 	"encoding/base64"
@@ -49,6 +50,10 @@ type TestWindowsMDMClient struct {
 	jwtSigningKey *rsa.PrivateKey
 	// jwtSigningKeyID is the ID to report in the header for the signing key
 	jwtSigningKeyID string
+
+	username string
+	password string
+	nonce    string
 }
 
 // This is a test-only enrollment type to force erroneous behavior.
@@ -194,29 +199,74 @@ func (c *TestWindowsMDMClient) doManagementReq(rawXMLReq []byte) (map[string]fle
 		fmt.Println(string(rawXMLReq))
 	}
 
-	// TODO: this request works because we're allowing devices without
-	// certificates to communicate with the server. We will need to include the
-	// certificate we generated during enrollment when we fix that.
-	managementResp, err := c.request(microsoft_mdm.MDE2ManagementPath, rawXMLReq)
+	sendRequest := func(req []byte) (*fleet.SyncML, error) {
+		managementResp, err := c.request(microsoft_mdm.MDE2ManagementPath, req)
+		if err != nil {
+			return nil, err
+		}
+
+		rawXMLResp, err := io.ReadAll(managementResp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+
+		if c.debug {
+			fmt.Println("=============== management response ================")
+			fmt.Println(string(rawXMLResp))
+		}
+
+		var syncML fleet.SyncML
+		if err := xml.Unmarshal(rawXMLResp, &syncML); err != nil {
+			return nil, fmt.Errorf("unmarshalling response body: %w", err)
+		}
+
+		return &syncML, nil
+	}
+
+	syncML, err := sendRequest(rawXMLReq)
 	if err != nil {
 		return nil, err
 	}
 
-	rawXMLResp, err := io.ReadAll(managementResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response body: %w", err)
+	if username, password := c.isRekeyRequest(syncML); username != "" && password != "" {
+		c.username = username
+		c.password = password
+
+		// We rekeyed, so we need to resend the original request
+		syncML, err = sendRequest(rawXMLReq)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	if c.debug {
-		fmt.Println("=============== management response ================")
-		fmt.Println(string(rawXMLResp))
+	if shouldAuth, nonce := c.shouldAuth(syncML); shouldAuth {
+		var reqSyncML fleet.SyncML
+		if err := xml.Unmarshal(rawXMLReq, &reqSyncML); err != nil {
+			return nil, fmt.Errorf("unmarshalling request body for auth: %w", err)
+		}
+
+		extractedNonce, _ := base64.StdEncoding.DecodeString(*nonce)
+		c.nonce = string(extractedNonce)
+		reqSyncML.SyncHdr.Cred = c.getCredHDR()
+
+		// resend the request but now with credentials
+		rawXMLReq, err = xml.MarshalIndent(reqSyncML, "", "\t")
+		if err != nil {
+			return nil, fmt.Errorf("serializing XML req with auth: %w", err)
+		}
+
+		if c.debug {
+			fmt.Println("=============== management request with auth ================")
+			fmt.Println(string(rawXMLReq))
+		}
+
+		syncML, err = sendRequest(rawXMLReq)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	var syncML fleet.SyncML
-	if err := xml.Unmarshal(rawXMLResp, &syncML); err != nil {
-		return nil, fmt.Errorf("unmarshalling response body: %w", err)
-	}
-	c.lastManagementResp = &syncML
+	c.lastManagementResp = syncML
 
 	cmds := make(map[string]fleet.ProtoCmdOperation)
 	for _, p := range c.lastManagementResp.GetOrderedCmds() {
@@ -226,6 +276,26 @@ func (c *TestWindowsMDMClient) doManagementReq(rawXMLReq []byte) (map[string]fle
 	// before returning, clean up any lingering responses
 	c.queuedCommandResponses = make(map[string]fleet.SyncMLCmd)
 	return cmds, nil
+}
+
+func (c *TestWindowsMDMClient) isRekeyRequest(req *fleet.SyncML) (username string, password string) {
+	for _, cmd := range req.GetOrderedCmds() {
+		if cmd.Verb == fleet.CmdReplace && strings.Contains(cmd.Cmd.GetTargetURI(), "AAuthName") {
+			username = cmd.Cmd.GetTargetData()
+		} else if cmd.Verb == fleet.CmdReplace && strings.Contains(cmd.Cmd.GetTargetURI(), "AAuthSecret") {
+			password = cmd.Cmd.GetTargetData()
+		}
+	}
+	return
+}
+
+func (c *TestWindowsMDMClient) shouldAuth(req *fleet.SyncML) (bool, *string) {
+	for _, cmd := range req.GetOrderedCmds() {
+		if cmd.Verb == fleet.CmdStatus && cmd.Cmd.Chal != nil {
+			return true, cmd.Cmd.Chal.Meta.NextNonce.Content
+		}
+	}
+	return false, nil
 }
 
 func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperation, error) {
@@ -256,6 +326,7 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 		Target: &fleet.LocURI{
 			LocURI: ptr.String(c.fleetServerURL + microsoft_mdm.MDE2ManagementPath),
 		},
+		Cred: c.getCredHDR(),
 	}
 
 	// iterate over mocked responses and append them to the SyncML message
@@ -269,6 +340,30 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 	}
 
 	return c.doManagementReq(xmlReq)
+}
+
+func (c *TestWindowsMDMClient) getCredHDR() *fleet.CredHdr {
+	return &fleet.CredHdr{
+		Meta: fleet.Meta{
+			Type: &fleet.MetaAttr{
+				XMLNS:   syncml.SyncMLMetaNamespace,
+				Content: ptr.String(syncml.AuthMD5),
+			},
+			Format: &fleet.MetaAttr{
+				XMLNS:   syncml.SyncMLMetaNamespace,
+				Content: ptr.String(syncml.AuthB64Format),
+			},
+		},
+		Data: c.hashedCredentials(),
+	}
+}
+
+func (c *TestWindowsMDMClient) hashedCredentials() string {
+	credentials := fmt.Sprintf("%s:%s", c.username, c.password)
+	credentialsHash := md5.Sum([]byte(credentials)) //nolint:gosec // Windows MDM Auth uses MD5
+	credentialsWithNonce := fmt.Sprintf("%s:%s", base64.StdEncoding.EncodeToString(credentialsHash[:]), c.nonce)
+	digestHash := md5.Sum([]byte(credentialsWithNonce)) //nolint:gosec // Windows MDM Auth uses MD5
+	return base64.StdEncoding.EncodeToString(digestHash[:])
 }
 
 // AppendResponse sets a response for a specific command UUID.
@@ -401,6 +496,53 @@ YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
 	}
 	if strings.Contains(string(body), "s:fault") {
 		return fmt.Errorf("enroll request returned SOAP fault: %s", string(body))
+	}
+
+	var soapResponse fleet.SoapResponse
+	if err := xml.Unmarshal(body, &soapResponse); err != nil {
+		return fmt.Errorf("unmarshalling enroll response body: %w", err)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(soapResponse.Body.RequestSecurityTokenResponseCollection.RequestSecurityTokenResponse.RequestedSecurityToken.BinarySecurityToken.Content)
+	if err != nil {
+		return fmt.Errorf("decoding enroll response binary security token: %w", err)
+	}
+
+	// strip xml header
+	decoded = bytes.TrimPrefix(decoded, []byte(xml.Header))
+	var provDoc fleet.WapProvisioningDoc
+	if err := xml.Unmarshal(decoded, &provDoc); err != nil {
+		return fmt.Errorf("unmarshalling enroll response provisioning doc: %w", err)
+	}
+
+Outer:
+	for _, char := range provDoc.Characteristics {
+		if char.Type != "APPLICATION" {
+			continue
+		}
+
+		for _, appChar := range char.Characteristics {
+			if appChar.Type != "APPAUTH" {
+				continue
+			}
+			username := ""
+			password := ""
+			for _, appAuthParam := range appChar.Params {
+				if appAuthParam.Name == "AAUTHNAME" {
+					username = appAuthParam.Value
+				}
+				if appAuthParam.Name == "AAUTHSECRET" {
+					password = appAuthParam.Value
+				}
+			}
+
+			// We can do this since only the client credentials characteristic has both username and password, the other one only has password.
+			if username != "" && password != "" {
+				c.username = username
+				c.password = password
+				break Outer
+			}
+		}
 	}
 
 	return nil
@@ -577,4 +719,39 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 	}
 
 	return binarySecToken, tokenValueType, nil
+}
+
+func (c *TestWindowsMDMClient) Unenroll() error {
+	unenrollRequest := []byte(`
+			 <SyncML xmlns="SYNCML:SYNCML1.2">
+			<SyncHdr>
+				<VerDTD>1.2</VerDTD>
+				<VerProto>DM/1.2</VerProto>
+				<SessionID>2</SessionID>
+				<MsgID>1</MsgID>
+				<Target>
+				<LocURI>` + c.fleetServerURL + microsoft_mdm.MDE2ManagementPath + `</LocURI>
+				</Target>
+				<Source>
+				<LocURI>` + c.DeviceID + `</LocURI>
+				</Source>
+			</SyncHdr>
+			<SyncBody>
+				<Alert>
+				<CmdID>4</CmdID>
+				<Data>1226</Data>
+				<Item>
+					<Meta>
+					<Type xmlns="syncml:metinf">com.microsoft:mdm.unenrollment.userrequest</Type>
+					<Format xmlns="syncml:metinf">int</Format>
+					</Meta>
+					<Data>1</Data>
+				</Item>
+				</Alert>
+				<Final/>
+			</SyncBody>
+			</SyncML>`)
+
+	_, err := c.doManagementReq(unenrollRequest)
+	return err
 }

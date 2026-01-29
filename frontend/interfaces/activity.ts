@@ -142,6 +142,8 @@ export enum ActivityType {
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
   DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
+  HostBypassedConditionalAccess = "host_bypassed_conditional_access",
+  UpdatedConditionalAccessBypass = "update_conditional_access_bypass",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
@@ -271,6 +273,7 @@ export interface IActivityDetails {
   webhook_url?: string;
   custom_variable_name?: string;
   host_idp_username?: string;
+  idp_full_name?: string;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -421,6 +424,10 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedAndroidCertificate]:
     "GitOps: edited certificate templates: Android",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
+  [ActivityType.HostBypassedConditionalAccess]:
+    "Host bypassed conditional access",
+  [ActivityType.UpdatedConditionalAccessBypass]:
+    "Updated conditional access experience",
   [ActivityType.DeletedConditionalAccessOkta]:
     "Deleted conditional access: Okta",
   [ActivityType.EditedSetupExperienceSoftware]:

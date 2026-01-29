@@ -36,5 +36,3 @@ These steps:
 ### 🕯️ More info _(optional)_
 <!-- Add any additional details you think could be relevant to solving or reproducing the bug (e.g., "this does not reproduce when...") -->
 N/A
-
-<!-- If this is a performance issue, follow these steps to generate and attach a debug archive: https://fleetdm.com/docs/using-fleet/monitoring-fleet#debugging-performance-issues -->
