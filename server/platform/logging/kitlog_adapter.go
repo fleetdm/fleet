@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"log/slog"
+	"slices"
 
 	kitlog "github.com/go-kit/log"
 )
@@ -32,7 +33,7 @@ func (a *KitlogAdapter) Log(keyvals ...any) error {
 	}
 
 	// Combine pre-set attrs with new keyvals
-	allKeyvals := append(a.attrs, keyvals...)
+	allKeyvals := slices.Concat(a.attrs, keyvals)
 
 	// Extract level and message from keyvals
 	level := slog.LevelInfo
@@ -62,11 +63,6 @@ func (a *KitlogAdapter) Log(keyvals ...any) error {
 		}
 	}
 
-	// If no message was found, use a default
-	if msg == "" {
-		msg = "log"
-	}
-
 	a.logger.LogAttrs(context.Background(), level, msg, attrs...)
 	return nil
 }
@@ -75,7 +71,7 @@ func (a *KitlogAdapter) Log(keyvals ...any) error {
 func (a *KitlogAdapter) With(keyvals ...any) kitlog.Logger {
 	return &KitlogAdapter{
 		logger: a.logger,
-		attrs:  append(a.attrs, keyvals...),
+		attrs:  slices.Concat(a.attrs, keyvals),
 	}
 }
 

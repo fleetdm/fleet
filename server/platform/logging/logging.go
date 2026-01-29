@@ -16,9 +16,7 @@ import (
 
 // Options configures the slog logger.
 type Options struct {
-	// JSON enables JSON output format. If false, text format is used.
-	JSON bool
-	// Debug enables debug level logging. If false, info level is used.
+	JSON  bool
 	Debug bool
 	// Output is the destination for log output. Defaults to os.Stderr.
 	Output io.Writer

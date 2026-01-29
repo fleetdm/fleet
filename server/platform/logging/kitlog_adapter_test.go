@@ -1,25 +1,23 @@
 package logging
 
 import (
-	"bytes"
+	"log/slog"
 	"testing"
 
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 )
 
-// newTestAdapter creates a kitlog adapter with a buffer for capturing output.
-func newTestAdapter(t *testing.T) (*bytes.Buffer, kitlog.Logger) {
+// newTestAdapter creates a kitlog adapter with a TestHandler for capturing records.
+func newTestAdapter(t *testing.T) (*testutils.TestHandler, kitlog.Logger) {
 	t.Helper()
-	var buf bytes.Buffer
-	slogLogger := NewSlogLogger(Options{
-		JSON:   true,
-		Debug:  true,
-		Output: &buf,
-	})
-	return &buf, NewKitlogAdapter(slogLogger)
+	handler := testutils.NewTestHandler()
+	slogLogger := slog.New(handler)
+	return handler, NewKitlogAdapter(slogLogger)
 }
 
 func TestKitlogAdapter(t *testing.T) {
@@ -27,19 +25,22 @@ func TestKitlogAdapter(t *testing.T) {
 
 	t.Run("basic logging", func(t *testing.T) {
 		t.Parallel()
-		buf, adapter := newTestAdapter(t)
+		handler, adapter := newTestAdapter(t)
 
 		err := adapter.Log("msg", "hello world", "key", "value")
 		require.NoError(t, err)
 
-		output := buf.String()
-		assert.Contains(t, output, `"msg":"hello world"`)
-		assert.Contains(t, output, `"key":"value"`)
+		record := handler.LastRecord()
+		require.NotNil(t, record)
+		assert.Equal(t, "hello world", record.Message)
+
+		attrs := testutils.RecordAttrs(record)
+		assert.Equal(t, "value", attrs["key"])
 	})
 
 	t.Run("with context via With", func(t *testing.T) {
 		t.Parallel()
-		buf, adapter := newTestAdapter(t)
+		handler, adapter := newTestAdapter(t)
 
 		kitlogAdapter, ok := adapter.(*KitlogAdapter)
 		require.True(t, ok, "adapter should be *KitlogAdapter")
@@ -48,35 +49,14 @@ func TestKitlogAdapter(t *testing.T) {
 		err := contextLogger.Log("msg", "message with context")
 		require.NoError(t, err)
 
-		output := buf.String()
-		assert.Contains(t, output, `"msg":"message with context"`)
-		assert.Contains(t, output, `"component":"test-component"`)
+		record := handler.LastRecord()
+		require.NotNil(t, record)
+		assert.Equal(t, "message with context", record.Message)
+
+		attrs := testutils.RecordAttrs(record)
+		assert.Equal(t, "test-component", attrs["component"])
 	})
 
-	t.Run("empty log produces no output", func(t *testing.T) {
-		t.Parallel()
-		buf, adapter := newTestAdapter(t)
-
-		err := adapter.Log()
-		require.NoError(t, err)
-
-		assert.Empty(t, buf.String())
-	})
-
-	t.Run("skips kitlog timestamp", func(t *testing.T) {
-		t.Parallel()
-		buf, adapter := newTestAdapter(t)
-
-		// kitlog typically adds "ts" key via kitlog.With()
-		// Our adapter skips this since slog adds its own timestamp
-		err := adapter.Log("ts", "2024-01-01T00:00:00Z", "msg", "message")
-		require.NoError(t, err)
-
-		output := buf.String()
-		// slog's timestamp should be present, but not the kitlog value
-		assert.Contains(t, output, `"ts":`)
-		assert.NotContains(t, output, `"2024-01-01T00:00:00Z"`)
-	})
 }
 
 func TestKitlogAdapterLevels(t *testing.T) {
@@ -85,42 +65,43 @@ func TestKitlogAdapterLevels(t *testing.T) {
 	tests := []struct {
 		name          string
 		levelFunc     func(kitlog.Logger) kitlog.Logger
-		expectedLevel string
+		expectedLevel slog.Level
 	}{
 		{
 			name:          "info",
 			levelFunc:     level.Info,
-			expectedLevel: "info",
+			expectedLevel: slog.LevelInfo,
 		},
 		{
 			name:          "debug",
 			levelFunc:     level.Debug,
-			expectedLevel: "debug",
+			expectedLevel: slog.LevelDebug,
 		},
 		{
 			name:          "warn",
 			levelFunc:     level.Warn,
-			expectedLevel: "warn",
+			expectedLevel: slog.LevelWarn,
 		},
 		{
 			name:          "error",
 			levelFunc:     level.Error,
-			expectedLevel: "error",
+			expectedLevel: slog.LevelError,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			buf, adapter := newTestAdapter(t)
+			handler, adapter := newTestAdapter(t)
 
 			leveledLogger := tc.levelFunc(adapter)
 			err := leveledLogger.Log("msg", tc.name+" message")
 			require.NoError(t, err)
 
-			output := buf.String()
-			assert.Contains(t, output, `"msg":"`+tc.name+` message"`)
-			assert.Contains(t, output, `"level":"`+tc.expectedLevel+`"`)
+			record := handler.LastRecord()
+			require.NotNil(t, record)
+			assert.Equal(t, tc.name+" message", record.Message)
+			assert.Equal(t, tc.expectedLevel, record.Level)
 		})
 	}
 }

@@ -135,8 +135,9 @@ func applyDevFlags(cfg *config.FleetConfig) {
 // initLogger creates a kitlog.Logger backed by slog.
 func initLogger(cfg config.FleetConfig) kitlog.Logger {
 	slogLogger := logging.NewSlogLogger(logging.Options{
-		JSON:  cfg.Logging.JSON,
-		Debug: cfg.Logging.Debug,
+		JSON:           cfg.Logging.JSON,
+		Debug:          cfg.Logging.Debug,
+		TracingEnabled: cfg.Logging.TracingEnabled,
 	})
 	return logging.NewKitlogAdapter(slogLogger)
 }

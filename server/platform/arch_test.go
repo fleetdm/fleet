@@ -108,3 +108,12 @@ func TestMysqlPackageDependencies(t *testing.T) {
 		).
 		Check()
 }
+
+func TestLoggingPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform/logging...").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m + "/...").
+		Check()
+}
