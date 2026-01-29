@@ -7,6 +7,7 @@ import {
   ISoftwareAppStoreAppStatus,
 } from "interfaces/software";
 import generateSoftwareTitleDetailsTableConfig from "./InstallerStatusTableConfig";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "installer-status-table";
 
@@ -39,6 +40,25 @@ const InstallerStatusTable = ({
     isAndroidPlayStoreApp,
   });
 
+  const renderTableHelpText = isScriptPackage
+    ? undefined
+    : () => (
+        <div>
+          Installs for the current version, triggered by policy automations or{" "}
+          <TooltipWrapper
+            tipContent={
+              <>
+                On the <b>Host details</b> or{" "}
+                <b>Fleet Desktop &gt; My device page.</b>
+              </>
+            }
+          >
+            manually
+          </TooltipWrapper>
+          .
+        </div>
+      );
+
   return (
     <TableContainer
       className={baseClass}
@@ -51,8 +71,8 @@ const InstallerStatusTable = ({
       showMarkAllPages={false}
       isAllPagesSelected={false}
       disableHighlightOnHover
-      hideFooter
       disableTableHeader
+      renderTableHelpText={renderTableHelpText}
     />
   );
 };
