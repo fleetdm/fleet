@@ -79,6 +79,8 @@ Options for GlobalProtect can be found in their [documentation](https://docs.pal
 
 ##### Example (Google Calendar)
 
+This configuration allows end users to add widgets from the Google Calendar in their work profile to their home screen.
+
 ```json
 {
   "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
