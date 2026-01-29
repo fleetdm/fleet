@@ -135,4 +135,8 @@ jobs:
           # Don't forget to update
           # docs/Contributing/Testing-and-local-development.md when this version changes
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@a4b55ebc3471c9fbb763fd56eefede8050f99887 # v2.7.1
-          golangci-lint run -c .golangci-incremental.yml --new-from-rev=origin/${{ github.base_ref }} --timeout 15m ./...
+          # golangci-lint run -c .golangci-incremental.yml --new-from-rev=origin/${{ github.base_ref }} --timeout 15m ./...
+
+          # custom build of golangci-lint that incorporates nilaway - see .custom-gcl.yml
+          golangci-lint custom
+          custom-gcl run -c .golangci-incremental-custom-build.yml --new-from-rev=origin/${{ github.base_ref }} --timeout 15m ./...
