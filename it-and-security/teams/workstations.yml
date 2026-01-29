@@ -72,6 +72,12 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
+      - path: ../lib/macos/configuration-profiles/fleet-okta-conditional-access.mobileconfig
+        labels_include_any:
+          - "Department: Information Technology"
+      - path: ../lib/macos/configuration-profiles/okta-verify-settings.mobileconfig
+        labels_include_any:
+          - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
@@ -242,7 +248,7 @@ software:
       self_service: true
       setup_experience: true
   app_store_apps:
-    - app_store_id: "409183694" # Keynote
+    - app_store_id: "361285480" # Keynote
       self_service: true
   fleet_maintained_apps:
     # macOS apps

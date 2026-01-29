@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,10 +23,11 @@ var (
 // with a list of CVEs.  These rules address false negatives in the NVD data.
 // Add an interface if you want to add more rule types.
 type CVEMatchingRule struct {
-	NameLikeMatch     string   // Name of software to match (like match)
-	SourceMatch       string   // Source of software to match (exact match)
-	CVEs              []string // List of CVEs to assign to software
-	ResolvedInVersion string   // Version of software that resolves the CVEs
+	NameLikeMatch         string   // Name of software to match (like match)
+	ExcludeIfNameContains string   // Exclude software if name contains this pattern (case-insensitive, in-memory filter)
+	SourceMatch           string   // Source of software to match (exact match)
+	CVEs                  []string // List of CVEs to assign to software
+	ResolvedInVersion     string   // Version of software that resolves the CVEs
 }
 
 type CVEMatchingRules []CVEMatchingRule
@@ -38,24 +40,27 @@ func getCVEMatchingRules() CVEMatchingRules {
 		// June 11 2024 Office 365 Vulnerabilities
 		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
 		{
-			NameLikeMatch:     "Microsoft 365",
-			SourceMatch:       "programs",
-			CVEs:              []string{"CVE-2024-30101", "CVE-2024-30102", "CVE-2024-30103", "CVE-2024-30104"},
-			ResolvedInVersion: "16.0.17628.20144",
+			NameLikeMatch:         "Microsoft 365",
+			ExcludeIfNameContains: "companion",
+			SourceMatch:           "programs",
+			CVEs:                  []string{"CVE-2024-30101", "CVE-2024-30102", "CVE-2024-30103", "CVE-2024-30104"},
+			ResolvedInVersion:     "16.0.17628.20144",
 		},
 		// July 9 2024 Office 365 Vulnerabilities
 		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
 		{
-			NameLikeMatch:     "Microsoft 365",
-			SourceMatch:       "programs",
-			CVEs:              []string{"CVE-2023-38545", "CVE-2024-38020", "CVE-2024-38021"},
-			ResolvedInVersion: "16.0.17726.20160",
+			NameLikeMatch:         "Microsoft 365",
+			ExcludeIfNameContains: "companion",
+			SourceMatch:           "programs",
+			CVEs:                  []string{"CVE-2023-38545", "CVE-2024-38020", "CVE-2024-38021"},
+			ResolvedInVersion:     "16.0.17726.20160",
 		},
 		// August 13 2024 Office 365 Vulnerabilities
 		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
 		{
-			NameLikeMatch: "Microsoft 365",
-			SourceMatch:   "programs",
+			NameLikeMatch:         "Microsoft 365",
+			ExcludeIfNameContains: "companion",
+			SourceMatch:           "programs",
 			CVEs: []string{
 				"CVE-2024-38172",
 				"CVE-2024-38170",
@@ -89,7 +94,17 @@ func (r CVEMatchingRule) match(ctx context.Context, ds fleet.Datastore) ([]fleet
 		return nil, err
 	}
 
+	var excludePattern string
+	if r.ExcludeIfNameContains != "" {
+		excludePattern = strings.ToLower(r.ExcludeIfNameContains)
+	}
+
 	for _, s := range software {
+		// Skip software that matches the exclusion pattern
+		if excludePattern != "" && strings.Contains(strings.ToLower(s.Name), excludePattern) {
+			continue
+		}
+
 		if nvd.SmartVerCmp(s.Version, r.ResolvedInVersion) < 0 {
 			for _, cve := range r.CVEs {
 				vulns = append(vulns, fleet.SoftwareVulnerability{
