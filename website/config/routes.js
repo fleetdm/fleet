@@ -613,6 +613,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Fleet GitOps',
       pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet and GitOps work together to optimize your endpoint management strategy.',
+      currentSection: 'platform',
     }
   },
 
