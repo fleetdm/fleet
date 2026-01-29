@@ -18,7 +18,8 @@ const BypassModal = ({ onCancel, onResolveLater, isLoading }: IBypassModal) => {
           This will allow you to log in with Okta once.
           <br />
           <br />
-         Please resolve all policies marked &quot;Action required&quot; to restore access for subsequent logins.
+          Please resolve all policies marked &quot;Action required&quot; to
+          restore access for subsequent logins.
         </p>
         <div className="modal-cta-wrap">
           <Button
