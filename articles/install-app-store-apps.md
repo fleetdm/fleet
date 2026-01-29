@@ -62,7 +62,7 @@ Currently, editing configuration is only supported for Android apps only. And, c
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
-For example, options for GlobalProtect can be found in their [documentation](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+##### Example (GlobalProtect)
 
 ```json
 {
@@ -74,7 +74,9 @@ For example, options for GlobalProtect can be found in their [documentation](htt
 
 ```
 
-### Example configuration (Google Calendar)
+Options for GlobalProtect can be found in their [documentation](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
+##### Example (Google Calendar)
 
 ```json
 {
