@@ -560,7 +560,7 @@ describe("Device User Page", () => {
     });
 
     it("shows 'Resolve later' button when onResolveLater is provided and policy is failing conditional access", () => {
-      const { user } = createCustomRenderer({})(
+      createCustomRenderer({})(
         <PolicyDetailsModal
           onCancel={jest.fn()}
           policy={createFailingConditionalAccessPolicy()}
@@ -574,7 +574,7 @@ describe("Device User Page", () => {
     });
 
     it("does not show 'Resolve later' button when onResolveLater is not provided", () => {
-      const { user } = createCustomRenderer({})(
+      createCustomRenderer({})(
         <PolicyDetailsModal
           onCancel={jest.fn()}
           policy={createFailingConditionalAccessPolicy()}
@@ -592,7 +592,7 @@ describe("Device User Page", () => {
         response: "pass" as const,
       };
 
-      const { user } = createCustomRenderer({})(
+      createCustomRenderer({})(
         <PolicyDetailsModal
           onCancel={jest.fn()}
           policy={passingPolicy}
@@ -611,7 +611,7 @@ describe("Device User Page", () => {
         conditional_access_enabled: false,
       };
 
-      const { user } = createCustomRenderer({})(
+      createCustomRenderer({})(
         <PolicyDetailsModal
           onCancel={jest.fn()}
           policy={nonConditionalPolicy}
