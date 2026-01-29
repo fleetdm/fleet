@@ -1,0 +1,21 @@
+# use this to configure out the custom golangci-lint build runs, via the -c flag
+version: "2"
+
+issues:
+  max-issues-per-linter: 0 # show all issues
+  max-same-issues: 0 # show all issues
+
+linters:
+  enable:
+    - nilaway
+  settings:
+    custom:
+      nilaway:
+        type: module
+        description: Static analysis tool to detect potential nil panics in Go code.
+        settings:
+          # Settings must be a "map from string to string" to mimic command line flags: the keys are
+          # flag names and the values are the values to the particular flags.
+          include-pkgs: "github.com/fleetdm/fleet/v4"
+exclusions:
+  generated: strict
