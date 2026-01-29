@@ -49,6 +49,11 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
 fi`, appPath)
 				sb.Copy(appPath, "$APPDIR")
+				// Remove quarantine for zip and dmg-based installs to prevent Gatekeeper from marking the app as damaged
+				// Both formats can preserve quarantine attributes when copying with cp -R
+				if app.InstallerFormat == "zip" || app.InstallerFormat == "dmg" {
+					sb.RemoveQuarantine(fmt.Sprintf("$APPDIR/%s", appPath))
+				}
 			}
 			// Relaunch the app if it was running before installation
 			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
@@ -382,6 +387,19 @@ hdiutil detach "$MOUNT_POINT"`)
 // destination.
 func (s *scriptBuilder) Copy(file, dest string) {
 	s.Writef(`sudo cp -R "$TMPDIR/%s" "%s"`, file, dest)
+}
+
+// RemoveQuarantine writes commands to remove the quarantine attribute from an app
+// and add it to Gatekeeper exceptions. This is necessary for apps installed from
+// zip and dmg files, as they can inherit the quarantine attribute from the downloaded
+// archive when copying with cp -R, which preserves extended attributes.
+func (s *scriptBuilder) RemoveQuarantine(appPath string) {
+	s.Write("# remove quarantine attribute to prevent Gatekeeper from marking the app as damaged")
+	s.Writef(`sudo xattr -r -d com.apple.quarantine "%s" 2>/dev/null || true`, appPath)
+	s.Write("# add app to Gatekeeper exceptions")
+	s.Writef(`sudo spctl --add "%s" 2>/dev/null || true`, appPath)
+	s.Write("# force LaunchServices refresh to recognize the app")
+	s.Writef(`/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "%s" 2>/dev/null || true`, appPath)
 }
 
 // RemoveFile writes a command to remove a file or directory with sudo
