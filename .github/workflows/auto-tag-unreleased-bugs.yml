@@ -2,7 +2,7 @@ name: Auto-tag unreleased bugs
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [opened]
 
 permissions:
   contents: read
@@ -13,6 +13,7 @@ jobs:
     if: contains(github.event.issue.labels.*.name, 'bug')
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       issues: write
     steps:
       - name: Harden Runner
