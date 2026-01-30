@@ -48,9 +48,14 @@ const config = {
       "<rootDir>/frontend/__mocks__/fileMock.js",
     "\\.(sh|ps1)$": "<rootDir>/frontend/__mocks__/fileMock.js",
     "\\.(css|scss|sass)$": "identity-obj-proxy",
+<<<<<<< HEAD
     "#minpath": "<rootDir>/node_modules/vfile/lib/minpath.browser.js",
     "#minproc": "<rootDir>/node_modules/vfile/lib/minproc.browser.js",
     "#minurl": "<rootDir>/node_modules/vfile/lib/minurl.browser.js",
+=======
+    "^node-sql-parser$":
+      "<rootDir>/node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js",
+>>>>>>> main
   },
   testMatch: ["**/*tests.[jt]s?(x)"],
   setupFilesAfterEnv: ["<rootDir>/frontend/test/test-setup.ts"],

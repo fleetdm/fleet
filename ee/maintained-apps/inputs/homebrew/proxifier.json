@@ -1,0 +1,8 @@
+{
+  "name": "Proxifier",
+  "unique_identifier": "com.initex.proxifier.v3.macos",
+  "token": "proxifier",
+  "installer_format": "dmg",
+  "slug": "proxifier/darwin",
+  "default_categories": ["Developer tools"]
+}

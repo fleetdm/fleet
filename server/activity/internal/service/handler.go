@@ -54,7 +54,7 @@ func fillListOptions(opt *api.ListOptions) {
 	// Default ordering by created_at descending (newest first) if not specified
 	if opt.OrderKey == "" {
 		opt.OrderKey = "created_at"
-		opt.OrderDirection = api.OrderDesc
+		opt.OrderDirection = api.OrderDescending
 	}
 	// Default PerPage based on whether pagination was requested
 	if opt.PerPage == 0 {

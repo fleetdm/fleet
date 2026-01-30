@@ -24,7 +24,9 @@ module.exports = {
     },
     linkedinUrl: {
       type: 'string',
-      required: true,
+    },
+    emailAddress: {
+      type: 'string',
     },
     contactSource: {
       type: 'string',
@@ -59,7 +61,7 @@ module.exports = {
         'Fleet channel member in MacAdmins Slack',
         'Fleet channel member in osquery Slack',
         'Implemented a trial key',
-        'Signed up Fleet event',
+        'Signed up for Fleet event',
         'Engaged with Fleetie at event',
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
@@ -75,6 +77,9 @@ module.exports = {
     },
     historicalContentUrl: {
       type: 'string',
+    },
+    relatedCampaign: {
+      type: 'string',
     }
   },
 
@@ -87,7 +92,7 @@ module.exports = {
   },
 
 
-  fn: async function ({webhookSecret, firstName, lastName, linkedinUrl, contactSource, jobTitle, intentSignal, historicalContent, historicalContentUrl}) {
+  fn: async function ({webhookSecret, firstName, lastName, linkedinUrl, contactSource, jobTitle, intentSignal, historicalContent, historicalContentUrl, relatedCampaign, emailAddress}) {
 
 
     if (!sails.config.custom.clayWebhookSecret) {
@@ -103,6 +108,7 @@ module.exports = {
       firstName,
       lastName,
       linkedinUrl,
+      emailAddress,
       contactSource,
       jobTitle,
     })
@@ -131,6 +137,7 @@ module.exports = {
       eventContent: historicalContent,
       eventContentUrl: historicalContentUrl,
       linkedinUrl: trimmedLinkedinUrl,
+      relatedCampaign,
     })
     .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);

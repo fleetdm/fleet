@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.0.9220",
+      "version": "1.0.9222",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Discord' AND publisher = 'Discord Inc.';"
       },
-      "installer_url": "https://stable.dl2.discordapp.net/distro/app/stable/win/x64/1.0.9220/DiscordSetup.exe",
+      "installer_url": "https://stable.dl2.discordapp.net/distro/app/stable/win/x64/1.0.9222/DiscordSetup.exe",
       "install_script_ref": "fd04e860",
       "uninstall_script_ref": "73fc6eff",
-      "sha256": "f01dc0eedb190e6e38e02051859098b2dfdd1937542b17605b96f2dd5a222bc7",
+      "sha256": "9ab8ef10e60662a90d5ba4bc43337bbe050012b80f9dbb7ece39aa8b51ae474b",
       "default_categories": [
         "Communication"
       ]

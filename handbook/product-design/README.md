@@ -67,7 +67,9 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 5. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
-6. Draft changes to the Fleet product that solve the problem specified in the story.
+6. If you (Product Designer) have capacity to update Fleet's guides, add a link to the guide update PR in the "Feature guide changes" checkbox under the "Engineering" section. If not, it's up to the Engineer assigned to the story during implementation to make sure guides are updated.
+
+7. Draft changes to the Fleet product that solve the problem specified in the story.
    - Constantly place yourself in the shoes of a user while drafting changes.
    - Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
    - Engage engineering to gain insight into technical costs and feasibility.
@@ -194,7 +196,7 @@ If the original request is a customer request, the PD also assigns the relevant 
 
 [User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be [drafted](#drafting) and estimated in a single sprint. When the Product Designers (PD) knows a user story will be pushed, it is the PD's responsibility to notify stakeholders:
 
-1. Comment on the GitHub issue and at-mention the Head of Product Design and anyone listed in the requester field.
+1. Comment on the GitHub issue and at-mention the Head of Product Design and [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
 2. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
 
 > Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.

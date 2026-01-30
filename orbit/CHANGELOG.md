@@ -1,3 +1,21 @@
+## Orbit 1.51.1 (Jan 28, 2026)
+
+* Improved "Fleet Desktop" description in Windows' system tray.
+
+* Updated Orbit CA certs.
+
+* Switched Fleet logo in macOS Desktop from a PNG to an SVG.
+
+* Fixed bugs in auto-update of `.tar.gz` components ("Fleet Desktop" and osqueryd) in orbit.
+
+* Updated go to 1.25.5.
+
+* Fixed macOS `fleet-desktop` that was being displayed as dirty by `go version -m`.
+
+* Updated github.com/shoenig/go-m1cpu to v0.1.7 to fix a build warning on Apple silicon.
+
+* Implemented the `executable_hashes` `fleetd` table, providing easy access to the SHA-256 hash and absolute path of the main executable for macOS app bundles matching the `path` in the query’s WHERE clause. Supports exact matches or multiple bundles via LIKE.
+
 ## Orbit 1.50.2 (Dec 12, 2025)
 
 * Fixed an issue where macOS devices would fail to enroll when end-user authentication was configured.

@@ -925,7 +925,7 @@ The `Authorization` header must be formatted as follows:
 Authorization: Node key <node_key>
 ```
 
-OR 
+OR
 
 ```
 Authorization: Bearer <token>
@@ -945,7 +945,7 @@ the `$FLEET_*` variables will not be replaced.
 Authorization: Node key 24dd9ebf-02cd-4d4c-888a-5caa441ee5d5
 ```
 
-OR 
+OR
 
 ```http
 Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
@@ -973,7 +973,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
       "created_at": "2025-11-04T00:00:00Z",
-    }  
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -1005,7 +1005,7 @@ The `Authorization` header must be formatted as follows:
 Authorization: Node key <node_key>
 ```
 
-OR 
+OR
 
 ```
 Authorization: Bearer <token>
@@ -1168,7 +1168,7 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
 
 - [Get Okta certificate](#get-okta-certificate)
 - [Get Okta configuration profile](#get-okta-configuration-profile)
-- [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id) 
+- [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id)
 
 ### Get Okta certificate
 
@@ -3665,7 +3665,7 @@ Returns the information of the specified host.
 }
 ```
 
-`extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+`browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
@@ -3680,6 +3680,8 @@ Returns the information of the specified host.
 > - `scripts_enabled: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
 
 > Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) is deprecated as of Fleet 4.67.0. It is maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
+
+> Note: For iOS, iPadOS, and Android hosts with ⁠`mdm.enrollment_status` set to "On (personal)", ⁠`hardware_serial` and ⁠`uuid` represent a temporary enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets).
 
 ### Get host by identifier
 
@@ -3886,7 +3888,7 @@ If `hostname` is specified when there is more than one host with the same hostna
           "status": "verifying",
           "operation_type": "install",
           "scope": "device",
-          "managed_local_account": "", 
+          "managed_local_account": "",
           "detail": ""
         }
       ]
@@ -3899,7 +3901,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
-`extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 #### Get host by device token
 
@@ -4106,7 +4108,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 }
 ```
 
-`extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 ### Delete host
 
@@ -4677,7 +4679,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
-On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again. 
+On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
@@ -5024,7 +5026,7 @@ _Available in Fleet Premium_
 
 Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). 
+To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command) and sends a [Device Location](https://developer.apple.com/documentation/devicemanagement/device-location-command) MDM command. To see location, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint.
 
@@ -6003,19 +6005,24 @@ Deletes the label specified by ID.
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
+> You need to send a request of type `multipart/form-data`.
+
 `POST /api/v1/fleet/configuration_profiles`
 
 #### Parameters
 
 | Name                      | Type     | In   | Description                                                                                                   |
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
-| team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels_include_all        | array     | form | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| profile                   | file     | body | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
+| team_id                   | string   | body | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+| labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+If the response is `Status: 409 Conflict`, the body may include additional error details in the case
+of duplicate payload display name or duplicate payload identifier (macOS profiles).
 
 #### Example
 
@@ -6025,52 +6032,12 @@ assigned to a team. Note that in this example the form data specifies`team_id` i
 
 `POST /api/v1/fleet/configuration_profiles`
 
-##### Request headers
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels_include_all"
-
-Label name 1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels_include_all"
-
-Label name 2
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
-Content-Type: application/octet-stream
-
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>PayloadContent</key>
-  <array/>
-  <key>PayloadDisplayName</key>
-  <string>Example profile</string>
-  <key>PayloadIdentifier</key>
-  <string>com.example.profile</string>
-  <key>PayloadType</key>
-  <string>Configuration</string>
-  <key>PayloadUUID</key>
-  <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
-  <key>PayloadVersion</key>
-  <integer>1</integer>
-</dict>
-</plist>
---------------------------f02md47480und42y--
-
+profile="Foo.mobileconfig"
+team_id="1"
+labels_include_all="Label name 1"
 ```
 
 ##### Default response
@@ -6082,11 +6049,6 @@ Content-Type: application/octet-stream
   "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
 }
 ```
-
-###### Additional notes
-If the response is `Status: 409 Conflict`, the body may include additional error details in the case
-of duplicate payload display name or duplicate payload identifier (macOS profiles).
-
 
 ### List custom OS settings (configuration profiles)
 
@@ -6299,7 +6261,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 
 Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are assigned to "No team" (Fleet Premium).
 
-For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list. 
+For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list.
 
 For Windows profiles, Fleet applies new profiles or updates when content changes, and deletes profiles no longer in the list. It does not send commands to remove configuration profiles from Windows hosts.
 
@@ -6763,15 +6725,17 @@ _Available in Fleet Premium_
 
 Upload a bootstrap package that will be automatically installed during DEP setup.
 
+> You need to send a request of type `multipart/form-data`.
+
 `POST /api/v1/fleet/bootstrap`
 
 #### Parameters
 
 | Name    | Type   | In   | Description                                                                                                                                                                                                            |
 | ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| package | file   | form | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
-| team_id | string | form | The team ID for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
-| manual_agent_install | boolean | form | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
+| package | file   | body | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
+| team_id | string | body | The team ID for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
+| manual_agent_install | boolean | body | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
@@ -6781,30 +6745,16 @@ assigned to a team. Note that in this example the form data specifies `team_id` 
 
 `POST /api/v1/fleet/bootstrap`
 
-##### Request headers
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="package"; filename="bootstrap-package.pkg"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------f02md47480und42y--
+team_id="1"
+package="bootstrap-package.pkg"
 ```
 
 ##### Default response
 
 `Status: 200`
-
 
 ### Get bootstrap package metadata
 
@@ -6974,39 +6924,29 @@ _Available in Fleet Premium_
 
 Upload an EULA that will be shown during the DEP flow.
 
+> You need to send a request of type `multipart/form-data`.
+
 `POST /api/v1/fleet/setup_experience/eula`
 
 #### Parameters
 
 | Name | Type | In   | Description                                       |
 | ---- | ---- | ---- | ------------------------------------------------- |
-| eula | file | form | **Required**. A PDF document containing the EULA. |
+| eula | file | body | **Required**. A PDF document containing the EULA. |
 
 #### Example
 
 `POST /api/v1/fleet/setup_experience/eula`
 
-##### Request headers
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="eula"; filename="eula.pdf"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------f02md47480und42y--
+eula="eula.pdf"
 ```
 
 ##### Default response
 
 `Status: 200`
-
 
 ### Get EULA metadata
 
@@ -7208,43 +7148,29 @@ _Available in Fleet Premium_
 
 Add a script that will automatically run during macOS setup.
 
+> You need to send a request of type `multipart/form-data`.
+
 `POST /api/v1/fleet/setup_experience/script`
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The contents of the script to run during setup. |
+| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | body | The contents of the script to run during setup. |
 
 #### Example
 
 `POST /api/v1/fleet/setup_experience/script`
 
-##### Default response
-
-`Status: 200`
-
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-
-echo "hello"
---------------------------f02md47480und42y--
-
+team_id="1"
+script="myscript.sh"
 ```
+
+##### Default response
+
+`Status: 200`
 
 ### Update setup experience script
 
@@ -7252,43 +7178,29 @@ _Available in Fleet Premium_
 
 Changes the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
 
+> You need to send a request of type `multipart/form-data`.
+
 `PUT /api/v1/fleet/setup_experience/script`
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The contents of the script to run during setup. |
+| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | body | The contents of the script to run during setup. |
 
 #### Example
 
 `PUT /api/v1/fleet/setup_experience/script`
 
-##### Default response
-
-`Status: 200`
-
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-
-echo "hello"
---------------------------f02md47480und42y--
-
+team_id="1"
+script="myscript.sh"
 ```
+
+##### Default response
+
+`Status: 200`
 
 ### Get or download setup experience script
 
@@ -7477,7 +7389,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 
 > Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
-> 
+>
 > Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
 
 #### Example
@@ -9557,43 +9469,28 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
+> You need to send a request of type `multipart/form-data`.
+
 `POST /api/v1/fleet/scripts`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| script          | file    | form | **Required**. The file containing the script.    |
-| team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+| script          | file    | body | **Required**. The file containing the script.    |
+| team_id         | integer | body | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
 
-Script line endings are automatically converted from [CRLF to LF](https://en.wikipedia.org/wiki/Newline) for compatibility with both
-non-Windows shells and PowerShell.
+Script line endings are automatically converted from [CRLF to LF](https://en.wikipedia.org/wiki/Newline) for compatibility with both non-Windows shells and PowerShell.
 
 #### Example
 
 `POST /api/v1/fleet/scripts`
 
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-
-echo "hello"
---------------------------f02md47480und42y--
-
+team_id="1"
+script="myscript.sh"
 ```
 
 ##### Default response
@@ -9610,6 +9507,8 @@ echo "hello"
 
 Modifies an existing script.
 
+> You need to send a request of type `multipart/form-data`.
+
 `PATCH /api/v1/fleet/scripts/:id`
 
 
@@ -9618,28 +9517,16 @@ Modifies an existing script.
 | Name            | Type    | In   | Description                                           |
 | ----            | ------- | ---- | --------------------------------------------          |
 | id              | integer | path | **Required**. The ID of the script to modify. |
-| script          | file    | form | **Required**. The file containing the script. Filename will be ignored. |
+| script          | file    | body | **Required**. The file containing the script. Filename will be ignored. |
 
 #### Example
 
 `PATCH /api/v1/fleet/scripts/1`
 
-
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-echo "hello"
---------------------------f02md47480und42y--
+script="myscript.sh"
 ```
 
 ##### Default response
@@ -9655,7 +9542,6 @@ echo "hello"
   "updated_at": "2023-07-30T13:41:07Z"
 }
 ```
-
 
 ### Delete script
 
@@ -10499,7 +10385,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed_uninstall": 0
       },
       "installer_id": 332,
-      "install_script": null, 
+      "install_script": null,
       "uninstall_script": null,
       "post_install_script": null,
       "pre_install_query": null,
@@ -10698,22 +10584,24 @@ _Available in Fleet Premium._
 
 Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1) to run on Windows or Linux hosts.
 
+> You need to send a request of type `multipart/form-data`.
+
 `POST /api/v1/fleet/software/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
-| team_id         | integer | form | The team ID. Adds a software package to the specified team. If not specified, it will add the software for hosts with no team. |
-| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
-| self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| automatic_install | boolean | form | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
+| software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
+| team_id         | integer | body | The team ID. Adds a software package to the specified team. If not specified, it will add the software for hosts with no team. |
+| install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
+| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
+| automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10721,38 +10609,21 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 #### Example
 
-`POST /api/v1/fleet/software/package`
-
-##### Request header
-
-```http
-Content-Length: 8500
-Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+POST /api/v1/fleet/software/package
 ```
 
 ##### Request body
 
-```http
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="team_id"
-1
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="self_service"
-true
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="install_script"
-sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="pre_install_query"
-SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="post_install_script"
-sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------d8c247122f594ba0
+```
+team_id="1"
+self_service="true"
+install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
+pre_install_query"SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
+post_install_script"sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX"
+software="FalconSensor-6.44.pkg"
+labels_exclude_any="Engineering"
+labels_exclude_any="QA"
 ```
 
 ##### Default response
@@ -10799,6 +10670,8 @@ _Available in Fleet Premium._
 
 Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 
+> You need to send a request of type `multipart/form-data`.
+
 `PATCH /api/v1/fleet/software/titles/:id/package`
 
 #### Parameters
@@ -10806,16 +10679,16 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | form | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
-| team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
-| display_name    | string  | form | Optional override for the default `name`. |
-| categories        | array | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
-| self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
+| team_id         | integer | body | **Required**. The team ID. Updates a software package in the specified team. |
+| display_name    | string  | body | Optional override for the default `name`. |
+| categories        | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10827,39 +10700,16 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 `PATCH /api/v1/fleet/software/titles/1/package`
 
-##### Request header
-
-```http
-Content-Length: 8500
-Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
-```
-
 ##### Request body
 
 ```http
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="team_id"
-1
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="self_service"
-true
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; display_name="CrowdStrike agent"
-true
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="install_script"
-sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="pre_install_query"
-SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="post_install_script"
-sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------d8c247122f594ba0
+team_id="1"
+software="FalconSensor-6.44.pkg"
+self_service="true"
+display_name="CrowdStrike agent"
+install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
+pre_install_query="SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
+post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX"
 ```
 
 ##### Default response
@@ -10901,6 +10751,8 @@ _Available in Fleet Premium._
 
 Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
 
+> You need to send a request of type `multipart/form-data`.
+
 `PUT /api/v1/fleet/software/titles/:id/icon`
 
 #### Parameters
@@ -10909,31 +10761,18 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 | ----        | ------- | ---- | --------------------------------------------     |
 | id          | integer | path | ID of the software title being updated. |
 | team_id     | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
-| icon        | file    | form | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
-| hash_sha256 | string  | form | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
-| filename    | string  | form | Filename to record for the icon image, if `hash_sha256` was supplied. |
+| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
+| hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
+| filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
 #### Example
 
 `PUT /api/v1/fleet/software/titles/33/icon?team_id=2`
 
-##### Request header
-
-```http
-Content-Length: 8500
-Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
-```
-
 ##### Request body
 
 ```http
-------------------------d8c247122f594ba0
-Content-Disposition: form-data; name= "icon" filename="crowdstrike-icon-512x512.png"
-Content-Type: image/png
-
-<BINARY_IMAGE_DATA>
-
-------------------------d8c247122f594ba0
+icon="crowdstrike-icon-512x512.png"
 ```
 
 ##### Default response
@@ -11656,7 +11495,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 }
 ```
 
-`browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 ---
 

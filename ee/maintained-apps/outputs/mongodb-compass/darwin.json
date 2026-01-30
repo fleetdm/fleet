@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.48.2",
+      "version": "1.49.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mongodb.compass';"
       },
-      "installer_url": "https://downloads.mongodb.com/compass/mongodb-compass-1.48.2-darwin-arm64.dmg",
+      "installer_url": "https://downloads.mongodb.com/compass/mongodb-compass-1.49.1-darwin-arm64.dmg",
       "install_script_ref": "b00a0c5a",
       "uninstall_script_ref": "fe2b801a",
-      "sha256": "1eca72d20696c545bcff1e48d2a65af132313f65536879898fa0ac51175f9d5b",
+      "sha256": "59c01e984ecbf6424248eb0f8c6ce343f07cb662d431ddb2606556065d5af769",
       "default_categories": [
         "Developer tools"
       ]

@@ -11,17 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// MaxSoftwareInstallerSize is the maximum size allowed for software
-// installers. This is enforced by the endpoints that upload installers.
-const (
-	MaxSoftwareInstallerSize         = 3000 * units.MiB
-	SoftwareInstallerSignedURLExpiry = 6 * time.Hour
-)
+const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -152,6 +146,8 @@ type SoftwarePackageResponse struct {
 	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
 	// ID of the Fleet Maintained App this package uses, if any
 	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	// Slug of the Fleet Maintained App this package uses, if any
+	Slug string `json:"fleet_maintained_app_slug"`
 
 	//// Custom icon fields (blank if not set)
 
@@ -613,7 +609,8 @@ type UpdateSoftwareInstallerPayload struct {
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
-		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil &&
+		u.CategoryIDs == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

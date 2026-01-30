@@ -206,8 +206,13 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   features: {
     enable_host_users: true,
     enable_software_inventory: true,
+    enable_conditional_access: true,
+    enable_conditional_access_bypass: true,
   },
-  fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
+  fleet_desktop: {
+    transparency_url: "https://fleetdm.com/transparency",
+    alternative_browser_host: "",
+  },
   mdm: createMockMdmConfig(),
   gitops: {
     gitops_mode_enabled: false,
