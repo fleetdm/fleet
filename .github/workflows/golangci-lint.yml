@@ -11,12 +11,16 @@ on:
       - '.github/workflows/golangci-lint.yml'
       - '.golangci.yml'
       - '.golangci-incremental.yml'
+      - '.golangci-incremental-custom-build.yml'
+      - '.custom-gcl.yml'
   pull_request:
     paths:
       - '**.go'
       - '.github/workflows/golangci-lint.yml'
       - '.golangci.yml'
       - '.golangci-incremental.yml'
+      - '.golangci-incremental-custom-build.yml'
+      - '.custom-gcl.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
