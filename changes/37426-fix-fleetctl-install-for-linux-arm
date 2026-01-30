@@ -1,0 +1,1 @@
+- Fixed issue with fleetctl.sh install script for Linux devices on ARM architecture.
