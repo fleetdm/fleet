@@ -44,6 +44,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/api/androidmanagement/v1"
 
@@ -2643,6 +2644,132 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.False(t, detailsResp.Host.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, detailsResp.Host.MDM.EncryptionKeyArchived)
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
+}
+
+func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionWithDisabledEncryptionSetting() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a macOS host enrolled via orbit
+	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+
+	// Turn on disk encryption for the global team
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": true } }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+	// Get the CA key pair for encryption/decryption
+	cert, err := assets.CAKeyPair(ctx, s.ds)
+	require.NoError(t, err)
+
+	submitFileVaultKey := func(nodeKey, base64Key string, expectArchived bool) {
+		// Encrypt the key with the CA cert
+		encryptedKey, err := pkcs7.Encrypt([]byte(base64Key), []*x509.Certificate{cert.Leaf})
+		require.NoError(t, err)
+		encryptedBase64Key := base64.StdEncoding.EncodeToString(encryptedKey)
+
+		// Submit the detail query results
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: nodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_mdm_disk_encryption_key_file_darwin": {
+					{
+						"encrypted":     "1",
+						"filevault_key": encryptedBase64Key,
+					},
+				},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{
+				"fleet_detail_query_mdm_disk_encryption_key_file_darwin": 0,
+			},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+		// Key archived
+		hdek, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if expectArchived {
+			require.NoError(t, err)
+			require.NotEmpty(t, hdek.Base64Encrypted)
+			// Decrypt and verify it matches what we sent
+			decrypted, err := servermdm.DecryptBase64CMS(hdek.Base64Encrypted, cert.Leaf, cert.PrivateKey)
+			require.NoError(t, err)
+			require.Equal(t, base64Key, string(decrypted))
+		}
+	}
+
+	activities := s.listActivities()
+	escrowCountBefore := 0
+	for _, activity := range activities {
+		if activity.Type == "escrowed_disk_encryption_key" {
+			escrowCountBefore++
+		}
+	}
+
+	submitFileVaultKey(*host.NodeKey, "ABC-111-222", true)
+
+	// Verify activity was created with correct details
+	activities = s.listActivities()
+	escrowKeyActivity := fleet.ActivityTypeEscrowedDiskEncryptionKey{}
+	var seenEscrowKeyActivityID uint
+	for _, activity := range activities {
+		if activity.Type == escrowKeyActivity.ActivityName() {
+			if activity.ID <= seenEscrowKeyActivityID {
+				continue
+			}
+			err := json.Unmarshal(*activity.Details, &escrowKeyActivity)
+			require.NoError(t, err)
+			require.True(t, activity.FleetInitiated)
+			seenEscrowKeyActivityID = activity.ID
+		}
+	}
+	require.NotZero(t, seenEscrowKeyActivityID)
+	require.Equal(t, escrowKeyActivity.HostID, host.ID)
+	require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
+
+	// Disable disk encryption
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": false } }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+	// Submit another key with disk encryption disabled
+	lastSeenActivityID := seenEscrowKeyActivityID
+	submitFileVaultKey(*host.NodeKey, "DEF-333-444", false)
+	hdek, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	decrypted, err := servermdm.DecryptBase64CMS(hdek.Base64Encrypted, cert.Leaf, cert.PrivateKey)
+	require.NoError(t, err)
+	require.Equal(t, "ABC-111-222", string(decrypted))
+
+	// No activity
+	activities = s.listActivities()
+	for _, activity := range activities {
+		if activity.Type == "escrowed_disk_encryption_key" {
+			require.LessOrEqual(t, activity.ID, lastSeenActivityID)
+		}
+	}
+
+	// Re-enable disk encryption
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": true } }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+	// Submit new key with disk encryption enabled
+	submitFileVaultKey(*host.NodeKey, "GHI-555-666", true)
+
+	// Verify activity was created with correct details
+	activities = s.listActivities()
+	escrowKeyActivity = fleet.ActivityTypeEscrowedDiskEncryptionKey{}
+	var newActivityID uint
+	for _, activity := range activities {
+		if activity.Type == escrowKeyActivity.ActivityName() && activity.ID > lastSeenActivityID {
+			err := json.Unmarshal(*activity.Details, &escrowKeyActivity)
+			require.NoError(t, err)
+			require.True(t, activity.FleetInitiated)
+			newActivityID = activity.ID
+		}
+	}
+	require.NotZero(t, newActivityID)
+	require.Equal(t, escrowKeyActivity.HostID, host.ID)
+	require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
 }
 
 func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
@@ -9289,6 +9416,81 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NotNil(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, "", hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+
+	// Test that disk encryption keys are not archived when disk encryption is disabled
+	// This can happen when another mdm provider enforces disk encryption and when
+	// fleet runs it will attempt to escrow the key.
+	t.Run("key not archived when disk encryption disabled", func(t *testing.T) {
+		activities := s.listActivities()
+		escrowCountBefore := 0
+		for _, activity := range activities {
+			if activity.Type == "escrowed_disk_encryption_key" {
+				escrowCountBefore++
+			}
+		}
+
+		// Disable disk encryption globally
+		acResp := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": false } }`), http.StatusOK, &acResp)
+		assert.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+			OrbitNodeKey:  *host.OrbitNodeKey,
+			EncryptionKey: []byte("NEW-KEY"),
+		}, http.StatusNoContent)
+
+		// Key shouldn't be archived
+		hdekAfter, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		require.NoError(t, err)
+		decryptedAfter, err := servermdm.DecryptBase64CMS(hdekAfter.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+		require.NoError(t, err)
+		require.Equal(t, "DEF", string(decryptedAfter))
+
+		// No activity
+		activities = s.listActivities()
+		escrowCountAfter := 0
+		for _, activity := range activities {
+			if activity.Type == "escrowed_disk_encryption_key" {
+				escrowCountAfter++
+			}
+		}
+		require.Equal(t, escrowCountBefore, escrowCountAfter, "No new escrow activity should be created when disk encryption is disabled")
+
+		// Enable disk encryption
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": true } }`), http.StatusOK, &acResp)
+		assert.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+			OrbitNodeKey:  *host.OrbitNodeKey,
+			EncryptionKey: []byte("NEW-KEY-2"),
+		}, http.StatusNoContent)
+
+		// Key should be archived
+		hdekFinal, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		require.NoError(t, err)
+		decryptedFinal, err := servermdm.DecryptBase64CMS(hdekFinal.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+		require.NoError(t, err)
+		require.Equal(t, "NEW-KEY-2", string(decryptedFinal))
+
+		// New escrow activity
+		activities = s.listActivities()
+		escrowCountFinal := 0
+		escrowKeyActivity = fleet.ActivityTypeEscrowedDiskEncryptionKey{}
+		for _, activity := range activities {
+			if activity.Type == escrowKeyActivity.ActivityName() && activity.ID != seenEscrowKeyActivityID {
+				escrowCountFinal++
+				err := json.Unmarshal(*activity.Details, &escrowKeyActivity)
+				require.NoError(t, err)
+				require.True(t, activity.FleetInitiated)
+
+				seenEscrowKeyActivityID = activity.ID
+			}
+		}
+		require.Equal(t, escrowCountBefore+1, escrowCountFinal)
+		require.NotZero(t, seenEscrowKeyActivityID)
+		require.Equal(t, escrowKeyActivity.HostID, host.ID)
+		require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
+	})
 }
 
 // ///////////////////////////////////////////////////////////////////////////
