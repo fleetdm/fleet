@@ -83,6 +83,7 @@ func TestPolicies(t *testing.T) {
 		{"IsPolicyFailing", testIsPolicyFailing},
 		{"ResetAttemptsOnFailingToPassingSync", testResetAttemptsOnFailingToPassingSync},
 		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
+		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1420,8 +1421,9 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	tp, err := ds.NewTeamPolicy(context.Background(), team1.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID:    &q2.ID,
-		Resolution: "some other gp resolution",
+		QueryID:                  &q2.ID,
+		Resolution:               "some other gp resolution",
+		ConditionalAccessEnabled: true,
 	})
 	require.NoError(t, err)
 
@@ -1453,6 +1455,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "alice@example.com", policy.AuthorEmail)
 		assert.NotNil(t, policy.Resolution)
 		assert.Equal(t, "some gp resolution", *policy.Resolution)
+		assert.False(t, policy.ConditionalAccessEnabled)
 	}
 
 	// Failing policy is listed first.
@@ -1466,6 +1469,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "alice@example.com", policies[0].AuthorEmail)
 	assert.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some other gp resolution", *policies[0].Resolution)
+	assert.True(t, policies[0].ConditionalAccessEnabled)
 
 	checkGlobaPolicy(policies[1])
 	assert.Equal(t, "", policies[1].Response)
@@ -6640,4 +6644,145 @@ func testResetAttemptsOnFailingToPassingAsync(t *testing.T, ds *Datastore) {
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, cnt, "p2 pending install should remain NULL")
+}
+
+func testPolicyModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create script content
+	var scriptContentID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`,
+			"md5hash", "echo 'test'")
+		if err != nil {
+			return err
+		}
+		scriptContentID, err = res.LastInsertId()
+		return err
+	})
+
+	// Create a script
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:            "test.sh",
+		TeamID:          &team.ID,
+		ScriptContentID: uint(scriptContentID),
+		ScriptContents:  "echo 'test'",
+	})
+	require.NoError(t, err)
+
+	// Create a software title and installer
+	titleID := int64(0)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, "Test App", "apps")
+		if err != nil {
+			return err
+		}
+		titleID, err = res.LastInsertId()
+		return err
+	})
+
+	installerID := int64(0)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (team_id, global_or_team_id, title_id, storage_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, platform, package_ids)
+			VALUES (?, ?, ?, 'storage', 'test.pkg', 'pkg', '1.0', ?, ?, 'darwin', '')
+		`, team.ID, team.ID, titleID, scriptContentID, scriptContentID)
+		if err != nil {
+			return err
+		}
+		installerID, err = res.LastInsertId()
+		return err
+	})
+
+	// Create a policy
+	policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     t.Name(),
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	// Insert software install attempts for this policy
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, policy_id, install_script_exit_code, attempt_number)
+			VALUES ('install-1', 1, ?, NULL, 0, ?, 1, 1)
+		`, installerID, policy.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, policy_id, install_script_exit_code, attempt_number)
+			VALUES ('install-2', 1, ?, NULL, 0, ?, NULL, 2)
+		`, installerID, policy.ID)
+		return err
+	})
+
+	// Insert script execution attempts for this policy
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, script_id, policy_id, attempt_number)
+			VALUES (1, 'script-1', ?, 'output', 1, ?, ?, 1)
+		`, scriptContentID, script.ID, policy.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, script_id, policy_id, attempt_number)
+			VALUES (1, 'script-2', ?, '', NULL, ?, ?, 2)
+		`, scriptContentID, script.ID, policy.ID)
+		return err
+	})
+
+	// Modify the policy - this should reset attempt_number to 0 for all automations using this policy
+	err = ds.SavePolicy(ctx, policy, false, false)
+	require.NoError(t, err)
+
+	// Verify software install attempts were reset
+	type installResult struct {
+		ExecutionID   string `db:"execution_id"`
+		AttemptNumber *int64 `db:"attempt_number"`
+	}
+	var installResults []installResult
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &installResults, `
+			SELECT execution_id, attempt_number
+			FROM host_software_installs
+			WHERE policy_id = ?
+			ORDER BY execution_id ASC
+		`, policy.ID)
+	})
+
+	require.Len(t, installResults, 2)
+	require.NotNil(t, installResults[0].AttemptNumber)
+	require.Equal(t, int64(0), *installResults[0].AttemptNumber)
+	require.NotNil(t, installResults[1].AttemptNumber)
+	require.Equal(t, int64(0), *installResults[1].AttemptNumber)
+
+	// Verify script execution attempts were also reset
+	type scriptResult struct {
+		ExecutionID   string `db:"execution_id"`
+		AttemptNumber *int64 `db:"attempt_number"`
+	}
+	var scriptResults []scriptResult
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &scriptResults, `
+			SELECT execution_id, attempt_number
+			FROM host_script_results
+			WHERE script_id = ? AND policy_id = ?
+			ORDER BY execution_id ASC
+		`, script.ID, policy.ID)
+	})
+
+	require.Len(t, scriptResults, 2)
+	require.Equal(t, "script-1", scriptResults[0].ExecutionID)
+	require.NotNil(t, scriptResults[0].AttemptNumber)
+	require.Equal(t, int64(0), *scriptResults[0].AttemptNumber)
+	require.Equal(t, "script-2", scriptResults[1].ExecutionID)
+	require.NotNil(t, scriptResults[1].AttemptNumber)
+	require.Equal(t, int64(0), *scriptResults[1].AttemptNumber)
 }

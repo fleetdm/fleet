@@ -8,7 +8,7 @@
       "installer_url": "https://filehost.perforce.com/perforce/r25.4/bin.macosx12u/P4V.dmg",
       "install_script_ref": "804d7fe0",
       "uninstall_script_ref": "6f04fef2",
-      "sha256": "539ad5f2fe36d9a164507fbe4d98dfa1c20118d58487a99440ce48dd849c2fea",
+      "sha256": "b430fa71f8c07afb381d72253bc6e1ddfb28524175b4cb86c5f4a7e53fa92202",
       "default_categories": [
         "Developer tools"
       ]

@@ -1116,7 +1116,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedMacProfiles, 1)
 	assert.Len(t, appliedWinProfiles, 1)
 	require.Len(t, savedAppConfig.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].ApiKey["client_email"])
+	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["client_email"])
 	assert.True(t, savedAppConfig.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Equal(t, 60, savedAppConfig.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
@@ -3899,6 +3899,20 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 		}, nil
 	}
 
+	ds.GetCertificateTemplatesByIdsAndTeamFunc = func(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error) {
+		var results []*fleet.CertificateTemplateResponse
+		for _, id := range ids {
+			results = append(results, &fleet.CertificateTemplateResponse{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:   id,
+					Name: fmt.Sprintf("Certificate %d", id),
+				},
+				TeamID: teamID,
+			})
+		}
+		return results, nil
+	}
+
 	return certAuthorities
 }
 
@@ -4260,6 +4274,21 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 		return existing, &fleet.PaginationMetadata{}, nil
 	}
 
+	ds.GetCertificateTemplatesByIdsAndTeamFunc = func(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error) {
+		existing := []*fleet.CertificateTemplateResponse{
+			{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:                     1,
+					Name:                   "Certificate 1",
+					CertificateAuthorityId: 1,
+				},
+				TeamID: teamID,
+			},
+		}
+
+		return existing, nil
+	}
+
 	ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, certificateTemplateIDs uint) error {
 		return nil
 	}
@@ -4354,6 +4383,29 @@ func TestGitOpsAndroidCertificatesDeleteAll(t *testing.T) {
 			},
 		}
 		return existing, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.GetCertificateTemplatesByIdsAndTeamFunc = func(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error) {
+		existing := []*fleet.CertificateTemplateResponse{
+			{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:                     1,
+					Name:                   "Certificate 1",
+					CertificateAuthorityId: 1,
+				},
+				TeamID: teamID,
+			},
+			{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:                     2,
+					Name:                   "Certificate 2",
+					CertificateAuthorityId: 2,
+				},
+				TeamID: teamID,
+			},
+		}
+
+		return existing, nil
 	}
 
 	ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, certificateTemplateIDs uint) error {

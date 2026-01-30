@@ -625,13 +625,15 @@ func (d *DEPService) processDeviceResponse(
 		if device.MDMMigrationDeadline != nil {
 			deadline = device.MDMMigrationDeadline.String()
 		}
-		level.Debug(d.logger).Log( // Keeping this at Debug level since this could generate a lot of log traffic (one per device)
-			"msg", "device",
+		// FIXME: Move this log back to debug level after we've added/improved functionality for accessing DEP status.
+		level.Info(d.logger).Log(
+			"msg", "process device response",
 			"serial_number", device.SerialNumber,
 			"device_assigned_by", device.DeviceAssignedBy,
 			"device_assigned_date", device.DeviceAssignedDate,
 			"op_date", device.OpDate,
 			"op_type", device.OpType,
+			"profile_status", device.ProfileStatus,
 			"profile_assign_time", device.ProfileAssignTime,
 			"push_push_time", device.ProfilePushTime,
 			"profile_uuid", device.ProfileUUID,
@@ -660,6 +662,9 @@ func (d *DEPService) processDeviceResponse(
 	// Remove added/modified devices if they have been subsequently deleted
 	// Remove deleted devices if they have been subsequently added (or re-added)
 	for _, deletedDevice := range deletedDevices {
+		// FIXME: Shouldn't the logic for modified devices follow the if/else pattern used for added
+		// devices? It seems like it should, but it doesn't seem to be making a difference in
+		// practice. Presumably, we're catching this sommewhere else, but it isn't obvious where.
 		modifiedDevice, ok := modifiedDevices[deletedDevice.SerialNumber]
 		if ok && deletedDevice.OpDate.After(modifiedDevice.OpDate) {
 			delete(modifiedDevices, deletedDevice.SerialNumber)
@@ -683,6 +688,7 @@ func (d *DEPService) processDeviceResponse(
 		needProfileAssign[addedDevice.SerialNumber] = struct{}{}
 	}
 	for _, modifiedDevice := range modifiedDevices {
+		// FIXME: Are we properly determining whether a modified device needs a profile assigned?
 		modifiedSerials = append(modifiedSerials, modifiedDevice.SerialNumber)
 	}
 	for _, deletedDevice := range deletedDevices {
@@ -703,10 +709,13 @@ func (d *DEPService) processDeviceResponse(
 	// if the IT admin changes the MDM server assignment in the ABM UI. In
 	// these cases, the device is new ("added") to us, but it comes with
 	// the wrong op_type.
-	for _, d := range modifiedDevices {
-		if _, ok := existingSerials[d.SerialNumber]; !ok {
-			addedDevicesSlice = append(addedDevicesSlice, d)
+	for _, md := range modifiedDevices {
+		if _, ok := existingSerials[md.SerialNumber]; !ok {
+			level.Info(d.logger).Log("msg", "treating device with op_type modified as added device", "serial_number", md.SerialNumber)
+			addedDevicesSlice = append(addedDevicesSlice, md)
 		}
+		// FIXME: addedDevicesSlice is used in part to determine if a profile assignment is needed.
+		// Should be be checking if the modified device has the right profile UUID and current timestamp?
 	}
 
 	// Check if added devices belong to another ABM server. If so, we must delete them before adding them.
@@ -746,8 +755,11 @@ func (d *DEPService) processDeviceResponse(
 		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
 	}
 
-	level.Info(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
-		strings.Join(deletedSerials, ", "), "to_modify", strings.Join(modifiedSerials, ", "))
+	level.Info(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles",
+		"to_add", strings.Join(addedSerials, ", "),
+		"to_remove", strings.Join(deletedSerials, ", "),
+		"to_modify", strings.Join(modifiedSerials, ", "),
+	)
 
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
@@ -771,7 +783,7 @@ func (d *DEPService) processDeviceResponse(
 	for _, newDevice := range addedDevicesSlice {
 		var teamID *uint
 		switch newDevice.DeviceFamily {
-		case "iPhone":
+		case "iPhone", "iPod":
 			teamID = iosTeamID
 		case "iPad":
 			teamID = ipadTeamID
@@ -786,18 +798,19 @@ func (d *DEPService) processDeviceResponse(
 	existingHosts := []fleet.Host{}
 	existingHostMigrationDeadlines := make(map[uint]time.Time)
 	for _, existingHost := range existingSerials {
-		dd, ok := modifiedDevices[existingHost.HardwareSerial]
+		level.Info(d.logger).Log("msg", "preparing to upsert DEP assignment for existing host", "serial", existingHost.HardwareSerial, "host_id", existingHost.ID)
+		md, ok := modifiedDevices[existingHost.HardwareSerial]
 		if !ok {
 			level.Error(kitlog.With(d.logger)).Log("msg",
 				"serial coming from ABM is in the database, but it's not in the list of modified devices", "serial",
 				existingHost.HardwareSerial)
 			continue
 		}
-		if dd.MDMMigrationDeadline != nil {
-			existingHostMigrationDeadlines[existingHost.ID] = *dd.MDMMigrationDeadline
+		if md.MDMMigrationDeadline != nil {
+			existingHostMigrationDeadlines[existingHost.ID] = *md.MDMMigrationDeadline
 		}
 		existingHosts = append(existingHosts, *existingHost)
-		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
+		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], md)
 	}
 
 	// Upsert the host DEP assignment records now so that the team is properly linked to the ABM
@@ -810,6 +823,7 @@ func (d *DEPService) processDeviceResponse(
 
 	// assign the profile to each device
 	for team, devices := range devicesByTeam {
+		// FIXME: Do we have replication issues or races? There seem to be alot of calls going on inside this function.
 		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
@@ -936,7 +950,7 @@ func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmT
 
 // logCountsForResults tries to aggregate the result types and log the counts.
 func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
-	results := map[string]int{"success": 0, "not_accessible": 0, "failed": 0, "other": 0}
+	results := map[string]int{"success": 0, "not_accessible": 0, "failed": 0, "throttled": 0, "other": 0}
 	for _, result := range deviceResults {
 		l := strings.ToLower(result)
 		if _, ok := results[l]; !ok {

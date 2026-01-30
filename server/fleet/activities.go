@@ -22,6 +22,11 @@ type ActivityWebhookPayload struct {
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
+// ActivityAutomationAuthor is the name used for the actor when an activity
+// is performed by Fleet automation (cron jobs, system operations, etc.)
+// rather than by a human user.
+const ActivityAutomationAuthor = "Fleet"
+
 type Activity struct {
 	CreateTimestamp
 
@@ -3074,10 +3079,6 @@ type ActivityTypeHostBypassedConditionalAccess struct {
 
 func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
 	return "host_bypassed_conditional_access"
-}
-
-func (a ActivityTypeHostBypassedConditionalAccess) HostIDs() []uint {
-	return []uint{a.HostID}
 }
 
 func (a ActivityTypeHostBypassedConditionalAccess) Documentation() (activity string, details string, detailsExample string) {

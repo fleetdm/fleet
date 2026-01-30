@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -538,16 +539,17 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	// believe this could be done with a little bit of reverse
 	// engineering/cleverness but for now, we're signing the request with
 	// our mock certs and setting this env var to skip the verification.
-	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+
 	mockedCert, mockedKey, err := apple_mdm.NewSCEPCACertKey()
 	if err != nil {
 		return fmt.Errorf("creating mock certificates: %w", err)
 	}
+	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	body, err = do(mockedCert, mockedKey)
+	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}
-	os.Unsetenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 
 	var scepInfo struct {
 		PayloadContent []struct {
@@ -804,7 +806,7 @@ func (c *TestAppleMDMClient) Authenticate() error {
 		payload["SerialNumber"] = c.SerialNumber
 		payload["DeviceName"] = "testdevice" + c.SerialNumber
 	}
-	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
+	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPod") || strings.HasPrefix(c.Model, "iPad") {
 		payload["ProductName"] = c.Model
 	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
@@ -1002,13 +1004,13 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
-func (c *TestAppleMDMClient) AcknowledgeDeviceLocation(udid, cmdUUID string) (*mdm.Command, error) {
+func (c *TestAppleMDMClient) AcknowledgeDeviceLocation(udid, cmdUUID string, lat, long float64) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":      "Acknowledged",
 		"UDID":        udid,
 		"CommandUUID": cmdUUID,
-		"Latitude":    42.42,
-		"Longitude":   -42.42,
+		"Latitude":    lat,
+		"Longitude":   long,
 	}
 
 	return c.sendAndDecodeCommandResponse(payload)

@@ -7,6 +7,15 @@
   autoIssue:
     labels: [":help-people"]
     repo: "confidential"
+- task: "Schedule weekly update"
+  startedOn: "2026-01-23"
+  frequency: "Weekly"
+  description: "Every Friday at 6PM, the Apprentice will post a short update in #general."
+  moreInfoUrl: "https://fleetdm.com/handbook/people#schedule-the-weekly-update"
+  dri: "SFriendLee"
+  autoIssue:
+    labels: [":help-people"]
+    repo: "confidential"
 - task: "Prepare all hands deck"
   startedOn: "2023-07-01"
   frequency: "Monthly"
@@ -21,17 +30,12 @@
   frequency: "Monthly"
   description: "Share the all-hands recording."
   moreInfoUrl: "https://fleetdm.com/handbook/people#share-recording-of-all-hands-meeting"
-  dri: "ireedy"
+  dri: "SFriendLee"
 - task: "Downgrade unused license seats"
   startedOn: "2024-03-31"
   frequency: "Quarterly"
   description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter."
   moreInfoUrl: "https://fleetdm.com/handbook/people#downgrade-an-unused-license-seat"
-  dri: "ireedy"
-- task: "Prepare board deck"
-  startedOn: "2023-09-25"
-  frequency: "Quarterly"
-  description: "Prepare slide deck for the next board meeting."
   dri: "ireedy"
 - task: "Run regular payroll"
   startedOn: "2024-02-24"
@@ -47,6 +51,15 @@
   frequency: "Monthly"
   description: "Manually process US contractor payroll by verifying and syncing the time the contractor worked, then processing the payment."
   moreInfoUrl: "https://fleetdm.com/handbook/people#run-us-contractor-payroll"
+  dri: "ireedy"
+  autoIssue:
+    labels: [":help-people"]
+    repo: "confidential"
+- task: "Review and update company DRIs"
+  startedOn: "2026-01-01"
+  frequency: "Quarterly"
+  description: "Review and update company DRIs in the handbook"
+  moreInfoUrl: "https://fleetdm.com/handbook/people#review-and-update-company-DRIs"
   dri: "ireedy"
   autoIssue:
     labels: [":help-people"]

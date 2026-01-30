@@ -7,9 +7,8 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
-| Head of Customers                     | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| SVP of Gobal Sales                    | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
-| VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
 | Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
 | Solutions Specialist                  | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
 
@@ -44,9 +43,10 @@ AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spr
 
 To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
 
+
 ### Introduce Fleet's CEO
 
-To get the CEO's attention and introduce him to an account, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
+To get the CEO's attention and introduce him to an account, @-mention his Executive Assistant (`@SFriendLee`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) with the LinkedIn URL(s) of the people you would like the CEO to connect with. The EA will send all connect requests within the same business day. 
 
 
 ### Track an objection

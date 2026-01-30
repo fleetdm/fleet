@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -107,6 +108,14 @@ type DatastoreTestOptions struct {
 	UniqueTestName string
 }
 
+// LoadDefaultSchema loads the default database schema for testing.
+func LoadDefaultSchema(t testing.TB, testName string, opts *DatastoreTestOptions) {
+	_, thisFile, _, _ := runtime.Caller(0)
+	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
+	LoadSchema(t, testName, opts, schemaPath)
+}
+
+// LoadSchema loads a database schema from the specified path for testing.
 func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schemaPath string) {
 	schema, err := os.ReadFile(schemaPath)
 	if err != nil {
