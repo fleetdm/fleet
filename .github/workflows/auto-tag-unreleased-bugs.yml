@@ -77,7 +77,7 @@ jobs:
                 reportedVersion.trim() === '' ||
                 reportedVersion.toLowerCase().includes('todo') ||
                 reportedVersion.toLowerCase().includes('unknown') ||
-                reportedVersion.toLoverCase().includes('main') ||
+                reportedVersion.toLowerCase().includes('main') ||
                 reportedVersion.toLowerCase().includes('rc')) {
               await tagAsUnreleased();
               return;
