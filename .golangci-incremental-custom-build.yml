@@ -17,5 +17,5 @@ linters:
           # Settings must be a "map from string to string" to mimic command line flags: the keys are
           # flag names and the values are the values to the particular flags.
           include-pkgs: "github.com/fleetdm/fleet/v4"
-exclusions:
-  generated: strict
+  exclusions:
+    generated: strict
