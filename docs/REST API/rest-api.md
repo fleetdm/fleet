@@ -10181,17 +10181,27 @@ Returns information about the specified software. By default, `versions` are sor
 {
   "software_title": {
     "id": 12,
-    "name": "Falcon.app",
-    "display_name": "Crowdstrike Falcon",
+    "name": "Google Chrome.app",
+    "display_name": "Google Chrome",
     "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "display_name": "",
-    "bundle_identifier": "crowdstrike.falcon.Agent",
+    "bundle_identifier": "com.google.Chrome",
     "software_package": {
-      "name": "FalconSensor-6.44.pkg",
-      "version": "6.44",
+      "name": "GoogleChrome.pkg",
+      "version": "143.0.7499.193",
       "categories": ["Productivity"],
       "platform": "darwin",
       "fleet_maintained_app_id": 42,
+      "fleet_maintained_versions": [
+        {
+          "id": 1,
+          "version": "143.0.7499.193"
+        },
+        {
+          "id": 2,
+          "version": "142.0.7444.176"
+        },
+      ],
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
@@ -10210,8 +10220,7 @@ Returns information about the specified software. By default, `versions` are sor
       "automatic_install_policies": [
         {
           "id": 343,
-          "name": "[Install software] Crowdstrike Agent",
-          "fleet_maintained": false
+          "name": "[Install software] Google Chrome",
         }
       ],
       "status": {
@@ -10229,19 +10238,19 @@ Returns information about the specified software. By default, `versions` are sor
     "versions": [
       {
         "id": 123,
-        "version": "117.0",
+        "version": "142.0.7444.176",
         "vulnerabilities": ["CVE-2023-1234"],
         "hosts_count": 37
       },
       {
         "id": 124,
-        "version": "116.0",
+        "version": "141.0.7444.170",
         "vulnerabilities": ["CVE-2023-4321"],
         "hosts_count": 7
       },
       {
         "id": 127,
-        "version": "115.5",
+        "version": "138.0.7655.171",
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
       }
