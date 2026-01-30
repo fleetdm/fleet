@@ -126,7 +126,10 @@ module.exports = {
       throw 'couldNotCreateActivity';
     }
 
-    let trimmedLinkedinUrl = linkedinUrl.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS, '');
+    let trimmedLinkedinUrl;
+    if(linkedinUrl) {
+      trimmedLinkedinUrl = linkedinUrl.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS, '');
+    }
 
     // Create the new Fleet website page view record.
     let newHistoricalRecordId = await sails.helpers.salesforce.createHistoricalEvent.with({
