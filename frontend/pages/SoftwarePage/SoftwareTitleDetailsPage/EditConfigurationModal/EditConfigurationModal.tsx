@@ -46,7 +46,7 @@ const EditConfigurationModal = ({
   refetchSoftwareTitle,
   onExit,
 }: EditConfigurationModal) => {
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
   const [canSaveForm, setCanSaveForm] = useState(true);

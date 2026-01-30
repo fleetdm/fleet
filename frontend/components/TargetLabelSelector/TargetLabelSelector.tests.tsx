@@ -183,4 +183,28 @@ describe("TargetLabelSelector component", () => {
 
     expect(screen.queryByText("Target")).not.toBeInTheDocument();
   });
+
+  it("allows a subtitle to be passed in", () => {
+    const SUBTITLE = "Select one of the following options";
+    render(
+      <TargetLabelSelector
+        selectedTargetType="Custom"
+        selectedCustomTarget="labelIncludeAny"
+        customTargetOptions={[
+          { value: "labelIncludeAny", label: "Include any" },
+        ]}
+        selectedLabels={{}}
+        labels={[
+          { id: 1, name: "label 1", label_type: "regular" },
+          { id: 2, name: "label 2", label_type: "regular" },
+        ]}
+        onSelectCustomTarget={noop}
+        onSelectLabel={noop}
+        onSelectTargetType={noop}
+        subTitle={SUBTITLE}
+      />
+    );
+
+    expect(screen.getByText(SUBTITLE)).toBeVisible();
+  });
 });

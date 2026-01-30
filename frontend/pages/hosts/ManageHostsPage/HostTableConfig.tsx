@@ -285,6 +285,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
+    accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
       const {

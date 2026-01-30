@@ -35,8 +35,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/team_software_installer_install_script_secret.yml", "environment variable \"FLEET_SECRET_NAME\" not set"},
 		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
-		// commenting out, results in the process getting killed on CI and on some machines
-		// {"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
+		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 513MiB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_subdir.yml", ""},
 		{"testdata/gitops/subdir/team_software_installer_valid.yml", ""},
@@ -106,7 +105,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 				}, nil
 			}
 
-			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return []*fleet.LabelSpec{
 					{
 						Name:                "a",
@@ -128,10 +127,10 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 				"a":                           2,
 				"b":                           3,
 			}
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
-				for _, lbl := range labels {
+				for _, lbl := range names {
 					id, ok := labelToIDs[lbl]
 					if ok {
 						ret[lbl] = id
@@ -152,6 +151,12 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
+			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
 			}
 
 			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.file})
@@ -272,10 +277,10 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 				"a":                           2,
 				"b":                           3,
 			}
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
-				for _, lbl := range labels {
+				for _, lbl := range names {
 					id, ok := labelToIDs[lbl]
 					if ok {
 						ret[lbl] = id
@@ -283,7 +288,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 				}
 				return ret, nil
 			}
-			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 				return map[string]*fleet.Label{
 					"a": {
 						ID:   1,
@@ -295,8 +300,17 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 					},
 				}, nil
 			}
+			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+				return nil
+			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil
+			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -327,8 +341,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
-		// commenting out, results in the process getting killed on CI and on some machines
-		// {"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
+		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 513MiB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_subdir.yml", ""},
 		{"testdata/gitops/subdir/no_team_software_installer_valid.yml", ""},
@@ -387,7 +400,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					Teams:     nil,
 				}, nil
 			}
-			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return []*fleet.LabelSpec{
 					{
 						Name:                "a",
@@ -403,15 +416,18 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					},
 				}, nil
 			}
+			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+				return nil
+			}
 			labelToIDs := map[string]uint{
 				fleet.BuiltinLabelMacOS14Plus: 1,
 				"a":                           2,
 				"b":                           3,
 			}
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
-				for _, lbl := range labels {
+				for _, lbl := range names {
 					id, ok := labelToIDs[lbl]
 					if ok {
 						ret[lbl] = id
@@ -424,6 +440,12 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil
+			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -522,7 +544,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				}, nil
 			}
 
-			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return []*fleet.LabelSpec{
 					{
 						Name:                "label 1",
@@ -543,15 +565,15 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			}
 
 			found := make(map[string]uint)
-			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-				for _, l := range labels {
+			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+				for _, l := range names {
 					if id, ok := c.expectedLabels[l]; ok {
 						found[l] = id
 					}
 				}
 				return found, nil
 			}
-			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 				found2 := make(map[string]*fleet.Label)
 				for _, l := range names {
 					if id, ok := c.expectedLabels[l]; ok {
@@ -569,6 +591,12 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
+			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
 			}
 
 			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.file})
@@ -643,6 +671,12 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
 	}
 
 	buf, err := fleetctl.RunAppNoChecks([]string{

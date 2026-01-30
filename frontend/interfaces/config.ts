@@ -96,16 +96,24 @@ export interface IDeviceGlobalConfig {
     enabled_and_configured: boolean;
     require_all_software_macos: boolean | null;
   };
-  features: Pick<IConfigFeatures, "enable_software_inventory">;
+  features: Pick<
+    IConfigFeatures,
+    | "enable_software_inventory"
+    | "enable_conditional_access"
+    | "enable_conditional_access_bypass"
+  >;
 }
 
 export interface IFleetDesktopSettings {
   transparency_url: string;
+  alternative_browser_host: string;
 }
 
 export interface IConfigFeatures {
   enable_host_users: boolean;
   enable_software_inventory: boolean;
+  enable_conditional_access: boolean;
+  enable_conditional_access_bypass: boolean;
 }
 
 export interface IConfigServerSettings {
@@ -166,6 +174,8 @@ export interface IConfig {
     okta_assertion_consumer_service_url: string;
     okta_audience_uri: string;
     okta_certificate: string;
+    // Bypass setting
+    bypass_disabled?: boolean;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
@@ -229,7 +239,8 @@ export type LogDestination =
   | "kinesis"
   | "lambda"
   | "pubsub"
-  | "kafta"
+  | "kafka"
+  | "nats"
   | "stdout"
   | "webhook"
   | "";

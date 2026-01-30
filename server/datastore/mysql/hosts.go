@@ -18,9 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -567,11 +567,14 @@ var hostRefs = []string{
 	"microsoft_compliance_partner_host_statuses",
 	"host_identity_scep_certificates",
 	"conditional_access_scep_certificates",
+	"host_conditional_access",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
-	// needed for in-house apps as the activity contains the MDM command UUID and
-	// can access the request/response without this table's entry.
+	// needed for in-house apps or vpp apps as the activity contains the MDM
+	// command UUID and can access the request/response without this table's entry.
 	"host_in_house_software_installs",
+	"host_vpp_software_installs",
+	"host_last_known_locations",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -627,14 +630,23 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		return nil
 	}
 
-	// load just the host uuid for the MDM tables that rely on this to be cleared.
-	var hostUUIDs []string
-	stmt, args, err := sqlx.In(`SELECT uuid FROM hosts WHERE id IN (?)`, hostIDs)
+	// load host uuid and platform for the MDM tables that rely on this to be cleared.
+	type hostInfo struct {
+		UUID     string `db:"uuid"`
+		Platform string `db:"platform"`
+	}
+	var hostInfos []hostInfo
+	stmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE id IN (?)`, hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "building select statement for host uuids")
 	}
-	if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, stmt, args...); err != nil {
-		return ctxerr.Wrapf(ctx, err, "get uuid for hosts %v", hostIDs)
+	if err := sqlx.SelectContext(ctx, tx, &hostInfos, stmt, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "get uuid and platform for hosts %v", hostIDs)
+	}
+
+	hostUUIDs := make([]string, 0, len(hostInfos))
+	for _, info := range hostInfos {
+		hostUUIDs = append(hostUUIDs, info.UUID)
 	}
 
 	stmt, args, err = sqlx.In(`DELETE FROM hosts WHERE id IN (?)`, hostIDs)
@@ -671,6 +683,52 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 			}
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return ctxerr.Wrapf(ctx, err, "deleting %s for host uuids %v", table, hostUUIDs)
+			}
+		}
+	}
+
+	// Delete IdP accounts for Windows/Linux hosts only. macOS hosts are excluded
+	// because they have different re-enrollment behavior.
+	// Additionally, for dual-boot scenarios where a machine has the same UUID across
+	// multiple OS installations, we only delete the IdP account if there's no other
+	// host with the same UUID (e.g., a macOS installation on the same hardware).
+	var windowsLinuxUUIDs []string
+	for _, info := range hostInfos {
+		if info.Platform == "windows" || fleet.IsLinux(info.Platform) {
+			windowsLinuxUUIDs = append(windowsLinuxUUIDs, info.UUID)
+		}
+	}
+	if len(windowsLinuxUUIDs) > 0 {
+		// Check if any of these UUIDs have other hosts (e.g., dual-boot macOS)
+		// that should retain the IdP account association.
+		var uuidsWithOtherHosts []string
+		stmt, args, err = sqlx.In(`SELECT DISTINCT uuid FROM hosts WHERE uuid IN (?)`, windowsLinuxUUIDs)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "building select statement for remaining hosts with same uuid")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &uuidsWithOtherHosts, stmt, args...); err != nil {
+			return ctxerr.Wrapf(ctx, err, "selecting remaining hosts with same uuid")
+		}
+
+		// Filter out UUIDs that still have other hosts
+		uuidsToDelete := make([]string, 0, len(windowsLinuxUUIDs))
+		uuidsWithOtherHostsSet := make(map[string]struct{}, len(uuidsWithOtherHosts))
+		for _, uuid := range uuidsWithOtherHosts {
+			uuidsWithOtherHostsSet[uuid] = struct{}{}
+		}
+		for _, uuid := range windowsLinuxUUIDs {
+			if _, exists := uuidsWithOtherHostsSet[uuid]; !exists {
+				uuidsToDelete = append(uuidsToDelete, uuid)
+			}
+		}
+
+		if len(uuidsToDelete) > 0 {
+			stmt, args, err = sqlx.In(`DELETE FROM host_mdm_idp_accounts WHERE host_uuid IN (?)`, uuidsToDelete)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "building delete statement for host_mdm_idp_accounts")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting host_mdm_idp_accounts for host uuids %v", uuidsToDelete)
 			}
 		}
 	}
@@ -741,6 +799,7 @@ SELECT
   t.name AS team_name,
   COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
   h.last_restarted_at,
+  h.timezone,
   (
     SELECT
       additional
@@ -868,7 +927,7 @@ const hostMDMSelect = `,
 		'enrollment_status', hmdm.enrollment_status,
 		'dep_profile_error',
 		CASE
-			WHEN hdep.assign_profile_response = '` + string(fleet.DEPAssignProfileResponseFailed) + `' THEN CAST(TRUE AS JSON)
+			WHEN hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `') THEN CAST(TRUE AS JSON)
 			ELSE CAST(FALSE AS JSON)
 		END,
 		'server_url',
@@ -1031,7 +1090,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-	h.last_restarted_at
+    h.last_restarted_at,
+    h.timezone
 	`
 
 	sql += hostMDMSelect
@@ -1840,6 +1900,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
             host_mdm_apple_bootstrap_packages hmabp ON hmabp.host_uuid = hh.uuid
         LEFT JOIN
             nano_command_results ncr ON ncr.command_uuid = hmabp.command_uuid
+        LEFT JOIN
+            host_dep_assignments hda ON hda.host_id = hh.id
         WHERE
 	      hh.id = h.id AND hmdm.installed_from_dep = 1`
 
@@ -1850,7 +1912,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 	case fleet.MDMBootstrapPackageFailed:
 		subquery += ` AND ncr.status = 'Error'`
 	case fleet.MDMBootstrapPackagePending:
-		subquery += ` AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
+		// Pending hosts exclude those that were skipped due to migration or will be skipped due to migration
+		subquery += ` AND (hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
 	case fleet.MDMBootstrapPackageInstalled:
 		subquery += ` AND ncr.status = 'Acknowledged'`
 	}
@@ -2700,7 +2763,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
-	  h.last_restarted_at,
+      h.last_restarted_at,
+      h.timezone,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
@@ -2915,6 +2979,18 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
 	}
 	return nil
+}
+
+// GetDeviceAuthToken returns the current auth token for a given host
+func (ds *Datastore) GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error) {
+	const stmt = `SELECT token FROM host_device_auth WHERE host_id = ?`
+
+	var token string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, hostID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting device auth token")
+	}
+
+	return token, nil
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -3234,6 +3310,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
+      h.timezone,
       t.name AS team_name,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
@@ -3476,7 +3553,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 		// We log to help troubleshooting in case this happens.
 		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
-	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at,
+	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
 		CASE
@@ -4419,6 +4496,7 @@ func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID 
 	checkExistingSQL := `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, hostID)
 	if err == nil {
+		level.Debug(ds.logger).Log("msg", "MaybeAssociateHostWithScimUser: existing SCIM user association found for host", "host_id", hostID, "scim_user_id", existingSCIMUserID)
 		// Existing SCIM user association found, nothing to do.
 		// Bail early so that we don't trigger side-effects downstream like resending profiles.
 		return nil
@@ -4443,10 +4521,12 @@ WHERE
 	hosts.id = ?`
 
 	var idpAccount fleet.MDMIdPAccount
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &idpAccount, getMDMIDPSQL, hostID)
+	// Use writer since the host may have just been created.
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &idpAccount, getMDMIDPSQL, hostID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No MDM IdP account for this host, nothing to do.
+			level.Debug(ds.logger).Log("msg", "MaybeAssociateHostWithScimUser: no MDM IdP account found for host", "host_id", hostID)
 			return nil
 		}
 		return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: get MDM IdP account for host")
@@ -4461,6 +4541,7 @@ WHERE
 func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
 	if idp == nil {
 		// TODO: confirm desired behavior here
+		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: MDM IdP account is nil, skipping association", "host_id", hostID)
 		return nil
 	}
 
@@ -4470,6 +4551,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		return ctxerr.Wrap(ctx, err, "get scim user")
 	case fleet.IsNotFound(err) || scimUser == nil:
 		// There is no SCIM association possible at this time
+		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: no SCIM user found for MDM IdP account", "host_id", hostID, "mdm_idp_username", idp.Username, "mdm_idp_email", idp.Email)
 		return nil
 	}
 
@@ -4477,6 +4559,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
+	level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: associated host with SCIM user", "host_id", hostID, "scim_user_id", scimUser.ID)
 	return nil
 }
 
@@ -5264,8 +5347,11 @@ func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, 
 // It only updates `hosts` table, other additional host information is ignored.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
-		level.Debug(ds.logger).Log("msg", "missing orbit_node_key to update host",
-			"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
+		// iOS/iPadOS hosts currently do not use/set orbit_node_key.
+		if host.Platform != "ios" && host.Platform != "ipados" {
+			level.Debug(ds.logger).Log("msg", "missing orbit_node_key to update host",
+				"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
+		}
 	}
 
 	sqlStatement := `
@@ -5304,7 +5390,8 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			refetch_requested = ?,
 			orbit_node_key = ?,
 			refetch_critical_queries_until = ?,
-			last_restarted_at = COALESCE(?, last_restarted_at)
+			last_restarted_at = COALESCE(?, last_restarted_at),
+			timezone = ?
 		WHERE id = ?
 	`
 
@@ -5352,6 +5439,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 				host.OrbitNodeKey,
 				host.RefetchCriticalQueriesUntil,
 				lastRestartedAt,
+				host.TimeZone,
 				host.ID,
 			)
 			if err != nil {
@@ -5916,6 +6004,8 @@ WHERE
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingSerials, stmt, args...); err != nil {
 		return nil, err
 	}
+
+	level.Info(ds.logger).Log("msg", "get hosts with previously deleted dep assignments", "serials", strings.Join(matchingSerials, ","))
 
 	for _, serial := range matchingSerials {
 		result[serial] = struct{}{}

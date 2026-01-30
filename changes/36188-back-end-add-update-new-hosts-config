@@ -1,2 +1,0 @@
-* Updated backend and GitOps to handle AppleOSUpdateSettings.UpdateNewHosts.
-* Updated logic used for determining whether to update a macOS host during DEP enrollment based solely on UpdateNewHosts flag.

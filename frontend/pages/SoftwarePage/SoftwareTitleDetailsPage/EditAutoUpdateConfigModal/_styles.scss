@@ -1,0 +1,53 @@
+.edit-auto-update-config-modal {
+  .modal__content {
+    @include vertical-modal-layout;
+  }
+
+  .modal-footer__content-wrapper {
+    padding-top: $pad-large;
+  }
+
+  .edit-auto-update-config-form {
+
+    &--disabled {
+      @include disabled;
+    }
+  
+    &__form-frame {
+      display: flex;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 20px;
+      align-self: stretch;
+  
+      .card {
+        display: flex;
+        align-items: flex-start;
+  
+        gap: $pad-smedium;
+        flex: 1 0 0;
+        align-self: stretch;
+      }
+    }
+  
+    &__auto-update-config {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-large;
+      .form-field {
+        gap: 0.5rem;
+      }
+    }
+  
+    &__auto-update-schedule-form {
+      .date-time-inputs {
+        display: flex;
+        gap: 1rem;
+        .form-field {
+          gap: $pad-small;
+        }
+      }
+    }
+  
+  }
+}

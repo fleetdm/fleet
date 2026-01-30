@@ -1,0 +1,299 @@
+{
+  "schema_version": 27,
+  "standard_lib_version": 85,
+  "action_runtime_version": 63,
+  "name": "MDM Migration (Jamf Pro)",
+  "description": "",
+  "guid": "2448e973a07b9f4421f839439918d608",
+  "slug": "mdm_migration_jamf_pro",
+  "agents": [
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Lookup device ID in Jamf Pro by Serial Number",
+      "disabled": false,
+      "description": "",
+      "guid": "d892c18b1cd658d2b44dd6e50aedc3cd",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.jamf_pro_server_url>>/JSSResource/computers/serialnumber/<<webhook_action.body.host.hardware_serial>>",
+        "method": "get",
+        "headers": {
+          "accept": "application/xml",
+          "Authorization": "Bearer <<CREDENTIAL.jamf_pro_bearer_token>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::WebhookAgent",
+      "name": "Webhook Action",
+      "disabled": false,
+      "description": null,
+      "guid": "5947334e8496a0dd0668b5d6142ec35b",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "path": "3beaf49cd9b1a06bcf32a3b3ba47841c",
+        "secret": "9b0e8a27d869df162274f95128267d19",
+        "verbs": "get,post"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Send unmanage command using ID",
+      "disabled": false,
+      "description": "",
+      "guid": "96fe6acaf63c0d3b548affa7fc122e47",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.jamf_pro_server_url>>/JSSResource/computercommands/command/UnmanageDevice/id/<<lookup_device_id_in_jamf_pro_by_serial_number.body.computer.general.id>>",
+        "method": "post",
+        "content_type": "form",
+        "headers": {
+          "accept": "application/xml",
+          "Authorization": "Bearer <<CREDENTIAL.jamf_pro_bearer_token>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Mark device as unmanaged in Jamf Pro",
+      "disabled": false,
+      "description": "",
+      "guid": "e3f317deaf1bd01ebbee629bfce6d156",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.jamf_pro_server_url>>/JSSResource/computers/id/19",
+        "method": "put",
+        "content_type": "xml",
+        "payload": {
+          "computer": {
+            "general": {
+              "remote_management": {
+                "managed": "false"
+              }
+            }
+          }
+        },
+        "headers": {
+          "Accept": "application/xml",
+          "Authorization": "Bearer <<CREDENTIAL.jamf_pro_bearer_token>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get Bearer_Token",
+      "disabled": false,
+      "description": "",
+      "guid": "3b1e201200c199d3c218f5d06e600b77",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.jamf_pro_server_url>>/api/v1/auth/token",
+        "method": "post",
+        "content_type": "form",
+        "basic_auth": [
+          "<<RESOURCE.jamf_pro_basic_auth_username>>",
+          "<<RESOURCE.jamf_pro_basic_auth_password>>"
+        ]
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    }
+  ],
+  "diagram_notes": [
+    {
+      "content": "Receive Webook",
+      "position": [
+        -495,
+        -255
+      ],
+      "guid": "ee605b6b36c4e56bede006cfa27aaf0f",
+      "width": 180
+    },
+    {
+      "content": "Lookup JAMF ID by Serial Number provided by Fleet\n\nJAMF_ID=$(curl -X GET \"https://<server>.jamfcloud.com/JSSResource/computers/serialnumber/$SERIAL\" -H \"accept: application/xml\" -H \"Authorization: Bearer $BEARER_TOKEN\" ",
+      "position": [
+        -15,
+        -255
+      ],
+      "guid": "37c34f2422a04d327f6a372e9db7a3b1",
+      "width": 270
+    },
+    {
+      "content": "Send UnmanageDevice using JAMF ID\n\ncurl -X POST \"https://<server>.jamfcloud.com/JSSResource/computercommands/command/UnmanageDevice/id/$JAMF_ID\" -H \"accept: application/xml\" -H \"Authorization: Bearer $BEARER_TOKEN\"\n",
+      "position": [
+        270,
+        -255
+      ],
+      "guid": "db8523dfa563cc114677515f914715c1",
+      "width": 270
+    },
+    {
+      "content": "Mark device as Unmanaged in Jamf Pro \n\ncurl --request PUT --url \"https://<server>.jamfcloud.com/JSSResource/computers/id/$JAMF_ID\" -H \"Content-Type: application/xml\" -H \"Accept: application/xml\" -H \"Authorization: Bearer $BEARER_TOKEN\" -d '<computer><general><remote_management><managed>false</managed></remote_management></general></computer>'\n",
+      "position": [
+        570,
+        -255
+      ],
+      "guid": "ce06da35f2a6e0e18414c39a24354df1",
+      "width": 270
+    },
+    {
+      "content": "Get BEARER_TOKEN\n\nRESPONSE=$(curl -s -u \"$USERNAME\":\"$PASSWORD\" \"https://<server>.jamfcloud.com/api/v1/auth/token\" -X POST)\n\nThis is now stored as a Credential. ",
+      "position": [
+        -300,
+        -255
+      ],
+      "guid": "d13dbd2dbff32767582029e69cbbb776",
+      "width": 270
+    },
+    {
+      "content": "Command to test:\n\n% curl -X POST $YOUR_WEBHOOK_ACTION_URL -H \"Content-Type: application/json\" -d '{\n  \"timestamp\": \"0000-00-00T00:00:00Z\",\n  \"host\": {\n    \"id\": $DEVICE_ID_IN_JAMF_PRO,\n    \"uuid\": \"1234-5678-9101-1121\",\n    \"hardware_serial\": \"$SERIAL_NUMBER\"\n  }\n}'",
+      "position": [
+        -585,
+        240
+      ],
+      "guid": "7a88223a0cf93204dd6f81375b28b8a2",
+      "width": 515
+    },
+    {
+      "content": "Configuration: \n1. Replace Jamf Pro server URL resource. ex: \"myserver.jamfcloud.com\"\n2. Update name and password in Jamf Pro Bearer Token Credentials with an account that has the following permissions:\nJamf Pro Server Objects > Computers Create, Read and Update\nJamf Pro Server Actions > Send Computer Unmanage Command\n\n** You can also update the values in the resources Jamf Pro Basic Auth Username and Jamf Pro Basic Auth Password. **",
+      "position": [
+        -585,
+        -495
+      ],
+      "guid": "b160cbd5ee73744ce498306a7f2e8bec",
+      "width": 514
+    },
+    {
+      "content": "Final clean-up (deploy from Fleet):\n[https://github.com/allenhouchins/scripts/blob/main/remove_jamf.sh](https://github.com/allenhouchins/scripts/blob/main/remove_jamf.sh)",
+      "position": [
+        570,
+        345
+      ],
+      "guid": "43439dee9945d2427917a3685073a0bf",
+      "width": 280
+    }
+  ],
+  "links": [
+    {
+      "source": 0,
+      "receiver": 2
+    },
+    {
+      "source": 1,
+      "receiver": 0
+    },
+    {
+      "source": 2,
+      "receiver": 3
+    }
+  ],
+  "diagram_layout": "{\"3b1e201200c199d3c218f5d06e600b77\":[-255,-75],\"5947334e8496a0dd0668b5d6142ec35b\":[-495,-75],\"96fe6acaf63c0d3b548affa7fc122e47\":[285,90],\"d892c18b1cd658d2b44dd6e50aedc3cd\":[0,0],\"e3f317deaf1bd01ebbee629bfce6d156\":[585,180]}",
+  "story_library_metadata": {},
+  "monitor_failures": true,
+  "synchronous_webhooks_enabled": false,
+  "integrations": [],
+  "parent_only_send_to_story": false,
+  "send_to_story_timeout_enabled": false,
+  "send_to_story_timeout_duration_seconds": null,
+  "keep_events_for": 604800,
+  "reporting_status": true,
+  "send_to_story_enabled": false,
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": 0,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "pages": [],
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0,
+  "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2448e973a07b9f4421f839439918d608",
+  "recipients": [
+    ""
+  ],
+  "integration_product": null,
+  "integration_vendor": null,
+  "llm_product_instructions": "",
+  "send_to_stories": [],
+  "exported_at": "2025-12-17T15:25:04Z",
+  "icon": ":magic_wand:"
+}
