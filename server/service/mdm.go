@@ -33,6 +33,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -250,7 +252,7 @@ type createMDMEULARequest struct {
 // TODO: We parse the whole body before running svc.authz.Authorize.
 // An authenticated but unauthorized user could abuse this.
 func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -270,7 +272,7 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 	// We didn't force a limit before, so we're generous with 500MiB
 	// We store this directly in the DB so high file sizes is not advised.
 	// TODO: Revise if this is acceptable, or smaller is good enough.
-	if eula.Size > endpointer.MaxEULASize {
+	if eula.Size > platform_http.MaxEULASize {
 		return nil, &fleet.BadRequestError{
 			Message: "Uploaded EULA exceeds maximum allowed size of 500 MiB",
 		}
@@ -1566,7 +1568,7 @@ type newMDMConfigProfileRequest struct {
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMConfigProfileRequest{}
 
-	err := r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -1594,7 +1596,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 	decoded.Profile = fhs[0]
 
-	if decoded.Profile.Size > endpointer.MaxProfileSize {
+	if decoded.Profile.Size > platform_http.MaxProfileSize {
 		return nil, fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
 	}
 
@@ -3106,7 +3108,7 @@ type uploadMDMAppleAPNSCertRequest struct {
 
 func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadMDMAppleAPNSCertRequest{}
-	err := r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
