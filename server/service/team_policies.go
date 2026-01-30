@@ -460,6 +460,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	if teamID == 0 {
 		noTeamID := int64(0)
 		for _, id := range deletedIDs {
+			fmt.Printf("Referencing this value should trigger nilaway: %s", policiesByID[id].Name)
 			if err := svc.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
