@@ -2,7 +2,7 @@
 name: ✨ Quick win
 about: https://fleetdm.com/handbook/company/product-groups#quick-win
 title: ''
-labels: 'story'
+labels: 'quick-win'
 assignees: ''
 
 ---
