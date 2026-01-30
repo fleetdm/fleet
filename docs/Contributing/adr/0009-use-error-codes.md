@@ -24,8 +24,8 @@ It then may choose to display a message to the end-user, again using several dif
 
 The multiple ways that errors can be negotiated and displayed presents several challenges:
 
-1. It is unclear whether the front-end or back-end is ultimately responsible for how the error is displayed to the end-user (if at all).
-2. String-matching on the `reason` in the API response is brittle, especially when the `reason` is intended as a human-readable error explanation (as that kind of wording tends to change over time)
+1. It is unclear whether the front-end or back-end is ultimately responsible for how (or if) the error is displayed to the end-user.
+2. String-matching on the `reason` in the API response is brittle, especially when the `reason` is intended as a human-readable error explanation (as that kind of wording tends to change over time).
 3. Making simple changes to error messages becomes cumbersome, especially if the error message is "load bearing" because front-end code matches against it. Changes can break front-end functionality, leading to the requirement of adding contract tests to APIs.
 4. Localization of error messages is difficult because the messages are spread over both the front and back end.  
 5. The error displayed to the end user may differ greatly depending on the context; i.e. a user calling the API directly may see a different message than a user in the UI.
@@ -87,7 +87,7 @@ return nil, fleet.NewCodedError(ErrCodeLabelNameConflictsBuiltin, errMeta{ "Name
 ```
 you can't tell at a glance what error message will be returned.
 - For error map entries that use a function rather than a string value, updating the errors is slightly less straightforward than it was previously. However, this method should be used sparingly (mainly for validation errors), and implemented mainly as another map (of validation error "sub-codes" to strings).
-- It's one more strategy for front-end devs to have to implement, albeit a better one. We likely won't fully switch over to this for some time, if ever.
+- We likely won't fully migrate over to this for some time, if ever, so it'll be one more pattern on both the backend and frontend to learn about.
 
 ## Alternatives considered
 
