@@ -65,6 +65,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -286,7 +287,7 @@ the way that the Fleet server works.
 			}
 
 			// Configure default max request body size based on config
-			endpointer.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
+			platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
 
 			// Create database connections that can be shared across datastores
 			dbConns, err := mysql.NewDBConnections(config.Mysql, opts...)

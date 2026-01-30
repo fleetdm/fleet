@@ -13,7 +13,8 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/gorilla/mux"
 )
 
@@ -143,7 +144,7 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 		TeamID:  &teamIDUint,
 	}
 
-	err = r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
+	err = r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",

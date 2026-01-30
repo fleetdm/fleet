@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -27,26 +26,6 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
-)
-
-// WE need the default to be a var, since we want it configurable, and to avoid misses in the future we set it to the config value on startup/serve.
-var MaxRequestBodySize int64 = units.MiB // Default which is 1 MiB
-
-const (
-	MaxFleetdErrorReportSize int64 = 5 * units.MiB
-	// MaxMultipartFormSize represents how big the in memory elements is when parsing a multipart form data set,
-	// anything above that limit (primarily files) will be written to temp disk files
-	MaxMultipartFormSize     int64 = 1 * units.MiB
-	MaxScriptSize            int64 = 1 * units.MiB
-	MaxBatchScriptSize       int64 = 10 * units.MiB
-	MaxProfileSize           int64 = 1 * units.MiB
-	MaxBatchProfileSize      int64 = 10 * units.MiB
-	MaxEULASize              int64 = 500 * units.MiB
-	MaxMDMCommandSize        int64 = 1 * units.MiB
-	MaxSoftwareInstallerSize int64 = 10 * units.GiB
-	// MaxMultiScriptQuerySize, sets a max size for payloads that take multiple scripts and SQL queries.
-	MaxMultiScriptQuerySize int64 = 5 * units.MiB
-	MaxMicrosoftMDMSize     int64 = 2 * units.MiB
 )
 
 // We have to create our own wrapper here as it's not possible to directly access
@@ -644,9 +623,9 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 
 	// Default to MaxRequestBodySize if no limit is set, this ensures no endpointers are forgot
 	// -1 = no limit, so don't default to anything if that is set, which can only be set with the appropriate SKIP method.
-	if e.requestBodySizeLimit != -1 && (e.requestBodySizeLimit == 0 || e.requestBodySizeLimit < MaxRequestBodySize) {
+	if e.requestBodySizeLimit != -1 && (e.requestBodySizeLimit == 0 || e.requestBodySizeLimit < platform_http.MaxRequestBodySize) {
 		// If no value is configured set default, or if the set endpoint value is less than global default use default.
-		e.requestBodySizeLimit = MaxRequestBodySize
+		e.requestBodySizeLimit = platform_http.MaxRequestBodySize
 	}
 	return newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
 }

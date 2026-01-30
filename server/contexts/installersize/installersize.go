@@ -5,7 +5,7 @@ import (
 	"context"
 
 	"github.com/docker/go-units"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
 // Human formats a byte size into a human-readable string.
@@ -33,7 +33,7 @@ func NewContext(ctx context.Context, maxSize int64) context.Context {
 func FromContext(ctx context.Context) int64 {
 	v, ok := ctx.Value(key{}).(int64)
 	if !ok {
-		return endpointer.MaxSoftwareInstallerSize
+		return http.MaxSoftwareInstallerSize
 	}
 	return v
 }

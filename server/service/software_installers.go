@@ -20,6 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -69,7 +71,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded.TitleID = uint(titleID)
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err = r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
+	err = r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
@@ -275,7 +277,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded := uploadSoftwareInstallerRequest{}
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err := r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
