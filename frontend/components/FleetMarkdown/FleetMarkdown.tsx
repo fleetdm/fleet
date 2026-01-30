@@ -23,8 +23,6 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
   const classNames = classnames(baseClass, className);
 
   return (
-    // In react-markdown v10, className prop was removed from ReactMarkdown.
-    // We wrap in a div to apply the className instead.
     <div className={classNames}>
       <ReactMarkdown
         // enables some more markdown features such as direct urls and strikethroughs.
@@ -35,9 +33,7 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
             return <CustomLink text={String(children)} url={href} newTab />;
           },
 
-          // In react-markdown v10, the `inline` prop is no longer passed to code components.
-          // Block code is wrapped in a `pre` element, so we override `pre` to use SQLEditor
-          // and keep `code` for inline code only.
+          // handles code blocks
           pre: ({ children }) => {
             const onEditorBlur = (editor?: IAceEditor) => {
               editor && editor.clearSelection();
