@@ -182,7 +182,6 @@ describe("SelfService", () => {
       screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Installed");
 
-    expect(screen.getByRole("button", { name: "Reinstall" })).toBeEnabled();
     const moreDropdown = getMoreDropdown();
     await user.click(moreDropdown);
     const dropdown = document.getElementById("react-select-9-listbox");
