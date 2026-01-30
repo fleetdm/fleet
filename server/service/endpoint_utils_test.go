@@ -260,9 +260,9 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 		ID1  uint              `url:"some-id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, platform_http.MaxRequestBodySize)
 
-	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxSoftwareInstallerSize)+1) + `"}`
+	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
 
@@ -270,7 +270,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, platform_http.PayloadTooLargeError{}, err)
 
-	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxSoftwareInstallerSize)-11) + `"}` // -11 to account for the wrapping JSON
+	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
 	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
 
