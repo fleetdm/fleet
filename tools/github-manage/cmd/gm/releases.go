@@ -17,11 +17,11 @@ var releasesCmd = &cobra.Command{
 
 var releasesSyncEstimatesCmd = &cobra.Command{
 	Use:   "sync-estimates",
-	Short: "Sync estimates for issues on the Releases project from drafting/sprint projects or sub-issues",
-	Long: `Sync estimates for issues on the Releases project from drafting/sprint projects or sub-issues.
+	Short: "Sync estimates for issues on the Releases planning project from issues or sub-issues.",
+	Long: `Sync estimates for issues on the Releases planning project from issues or sub-issues.
 
 This command copies estimate values from source projects (drafting, product group projects) to the
-Releases project. If no direct estimate is found, it sums estimates from sub-issues.
+Release planning project. If no direct estimate is found, it sums estimates from sub-issues.
 
 Usage modes:
   1. Sync all Releases issues:
