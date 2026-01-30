@@ -96,7 +96,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 
 
 
-### Fleet events 
+### Fleet events
 We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
 
 There are three phases to running an event at FleetDM,
