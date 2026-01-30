@@ -51,12 +51,12 @@ const getLocationMessage = (
 
     case "locking":
       return (
-        <div>
+        <>
           <p>{IOS_LOCK_REQUIRED_MESSAGE}</p>
           <p>
             Lock is pending. Host will lock the next time it checks in to Fleet.
           </p>
-        </div>
+        </>
       );
 
     case "locating":
@@ -139,19 +139,21 @@ const LocationModal = ({
   const renderContent = () => {
     return (
       <>
-        <div className={`${baseClass}__location`}>
-          {hostGeolocation && getCityCountryLocation(hostGeolocation)}{" "}
-          {googleMapsUrl && (
-            <div className={`${baseClass}__link`}>
-              <CustomLink
-                url={googleMapsUrl}
-                text="Open in Google Maps"
-                newTab
-                multiline
-              />
-            </div>
-          )}
-        </div>
+        {hostGeolocation && (
+          <div className={`${baseClass}__location`}>
+            {hostGeolocation && getCityCountryLocation(hostGeolocation)}{" "}
+            {googleMapsUrl && (
+              <div className={`${baseClass}__link`}>
+                <CustomLink
+                  url={googleMapsUrl}
+                  text="Open in Google Maps"
+                  newTab
+                  multiline
+                />
+              </div>
+            )}
+          </div>
+        )}
         <div className={`${baseClass}__message`}>
           {getLocationMessage(iosOrIpadosDetails, Boolean(hostGeolocation))}
           {shouldShowLastUpdatedAt && renderLastUpdatedAt()}
