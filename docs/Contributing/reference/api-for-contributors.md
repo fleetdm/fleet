@@ -1317,6 +1317,222 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
+### List devices from Apple Business Manager
+
+`GET /api/v1/fleet/mdm/apple/dep/devices`
+
+List devices known to fleet from Apple Business Manager.
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| assignProfileResponse | string | query | **Optional.** The status returned from the Assign a Profile API. One or more of `SUCCESS`, `NOT_ACCESSIBLE`, `FAILED`, `THROTTLED` or `null`(meaning no profile has been assigned) |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/dep/devices`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 1,
+  "hosts": [
+    {
+      "id": 1,
+      "hardware_serial": "abc123",
+      "platform": "ios",
+      "assign_profile_response": "SUCCESS",
+      "response_updated_at": "2025-12-04 01:35:27",
+      "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",\
+      "added_at": "2025-01-01",
+      "deleted_at": null,
+      "abm_token_id": 1,
+      "mdm_migration_deadline": "2025-12-05 00:00:00.000000",
+      "mdm_migration_completed": "2025-12-05 00:00:00.000000"
+    }
+  ]
+}
+```
+
+
+### Get information about a single device from Apple Business Manager
+
+`GET /api/v1/fleet/mdm/apple/dep/devices/{serial}`
+
+Get information about a single device from Apple Business Manager. Returns both the fleet information about the device and the response from Apple Business Manager. Queries Apple Business Manager for information about the serial even when the device does not exist in fleet
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| serial | string | path | **Required.** The serial number of the device |
+| abm_token_id | string | query | **Optional.** The ABM token to use for the ABM query. Not usually needed for devices known to and listed in fleet. Devices not listed in fleet will result in a query to the lowest-id ABM token, which may not be the correct server. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/dep/devices/abc123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "id": 1,
+    "hardware_serial": "abc123",
+    "platform": "ios",
+    "assign_profile_response": "SUCCESS",
+    "response_updated_at": "2025-12-04 01:35:27",
+    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",\
+    "added_at": "2025-01-01",
+    "deleted_at": null,
+    "abm_token_id": 1,
+    "mdm_migration_deadline": "2025-12-05 00:00:00.000000",
+    "mdm_migration_completed": "2025-12-05 00:00:00.000000"
+  },
+  "dep_device": {
+    "asset_tag": "",
+    "color": "MIDNIGHT",
+    "description": "IPHONE 13 MIDNIGHT 128GB-USA",
+    "device_assigned_by": "fleetie@example.com",
+    "device_assigned_date": "2026-01-29T21:17:25Z",
+    "device_family": "iPhone",
+    "OpType": "modified",
+    "OpDate": "2026-01-29T21:17:25Z", // TODO EJM Figure out if we actually get this from this API
+    "os": "iOS",
+    "profile_status": "assigned",
+    "profile_assign_time": "2026-01-29T21:17:25Z",
+    "push_push_time": "0001-01-01T00:00:00Z",
+    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
+    "mdm_migration_deadline": null,
+    "serial_number": "abc123"
+  }
+}
+```
+
+
+
+### Get information about a profile from Apple Business Manager
+
+`GET /api/v1/fleet/mdm/apple/dep/profiles/{uuid}`
+
+Get information about a single profile from Apple Business Manager. by its UUID.
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| uuid | string | path | **Required.** The uuid of the profile |
+| abm_token_id | string | query | **Optional.** The ABM token to use for the ABM query. Not usually needed for profiles known to and listed in fleet. Profiles not listed in fleet will result in a query to the lowest-id ABM token, which may not be the correct token in a multi-token environment. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/dep/profiles/abc123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile": {
+    "mdm_apple_setup_assistants_id": 1,
+    "mdm_apple_default_setup_assistants_id": null,
+    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
+    "abm_token_id": 1,
+    "setup_assistant_id": 3
+  },
+  "dep_profile": {
+    "allow_pairing": false,
+    "anchor_certs": [],
+    "auto_advance_setup": false,
+    "await_device_configured": true,
+    "configuration_web_url": "https://example.com", // TODO
+    "department": "",
+    "devices": [],
+    "do_not_use_profile_from_backup": false,
+    "is_return_to_service": false,
+    "is_mandatory": false,
+    "is_mdm_removable": true,
+    "is_multi_user": false,
+    "is_supervised": true,
+    "language": "en",
+    "org_magic": "",
+    "profile_name": "Fleet default setup assistant",// TODO
+    "region": "US",
+    "skip_setup_items": [],
+    "supervising_host_certs": [],
+    "support_email_address": "",
+    "support_phone_number": "",
+    "url": "https://example.com" // TODO
+  }
+}
+```
+
+### Assign a profile
+
+Assigns a DEP profile to a list of serial numbers. If abm_token_id is not specified, the devices corresponding to the provided serial numbers must all exist in Fleet and come from the same ABM token.
+
+#### Parameters
+
+| Name  | Type | In   | Description                                                      |
+| ----- | ---- | ---- | ---------------------------------------------------------------- |
+| profile_uuid | string | body | **Required.** The profile UUID to assign to the devices |
+| serial_numbers | list | body | **Required.** The list of serial numbers to assign the profile to |
+| abm_token_id | int | body | **Optional.** The ABM token to make the assiginment request with |
+
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/dep/devices/assign`
+
+##### Request body
+
+```json
+{
+  "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
+  "serial_numbers": ["abc123"],
+  "abm_token_id": 1
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Reset ABM Sync Cursor
+
+Resets the sync cursor associated with a particular ABM token.
+
+#### Parameters
+
+| Name  | Type | In   | Description                                                      |
+| ----- | ---- | ---- | ---------------------------------------------------------------- |
+| abm_token_id | int | body | **Required.** The ABM token of the cursor to reset |
+
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/dep/reset_cursor`
+
+##### Request body
+
+```json
+{
+  "abm_token_id": 1
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+
 ### SCEP proxy
 
 `/mdm/scep/proxy/{identifier}`
