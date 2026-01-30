@@ -38,8 +38,10 @@ This checklist provides a list of questions contributors will commonly ask when 
    2. Is the management software from that solution installed?  
    3. Has it been configured to stop managing or disown hosts?  
 7. Is any sort of application level allowlisting or denylisting installed?(e.g. Santa, Jamf Pro, etc). If yes:  
-   1. Are any applications shipped by the OS vendor blocked?  
-   2. Are any fleet components blocked?  
+   1. Are any applications shipped by the OS vendor blocked, modified or restricted?
+     1. Examples: Safari, Edge, Powershell
+   2. Are any fleet components blocked, disabled or customized?
+     1. Examples: Self-hosted TUF repo or custom fleetd build, custom osquery build or custom osquery extensions
 8. Is there any other configuration management software installed on the host? Are there any MDM profiles that could conflict?  
 9. Do hosts require going through any sort of proxy, VPN or other connectivity to access internet resources?  
    1. Are fleet’s server URLs and update URLs allowlisted?  
@@ -51,5 +53,5 @@ This checklist provides a list of questions contributors will commonly ask when 
     1. Is end user authentication enabled on the team?  
     2. Do hosts have fleetd installed before MDM enrollment?  
 13. For Apple related issues:  
-    1. Is APNS certificate valid? Has the APNS certificate been renewed recently?  
+    1. Is the APNS certificate valid? Has the APNS certificate been renewed recently?  
     2. Are ABM credentials valid? Have they been renewed lately?
