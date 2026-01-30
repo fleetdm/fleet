@@ -1,28 +1,10 @@
 .windows-automatic-enrollment-page {
   @include vertical-page-layout;
 
-  p {
-    margin: 0;
-  }
-
-  &__setup-list {
-    font-size: $x-small;
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-    padding: 0;
-    margin: 0;
-    max-width: 800px;
-    list-style: none;
-
-    li {
-      display: flex;
-      flex-direction: row;
-      gap: $pad-small;
-
-      p {
-        margin: 0;
-      }
+  &__card {
+    max-width: $settings-form-max-width;
+    p {
+      margin-top: 0;
     }
   }
 
@@ -30,19 +12,10 @@
     display: flex;
     flex-direction: column;
     gap: $pad-icon;
-    margin-top: $pad-large;
   }
 
   &__url-input {
     margin-bottom: 0;
-  }
-
-  &__permissions-list {
-    margin-top: $pad-large;
-    list-style: disc;
-    display: flex;
-    flex-direction: column;
-    gap: $pad-medium;
   }
 
   &__cloud-customer-banner {

@@ -12,8 +12,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
-	eu "github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -21,7 +22,31 @@ import (
 )
 
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
-	return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody)
+	return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody, fleetQueryDecoder)
+}
+
+// fleetQueryDecoder handles fleet-specific query parameter decoding, such as
+// converting the order_direction string to the fleet.OrderDirection int type.
+func fleetQueryDecoder(queryTagName, queryVal string, field reflect.Value) (bool, error) {
+	// Only handle int fields for order_direction
+	if field.Kind() != reflect.Int {
+		return false, nil
+	}
+	switch queryTagName {
+	case "order_direction", "inherited_order_direction":
+		var direction int
+		switch queryVal {
+		case "desc":
+			direction = int(fleet.OrderDescending)
+		case "asc":
+			direction = int(fleet.OrderAscending)
+		default:
+			return false, &fleet.BadRequestError{Message: "unknown order_direction: " + queryVal}
+		}
+		field.SetInt(int64(direction))
+		return true, nil
+	}
+	return false, nil
 }
 
 // A value that implements bodyDecoder takes control of decoding the request body.
@@ -91,20 +116,18 @@ func isBodyDecoder(v reflect.Value) bool {
 // handlerFunc is the handler function type for the main Fleet service endpoints.
 type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
 
-// Compile-time check to ensure that endpointer implements Endpointer.
-var _ eu.Endpointer[handlerFunc] = &endpointer{}
+// Compile-time check to ensure that fleetEndpointer implements Endpointer.
+var _ eu.Endpointer[handlerFunc] = &fleetEndpointer{}
 
-type endpointer struct {
+type fleetEndpointer struct {
 	svc fleet.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request interface{},
-	svc interface{},
-) (fleet.Errorer, error) {
+func (e *fleetEndpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any, svc any) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(fleet.Service))
 }
 
-func (e *endpointer) Service() interface{} {
+func (e *fleetEndpointer) Service() any {
 	return e.svc
 }
 
@@ -112,7 +135,7 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
-		EP: &endpointer{
+		EP: &fleetEndpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,
@@ -130,7 +153,7 @@ func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
-		EP: &endpointer{
+		EP: &fleetEndpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,
@@ -151,7 +174,7 @@ func newOrbitNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r 
 	opts = append(opts, capabilitiesContextFunc())
 
 	return &eu.CommonEndpointer[handlerFunc]{
-		EP: &endpointer{
+		EP: &fleetEndpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,
@@ -186,7 +209,7 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	opts = append(opts, capabilitiesContextFunc())
 
 	return &eu.CommonEndpointer[handlerFunc]{
-		EP: &endpointer{
+		EP: &fleetEndpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,
@@ -204,7 +227,7 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
-		EP: &endpointer{
+		EP: &fleetEndpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,
@@ -231,7 +254,7 @@ func androidAuthenticatedEndpointer(
 	opts = append(opts, capabilitiesContextFunc())
 
 	return &eu.CommonEndpointer[handlerFunc]{
-		EP: &endpointer{
+		EP: &fleetEndpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,
@@ -254,7 +277,7 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 	opts = append(opts, capabilitiesContextFunc())
 
 	return &eu.CommonEndpointer[handlerFunc]{
-		EP: &endpointer{
+		EP: &fleetEndpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,

@@ -39,6 +39,7 @@ interface IFileChooserProps {
   onFileOpen: (files: FileList | null) => void;
 }
 
+/** TODO: Legacy component, should be replaced with newer FileUploader */
 const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
   <div className={`${baseClass}__file-chooser`}>
     <ProfileGraphic
@@ -61,8 +62,7 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     >
       <label htmlFor="upload-profile">
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          <Icon name="upload" />
-          Choose file
+          Choose file <Icon name="upload" color="core-fleet-green" />
         </span>
       </label>
     </Button>
@@ -130,7 +130,10 @@ const AddProfileModal = ({
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () =>
+      labelsAPI
+        .summary(currentTeamId)
+        .then((res) => getCustomLabels(res.labels)),
     {
       enabled: isPremiumTier,
       refetchOnWindowFocus: false,

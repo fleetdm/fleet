@@ -1,15 +1,20 @@
 import React from "react";
 
 import { ICommand } from "interfaces/command";
+import { IGetCommandsResponse } from "services/entities/command";
+
+import Pagination from "components/Pagination";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import CommandItem from "../CommandItem/CommandItem";
+import CommandItem, {
+  ShowCommandDetailsHandler,
+} from "../CommandItem/CommandItem";
 
 const baseClass = "upcoming-command-feed";
 
 interface IUpcomingCommandFeedProps {
-  commands: ICommand[];
-  onShowDetails: (commandUUID: string, hostUUID: string) => void;
+  commands: IGetCommandsResponse;
+  onShowDetails: ShowCommandDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
@@ -20,7 +25,8 @@ const UpcomingCommandFeed = ({
   onNextPage,
   onPreviousPage,
 }: IUpcomingCommandFeedProps) => {
-  if (commands.length === 0) {
+  const { meta, results } = commands;
+  if (results === null || results.length === 0) {
     return (
       <EmptyFeed
         title="No MDM commands"
@@ -32,7 +38,7 @@ const UpcomingCommandFeed = ({
   return (
     <div className={baseClass}>
       <div>
-        {commands.map((command: ICommand) => {
+        {results.map((command: ICommand) => {
           return (
             <CommandItem
               key={`${command.command_uuid}+${command.host_uuid}`}
@@ -42,13 +48,13 @@ const UpcomingCommandFeed = ({
           );
         })}
       </div>
-      {/* <Pagination */}
-      {/*   disablePrev={!meta.has_previous_results} */}
-      {/*   disableNext={!meta.has_next_results} */}
-      {/*   hidePagination={!meta.has_next_results && !meta.has_previous_results} */}
-      {/*   onPrevPage={onPreviousPage} */}
-      {/*   onNextPage={onNextPage} */}
-      {/* /> */}
+      <Pagination
+        disablePrev={!meta.has_previous_results}
+        disableNext={!meta.has_next_results}
+        hidePagination={!meta.has_next_results && !meta.has_previous_results}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
     </div>
   );
 };

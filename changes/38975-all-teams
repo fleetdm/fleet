@@ -1,0 +1,1 @@
+- Fixed an issue in `fleetctl gitops` that would reset VPP token team assignment when using "All teams".

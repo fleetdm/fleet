@@ -78,9 +78,9 @@ Fleet supports the following operating system versions on hosts.
 | macOS      | 14+ (Sonoma)                            |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10+, Server 2012+    |
-| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux, Omarchy |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38, 39, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7, 8, 9, openSUSE 15.6+, Arch Linux, Omarchy |
 | ChromeOS   | 112.0.5615.134+                         |
-| Android    | 13+                                     |
+| Android    | 14+                                     |
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
@@ -224,7 +224,7 @@ For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `t
 Folks typically use Fleet to ship logs to data lakes and SIEMs like Splunk, the ELK stack, and Graylog.
 
 Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
-`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 See:
   - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
   - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.

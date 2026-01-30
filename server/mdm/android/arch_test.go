@@ -7,32 +7,33 @@ import (
 	"github.com/fleetdm/fleet/v4/server/archtest"
 )
 
+const m = archtest.ModuleName
+
 // TestAllAndroidPackageDependencies checks that android packages are not dependent on other Fleet packages
 // to maintain decoupling and modularity.
 // If coupling is necessary, it should be done in the main server/fleet, server/service, or other package.
 func TestAllAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android...").
+	archtest.NewPackageTest(t, m+"/server/mdm/android...").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		ShouldNotDependOn(
-			"github.com/fleetdm/fleet/v4/server/service...",
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql...",
+			m+"/server/service...",
+			m+"/server/datastore/mysql...",
 		).
 		IgnoreRecursively(
-			"github.com/fleetdm/fleet/v4/server/mdm/android/tests",
+			m+"/server/mdm/android/tests",
 		).
 		IgnoreDeps(
 			// Android packages
-			"github.com/fleetdm/fleet/v4/server/mdm/android...",
+			m+"/server/mdm/android...",
+			// Platform packages
+			m+"/server/platform...",
 			// Other/infra packages
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql",
-			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // dependency on Jira and Zendesk
-			"github.com/fleetdm/fleet/v4/server/service/middleware/auth",
-			"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck",
-			"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils",
-			"github.com/fleetdm/fleet/v4/server/service/middleware/log",
-			"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit",
-			"github.com/fleetdm/fleet/v4/server/service/modules/activities",
+			m+"/server/datastore/mysql/common_mysql",
+			m+"/server/service/externalsvc", // dependency on Jira and Zendesk
+			m+"/server/service/middleware/auth",
+			m+"/server/service/middleware/log",
+			m+"/server/service/modules/activities",
 		).
 		Check()
 }
@@ -42,7 +43,8 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 // If coupling is necessary, it should be done in the main server/fleet or another package.
 func TestAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android").
+	archtest.NewPackageTest(t, m+"/server/mdm/android").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn("github.com/fleetdm/fleet/v4/...")
+		ShouldNotDependOn(m + "/...").
+		Check()
 }

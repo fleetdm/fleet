@@ -55,14 +55,14 @@ import PATHS from "router/paths";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
-  HOST_ABOUT_DATA,
+  HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
 import HostSummaryCard from "../cards/HostSummary";
-import AboutCard from "../cards/About";
+import VitalsCard from "../cards/Vitals";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
@@ -97,6 +97,7 @@ import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDe
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
+import BypassModal from "./BypassModal";
 
 const baseClass = "device-user";
 
@@ -148,6 +149,7 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
+  const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
@@ -290,7 +292,12 @@ const DeviceUserPage = ({
 
           // Only set timer if not already running
           if (!refetchStartTime) {
-            if (responseHost.status === "online") {
+            // Here and below: iOS/iPadOS refetches use MDM commands which can be slower/less predictable
+            // than osquery. Don't show an error, just reset and let the user try again.
+            const isIOSOrIPadOS =
+              responseHost.platform === "ios" ||
+              responseHost.platform === "ipados";
+            if (responseHost.status === "online" || isIOSOrIPadOS) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
@@ -306,7 +313,10 @@ const DeviceUserPage = ({
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 180000) {
-              if (responseHost.status === "online") {
+              const isIOSOrIPadOS =
+                responseHost.platform === "ios" ||
+                responseHost.platform === "ipados";
+              if (responseHost.status === "online" || isIOSOrIPadOS) {
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
@@ -319,11 +329,17 @@ const DeviceUserPage = ({
                 );
               }
             } else {
+              // Timeout reached (3 minutes)
               resetHostRefetchStates();
-              renderFlash(
-                "error",
-                "We're having trouble fetching fresh vitals for this host. Please try again later."
-              );
+              const isIOSOrIPadOS =
+                responseHost.platform === "ios" ||
+                responseHost.platform === "ipados";
+              if (!isIOSOrIPadOS) {
+                renderFlash(
+                  "error",
+                  "We're having trouble fetching fresh vitals for this host. Please try again later."
+                );
+              }
             }
           }
         } else {
@@ -366,7 +382,7 @@ const DeviceUserPage = ({
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
+  const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
   const {
     data: setupStepStatuses,
@@ -419,6 +435,14 @@ const DeviceUserPage = ({
       select: (data) => data.enroll_url,
     }
   );
+
+  const { bypassConditionalAccess } = deviceUserAPI;
+
+  const [isLoadingBypass, setIsLoadingBypass] = useState(false);
+
+  const toggleShowBypassModal = useCallback(() => {
+    setShowBypassModal(!showBypassModal);
+  }, [showBypassModal, setShowBypassModal]);
 
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
@@ -744,13 +768,13 @@ const DeviceUserPage = ({
                   hostSettings={host?.mdm.profiles ?? []}
                   osSettings={host?.mdm.os_settings}
                 />
-                <AboutCard
-                  className={defaultCardClass}
-                  aboutData={aboutData}
+                <VitalsCard
+                  className={fullWidthCardClass}
+                  vitalsData={vitalsData}
                   munki={deviceMacAdminsData?.munki}
                 />
                 <UserCard
-                  className={defaultCardClass}
+                  className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
                   disableFullNameTooltip
@@ -801,6 +825,9 @@ const DeviceUserPage = ({
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
                     router={router}
+                    conditionalAccessEnabled={
+                      globalConfig?.features?.enable_conditional_access
+                    }
                   />
                 </TabPanel>
               )}
@@ -819,6 +846,15 @@ const DeviceUserPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
+            onResolveLater={
+              globalConfig?.features?.enable_conditional_access &&
+              globalConfig.features?.enable_conditional_access_bypass
+                ? () => {
+                    onCancelPolicyDetailsModal();
+                    setShowBypassModal(true);
+                  }
+                : undefined
+            }
           />
         )}
         {!!host && showOSSettingsModal && (
@@ -922,6 +958,30 @@ const DeviceUserPage = ({
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
       {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+      {showBypassModal && (
+        <BypassModal
+          onCancel={toggleShowBypassModal}
+          onResolveLater={async () => {
+            setIsLoadingBypass(true);
+            try {
+              await bypassConditionalAccess(deviceAuthToken);
+              renderFlash(
+                "success",
+                "Access has been temporarily restored. You may now attempt to sign in again."
+              );
+            } catch {
+              renderFlash(
+                "error",
+                `Couldn't restore access. Please click "Refetch" and try again.`
+              );
+            } finally {
+              setIsLoadingBypass(false);
+              setShowBypassModal(false);
+            }
+          }}
+          isLoading={isLoadingBypass}
+        />
+      )}
     </div>
   );
 };

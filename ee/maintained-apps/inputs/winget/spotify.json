@@ -1,0 +1,12 @@
+{
+  "name": "Spotify",
+  "slug": "spotify/windows",
+  "package_identifier": "Spotify.Spotify",
+  "unique_identifier": "Spotify",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/spotify_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/spotify_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"]
+}

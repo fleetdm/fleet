@@ -6,7 +6,7 @@ import { IconNames } from "components/icons";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
-import { IMdmCommandResult } from "./mdm";
+import { ICommandResult } from "./command";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -34,6 +34,7 @@ export interface IGetSoftwareByIdResponse {
 // check to see if we still need this.
 export interface ISoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -70,11 +71,14 @@ export interface ISoftwareInstallPolicy {
   name: string;
 }
 
+// Match allowedCategories in cmd/maintained-apps/main.go
 export type SoftwareCategory =
   | "Browsers"
   | "Communication"
   | "Developer tools"
-  | "Productivity";
+  | "Productivity"
+  | "Security"
+  | "Utilities";
 
 export interface ISoftwarePackageStatus {
   installed: number;
@@ -158,6 +162,7 @@ export const isSoftwarePackage = (
 
 export interface ISoftwareTitle {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
@@ -175,6 +180,7 @@ export interface ISoftwareTitle {
 
 export interface ISoftwareTitleDetails {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
@@ -188,6 +194,9 @@ export interface ISoftwareTitleDetails {
   counts_updated_at?: string;
   bundle_identifier?: string;
   versions_count?: number;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -206,6 +215,7 @@ export interface ISoftwareVulnerability {
 
 export interface ISoftwareVersion {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -478,7 +488,7 @@ export interface ISoftwareInstallResults {
 
 /** For Software .ipa installs, we use the install results API to return MDM command results */
 export interface ISoftwareIpaInstallResults {
-  results: IMdmCommandResult;
+  results: ICommandResult;
 }
 
 // ISoftwareInstallerType defines the supported installer types for
@@ -508,7 +518,7 @@ export interface ISoftwareLastUninstall {
 export interface ISoftwareInstallVersion {
   version: string;
   bundle_identifier: string;
-  last_opened_at: string | null;
+  last_opened_at?: string;
   vulnerabilities: string[] | null;
   installed_paths: string[];
   signature_information?: SignatureInformation[];
@@ -539,6 +549,7 @@ export interface IHostAppStoreApp {
 
 export interface IHostSoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "mock software.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Mock Software"
@@ -768,6 +779,9 @@ export const hasHostSoftwareAppLastInstall = (
 
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
+
+export const isIpadOrIphoneSoftware = (platform: string) =>
+  ["ios", "ipados"].includes(platform);
 
 export const isAndroidSoftwareSource = (source: string) =>
   source === "android_apps";

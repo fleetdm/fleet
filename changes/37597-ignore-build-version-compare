@@ -1,0 +1,1 @@
+- Fleet UI: Ignore parenthesized build numbers when comparing versions for update availability (e.g. 5.0 (build 3400))

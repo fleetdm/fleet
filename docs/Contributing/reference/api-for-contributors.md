@@ -16,6 +16,7 @@ These API endpoints in this document are only used when contributing to Fleet. T
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Certificates](#certificates)
 - [Users](#users)
 - [Conditional access](#conditional-access)
 - [Host identity](#host-identity)
@@ -2157,7 +2158,11 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| specs | list | path | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
+| team_id | int | query | The ID of the team to set labels to; omit to set global labels |
+| specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
+| names_to_move | string[] | body | A list of names of labels that are both in `specs` in the current request and already exist on other teams. If the requesting user has permission to modify those labels, this endpoint will rename the specified labels so new labels on the correct team can be created. The request will fail with no changes if one or more of the specified labels cannot be moved. |
+
+The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance from having a label on one team (or global) to using that same label name on another team (or switching a team label to a global label). Once labels are created on the correct teams, the old labels are cleaned up when GitOps is run on the old team via explicit `DELETE` calls.
 
 #### Example
 
@@ -2180,7 +2185,8 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
       "label_membership_type": "manual",
       "hosts": ["snacbook-pro.local"]
     }
-  ]
+  ],
+  "names_to_move": ["local_machine"]
 }
 ```
 
@@ -2190,11 +2196,15 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels
 
+Gets all labels visible to the currently logged-in user.
+
 `GET /api/v1/fleet/spec/labels`
 
 #### Parameters
 
-None.
+| Name  | Type | In   | Description                                                                                                   |
+| ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id | int | query | The ID of the team to view all labels from; omit to see all labels, supply 0 to see only global labels |
 
 #### Example
 
@@ -2213,7 +2223,9 @@ None.
       "description": "All hosts which have enrolled in Fleet",
       "query": "SELECT 1;",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 7,
@@ -2222,7 +2234,9 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 8,
@@ -2231,7 +2245,9 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 9,
@@ -2239,7 +2255,9 @@ None.
       "description": "All CentOS hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 10,
@@ -2248,14 +2266,31 @@ None.
       "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
-      "label_membership_type": "dynamic"
+      "label_membership_type": "dynamic",
+      "team_id": null,
+      "team_name": null
     },
     {
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters Ubuntu hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-      "label_membership_type": "dynamic"
+      "label_type": "builtin",
+      "label_membership_type": "dynamic",,
+      "team_id": null,
+      "team_name": null
+    },
+    {
+      "id": 4663,
+      "name": "Team: g-software",
+      "description": "Workstations used by team g-software",
+      "query": "",
+      "platform": "",
+      "label_type": "regular",
+      "label_membership_type": "manual",
+      "display_text": "Team: g-software",
+      "team_id": 1,
+      "team_name": "Workstations"
     }
   ]
 }
@@ -2263,7 +2298,7 @@ None.
 
 ### Get label
 
-Returns the label specified by name.
+Returns the label specified by name if it exists and its team (if any) is accessible by the current user.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 
@@ -2286,7 +2321,8 @@ None.
     "name": "local_machine",
     "description": "Includes only my local machine",
     "query": "",
-    "label_membership_type": "manual"
+    "label_membership_type": "manual",
+    "team_id": null
   }
 }
 ```
@@ -4721,6 +4757,16 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_filename": "firefox-custom-icon.png"
+    },
+    {
+      "team_id": 1,
+      "title_id": 3496,
+      "url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
+      "hash_sha256": "c6aa78d0911a0cb504a21bcf8421de703cc7dd07b7388903cf29227ca5955737",
+      "fleet_maintained_app_id": 150,
+      "fleet_maintained_app_slug": "8x8-work/darwin",
+      "icon_hash_sha256": "dad98c7c1b9a5654a45972f2cd7e5c3e536fe5312b0e615291ceb35234eaaa7f",
+      "icon_filename": "custom-icon.png"
     }
   ]
 }
@@ -4877,6 +4923,76 @@ Body: <blob>
 ```
 
 ---
+
+## Certificates
+
+### Apply certificate templates
+
+_Available in Fleet Premium_
+
+`POST /api/latest/fleet/spec/certificates`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| specs     | array  | body  | **Required**. An array of objects with the certificate templates. Each item must contain `name` with the certificate template name, a `team` with a team name,  `certificate_authority_id` with the certificate authority id, and `subject_name` with the certificate's subject name.   |
+
+> Any existing certificate template that is not included in the list will be removed, and existing templates with the same name as the new template will be edited. Providing an empty list of certificate templates will remove existing scripts.
+
+#### Example
+
+`POST /api/latest/fleet/spec/certificates`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "WIFI_CERTIFICATE",
+      "team": "workstations",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    },
+    {
+      "name": "WIFI_CERTIFICATE_TEST",
+      "team": "workstations-canary",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Delete certificate templates
+
+`DELETE /api/latest/fleet/spec/certificates`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                                                            |
+|-----------|---------|-------|----------------------------------------------------------------------------------------|
+| ids       | array   | body  | **Required**. An array of certificate template ids to be deleted                       |
+| team_id   | integer | body  | **Required**. The team_id which the certificate templates you want to delete belong to |
+
+#### Example
+
+`DELETE /api/latest/fleet/spec/certificates`
+```json
+{
+  "ids": [1, 2, 3, 4],
+  "team_id": 1
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ## Users
 

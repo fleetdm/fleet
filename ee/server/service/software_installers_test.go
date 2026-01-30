@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,7 +16,10 @@ import (
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -243,7 +248,6 @@ func TestInstallSoftwareTitle(t *testing.T) {
 }
 
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
-	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
@@ -292,8 +296,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(manifestServer.Close)
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
 	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{
@@ -357,6 +360,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 				BundleIdentifier: "com.foo.bar",
 				Version:          "1.2.3",
 				SoftwareTitle:    "test in-house app",
+				StorageID:        "123storageid",
 			}, nil
 		}
 
@@ -410,6 +414,24 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	_, err = svc.GetInHouseAppManifest(ctx, 2, nil)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// Set up a new S3 store to test CloudFront signing
+	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
+	signerURL := "https://example.cloudfront.net"
+
+	s3Config := config.S3Config{
+		SoftwareInstallersCloudFrontURL:                   signerURL,
+		SoftwareInstallersCloudFrontURLSigningPublicKeyID: "ABC123XYZ",
+		SoftwareInstallersCloudFrontSigner:                signer,
+	}
+	s3Store, err := s3.NewTestSoftwareInstallerStore(s3Config)
+	require.NoError(t, err)
+	svc.softwareInstallStore = s3Store
+
+	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
+	require.NoError(t, err)
+	require.Contains(t, string(manifest), signerURL)
 
 }
 

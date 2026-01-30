@@ -449,7 +449,7 @@ const TAGGED_TEMPLATES = {
 
     return (
       <>
-        enabled OS updates for all new {applePlatform} hosts on {teamSection}.
+        enabled OS updates for all new {applePlatform} hosts on {teamSection}.{" "}
         {applePlatform} hosts will upgrade to the lastest version when they
         enroll.
       </>
@@ -1379,6 +1379,19 @@ const TAGGED_TEMPLATES = {
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
+  hostBypassedConditionalAccess: (activity: IActivity) => {
+    const idpFullName = activity.details?.idp_full_name;
+    const hostDisplayName = activity.details?.host_display_name;
+    return (
+      <>
+        <strong>{idpFullName}</strong> temporarily bypassed conditional access
+        for <strong>{hostDisplayName}</strong>.
+      </>
+    );
+  },
+  updatedConditionalAccessBypass: () => (
+    <> edited conditional access end user experience.</>
+  ),
   enabledConditionalAccessAutomations: (activity: IActivity) => {
     const teamName = activity.details?.team_name;
     return (
@@ -2023,8 +2036,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
     }
+    case ActivityType.UpdatedConditionalAccessBypass: {
+      return TAGGED_TEMPLATES.updatedConditionalAccessBypass();
+    }
     case ActivityType.EnabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.HostBypassedConditionalAccess: {
+      return TAGGED_TEMPLATES.hostBypassedConditionalAccess(activity);
     }
     case ActivityType.DisabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);
@@ -2072,7 +2091,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedHostIdpData: {
       return TAGGED_TEMPLATES.editedHostIdpData(activity);
     }
-    case ActivityType.CreatedCertificate: {
+    case ActivityType.AddedCertificate: {
       return TAGGED_TEMPLATES.createdCert(activity);
     }
     case ActivityType.DeletedCertificate: {

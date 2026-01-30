@@ -69,6 +69,8 @@ export default {
   },
   DEVICE_RESEND_PROFILE: (token: string, profileUUID: string) =>
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/resend`,
+  DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
@@ -181,8 +183,6 @@ export default {
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
   MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
-  HOST_MDM_UNENROLL: (id: number) =>
-    `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
   HOST_ENCRYPTION_KEY: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
 

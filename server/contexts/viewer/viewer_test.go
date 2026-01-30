@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -153,3 +154,39 @@ func TestCanPerformActions(t *testing.T) {
 // 	assert.Equal(t, false, needsPasswordResetAdminViewer.CanPerformWriteActionOnUser(1))
 // 	assert.Equal(t, true, needsPasswordResetAdminViewer.CanPerformWriteActionOnUser(needsPasswordResetAdminViewer.User.ID))
 // }
+
+func TestMaskEmail(t *testing.T) {
+	cases := []struct {
+		name     string
+		email    string
+		expected string
+	}{
+		{"standard email", "john.doe@example.com", "j***@example.com"},
+		{"single char local", "j@example.com", "j***@example.com"},
+		{"subdomain", "user@mail.example.com", "u***@mail.example.com"},
+		{"empty string", "", "***"},
+		{"no at sign", "invalid", "***"},
+		{"empty local part", "@example.com", "***"},
+		{"only at sign", "@", "***"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := maskEmail(tc.email)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestNewSystemContext(t *testing.T) {
+	ctx := NewSystemContext(t.Context())
+
+	v, ok := FromContext(ctx)
+	require.True(t, ok, "viewer should be present in context")
+	require.NotNil(t, v.User, "user should be present in viewer")
+
+	// Verify the system user has the expected properties
+	assert.Equal(t, fleet.ActivityAutomationAuthor, v.User.Name, "system user name should match ActivityAutomationAuthor")
+	require.NotNil(t, v.User.GlobalRole, "system user should have a global role")
+	assert.Equal(t, fleet.RoleAdmin, *v.User.GlobalRole, "system user should have admin role")
+}

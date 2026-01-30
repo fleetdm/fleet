@@ -10,7 +10,7 @@ import {
   getPathWithQueryParams,
 } from "utilities/url";
 
-import { IMdmCommandResult } from "interfaces/mdm";
+import { ICommandResult } from "interfaces/command";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -50,7 +50,7 @@ export interface IGetDeviceCertsRequestParams extends IListOptions {
 }
 
 export interface IGetVppInstallCommandResultsResponse {
-  results: IMdmCommandResult[];
+  results: ICommandResult[];
 }
 export interface IGetSetupExperienceStatusesResponse {
   setup_experience_results: {
@@ -194,5 +194,10 @@ export default {
   getMdmManualEnrollUrl: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+  },
+
+  bypassConditionalAccess: (token: string) => {
+    const { DEVICE_BYPASS_CONDITIONAL_ACCESS } = endpoints;
+    return sendRequest("POST", DEVICE_BYPASS_CONDITIONAL_ACCESS(token));
   },
 };

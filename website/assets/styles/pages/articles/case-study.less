@@ -21,25 +21,25 @@
   h3 {
     padding-top: 32px;
     color: #192147;
-
-    /* Title S (FKA h4) */
     font-family: Inter;
     font-size: 20px;
     font-style: normal;
-    font-weight: 600;
-    line-height: 24px; /* 120% */
+    font-weight: 700;
+    line-height: 120%;
     margin-bottom: 24px;
   }
   h4 {
     color: #192147;
-
-    /* Title XS */
     font-family: Inter;
     font-size: 16px;
     font-style: normal;
-    font-weight: 600;
-    line-height: 19.2px; /* 120% */
+    font-weight: 700;
+    line-height: 120%;
     margin-bottom: 24px;
+  }
+
+  p {
+    line-height: 150%;
   }
 
   [purpose='page-content'] {
@@ -54,7 +54,7 @@
 
   [purpose='article-title-and-quote'] {
     max-width: 663px;
-    margin-bottom: 64px;
+    margin-bottom: 48px;
   }
   [purpose='article-title'] {
     h1 {
@@ -125,6 +125,9 @@
     border: 1px solid #E2E4EA;
     background: #FFF;
     padding: 0 32px 32px 32px;
+    p {
+      margin-bottom: 0px;
+    }
     ul {
       margin-bottom: 0px;
       list-style-type: none;
@@ -137,7 +140,7 @@
         padding-left: 40px;
         text-indent: -40px;
         margin-bottom: 0px;
-        padding-top: 16px;
+        padding-top: 8px;
         padding-bottom: 16px;
       }
       li::before {
@@ -159,6 +162,13 @@
     margin-left: 64px;
     width: 343px;
     font-size: 14px;
+  }
+  [purpose='heading-and-link'] {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
   }
 
   [purpose='sidebar-link'] {
@@ -185,7 +195,6 @@
   [purpose='edit-link'] {
     padding-top: 24px;
     padding-bottom: 16px;
-    margin-top: 24px;
     border-top: 1px solid #E2E4EA;
     a {
       text-decoration: none;
@@ -201,16 +210,23 @@
   }
 
   [purpose='company-information'] {
+    h4 {
+      margin-bottom: 16px;
+    }
     p {
-      margin-bottom: 40px;
-      color: #515774;
 
-      /* Body MD (FKA p) */
+      color: #515774;
       font-family: Inter;
-      font-size: 16px;
+      font-size: 14px;
       font-style: normal;
-      font-weight: 400;
-      line-height: 24px; /* 150% */
+    }
+  }
+  [purpose='sidebar-links'] {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    h4 {
+      margin-bottom: 0px;
     }
   }
   [purpose='case-study-links'] {
@@ -537,7 +553,7 @@
         padding-left: 40px;
         text-indent: -40px;
         margin-bottom: 0px;
-        padding-top: 12px;
+        padding-top: 8px;
         padding-bottom: 12px;
         &:last-of-type {
           margin-bottom: 0px;
@@ -677,35 +693,7 @@
       padding: 0 24px 16px 24px;
     }
     [purpose='article-content'] {
-      [purpose='attribution-quote'] {
-        text-align: center;
-        margin: 64px 0px;
-        &::before {
-          height: 0px;
-          background: none;
-          display: none;
-        }
-        &:last-of-type {
-          margin-bottom: 96px;
-        }
-        p:first-of-type {
-          font-style: italic;
-          line-height: 150%;
-          margin-bottom: 16px;
-          font-size: 16px;
-        }
-        p {
-          font-size: 12px;
-          margin-bottom: 4px;
-        }
-        strong {
-          color: #515774;
-          font-size: 12px;
-          font-style: normal;
-          font-weight: 700;
-          line-height: 18px;
-        }
-      }
+
       [purpose='attribution-quote'] + h2 {
         margin-top: 128px;
       }
@@ -720,17 +708,14 @@
       }
     }
     [purpose='page-container'] {
-      padding: 48px 24px;
+      padding: 48px 32px;
 
-    }
-    [purpose='page-content'] {
-      max-width: 560px;
     }
     [purpose='case-study-quote'] {
       display: flex;
       align-items: center;
       padding-top: 48px;
-      padding-bottom: 64px;
+      padding-bottom: 48px;
       [purpose='quote-author-image'] {
         margin-right: 32px;
       }
@@ -754,6 +739,9 @@
       }
       p {
         margin-bottom: 0px;
+        &:nth-of-type(2) {
+          padding-top: 32px;
+        }
         color: #515774;
 
         /* Body MD (FKA p) */
@@ -776,6 +764,9 @@
       border-top: 1px solid #E2E4EA;
       margin-bottom: 32px;
     }
+    [purpose='heading-and-link'] {
+      padding-top: 0px;
+    }
     [purpose='article-content'] {
       img {
         padding-bottom: 0px;
@@ -783,6 +774,33 @@
       img + em { // Image captions
         top: 4px;
         margin-bottom: 16px;
+      }
+      [purpose='attribution-quote'] {
+        text-align: center;
+        margin: 64px 0px;
+        &::before {
+          left: calc(~'50% - 10.5px');
+        }
+        &:last-of-type {
+          margin-bottom: 96px;
+        }
+        p:first-of-type {
+          font-style: italic;
+          line-height: 150%;
+          margin-bottom: 16px;
+          font-size: 16px;
+        }
+        p {
+          font-size: 12px;
+          margin-bottom: 4px;
+        }
+        strong {
+          color: #515774;
+          font-size: 12px;
+          font-style: normal;
+          font-weight: 700;
+          line-height: 18px;
+        }
       }
     }
 
@@ -800,8 +818,9 @@
     [purpose='case-study-quote'] {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      text-align: center;
+      align-items: flex-start;
+      padding-top: 32px;
+      padding-bottom: 32px;
       [purpose='quote-author-image'] {
         margin-right: 0px;
         margin-bottom: 16px;

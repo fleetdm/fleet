@@ -356,6 +356,9 @@ func TestGetHosts(t *testing.T) {
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
+	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
+	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
 	}
@@ -565,6 +568,9 @@ func TestGetHostsMDM(t *testing.T) {
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
+	}
+	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
 	}
 
 	tests := []struct {
@@ -918,7 +924,11 @@ func TestGetSoftwareVersions(t *testing.T) {
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", ExtensionFor: "edge"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", ExtensionFor: "chrome"}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
+	barLastOpenedAt := time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)
+	bar003 := fleet.Software{
+		Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle",
+		LastOpenedAt: &barLastOpenedAt,
+	}
 
 	var gotTeamID *uint
 
@@ -985,6 +995,7 @@ spec:
 - bundle_identifier: bundle
   generated_cpe: ""
   id: 0
+  last_opened_at: "2022-01-01T00:00:00Z"
   name: bar
   source: deb_packages
   browser: ""
@@ -1054,7 +1065,8 @@ spec:
       "browser": "",
 	  "extension_for": "",
       "generated_cpe": "",
-      "vulnerabilities": null
+      "vulnerabilities": null,
+      "last_opened_at": "2022-01-01T00:00:00Z"
     }
   ]
 }
@@ -1072,7 +1084,7 @@ spec:
 func TestGetLabels(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
 				ID:          32,
@@ -1110,6 +1122,7 @@ spec:
   name: label1
   platform: windows
   query: select 1;
+  team_id: null
 ---
 apiVersion: v1
 kind: label
@@ -1121,9 +1134,10 @@ spec:
   name: label2
   platform: linux
   query: select 42;
+  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
-{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null,"team_id":null}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null,"team_id":null}}
 `
 
 	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "labels"}))
@@ -1134,7 +1148,7 @@ spec:
 func TestGetLabel(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+	ds.GetLabelSpecFunc = func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 		if name != "label1" {
 			return nil, nil
 		}
@@ -1158,8 +1172,9 @@ spec:
   name: label1
   platform: windows
   query: select 1;
+  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null,"team_id":null}}
 `
 
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "label", "label1"}))
@@ -2476,8 +2491,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {

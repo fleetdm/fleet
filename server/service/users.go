@@ -225,6 +225,15 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return svc.ds.ListUsers(ctx, opt)
 }
 
+func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
+	// Authorize read access to users (no specific team context)
+	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.UsersByIDs(ctx, ids)
+}
+
 // //////////////////////////////////////////////////////////////////////////////
 // Me (get own current user)
 // //////////////////////////////////////////////////////////////////////////////
@@ -433,11 +442,12 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
 			return nil, err
 		}
-		license, _ := license.FromContext(ctx)
-		if license == nil {
+		licChecker, _ := license.FromContext(ctx)
+		lic, _ := licChecker.(*fleet.LicenseInfo)
+		if lic == nil {
 			return nil, ctxerr.New(ctx, "license not found")
 		}
-		if err := fleet.ValidateUserRoles(false, p, *license); err != nil {
+		if err := fleet.ValidateUserRoles(false, p, *lic); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}
@@ -505,9 +515,34 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if p.Teams != nil && len(*p.Teams) > 0 {
 			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
 		}
+
+		// Check if demoting from admin - ensure we're not demoting the last one
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			if *p.GlobalRole != fleet.RoleAdmin {
+				count, err := svc.ds.CountGlobalAdmins(ctx)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "count global admins")
+				}
+				if count <= 1 {
+					return nil, fleet.NewInvalidArgumentError("global_role", "cannot demote the last global admin")
+				}
+			}
+		}
+
 		user.GlobalRole = p.GlobalRole
 		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
+		// Check if demoting from admin by assigning teams (which removes global role)
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			count, err := svc.ds.CountGlobalAdmins(ctx)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "count global admins")
+			}
+			if count <= 1 {
+				return nil, fleet.NewInvalidArgumentError("teams", "cannot demote the last global admin")
+			}
+		}
+
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
 			return nil, authz.ForbiddenWithInternal(
 				"cannot modify teams in that way",
@@ -560,24 +595,35 @@ func (r deleteUserResponse) Error() error { return r.Err }
 
 func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteUserRequest)
-	err := svc.DeleteUser(ctx, req.ID)
-	if err != nil {
+	if _, err := svc.DeleteUser(ctx, req.ID); err != nil {
 		return deleteUserResponse{Err: err}, nil
 	}
 	return deleteUserResponse{}, nil
 }
 
-func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
+func (svc *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error) {
 	user, err := svc.ds.UserByID(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
+
+	// prevent deleting admin if they are the last one
+	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+		count, err := svc.ds.CountGlobalAdmins(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "count global admins")
+		}
+		if count <= 1 {
+			return nil, fleet.NewInvalidArgumentError("id", "cannot delete the last global admin")
+		}
+	}
+
 	if err := svc.ds.DeleteUser(ctx, id); err != nil {
-		return err
+		return nil, err
 	}
 
 	adminUser := authz.UserFromContext(ctx)
@@ -590,10 +636,10 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 			UserEmail: user.Email,
 		},
 	); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return user, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
