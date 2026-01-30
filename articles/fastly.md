@@ -2,7 +2,7 @@
 
 ## The Challenge
 
-The Fastly team wanted to consolidate multiple vendors used in managing its endpoint infrastructure. In addition, the Client Platform Engineering Team wanted to adopt Infrastructure as Code with GitOps to align with Fastly’s standards. A key mandate was to ensure smooth migration to minimize impact to end-users.
+The Fastly team wanted to consolidate multiple vendors used in managing its endpoint infrastructure. In addition, the Client Platform Engineering Team wanted to adopt Infrastructure as Code with GitOps to align with Fastly’s standards. A key mandate was to ensure smooth migration to minimize impact on end-users.
 
 ## Choosing Fleet
 
@@ -21,7 +21,7 @@ Sr Manager Systems Engineering, Fastly
 
 ## The results
 
-Fastly worked closely with the Fleet team to plan for the migration of MacOS devices. After about three months of planning, the migration went very smoothly. With over 99.9% of Macs migrated within 45 days, Fastly saw very low ticket counts, and experienced a smooth transition.
+Fastly worked closely with the Fleet team to plan for the migration of macOS devices. After about three months of planning, the migration went very smoothly. With over 99.9% of Macs migrated within 45 days, Fastly saw very low ticket counts and experienced a smooth transition.
 
 One key benefit was aligning employee device visibility with that of the infrastructure team running their POPs. With a single endpoint and server visibility service, the Fastly team unified visibility across approximately 1,200 employee devices and more than 100 global Points-of-Presence, consolidating visibility and management into a single vendor and reducing the overhead of managing multiple tools.
 
@@ -34,9 +34,9 @@ One key benefit was aligning employee device visibility with that of the infrast
 Sr Client Platform Engineer, Fastly
 </div>
 
-The enhanced visibility allowed the endpoint team to run more powerful queries and reports into the state of their endpoints. With Fleet’s support for Automated Device Enrollment and Identity Provider integrations, Fastly could now introduce user authentication during device enrollment, allowing the employee attributes to be tied to the endpoints. 
+The enhanced visibility allowed the endpoint team to run more powerful queries and reports on the state of their endpoints. With Fleet’s support for Automated Device Enrollment and Identity Provider integrations, Fastly could now introduce user authentication during device enrollment, allowing the employee attributes to be tied to the endpoints. 
 
-The move to Fleet also enabled Fastly to manage endpoints using GitOps and Infrastructure as Code. This aligned endpoint management with Fastly’s existing DevOps standards, improved change control, and helped treat endpoint management as an engineering practice rather than a set of manual tasks.
+The move to Fleet also enabled Fastly to manage endpoints using GitOps and Infrastructure-as-Code. This aligned endpoint management with Fastly’s existing DevOps standards, improved change control, and helped treat endpoint management as an engineering practice rather than a set of manual tasks.
 
 <div purpose="attribution-quote">
 
@@ -62,7 +62,7 @@ Sr Manager Systems Engineering, Fastly
 <meta name="quoteContent" value="“Beyond the technical excellence of the product, the partnership with Fleet has been outstanding. They aren't just a vendor, they are a highly responsive extension of our own team.”">
 
 <meta name="companyName" value="Fastly">
-<meta name="companyInfo" value="Fastly is a cloud computing services provider that operates a content delivery network (CDN) and edge cloud platform, helping websites and applications deliver content quickly and reliably worldwide. It serves high-profile customers across media, e-commerce, and technology that require low latency and strong control at the edge. Fastly’s IT team manages employee devices, including around 1,200 Macs and a smaller number of Windows and Linux devices, alongside a global CDN with roughly 100 points of presence that deliver customer content to end users.
+<meta name="companyInfo" value="Fastly is a cloud computing services provider that operates a content delivery network (CDN) and edge cloud platform, helping websites and applications deliver content quickly and reliably worldwide. It serves customers across media, e-commerce, and technology that require low latency and strong control at the edge. Fastly’s IT team manages employee devices, including Macs, Windows, and Linux devices, alongside a global CDN with roughly 100 points of presence that deliver customer content to end users.
 ">
 
 <meta name="summaryChallenge" value="Fastly sought to consolidate security vendors across its employee endpoints and CDN infrastructure, and to align its  macOS Management with corporate standards for managing infrastructure as code (IaC). Having control over the endpoint management and monitoring software was also critical.">
