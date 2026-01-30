@@ -169,6 +169,10 @@
       min-width: 250px;
     }
 
+    .input-with-icon:placeholder-shown {
+      text-overflow: ellipsis;
+    }
+
     &.stack-table-controls {
       padding-bottom: $pad-large;
       margin-left: 0;
