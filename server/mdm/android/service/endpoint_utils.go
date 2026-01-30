@@ -27,8 +27,8 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	)
 }
 
-func makeDecoder(iface interface{}, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
-	return func(ctx context.Context, r *http.Request) (request interface{}, err error) {
+func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+	return func(ctx context.Context, r *http.Request) (request any, err error) {
 		if requestBodySizeLimit != -1 {
 			limitedReader := io.LimitReader(r.Body, requestBodySizeLimit).(*io.LimitedReader)
 
