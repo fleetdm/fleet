@@ -220,4 +220,4 @@ Find certs expiring within 30 days:
 <meta name="authorGitHubUsername" value="AdamBaali">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-01-23">
-<meta name="description" value="Enable Okta Verify on Windows using a SCEP client certificate with ClientCertificateInstall CSP, Exec enrollment, Fleet secrets, verification, troubleshooting, and renewal.">
+<meta name="description" value="Enable Okta Verify on Windows using a SCEP client certificate with ClientCertificateInstall CSP, Exec enrollment, secrets, verification, and renewal.">
