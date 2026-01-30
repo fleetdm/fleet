@@ -38,7 +38,6 @@ import {
   INSTALL_DETAILS_STATUS_ICONS,
   getInstallDetailsStatusPredicate,
 } from "../constants";
-import { hasIn } from "lodash";
 
 const baseClass = "software-install-details-modal";
 
