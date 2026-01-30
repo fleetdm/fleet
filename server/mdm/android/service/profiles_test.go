@@ -924,12 +924,12 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		require.EqualValues(t, fleet.MDMOperationTypeInstall, certTemplate.Operation)
 	}
 
-	// Verify that host_certificate_template records were created with pending status
+	// Verify that host_certificate_template records were created with delivered status
 	var host1CertTemplates []struct {
-		HostUUID              string `db:"host_uuid"`
-		CertificateTemplateID uint   `db:"certificate_template_id"`
-		FleetChallenge        string `db:"fleet_challenge"`
-		Status                string `db:"status"`
+		HostUUID              string  `db:"host_uuid"`
+		CertificateTemplateID uint    `db:"certificate_template_id"`
+		FleetChallenge        *string `db:"fleet_challenge"`
+		Status                string  `db:"status"`
 	}
 	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
@@ -944,7 +944,8 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	for _, hct := range host1CertTemplates {
 		require.Equal(t, host1.Host.UUID, hct.HostUUID)
-		require.NotEmpty(t, hct.FleetChallenge)
+		// Challenge is created on-demand when device fetches the certificate, so it's nil here
+		require.Nil(t, hct.FleetChallenge)
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, hct.Status)
 	}
 

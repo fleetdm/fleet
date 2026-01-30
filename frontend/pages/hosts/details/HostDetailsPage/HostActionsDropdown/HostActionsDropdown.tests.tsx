@@ -1158,6 +1158,11 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
+            config: {
+              server_settings: {
+                scripts_disabled: false, // scriptsGloballyDisabled = false
+              },
+            },
           },
         },
       });
@@ -1176,16 +1181,20 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-
       expect(screen.getByText("Run script")).toBeInTheDocument();
     });
 
-    it("renders the Run script action as enabled when `scripts_enabled` is `null`", async () => {
+    it("renders the Run script action as enabled when scripts_enabled is null", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
+            config: {
+              server_settings: {
+                scripts_disabled: false,
+              },
+            },
           },
         },
       });
@@ -1232,6 +1241,11 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
+            config: {
+              server_settings: {
+                scripts_disabled: false,
+              },
+            },
           },
         },
       });
@@ -1256,13 +1270,51 @@ describe("Host Actions Dropdown", () => {
           ?.parentElement
       ).toHaveClass("actions-dropdown-select__option--is-disabled");
 
+      await waitFor(() => user.hover(screen.getByText("Run script")));
+      expect(
+        screen.getByText(/fleetd agent with --enable-scripts/i)
+      ).toBeInTheDocument();
+    });
+
+    it("renders the Run script action as disabled when scripts are disabled globally", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+            config: {
+              server_settings: {
+                scripts_disabled: true, // scriptsGloballyDisabled = true
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
       await waitFor(() => {
         waitFor(() => {
           user.hover(screen.getByText("Run script"));
         });
 
         expect(
-          screen.getByText(/fleetd agent with --enable-scripts/i)
+          screen.getByText(
+            /Running scripts is disabled in organization settings./i
+          )
         ).toBeInTheDocument();
       });
     });

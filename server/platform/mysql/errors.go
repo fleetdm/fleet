@@ -55,6 +55,11 @@ func (e *NotFoundError) IsNotFound() bool {
 	return true
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e *NotFoundError) IsClientError() bool {
+	return true
+}
+
 // Is helps so that errors.Is(err, sql.ErrNoRows) returns true for an
 // error of type *NotFoundError, without having to wrap sql.ErrNoRows
 // explicitly.

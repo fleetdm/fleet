@@ -17,9 +17,12 @@ If you're configuring [end user authentication](https://fleetdm.com/guides/setup
 
 Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
 
+> Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)", but after the app is set up, Okta labels this as "Audience Restriction".
+
 ![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
 
 > The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
+
 
 ## Google Workspace
 
@@ -41,7 +44,7 @@ Create a new SAML app in Google Workspace:
 
 4. Configure the **Service provider details**:
     - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
-    - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
+    - For Entity ID, use **the same unique identifier as you'll use [in Fleet](#fleet-configuration)** (e.g., `fleet`).
     - For **Name ID format**, choose `EMAIL`.
     - For **Name ID**, choose `Basic Information > Primary email`.
     - All other fields can be left blank.
@@ -132,7 +135,7 @@ IdPs generally requires the following information:
 
 - Assertion Consumer Service - This is the call-back URL that the identity provider will use to send security assertions to Fleet. Use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring end user authentication, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
 
-- Entity ID - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration.
+- Entity ID - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration. In the other examples, we used `fleet`.
 
 - Name ID Format - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IdP setup to something like `email` or `EmailAddress`.
 
@@ -158,7 +161,7 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 - **Identity provider name** - A human-readable name of the IdP. This is rendered on the login page.
 
-- **Entity ID** - A URI that identifies your Fleet instance as the issuer of authorization requests (e.g., `fleet.example.com`). This must match the Entity ID configured with the IdP.
+- **Entity ID** - A URI that identifies your Fleet instance as the issuer of authorization requests (e.g., `fleet`). This must match the Entity ID configured with the IdP.
 
 - **Metadata URL** - Obtain this value from your IdP. and is used by Fleet to
   issue authorization requests to the IdP.
@@ -179,7 +182,7 @@ When JIT user provisioning is turned on, Fleet will automatically create an acco
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
 To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
 
-To enable this option, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check "_Create user and sync permissions on login_" or [adjust your config](https://fleetdm.com/docs/configuration/yaml-files#sso-settings).
 
 For this to work correctly make sure that:
 

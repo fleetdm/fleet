@@ -328,8 +328,8 @@ func gitopsCommand() *cli.Command {
 						builtInLabelsUsed = true
 						continue
 					}
-					for _, labelUsed := range labelsUsed[labelUsed] {
-						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUsed.Type, labelUsed.Name)
+					for _, labelUsage := range labelsUsed[labelUsed] {
+						logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUsage.Type, labelUsage.Name)
 					}
 					unknownLabelsUsed = true
 				}
@@ -963,8 +963,8 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
 										vppTeams = append(vppTeams, normalizedTeam)
-										// ListTeams doesn't return "No team", so account for it here
-										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam {
+										// ListTeams doesn't return "No team" or "All teams", so account for those special cases
+										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam && normalizedTeam != fleet.TeamNameAllTeams {
 											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}

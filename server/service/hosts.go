@@ -96,7 +96,7 @@ func (svc *Service) GetHostLocationData(ctx context.Context, hostID uint) (*flee
 	}
 
 	ret.Geometry = &fleet.Geometry{
-		Coordinates: []float64{locData.Longitude, locData.Latitude},
+		Coordinates: []float64{locData.Latitude, locData.Longitude},
 	}
 
 	return &ret, nil
@@ -282,10 +282,34 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	var softwareTitle *fleet.SoftwareTitle
 	if req.Opts.SoftwareTitleIDFilter != nil {
-		var err error
+		titleID := *req.Opts.SoftwareTitleIDFilter
 
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
-		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software title in that case
+		// 1. Try full title for this team.
+		// Needed in order to grab display_name if it exists
+		st, err := svc.SoftwareTitleByID(ctx, titleID, req.Opts.TeamFilter)
+		switch {
+		case err == nil:
+			fmt.Println("regular")
+			softwareTitle = st
+
+		case fleet.IsNotFound(err):
+			// Not found: only ID + Name as string from helper.
+			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)
+			if errName != nil && !fleet.IsNotFound(errName) {
+				return listHostsResponse{Err: errName}, nil
+			}
+			if errName == nil {
+				fmt.Println("here")
+				softwareTitle = &fleet.SoftwareTitle{
+					ID: titleID,
+				}
+				if displayName != "" {
+					softwareTitle.DisplayName = displayName
+				} else {
+					softwareTitle.Name = name
+				}
+			}
+		default:
 			return listHostsResponse{Err: err}, nil
 		}
 	}

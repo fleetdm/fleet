@@ -297,3 +297,11 @@
   quoteAuthorJobTitle: Senior Technology Specialist
   quoteAuthorProfileImageFilename: testimonial-author-fiona-skelton-100x100@2x.jpeg
   productCategories: [Device management]
+-
+  quote: Fleet enabled us to consolidate our patchwork of endpoint tools with a single platform, eliminating complexity and cutting licensing costs. The shift to GitOps has modernized our operations giving us the agility and change control we needed giving leadership real-time confidence in device health and compliance. The result is a more efficient, secure environment where IT can move faster on strategic projects instead of firefighting or maintaining multiple legacy systems.
+  quoteAuthorName: Dan Jackson
+  quoteAuthorJobTitle: Sr Manager Systems Engineering
+  quoteAuthorProfileImageFilename: testimonial-author-dan-jackson-48x48.png
+  quoteLinkUrl: https://www.linkedin.com/in/mrdanieljackson/
+  quoteImageFilename: social-proof-logo-fastly-83x32@2x.png
+  productCategories: [Device management]

@@ -192,6 +192,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	softwareInventoryEnabled := ac.Features.EnableSoftwareInventory
 	requireAllSoftware := ac.MDM.MacOSSetup.RequireAllSoftware
+	var conditionalAccessEnabled bool
 	if resp.TeamID != nil {
 		// load the team to get the device's team's software inventory config.
 		tm, err := svc.GetTeam(ctx, *resp.TeamID)
@@ -201,6 +202,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		if tm != nil {
 			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
 			requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
+			conditionalAccessEnabled = ac.ConditionalAccess.OktaConfigured() && tm.Config.Integrations.ConditionalAccessEnabled.Valid && tm.Config.Integrations.ConditionalAccessEnabled.Value
 		}
 	}
 
@@ -221,7 +223,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			RequireAllSoftware:   requireAllSoftware,
 		},
 		Features: fleet.DeviceFeatures{
-			EnableSoftwareInventory: softwareInventoryEnabled,
+			EnableSoftwareInventory:       softwareInventoryEnabled,
+			EnableConditionalAccess:       conditionalAccessEnabled,
+			EnableConditionalAccessBypass: ac.ConditionalAccess != nil && ac.ConditionalAccess.BypassEnabled(),
 		},
 	}
 
@@ -477,6 +481,46 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Bypass conditional access
+////////////////////////////////////////////////////////////////////////////////
+
+type bypassConditionalAccessRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *bypassConditionalAccessRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type bypassConditionalAccessResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r bypassConditionalAccessResponse) Error() error { return r.Err }
+
+func bypassConditionalAccessEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return bypassConditionalAccessResponse{Err: err}, nil
+	}
+
+	if err := svc.BypassConditionalAccess(ctx, host); err != nil {
+		return bypassConditionalAccessResponse{Err: err}, nil
+	}
+
+	return bypassConditionalAccessResponse{}, nil
+}
+
+func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
