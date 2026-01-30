@@ -11121,3 +11121,17 @@ func testListSoftwareInventoryDeletedHost(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Software", software[0].Name)
 	require.Equal(t, titleID, software[0].ID)
 }
+
+// TestUniqueSoftwareTitleStrNormalization tests that UniqueSoftwareTitleStr
+// produces consistent keys regardless of Unicode format characters (like RTL mark)
+// which MySQL's utf8mb4_unicode_ci collation ignores.
+func TestUniqueSoftwareTitleStrNormalization(t *testing.T) {
+	// With RTL mark (U+200F) - the actual bug case from production
+	keyWithRTL := UniqueSoftwareTitleStr("\u200fSmart Connect", "programs", "")
+	keyWithoutRTL := UniqueSoftwareTitleStr("Smart Connect", "programs", "")
+	assert.Equal(t, keyWithoutRTL, keyWithRTL, "RTL mark should be stripped")
+
+	// Verify regular unicode is preserved
+	keyJapanese := UniqueSoftwareTitleStr("日本語ソフト", "apps", "")
+	assert.Contains(t, keyJapanese, "日本語ソフト")
+}
