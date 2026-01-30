@@ -59,11 +59,16 @@ The error map should export constants to be used in code, e.g. `ErrCodelabelName
 
 ### Using error codes in practice
 
-One possible implementation would be 
+_This is speculative, actual implementation to be determined by engineers after general strategy is approved._
 
-### Where to start
+We already have several helper methods for creating errors to return, such as `NewUserMessageError()` and `NewInvalidArgumentError()`; we could extend these to e.g. `NewUserMessageErrorWithCode()`, along with a generic `NewErrorWithCode()` helper. We'll also want a new interface like `ErrWithCode` that declares an `ErrorCode()` method, and in the [transport_error.go](https://github.com/fleetdm/fleet/blob/main/server/platform/endpointer/transport_error.go) code detect this to 1) add the `error_code` to the response and 2) derive the `reason` from the error code. For error codes that map to a string template or a function, we may need additional interface methods like `ErrorMetadata()`. 
 
-The first use of error codes should be to replace instances of `reasonIncludes` and `nameIncludes` in the front-end code.
+### Where to start (and what to avoid)
+
+* The first use of error codes should be to replace instances of `reasonIncludes` and `nameIncludes` in the front-end code. 
+* We can experiment with adding new errors and replacing existing errors as we come across them to see how much of a pain the pattern is to use in practice.
+* Errors that are bubbled up from lower-level methods can be left alone, or eventually share a generic `UNKNOWN_ERROR` code with no mapping (so that they continue to provide their own "reason").
+
 
 ## Consequences
 
