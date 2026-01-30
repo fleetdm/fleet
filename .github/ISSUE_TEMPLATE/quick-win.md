@@ -1,6 +1,6 @@
 ---
 name: ✨ Quick win
-about: https://fleetdm.com/handbook/company/product-groups#quick-win
+about: https://fleetdm.com/handbook/company/product-groups#scrum-items
 title: ''
 labels: 'quick-win'
 assignees: ''
