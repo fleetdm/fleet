@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -625,6 +626,81 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
+	// helper functions
+	getEnrollRef := func(hostUUID string) string {
+		var foundRef string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &foundRef, `
+	              SELECT fleet_enroll_ref FROM host_mdm
+	              WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)
+		`, hostUUID)
+		})
+		return foundRef
+	}
+
+	existsRefetchCmd := func(hostUUID string) bool {
+		var foundRefetchCmd bool
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &foundRefetchCmd, `
+	              SELECT 1 FROM host_mdm_commands
+	              WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)
+	              AND command_type = 'REFETCH-DEVICE-'
+		`, hostUUID)
+		})
+		return foundRefetchCmd
+	}
+
+	getRenewCmdUUID := func(hostUUID string) sql.NullString {
+		var renewCmdUUID sql.NullString
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &renewCmdUUID, `
+	              SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ?
+		`, hostUUID)
+		})
+		return renewCmdUUID
+	}
+
+	reportResultsRefetchCmds := func(device *mdmtest.TestAppleMDMClient) {
+		var gotRefetchCmd *micromdm.CommandPayload
+		gotCmdTypes := []string{}
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			gotCmdTypes = append(gotCmdTypes, cmd.Command.RequestType)
+
+			switch fullCmd.Command.RequestType {
+			case "DeviceInformation":
+				gotRefetchCmd = &fullCmd
+				// respond with some basic info
+				cmd, err = device.AcknowledgeDeviceInformation(device.UUID, cmd.CommandUUID, "Test iPad", "iPad Pro", "America/Los_Angeles")
+				require.NoError(t, err)
+				continue
+			case "InstalledApplicationList":
+				// respond with empty list
+				cmd, err = device.AcknowledgeInstalledApplicationList(device.UUID, cmd.CommandUUID, []fleet.Software{})
+				require.NoError(t, err)
+				continue
+			case "CertificateList":
+				// respond with empty list
+				cmd, err = device.AcknowledgeCertificateList(device.UUID, cmd.CommandUUID, []*x509.Certificate{})
+				require.NoError(t, err)
+				continue
+			default:
+				t.Fatalf("unexpected command: %s", fullCmd.Command.RequestType)
+			}
+		}
+		require.Len(t, gotCmdTypes, 3) // expect DeviceInformation, InstalledApplicationList, CertificateList
+		require.Contains(t, gotCmdTypes, "DeviceInformation")
+		require.NotNil(t, gotRefetchCmd)
+	}
+
+	// grab global enroll secrets for later
+	enrollSecrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, enrollSecrets)
+
 	// ensure there's a token for automatic enrollments
 	s.enableABM(t.Name())
 
@@ -1019,6 +1095,163 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		`, migratedDevice.UUID)
 	})
 	require.True(t, stillMigrated)
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	// iDevice enrolled with legacy enroll reference #37880
+
+	iPadMdmDevice := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, enrollSecrets[0].Secret, "iPad8,1", mdmtest.WithLegacyIDeviceEnrollRef("some-legacy-ref"))
+	require.NoError(t, iPadMdmDevice.Enroll())
+
+	s.runWorker()
+	s.awaitTriggerProfileSchedule(t)
+	require.Equal(t, expectedProfiles-1, ackAllCommands(iPadMdmDevice, false, false))
+
+	// enroll reference wasn't captured for iDevices during enrollment
+	require.Empty(t, getEnrollRef(iPadMdmDevice.UUID))
+
+	// enqueue refetch commands and report results
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}))
+	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
+	reportResultsRefetchCmds(iPadMdmDevice)
+
+	// verify that the enroll reference is now stored in the db
+	require.Equal(t, "some-legacy-ref", getEnrollRef(iPadMdmDevice.UUID))
+
+	// expire cert
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+	              UPDATE nano_cert_auth_associations
+	              SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+	              WHERE id = ?
+		`, iPadMdmDevice.UUID)
+		return err
+	})
+
+	// confirm that there's no renew command prior to running the cron
+	renewCmdUUID := getRenewCmdUUID(iPadMdmDevice.UUID)
+	require.Empty(t, renewCmdUUID.String)
+	require.False(t, renewCmdUUID.Valid)
+
+	// running cron enqueues the renew command
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+
+	// we now have a renew command uuid
+	renewCmdUUID = getRenewCmdUUID(iPadMdmDevice.UUID)
+	require.NotEmpty(t, renewCmdUUID.String)
+	require.True(t, renewCmdUUID.Valid)
+	wantCmdUUID := renewCmdUUID.String
+
+	// verify the renew command includes the enroll reference
+	cmd, err = iPadMdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	require.Equal(t, wantCmdUUID, cmd.CommandUUID)
+	s.verifyEnrollmentProfile(cmd.Raw, "some-legacy-ref", "")
+
+	// fail the command so we can test new flow that ensures renew commands are cleared
+	// whenever we reset enroll ref
+	cmd, err = iPadMdmDevice.Err(cmd.CommandUUID, nil)
+	require.NoError(t, err)
+	require.Nil(t, cmd) // error doesn't trigger new command immediately
+
+	// running cron again doesn't change anything if the renew command failed
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+	cmd, err = iPadMdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd) // no new command is enqueued
+
+	// confirm that the renew command uuid is still the same after failure and cron run
+	renewCmdUUID = getRenewCmdUUID(iPadMdmDevice.UUID)
+	require.NotEmpty(t, renewCmdUUID.String)
+	require.True(t, renewCmdUUID.Valid)
+	require.Equal(t, wantCmdUUID, renewCmdUUID.String)
+
+	// now clear the enroll_ref to simulate device that failed prior to #37880
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+	              UPDATE host_mdm
+	              SET fleet_enroll_ref = ''
+	              WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)
+		`, iPadMdmDevice.UUID)
+		return err
+	})
+	require.Empty(t, getEnrollRef(iPadMdmDevice.UUID))
+
+	// running cron again doesn't change anything until refetch is done
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+	cmd, err = iPadMdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd) // no new command is enqueued
+
+	// confirm that the renew command uuid is still the same
+	renewCmdUUID = getRenewCmdUUID(iPadMdmDevice.UUID)
+	require.NotEmpty(t, renewCmdUUID.String)
+	require.True(t, renewCmdUUID.Valid)
+	require.Equal(t, wantCmdUUID, renewCmdUUID.String)
+
+	// backdate host.detail_updated_at so we can do another refetch
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+	              UPDATE hosts
+	              SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)
+				  WHERE uuid = ?
+		`, iPadMdmDevice.UUID)
+		return err
+	})
+
+	// enqueue refetch commands and report results
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}))
+	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
+	reportResultsRefetchCmds(iPadMdmDevice)
+
+	// refetch triggers new enroll reference to be set and renew commands to be cleared/deactivated
+	require.Equal(t, "some-legacy-ref", getEnrollRef(iPadMdmDevice.UUID))
+
+	// renew command cleared
+	renewCmdUUID = getRenewCmdUUID(iPadMdmDevice.UUID)
+	require.Empty(t, renewCmdUUID.String)
+	require.False(t, renewCmdUUID.Valid)
+
+	// nano_enrollment_queue is deactivated
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var active bool
+		err := sqlx.GetContext(ctx, q, &active, `
+	              SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?
+		`, iPadMdmDevice.UUID, wantCmdUUID)
+		require.NoError(t, err)
+		require.False(t, active)
+		return nil
+	})
+
+	// now run renewal cron to issue new command
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+
+	renewCmdUUID = getRenewCmdUUID(iPadMdmDevice.UUID)
+	require.NotEmpty(t, renewCmdUUID.String)
+	require.True(t, renewCmdUUID.Valid)
+	require.NotEqual(t, wantCmdUUID, renewCmdUUID.String)
+	wantCmdUUID = renewCmdUUID.String // updated with new command UUID
+
+	cmd, err = iPadMdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	require.Equal(t, wantCmdUUID, cmd.CommandUUID)
+	s.verifyEnrollmentProfile(cmd.Raw, "some-legacy-ref", "")
+
+	cmd, err = iPadMdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	require.Nil(t, cmd) // no further commands
 }
 
 func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
