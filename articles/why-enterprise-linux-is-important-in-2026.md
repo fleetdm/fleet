@@ -40,7 +40,7 @@ A challenge IT teams face is that many of these technically savvy employees have
 
 As Linux adoption grows, so does its attractiveness to attackers. In 2023, the Icefire ransomware targeted Linux systems and networks, underscoring a new reality: Linux endpoints are no longer obscure or ignored. Unmanaged Linux devices are a liability. Linux must be managed as a first-class platform and held to the same security and compliance standards as macOS and Windows. Failing to do so exposes organizations to malware, configuration drift, and audit failures.
 
-The operational gap in Linux management
+## The operational gap in Linux management
 
 Linux endpoints present the same operational challenges as other devices:
 
