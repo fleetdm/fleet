@@ -153,9 +153,11 @@ For macOS hosts, you can configure the setup experience to stop if any software 
 
 3. Select **Save**. 
 
-When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
+When this feature is enabled, any failed software will immediately end the setup experience and instruct the end user to restart their Mac:
 
 ![screen shot of Fleet setup experience failed view](../website/assets/images/articles/setup-experience-failed-470x245@2x.png)
+
+End users won't continue through setup experience unless they press Command (⌘) + Shift + X.
 
 ## Run script
 
