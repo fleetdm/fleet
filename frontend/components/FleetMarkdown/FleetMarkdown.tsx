@@ -23,7 +23,7 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
   const classNames = classnames(baseClass, className);
 
   return (
-    // In react-markdown v10+, className prop was removed from ReactMarkdown.
+    // In react-markdown v10, className prop was removed from ReactMarkdown.
     // We wrap in a div to apply the className instead.
     <div className={classNames}>
       <ReactMarkdown
@@ -35,7 +35,7 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
             return <CustomLink text={String(children)} url={href} newTab />;
           },
 
-          // In react-markdown v9+, the `inline` prop is no longer passed to code components.
+          // In react-markdown v10, the `inline` prop is no longer passed to code components.
           // Block code is wrapped in a `pre` element, so we override `pre` to use SQLEditor
           // and keep `code` for inline code only.
           pre: ({ children }) => {
@@ -65,18 +65,20 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
             // full code blocks we want to use Fleet Ace.
             // e.g. ```SELECT * FROM USERS```
             return (
-              <SQLEditor
-                wrapperClassName={`${baseClass}__ace-display`}
-                // Remove trailing newline added by markdown parser, preserving newlines within the code block
-                value={codeContent.replace(/\n$/, "")}
-                showGutter={false}
-                onBlur={onEditorBlur}
-                onLoad={onEditorLoad}
-                style={{ border: "none" }}
-                wrapEnabled
-                readOnly
-                name={name}
-              />
+              <pre>
+                <SQLEditor
+                  wrapperClassName={`${baseClass}__ace-display`}
+                  // Remove trailing newline added by markdown parser, preserving newlines within the code block
+                  value={codeContent.replace(/\n$/, "")}
+                  showGutter={false}
+                  onBlur={onEditorBlur}
+                  onLoad={onEditorLoad}
+                  style={{ border: "none" }}
+                  wrapEnabled
+                  readOnly
+                  name={name}
+                />
+              </pre>
             );
           },
 
