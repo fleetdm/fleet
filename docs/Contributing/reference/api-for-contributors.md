@@ -1319,9 +1319,11 @@ Content-Type: application/octet-stream
 
 ### List devices from Apple Business Manager
 
+_Available in Fleet Premium_
+
 `GET /api/v1/fleet/mdm/apple/dep/devices`
 
-List devices known to fleet from Apple Business Manager.
+List devices assigned to fleet in Apple Business Manager.
 
 #### Parameters
 
@@ -1360,6 +1362,8 @@ List devices known to fleet from Apple Business Manager.
 
 
 ### Get information about a single device from Apple Business Manager
+
+_Available in Fleet Premium_
 
 `GET /api/v1/fleet/mdm/apple/dep/devices/{serial}`
 
@@ -1419,9 +1423,11 @@ Get information about a single device from Apple Business Manager. Returns both 
 
 ### Get information about a profile from Apple Business Manager
 
+_Available in Fleet Premium_
+
 `GET /api/v1/fleet/mdm/apple/dep/profiles/{profile_uuid}`
 
-Get information about a single profile from Apple Business Manager. by its UUID.
+Get information about a single profile from Apple Business Manager by its UUID.
 
 #### Parameters
 
@@ -1476,7 +1482,9 @@ Get information about a single profile from Apple Business Manager. by its UUID.
 
 ### Assign a profile
 
-Assigns a DEP profile to a list of serial numbers. If abm_token_id is not specified, the devices corresponding to the provided serial numbers must all exist in Fleet and come from the same ABM token.
+_Available in Fleet Premium_
+
+Assigns a profile to a list of serial numbers in Apple Business Manager. If abm_token_id is not specified, the devices corresponding to the provided serial numbers must all exist in Fleet and come from the same ABM token.
 
 #### Parameters
 
@@ -1506,6 +1514,8 @@ Assigns a DEP profile to a list of serial numbers. If abm_token_id is not specif
 `Status: 200`
 
 ### Reset ABM Sync Cursor
+
+_Available in Fleet Premium_
 
 Resets the sync cursor associated with a particular ABM token.
 
