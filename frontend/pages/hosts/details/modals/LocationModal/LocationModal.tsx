@@ -27,10 +27,10 @@ const getLocationMessage = (
   hasLocation: boolean
 ): JSX.Element | null => {
   const FETCH_LATEST_LOCATION_MESSAGE = (
-    <>
+    <div>
       Close this modal and select <strong>Refetch</strong> to fetch new
       location.
-    </>
+    </div>
   );
   const IOS_LOCK_REQUIRED_MESSAGE = (
     <>
