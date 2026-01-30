@@ -1407,7 +1407,7 @@ Get information about a single device from Apple Business Manager. Returns both 
     "device_assigned_date": "2026-01-29T21:17:25Z",
     "device_family": "iPhone",
     "OpType": "modified",
-    "OpDate": "2026-01-29T21:17:25Z", // TODO EJM Figure out if we actually get this from this API
+    "OpDate": "2026-01-29T21:17:25Z",
     "os": "iOS",
     "profile_status": "assigned",
     "profile_assign_time": "2026-01-29T21:17:25Z",
