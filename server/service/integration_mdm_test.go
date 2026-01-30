@@ -9383,8 +9383,10 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	// escrowing a new encryption key should create a new acitivy entry
 	activities = s.listActivities()
 	escrowKeyActivity = fleet.ActivityTypeEscrowedDiskEncryptionKey{}
+	newActivityCount := 0
 	for _, activity := range activities {
-		if activity.Type == escrowKeyActivity.ActivityName() && activity.ID != seenEscrowKeyActivityID {
+		if activity.Type == escrowKeyActivity.ActivityName() && activity.ID > seenEscrowKeyActivityID {
+			newActivityCount++
 			err := json.Unmarshal(*activity.Details, &escrowKeyActivity)
 			require.NoError(t, err)
 			require.True(t, activity.FleetInitiated)
@@ -9392,6 +9394,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 			seenEscrowKeyActivityID = activity.ID
 		}
 	}
+	require.Equal(t, 1, newActivityCount, "Expected exactly one new escrow activity")
 	require.Equal(t, escrowKeyActivity.HostID, host.ID)
 	require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
 
@@ -9474,11 +9477,11 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 
 		// New escrow activity
 		activities = s.listActivities()
-		escrowCountFinal := 0
+		newEscrowCount := 0
 		escrowKeyActivity = fleet.ActivityTypeEscrowedDiskEncryptionKey{}
 		for _, activity := range activities {
-			if activity.Type == escrowKeyActivity.ActivityName() && activity.ID != seenEscrowKeyActivityID {
-				escrowCountFinal++
+			if activity.Type == escrowKeyActivity.ActivityName() && activity.ID > seenEscrowKeyActivityID {
+				newEscrowCount++
 				err := json.Unmarshal(*activity.Details, &escrowKeyActivity)
 				require.NoError(t, err)
 				require.True(t, activity.FleetInitiated)
@@ -9486,7 +9489,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 				seenEscrowKeyActivityID = activity.ID
 			}
 		}
-		require.Equal(t, escrowCountBefore+1, escrowCountFinal)
+		require.Equal(t, 1, newEscrowCount)
 		require.NotZero(t, seenEscrowKeyActivityID)
 		require.Equal(t, escrowKeyActivity.HostID, host.ID)
 		require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
