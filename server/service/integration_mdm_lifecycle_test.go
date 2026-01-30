@@ -664,6 +664,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		var gotRefetchCmd *micromdm.CommandPayload
 		gotCmdTypes := []string{}
 		cmd, err := device.Idle()
+		require.NoError(t, err)
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
