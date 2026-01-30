@@ -1343,7 +1343,7 @@ List devices known to fleet from Apple Business Manager.
   "hosts": [
     {
       "id": 1,
-      "hardware_serial": "abc123",
+      "hardware_serial": "ABC1FND0ZX",
       "platform": "ios",
       "assign_profile_response": "SUCCESS",
       "response_updated_at": "2025-12-04 01:35:27",
@@ -1384,11 +1384,11 @@ Get information about a single device from Apple Business Manager. Returns both 
 {
   "host": {
     "id": 1,
-    "hardware_serial": "abc123",
+    "hardware_serial": "ABC1FND0ZX",
     "platform": "ios",
     "assign_profile_response": "SUCCESS",
     "response_updated_at": "2025-12-04 01:35:27",
-    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",\
+    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
     "added_at": "2025-01-01",
     "deleted_at": null,
     "abm_token_id": 1,
@@ -1410,7 +1410,7 @@ Get information about a single device from Apple Business Manager. Returns both 
     "push_push_time": "0001-01-01T00:00:00Z",
     "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
     "mdm_migration_deadline": null,
-    "serial_number": "abc123"
+    "serial_number": "ABC1FND0ZX"
   }
 }
 ```
@@ -1419,7 +1419,7 @@ Get information about a single device from Apple Business Manager. Returns both 
 
 ### Get information about a profile from Apple Business Manager
 
-`GET /api/v1/fleet/mdm/apple/dep/profiles/{uuid}`
+`GET /api/v1/fleet/mdm/apple/dep/profiles/{profile_uuid}`
 
 Get information about a single profile from Apple Business Manager. by its UUID.
 
@@ -1427,12 +1427,12 @@ Get information about a single profile from Apple Business Manager. by its UUID.
 
 | Name | Type   | In   | Description                          |
 | ---- | ------ | ---- | ------------------------------------ |
-| uuid | string | path | **Required.** The uuid of the profile |
+| profile_uuid | string | path | **Required.** The UUID of the profile to retrieve information for |
 | abm_token_id | string | query | **Optional.** The ABM token to use for the ABM query. Not usually needed for profiles known to and listed in fleet. Profiles not listed in fleet will result in a query to the lowest-id ABM token, which may not be the correct token in a multi-token environment. |
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/dep/profiles/abc123`
+`GET /api/v1/fleet/mdm/apple/dep/profiles/762C4D36550103CCC53AA212A8D31CDD`
 
 ##### Default response
 
@@ -1452,7 +1452,7 @@ Get information about a single profile from Apple Business Manager. by its UUID.
     "anchor_certs": [],
     "auto_advance_setup": false,
     "await_device_configured": true,
-    "configuration_web_url": "https://example.com", // TODO
+    "configuration_web_url": "https://fleet.example.com/mdm/sso",
     "department": "",
     "devices": [],
     "do_not_use_profile_from_backup": false,
@@ -1463,13 +1463,13 @@ Get information about a single profile from Apple Business Manager. by its UUID.
     "is_supervised": true,
     "language": "en",
     "org_magic": "",
-    "profile_name": "Fleet default setup assistant",// TODO
+    "profile_name": "Fleet default setup assistant",
     "region": "US",
     "skip_setup_items": [],
     "supervising_host_certs": [],
     "support_email_address": "",
     "support_phone_number": "",
-    "url": "https://example.com" // TODO
+    "url": "https://fleet.example.com/mdm/sso"
   }
 }
 ```
@@ -1496,7 +1496,7 @@ Assigns a DEP profile to a list of serial numbers. If abm_token_id is not specif
 ```json
 {
   "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
-  "serial_numbers": ["abc123"],
+  "serial_numbers": ["ABC1FND0ZX"],
   "abm_token_id": 1
 }
 ```
