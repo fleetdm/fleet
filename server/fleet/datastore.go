@@ -1674,6 +1674,18 @@ type Datastore interface {
 	// been deleted from Fleet.
 	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
 
+	// GetMDMAppleHostMDMEnrollRef returns the host mdm enrollment reference for
+	// the given host ID.
+	GetMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint) (string, error)
+	// UpdateMDMAppleHostMDMEnrollRef updates the host mdm enrollment reference for
+	// the given host ID. It returns a boolean indicating whether any row was
+	// affected.
+	UpdateMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint, enrollRef string) (bool, error)
+	// DeactivateMDMAppleHostSCEPRenewCommands deactivates any pending SCEP renew
+	// commands for the given host UUID in the nano_enrollment_queue. It also clears all renew
+	// command uuid associated in nano_cert_auth_assocations for that host.
+	DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context, hostUUID string) error
+
 	// ListMDMAppleEnrolledIphoneIpadDeletedFromFleet returns a list of nano
 	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
 	// but deleted from Fleet.
