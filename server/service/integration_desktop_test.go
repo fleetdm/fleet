@@ -320,7 +320,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res.Body.Close()
 
 	data := make(map[string]interface{})
-	for i := int64(0); i < (platform_http.MaxFleetdErrorReportSize+1024)/20; i++ {
+	for i := range (platform_http.MaxFleetdErrorReportSize + 1024) / 20 {
 		key := fmt.Sprintf("key%d", i)
 		value := fmt.Sprintf("value%d", i)
 		data[key] = value

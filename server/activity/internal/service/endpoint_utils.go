@@ -40,7 +40,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 
 // makeDecoder creates a decoder for the given request type.
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
-	return func(ctx context.Context, r *http.Request) (request interface{}, err error) {
+	return func(ctx context.Context, r *http.Request) (request any, err error) {
 		if requestBodySizeLimit != -1 {
 			limitedReader := io.LimitReader(r.Body, requestBodySizeLimit).(*io.LimitedReader)
 

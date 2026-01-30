@@ -63,12 +63,12 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	r := mux.NewRouter()
 	ce := &CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
-		MakeDecoderFn: func(iface interface{}, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
-			return func(ctx context.Context, r *http.Request) (request interface{}, err error) {
+		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+			return func(ctx context.Context, r *http.Request) (request any, err error) {
 				return nopRequest{}, nil
 			}
 		},
-		EncodeFn: func(ctx context.Context, w http.ResponseWriter, i interface{}) error {
+		EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
 			w.WriteHeader(http.StatusOK)
 			return nil
 		},
