@@ -38,6 +38,7 @@ import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import { getDisplayedSoftwareName } from "../helpers";
 
 const baseClass = "software-version-details-page";
 
@@ -179,9 +180,10 @@ const SoftwareVersionDetailsPage = ({
               className={`${baseClass}__summary-section`}
             >
               <SoftwareDetailsSummary
-                displayName={`${
-                  softwareVersion.display_name || softwareVersion.name
-                }, ${softwareVersion.version}`}
+                displayName={`${getDisplayedSoftwareName(
+                  softwareVersion.name,
+                  softwareVersion.display_name
+                )}, ${softwareVersion.version}`}
                 type={formatSoftwareType(softwareVersion)}
                 hostCount={hostsCount}
                 queryParams={{

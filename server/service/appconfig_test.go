@@ -533,7 +533,19 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 					{APIToken: "zendesktoken"},
 				},
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
-					{ApiKey: map[string]string{fleet.GoogleCalendarPrivateKey: "google-calendar-private-key"}},
+					{ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						"type":                         "service_account",
+						"project_id":                   "test-project-123",
+						"private_key_id":               "key-id-456",
+						fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----",
+						fleet.GoogleCalendarEmail:      "test@test-project.iam.gserviceaccount.com",
+						"client_id":                    "123456789",
+						"auth_uri":                     "https://accounts.google.com/o/oauth2/auth",
+						"token_uri":                    "https://oauth2.googleapis.com/token",
+						"auth_provider_x509_cert_url":  "https://www.googleapis.com/oauth2/v1/certs",
+						"client_x509_cert_url":         "https://www.googleapis.com/robot/v1/metadata/x509/test",
+						"universe_domain":              "googleapis.com",
+					}}},
 				},
 			},
 		}, nil
@@ -612,8 +624,8 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
-				// Google Calendar private key is not obfuscated
-				require.Equal(t, ac.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey], "google-calendar-private-key")
+				// Verify Google Calendar API key is masked (will serialize to "********")
+				require.True(t, ac.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 			}
 		})
 	}
@@ -1721,4 +1733,219 @@ func TestValidAddress(t *testing.T) {
 			assert.Equal(t, tc.expected, result, "isValidHostnameAndPort(%q) = %v, want %v", tc.hostname, result, tc.expected)
 		})
 	}
+}
+
+// TestModifyAppConfigGoogleCalendarAPIKey tests that Google Calendar API keys
+// are preserved when omitted from the request, and replaced (not merged) when provided.
+func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Initial config with Google Calendar integration
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://example.org",
+		},
+		Integrations: fleet.Integrations{
+			GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+				{
+					Domain: "example.com",
+					ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						fleet.GoogleCalendarEmail:      "test@example.com",
+						fleet.GoogleCalendarPrivateKey: "original-private-key",
+						"project_id":                   "original-project",
+					}},
+				},
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	t.Run("preserve API key when omitted (no changes)", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Update without including api_key_json (simulates frontend sending masked value)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be preserved (check datastore, not returned config which is obfuscated)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("preserve API key when updating only domain", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Update only domain, omit api_key_json
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "newdomain.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// Domain should be updated, API key preserved (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "newdomain.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("replace API key when new one provided (not merge)", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Provide new API key with different fields
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": {
+						"client_email": "new@example.com",
+						"private_key": "new-private-key",
+						"new_field": "new-value"
+					}
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be completely replaced (not merged) - check datastore
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "new@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "new-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "new-value", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["new_field"])
+		// Old fields should NOT be present (confirms replacement, not merge)
+		_, hasOldProject := dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"]
+		require.False(t, hasOldProject, "old project_id should not be present after replacement")
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("validation passes with preserved API key", func(t *testing.T) {
+		// Reset to valid state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "valid@example.com",
+			fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nvalid-key\n-----END PRIVATE KEY-----",
+		}}
+
+		// Update without api_key_json (should preserve valid key and pass validation)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// Should succeed with preserved API key (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "valid@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "-----BEGIN PRIVATE KEY-----\nvalid-key\n-----END PRIVATE KEY-----", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("preserve API key when masked value sent", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Send masked api_key_json (simulates frontend sending back obfuscated value)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": "********"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be preserved, not overwritten with masked values (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
 }

@@ -9,6 +9,7 @@ import Modal from "components/Modal";
 import IconStatusMessage from "components/IconStatusMessage";
 import ModalFooter from "components/ModalFooter";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "software-update-modal";
 
@@ -96,6 +97,7 @@ const SoftwareUpdateModal = ({
   } = software;
   const installerName = software_package?.name || "";
   const installerVersion = software_package?.version || app_store_app?.version;
+  const softwareDisplayName = getDisplayedSoftwareName(name, display_name);
 
   const onClickUpdate = () => {
     onUpdate(id);
@@ -115,7 +117,7 @@ const SoftwareUpdateModal = ({
             hostDisplayName={hostDisplayName}
             isDeviceUser={isDeviceUser}
             softwareStatus={status}
-            softwareName={display_name || name}
+            softwareName={softwareDisplayName}
             installerName={installerName}
             installerVersion={installerVersion}
           />

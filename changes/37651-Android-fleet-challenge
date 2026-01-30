@@ -1,0 +1,1 @@
+Fixed Android certificate enrollment failures caused by SCEP challenge expiration when devices were offline.

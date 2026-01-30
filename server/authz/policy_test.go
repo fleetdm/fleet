@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -15,6 +16,9 @@ import (
 )
 
 const (
+	readAction = platform_authz.ActionRead
+
+	// Existing legacy code continues to use fleet package constants
 	read               = fleet.ActionRead
 	list               = fleet.ActionList
 	write              = fleet.ActionWrite
@@ -40,8 +44,8 @@ func init() {
 
 type authTestCase struct {
 	user   *fleet.User
-	object interface{}
-	action string
+	object any
+	action any
 	allow  bool
 }
 
@@ -127,6 +131,7 @@ func TestAuthorizeActivity(t *testing.T) {
 	t.Parallel()
 
 	activity := &fleet.Activity{}
+	bcActivity := &activity_api.Activity{}
 
 	runTestCases(t, []authTestCase{
 		// All global roles except GitOps can read activities.
@@ -137,12 +142,26 @@ func TestAuthorizeActivity(t *testing.T) {
 		{user: test.UserObserverPlus, object: activity, action: read, allow: true},
 		{user: test.UserGitOps, object: activity, action: read, allow: false},
 
-		// Team roles cannot read activites.
+		// Team roles cannot read activities.
 		{user: test.UserTeamAdminTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: activity, action: read, allow: false},
+
+		// Bounded context (bc) Activity - same authorization rules apply
+		{user: nil, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserAdmin, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserMaintainer, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserObserver, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserObserverPlus, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserGitOps, object: bcActivity, action: readAction, allow: false},
+		// Team roles cannot read activities.
+		{user: test.UserTeamAdminTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamObserverTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: bcActivity, action: readAction, allow: false},
 	})
 }
 
@@ -2055,7 +2074,7 @@ func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 					result = "deny"
 				}
 
-				t.Run(action+"_"+obj+"_"+role+"_"+result, func(t *testing.T) {
+				t.Run(fmt.Sprintf("%v", action)+"_"+obj+"_"+role+"_"+result, func(t *testing.T) {
 					t.Parallel()
 					if tt.allow {
 						assertAuthorized(t, tt.user, tt.object, tt.action)

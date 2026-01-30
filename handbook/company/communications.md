@@ -50,28 +50,28 @@ Fleet is successful because of our customers and community, and those relationsh
 
 | Area of responsibility | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) |
 | -------------- | --- |
-| Revenue                              | <sup><sub>_See [🐋 Chief Revenue Officer](https://fleetdm.com/handbook/sales#team)_</sup></sub>
+| Revenue                              | <sup><sub>_See [🐋 SVP of Global Sales](https://fleetdm.com/handbook/sales#team)_</sup></sub>
 | Pricing                              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand design & illustrations         | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Website                              | <sup><sub>_See [🕸️ #g-website group](https://fleetdm.com/handbook/company/product-groups#website-group)_
 | Product marketing (PMM)              | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Brand strategy                       | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Public relations                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
-| Revenue pipeline                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Revenue pipeline                     | <sup><sub>_See [🫧 Chief Marketing Officer](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Video                                | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Social media                         | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Events                               | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Swag                                 | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
-| Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Guides                               | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Onboarding and training              | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
 | Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
-| Information technology (IT)          | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it#team)_</sup></sub>
-| Internal tools & equipment           | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it#team)_</sup></sub>
+| Information technology (IT)          | <sup><sub>_See [🌐 IT](https://fleetdm.com/handbook/it#team)_</sup></sub>
+| Internal tools & equipment           | <sup><sub>_See [🌐 IT](https://fleetdm.com/handbook/it#team)_</sup></sub>
 | Bookkeeping, AR/AP                   | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
 | Legal contracts                      | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
-| Customer renewals                    | <sup><sub>_See [🌦️ VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Customer renewals                    | <sup><sub>_See [🌦️ SVP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Customer deployments                 | <sup><sub>_See [🌦️ Infrastructure Engineer](https://fleetdm.com/handbook/customer-success#team)_ </sup></sub>
 | Customer support                     | <sup><sub>_See [🌦️ Customer Success team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Quality assurance (QA)               | <sup><sub>_See [🚀 Engineering team](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
@@ -206,7 +206,7 @@ All managers at Fleet have [1:1 meetings](https://handbook.gitlab.com/handbook/l
 
 ### Skip-level 1:1 meetings 
 
-Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#performance-feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
+Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
 1. Create a copy of the ["Skip-level 1:1 agenda template"](https://docs.google.com/document/d/191wiy-_a9XBMndLlM97iOwUF6a-0PtkbboQ2FCUIy6w/copy) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
 2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager's supervisor and title the calendar event by copying your skip-level agenda title and appending "[no shadows]" to the end (this tells other team members that this is a private conversation).
 3. Link the skip-level agenda in the calendar event description before saving.
@@ -433,7 +433,7 @@ Learn how to contribute to the handbook, documentation, and articles at Fleet on
 
 ## Feedback
 
-At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
+At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#delivering-performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
 - Feedback is something to share with the DRI, who has the context and mission to hear your feedback and decide what to do.
 - Feedback is better shared in a way that doesn't ping the customer. Reading it doesn't help them. 
 - Feedback is ready to share. If it's just an opinion without a solution or an opinion about a customer's contribution without specifically saying why the contribution would make the product worse, it's not feedback that's ready to share.
