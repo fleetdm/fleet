@@ -5,4 +5,4 @@ version: v2.7.1
 plugins:
   - module: "go.uber.org/nilaway"
     import: "go.uber.org/nilaway/cmd/gclplugin"
-    version: latest # Or a fixed version for reproducible builds.
+    version: v0.0.0-20260126174828-99d94caaf043 # fixed version for reproducible builds - latest as of 2026-01-29
