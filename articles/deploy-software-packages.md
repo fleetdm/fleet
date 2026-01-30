@@ -103,6 +103,8 @@ After a software package is added to a team, it can be installed on hosts via th
 
 Once the package is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
+> .ipa apps on iOS/iPadOS will be uninstalled when the host is unenrolled from MDM.
+
 ## Edit the package
 
 * Navigate to the **Software** page, choose a team, and select the software you want to edit.

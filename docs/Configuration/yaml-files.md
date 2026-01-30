@@ -536,9 +536,13 @@ software:
       categories:
         - Communication
       setup_experience: true
+      auto_update_enabled: true
+      auto_update_window_start: "00:00"
+      auto_update_window_end: "04:00"
     - app_store_id: "us.zoom.videomeetings"
       platform: android
       self_service: true
+      setup_experience: true
       configuration:
         path: ../lib/software/zoom-config.json
   fleet_maintained_apps:
@@ -550,13 +554,13 @@ software:
       post_install_script:
         path: ../lib/software/slack-config-script.sh
       self_service: true
+      setup_experience: true
       labels_include_any:
         - Design
         - Sales
       categories:
         - Communication
         - Productivity
-      setup_experience: true
 ```
 
 #### self_service, labels, categories, and setup_experience
